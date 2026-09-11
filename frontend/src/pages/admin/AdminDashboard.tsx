@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ShieldCheck, Server, Database, Zap, ArrowRight, UserCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { api } from '../../services/api.js';
+import { api } from '../../services/api';
 
 interface HealthData {
   status: string;

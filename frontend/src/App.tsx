@@ -1,25 +1,28 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { LoginPage } from './pages/LoginPage.js';
-import { ProtectedRoute } from './components/common/ProtectedRoute.js';
-import { AdminLayout } from './layouts/AdminLayout.js';
-import { DoctorLayout } from './layouts/DoctorLayout.js';
-import { PatientLayout } from './layouts/PatientLayout.js';
-import { AdminDashboard } from './pages/admin/AdminDashboard.js';
-import { DoctorVettingPage } from './pages/admin/DoctorVettingPage.js';
-import { UserManagementPage } from './pages/admin/UserManagementPage.js';
-import { SpecialtyManagementPage } from './pages/admin/SpecialtyManagementPage.js';
-import { DoctorDashboard } from './pages/doctor/DoctorDashboard.js';
-import { DoctorProfilePage } from './pages/doctor/DoctorProfilePage.js';
-import { PatientDashboard } from './pages/patient/PatientDashboard.js';
-import { DocumentSummarizerPage } from './pages/patient/DocumentSummarizerPage.js';
-import { DoctorSearchPage } from './pages/patient/DoctorSearchPage.js';
-import { SymptomTriagePage } from './pages/patient/SymptomTriagePage.js';
+import { LandingPage } from './pages/LandingPage';
+import { LoginPage } from './pages/LoginPage';
+import { ProtectedRoute } from './components/common/ProtectedRoute';
+import { AdminLayout } from './layouts/AdminLayout';
+import { DoctorLayout } from './layouts/DoctorLayout';
+import { PatientLayout } from './layouts/PatientLayout';
+import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { DoctorVettingPage } from './pages/admin/DoctorVettingPage';
+import { UserManagementPage } from './pages/admin/UserManagementPage';
+import { SpecialtyManagementPage } from './pages/admin/SpecialtyManagementPage';
+import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
+import { DoctorProfilePage } from './pages/doctor/DoctorProfilePage';
+import { PatientDashboard } from './pages/patient/PatientDashboard';
+import { DocumentSummarizerPage } from './pages/patient/DocumentSummarizerPage';
+import { DoctorSearchPage } from './pages/patient/DoctorSearchPage';
+import { SymptomTriagePage } from './pages/patient/SymptomTriagePage';
 
 export function App() {
   return (
     <BrowserRouter>
       <Routes>
         {/* Public Routes */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/landing" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
 
         {/* Admin Protected Routes */}
@@ -51,7 +54,7 @@ export function App() {
         </Route>
 
         {/* Fallback */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

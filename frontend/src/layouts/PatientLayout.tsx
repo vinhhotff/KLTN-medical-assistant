@@ -1,8 +1,8 @@
 import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { HeartPulse, MessageSquare, UploadCloud, LogOut, Search } from 'lucide-react';
-import { MedicalDisclaimerBanner } from '../components/common/MedicalDisclaimerBanner.js';
-import { useAuthStore } from '../store/useAuthStore.js';
+import { MedicalDisclaimerBanner } from '../components/common/MedicalDisclaimerBanner';
+import { useAuthStore } from '../store/useAuthStore';
 
 export const PatientLayout: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuthStore();

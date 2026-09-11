@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Clock, Check, X, AlertCircle, FileBadge, Building2, User } from 'lucide-react';
-import { api } from '../../services/api.js';
+import { api } from '../../services/api';
 
 interface PendingDoctor {
   id: string;

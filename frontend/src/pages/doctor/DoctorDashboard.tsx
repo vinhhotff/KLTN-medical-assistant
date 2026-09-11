@@ -16,8 +16,8 @@ import {
   X,
   Printer
 } from 'lucide-react';
-import { useAuthStore } from '../../store/useAuthStore.js';
-import { api } from '../../services/api.js';
+import { useAuthStore } from '../../store/useAuthStore';
+import { api } from '../../services/api';
 
 interface DoctorAppointment {
   id: string;
