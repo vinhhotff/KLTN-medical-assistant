@@ -25,18 +25,18 @@ export const PatientLayout: React.FC = () => {
 
             <nav className="hidden md:flex items-center gap-2 text-sm font-medium">
               <Link
-                to="/patient"
+                to="/patient/triage"
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-100 transition"
               >
                 <MessageSquare className="w-4 h-4 text-indigo-600" />
                 Trợ Lý Triệu Chứng AI
               </Link>
               <Link
-                to="/patient/documents"
+                to="/patient"
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-100 transition"
               >
-                <UploadCloud className="w-4 h-4 text-teal-600" />
-                Tóm Tắt Bệnh Án
+                <HeartPulse className="w-4 h-4 text-emerald-600" />
+                Lịch Hẹn Của Tôi
               </Link>
               <Link
                 to="/patient/doctors"
@@ -44,6 +44,13 @@ export const PatientLayout: React.FC = () => {
               >
                 <Search className="w-4 h-4 text-sky-600" />
                 Tìm & Đặt Bác Sĩ
+              </Link>
+              <Link
+                to="/patient/documents"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-100 transition"
+              >
+                <UploadCloud className="w-4 h-4 text-teal-600" />
+                Tóm Tắt Bệnh Án
               </Link>
             </nav>
           </div>

@@ -31,15 +31,18 @@ public class AdminVettingService {
     private final UserRepository userRepository;
     private final AuditLogRepository auditLogRepository;
     private final TwoLayerCacheService cacheService;
+    private final DoctorSemanticSearchService doctorSemanticSearchService;
 
     public AdminVettingService(DoctorProfileRepository doctorProfileRepository,
                                UserRepository userRepository,
                                AuditLogRepository auditLogRepository,
-                               TwoLayerCacheService cacheService) {
+                               TwoLayerCacheService cacheService,
+                               DoctorSemanticSearchService doctorSemanticSearchService) {
         this.doctorProfileRepository = doctorProfileRepository;
         this.userRepository = userRepository;
         this.auditLogRepository = auditLogRepository;
         this.cacheService = cacheService;
+        this.doctorSemanticSearchService = doctorSemanticSearchService;
     }
 
     public List<DoctorDetailDto> getPendingDoctors() {
@@ -58,6 +61,19 @@ public class AdminVettingService {
         profile.setVerified(approve);
         if (approve) {
             profile.setVerifiedAt(LocalDateTime.now());
+            try {
+                String specNames = profile.getSpecialties().stream()
+                        .map(com.mediassist.model.entity.Specialty::getName)
+                        .collect(Collectors.joining(", "));
+                String docText = String.format("%s. %s. Chuyên khoa: %s. Kinh nghiệm: %d năm.",
+                        profile.getUser() != null ? profile.getUser().getFullName() : "",
+                        profile.getBio() != null ? profile.getBio() : "",
+                        specNames,
+                        profile.getYearsOfExperience());
+                doctorSemanticSearchService.updateDoctorEmbedding(profile.getId(), docText);
+            } catch (Exception e) {
+                log.warn("Failed to generate embedding for newly vetted doctor: {}", e.getMessage());
+            }
         }
 
         DoctorProfile updated = doctorProfileRepository.save(profile);

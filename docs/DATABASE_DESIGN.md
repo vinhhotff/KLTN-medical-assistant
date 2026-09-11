@@ -98,43 +98,38 @@ CREATE INDEX idx_specialties_code ON specialties(code);
 Hồ sơ chứng chỉ hành nghề, học vị và vector biểu diễn chuyên môn lâm sàng.
 
 ```sql
-CREATE TABLE doctors (
-    id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    license_number VARCHAR(100) NOT NULL UNIQUE, -- Số Chứng chỉ hành nghề (CCHN)
-    license_issued_date DATE NOT NULL,
-    license_issued_by VARCHAR(200) NOT NULL,     -- Bộ Y Tế hoặc Sở Y Tế cấp
-    title VARCHAR(100) NOT NULL,                 -- Thạc sĩ, Tiến sĩ, Bác sĩ CKI, CKII
-    workplace VARCHAR(255) NOT NULL,             -- Bệnh viện công tác hiện tại
-    biography TEXT NOT NULL,                     -- Quá trình công tác, thế mạnh lâm sàng
-    bio_embedding vector(1536),                  -- Text-embedding-3-small vector
-    consultation_fee NUMERIC(12, 2) NOT NULL DEFAULT 300000.00,
-    vetting_status VARCHAR(30) NOT NULL DEFAULT 'PENDING' 
-        CHECK (vetting_status IN ('PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED')),
-    vetted_by UUID REFERENCES users(id),
-    vetted_at TIMESTAMPTZ,
-    rejection_reason TEXT,
-    years_of_experience INT NOT NULL DEFAULT 0,
-    rating_avg NUMERIC(3, 2) NOT NULL DEFAULT 5.00,
-    review_count INT NOT NULL DEFAULT 0,
+#### Bảng `doctor_profiles`
+Hồ sơ chứng chỉ hành nghề, học vị và vector biểu diễn chuyên môn lâm sàng thực tế (`doctor_profiles`).
+
+```sql
+CREATE TABLE doctor_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    bio TEXT,                                    -- Tiểu sử, kinh nghiệm và thế mạnh lâm sàng
+    license_number VARCHAR(255) UNIQUE,          -- Số CCHN y tế (Ví dụ: 008921/BYT-CCHN)
+    license_document_url VARCHAR(255),           -- Ảnh/PDF chứng chỉ hành nghề
+    consultation_fee NUMERIC(10, 2) DEFAULT 0.00,-- Phí khám tư vấn (VND)
+    years_of_experience INT DEFAULT 0,           -- Số năm kinh nghiệm
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,  -- Trạng thái phê duyệt của Admin
+    verified_at TIMESTAMPTZ,
+    bio_embedding vector(1536),                  -- Vector nhúng 1536 chiều từ Bio + Chuyên khoa
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Index HNSW tăng tốc truy vấn vector tương đồng cosine cho Doctor Matching
-CREATE INDEX idx_doctors_bio_embedding_hnsw ON doctors 
-USING hnsw (bio_embedding vector_cosine_ops)
-WITH (m = 16, ef_construction = 64);
+-- Index HNSW tăng tốc truy vấn vector tương đồng cosine cho Semantic Doctor Matching
+CREATE INDEX idx_doctor_bio_hnsw ON doctor_profiles 
+USING hnsw (bio_embedding vector_cosine_ops);
 
-CREATE INDEX idx_doctors_vetting_status ON doctors(vetting_status);
+CREATE INDEX idx_doctor_verified ON doctor_profiles(is_verified);
 ```
 
 #### Bảng trung gian `doctor_specialties`
 ```sql
 CREATE TABLE doctor_specialties (
-    doctor_id UUID NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+    doctor_profile_id UUID NOT NULL REFERENCES doctor_profiles(id) ON DELETE CASCADE,
     specialty_id UUID NOT NULL REFERENCES specialties(id) ON DELETE RESTRICT,
-    is_primary BOOLEAN NOT NULL DEFAULT FALSE,
-    PRIMARY KEY (doctor_id, specialty_id)
+    PRIMARY KEY (doctor_profile_id, specialty_id)
 );
 ```
 
@@ -142,29 +137,29 @@ CREATE TABLE doctor_specialties (
 
 ### 2.4. Nhóm Bảng AI Symptom Triage & Phân Tích Bệnh Án (AI Workflow)
 
-#### Bảng `symptom_triage_sessions`
+#### Bảng `triage_sessions` (Hiện thực hóa chuẩn hóa của `symptom_triage_sessions`)
 Lưu trữ toàn bộ phiên hội thoại sàng lọc sơ bộ giữa bệnh nhân và trợ lý AI.
 
 ```sql
-CREATE TABLE symptom_triage_sessions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    patient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    chief_complaint TEXT NOT NULL,                -- Triệu chứng chính (Bệnh nhân tự khai)
-    chief_complaint_embedding vector(1536),       -- Vector nhúng ngữ nghĩa triệu chứng
-    conversation_history JSONB NOT NULL DEFAULT '[]'::jsonb, -- Toàn bộ đoạn chat
-    ai_risk_level VARCHAR(20) NOT NULL DEFAULT 'LOW' 
-        CHECK (ai_risk_level IN ('EMERGENCY', 'URGENT', 'ROUTINE', 'LOW')),
-    recommended_specialty_id UUID REFERENCES specialties(id),
-    clinical_summary TEXT,                        -- Tóm tắt chuẩn SBAR gửi cho bác sĩ
-    is_red_flag_triggered BOOLEAN NOT NULL DEFAULT FALSE,
-    disclaimer_acknowledged BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE triage_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL, -- Nullable cho khách vãng lai
+    patient_name VARCHAR(255),
+    symptoms_text TEXT NOT NULL,                  -- Lời khai triệu chứng bệnh nhân
+    is_emergency BOOLEAN NOT NULL DEFAULT FALSE,  -- Đánh dấu cờ đỏ cấp cứu
+    urgency_level VARCHAR(20) NOT NULL           -- ROUTINE, URGENT, EMERGENCY
+        CHECK (urgency_level IN ('ROUTINE', 'URGENT', 'EMERGENCY')),
+    primary_specialty VARCHAR(100),               -- Slug chuyên khoa gợi ý (cardiology, neurology...)
+    sbar_summary TEXT,                            -- Báo cáo lâm sàng chuẩn SBAR
+    ai_advice TEXT,                               -- Lời khuyên ban đầu cho người bệnh
+    conversation_history TEXT,                    -- Lịch sử trao đổi
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_triage_patient ON symptom_triage_sessions(patient_id);
-CREATE INDEX idx_triage_risk ON symptom_triage_sessions(ai_risk_level);
-CREATE INDEX idx_triage_created_at ON symptom_triage_sessions(created_at DESC);
+CREATE INDEX idx_triage_user ON triage_sessions(user_id);
+CREATE INDEX idx_triage_urgency ON triage_sessions(urgency_level);
+CREATE INDEX idx_triage_created_at ON triage_sessions(created_at DESC);
+```
 ```
 
 #### Bảng `medical_documents` & `document_analyses`

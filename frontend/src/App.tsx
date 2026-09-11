@@ -13,6 +13,7 @@ import { DoctorProfilePage } from './pages/doctor/DoctorProfilePage.js';
 import { PatientDashboard } from './pages/patient/PatientDashboard.js';
 import { DocumentSummarizerPage } from './pages/patient/DocumentSummarizerPage.js';
 import { DoctorSearchPage } from './pages/patient/DoctorSearchPage.js';
+import { SymptomTriagePage } from './pages/patient/SymptomTriagePage.js';
 
 export function App() {
   return (
@@ -43,6 +44,7 @@ export function App() {
         <Route element={<ProtectedRoute allowedRoles={['PATIENT', 'ADMIN']} />}>
           <Route path="/patient" element={<PatientLayout />}>
             <Route index element={<PatientDashboard />} />
+            <Route path="triage" element={<SymptomTriagePage />} />
             <Route path="documents" element={<DocumentSummarizerPage />} />
             <Route path="doctors" element={<DoctorSearchPage />} />
           </Route>
