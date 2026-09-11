@@ -36,6 +36,10 @@ public class UserDto {
         );
     }
 
+    public static UserDto fromEntity(User user) {
+        return from(user);
+    }
+
     public UUID getId() { return id; }
     public String getEmail() { return email; }
     public String getFullName() { return fullName; }

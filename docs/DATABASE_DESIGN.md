@@ -233,6 +233,25 @@ CREATE INDEX idx_appointments_doctor ON appointments(doctor_id);
 CREATE INDEX idx_appointments_status ON appointments(status);
 ```
 
+#### Bảng `doctor_schedule_slots`
+Lưu trữ cấu hình khung giờ làm việc và tiếp nhận bệnh nhân định kỳ của bác sĩ theo các thứ trong tuần.
+
+```sql
+CREATE TABLE doctor_schedule_slots (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    doctor_profile_id UUID NOT NULL REFERENCES doctor_profiles(id) ON DELETE CASCADE,
+    day_of_week VARCHAR(20) NOT NULL, -- MONDAY, TUESDAY, WEDNESDAY, ...
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    slot_duration_minutes INT NOT NULL DEFAULT 30,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_doctor_schedule_lookup 
+ON doctor_schedule_slots(doctor_profile_id, day_of_week, is_active);
+```
+
 ---
 
 ### 2.6. Nhóm Bảng Giám Sát Chi Phí & Kiểm Toán (FinOps & Audit Security)

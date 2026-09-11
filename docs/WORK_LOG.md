@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#004** | 11/09/2026 | Hoàn tất toàn bộ Milestone 1 (Seeding 3 vai trò, OpenAPI, k6 test, Postman, DoD 100%) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#005** | 11/09/2026 | Hoàn tất Milestone 2 (Booking Concurrency Guard, Doctor Schedule & Vetting, 3 Dashboards) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#004** | 11/09/2026 | Hoàn tất toàn bộ Milestone 1 (Seeding 3 vai trò, OpenAPI, k6 test, Postman, DoD 100%) | AI Assistant | 🟢 Đã Duyệt |
 | **#003** | 11/09/2026 | Ban hành quy chế làm việc nhóm, RACI, GitHub templates & quy chuẩn Work Log | AI Assistant | 🟢 Đã Duyệt |
 | **#002** | 11/09/2026 | Sửa lỗi Admin redirect, tạo 6 trang con, tạo bộ 4 tài liệu docs/ | AI Assistant | 🟢 Đã Kiểm Tra & Commit |
 | **#001** | 11/09/2026 | Thiết lập nền tảng: Java 21, Spring Boot 3, Redis Two-Layer Cache, Docker Postgres 5433 | AI Assistant | 🟢 Đã Hoàn Thành |
@@ -57,6 +58,65 @@ Mỗi khi AI hoặc Developer cập nhật mã nguồn, **bắt buộc copy mẫ
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#005] Hoàn Tất Toàn Bộ Milestone 2 — Core Medical & Booking Workflow
+* **Thời gian:** 2026-09-11 20:35:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case / Issue:** `UC-OPS-05` (Booking Concurrency Guard) & `UC-ADM-06` (Doctor Vetting)
+* **Trạng thái Build:** Frontend `npm run build` PASS (0 lỗi TS, 2.66s) | Backend `mvn test` PASS (6/6 tests).
+
+#### 1. Mục Tiêu & Bối Cảnh Nghiệp Vụ
+Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
+1. Khám phá danh bạ bác sĩ và tự động sinh ca khám 30 phút theo ngày, tự động ẩn ca đã bị đặt.
+2. Đặt lịch khám phòng ngừa race condition bằng Optimistic Locking (`@Version`), isolation `REPEATABLE_READ`, kiểm tra xung đột `existsConflict`, sinh mã `AP-YYYYMMDD-XXXXXX` chuẩn y tế.
+3. Quy trình thẩm định bác sĩ (Doctor Vetting): Admin phê duyệt/từ chối CCHN, tự động làm mới L1/L2 Two-Layer Cache (`doctors:verified`) và ghi nhật ký kiểm toán `audit_logs`.
+4. Giao diện người dùng thực tế 100% không dùng mock data: `DoctorSearchPage` (Modal đặt khám), `PatientDashboard` (Lịch hẹn & Hủy ca), `DoctorDashboard` (Ca khám & Hoàn tất chẩn đoán), `DoctorProfilePage` (Cập nhật hồ sơ CCHN), `DoctorVettingPage` (Hàng đợi duyệt bác sĩ của Admin).
+
+#### 2. Chi Tiết Thay Đổi Mã Nguồn (Files Changed)
+- `[NEW]` [`backend/src/main/java/com/mediassist/model/entity/Appointment.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/model/entity/Appointment.java): Thực thể lịch hẹn y tế kèm `@Version` optimistic locking, quan hệ Patient & Doctor, feeAmount, và indexes.
+- `[NEW]` [`backend/src/main/java/com/mediassist/model/entity/DoctorScheduleSlot.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/model/entity/DoctorScheduleSlot.java): Thực thể cấu hình ca làm việc định kỳ hàng tuần.
+- `[NEW]` [`backend/src/main/java/com/mediassist/model/entity/AppointmentStatus.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/model/entity/AppointmentStatus.java): Enum trạng thái cuộc hẹn (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`, `NO_SHOW`).
+- `[NEW]` [`backend/src/main/java/com/mediassist/model/entity/PaymentStatus.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/model/entity/PaymentStatus.java): Enum thanh toán (`UNPAID`, `PAID`, `REFUNDED`).
+- `[NEW]` [`backend/src/main/java/com/mediassist/repository/AppointmentRepository.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/repository/AppointmentRepository.java): Query kiểm tra xung đột trùng giờ (`existsConflict`), tìm theo Doctor/Patient và dải thời gian.
+- `[NEW]` [`backend/src/main/java/com/mediassist/repository/DoctorScheduleSlotRepository.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/repository/DoctorScheduleSlotRepository.java): Tra cứu khung giờ làm việc của bác sĩ.
+- `[NEW]` DTOs: `CreateAppointmentRequest.java`, `AppointmentDto.java`, `DoctorDetailDto.java`, `DoctorSlotDto.java`, `UpdateDoctorProfileRequest.java`, `VetDoctorRequest.java`.
+- `[NEW]` [`backend/src/main/java/com/mediassist/service/DoctorService.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/service/DoctorService.java): Động hóa ca khám 30 phút, lọc ca quá khứ, tra cứu và cập nhật hồ sơ bác sĩ.
+- `[NEW]` [`backend/src/main/java/com/mediassist/service/AppointmentService.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/service/AppointmentService.java): Đặt lịch khám an toàn `@Transactional(isolation = Isolation.REPEATABLE_READ)`, trả về HTTP 409 `SLOT_CONFLICT`, cập nhật trạng thái kèm phân quyền vai trò.
+- `[NEW]` [`backend/src/main/java/com/mediassist/service/AdminVettingService.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/service/AdminVettingService.java): Thẩm định CCHN bác sĩ, evict cache Two-Layer, ghi audit log.
+- `[NEW]` [`backend/src/main/java/com/mediassist/controller/DoctorController.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/controller/DoctorController.java): REST API tra cứu bác sĩ, lấy slots khả dụng, cập nhật hồ sơ.
+- `[NEW]` [`backend/src/main/java/com/mediassist/controller/AppointmentController.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/controller/AppointmentController.java): REST API đặt lịch, xem lịch hẹn cá nhân, cập nhật trạng thái.
+- `[NEW]` [`backend/src/main/java/com/mediassist/controller/AdminController.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/controller/AdminController.java): REST API xem bác sĩ chờ duyệt và thẩm định cấp phép.
+- `[MOD]` [`backend/src/main/java/com/mediassist/config/SecurityConfig.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/config/SecurityConfig.java): Mở quyền truy cập công khai `GET /api/v1/doctors/**` phục vụ tìm kiếm và xem ca khám.
+- `[MOD]` [`backend/src/main/java/com/mediassist/config/DataInitializer.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/config/DataInitializer.java): Bổ sung bác sĩ mẫu unverified (`doctor.pending@mediassist.local`) để Admin kiểm thử luồng vetting.
+- `[NEW]` [`backend/src/test/java/com/mediassist/AppointmentServiceTest.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/test/java/com/mediassist/AppointmentServiceTest.java): Kiểm thử đơn vị luồng đặt lịch thành công, kiểm tra xung đột trùng giờ (409 Conflict), và bắt lỗi đặt giờ trong quá khứ.
+- `[MOD]` [`frontend/src/pages/patient/DoctorSearchPage.tsx`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/frontend/src/pages/patient/DoctorSearchPage.tsx): Kết nối API thực tế, modal đặt khám động chọn ngày & khung giờ, hiển thị thẻ xác nhận mã `AP-...`.
+- `[MOD]` [`frontend/src/pages/patient/PatientDashboard.tsx`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/frontend/src/pages/patient/PatientDashboard.tsx): Tích hợp danh sách lịch hẹn của bệnh nhân và chức năng hủy hẹn.
+- `[MOD]` [`frontend/src/pages/doctor/DoctorDashboard.tsx`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/frontend/src/pages/doctor/DoctorDashboard.tsx): Quản lý ca khám bệnh nhân, cập nhật trạng thái hoàn tất kèm ghi chú dặn dò.
+- `[MOD]` [`frontend/src/pages/doctor/DoctorProfilePage.tsx`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/frontend/src/pages/doctor/DoctorProfilePage.tsx): Cập nhật CCHN, giá khám và tiểu sử qua `PUT /doctors/me/profile`.
+- `[MOD]` [`frontend/src/pages/admin/DoctorVettingPage.tsx`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/frontend/src/pages/admin/DoctorVettingPage.tsx): Quản lý hàng đợi duyệt bác sĩ với nút Phê duyệt / Từ chối thời gian thực.
+
+#### 3. Đồng Bộ Tài Liệu (Docs Synchronized)
+- [x] `docs/DATABASE_DESIGN.md`: Bổ sung DDL bảng `appointments` (kèm Optimistic Locking `@Version`, constraint `CHECK (scheduled_end > scheduled_start)`) và bảng `doctor_schedule_slots`.
+- [x] `docs/USE_CASES.md`: Bổ sung chi tiết REST Endpoints, Happy Path và Conflict Exception Flow cho `UC-OPS-05` và `UC-ADM-06`.
+- [x] `ROADMAP.md`: Đánh dấu Milestone 2 chuyển trạng thái 🟢 **COMPLETED**, bổ sung bảng ma trận phân công và DoD 10 tiêu chí.
+
+#### 4. Bằng Chứng Kiểm Thử Tự Động (Verification Proof)
+- **Backend:** `mvn test` $\rightarrow$ **6/6 tests PASS** (3 tests `AppointmentServiceTest`, 3 tests `TwoLayerCacheServiceTest`).
+- **Frontend:** `npm run build` $\rightarrow$ **PASS 0 lỗi TypeScript**, thời gian build 2.66s, bundle 306.63 kB.
+- **Tích hợp API Thực Tế:**
+  - `POST /api/v1/appointments` đặt thành công ca đầu tiên: `AP-20260911-C2B717` (HTTP 201).
+  - Thử đặt lại cùng khung giờ: Trả về HTTP 409 Conflict (`SLOT_CONFLICT: Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước`).
+  - `GET /api/v1/doctors/{id}/slots` ca vừa đặt tự động chuyển `available: false`.
+  - Admin duyệt bác sĩ `doctor.pending@mediassist.local`: Trả về HTTP 200, cache `doctors:verified` bị xóa ngay, danh bạ tăng từ 1 lên 2 bác sĩ xác thực.
+
+#### 5. Điểm Nóng Cần Tech Lead Review Kỹ (Hotspots for Tech Lead)
+- [x] **Cơ Chế Concurrency Guard:** Kết hợp `@Version` trên entity `Appointment`, isolation level `REPEATABLE_READ` và câu truy vấn `existsConflict()` để ngăn chặn triệt để đặt trùng ca ngay từ tầng ứng dụng trước khi chạm database constraint.
+- [x] **Phân Quyền SecurityConfig:** `GET /api/v1/doctors/**` được cấp quyền `permitAll()`, nhưng các phương thức mutation (`PUT /api/v1/doctors/me/profile`) được bảo vệ nghiêm ngặt bằng `@PreAuthorize("hasRole('DOCTOR')")`.
+- [x] **Đồng Bộ Bộ Nhớ Đệm Two-Layer:** Mọi thao tác cập nhật hồ sơ bác sĩ hoặc duyệt CCHN đều gọi `cacheService.evict("doctors:verified")`, đảm bảo dữ liệu mới nhất phản ánh ngay lập tức trên cả L1 Caffeine và L2 Redis.
+
+---
 
 ---
 

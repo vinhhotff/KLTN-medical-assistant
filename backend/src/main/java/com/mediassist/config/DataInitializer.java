@@ -105,6 +105,33 @@ public class DataInitializer implements CommandLineRunner {
             doctorProfileRepository.save(profile);
             log.info("✅ Seeded Doctor: {} (License: 008921/BYT-CCHN)", docEmail);
         }
+
+        String pendingDocEmail = "doctor.pending@mediassist.local";
+        if (!userRepository.existsByEmail(pendingDocEmail)) {
+            User pendingDocUser = User.builder()
+                    .email(pendingDocEmail)
+                    .fullName("BS. CKI Lê Hoàng Long")
+                    .phone("0934567890")
+                    .passwordHash(passwordEncoder.encode("Doctor@SecurePass2026!"))
+                    .role(Role.DOCTOR)
+                    .status(UserStatus.ACTIVE)
+                    .build();
+            pendingDocUser = userRepository.save(pendingDocUser);
+
+            var neuro = specialtyRepository.findBySlug("neurology");
+            DoctorProfile pendingProfile = new DoctorProfile();
+            pendingProfile.setUser(pendingDocUser);
+            pendingProfile.setBio("Chuyên khoa Thần kinh, điều trị đau đầu mãn tính, rối loạn tiền đình và thoái hóa thần kinh.");
+            pendingProfile.setLicenseNumber("015482/BYT-CCHN");
+            pendingProfile.setYearsOfExperience(8);
+            pendingProfile.setConsultationFee(new BigDecimal("300000.00"));
+            pendingProfile.setVerified(false);
+            if (neuro.isPresent()) {
+                pendingProfile.setSpecialties(new HashSet<>(Set.of(neuro.get())));
+            }
+            doctorProfileRepository.save(pendingProfile);
+            log.info("✅ Seeded Pending Doctor: {} (License: 015482/BYT-CCHN, unverified)", pendingDocEmail);
+        }
     }
 
     private void seedPatient() {

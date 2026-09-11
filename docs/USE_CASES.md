@@ -154,41 +154,53 @@ graph TD
 
 * **Mã Use Case:** `UC-OPS-05`
 * **Tác nhân chính:** Patient, Doctor, Hệ thống thanh toán/đặt chỗ.
-* **Mục tiêu:** Đảm bảo một khung giờ (Slot) của bác sĩ chỉ có duy nhất 1 bệnh nhân đặt thành công, ngay cả khi hàng chục người cùng bấm nút tại cùng một mili-giây.
+* **Mục tiêu:** Đảm bảo một khung giờ (Slot) của bác sĩ chỉ có duy nhất 1 bệnh nhân đặt thành công, ngăn chặn race condition bằng Optimistic Locking (`@Version`), isolation level `REPEATABLE_READ`, và Partial Unique Index.
+* **REST Endpoints:**
+  - `GET /api/v1/doctors/{id}/slots?date=YYYY-MM-DD`: Tra cứu slot 30 phút khả dụng trong ngày.
+  - `POST /api/v1/appointments`: Đặt lịch khám mới (`{ doctorId, scheduledStart, notes }`). Trả về HTTP 201 kèm `appointmentCode`.
+  - `GET /api/v1/appointments/my`: Lấy danh sách lịch hẹn của người dùng hiện tại (lọc theo role Patient/Doctor).
+  - `PATCH /api/v1/appointments/{id}/status`: Cập nhật trạng thái (`SCHEDULED` -> `COMPLETED` / `CANCELLED`).
 
 #### Luồng sự kiện chính (Happy Path):
-1. Bệnh nhân chọn Bác sĩ, ngày khám và khung giờ còn trống (Ví dụ: `09:00 - 09:30 ngày 15/03/2026`).
-2. Bệnh nhân bấm *"Xác nhận đặt lịch"*.
-3. Backend mở giao dịch `@Transactional(isolation = Isolation.REPEATABLE_READ)`:
-   - Kiểm tra xem slot đã có cuộc hẹn nào ở trạng thái `SCHEDULED` chưa qua câu lệnh:
+1. Bệnh nhân vào trang danh bạ, chọn Bác sĩ, chọn ngày khám và khung giờ còn trống (Ví dụ: `09:00 - 09:30 ngày 12/09/2026`).
+2. Bệnh nhân nhập triệu chứng và bấm *"Xác nhận đặt khám"*.
+3. Trình duyệt gửi `POST /api/v1/appointments` kèm Bearer token.
+4. Backend mở giao dịch `@Transactional(isolation = Isolation.REPEATABLE_READ)`:
+   - Kiểm tra xem slot đã có cuộc hẹn nào ở trạng thái không bị hủy chưa qua câu lệnh:
      ```sql
-     SELECT id FROM appointments 
-     WHERE doctor_id = :doctorId AND scheduled_start = :startTime AND status = 'SCHEDULED' 
-     FOR UPDATE;
+     SELECT COUNT(a) > 0 FROM Appointment a 
+     WHERE a.doctor.id = :doctorId AND a.scheduledStart = :scheduledStart 
+       AND a.status NOT IN (AppointmentStatus.CANCELLED)
      ```
+   - Sinh mã định danh giao dịch chuẩn: `AP-YYYYMMDD-XXXXXX`.
    - Tạo bản ghi mới vào bảng `appointments` với `version = 0`.
-   - Unique Partial Index `idx_unique_doctor_schedule` bảo vệ tầng DB.
-4. Gửi email xác nhận lịch hẹn kèm đường dẫn phòng khám trực tuyến.
-5. Cuộc hẹn xuất hiện trên bảng điều khiển của cả Bác sĩ và Bệnh nhân.
+   - Ghi nhật ký kiểm toán vào `audit_logs` với action `APPOINTMENT_BOOKED`.
+5. Backend trả về HTTP 201 Created cùng `AppointmentDto`.
+6. Cuộc hẹn xuất hiện trên bảng điều khiển của cả Bác sĩ (`DoctorDashboard`) và Bệnh nhân (`PatientDashboard`).
 
 #### Luồng xung đột (Conflict Exception Flow):
-* **3a. Người khác đã đặt slot trước đó 50ms:** Giao dịch bắt được lỗi `DataIntegrityViolationException` hoặc `ObjectOptimisticLockingFailureException`. Hệ thống rollback giao dịch, trả về thông báo thân thiện: *"Khung giờ này vừa có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác liền kề."*
+* **3a. Người khác đã đặt slot trước đó:** `existsConflict` phát hiện trùng giờ $\rightarrow$ Ném ngoại lệ `AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", ...)`. Backend trả về HTTP 409: *"Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác."*
 
 ---
 
 ### UC-06: Thẩm Định Bác Sĩ & Ghi Nhật Ký Kiểm Toán (Doctor Vetting & Audit Trail)
 
 * **Mã Use Case:** `UC-ADM-06`
-* **Tác nhân chính:** Admin.
+* **Tác nhân chính:** Admin, Doctor.
 * **Mục tiêu:** Xác minh tính chính danh, bằng cấp và số Chứng chỉ hành nghề (CCHN) của bác sĩ trước khi cho phép hồ sơ hiển thị công khai trên ứng dụng.
+* **REST Endpoints:**
+  - `GET /api/v1/admin/doctors/pending`: Lấy danh sách hồ sơ bác sĩ chưa xác thực (`isVerified = false`).
+  - `POST /api/v1/admin/doctors/{id}/vet`: Phê duyệt hoặc từ chối hồ sơ (`{ approve: boolean, rejectionReason: string }`).
+  - `PUT /api/v1/doctors/me/profile`: Bác sĩ tự cập nhật thông tin CCHN, tiểu sử, số năm kinh nghiệm, và giá khám.
 
 #### Luồng sự kiện chính (Happy Path):
 1. Admin truy cập đường dẫn `/admin/doctors` (Trang Duyệt Bác Sĩ).
-2. Hệ thống tải danh sách các bác sĩ đang ở trạng thái `vetting_status = 'PENDING'`.
-3. Admin kiểm tra số hiệu CCHN, cơ quan cấp phép và ảnh chụp bằng cấp đối chiếu với Cổng tra cứu thông tin của Bộ Y Tế.
+2. Hệ thống gọi `GET /api/v1/admin/doctors/pending` tải danh sách các bác sĩ đang chờ xác minh.
+3. Admin kiểm tra số hiệu CCHN, cơ quan cấp phép, số năm kinh nghiệm và chuyên khoa.
 4. Admin bấm *"Phê duyệt (Approve)"*:
-   - Backend cập nhật `vetting_status = 'VERIFIED'`, `vetted_by = admin_id`, `vetted_at = NOW()`.
-   - Xóa cache danh sách bác sĩ trên L1/L2 Cache để cập nhật bác sĩ mới ngay lập tức.
-   - Ghi nhật ký vào bảng `audit_logs`:
-     `action: VET_DOCTOR_APPROVE, actor: admin_id, entity: doctor_id`.
-5. Bác sĩ nhận được thông báo tài khoản đã được kích hoạt thành công.
+   - Backend gọi `adminVettingService.vetDoctor(id, true, null, adminId)`.
+   - Cập nhật `isVerified = true`, `verifiedAt = NOW()`.
+   - Đồng bộ xóa cache: `cacheService.evict("doctors:verified")` trên cả L1 Caffeine và L2 Redis để danh bạ bác sĩ công khai cập nhật ngay lập tức.
+   - Ghi nhật ký kiểm toán vào bảng `audit_logs`:
+     `action: VET_DOCTOR_APPROVED, actor: admin_id, resource: doctor_profiles/{id}`.
+5. Hồ sơ bác sĩ lập tức hiển thị công khai trên `DoctorSearchPage` cho tất cả bệnh nhân tra cứu và đặt lịch.

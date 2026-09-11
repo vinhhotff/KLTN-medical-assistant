@@ -57,6 +57,7 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/doctors/**").permitAll()
                         // Admin Protected
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         // Doctor Protected
