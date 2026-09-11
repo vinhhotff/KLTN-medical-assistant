@@ -1,73 +1,42 @@
-import React, { useState } from 'react';
-import { Plus, Search, Activity, Stethoscope } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Activity, Stethoscope, RefreshCw } from 'lucide-react';
+import { api } from '../../services/api.js';
 
-interface Specialty {
+interface SpecialtyItem {
   id: string;
-  code: string;
   name: string;
+  slug: string;
   description: string;
-  doctorCount: number;
-  isActive: boolean;
 }
 
-const INITIAL_SPECIALTIES: Specialty[] = [
-  {
-    id: 'sp-1',
-    code: 'CARDIO',
-    name: 'Tim Mạch',
-    description: 'Chẩn đoán và điều trị các bệnh lý tim, mạch máu và huyết áp cao.',
-    doctorCount: 8,
-    isActive: true,
-  },
-  {
-    id: 'sp-2',
-    code: 'DERMA',
-    name: 'Da Liễu & Thẩm Mỹ Da',
-    description: 'Điều trị viêm da cơ địa, mụn trứng cá, vảy nến và các bệnh ngoài da.',
-    doctorCount: 12,
-    isActive: true,
-  },
-  {
-    id: 'sp-3',
-    code: 'PEDIA',
-    name: 'Nhi Khoa',
-    description: 'Chăm sóc sức khỏe, tiêm chủng và điều trị bệnh cho trẻ sơ sinh và trẻ nhỏ.',
-    doctorCount: 15,
-    isActive: true,
-  },
-  {
-    id: 'sp-4',
-    code: 'NEURO',
-    name: 'Thần Kinh',
-    description: 'Khám và tư vấn các rối loạn tiền đình, đau đầu mạn tính, mất ngủ, đột quỵ.',
-    doctorCount: 6,
-    isActive: true,
-  },
-  {
-    id: 'sp-5',
-    code: 'ENT',
-    name: 'Tai Mũi Họng',
-    description: 'Khám viêm xoang, viêm họng hạt, viêm amidan và các bệnh lý đường hô hấp trên.',
-    doctorCount: 9,
-    isActive: true,
-  },
-  {
-    id: 'sp-6',
-    code: 'GENMED',
-    name: 'Nội Tổng Quát',
-    description: 'Khám tổng quát định kỳ, tầm soát bệnh mạn tính như tiểu đường, mỡ máu.',
-    doctorCount: 20,
-    isActive: true,
-  },
-];
-
 export const SpecialtyManagementPage: React.FC = () => {
+  const [specialties, setSpecialties] = useState<SpecialtyItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredSpecialties = INITIAL_SPECIALTIES.filter(
+  useEffect(() => {
+    fetchSpecialties();
+  }, []);
+
+  const fetchSpecialties = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/specialties');
+      if (res.data?.data) {
+        setSpecialties(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load specialties:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredSpecialties = specialties.filter(
     (s) =>
       s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.code.toLowerCase().includes(searchTerm.toLowerCase())
+      s.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -79,9 +48,12 @@ export const SpecialtyManagementPage: React.FC = () => {
             Quản lý các chuyên khoa lâm sàng, hỗ trợ gắn thẻ định danh cho bác sĩ và AI Triage phân luồng.
           </p>
         </div>
-        <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-xs transition">
-          <Plus className="w-4 h-4" />
-          Thêm Chuyên Khoa
+        <button
+          onClick={fetchSpecialties}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition cursor-pointer"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Làm Mới
         </button>
       </div>
 
@@ -99,32 +71,39 @@ export const SpecialtyManagementPage: React.FC = () => {
         <span className="text-xs text-slate-500 font-medium">Tổng cộng: {filteredSpecialties.length} chuyên khoa</span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filteredSpecialties.map((item) => (
-          <div key={item.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs hover:border-indigo-200 transition flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                  {item.code}
-                </span>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                  <Activity className="w-3 h-3" /> Đang sử dụng
-                </span>
+      {loading ? (
+        <div className="py-16 text-center text-slate-400 text-sm">Đang tải danh mục chuyên khoa...</div>
+      ) : filteredSpecialties.length === 0 ? (
+        <div className="py-16 text-center text-slate-400 text-sm bg-white rounded-2xl border border-slate-200">
+          Không tìm thấy chuyên khoa phù hợp.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredSpecialties.map((item) => (
+            <div key={item.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs hover:border-indigo-200 transition flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                    {item.slug.toUpperCase()}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    <Activity className="w-3 h-3" /> Chuẩn Bộ Y Tế
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-slate-900 mb-1">{item.name}</h3>
+                <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">{item.description}</p>
               </div>
-              <h3 className="text-base font-bold text-slate-900 mb-1">{item.name}</h3>
-              <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">{item.description}</p>
-            </div>
 
-            <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <div className="flex items-center gap-1.5 font-medium text-slate-700">
-                <Stethoscope className="w-4 h-4 text-indigo-600" />
-                <span>{item.doctorCount} Bác sĩ trực thuộc</span>
+              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <div className="flex items-center gap-1.5 font-medium text-slate-700">
+                  <Stethoscope className="w-4 h-4 text-indigo-600" />
+                  <span>Kích hoạt trên AI Triage</span>
+                </div>
               </div>
-              <button className="text-indigo-600 hover:text-indigo-800 font-medium">Chỉnh sửa</button>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

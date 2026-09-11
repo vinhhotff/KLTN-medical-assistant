@@ -21,14 +21,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
 
     List<Appointment> findByDoctorIdOrderByScheduledStartDesc(UUID doctorId);
 
-    @Query("SELECT a FROM Appointment a WHERE a.doctor.id = :doctorId AND a.scheduledStart >= :start AND a.scheduledEnd <= :end AND a.status != 'CANCELLED'")
+    @Query("SELECT a FROM Appointment a WHERE a.doctor.id = :doctorId AND a.scheduledStart >= :start AND a.scheduledEnd <= :end AND a.status != com.mediassist.model.entity.AppointmentStatus.CANCELLED")
     List<Appointment> findActiveAppointmentsByDoctorAndRange(
             @Param("doctorId") UUID doctorId,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
 
-    @Query("SELECT COUNT(a) > 0 FROM Appointment a WHERE a.doctor.id = :doctorId AND a.scheduledStart = :scheduledStart AND a.status != 'CANCELLED'")
+    @Query("SELECT COUNT(a) > 0 FROM Appointment a WHERE a.doctor.id = :doctorId AND a.scheduledStart = :scheduledStart AND a.status != com.mediassist.model.entity.AppointmentStatus.CANCELLED")
     boolean existsConflict(
             @Param("doctorId") UUID doctorId,
             @Param("scheduledStart") LocalDateTime scheduledStart

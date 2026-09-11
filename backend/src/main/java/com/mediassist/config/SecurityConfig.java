@@ -58,12 +58,16 @@ public class SecurityConfig {
                                 "/swagger-ui.html"
                         ).permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/doctors/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/specialties/**").permitAll()
                         // Admin Protected
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         // Doctor Protected
+                        .requestMatchers("/api/v1/doctors/me/**").hasRole("DOCTOR")
                         .requestMatchers("/api/v1/doctor/**").hasRole("DOCTOR")
                         // Patient Protected
                         .requestMatchers("/api/v1/patient/**").hasAnyRole("PATIENT", "ADMIN")
+                        // Appointments
+                        .requestMatchers("/api/v1/appointments/**").authenticated()
                         // Authenticated
                         .anyRequest().authenticated()
                 )

@@ -52,6 +52,7 @@ public class AdminVettingService {
     @Transactional
     public DoctorDetailDto vetDoctor(UUID doctorProfileId, boolean approve, String reason, UUID adminId) {
         DoctorProfile profile = doctorProfileRepository.findById(doctorProfileId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorProfileId))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
 
         profile.setVerified(approve);

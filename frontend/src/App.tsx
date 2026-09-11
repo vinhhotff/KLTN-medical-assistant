@@ -39,11 +39,13 @@ export function App() {
           </Route>
         </Route>
 
-        {/* Patient Routes */}
-        <Route path="/patient" element={<PatientLayout />}>
-          <Route index element={<PatientDashboard />} />
-          <Route path="documents" element={<DocumentSummarizerPage />} />
-          <Route path="doctors" element={<DoctorSearchPage />} />
+        {/* Patient Protected Routes */}
+        <Route element={<ProtectedRoute allowedRoles={['PATIENT', 'ADMIN']} />}>
+          <Route path="/patient" element={<PatientLayout />}>
+            <Route index element={<PatientDashboard />} />
+            <Route path="documents" element={<DocumentSummarizerPage />} />
+            <Route path="doctors" element={<DoctorSearchPage />} />
+          </Route>
         </Route>
 
         {/* Fallback */}

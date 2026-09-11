@@ -33,6 +33,13 @@ interface AppointmentConfirmation {
   feeAmount: number;
 }
 
+const formatLocalDate = (d: Date): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const DoctorSearchPage: React.FC = () => {
   const { user } = useAuthStore();
   const [doctors, setDoctors] = useState<DoctorDetail[]>([]);
@@ -44,7 +51,7 @@ export const DoctorSearchPage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
+    return formatLocalDate(tomorrow);
   });
   const [slots, setSlots] = useState<DoctorSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -287,7 +294,7 @@ export const DoctorSearchPage: React.FC = () => {
                     <input
                       type="date"
                       value={selectedDate}
-                      min={new Date().toISOString().split('T')[0]}
+                      min={formatLocalDate(new Date())}
                       onChange={(e) => handleDateChange(e.target.value)}
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />

@@ -57,11 +57,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   fetchCurrentUser: async () => {
     try {
       const res = await api.get('/auth/me');
-      if (res.data?.success && res.data?.data?.user) {
-        const user = res.data.data.user;
-        localStorage.setItem('mediassist_user', JSON.stringify(user));
+      const userData = res.data?.data?.user || res.data?.data;
+      if (res.data?.success && userData) {
+        localStorage.setItem('mediassist_user', JSON.stringify(userData));
         set({
-          user,
+          user: userData,
           isAuthenticated: true,
           isLoading: false,
         });

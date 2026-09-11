@@ -13,16 +13,20 @@ public class UserDto {
     private Role role;
     private UserStatus status;
     private String avatarUrl;
+    private String phone;
+    private java.time.LocalDateTime createdAt;
 
     public UserDto() {}
 
-    public UserDto(UUID id, String email, String fullName, Role role, UserStatus status, String avatarUrl) {
+    public UserDto(UUID id, String email, String fullName, Role role, UserStatus status, String avatarUrl, String phone, java.time.LocalDateTime createdAt) {
         this.id = id;
         this.email = email;
         this.fullName = fullName;
         this.role = role;
         this.status = status;
         this.avatarUrl = avatarUrl;
+        this.phone = phone;
+        this.createdAt = createdAt;
     }
 
     public static UserDto from(User user) {
@@ -32,7 +36,9 @@ public class UserDto {
                 user.getFullName(),
                 user.getRole(),
                 user.getStatus(),
-                user.getAvatarUrl()
+                user.getAvatarUrl(),
+                user.getPhone(),
+                user.getCreatedAt()
         );
     }
 
@@ -46,4 +52,6 @@ public class UserDto {
     public Role getRole() { return role; }
     public UserStatus getStatus() { return status; }
     public String getAvatarUrl() { return avatarUrl; }
+    public String getPhone() { return phone; }
+    public java.time.LocalDateTime getCreatedAt() { return createdAt; }
 }

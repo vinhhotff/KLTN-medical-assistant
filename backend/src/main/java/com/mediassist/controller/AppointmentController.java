@@ -31,7 +31,7 @@ public class AppointmentController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('PATIENT')")
+    @PreAuthorize("hasAnyRole('PATIENT', 'ADMIN')")
     @Operation(summary = "Book an appointment slot with concurrency collision prevention")
     public ResponseEntity<ApiResponse<AppointmentDto>> bookAppointment(
             @AuthenticationPrincipal UserPrincipal principal,
