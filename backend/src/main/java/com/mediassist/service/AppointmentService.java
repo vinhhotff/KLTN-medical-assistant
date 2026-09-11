@@ -2,6 +2,7 @@ package com.mediassist.service;
 
 import com.mediassist.common.AppException;
 import com.mediassist.dto.AppointmentDto;
+import com.mediassist.dto.ClinicalEncounterRequest;
 import com.mediassist.dto.CreateAppointmentRequest;
 import com.mediassist.model.entity.*;
 import com.mediassist.repository.AppointmentRepository;
@@ -92,6 +93,9 @@ public class AppointmentService {
                 .paymentStatus(PaymentStatus.UNPAID)
                 .consultationNotes(request.getNotes())
                 .build();
+        appointment.setQueueNumber("STT " + String.format("%02d", (int)(Math.random() * 25 + 1)));
+        appointment.setClinicRoom("Phòng Khám 204 - Khoa Chuyên Môn");
+        appointment.setChiefComplaint(request.getNotes() != null && !request.getNotes().isBlank() ? request.getNotes() : "Đăng ký khám tư vấn chuyên khoa");
 
         Appointment saved = appointmentRepository.save(appointment);
 
@@ -152,5 +156,57 @@ public class AppointmentService {
 
         log.info("ℹ️ Appointment {} status updated to {} by user {}", appointment.getAppointmentCode(), newStatus, userId);
         return AppointmentDto.fromEntity(updated);
+    }
+
+    @Transactional
+    public AppointmentDto completeClinicalEncounter(UUID appointmentId, UUID doctorUserId, ClinicalEncounterRequest req) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy thông tin cuộc hẹn"));
+
+        if (!appointment.getDoctor().getId().equals(doctorUserId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Chỉ bác sĩ phụ trách mới có quyền hoàn thành ca khám lâm sàng này");
+        }
+
+        appointment.setStatus(AppointmentStatus.COMPLETED);
+        if (req.getChiefComplaint() != null && !req.getChiefComplaint().isBlank()) {
+            appointment.setChiefComplaint(req.getChiefComplaint().trim());
+        }
+        if (req.getVitalSignsJson() != null && !req.getVitalSignsJson().isBlank()) {
+            appointment.setVitalSignsJson(req.getVitalSignsJson().trim());
+        }
+        if (req.getIcd10Code() != null && !req.getIcd10Code().isBlank()) {
+            appointment.setIcd10Code(req.getIcd10Code().trim());
+        }
+        if (req.getIcd10Name() != null && !req.getIcd10Name().isBlank()) {
+            appointment.setIcd10Name(req.getIcd10Name().trim());
+        }
+        if (req.getPrescriptionJson() != null && !req.getPrescriptionJson().isBlank()) {
+            appointment.setPrescriptionJson(req.getPrescriptionJson().trim());
+        }
+        if (req.getTreatmentPlan() != null && !req.getTreatmentPlan().isBlank()) {
+            appointment.setTreatmentPlan(req.getTreatmentPlan().trim());
+        }
+        if (req.getConsultationNotes() != null && !req.getConsultationNotes().isBlank()) {
+            appointment.setConsultationNotes(req.getConsultationNotes().trim());
+        }
+        if (req.getFollowUpDate() != null) {
+            appointment.setFollowUpDate(req.getFollowUpDate());
+        }
+        if (req.getClinicRoom() != null && !req.getClinicRoom().isBlank()) {
+            appointment.setClinicRoom(req.getClinicRoom().trim());
+        }
+
+        Appointment saved = appointmentRepository.save(appointment);
+
+        // Record Audit Log
+        AuditLog audit = new AuditLog();
+        audit.setUserId(doctorUserId);
+        audit.setAction("CLINICAL_ENCOUNTER_COMPLETED");
+        audit.setResource("appointments/" + saved.getId());
+        audit.setMetadata("ICD10: " + saved.getIcd10Code() + " - " + saved.getIcd10Name() + ", Code: " + saved.getAppointmentCode());
+        auditLogRepository.save(audit);
+
+        log.info("🩺 Clinical encounter completed: {} with ICD-10: {}", saved.getAppointmentCode(), saved.getIcd10Code());
+        return AppointmentDto.fromEntity(saved);
     }
 }

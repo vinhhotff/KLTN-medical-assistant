@@ -218,3 +218,47 @@ graph TD
    - Ghi nhật ký kiểm toán vào bảng `audit_logs`:
      `action: VET_DOCTOR_APPROVED, actor: admin_id, resource: doctor_profiles/{id}`.
 5. Hồ sơ bác sĩ lập tức hiển thị công khai trên `DoctorSearchPage` cho tất cả bệnh nhân tra cứu và đặt lịch.
+
+---
+
+### UC-07: Quản Lý Hộ Chiếu Y Tế & Bệnh Án Điện Tử (Patient EMR Medical Passport)
+
+* **Mã Use Case:** `UC-PAT-07`
+* **Tác nhân chính:** Patient, Doctor, Admin.
+* **Mục tiêu:** Quản lý toàn bộ thông tin hành chính y tế chuẩn bệnh viện (Mã BN bệnh viện `BN-YYYY-XXXXX`, 12 số CCCD, thẻ BHYT 15 ký tự, nhóm máu, tiền sử dị ứng thuốc và người liên hệ khẩn cấp). Cảnh báo đỏ dị ứng tức thời cho bác sĩ điều trị.
+* **REST Endpoints:**
+  - `GET /api/v1/patient/profile`: Bệnh nhân tra cứu hồ sơ y tế cá nhân.
+  - `PUT /api/v1/patient/profile`: Cập nhật thông tin CCCD, BHYT, nhóm máu, dị ứng, bệnh sử nền.
+  - `GET /api/v1/patient/profile/by-user/{userId}`: Bác sĩ điều trị tra cứu hồ sơ bệnh nhân trước ca khám.
+
+#### Luồng sự kiện chính (Happy Path):
+1. Bệnh nhân đăng nhập vào hệ thống và truy cập thẻ `Hồ Sơ Y Tế Bệnh Nhân (EMR Medical Passport)` trên Bảng điều khiển.
+2. Hệ thống hiển thị Thẻ Y Tế Chuẩn Bệnh Viện:
+   - Mã định danh bệnh viện: `BN-2026-08492`.
+   - Thẻ CCCD 12 số, Thẻ BHYT 15 số có hạn mức thanh toán bảo hiểm y tế.
+   - Nhóm máu (O+, A+, B+, AB+...).
+   - Banner Cảnh Báo Đỏ Dị Ứng (Ví dụ: `DỊ ỨNG PENICILLIN (Kháng sinh Beta-lactam) - NGUY CƠ SỐC PHẢN VỆ`).
+3. Người bệnh có thể bấm *"Chỉnh Sửa Hồ Sơ Y Tế"* để cập nhật số CCCD, địa chỉ, người liên hệ khẩn cấp.
+4. Bác sĩ khi khám bệnh cho bệnh nhân này có thể xem toàn bộ lịch sử bệnh án và các cảnh báo dị ứng thuốc.
+
+---
+
+### UC-08: Thực Hiện Khám Lâm Sàng, Ghi Nhận Sinh Hiệu, Chẩn Đoán ICD-10 & Kê Toa Thuốc Điện Tử (Clinical Encounter & e-Prescription)
+
+* **Mã Use Case:** `UC-DOC-08`
+* **Tác nhân chính:** Doctor, Patient.
+* **Mục tiêu:** Bác sĩ điều trị tiếp nhận ca khám, nhập bảng chỉ số sinh hiệu (Huyết áp, Mạch, Thân nhiệt, Nhịp thở, SpO2, BMI), chẩn đoán theo mã bệnh danh quốc tế ICD-10 của WHO, kê đơn thuốc điện tử nhiều loại kèm liều dùng / hướng dẫn sử dụng, và dặn dò tái khám.
+* **REST Endpoints:**
+  - `POST /api/v1/appointments/{id}/complete-clinical`: Bác sĩ hoàn tất ca khám lâm sàng với payload `ClinicalEncounterRequest`.
+
+#### Luồng sự kiện chính (Happy Path):
+1. Bác sĩ truy cập Bảng điều khiển lâm sàng `DoctorDashboard`.
+2. Tại danh sách lịch hẹn hôm nay, bác sĩ thấy số thứ tự khám `STT 08`, phòng khám `Phòng Khám 204`, và lý do vào viện của bệnh nhân.
+3. Bác sĩ bấm *"Khám Lâm Sàng & Kê Đơn (EMR)"* để mở Bàn Làm Việc Bác Sĩ (Clinical Workstation):
+   - Nhập bảng sinh hiệu: Huyết áp (135/85 mmHg), Nhịp tim (78 bpm), Thân nhiệt (36.8°C), Nhịp thở (18 bpm), SpO2 (98%), Chiều cao (170cm), Cân nặng (68kg) $\rightarrow$ Hệ thống tự động tính BMI: $23.53\text{ kg/m}^2$ (Thể trạng bình thường).
+   - Chọn hoặc nhập mã bệnh danh quốc tế ICD-10 (Ví dụ: `I20.9 - Bệnh tim thiếu máu cục bộ nghẽn mạch vành`).
+   - Lập Toa thuốc điện tử đa dòng: Tên thuốc, dạng bào chế, hàm lượng, số lượng, cách dùng (sáng/trưa/chiều/tối, trước/sau ăn), và lưu ý y lệnh.
+   - Nhập Kế hoạch điều trị & Chọn ngày hẹn tái khám.
+4. Bác sĩ bấm *"Ký Số & Hoàn Tất Khám Lâm Sàng"*.
+5. Backend lưu trữ trạng thái `status = 'COMPLETED'`, cập nhật toàn bộ `vitalSignsJson`, `icd10Code`, `prescriptionJson`, và gửi kết quả về bệnh án điện tử của người bệnh.
+6. Cả bác sĩ và bệnh nhân đều có thể mở xem bản in Bệnh Án Điện Tử & Toa Thuốc Chuẩn Bệnh Viện (với nút *"In Bệnh Án & Toa Thuốc"* theo mẫu quy chuẩn Bộ Y Tế).

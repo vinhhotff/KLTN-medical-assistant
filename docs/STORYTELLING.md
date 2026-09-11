@@ -19,6 +19,12 @@
 2. **Nghịch lý "Tờ giấy xét nghiệm bí ẩn":** Sau khi khám, bệnh nhân cầm trên tay phiếu kết quả xét nghiệm máu, siêu âm, đơn thuốc đầy ắp các từ viết tắt chuyên môn (*AST, ALT, Triglyceride, CrCl, INR, v.v.*). Vì bác sĩ quá bận rộn không thể giải thích cặn kẽ, bệnh nhân ra về trong trạng thái hoang mang, lo sợ tột cùng.
 3. **Hiểm họa "Bác sĩ Google" và Hội chứng Cyberchondria:** Khi không có ai giải thích, người bệnh lên mạng tra cứu. Thuật toán tìm kiếm thông thường lập tức trả về những kết cục tồi tệ nhất: từ một cơn đau đầu nhẹ biến thành "u não", từ vết mẩn ngứa biến thành "suy gan giai đoạn cuối". Hậu quả là người bệnh hoảng loạn tâm lý hoặc tự ý mua kháng sinh, thuốc giảm đau liều cao tại các hiệu thuốc trôi nổi, gây nguy hiểm đến tính mạng.
 
+### 1.3. Chuẩn Hóa Trải Nghiệm Bệnh Viện Thực Thụ: Hộ Chiếu Y Tế & Bệnh Án Điện Tử (Hospital HIS/EMR Standards)
+Y tế không thể là một ứng dụng "sơ sài vài trường thông tin". Một hệ thống y tế chuẩn mực phải vận hành với sự minh bạch, cẩn trọng và chuẩn chỉ như một bệnh viện đa khoa tuyến trung ương:
+1. **Định danh bệnh nhân chuẩn Bộ Y Tế:** Mỗi bệnh nhân sở hữu Mã bệnh nhân độc nhất (`BN-YYYY-XXXXX`), định danh qua Căn cước công dân 12 số và Thẻ Bảo Hiểm Y Tế (BHYT) 15 ký tự.
+2. **Hộ chiếu Y tế & Rào chắn Dị ứng Thuốc:** Quản lý nhóm máu (`O+`, `AB+`...) và hệ thống cảnh báo đỏ dị ứng thuốc tức thời (`DỊ ỨNG PENICILLIN - NGUY CƠ SỐC PHẢN VỆ`), ngăn ngừa tuyệt đối sai sót y khoa khi kê đơn.
+3. **Bàn làm việc Bác sĩ Lâm sàng (Clinical Workstation):** Bác sĩ tiếp nhận bệnh nhân theo số thứ tự (`STT 08`), đo đạc bảng chỉ số sinh hiệu đầy đủ (Huyết áp, Mạch, Thân nhiệt, Nhịp thở, SpO2, BMI tự động), chẩn đoán bệnh theo Bảng mã bệnh danh quốc tế **ICD-10** của Tổ chức Y tế Thế giới (WHO), và thiết lập toa thuốc điện tử đa hoạt chất kèm liều dùng minh bạch.
+
 ---
 
 ## 2. Giải Pháp: Sự Ra Đời Của MediAssist-AI

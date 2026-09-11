@@ -139,4 +139,35 @@ class AppointmentServiceTest {
         assertEquals("PAST_DATE", ex.getCode());
         verify(appointmentRepository, never()).save(any());
     }
+
+    @Test
+    void testCompleteClinicalEncounter_Success() {
+        UUID appointmentId = UUID.randomUUID();
+        Appointment appointment = Appointment.builder()
+                .id(appointmentId)
+                .appointmentCode("AP-20260911-TEST01")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .build();
+
+        when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        com.mediassist.dto.ClinicalEncounterRequest req = new com.mediassist.dto.ClinicalEncounterRequest();
+        req.setChiefComplaint("Đau ngực trái");
+        req.setVitalSignsJson("{\"bloodPressure\":\"130/80\"}");
+        req.setIcd10Code("I10");
+        req.setIcd10Name("Tăng huyết áp nguyên phát");
+        req.setPrescriptionJson("[{\"drugName\":\"Amlodipine 5mg\"}]");
+        req.setTreatmentPlan("Uống thuốc buổi sáng");
+
+        AppointmentDto result = appointmentService.completeClinicalEncounter(appointmentId, doctorId, req);
+
+        assertNotNull(result);
+        assertEquals(AppointmentStatus.COMPLETED, result.getStatus());
+        assertEquals("I10", result.getIcd10Code());
+        assertEquals("Tăng huyết áp nguyên phát", result.getIcd10Name());
+        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
+    }
 }

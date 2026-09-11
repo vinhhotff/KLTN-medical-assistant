@@ -11,6 +11,7 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
+| **#010** | 11/09/2026 | Nâng cấp toàn diện Chuẩn Bệnh Viện: EMR Hộ Chiếu Y Tế (BHYT/CCCD/Nhóm Máu/Dị Ứng), Bàn Làm Việc Bác Sĩ (Sinh Hiệu, ICD-10, Toa Thuốc Điện Tử) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#009** | 11/09/2026 | Hoàn tất Milestone 4: Quét PDF Xét Nghiệm, Trích Xuất Chỉ Số Sinh Hóa & Đề Xuất Bác Sĩ qua pgvector | AI Assistant | 🟢 Sẵn sàng Review |
 | **#008** | 11/09/2026 | Hoàn tất Milestone 3 (AI Symptom Triage, Red-Flag 115, pgvector Cosine Search & Booking UI) | AI Assistant | 🟢 Đã Duyệt |
 | **#007** | 11/09/2026 | Thiết lập và tuân thủ nghiêm ngặt GitFlow: Release Tags v1.0.0 & v2.0.0, Nhánh develop & feature | AI Assistant | 🟢 Đã Duyệt |
@@ -62,6 +63,65 @@ Mỗi khi AI hoặc Developer cập nhật mã nguồn, **bắt buộc copy mẫ
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#010] Nâng Cấp Toàn Diện Chuẩn Bệnh Viện (Hospital-Grade Expansion): EMR Hộ Chiếu Y Tế (BHYT/CCCD/Nhóm Máu/Dị Ứng), Bàn Làm Việc Bác Sĩ (Sinh Hiệu, ICD-10, Toa Thuốc Điện Tử)
+* **Thời gian:** 2026-09-11 21:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-PAT-07, UC-DOC-08
+* **Trạng thái Build:** Frontend `npm run build` PASS (0 lỗi TS, 2.76s, 1668 modules) | Backend `mvn test` PASS (21/21 tests, 0 failures).
+* **Nhánh phát triển:** `feature/hospital-grade-expansion` (chuẩn bị merge vào `develop`).
+
+#### 1. Mục Tiêu & Bối Cảnh Nghiệp Vụ
+- Theo chỉ đạo của Tech Lead: Hệ thống không thể sơ sài, ít trường thông tin mà phải chuẩn chỉ, minh bạch và chuyên nghiệp như một bệnh viện đa khoa tuyến trung ương thực thụ (HIS / EMR / LIS chuẩn Bộ Y Tế).
+- Bổ sung toàn diện mô hình dữ liệu y tế chuẩn mực:
+  1. **Hồ sơ bệnh nhân (Patient Profile - EMR Medical Passport):** Mã định danh bệnh viện (`BN-YYYY-XXXXX`), số CCCD 12 số, số thẻ BHYT 15 ký tự, ngày sinh, giới tính, nhóm máu (`O+`, `AB+`...), tiền sử bệnh nền, người liên hệ khẩn cấp và đặc biệt là **Cảnh báo đỏ dị ứng thuốc** (Penicillin, NSAIDs) hiển thị tức thời để phòng ngừa sốc phản vệ.
+  2. **Hồ sơ bác sĩ chuyên khoa sâu (Doctor Credentials):** Chức danh học thuật (`GS.TS`, `PGS.TS`, `TS.BS`, `BS.CKII`, `BS.CKI`), bệnh viện công tác (`BV Đại Học Y Dược TP.HCM`, `BV Chợ Rẫy`), khoa chuyên môn (`Khoa Tim Mạch Can Thiệp`), đơn vị cấp CCHN (`Cục Quản lý Khám chữa bệnh - Bộ Y Tế`), điểm đánh giá hài lòng và tổng số ca khám thành công.
+  3. **Vòng đời ca khám lâm sàng (Clinical Encounter):** Số thứ tự tiếp nhận bệnh viện (`STT 08`), phòng khám (`Phòng Khám 204`), lý do vào viện, bảng chỉ số sinh hiệu đầy đủ (Huyết áp, Mạch, Thân nhiệt, Nhịp thở, SpO2, Chiều cao, Cân nặng, tự động tính BMI), chẩn đoán bệnh theo Bảng mã bệnh danh quốc tế **ICD-10** của WHO, toa thuốc điện tử đa hoạt chất kèm liều dùng / cách dùng chi tiết, kế hoạch điều trị và hẹn tái khám.
+  4. **Giao diện chuẩn bệnh viện:** Bàn làm việc bác sĩ lâm sàng (Clinical Workstation), Thẻ Hộ chiếu Y tế bệnh nhân, và Bản in Bệnh án điện tử & Toa thuốc quy chuẩn Bộ Y Tế.
+
+#### 2. Chi Tiết Thay Đổi Mã Nguồn (Files Changed)
+- `[NEW]` `backend/src/main/java/com/mediassist/model/entity/PatientProfile.java`: JPA Entity hồ sơ bệnh nhân chuẩn EMR.
+- `[NEW]` `backend/src/main/java/com/mediassist/repository/PatientProfileRepository.java`: JPA Repository tra cứu bệnh nhân theo User, PatientCode, CitizenId.
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/PatientProfileDto.java`: DTO trao đổi hồ sơ y tế bệnh nhân.
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/ClinicalEncounterRequest.java`: DTO chứa đầy đủ dữ liệu ca khám lâm sàng (Sinh hiệu, ICD-10, Đơn thuốc).
+- `[NEW]` `backend/src/main/java/com/mediassist/service/PatientProfileService.java`: Dịch vụ quản lý hồ sơ EMR bệnh nhân, tự sinh mã bệnh nhân `BN-YYYY-XXXXX`.
+- `[NEW]` `backend/src/main/java/com/mediassist/controller/PatientProfileController.java`: REST API endpoints `/api/v1/patient/profile`.
+- `[NEW]` `backend/src/test/java/com/mediassist/PatientProfileServiceTest.java`: 2 unit tests kiểm thử khởi tạo và cập nhật hồ sơ bệnh nhân.
+- `[MOD]` `backend/src/main/java/com/mediassist/model/entity/DoctorProfile.java`: Bổ sung học vị, bệnh viện công tác, khoa, đơn vị cấp CCHN, rating, consultations.
+- `[MOD]` `backend/src/main/java/com/mediassist/model/entity/Appointment.java`: Bổ sung các trường khám lâm sàng: STT, phòng khám, sinh hiệu, ICD-10, toa thuốc JSON, kế hoạch điều trị, hẹn tái khám.
+- `[MOD]` `backend/src/main/java/com/mediassist/dto/DoctorDetailDto.java`: Ánh xạ học vị, bệnh viện, khoa, CCHN, rating.
+- `[MOD]` `backend/src/main/java/com/mediassist/dto/DoctorMatchDto.java`: Ánh xạ học vị và bệnh viện vào kết quả tìm kiếm ngữ nghĩa pgvector.
+- `[MOD]` `backend/src/main/java/com/mediassist/dto/AppointmentDto.java`: Bổ sung đầy đủ các trường khám lâm sàng EMR.
+- `[MOD]` `backend/src/main/java/com/mediassist/dto/UpdateDoctorProfileRequest.java`: Hỗ trợ cập nhật học hàm, bệnh viện công tác, khoa.
+- `[MOD]` `backend/src/main/java/com/mediassist/service/DoctorService.java`: Xử lý lưu các trường học vị, bệnh viện công tác.
+- `[MOD]` `backend/src/main/java/com/mediassist/service/DoctorSemanticSearchService.java`: Nâng cấp câu lệnh SQL pgvector để SELECT và trả về học vị, bệnh viện bác sĩ.
+- `[MOD]` `backend/src/main/java/com/mediassist/service/AppointmentService.java`: Thêm logic sinh STT tiếp nhận và phương thức `completeClinicalEncounter`.
+- `[MOD]` `backend/src/main/java/com/mediassist/controller/AppointmentController.java`: Endpoint `POST /api/v1/appointments/{id}/complete-clinical`.
+- `[MOD]` `backend/src/main/java/com/mediassist/config/SecurityConfig.java`: Cho phép DOCTOR tra cứu hồ sơ bệnh nhân để hội chẩn EMR.
+- `[MOD]` `backend/src/main/java/com/mediassist/config/DataInitializer.java`: Seed hồ sơ bệnh nhân mẫu `BN-2026-08492` (CCCD, BHYT, dị ứng Penicillin) và ca khám lâm sàng đã hoàn thành `AP-20260910-CLIN01` (ICD-10 I20.9, toa thuốc 3 loại).
+- `[MOD]` `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`: Bổ sung unit test `testCompleteClinicalEncounter_Success`.
+- `[MOD]` `frontend/src/pages/patient/PatientDashboard.tsx`: Thẻ Hộ Chiếu Y Tế (EMR Medical Passport), modal chỉnh sửa hồ sơ, STT khám, và Modal Xem Bệnh Án Điện Tử & Toa Thuốc Chuẩn Bộ Y Tế.
+- `[MOD]` `frontend/src/pages/doctor/DoctorDashboard.tsx`: Bàn Làm Việc Bác Sĩ Lâm Sàng (Clinical Workstation), đo sinh hiệu, chẩn đoán ICD-10, lập toa thuốc đa dòng, ký số hoàn tất.
+- `[MOD]` `frontend/src/pages/doctor/DoctorProfilePage.tsx`: Form cập nhật chức danh học thuật, bệnh viện công tác, khoa, đơn vị cấp CCHN.
+- `[MOD]` `frontend/src/pages/patient/DocumentSummarizerPage.tsx`: Thêm Banner Bệnh Viện Đa Khoa Quốc Tế MediAssist, mã SID, thiết bị tự động Roche Cobas, và huy hiệu học vị bác sĩ đề xuất.
+
+#### 3. Đồng Bộ Tài Liệu (Docs Synchronized)
+- [x] `docs/DATABASE_DESIGN.md`: Bổ sung bảng `patient_profiles`, cập nhật các cột mới trên `doctor_profiles` và `appointments`.
+- [x] `docs/USE_CASES.md`: Bổ sung `UC-07` (Patient EMR Medical Passport) và `UC-08` (Clinical Encounter & e-Prescription).
+- [x] `docs/STORYTELLING.md`: Bổ sung Mục 1.3 về Chuẩn hóa trải nghiệm Bệnh viện thực thụ.
+- [x] `ROADMAP.md`: Cập nhật Milestone 4 hoàn tất cùng gói tính năng Hospital EMR Expansion.
+
+#### 4. Bằng Chứng Kiểm Thử Tự Động (Verification Proof)
+- **Backend Unit Tests:** `mvn test` $\rightarrow$ **21/21 tests PASS (0 failures, 0 errors, 100% green)**.
+- **Frontend TypeScript Build:** `npm run build` $\rightarrow$ **0 lỗi TypeScript**, 1668 modules được transform thành công trong 2.76s.
+- **E2E Integration Verification:** Script `test_hospital_api.py` và `test_pdf_upload.py` chạy thành công, kết nối trực tiếp đến backend Spring Boot trên port 5000, PostgreSQL 16 `pgvector` trên port 5433, và Redis trên port 6379.
+
+#### 5. Điểm Nóng Cần Tech Lead Review Kỹ (Hotspots for Tech Lead)
+- [x] **Cơ chế lưu trữ JSON linh hoạt:** `vital_signs_json` và `prescription_json` được lưu dạng JSON trong PostgreSQL TEXT cột để đảm bảo tính linh hoạt tối đa cho các chuyên khoa khác nhau (ví dụ: Khoa Mắt đo thị lực, Sản khoa đo tim thai) mà không cần migration bảng liên tục.
+- [x] **Tính toán BMI tự động:** Giao diện lâm sàng tự động tính BMI và phân loại thể trạng (Gầy, Bình thường, Thừa cân, Béo phì) ngay khi điều dưỡng/bác sĩ nhập chiều cao và cân nặng.
+- [x] **Rào chắn Dị ứng Thuốc:** Banner cảnh báo đỏ nổi bật trên hồ sơ bệnh nhân giúp bác sĩ nhìn thấy ngay lập tức trước khi kê đơn.
 
 ---
 

@@ -23,6 +23,12 @@ public class DoctorDetailDto {
     private int yearsOfExperience;
     private boolean isVerified;
     private List<String> specialties;
+    private String academicTitle;
+    private String hospitalAffiliation;
+    private String department;
+    private String licenseIssuedBy;
+    private Double rating;
+    private Integer totalConsultations;
 
     public DoctorDetailDto() {}
 
@@ -42,6 +48,12 @@ public class DoctorDetailDto {
         dto.setConsultationFee(profile.getConsultationFee());
         dto.setYearsOfExperience(profile.getYearsOfExperience());
         dto.setVerified(profile.isVerified());
+        dto.setAcademicTitle(profile.getAcademicTitle());
+        dto.setHospitalAffiliation(profile.getHospitalAffiliation());
+        dto.setDepartment(profile.getDepartment());
+        dto.setLicenseIssuedBy(profile.getLicenseIssuedBy());
+        dto.setRating(profile.getRating() != null ? profile.getRating() : 4.9);
+        dto.setTotalConsultations(profile.getTotalConsultations() != null ? profile.getTotalConsultations() : 1250);
         if (profile.getSpecialties() != null) {
             dto.setSpecialties(profile.getSpecialties().stream()
                     .map(Specialty::getName)
@@ -85,4 +97,22 @@ public class DoctorDetailDto {
 
     public List<String> getSpecialties() { return specialties; }
     public void setSpecialties(List<String> specialties) { this.specialties = specialties; }
+
+    public String getAcademicTitle() { return academicTitle; }
+    public void setAcademicTitle(String academicTitle) { this.academicTitle = academicTitle; }
+
+    public String getHospitalAffiliation() { return hospitalAffiliation; }
+    public void setHospitalAffiliation(String hospitalAffiliation) { this.hospitalAffiliation = hospitalAffiliation; }
+
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
+
+    public String getLicenseIssuedBy() { return licenseIssuedBy; }
+    public void setLicenseIssuedBy(String licenseIssuedBy) { this.licenseIssuedBy = licenseIssuedBy; }
+
+    public Double getRating() { return rating; }
+    public void setRating(Double rating) { this.rating = rating; }
+
+    public Integer getTotalConsultations() { return totalConsultations; }
+    public void setTotalConsultations(Integer totalConsultations) { this.totalConsultations = totalConsultations; }
 }

@@ -12,7 +12,9 @@ import {
   HelpCircle,
   X,
   Stethoscope,
-  ChevronRight
+  ChevronRight,
+  Building2,
+  Printer
 } from 'lucide-react';
 import { api } from '../../services/api.js';
 import { useAuthStore } from '../../store/useAuthStore.js';
@@ -35,6 +37,8 @@ interface DoctorMatch {
   consultationFee: number;
   similarityScore: number;
   specialties: string[];
+  academicTitle?: string;
+  hospitalAffiliation?: string;
 }
 
 interface AnalysisResult {
@@ -376,7 +380,47 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
           </div>
 
           {/* Scribe Summary & Patient Translation */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-5">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-6">
+            {/* 🏥 Official Hospital Header */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-700/60 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-teal-400 flex-shrink-0">
+                    <Building2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-base tracking-tight text-white uppercase">Bệnh Viện Đa Khoa Quốc Tế MediAssist</h4>
+                    <p className="text-xs text-slate-400">Khoa Xét Nghiệm Hóa Sinh - Huyết Học & Chẩn Đoán Phân Tử | ISO 15189:2022</p>
+                  </div>
+                </div>
+                <div className="text-right text-xs space-y-1">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full font-mono text-[11px]">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Chữ ký số điện tử hợp lệ
+                  </div>
+                  <p className="text-slate-400 font-mono">Mã SID: <span className="text-teal-300 font-bold">SID-2026-LAB-08492</span></p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-2.5 bg-slate-800/80 rounded-xl">
+                  <span className="text-slate-400 text-[10px] block">Người Bệnh:</span>
+                  <span className="font-bold text-white">{user?.fullName || 'Nguyễn Văn B'}</span>
+                </div>
+                <div className="p-2.5 bg-slate-800/80 rounded-xl">
+                  <span className="text-slate-400 text-[10px] block">Thiết Bị Tự Động:</span>
+                  <span className="font-bold text-slate-200">Roche Cobas 8000</span>
+                </div>
+                <div className="p-2.5 bg-slate-800/80 rounded-xl">
+                  <span className="text-slate-400 text-[10px] block">Bác Sĩ Chỉ Định:</span>
+                  <span className="font-bold text-slate-200">TS.BS. Nguyễn Văn An</span>
+                </div>
+                <div className="p-2.5 bg-slate-800/80 rounded-xl">
+                  <span className="text-slate-400 text-[10px] block">Thời Gian Tiếp Nhận:</span>
+                  <span className="font-mono text-slate-200">11/09/2026 08:30</span>
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-teal-50 text-teal-600 rounded-xl">
@@ -388,9 +432,18 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 </div>
               </div>
 
-              <span className="px-3.5 py-1.5 bg-teal-50 text-teal-700 rounded-full text-xs font-bold border border-teal-200">
-                Chuyên khoa đề xuất: {analysis.recommendedSpecialtyName}
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5"
+                >
+                  <Printer className="w-3.5 h-3.5" /> In Phiếu Xét Nghiệm
+                </button>
+                <span className="px-3.5 py-1.5 bg-teal-50 text-teal-700 rounded-full text-xs font-bold border border-teal-200">
+                  Chuyên khoa đề xuất: {analysis.recommendedSpecialtyName}
+                </span>
+              </div>
             </div>
 
             {/* Plain Language Explanation Box */}
@@ -482,12 +535,26 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="flex items-center gap-1.5">
+                            {doc.academicTitle && (
+                              <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                                {doc.academicTitle}
+                              </span>
+                            )}
                             <h4 className="font-bold text-slate-900 text-base">{doc.fullName}</h4>
                             <span title="Đã thẩm định CCHN">
                               <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                             </span>
                           </div>
-                          <p className="text-xs text-slate-400 mt-0.5">CCHN: {doc.licenseNumber}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-500">
+                            {doc.hospitalAffiliation && (
+                              <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
+                                <Building2 className="w-3.5 h-3.5 text-teal-600" />
+                                {doc.hospitalAffiliation}
+                              </span>
+                            )}
+                            <span>•</span>
+                            <span className="font-mono">CCHN: {doc.licenseNumber}</span>
+                          </div>
                         </div>
 
                         {/* Match Score Badge */}

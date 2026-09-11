@@ -1,17 +1,17 @@
 package com.mediassist.config;
 
 import com.mediassist.model.entity.*;
-import com.mediassist.repository.DoctorProfileRepository;
-import com.mediassist.repository.SpecialtyRepository;
-import com.mediassist.repository.UserRepository;
+import com.mediassist.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -28,6 +28,9 @@ public class DataInitializer implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
     private final com.mediassist.service.DoctorSemanticSearchService doctorSemanticSearchService;
 
+    private final PatientProfileRepository patientProfileRepository;
+    private final AppointmentRepository appointmentRepository;
+
     @Value("${app.seed.admin.email:admin@mediassist.local}")
     private String adminEmail;
 
@@ -40,16 +43,21 @@ public class DataInitializer implements CommandLineRunner {
     public DataInitializer(UserRepository userRepository,
                            SpecialtyRepository specialtyRepository,
                            DoctorProfileRepository doctorProfileRepository,
+                           PatientProfileRepository patientProfileRepository,
+                           AppointmentRepository appointmentRepository,
                            PasswordEncoder passwordEncoder,
                            com.mediassist.service.DoctorSemanticSearchService doctorSemanticSearchService) {
         this.userRepository = userRepository;
         this.specialtyRepository = specialtyRepository;
         this.doctorProfileRepository = doctorProfileRepository;
+        this.patientProfileRepository = patientProfileRepository;
+        this.appointmentRepository = appointmentRepository;
         this.passwordEncoder = passwordEncoder;
         this.doctorSemanticSearchService = doctorSemanticSearchService;
     }
 
     @Override
+    @Transactional
     public void run(String... args) {
         log.info("🌱 Checking database seed requirements for Milestone 1 & 2...");
 
@@ -109,11 +117,17 @@ public class DataInitializer implements CommandLineRunner {
             profile.setConsultationFee(new BigDecimal("350000.00"));
             profile.setVerified(true);
             profile.setVerifiedAt(LocalDateTime.now());
+            profile.setAcademicTitle("TS. BS.");
+            profile.setHospitalAffiliation("Bệnh viện Đại Học Y Dược TP.HCM");
+            profile.setDepartment("Khoa Can Thiệp Tim Mạch & Hồi Sức Cấp Cứu");
+            profile.setLicenseIssuedBy("Cục Quản Lý Khám Chữa Bệnh - Bộ Y Tế");
+            profile.setRating(4.95);
+            profile.setTotalConsultations(1820);
             if (cardio.isPresent()) {
                 profile.setSpecialties(new HashSet<>(Set.of(cardio.get())));
             }
             doctorProfileRepository.save(profile);
-            log.info("✅ Seeded Doctor: {} (License: 008921/BYT-CCHN)", docEmail);
+            log.info("✅ Seeded Doctor: {} (License: 008921/BYT-CCHN, Academic: TS. BS.)", docEmail);
         }
 
         String pendingDocEmail = "doctor.pending@mediassist.local";
@@ -136,18 +150,48 @@ public class DataInitializer implements CommandLineRunner {
             pendingProfile.setYearsOfExperience(8);
             pendingProfile.setConsultationFee(new BigDecimal("300000.00"));
             pendingProfile.setVerified(false);
+            pendingProfile.setAcademicTitle("BS. CKI");
+            pendingProfile.setHospitalAffiliation("Bệnh viện Chợ Rẫy TP.HCM");
+            pendingProfile.setDepartment("Khoa Thần Kinh & Rối Loạn Tiền Đình");
+            pendingProfile.setLicenseIssuedBy("Sở Y Tế TP. Hồ Chí Minh");
+            pendingProfile.setRating(4.88);
+            pendingProfile.setTotalConsultations(960);
             if (neuro.isPresent()) {
                 pendingProfile.setSpecialties(new HashSet<>(Set.of(neuro.get())));
             }
             doctorProfileRepository.save(pendingProfile);
             log.info("✅ Seeded Pending Doctor: {} (License: 015482/BYT-CCHN, unverified)", pendingDocEmail);
         }
+
+        // Backfill existing doctor profiles if academicTitle is null
+        doctorProfileRepository.findAll().forEach(p -> {
+            if (p.getAcademicTitle() == null) {
+                if (p.getUser() != null && p.getUser().getFullName() != null && p.getUser().getFullName().contains("Nguyễn Văn An")) {
+                    p.setAcademicTitle("TS. BS.");
+                    p.setHospitalAffiliation("Bệnh viện Đại Học Y Dược TP.HCM");
+                    p.setDepartment("Khoa Can Thiệp Tim Mạch & Hồi Sức Cấp Cứu");
+                    p.setLicenseIssuedBy("Cục Quản Lý Khám Chữa Bệnh - Bộ Y Tế");
+                    p.setRating(4.95);
+                    p.setTotalConsultations(1820);
+                    doctorProfileRepository.save(p);
+                } else if (p.getUser() != null && p.getUser().getFullName() != null && p.getUser().getFullName().contains("Lê Hoàng Long")) {
+                    p.setAcademicTitle("BS. CKI");
+                    p.setHospitalAffiliation("Bệnh viện Chợ Rẫy TP.HCM");
+                    p.setDepartment("Khoa Thần Kinh & Rối Loạn Tiền Đình");
+                    p.setLicenseIssuedBy("Sở Y Tế TP. Hồ Chí Minh");
+                    p.setRating(4.88);
+                    p.setTotalConsultations(960);
+                    doctorProfileRepository.save(p);
+                }
+            }
+        });
     }
 
     private void seedPatient() {
         String patientEmail = "patient@mediassist.local";
+        User patientUser;
         if (!userRepository.existsByEmail(patientEmail)) {
-            User patientUser = User.builder()
+            patientUser = User.builder()
                     .email(patientEmail)
                     .fullName("Trần Thị Bình")
                     .phone("0987654321")
@@ -155,8 +199,60 @@ public class DataInitializer implements CommandLineRunner {
                     .role(Role.PATIENT)
                     .status(UserStatus.ACTIVE)
                     .build();
-            userRepository.save(patientUser);
+            patientUser = userRepository.save(patientUser);
             log.info("✅ Seeded Patient: {}", patientEmail);
+        } else {
+            patientUser = userRepository.findByEmail(patientEmail).orElse(null);
+        }
+
+        if (patientUser != null) {
+            if (patientProfileRepository.findByUser(patientUser).isEmpty()) {
+                PatientProfile pp = new PatientProfile();
+                pp.setUser(patientUser);
+                pp.setPatientCode("BN-2026-08492");
+                pp.setCitizenId("079188002931");
+                pp.setHealthInsuranceNumber("DN4791234567890");
+                pp.setDateOfBirth(LocalDate.of(1988, 10, 15));
+                pp.setGender("FEMALE");
+                pp.setBloodGroup("O+");
+                pp.setAddress("Số 128 Nguyễn Tri Phương, Phường 9, Quận 5, TP. Hồ Chí Minh");
+                pp.setAllergies("Dị ứng nhóm kháng sinh Beta-lactam (Penicillin, Amoxicillin), Tôm cua biển");
+                pp.setMedicalHistory("Tăng huyết áp nguyên phát 3 năm (đang kiểm soát), Tiền sử gia đình có bố bị đột quỵ não");
+                pp.setEmergencyContactName("Trần Văn Hùng");
+                pp.setEmergencyContactPhone("0909123888");
+                pp.setEmergencyContactRelationship("Chồng");
+                patientProfileRepository.save(pp);
+                log.info("✅ Seeded Hospital PatientProfile for code: {}", pp.getPatientCode());
+            }
+
+            // Seed a realistic completed clinical encounter
+            String demoAppCode = "AP-20260910-CLIN01";
+            if (!appointmentRepository.existsByAppointmentCode(demoAppCode)) {
+                User doc = userRepository.findByEmail("doctor@mediassist.local").orElse(null);
+                if (doc != null) {
+                    Appointment clinicalApp = new Appointment();
+                    clinicalApp.setAppointmentCode(demoAppCode);
+                    clinicalApp.setPatient(patientUser);
+                    clinicalApp.setDoctor(doc);
+                    clinicalApp.setScheduledStart(LocalDateTime.now().minusDays(1).withHour(9).withMinute(0));
+                    clinicalApp.setScheduledEnd(LocalDateTime.now().minusDays(1).withHour(9).withMinute(30));
+                    clinicalApp.setStatus(AppointmentStatus.COMPLETED);
+                    clinicalApp.setPaymentStatus(PaymentStatus.PAID);
+                    clinicalApp.setFeeAmount(new BigDecimal("350000.00"));
+                    clinicalApp.setQueueNumber("STT 08");
+                    clinicalApp.setClinicRoom("Phòng Khám 204 - Khoa Tim Mạch Can Thiệp");
+                    clinicalApp.setChiefComplaint("Đau thắt ngực trái âm ỉ khi gắng sức, hồi hộp trống ngực 1 tuần nay");
+                    clinicalApp.setVitalSignsJson("{\"bloodPressure\":\"135/85\",\"heartRate\":78,\"temperature\":36.8,\"respiratoryRate\":18,\"height\":165,\"weight\":58,\"bmi\":21.3,\"spO2\":98}");
+                    clinicalApp.setIcd10Code("I20.9");
+                    clinicalApp.setIcd10Name("Cơn đau thắt ngực, không xác định (Angina pectoris, unspecified)");
+                    clinicalApp.setPrescriptionJson("[{\"drugName\":\"Lipitor 20mg\",\"activeIngredient\":\"Atorvastatin\",\"dosage\":\"Uống 1 viên vào buổi tối sau ăn\",\"quantity\":30,\"unit\":\"viên\",\"days\":30},{\"drugName\":\"Aspirin 81mg\",\"activeIngredient\":\"Aspirin\",\"dosage\":\"Uống 1 viên vào buổi sáng sau ăn no\",\"quantity\":30,\"unit\":\"viên\",\"days\":30},{\"drugName\":\"Betaloc ZOK 25mg\",\"activeIngredient\":\"Metoprolol succinate\",\"dosage\":\"Uống 1 viên vào buổi sáng\",\"quantity\":30,\"unit\":\"viên\",\"days\":30}]");
+                    clinicalApp.setTreatmentPlan("Kiểm soát chỉ số mỡ máu LDL-C < 1.8 mmol/L, duy trì huyết áp < 130/80 mmHg. Hạn chế mỡ động vật, tăng cường rau xanh, đi bộ nhẹ nhàng 30 phút/ngày.");
+                    clinicalApp.setConsultationNotes("Bệnh nhân tỉnh táo, tiếp xúc tốt. Tim đều, chưa nghe tiếng thổi bất thường. Điện tâm đồ ghi nhận nhịp xoang đều tần số 78 l/p. Bệnh nhân cần tiếp tục duy trì phác đồ hạ lipid máu và tái khám đúng hẹn.");
+                    clinicalApp.setFollowUpDate(LocalDate.now().plusDays(14));
+                    appointmentRepository.save(clinicalApp);
+                    log.info("✅ Seeded Hospital Clinical Encounter Appointment: {}", demoAppCode);
+                }
+            }
         }
     }
 

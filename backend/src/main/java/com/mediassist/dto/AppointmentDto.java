@@ -26,6 +26,15 @@ public class AppointmentDto {
     private PaymentStatus paymentStatus;
     private String consultationNotes;
     private String cancellationReason;
+    private String queueNumber;
+    private String clinicRoom;
+    private String chiefComplaint;
+    private String vitalSignsJson;
+    private String icd10Code;
+    private String icd10Name;
+    private String prescriptionJson;
+    private String treatmentPlan;
+    private java.time.LocalDate followUpDate;
     private LocalDateTime createdAt;
 
     public AppointmentDto() {}
@@ -52,6 +61,15 @@ public class AppointmentDto {
         dto.setPaymentStatus(a.getPaymentStatus());
         dto.setConsultationNotes(a.getConsultationNotes());
         dto.setCancellationReason(a.getCancellationReason());
+        dto.setQueueNumber(a.getQueueNumber());
+        dto.setClinicRoom(a.getClinicRoom());
+        dto.setChiefComplaint(a.getChiefComplaint());
+        dto.setVitalSignsJson(a.getVitalSignsJson());
+        dto.setIcd10Code(a.getIcd10Code());
+        dto.setIcd10Name(a.getIcd10Name());
+        dto.setPrescriptionJson(a.getPrescriptionJson());
+        dto.setTreatmentPlan(a.getTreatmentPlan());
+        dto.setFollowUpDate(a.getFollowUpDate());
         dto.setCreatedAt(a.getCreatedAt());
         return dto;
     }
@@ -103,6 +121,33 @@ public class AppointmentDto {
 
     public String getCancellationReason() { return cancellationReason; }
     public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
+
+    public String getQueueNumber() { return queueNumber; }
+    public void setQueueNumber(String queueNumber) { this.queueNumber = queueNumber; }
+
+    public String getClinicRoom() { return clinicRoom; }
+    public void setClinicRoom(String clinicRoom) { this.clinicRoom = clinicRoom; }
+
+    public String getChiefComplaint() { return chiefComplaint; }
+    public void setChiefComplaint(String chiefComplaint) { this.chiefComplaint = chiefComplaint; }
+
+    public String getVitalSignsJson() { return vitalSignsJson; }
+    public void setVitalSignsJson(String vitalSignsJson) { this.vitalSignsJson = vitalSignsJson; }
+
+    public String getIcd10Code() { return icd10Code; }
+    public void setIcd10Code(String icd10Code) { this.icd10Code = icd10Code; }
+
+    public String getIcd10Name() { return icd10Name; }
+    public void setIcd10Name(String icd10Name) { this.icd10Name = icd10Name; }
+
+    public String getPrescriptionJson() { return prescriptionJson; }
+    public void setPrescriptionJson(String prescriptionJson) { this.prescriptionJson = prescriptionJson; }
+
+    public String getTreatmentPlan() { return treatmentPlan; }
+    public void setTreatmentPlan(String treatmentPlan) { this.treatmentPlan = treatmentPlan; }
+
+    public java.time.LocalDate getFollowUpDate() { return followUpDate; }
+    public void setFollowUpDate(java.time.LocalDate followUpDate) { this.followUpDate = followUpDate; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

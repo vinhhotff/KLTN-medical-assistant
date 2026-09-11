@@ -5,6 +5,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -48,6 +49,33 @@ public class Appointment {
 
     @Column(columnDefinition = "TEXT")
     private String consultationNotes;
+
+    @Column(length = 20)
+    private String queueNumber; // STT 01, STT 02...
+
+    @Column(length = 100)
+    private String clinicRoom; // Phòng 204 - Khu Khám Yêu Cầu
+
+    @Column(columnDefinition = "TEXT")
+    private String chiefComplaint; // Lý do vào viện / Triệu chứng chính
+
+    @Column(columnDefinition = "TEXT")
+    private String vitalSignsJson; // Huyết áp, Mạch, Nhiệt độ, Nhịp thở, Chiều cao, Cân nặng, BMI, SpO2
+
+    @Column(length = 50)
+    private String icd10Code; // Mã ICD-10 chính (VD: I10, I20.9, K21.0)
+
+    @Column(length = 255)
+    private String icd10Name; // Tên chẩn đoán quốc tế
+
+    @Column(columnDefinition = "TEXT")
+    private String prescriptionJson; // Đơn thuốc ngoại trú dạng JSON
+
+    @Column(columnDefinition = "TEXT")
+    private String treatmentPlan; // Hướng xử trí / Lời dặn theo dõi
+
+    @Column
+    private LocalDate followUpDate; // Hẹn tái khám
 
     @Column(precision = 12, scale = 2, nullable = false)
     private BigDecimal feeAmount = BigDecimal.ZERO;
@@ -120,6 +148,33 @@ public class Appointment {
 
     public Long getVersion() { return version; }
     public void setVersion(Long version) { this.version = version; }
+
+    public String getQueueNumber() { return queueNumber; }
+    public void setQueueNumber(String queueNumber) { this.queueNumber = queueNumber; }
+
+    public String getClinicRoom() { return clinicRoom; }
+    public void setClinicRoom(String clinicRoom) { this.clinicRoom = clinicRoom; }
+
+    public String getChiefComplaint() { return chiefComplaint; }
+    public void setChiefComplaint(String chiefComplaint) { this.chiefComplaint = chiefComplaint; }
+
+    public String getVitalSignsJson() { return vitalSignsJson; }
+    public void setVitalSignsJson(String vitalSignsJson) { this.vitalSignsJson = vitalSignsJson; }
+
+    public String getIcd10Code() { return icd10Code; }
+    public void setIcd10Code(String icd10Code) { this.icd10Code = icd10Code; }
+
+    public String getIcd10Name() { return icd10Name; }
+    public void setIcd10Name(String icd10Name) { this.icd10Name = icd10Name; }
+
+    public String getPrescriptionJson() { return prescriptionJson; }
+    public void setPrescriptionJson(String prescriptionJson) { this.prescriptionJson = prescriptionJson; }
+
+    public String getTreatmentPlan() { return treatmentPlan; }
+    public void setTreatmentPlan(String treatmentPlan) { this.treatmentPlan = treatmentPlan; }
+
+    public LocalDate getFollowUpDate() { return followUpDate; }
+    public void setFollowUpDate(LocalDate followUpDate) { this.followUpDate = followUpDate; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

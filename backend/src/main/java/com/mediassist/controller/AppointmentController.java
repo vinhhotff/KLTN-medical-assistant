@@ -63,4 +63,15 @@ public class AppointmentController {
         AppointmentDto dto = appointmentService.updateAppointmentStatus(id, principal.getId(), principal.getRole(), newStatus, notes);
         return ResponseEntity.ok(ApiResponse.success(dto));
     }
+
+    @PostMapping("/{id}/complete-clinical")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Bác sĩ hoàn tất ca khám lâm sàng với Sinh hiệu, Chẩn đoán ICD-10 và Đơn thuốc điện tử")
+    public ResponseEntity<ApiResponse<AppointmentDto>> completeClinical(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody com.mediassist.dto.ClinicalEncounterRequest request) {
+        AppointmentDto dto = appointmentService.completeClinicalEncounter(id, principal.getId(), request);
+        return ResponseEntity.ok(ApiResponse.success(dto));
+    }
 }

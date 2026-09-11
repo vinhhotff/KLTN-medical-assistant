@@ -69,8 +69,8 @@ public class SecurityConfig {
                         // Doctor Protected
                         .requestMatchers("/api/v1/doctors/me/**").hasRole("DOCTOR")
                         .requestMatchers("/api/v1/doctor/**").hasRole("DOCTOR")
-                        // Patient Protected
-                        .requestMatchers("/api/v1/patient/**").hasAnyRole("PATIENT", "ADMIN")
+                        // Patient Protected (and Doctor EMR view)
+                        .requestMatchers("/api/v1/patient/**").hasAnyRole("PATIENT", "DOCTOR", "ADMIN")
                         // Appointments
                         .requestMatchers("/api/v1/appointments/**").authenticated()
                         // Authenticated
