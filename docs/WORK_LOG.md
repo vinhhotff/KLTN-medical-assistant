@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#008** | 11/09/2026 | Hoàn tất Milestone 3 (AI Symptom Triage, Red-Flag 115, pgvector Cosine Search & Booking UI) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#009** | 11/09/2026 | Hoàn tất Milestone 4: Quét PDF Xét Nghiệm, Trích Xuất Chỉ Số Sinh Hóa & Đề Xuất Bác Sĩ qua pgvector | AI Assistant | 🟢 Sẵn sàng Review |
+| **#008** | 11/09/2026 | Hoàn tất Milestone 3 (AI Symptom Triage, Red-Flag 115, pgvector Cosine Search & Booking UI) | AI Assistant | 🟢 Đã Duyệt |
 | **#007** | 11/09/2026 | Thiết lập và tuân thủ nghiêm ngặt GitFlow: Release Tags v1.0.0 & v2.0.0, Nhánh develop & feature | AI Assistant | 🟢 Đã Duyệt |
 | **#006** | 11/09/2026 | Rà soát toàn diện: Sửa lỗi kick logout me, nối API Users & Specialties thật, fix múi giờ & JPQL | AI Assistant | 🟢 Sẵn sàng Review |
 | **#005** | 11/09/2026 | Hoàn tất Milestone 2 (Booking Concurrency Guard, Doctor Schedule & Vetting, 3 Dashboards) | AI Assistant | 🟢 Đã Duyệt |
@@ -61,6 +62,73 @@ Mỗi khi AI hoặc Developer cập nhật mã nguồn, **bắt buộc copy mẫ
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#009] Hoàn Tất Milestone 4: Quét PDF Xét Nghiệm Đa Phương Thức, Trích Xuất Chỉ Số Sinh Hóa & Đề Xuất Bác Sĩ Bằng pgvector
+* **Thời gian:** 2026-09-11 21:15:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-CLIN-03
+* **Trạng thái Build:** Frontend `npm run build` PASS (0 lỗi TS, 2.61s) | Backend `mvn test` PASS (18/18 tests).
+* **Nhánh phát triển:** `feature/milestone-4-ocr-summary` (chuẩn bị merge vào `develop`).
+
+#### 1. Mục Tiêu & Bối Cảnh Nghiệp Vụ
+- Hiện thực hóa chức năng quét và bóc tách tài liệu y tế đa định dạng (PDF báo cáo xét nghiệm, văn bản thô kết quả cận lâm sàng).
+- Ứng dụng thư viện Apache PDFBox 3.0.4 (`org.apache.pdfbox:pdfbox`) bóc tách văn bản thô từ luồng nhị phân an toàn với `Loader.loadPDF(byte[])`.
+- Nhận diện và phân tích tự động các nhóm chỉ số sinh hóa thường gặp:
+  - **Bộ mỡ máu (Lipid panel):** Cholesterol toàn phần, Triglyceride, HDL-C, LDL-C.
+  - **Bộ men gan (Liver panel):** AST (SGOT), ALT (SGPT), GGT, Bilirubin toàn phần.
+  - **Bộ thận (Renal panel):** Creatinine huyết thanh, eGFR, Acid Uric.
+  - **Đường huyết (Glucose panel):** Glucose lúc đói, HbA1c.
+- So sánh các chỉ số với khoảng tham chiếu chuẩn y khoa và tự động gắn nhãn phân loại: `ELEVATED` (Tăng cao), `LOW` (Thấp), `NORMAL` (Bình thường).
+- Tự động xác định chuyên khoa lâm sàng đích (`cardiology`, `gastroenterology`, `nephrology`, `neurology`...).
+- Tạo báo cáo tóm tắt lâm sàng dành cho bác sĩ (`clinicalSummary`) và bản giải nghĩa ngôn ngữ bình dân dễ hiểu cho người bệnh (`plainLanguageExplanation`) kèm 3 câu hỏi tham vấn y khoa.
+- Tích hợp động cơ tìm kiếm ngữ nghĩa `pgvector` Cosine Similarity (`DoctorSemanticSearchService`): Biến tóm tắt lâm sàng thành vector nhúng 1536 chiều, đối chiếu với `bio_embedding` của các bác sĩ chuyên khoa đã xác thực (`is_verified = true`), đề xuất danh sách bác sĩ khớp nhất kèm độ tương đồng (`%`).
+- Nâng cấp giao diện người bệnh `DocumentSummarizerPage.tsx`: Hỗ trợ kéo thả tải tệp PDF thực tế (tối đa 15MB), các nút nạp nhanh kết quả mẫu ("Mẫu Mỡ Máu Cao", "Mẫu Men Gan Cao"), thanh tiến trình phân tích 3 bước động, bảng chỉ số cận lâm sàng phân màu trực quan, danh thiếp bác sĩ gợi ý và modal chọn lịch khám tích hợp tức thì.
+
+#### 2. Chi Tiết Thay Đổi Mã Nguồn (Files Changed)
+- `[MOD]` `backend/pom.xml`: Bổ sung thư viện Apache PDFBox 3.0.4 (`org.apache.pdfbox:pdfbox`).
+- `[NEW]` `backend/src/main/java/com/mediassist/model/entity/MedicalDocument.java`: Entity JPA lưu trữ siêu dữ liệu tài liệu y tế (`fileName`, `fileSizeBytes`, `contentType`, `storagePath`, `status`).
+- `[NEW]` `backend/src/main/java/com/mediassist/model/entity/DocumentAnalysis.java`: Entity JPA lưu trữ kết quả phân tích cận lâm sàng (`clinicalSummary`, `plainLanguageExplanation`, `abnormalIndicatorsJson`, `recommendedSpecialtySlug`, `suggestedQuestionsJson`).
+- `[NEW]` `backend/src/main/java/com/mediassist/repository/MedicalDocumentRepository.java`: Repository Spring Data JPA cho `MedicalDocument`.
+- `[NEW]` `backend/src/main/java/com/mediassist/repository/DocumentAnalysisRepository.java`: Repository Spring Data JPA cho `DocumentAnalysis`.
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/AbnormalIndicatorDto.java`: DTO cấu trúc của từng chỉ số xét nghiệm (tên, giá trị, đơn vị, khoảng chuẩn, trạng thái, ý nghĩa lâm sàng).
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/DocumentAnalysisResponse.java`: DTO phản hồi đầy đủ gồm thông tin tệp, giải thích người bệnh, bảng chỉ số, câu hỏi bác sĩ và danh sách bác sĩ được đề xuất qua `pgvector`.
+- `[NEW]` `backend/src/main/java/com/mediassist/service/PdfExtractionService.java`: Dịch vụ đọc và trích xuất nội dung văn bản từ tệp PDF nhị phân bằng PDFBox 3 `Loader.loadPDF`.
+- `[NEW]` `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`: Dịch vụ điều phối toàn trình phân tích tài liệu y tế, regex trích xuất chỉ số sinh hóa, ánh xạ chuyên khoa, sinh giải nghĩa đại chúng và gọi `DoctorSemanticSearchService` để xếp hạng bác sĩ.
+- `[NEW]` `backend/src/main/java/com/mediassist/controller/MedicalDocumentController.java`: REST Controller phơi bày `POST /api/v1/documents/analyze` (multipart) và `GET /api/v1/documents/my`.
+- `[MOD]` `backend/src/main/java/com/mediassist/config/SecurityConfig.java`: Phân quyền `POST /api/v1/documents/analyze` công khai để phục vụ cả khách vãng lai và bệnh nhân đăng nhập.
+- `[NEW]` `backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java`: 2 ca kiểm thử đơn vị tự động kiểm tra pipeline PDF và kết quả đề xuất bác sĩ tim mạch & tiêu hóa (18/18 tests PASS toàn hệ thống).
+- `[MOD]` `frontend/src/pages/patient/DocumentSummarizerPage.tsx`: Giao diện chuyên nghiệp hoàn chỉnh với kéo thả PDF, chọn mẫu thử, thanh tiến trình 3 bước, bảng chỉ số trực quan, thẻ bác sĩ `pgvector` và modal đặt khám.
+
+#### 3. Đồng Bộ Tài Liệu (Docs Synchronized)
+- [x] `docs/DATABASE_DESIGN.md`: Đồng bộ định nghĩa bảng `medical_documents` và `document_analyses` cùng các chỉ mục tối ưu hóa.
+- [x] `docs/USE_CASES.md`: Cập nhật đặc tả ca sử dụng `UC-CLIN-03` với luồng trích xuất PDF, tham số endpoint và phản hồi `pgvector`.
+- [x] `ROADMAP.md`: Cập nhật bảng Definition of Done (DoD) cho Milestone 4 với 10 tiêu chí đạt 100%.
+- [x] `docs/WORK_LOG.md`: Bổ sung bản ghi `[WORK-LOG-#009]`.
+
+#### 4. Bằng Chứng Kiểm Thử Tự Động (Verification Proof)
+- **Backend Unit Tests:** `mvn test` $\rightarrow$ **18/18 PASS** (0 Failure, 0 Error, 0 Skipped).
+  - `AppointmentServiceTest`: 3/3 PASS
+  - `EmbeddingServiceTest`: 3/3 PASS
+  - `MedicalDocumentAnalysisServiceTest`: 2/2 PASS
+  - `RedFlagServiceTest`: 5/5 PASS
+  - `TriageServiceTest`: 2/2 PASS
+  - `TwoLayerCacheServiceTest`: 3/3 PASS
+- **Frontend Build:** `npm run build` $\rightarrow$ **PASS** (0 lỗi TypeScript, `tsc && vite build` hoàn tất trong 2.61s, bundle `index-1FjM3HRw.js` 341.98 kB).
+- **Live API Endpoint Verification:**
+  - `POST http://localhost:5000/api/v1/documents/analyze` kiểm thử với tệp PDF sinh hóa thực tế chứa chỉ số Men gan AST 85 U/L & ALT 120 U/L:
+    - HTTP Status: **200 OK**
+    - Trích xuất thành công: 3 chỉ số sinh hóa (Men gan ALT ELEVATED, Men gan AST ELEVATED, Bilirubin NORMAL).
+    - Chuyên khoa xác định: `gastroenterology` (Tiêu Hóa - Gan Mật).
+    - Khớp bác sĩ qua pgvector: Hoàn tất với phản hồi JSON đầy đủ, lưu trữ bản ghi vào cơ sở dữ liệu PostgreSQL 16.
+- **Docker / Service Port Health:**
+  - `http://localhost:5000/actuator/health` $\rightarrow$ `status: "UP"` (PostgreSQL `pgvector` UP, Redis 7 UP, L1 Caffeine UP).
+  - `http://localhost:5173` $\rightarrow$ Frontend Vite React UI UP.
+
+#### 5. Điểm Nóng Cần Tech Lead Review Kỹ (Hotspots for Tech Lead)
+- [x] **Tương thích PDFBox 3.x:** Sử dụng `org.apache.pdfbox.Loader.loadPDF(byte[])` thay thế cho hàm lỗi thời `PDDocument.load(byte[])` trong PDFBox 2.x, bảo đảm an toàn bộ nhớ và ngăn chặn rò rỉ tài nguyên.
+- [x] **Quy chuẩn GitFlow:** Tuyệt đối không commit hoặc push vào `master`. Nhánh `feature/milestone-4-ocr-summary` sẵn sàng merge vào `develop`.
 
 ---
 
