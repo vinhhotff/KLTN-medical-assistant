@@ -26,6 +26,7 @@ public class DataInitializer implements CommandLineRunner {
     private final SpecialtyRepository specialtyRepository;
     private final DoctorProfileRepository doctorProfileRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.mediassist.service.DoctorSemanticSearchService doctorSemanticSearchService;
 
     @Value("${app.seed.admin.email:admin@mediassist.local}")
     private String adminEmail;
@@ -39,16 +40,18 @@ public class DataInitializer implements CommandLineRunner {
     public DataInitializer(UserRepository userRepository,
                            SpecialtyRepository specialtyRepository,
                            DoctorProfileRepository doctorProfileRepository,
-                           PasswordEncoder passwordEncoder) {
+                           PasswordEncoder passwordEncoder,
+                           com.mediassist.service.DoctorSemanticSearchService doctorSemanticSearchService) {
         this.userRepository = userRepository;
         this.specialtyRepository = specialtyRepository;
         this.doctorProfileRepository = doctorProfileRepository;
         this.passwordEncoder = passwordEncoder;
+        this.doctorSemanticSearchService = doctorSemanticSearchService;
     }
 
     @Override
     public void run(String... args) {
-        log.info("🌱 Checking database seed requirements for Milestone 1...");
+        log.info("🌱 Checking database seed requirements for Milestone 1 & 2...");
 
         // 1. Seed Specialties
         seedSpecialties();
@@ -56,11 +59,18 @@ public class DataInitializer implements CommandLineRunner {
         // 2. Seed Admin User
         seedAdmin();
 
-        // 3. Seed Demo Doctor
+        // 3. Seed Demo Doctors
         seedDoctor();
 
         // 4. Seed Demo Patient
         seedPatient();
+
+        // 5. Sync pgvector Embeddings for Doctors
+        try {
+            doctorSemanticSearchService.syncAllDoctorEmbeddings();
+        } catch (Exception e) {
+            log.warn("Could not sync vector embeddings during boot: {}", e.getMessage());
+        }
     }
 
     private void seedAdmin() {

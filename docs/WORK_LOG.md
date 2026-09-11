@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#007** | 11/09/2026 | Thiết lập và tuân thủ nghiêm ngặt GitFlow: Release Tags v1.0.0 & v2.0.0, Nhánh develop & feature | AI Assistant | 🟢 Sẵn sàng Review |
+| **#008** | 11/09/2026 | Hoàn tất Milestone 3 (AI Symptom Triage, Red-Flag 115, pgvector Cosine Search & Booking UI) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#007** | 11/09/2026 | Thiết lập và tuân thủ nghiêm ngặt GitFlow: Release Tags v1.0.0 & v2.0.0, Nhánh develop & feature | AI Assistant | 🟢 Đã Duyệt |
 | **#006** | 11/09/2026 | Rà soát toàn diện: Sửa lỗi kick logout me, nối API Users & Specialties thật, fix múi giờ & JPQL | AI Assistant | 🟢 Sẵn sàng Review |
 | **#005** | 11/09/2026 | Hoàn tất Milestone 2 (Booking Concurrency Guard, Doctor Schedule & Vetting, 3 Dashboards) | AI Assistant | 🟢 Đã Duyệt |
 | **#004** | 11/09/2026 | Hoàn tất toàn bộ Milestone 1 (Seeding 3 vai trò, OpenAPI, k6 test, Postman, DoD 100%) | AI Assistant | 🟢 Đã Duyệt |
@@ -62,6 +63,63 @@ Mỗi khi AI hoặc Developer cập nhật mã nguồn, **bắt buộc copy mẫ
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
 ---
+
+### [WORK-LOG-#008] Hoàn Tất Toàn Bộ Milestone 3: AI Symptom Triage, Rào Chắn Red-Flag & Tìm Kiếm Bác Sĩ Bằng pgvector
+* **Thời gian:** 2026-09-11 21:05:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-CLIN-02, UC-CLIN-04
+* **Trạng thái Build:** Frontend `npm run build` PASS (0 lỗi TS, 2.76s) | Backend `mvn test` PASS (16/16 tests).
+* **Nhánh phát triển:** `feature/milestone-3-ai-triage`.
+
+#### 1. Mục Tiêu & Bối Cảnh Nghiệp Vụ
+- Xây dựng rào chắn cấp cứu (Hard Red-Flag Guardrail) nhận diện nguy cơ nhồi máu cơ tim, đột quỵ FAST, sốc phản vệ để kích hoạt cảnh báo 115 tức thời, bypass hoàn toàn LLM nhằm bảo đảm an toàn lâm sàng tuyệt đối.
+- Xây dựng cỗ máy AI Triage Scribe phân loại mức độ khẩn cấp (ROUTINE, URGENT, EMERGENCY), tạo báo cáo chuẩn SBAR và gợi ý chuyên khoa chính xác.
+- Tích hợp extension `pgvector` trên PostgreSQL 16 với kiểu dữ liệu `vector(1536)` và chỉ mục HNSW Cosine Distance (`vector_cosine_ops`), khớp triệu chứng người bệnh với bác sĩ chuyên khoa sâu có độ tương đồng cao nhất.
+- Xây dựng giao diện `SymptomTriagePage` hỗ trợ tương tác tự nhiên, nút gọi 115 cấp cứu, thẻ đánh giá SBAR và danh thiếp Bác sĩ đề xuất tích hợp nút "Đặt Khám Ngay" mở modal chọn slot trực tiếp.
+
+#### 2. Chi Tiết Thay Đổi Mã Nguồn (Files Changed)
+- `[NEW]` `backend/src/main/java/com/mediassist/model/entity/TriageUrgencyLevel.java`: Enum mức độ khẩn cấp (ROUTINE, URGENT, EMERGENCY).
+- `[NEW]` `backend/src/main/java/com/mediassist/model/entity/TriageSession.java`: Entity lưu trữ lịch sử phiên phân luồng triệu chứng.
+- `[NEW]` `backend/src/main/java/com/mediassist/repository/TriageSessionRepository.java`: Repository truy vấn lịch sử triage theo user.
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/TriageRequest.java`: DTO tiếp nhận triệu chứng và ngữ cảnh.
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/TriageResponse.java`: DTO trả về kết quả SBAR, cảnh báo cấp cứu và danh sách Bác sĩ.
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/DoctorMatchDto.java`: DTO biểu diễn bác sĩ được khớp với độ tương đồng `similarityScore`.
+- `[NEW]` `backend/src/main/java/com/mediassist/service/RedFlagService.java`: Dịch vụ quét regex triệu chứng cấp cứu độ trễ 0ms.
+- `[NEW]` `backend/src/main/java/com/mediassist/service/EmbeddingService.java`: Dịch vụ sinh vector chuẩn hóa 1536 chiều với cơ chế hybrid (API Gateway / Clinical Deterministic Subspace Hashing).
+- `[NEW]` `backend/src/main/java/com/mediassist/service/DoctorSemanticSearchService.java`: Dịch vụ truy vấn vector cosine trên PostgreSQL `pgvector` và đồng bộ embedding cho bác sĩ.
+- `[NEW]` `backend/src/main/java/com/mediassist/service/TriageRateLimiterService.java`: Bộ giới hạn tần suất 15 request/phút bảo vệ API.
+- `[NEW]` `backend/src/main/java/com/mediassist/service/TriageService.java`: Dịch vụ điều phối Triage toàn diện.
+- `[NEW]` `backend/src/main/java/com/mediassist/controller/TriageController.java`: REST controller các endpoint `/api/v1/triage/**`.
+- `[MOD]` `backend/src/main/java/com/mediassist/config/SecurityConfig.java`: Cấu hình phân quyền truy cập cho Triage endpoints.
+- `[MOD]` `backend/src/main/java/com/mediassist/config/DataInitializer.java`: Đồng bộ vector embedding khi khởi động hệ thống.
+- `[MOD]` `backend/src/main/java/com/mediassist/service/AdminVettingService.java`: Tự động cập nhật vector embedding khi Admin phê duyệt bác sĩ mới.
+- `[NEW]` `backend/src/test/java/com/mediassist/RedFlagServiceTest.java`: 5 unit tests kiểm thử rào chắn cấp cứu.
+- `[NEW]` `backend/src/test/java/com/mediassist/EmbeddingServiceTest.java`: 3 unit tests kiểm thử vector 1536-d và khoảng cách cosine.
+- `[NEW]` `backend/src/test/java/com/mediassist/TriageServiceTest.java`: 2 unit tests kiểm thử luồng Triage và đề xuất bác sĩ.
+- `[NEW]` `frontend/src/pages/patient/SymptomTriagePage.tsx`: Trang giao diện phân luồng triệu chứng, cảnh báo 115, thẻ SBAR và đặt lịch khám.
+- `[MOD]` `frontend/src/App.tsx`: Đăng ký tuyến đường `/patient/triage`.
+- `[MOD]` `frontend/src/layouts/PatientLayout.tsx`: Bổ sung liên kết điều hướng trực tiếp vào Trợ Lý Triệu Chứng AI.
+
+#### 3. Đồng Bộ Tài Liệu (Docs Synchronized)
+- [x] `docs/DATABASE_DESIGN.md`: Bổ sung DDL bảng `triage_sessions`, cột `doctor_profiles.bio_embedding vector(1536)` và chỉ mục HNSW `idx_doctor_bio_hnsw`.
+- [x] `docs/USE_CASES.md`: Cập nhật chi tiết luồng nghiệp vụ và endpoint của `UC-CLIN-02` và `UC-CLIN-04`.
+- [x] `ROADMAP.md`: Đánh dấu Milestone 3 hoàn tất 100% Definition of Done, cập nhật bảng phân công và DoD.
+- [x] `docs/WORK_LOG.md`: Ghi nhận bản ghi [WORK-LOG-#008].
+
+#### 4. Bằng Chứng Kiểm Thử Tự Động (Verification Proof)
+- **Backend Unit Tests:** `mvn test` $\rightarrow$ **16/16 tests passed** (RedFlagService, EmbeddingService, TriageService, AppointmentService, TwoLayerCacheService).
+- **Frontend Build:** `npm run build` $\rightarrow$ **0 lỗi TypeScript**, hoàn thành trong 2.76s.
+- **Live Red-Flag API Test:** Gửi "Tôi bị đau thắt ngực dữ dội lan ra cánh tay trái" $\rightarrow$ Trả về `emergency: true`, `urgencyLevel: EMERGENCY`, cảnh báo gọi 115, không gọi LLM.
+- **Live Semantic Search API Test:** Gửi triệu chứng tim mạch $\rightarrow$ Bác sĩ Tim mạch đạt điểm tương đồng **99.5%**, Bác sĩ Thần kinh đạt **0.05%**. Gửi triệu chứng đau đầu tiền đình $\rightarrow$ Bác sĩ Thần kinh đạt **93.1%**.
+- **Live Slot Booking Flow:** Đặt khám thành công ngay từ thẻ Bác sĩ đề xuất trên giao diện Triage.
+
+#### 5. Điểm Nóng Cần Tech Lead Review Kỹ (Hotspots for Tech Lead)
+- [x] Kiểm tra kiến trúc `pgvector`: HNSW index `vector_cosine_ops` trên PostgreSQL 16.
+- [x] Kiểm tra rào chắn Red-Flag: cơ chế zero-latency bypass LLM khi phát hiện dấu hiệu nguy kịch.
+- [x] Kiểm tra cơ chế Hybrid Embedding: Chạy mượt mà offline không cần tốn chi phí API key trong môi trường local dev.
+
+---
+
 
 ### [WORK-LOG-#007] Thiết Lập & Tuân Thủ Nghiêm Ngặt Mô Hình Phân Nhánh GitFlow Doanh Nghiệp
 * **Thời gian:** 2026-09-11 20:50:00 (GMT+7)

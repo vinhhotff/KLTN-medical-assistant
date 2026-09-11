@@ -17,10 +17,11 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Milestone 1** | **Project Foundation, 2-Layer Cache & Resilience Skeleton** | 🟢 **COMPLETED** | Tag `v1.0.0-m1` (`master`) | Docker, Postgres(pgvector), Redis, L1/L2 Cache, Graceful Shutdown, Auth, Layouts, SRS |
 | **Milestone 2** | **Core Medical & Booking Workflow** | 🟢 **COMPLETED** | Tag `v2.0.0-m2` (`master`) | Doctor schedules, Admin verification, Booking CRUD, Concurrency guard, Cache invalidation |
-| **Milestone 3** | **AI Symptom Triage & Semantic Match** | 🟡 **READY TO START** | `feature/milestone-3-ai-triage` | Chatbot UI, Guardrail prompts, pgvector semantic search, Rate limiters |
-| **Milestone 4** | **Multimodal Medical Record Summarizer**| ⚪ Planned | `feature/milestone-4-ocr-summary` | S3 Presigned URL, BullMQ Worker, GPT-4o Vision OCR, Async progress |
+| **Milestone 3** | **AI Symptom Triage & Semantic Match** | 🟢 **COMPLETED** | `feature/milestone-3-ai-triage` | Chatbot UI, Guardrail prompts, pgvector semantic search, Rate limiters |
+| **Milestone 4** | **Multimodal Medical Record Summarizer**| 🟡 **READY TO START** | `feature/milestone-4-ocr-summary` | S3 Presigned URL, BullMQ Worker, GPT-4o Vision OCR, Async progress |
 | **Milestone 5** | **Admin Analytics & Cost Management** | ⚪ Planned | `feature/milestone-5-admin-cost` | Token cost tracking, doctor review queue, audit logs, System metrics |
 | **Milestone 6** | **High-Load Testing, CI/CD & Final Defense** | ⚪ Planned | `feature/milestone-6-load-defense` | k6 Load Test (500+ VU), Jest/Playwright (≥70%), Docker Nginx HTTPS, Defense Docs |
+
 
 
 ---
@@ -231,5 +232,90 @@ Build the core clinical consultation and appointment booking engine:
 | 10. Documentation Sync | Database Design, Use Cases, Work Log, and Roadmap synchronized | 100% Synced | ✅ PASS |
 
 > **MILESTONE 2 STATUS:** 🟢 **100% COMPLETED (Passed Definition of Done)**
+
+---
+
+## 🧠 Detailed Breakdown: MILESTONE 3 — AI Symptom Triage & Semantic Match
+
+### 🎯 Objective of Milestone 3
+Build the core clinical intelligence and semantic discovery pipeline:
+1. **Hard Red-Flag Emergency Guardrail:** Zero-latency clinical keyword screening detecting acute emergencies (coronary syndrome, stroke FAST, anaphylaxis, acute hemorrhage) with instant 115 guidance and LLM bypass.
+2. **AI Clinical Scribe & SBAR Triage:** Patient symptom intake, urgency classification (`ROUTINE`, `URGENT`, `EMERGENCY`), specialty determination, and structured SBAR clinical summaries.
+3. **pgvector HNSW Cosine Similarity Search:** 1536-dimensional vector embedding of verified doctor profiles; native vector cosine search ranking doctors based on patient symptoms.
+4. **Rate Limiter:** Token bucket rate limiter (15 req/min) in Redis with in-memory fallback.
+5. **Interactive UI:** `SymptomTriagePage` with live chat/triage assessment, emergency banners, SBAR evaluation card, and matched doctors with direct slot booking modal integration.
+
+---
+
+### 📋 Task Allocation & Completion by Member (Milestone 3)
+
+#### 👑 TECH LEAD (User)
+* [x] **Task TL.3.1 (Vector Architecture & pgvector HNSW Index):**
+  * Configured `vector(1536)` column on `doctor_profiles` and created HNSW index `idx_doctor_bio_hnsw` (`vector_cosine_ops`).
+  * Enforced Red-Flag emergency rule to strictly bypass LLM calls for clinical safety.
+* [x] **Task TL.3.2 (Rate Limiting & Security Policy):**
+  * Configured Spring Security matchers for `/api/v1/triage/**`.
+  * Implemented `TriageRateLimiterService` protecting AI endpoints.
+* [x] **Task TL.3.3 (Code Review & DoD Verification):**
+  * Validated 16/16 Maven unit tests passing, 0 TypeScript errors.
+  * Approved Milestone 3 completion.
+
+---
+
+#### 🛠️ CORE DEVELOPER (Fullstack / Backend & Data)
+* [x] **Task D1.3.1 (Entities & Repository):**
+  * `TriageSession` entity and `TriageSessionRepository`.
+  * `TriageUrgencyLevel` enum (`ROUTINE`, `URGENT`, `EMERGENCY`).
+* [x] **Task D1.3.2 (Core Services):**
+  * `RedFlagService`: Zero-latency regex pattern screening for stroke, heart attack, anaphylaxis.
+  * `EmbeddingService`: 1536-d normalized vector generator with deterministic medical subspace hashing and LLM API gateway.
+  * `DoctorSemanticSearchService`: Native `pgvector` Cosine Similarity query and startup doctor embedding sync.
+  * `TriageService`: End-to-end triage assessment, SBAR generation, and doctor matching.
+* [x] **Task D1.3.3 (REST Controller & DTOs):**
+  * `POST /api/v1/triage/assess`: Triage evaluation with matched doctors.
+  * `GET /api/v1/triage/history`: Patient triage consultation history.
+  * `GET /api/v1/triage/search/semantic`: Standalone semantic doctor search.
+* [x] **Task D1.3.4 (Automated Tests):**
+  * `RedFlagServiceTest`, `EmbeddingServiceTest`, `TriageServiceTest`.
+
+---
+
+#### 🎨 FRONTEND LEAD (UI/UX)
+* [x] **Task D2.3.1 (Symptom Triage Page):**
+  * `SymptomTriagePage`: Textarea with quick medical sample chips, Red-Flag emergency banner with 115 call button, SBAR assessment card, and matched doctor cards.
+* [x] **Task D2.3.2 (Seamless Booking Integration):**
+  * Doctor match cards feature "Đặt Khám Ngay" button that opens interactive slot booking modal with dynamic 30-min slots and confirmation cards.
+* [x] **Task D2.3.3 (Routing & Navigation):**
+  * Added `/patient/triage` route in `App.tsx` and updated `PatientLayout.tsx` navigation.
+
+---
+
+#### 📝 DOC & QA SPECIALIST
+* [x] **Task D3.3.1 (Database Specification Sync):**
+  * Updated `docs/DATABASE_DESIGN.md` with `triage_sessions`, `doctor_profiles.bio_embedding vector(1536)`, and HNSW index.
+* [x] **Task D3.3.2 (Use Cases Sync):**
+  * Updated `docs/USE_CASES.md` with `UC-CLIN-02` and `UC-CLIN-04` endpoints.
+* [x] **Task D3.3.3 (Development Work Log):**
+  * Appended `[WORK-LOG-#008]` in `docs/WORK_LOG.md`.
+
+---
+
+## 🏁 Definition of Done (DoD) Verification for Milestone 3
+
+| DoD Checklist Item | Target Standard | Result | Status |
+| :--- | :--- | :---: | :---: |
+| 1. Red-Flag Emergency Guard | Immediate 115 alert, 0ms LLM latency, LLM bypass | 5/5 Tests Pass & Live Verified | ✅ PASS |
+| 2. pgvector Extension & Index | PostgreSQL `vector(1536)` with HNSW Cosine Index | Verified in PostgreSQL 16 | ✅ PASS |
+| 3. Semantic Embedding Engine | 1536-d normalized unit vectors with medical clustering | 3/3 Tests Pass (L2 Norm = 1.0) | ✅ PASS |
+| 4. Doctor Matching Query | Cosine similarity ranking verified doctors | Match score > 0.99 for cardiology | ✅ PASS |
+| 5. SBAR Clinical Triage | Structured Situation, Background, Assessment, Recommendation | Generated & Persisted in DB | ✅ PASS |
+| 6. Rate Limiting Protection | 15 req/min rate limit per IP / user | Configured with Redis & Fallback | ✅ PASS |
+| 7. Patient Triage UI | Rich interactive triage workspace with sample chips & alerts | 0 TS errors | ✅ PASS |
+| 8. Seamless Booking Integration | Triage result opens slot booking modal directly | 0 TS errors & Live Verified | ✅ PASS |
+| 9. Unit Test Suite | Full test suite passes without failures | 16/16 Tests PASS | ✅ PASS |
+| 10. Documentation Sync | Database Design, Use Cases, Roadmap, and Work Log synced | 100% Synced | ✅ PASS |
+
+> **MILESTONE 3 STATUS:** 🟢 **100% COMPLETED (Passed Definition of Done)**
+
 
 

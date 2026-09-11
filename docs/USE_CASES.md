@@ -89,29 +89,29 @@ graph TD
 ### UC-02: Phân Luồng Triệu Chứng Bằng AI & Rào Chắn Cấp Cứu (AI Symptom Triage)
 
 * **Mã Use Case:** `UC-CLIN-02`
-* **Tác nhân chính:** Patient, Trợ lý AI (OpenAI/Gemini).
-* **Mục tiêu:** Thu thập lời khai triệu chứng của bệnh nhân, nhận diện dấu hiệu nguy hiểm (Red-flag), phân loại mức độ khẩn cấp (Emergency, Urgent, Routine), và gợi ý chuyên khoa phù hợp.
+* **Tác nhân chính:** Patient, Trợ lý AI (OpenAI/Gemini/Deterministic Scribe).
+* **Mục tiêu:** Thu thập lời khai triệu chứng của bệnh nhân, nhận diện dấu hiệu nguy hiểm (Red-flag), phân loại mức độ khẩn cấp (`ROUTINE`, `URGENT`, `EMERGENCY`), tạo bản tóm tắt SBAR và tự động kết nối đề xuất Bác sĩ chuyên khoa qua `pgvector`.
 * **Tiền điều kiện:** Bệnh nhân đã xác nhận đồng ý với *Tuyên bố từ chối trách nhiệm y tế (Medical Disclaimer)*.
+* **REST Endpoints:**
+  - `POST /api/v1/triage/assess`: Nhận diện triệu chứng, kiểm tra Red-Flag và trả về đánh giá SBAR kèm danh sách Bác sĩ đề xuất.
+  - `GET /api/v1/triage/history`: Lấy danh sách lịch sử phân luồng của người dùng hiện tại.
 
 #### Luồng sự kiện chính (Happy Path):
-1. Bệnh nhân nhập mô tả triệu chứng: *"Tôi bị đau tức ngực trái lan ra cánh tay trái khi vận động nhẹ, thỉnh thoảng khó thở"*.
-2. **Hard Rule Red-flag Check:** Hệ thống regex quét các từ khóa nguy cơ tim mạch cấp tính.
-3. Nếu KHÔNG rơi vào cấp cứu tức thời:
-   - Hệ thống chuyển prompt kèm lịch sử hội thoại đến AI Service.
-   - AI đóng vai trò **Medical Scribe** tạo phản hồi lịch sự, đặt 1-2 câu hỏi làm rõ (Thời gian xuất hiện, mức độ đau từ 1-10).
-   - Bệnh nhân trả lời thêm thông tin.
-4. AI Service tổng hợp và kết luận:
-   - Mức độ nguy cơ: `URGENT`.
-   - Chuyên khoa gợi ý: `CARDIO` (Tim Mạch).
-   - Tóm tắt lâm sàng (SBAR Summary): Lưu vào bảng `symptom_triage_sessions`.
-5. Giao diện hiển thị nút *"Xem danh sách bác sĩ Tim Mạch phù hợp"* liên kết sang UC-04.
+1. Bệnh nhân nhập mô tả triệu chứng: *"Tôi hay bị hồi hộp, đánh trống ngực và choáng váng khi vận động mạnh"*.
+2. **Hard Rule Red-flag Check:** `RedFlagService` quét chuỗi triệu chứng bằng các mẫu regex tối cấp (Acute Coronary Syndrome, Stroke FAST, Anaphylaxis, Severe Hemorrhage).
+3. Triệu chứng KHÔNG thuộc cấp cứu tức thời:
+   - Hệ thống tiến hành phân loại mức độ khẩn cấp (`ROUTINE`).
+   - Định hướng chuyên khoa mục tiêu (`Cardiology (Tim Mạch)`).
+   - Tạo báo cáo lâm sàng chuẩn SBAR (Situation, Background, Assessment, Recommendation).
+   - Tự động gọi `DoctorSemanticSearchService` sử dụng khoảng cách Cosine trên PostgreSQL `pgvector` để tìm top Bác sĩ chuyên khoa tim mạch đã qua thẩm định (`similarity_score > 0.90`).
+4. Lưu thông tin phiên vào bảng `triage_sessions`.
+5. Giao diện hiển thị thẻ kết quả Triage, lời khuyên của AI, câu hỏi gợi ý và danh thiếp Bác sĩ đề xuất kèm nút *"Đặt Khám Ngay"*.
 
 #### Luồng cấp cứu (Red-Flag Emergency Flow):
-* **2a. Phát hiện dấu hiệu đột quỵ/nhồi máu cơ tim tối cấp:**
-  - Hệ thống ngắt hội thoại LLM ngay lập tức.
-  - Màn hình chuyển sang trạng thái cảnh báo đỏ nguy cấp:
-    > **CẢNH BÁO Y TẾ KHẨN CẤP:** Triệu chứng của bạn có thể là dấu hiệu của hội chứng mạch vành cấp hoặc đột quỵ não. **KHÔNG** tiếp tục chờ đợi tư vấn trực tuyến. Hãy gọi ngay **115** hoặc nhờ người thân đưa đến khoa Cấp cứu bệnh viện gần nhất!
-  - Cung cấp nút bấm gọi nhanh 115 và bản đồ các bệnh viện cấp cứu gần vị trí hiện tại.
+* **2a. Phát hiện dấu hiệu đột quỵ / nhồi máu cơ tim / sốc phản vệ:**
+  - Hệ thống ngắt quy trình gọi LLM ngay lập tức (0ms LLM latency, 0 token cost).
+  - Trả về `isEmergency = true`, mức độ `EMERGENCY`.
+  - Màn hình chuyển sang trạng thái cảnh báo đỏ nguy cấp với nút bấm gọi nhanh 115 và hướng dẫn xử trí tại chỗ.
 
 ---
 
@@ -139,14 +139,22 @@ graph TD
 
 * **Mã Use Case:** `UC-CLIN-04`
 * **Tác nhân chính:** Patient, PostgreSQL với extension `pgvector`.
-* **Mục tiêu:** Khớp triệu chứng người bệnh với bác sĩ chuyên khoa sâu có kinh nghiệm điều trị thực tế cao nhất thông qua khoảng cách vector cosine.
+* **Mục tiêu:** Khớp triệu chứng người bệnh với bác sĩ chuyên khoa sâu có kinh nghiệm điều trị thực tế cao nhất thông qua khoảng cách vector cosine trên chỉ mục HNSW (`vector_cosine_ops`).
+* **REST Endpoints:**
+  - `GET /api/v1/triage/search/semantic?query={text}&limit={n}`: Tra cứu danh sách bác sĩ tương thích ngữ nghĩa từ câu truy vấn tự nhiên.
 
 #### Luồng sự kiện chính (Happy Path):
 1. Người dùng nhập câu tìm kiếm: *"Bác sĩ chuyên tầm soát hẹp mạch vành và rối loạn nhịp tim"*.
-2. Hệ thống tạo vector embedding 1536 chiều bằng `text-embedding-3-small`.
-3. Thực thi truy vấn HNSW Vector Search trên bảng `doctors` có lọc điều kiện `vetting_status = 'VERIFIED'`.
-4. Trả về danh sách bác sĩ xếp hạng theo độ tương đồng giảm dần (`similarity_score > 0.75`).
-5. Giao diện hiển thị thẻ Bác sĩ gồm: Ảnh đại diện, Học vị, Nơi công tác, Điểm đánh giá, Giá khám và Nút *"Đặt Khám Ngay"*.
+2. Hệ thống tạo vector embedding 1536 chiều bằng `EmbeddingService`.
+3. Thực thi truy vấn HNSW Vector Search trên bảng `doctor_profiles` với điều kiện `is_verified = true`:
+   ```sql
+   SELECT dp.*, 1 - (dp.bio_embedding <=> CAST(:vector AS vector)) AS similarity_score
+   FROM doctor_profiles dp ...
+   ORDER BY dp.bio_embedding <=> CAST(:vector AS vector) ASC
+   LIMIT 5;
+   ```
+4. Trả về danh sách bác sĩ xếp hạng theo độ tương đồng giảm dần (`similarity_score`).
+5. Giao diện hiển thị thẻ Bác sĩ gồm: Ảnh đại diện, Học vị, Nơi công tác, Điểm tương đồng (`%`), Giá khám và Nút *"Đặt Khám Ngay"*.
 
 ---
 

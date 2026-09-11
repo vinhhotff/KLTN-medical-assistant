@@ -59,6 +59,9 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/doctors/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/specialties/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/triage/assess").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/triage/search/**").permitAll()
+                        .requestMatchers("/api/v1/triage/history").authenticated()
                         // Admin Protected
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         // Doctor Protected
