@@ -118,20 +118,26 @@ graph TD
 ### UC-03: Tóm Tắt & Giải Nghĩa Phiếu Xét Nghiệm Bằng AI Đa Phương Thức (Multimodal Document Summarization)
 
 * **Mã Use Case:** `UC-CLIN-03`
-* **Tác nhân chính:** Patient, Multimodal LLM Vision API.
-* **Mục tiêu:** Chuyển đổi kết quả xét nghiệm máu/nước tiểu/chẩn đoán hình ảnh phức tạp thành bảng chỉ số đối chiếu dễ hiểu cho người bệnh.
+* **Tác nhân chính:** Patient, Apache PDFBox Parser, pgvector Semantic Matching Engine.
+* **Mục tiêu:** Chuyển đổi kết quả xét nghiệm máu/sinh hóa/nước tiểu từ tài liệu PDF phức tạp thành bảng chỉ số đối chiếu dễ hiểu cho người bệnh, cảnh báo bất thường và đề xuất bác sĩ chuyên khoa phù hợp tức thì.
+* **REST Endpoints:**
+  - `POST /api/v1/documents/analyze`: Tiếp nhận tệp PDF xét nghiệm qua `multipart/form-data` (tham số `file`), phân tích chỉ số sinh hóa, tóm tắt lâm sàng và kết hợp `pgvector` Cosine Similarity để gợi ý top bác sĩ chuyên khoa.
+  - `GET /api/v1/documents/my`: Truy vấn lịch sử các tài liệu y tế đã phân tích của người bệnh đăng nhập (yêu cầu Bearer Token).
 
 #### Luồng sự kiện chính (Happy Path):
-1. Bệnh nhân tải lên ảnh chụp phiếu xét nghiệm máu (`.jpg`, `.png`, hoặc `.pdf`, dung lượng $\le 15\text{MB}$).
-2. Hệ thống kiểm tra mime-type và mã độc tệp tin.
-3. Lưu trữ tệp tin vào Object Storage mã hóa và lưu siêu dữ liệu vào bảng `medical_documents`.
-4. Gọi mô hình Vision (GPT-4o Vision hoặc Gemini 1.5 Pro) với Prompt chuyên biệt:
-   - Trích xuất bảng chỉ số: Tên xét nghiệm, Giá trị đo được, Đơn vị, Khoảng tham chiếu bình thường.
-   - Đánh dấu trạng thái: Bình thường / Tăng nhẹ / Giảm nhẹ / Bất thường nghiêm trọng.
-   - Viết phần giải thích ngôn ngữ đại chúng (Plain-language translation).
-   - Liệt kê 3 câu hỏi gợi ý để bệnh nhân hỏi lại bác sĩ trong buổi khám.
-5. Lưu kết quả vào bảng `document_analyses`.
-6. Giao diện hiển thị kết quả phân tích trực quan kèm nhãn *"Dữ liệu mang tính chất tham khảo, không thay thế chẩn đoán của bác sĩ"*.
+1. Bệnh nhân tải lên tệp kết quả xét nghiệm (`.pdf` hoặc `.txt`, dung lượng $\le 15\text{MB}$) hoặc chọn dữ liệu mẫu sinh hóa (Mỡ máu / Men gan).
+2. Hệ thống kiểm tra Content-Type, sử dụng `PdfExtractionService` (Apache PDFBox 3.0.4 `Loader.loadPDF`) để bóc tách văn bản thô.
+3. `MedicalDocumentAnalysisService` phân tích các chỉ số cận lâm sàng (Cholesterol, Triglyceride, Glucose, Men gan AST/ALT/GGT, Creatinine, eGFR...) bằng biểu thức chính quy chuẩn hóa y khoa.
+4. Tự động gắn nhãn trạng thái chỉ số: `ELEVATED` (Tăng cao), `LOW` (Thấp), `NORMAL` (Bình thường) cùng khoảng tham chiếu chuẩn.
+5. Xác định chuyên khoa lâm sàng liên quan (`cardiology`, `gastroenterology`, `nephrology`, `neurology`...).
+6. Soạn thảo tóm tắt lâm sàng (`clinicalSummary`), bản giải nghĩa bằng ngôn ngữ bình dân (`plainLanguageExplanation`) và bộ 3 câu hỏi tham vấn bác sĩ.
+7. Gọi `DoctorSemanticSearchService` chạy truy vấn `pgvector` HNSW Cosine Similarity đối chiếu `clinicalSummary` với `bio_embedding` của các bác sĩ đã được xác minh (`is_verified = true`).
+8. Lưu kết quả vào bảng `medical_documents` và `document_analyses`.
+9. Giao diện hiển thị:
+   - Thanh tiến trình phân tích 3 bước động.
+   - Thẻ giải nghĩa dễ hiểu kèm khuyến nghị.
+   - Bảng so sánh chỉ số cận lâm sàng với màu cảnh báo đỏ/vàng/xanh trực quan.
+   - Danh sách thẻ bác sĩ đề xuất với điểm tương thích ngữ nghĩa (`%`), chuyên khoa và nút bấm *"Đặt Lịch Khám Ngay"*.
 
 ---
 

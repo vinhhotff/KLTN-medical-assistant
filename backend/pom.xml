@@ -113,6 +113,14 @@
             <version>${springdoc.version}</version>
         </dependency>
 
+        <!-- Apache PDFBox for Medical PDF Extraction -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.4</version>
+        </dependency>
+
+
         <!-- Test Starter -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

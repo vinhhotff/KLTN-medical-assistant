@@ -163,29 +163,36 @@ CREATE INDEX idx_triage_created_at ON triage_sessions(created_at DESC);
 ```
 
 #### Bảng `medical_documents` & `document_analyses`
-Lưu trữ siêu dữ liệu tài liệu y tế (kết quả xét nghiệm, đơn thuốc, phim chụp) và giải nghĩa.
+Lưu trữ siêu dữ liệu tài liệu y tế (kết quả xét nghiệm, đơn thuốc, phim chụp) và kết quả phân tích chỉ số cận lâm sàng, đề xuất bác sĩ chuyên khoa (`MedicalDocument` & `DocumentAnalysis`).
 
 ```sql
 CREATE TABLE medical_documents (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    patient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL, -- Khách vãng lai hoặc bệnh nhân định danh
     file_name VARCHAR(255) NOT NULL,
     file_size_bytes BIGINT NOT NULL,
-    mime_type VARCHAR(100) NOT NULL,
-    storage_path TEXT NOT NULL,                  -- Đường dẫn MinIO / S3 Encrypted
-    ocr_raw_text TEXT,                           -- Văn bản trích xuất thô
+    content_type VARCHAR(100) NOT NULL,
+    storage_path VARCHAR(500),                   -- Đường dẫn lưu trữ MinIO / S3 Encrypted
+    status VARCHAR(50) NOT NULL DEFAULT 'PROCESSED', -- PENDING, PROCESSING, PROCESSED, FAILED
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE document_analyses (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    document_id UUID NOT NULL UNIQUE REFERENCES medical_documents(id) ON DELETE CASCADE,
-    plain_language_summary TEXT NOT NULL,       -- Bản dịch ngữ nghĩa thông thường
-    extracted_lab_indicators JSONB,              -- Chỉ số: { "Cholesterol": { "value": 6.2, "unit": "mmol/L", "is_abnormal": true } }
-    suggested_questions_for_doctor TEXT[],       -- Câu hỏi AI gợi ý bệnh nhân nên hỏi bác sĩ
-    model_version VARCHAR(50) NOT NULL,          -- gpt-4o / gemini-1.5-pro
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_id UUID NOT NULL REFERENCES medical_documents(id) ON DELETE CASCADE,
+    clinical_summary TEXT NOT NULL,              -- Báo cáo tóm tắt lâm sàng dành cho bác sĩ
+    plain_language_explanation TEXT NOT NULL,    -- Giải nghĩa thuật ngữ dễ hiểu cho người bệnh
+    abnormal_indicators_json TEXT NOT NULL,      -- Mảng JSON các chỉ số sinh hóa (tên, giá trị, ngưỡng, trạng thái ELEVATED/LOW/NORMAL)
+    recommended_specialty_slug VARCHAR(100),     -- cardiology, gastroenterology, nephrology...
+    recommended_specialty_name VARCHAR(255),     -- Tên hiển thị tiếng Việt kèm quốc tế
+    suggested_questions_json TEXT,               -- Mảng JSON các câu hỏi AI gợi ý bệnh nhân trao đổi với BS
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_med_doc_user ON medical_documents(user_id);
+CREATE INDEX idx_med_doc_created ON medical_documents(created_at DESC);
+CREATE INDEX idx_doc_analysis_doc ON document_analyses(document_id);
+CREATE INDEX idx_doc_analysis_specialty ON document_analyses(recommended_specialty_slug);
 ```
 
 ---
