@@ -136,7 +136,24 @@
   - **L1 Cache (In-Memory Caffeine):** Nằm ngay trong bộ nhớ JVM của ứng dụng. Truy xuất cực nhanh với độ trễ dưới $1\text{ms}$, loại bỏ hoàn toàn chi phí serialize/deserialize qua mạng.
   - **L2 Cache (Distributed Redis):** Đóng vai trò bộ nhớ đệm dùng chung cho nhiều instance ứng dụng, đảm bảo tính nhất quán dữ liệu khi mở rộng quy mô (Scale out).
   - Khi có request đọc: Hệ thống kiểm tra L1 trước $\rightarrow$ nếu Miss thì kiểm tra L2 $\rightarrow$ nếu Miss tiếp mới truy vấn PostgreSQL, sau đó ghi ngược lại cả L2 và L1.
-  - Khi có cập nhật: Xóa cache ở L1 và L2 để đảm bảo không bị stale data."*
+---
+
+### Câu hỏi 6: Hệ thống bảo vệ dịch vụ AI đắt tiền thế nào trước nguy cơ tấn công DDoS, cào dữ liệu (scraping) hoặc Brute-Force tài khoản người dùng?
+* **Trả lời của sinh viên:**  
+  *"Thưa Thầy Cô, nhóm thiết lập cơ chế **Bảo Mật Zero-Trust và Phòng Thủ Tải Đa Lớp (Defense-in-Depth)**:
+  1. **Nguyên tắc Zero-Trust Login-First:** Thu hồi toàn bộ quyền truy cập ẩn danh (Guest) đối với các dịch vụ AI. Mọi request gọi vào `/triage/assess` hoặc `/documents/analyze` bắt buộc phải có JWT Token hợp lệ, nếu không sẽ bị chặn ngay ở tầng Filter với `HTTP 401 Unauthorized`. Điều này loại bỏ hoàn toàn botnet cào dữ liệu làm tiêu hao token LLM.
+  2. **Phòng thủ Brute-Force & Khóa tài khoản cấp Entity:** Hệ thống đếm số lần sai mật khẩu liên tiếp. Sau đúng 5 lần vi phạm, tài khoản bị khóa trong 15 phút (`HTTP 423 Locked`). Đặc biệt, cơ chế khóa được lưu tại cột `locked_until` trong bảng `users`, giúp vô hiệu hóa các cuộc tấn công Brute-force dạng phân tán (Distributed Botnet - xoay địa chỉ IP liên tục).
+  3. **Kiểm soát tần suất IP phân tán (Redis Rate Limiting):** Sử dụng thuật toán Sliding-Window trên Redis để giới hạn: tối đa 5 lượt đăng nhập/phút/IP, 10 lượt triage/phút/user, 5 tệp PDF/phút/user. Vượt ngưỡng sẽ nhận mã `HTTP 429 Too Many Requests`.
+  4. **Security Headers Chuẩn OWASP:** Cấu hình `X-Frame-Options: DENY` chống tấn công Clickjacking và `X-Content-Type-Options: nosniff` chống MIME-sniffing."*
+
+---
+
+### Câu hỏi 7: Nền tảng MediAssist-AI vận hành theo mô hình kinh doanh (Business Model) nào để tự chủ tài chính và bù đắp chi phí hạ tầng máy chủ & token LLM?
+* **Trả lời của sinh viên:**  
+  *"Thưa Thầy Cô, dự án được thiết kế theo mô hình **Hybrid Monetization (Đa nguồn thu)** bền vững:
+  1. **Gói Hội Viên Thuê Bao MediPass VIP (149.000đ/tháng hoặc 1.290.000đ/năm):** Cung cấp quyền truy cập Triage AI 24/7 không giới hạn, 10 lượt giải nghĩa phiếu xét nghiệm nâng cao/tháng, giảm 10% phí khám bác sĩ và miễn phí lưu trữ đám mây bệnh án điện tử EMR cho cả gia đình.
+  2. **Hoa hồng Khám bệnh từ xa qua Ký quỹ Escrow:** Nền tảng thu phí hoa hồng **15%** trên mỗi phiên khám của bác sĩ (giá khám từ 250.000đ - 450.000đ do bác sĩ niêm yết). Tiền được giữ tạm thời tại tài khoản Escrow và chỉ giải ngân cho bác sĩ (85%) khi ca khám hoàn tất (`COMPLETED`).
+  3. **Hạn ngạch Phân tích OCR Xét nghiệm (Pay-as-you-go):** Người dùng mới được tặng 1 lần dùng thử miễn phí; sau đó người dùng có thể mua lượt quét lẻ (29.000đ/lần) hoặc gói combo 5 lần (99.000đ) để phân tích phiếu xét nghiệm định kỳ."*
 
 ---
 

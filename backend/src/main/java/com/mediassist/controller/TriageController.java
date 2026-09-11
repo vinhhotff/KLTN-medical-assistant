@@ -54,7 +54,12 @@ public class TriageController {
             Authentication authentication,
             HttpServletRequest servletRequest) {
 
-        String userEmail = authentication != null ? authentication.getName() : null;
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED",
+                    "Vui lòng đăng nhập tài khoản bệnh nhân để sử dụng tính năng Trợ lý Phân luồng Triệu chứng AI.");
+        }
+
+        String userEmail = authentication.getName();
         String clientIp = servletRequest.getRemoteAddr();
         String rateLimitKey = userEmail != null ? userEmail : clientIp;
 
@@ -73,8 +78,8 @@ public class TriageController {
     @GetMapping("/history")
     @Operation(summary = "Get triage consultation history for current patient")
     public ResponseEntity<ApiResponse<List<TriageSession>>> getHistory(Authentication authentication) {
-        if (authentication == null) {
-            return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập để xem lịch sử tư vấn.");
         }
         User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) {
@@ -88,7 +93,13 @@ public class TriageController {
     @Operation(summary = "Standalone semantic vector search for verified doctors using pgvector")
     public ResponseEntity<ApiResponse<List<DoctorMatchDto>>> searchDoctorsSemantic(
             @RequestParam(defaultValue = "") String query,
-            @RequestParam(defaultValue = "5") int limit) {
+            @RequestParam(defaultValue = "5") int limit,
+            Authentication authentication) {
+
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED",
+                    "Vui lòng đăng nhập để sử dụng tính năng tìm kiếm bác sĩ theo ngữ nghĩa triệu chứng.");
+        }
 
         List<DoctorMatchDto> results = doctorSemanticSearchService.searchDoctors(query, limit);
         return ResponseEntity.ok(ApiResponse.success(results));
