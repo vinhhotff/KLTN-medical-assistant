@@ -19,3 +19,8 @@ This file instructs Antigravity and Gemini CLI agents on project standards, rule
    - Tech Lead: 30% code / 50% review & architecture.
    - Core Dev: 80% code / 20% test.
    - Doc & QA: 60% docs & thesis / 25% QA & test / 15% code (fixtures & mocks).
+5. **Strict GitFlow Enforcement**:
+   - `master`: Release tags only (`vX.Y.Z-m*`). NEVER commit directly to `master`.
+   - `develop`: Primary integration baseline branch.
+   - `feature/*`: Dedicated branches for all feature work (e.g., `feature/milestone-3-ai-triage`).
+

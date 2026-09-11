@@ -13,14 +13,15 @@
 
 ## High-Level Milestone Overview
 
-| Milestone | Phase Name | Status | Duration | Focus Area |
+| Milestone | Phase Name | Status | Git Branch / Tag | Focus Area |
 | :--- | :--- | :--- | :--- | :--- |
-| **Milestone 1** | **Project Foundation, 2-Layer Cache & Resilience Skeleton** | 🟢 **COMPLETED** | Week 1 – 2 | Docker, Postgres(pgvector), Redis, L1/L2 Cache, Graceful Shutdown, Auth, Layouts, SRS |
-| **Milestone 2** | **Core Medical & Booking Workflow** | 🟢 **COMPLETED** | Week 3 – 5 | Doctor schedules, Admin verification, Booking CRUD, Concurrency guard, Cache invalidation |
-| **Milestone 3** | **AI Symptom Triage & Semantic Match** | 🟡 **READY TO START** | Week 6 – 8 | Chatbot UI, Guardrail prompts, pgvector semantic search, Rate limiters |
-| **Milestone 4** | **Multimodal Medical Record Summarizer**| ⚪ Planned | Week 9 – 11 | S3 Presigned URL, BullMQ Worker, GPT-4o Vision OCR, Async progress |
-| **Milestone 5** | **Admin Analytics & Cost Management** | ⚪ Planned | Week 12 – 13| Token cost tracking, doctor review queue, audit logs, System metrics |
-| **Milestone 6** | **High-Load Testing, CI/CD & Final Defense** | ⚪ Planned | Week 14 – 16| k6 Load Test (500+ VU), Jest/Playwright (≥70%), Docker Nginx HTTPS, Defense Docs |
+| **Milestone 1** | **Project Foundation, 2-Layer Cache & Resilience Skeleton** | 🟢 **COMPLETED** | Tag `v1.0.0-m1` (`master`) | Docker, Postgres(pgvector), Redis, L1/L2 Cache, Graceful Shutdown, Auth, Layouts, SRS |
+| **Milestone 2** | **Core Medical & Booking Workflow** | 🟢 **COMPLETED** | Tag `v2.0.0-m2` (`master`) | Doctor schedules, Admin verification, Booking CRUD, Concurrency guard, Cache invalidation |
+| **Milestone 3** | **AI Symptom Triage & Semantic Match** | 🟡 **READY TO START** | `feature/milestone-3-ai-triage` | Chatbot UI, Guardrail prompts, pgvector semantic search, Rate limiters |
+| **Milestone 4** | **Multimodal Medical Record Summarizer**| ⚪ Planned | `feature/milestone-4-ocr-summary` | S3 Presigned URL, BullMQ Worker, GPT-4o Vision OCR, Async progress |
+| **Milestone 5** | **Admin Analytics & Cost Management** | ⚪ Planned | `feature/milestone-5-admin-cost` | Token cost tracking, doctor review queue, audit logs, System metrics |
+| **Milestone 6** | **High-Load Testing, CI/CD & Final Defense** | ⚪ Planned | `feature/milestone-6-load-defense` | k6 Load Test (500+ VU), Jest/Playwright (≥70%), Docker Nginx HTTPS, Defense Docs |
+
 
 ---
 

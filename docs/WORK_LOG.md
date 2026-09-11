@@ -11,6 +11,7 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
+| **#007** | 11/09/2026 | Thiết lập và tuân thủ nghiêm ngặt GitFlow: Release Tags v1.0.0 & v2.0.0, Nhánh develop & feature | AI Assistant | 🟢 Sẵn sàng Review |
 | **#006** | 11/09/2026 | Rà soát toàn diện: Sửa lỗi kick logout me, nối API Users & Specialties thật, fix múi giờ & JPQL | AI Assistant | 🟢 Sẵn sàng Review |
 | **#005** | 11/09/2026 | Hoàn tất Milestone 2 (Booking Concurrency Guard, Doctor Schedule & Vetting, 3 Dashboards) | AI Assistant | 🟢 Đã Duyệt |
 | **#004** | 11/09/2026 | Hoàn tất toàn bộ Milestone 1 (Seeding 3 vai trò, OpenAPI, k6 test, Postman, DoD 100%) | AI Assistant | 🟢 Đã Duyệt |
@@ -61,6 +62,48 @@ Mỗi khi AI hoặc Developer cập nhật mã nguồn, **bắt buộc copy mẫ
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
 ---
+
+### [WORK-LOG-#007] Thiết Lập & Tuân Thủ Nghiêm Ngặt Mô Hình Phân Nhánh GitFlow Doanh Nghiệp
+* **Thời gian:** 2026-09-11 20:50:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mục tiêu:** Thực hiện chỉ đạo của Tech Lead ("hiện tại sao tôi thấy bạn chưa tuân thủ gitflow như những gì bạn đã đề xuất ra, hãy tuân thủ"), chuyển đổi toàn bộ kho lưu trữ sang mô hình GitFlow chuẩn mực:
+  1. `master`: Đóng băng chỉ chứa các bản phát hành ổn định (Release Tags `v1.0.0-m1` và `v2.0.0-m2`).
+  2. `develop`: Khởi tạo và đẩy lên remote làm nhánh tích hợp trung tâm.
+  3. `feature/milestone-3-ai-triage`: Khởi tạo từ `develop` để sẵn sàng phát triển Milestone 3.
+  4. Cập nhật chỉ thị `AGENTS.md` và `GEMINI.md` nghiêm cấm AI commit trực tiếp vào `master`.
+* **Trạng thái Git:** 
+  - `master`: Gắn tag `v1.0.0-m1` (commit dbb77ac), `v2.0.0-m2` (commit cb44ee5). Đã push tags lên GitHub.
+  - `develop`: Đã tạo và push upstream `origin/develop`.
+  - `feature/milestone-3-ai-triage`: Đã tạo và push upstream `origin/feature/milestone-3-ai-triage`.
+
+#### 1. Mục Tiêu & Bối Cảnh Nghiệp Vụ
+- Khắc phục triệt để tình trạng commit trực tiếp vào `master` trong các phiên trước.
+- Đảm bảo nhánh `master` chỉ chứa các release hoàn chỉnh, sẵn sàng bảo vệ khóa luận hoặc live demo hội đồng bất kỳ lúc nào.
+- Thiết lập quy trình bất di bất dịch: Feature branch $\rightarrow$ Pull Request $\rightarrow$ `develop` $\rightarrow$ Release Tag $\rightarrow$ `master`.
+
+#### 2. Chi Tiết Thay Đổi Mã Nguồn (Files Changed)
+- `[MOD]` `AGENTS.md`: Bổ sung Mục 1.4 "Nguyên tắc số 4: Tuân thủ nghiêm ngặt quy trình GitFlow".
+- `[MOD]` `GEMINI.md`: Bổ sung Quy tắc số 5 về GitFlow Enforcement.
+- `[MOD]` `docs/WORK_LOG.md`: Ghi nhận bản ghi [WORK-LOG-#007].
+- `[MOD]` `ROADMAP.md`: Cập nhật trạng thái nhánh làm việc của các Milestone.
+
+#### 3. Đồng Bộ Tài Liệu (Docs Synchronized)
+- [x] `docs/TEAM_WORKFLOW.md`: Khớp chuẩn 3 trụ cột và mô hình branching.
+- [x] `CONTRIBUTING.md`: Đảm bảo quy chuẩn GitFlow và commit conventions.
+- [x] `docs/WORK_LOG.md`: Thêm bản ghi #007.
+
+#### 4. Bằng Chứng Kiểm Thử Tự Động (Verification Proof)
+- **Git Branch:** `master`, `develop`, `feature/milestone-3-ai-triage` (Tất cả đã đồng bộ trên GitHub `origin`).
+- **Git Tags:** `v1.0.0-m1`, `v2.0.0-m2` (Đã push lên remote `origin`).
+- **Backend:** `mvn test` PASS (6/6 tests).
+- **Frontend:** `npm run build` PASS (0 lỗi TS).
+
+#### 5. Điểm Nóng Cần Tech Lead Review Kỹ (Hotspots for Tech Lead)
+- [x] Phê duyệt cấu trúc nhánh: `master` (release only) $\leftarrow$ `develop` (integration) $\leftarrow$ `feature/*` (features).
+- [x] Phê duyệt quy định đóng gói Milestone: chỉ merge vào `master` khi Milestone hoàn tất 100% DoD.
+
+---
+
 
 ### [WORK-LOG-#006] Rà Soát Toàn Diện Hệ Thống & Khắc Phục Các Lỗi Nghiệp Vụ Theo Yêu Cầu Tech Lead
 * **Thời gian:** 2026-09-11 20:43:00 (GMT+7)

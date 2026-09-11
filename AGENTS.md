@@ -41,6 +41,15 @@ User trong phiên làm việc đóng vai trò là **Tech Lead & Solution Archite
 > 4. **Bằng chứng kiểm thử**: Kết quả `mvn test`, `npm run build` và trạng thái dịch vụ.
 > 5. **Điểm nóng Tech Lead cần Review**: Tóm tắt ngắn gọn các quyết định kỹ thuật để Tech Lead duyệt nhanh.
 
+### 1.4. NGUYÊN TẮC SỐ 4: TUÂN THỦ NGHIÊM NGẶT QUY TRÌNH GITFLOW (STRICT GITFLOW ENFORCEMENT)
+> [!IMPORTANT]
+> **AI TUYỆT ĐỐI KHÔNG ĐƯỢC COMMIT TRỰC TIẾP VÀO NHÁNH MASTER!**
+> 1. **`master` (Production / Defense Ready):** Chỉ chứa các bản phát hành chính thức gắn Git Tag (`v1.0.0-m1`, `v2.0.0-m2`, ...). Nhánh này luôn ở trạng thái sẵn sàng demo trước Hội đồng.
+> 2. **`develop` (Integration Baseline):** Nhánh tích hợp chung của toàn bộ dự án. Mọi tính năng sau khi hoàn thành sẽ được merge vào đây.
+> 3. **`feature/*` (Feature Development):** Mọi công việc phát triển tính năng mới (ví dụ: `feature/milestone-3-ai-triage`) **BẮT BUỘC** phải phân nhánh từ `develop`.
+> 4. **Chu kỳ đóng gói Milestone:** Khi một Milestone hoàn tất 100% (đáp ứng trọn vẹn Definition of Done và được Tech Lead duyệt), tiến hành merge `develop` vào `master`, tạo Git Tag phát hành (`vX.Y.Z-m*`), và đẩy lên remote.
+
+
 ---
 
 ## 2. NGUYÊN TẮC KIẾN TRÚC & CÔNG NGHỆ (ARCHITECTURE INTEGRITY)
