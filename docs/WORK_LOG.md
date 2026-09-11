@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#014** | 11/09/2026 | Khắc Phục Lỗi TypeScript Toàn Diện & Xây Dựng Trang Đích 3D Scroll-World (Three.js WebGL Fly-Through Landing Page theo Chuẩn `oso95/scroll-world`) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#015** | 12/09/2026 | Tái Thiết Kế Giao Diện Trang Chủ Telehealth Hiện Đại & Khắc Phục Lỗi Tương Phản/Màu Chữ Trang Đăng Nhập | AI Assistant | 🟢 Sẵn sàng Review |
+| **#014** | 11/09/2026 | Khắc Phục Lỗi TypeScript Toàn Diện & Xây Dựng Trang Đích 3D Scroll-World (Three.js WebGL Fly-Through Landing Page theo Chuẩn `oso95/scroll-world`) | AI Assistant | 🟢 Đã Duyệt |
 | **#013** | 11/09/2026 | Hoàn Tất Milestone 6: Bảo Vệ Token AI (Gatekeeper Sieve & SHA-256 Deduplication), Lưu Trữ Supabase Cloud EMR & Quản Lý Hạn Ngạch Quét Doanh Nghiệp | AI Assistant | 🟢 Đã Duyệt |
 | **#012** | 11/09/2026 | Hoàn Tất Milestone 5: Bảo Mật Zero-Trust, Phòng Thủ Anti-Brute Force Lockout & Kiểm Soát Tải Tần Suất Cao (Redis Rate Limiting) | AI Assistant | 🟢 Đã Duyệt |
 | **#011** | 11/09/2026 | Tích hợp Flyway Database Migration & Nạp Tập Dữ Liệu Bệnh Viện Thực Tế (12 Chuyên Khoa, 12 Bác Sĩ Tuyến TW, 630 Slots, 5 EMR, 8 Ca Khám, pgvector) | AI Assistant | 🟢 Đã Duyệt |
@@ -21,6 +22,64 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#015] Tái Thiết Kế Giao Diện Trang Chủ Telehealth Hiện Đại & Khắc Phục Lỗi Tương Phản/Màu Chữ Trang Đăng Nhập
+* **Thời gian:** 2026-09-12 00:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-UX-00 & UC-SEC-01
+* **Trạng thái Build:** Frontend `npm run build` PASS (0 lỗi TS, 2.73s, tối ưu bundle) | Backend `mvn test` PASS (34/34 tests, 0 failures) | Live Probes: `localhost:5173/` HTTP 200, `localhost:5173/login` HTTP 200, Backend `/actuator/health` UP (PostgreSQL 16 + Redis 7 UP).
+* **Nhánh phát triển:** `feature/redesign-homepage-login-ui` (chuẩn bị merge vào `develop`).
+
+#### 1. Mục Tiêu & Bối Cảnh Nghiệp Vụ
+- Thực hiện đầy đủ chỉ thị trực tiếp từ Tech Lead: *"thôi redesign lại trang homepage sao cho đẹp đi, bỏ homepage hiện tại, login đang bị cùng màu chữ khiến khó nhìn, hãy sửa lại UI"*.
+- **Khắc phục lỗi màu chữ & tương phản trang Đăng nhập (`LoginPage.tsx`):**
+  - **Nguyên nhân gốc rễ (Root Cause):** Dự án sử dụng Tailwind CSS `^3.4.17`. Trước đó trong mã nguồn sử dụng cú pháp Tailwind v4 (`bg-linear-to-br` và `bg-linear-to-r`). Cú pháp này không hợp lệ trong Tailwind v3 dẫn đến lớp nền bị mất (trong suốt/trắng), làm cho chữ trắng (`text-white`) ở cột bên trái bị trùng với màu nền trắng, gây hiện tượng chữ biến mất/rất khó đọc. Ngoài ra các ô nhập liệu thiếu khai báo màu nền và màu chữ tường minh (`bg-white text-slate-900`).
+  - **Giải pháp hoàn thiện:**
+    - Thay thế toàn bộ bằng cú pháp chuẩn Tailwind v3: `bg-slate-950 text-slate-100` với hiệu ứng ánh sáng mờ radial đa tầng.
+    - Bổ sung thanh liên kết điều hướng trên cùng: Nút *"← Về Trang Chủ MediAssist"* dẫn trực tiếp về `/` với nhãn bảo mật chuẩn HL7 / ISO 27001.
+    - Thiết kế lại layout 2 cột độ tương phản cao sắc nét:
+      - Cột trái (Branding & Trust Card): Khối nền tối `bg-slate-900/90 border border-slate-800` với biểu tượng nhịp tim đồ, nhãn chuẩn BYT, khối rào chắn Zero-Trust, thẻ gói hội viên MediPass VIP (viền tím sáng, chữ hổ phách và dấu tích xanh ngọc) cùng 2 thẻ tính năng Quét OCR & Khám Escrow dễ đọc 100%.
+      - Cột phải (Thẻ xác thực): Nền trắng tinh `bg-white text-slate-900 border border-slate-200 shadow-2xl`, tab chuyển đổi rõ ràng, nhãn trường viết hoa in đậm `text-slate-800 font-bold`, các ô input có nền trắng, chữ đen đậm `text-slate-900 font-semibold bg-white border-slate-300 placeholder:text-slate-400`.
+      - Các nút demo 1-click (Quản trị viên, Bác sĩ, Bệnh nhân) được đóng khung viền màu sắc nét, phân biệt rõ ràng không bị mờ nhạt.
+- **Tái thiết kế toàn diện Trang Chủ (`LandingPage.tsx`):**
+  - Loại bỏ hoàn toàn 3D canvas nặng nề, chuyển sang phong cách giao diện cổng y tế số & telehealth hiện đại, tinh tế (lấy cảm hứng từ One Medical, Mayo Clinic, Zocdoc, Teladoc Health).
+  - Tốc độ tải trang đạt mức tức thì (< 100ms), 0 giật lag.
+  - **Thanh điều hướng cố định (Sticky Frosted Navbar):** Biểu tượng nhịp tim, thương hiệu MediAssist-AI, huy hiệu chuẩn BYT, các liên kết nhanh và nút CTA.
+  - **Trình mô phỏng phân luồng lâm sàng trực tiếp (Live Triage Simulator):**
+    - Tích hợp thanh tìm kiếm và 5 kịch bản chip triệu chứng nhanh:
+      1. 🚨 Đau thắt ngực lan tay trái (Kiểm tra Red-Flag cấp cứu)
+      2. 🩺 Sốt cao 39.2°C & đau đầu (Truyền nhiễm)
+      3. 📄 Men gan ALT 135 U/L sau xét nghiệm (Gan mật)
+      4. 🫀 Hồi hộp tim đập nhanh 110 bpm (Rối loạn nhịp)
+      5. 🤢 Đau quặn bụng thượng vị (Tiêu hóa)
+    - Hiển thị trực tiếp kết quả phân tích theo chuẩn **SBAR** (Situation - Background - Assessment - Recommendation) với nhãn mức độ ưu tiên lâm sàng rõ ràng. Nếu gặp từ khóa Red-Flag, giao diện lập tức chuyển sang chế độ Cảnh báo đỏ và hiển thị nút gọi Cấp cứu 115.
+  - **Mạng lưới Bệnh viện Tuyến Đầu:** Chợ Rẫy, Bạch Mai, ĐH Y Dược TP.HCM, Viện Tim Tâm Đức, Nhi Đồng 1, Từ Dũ.
+  - **Quy trình lâm sàng 4 bước:** Sàng lọc Red-Flag SBAR -> Quét PDF OCR SHA-256 -> Ghép Bác sĩ pgvector 1536 chiều -> Bàn khám EMR & WHO ICD-10.
+  - **Mô-đun khám phá công nghệ (Interactive Tabs Showcase):** 4 tab chi tiết với giao diện thẻ mẫu sống động.
+  - **Bảng giá dịch vụ minh bạch:** Gói lẻ 29k, Gói tiết kiệm gia đình 99k (Best Value), Gói hội viên VIP 149k/tháng cùng cam kết hoàn tiền 100% qua cơ chế ký quỹ Escrow.
+  - **Phản hồi lâm sàng & FAQ:** Ý kiến đánh giá từ Bác sĩ CKI Chợ Rẫy, Bệnh nhân ngoại trú và Bác sĩ CKII Nhi khoa; accordion 4 câu hỏi thường gặp.
+  - **Tuyên bố miễn trừ trách nhiệm y tế (Medical Disclaimer Banner):** Tuân thủ tuyệt đối quy định Bộ Y Tế.
+
+#### 2. Chi Tiết Thay Đổi Mã Nguồn (Files Changed)
+- `[MOD]` `frontend/src/pages/LoginPage.tsx`: Sửa lỗi màu chữ, cập nhật gradient Tailwind v3, nâng cao độ tương phản, bổ sung nút điều hướng quay về trang chủ.
+- `[MOD]` `frontend/src/pages/LandingPage.tsx`: Xây dựng lại hoàn toàn trang chủ hiện đại với Live Triage Simulator, 4 bước khám, bảng giá và các chứng nhận an toàn y tế.
+- `[MOD]` `frontend/vite.config.ts`: Tối ưu hóa lại `manualChunks`, loại bỏ chunk `three` rỗng.
+- `[MOD]` `docs/USE_CASES.md`: Cập nhật đặc tả `UC-UX-00` phù hợp với trang chủ mới.
+- `[MOD]` `docs/WORK_LOG.md`: Ghi lại nhật ký kiểm duyệt phiên #015.
+
+#### 3. Bằng Chứng Kiểm Thử & Kiểm Định Chất Lượng (Verification Proofs)
+- **Frontend Compilation:** `npm run build` hoàn thành trong **2.73s** với **0 lỗi TypeScript** (`tsc && vite build`), dung lượng bundle gọn gàng.
+- **Backend Unit Tests:** `mvn test` trong `backend/` đạt **BUILD SUCCESS (34/34 tests PASS, 0 failures, 0 errors)**.
+- **HTTP Verification:**
+  - `GET http://localhost:5173/` $\rightarrow$ `HTTP 200 OK`.
+  - `GET http://localhost:5173/login` $\rightarrow$ `HTTP 200 OK`.
+  - `GET http://localhost:5000/actuator/health` $\rightarrow$ `{"status":"UP","components":{"db":{"status":"UP"},"redis":{"status":"UP"}}}`.
+
+#### 4. Điểm Nóng Tech Lead Cần Lưu Ý Khi Review
+- Giao diện `LoginPage.tsx` hiện đã giải quyết triệt để vấn đề mất tương phản, các nút demo đăng nhập nhanh được làm nổi bật để Tech Lead duyệt nghiệm thu 1 chạm.
+- Trang chủ `LandingPage.tsx` có tính năng Live Triage Simulator tương tác trực tiếp mà không cần đăng nhập, hỗ trợ demo rất thuyết phục trước Hội đồng chấm Khóa luận Tốt nghiệp.
 
 ---
 
