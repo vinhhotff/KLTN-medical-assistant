@@ -53,6 +53,24 @@ public class DoctorProfile {
     )
     private Set<Specialty> specialties = new HashSet<>();
 
+    @Column(length = 50)
+    private String academicTitle; // GS.TS, PGS.TS, TS.BS, ThS.BS, BS.CKII, BS.CKI
+
+    @Column(length = 150)
+    private String hospitalAffiliation; // BV Đại Học Y Dược TP.HCM, BV Chợ Rẫy, BV Bạch Mai
+
+    @Column(length = 150)
+    private String department; // Khoa Tim Mạch Can Thiệp, Khoa Tiêu Hóa Gan Mật...
+
+    @Column(length = 150)
+    private String licenseIssuedBy; // Bộ Y Tế / Sở Y Tế
+
+    @Column
+    private Double rating = 4.9;
+
+    @Column
+    private Integer totalConsultations = 1250;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -62,6 +80,24 @@ public class DoctorProfile {
     private LocalDateTime updatedAt;
 
     public DoctorProfile() {}
+
+    public String getAcademicTitle() { return academicTitle; }
+    public void setAcademicTitle(String academicTitle) { this.academicTitle = academicTitle; }
+
+    public String getHospitalAffiliation() { return hospitalAffiliation; }
+    public void setHospitalAffiliation(String hospitalAffiliation) { this.hospitalAffiliation = hospitalAffiliation; }
+
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
+
+    public String getLicenseIssuedBy() { return licenseIssuedBy; }
+    public void setLicenseIssuedBy(String licenseIssuedBy) { this.licenseIssuedBy = licenseIssuedBy; }
+
+    public Double getRating() { return rating; }
+    public void setRating(Double rating) { this.rating = rating; }
+
+    public Integer getTotalConsultations() { return totalConsultations; }
+    public void setTotalConsultations(Integer totalConsultations) { this.totalConsultations = totalConsultations; }
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }

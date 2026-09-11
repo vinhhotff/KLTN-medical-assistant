@@ -71,6 +71,34 @@ CREATE TABLE users (
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_phone ON users(phone_number);
+
+#### Bảng `patient_profiles` (Hồ Sơ Y Tế & Bệnh Án Điện Tử - EMR Medical Passport)
+Lưu trữ thông tin hành chính, số định danh y tế, thẻ BHYT, tiền sử dị ứng và nhóm máu theo chuẩn Bộ Y Tế.
+
+```sql
+CREATE TABLE patient_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    patient_code VARCHAR(50) NOT NULL UNIQUE,     -- Mã định danh bệnh viện: BN-2026-XXXXX
+    citizen_id VARCHAR(20) UNIQUE,                -- Căn cước công dân (12 số)
+    health_insurance_number VARCHAR(30),          -- Mã thẻ BHYT chuẩn 15 ký tự (Ví dụ: DN4791234567890)
+    date_of_birth DATE,                           -- Ngày sinh
+    gender VARCHAR(10),                           -- MALE, FEMALE, OTHER
+    blood_group VARCHAR(10),                      -- A+, B+, AB+, O+, A-, B-, AB-, O-
+    address TEXT,                                 -- Địa chỉ thường trú
+    allergies TEXT,                               -- Dị ứng thuốc & thức ăn (Ví dụ: Penicillin, NSAIDs)
+    medical_history TEXT,                         -- Tiền sử bệnh lý nền (Tăng huyết áp, Đái tháo đường...)
+    emergency_contact_name VARCHAR(150),          -- Người liên hệ khẩn cấp
+    emergency_contact_phone VARCHAR(20),          -- Số điện thoại khẩn cấp
+    emergency_contact_relationship VARCHAR(50),   -- Mối quan hệ (Bố/Mẹ/Vợ/Chồng...)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_patient_code ON patient_profiles(patient_code);
+CREATE INDEX idx_patient_citizen_id ON patient_profiles(citizen_id);
+CREATE INDEX idx_patient_user_id ON patient_profiles(user_id);
+```
 ```
 
 ---
@@ -110,6 +138,12 @@ CREATE TABLE doctor_profiles (
     license_document_url VARCHAR(255),           -- Ảnh/PDF chứng chỉ hành nghề
     consultation_fee NUMERIC(10, 2) DEFAULT 0.00,-- Phí khám tư vấn (VND)
     years_of_experience INT DEFAULT 0,           -- Số năm kinh nghiệm
+    academic_title VARCHAR(50),                  -- Chức danh học thuật: GS.TS, PGS.TS, TS.BS, BS.CKII, BS.CKI
+    hospital_affiliation VARCHAR(150),           -- Bệnh viện công tác: BV Đại Học Y Dược, BV Chợ Rẫy
+    department VARCHAR(150),                     -- Khoa chuyên môn trực thuộc: Khoa Tim Mạch Can Thiệp
+    license_issued_by VARCHAR(150),              -- Đơn vị cấp CCHN: Cục Quản lý Khám chữa bệnh - Bộ Y Tế
+    rating DOUBLE PRECISION DEFAULT 4.9,         -- Điểm đánh giá hài lòng người bệnh (1.0 - 5.0)
+    total_consultations INT DEFAULT 1250,        -- Tổng số ca khám lâm sàng đã hoàn thành
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,  -- Trạng thái phê duyệt của Admin
     verified_at TIMESTAMPTZ,
     bio_embedding vector(1536),                  -- Vector nhúng 1536 chiều từ Bio + Chuyên khoa
@@ -213,8 +247,17 @@ CREATE TABLE appointments (
     scheduled_end TIMESTAMPTZ NOT NULL,
     status VARCHAR(30) NOT NULL DEFAULT 'SCHEDULED'
         CHECK (status IN ('SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW')),
+    queue_number VARCHAR(50),                    -- Số thứ tự tiếp nhận bệnh viện (Ví dụ: STT 08)
+    clinic_room VARCHAR(100),                    -- Phòng khám lâm sàng trực tiếp/trực tuyến (Ví dụ: Phòng Khám 204)
+    chief_complaint TEXT,                        -- Lý do vào viện / Triệu chứng chính
+    vital_signs_json TEXT,                       -- JSON chỉ số sinh hiệu (Huyết áp, Mạch, Thân nhiệt, Nhịp thở, SpO2, Chiều cao, Cân nặng, BMI)
+    icd10_code VARCHAR(20),                      -- Mã chẩn đoán quốc tế ICD-10 (Ví dụ: I10, I20.9, K21.0, E78.0)
+    icd10_name VARCHAR(255),                     -- Tên bệnh danh ICD-10 tiếng Việt
+    prescription_json TEXT,                      -- JSON đơn thuốc điện tử (Tên thuốc, hàm lượng, cách dùng, liều dùng, số lượng, lưu ý)
+    treatment_plan TEXT,                         -- Kế hoạch điều trị & Dặn dò y lệnh của Bác sĩ
+    follow_up_date DATE,                         -- Ngày hẹn tái khám
     cancellation_reason TEXT,
-    consultation_notes TEXT,                     -- Ghi chú chẩn đoán của Bác sĩ sau buổi khám
+    consultation_notes TEXT,                     -- Ghi chú chẩn đoán lâm sàng của Bác sĩ
     telehealth_room_id VARCHAR(100),             -- Room ID WebRTC/Jitsi
     fee_amount NUMERIC(12, 2) NOT NULL,
     payment_status VARCHAR(30) NOT NULL DEFAULT 'UNPAID'

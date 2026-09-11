@@ -82,6 +82,7 @@ public class DoctorSemanticSearchService {
         String sql = """
             SELECT dp.id, u.full_name, dp.bio, dp.license_number,
                    dp.years_of_experience, dp.consultation_fee,
+                   dp.academic_title, dp.hospital_affiliation,
                    1 - (dp.bio_embedding <=> CAST(? AS vector)) AS similarity_score
             FROM doctor_profiles dp
             JOIN users u ON dp.user_id = u.id
@@ -100,6 +101,8 @@ public class DoctorSemanticSearchService {
                         String license = rs.getString("license_number");
                         int exp = rs.getInt("years_of_experience");
                         BigDecimal fee = rs.getBigDecimal("consultation_fee");
+                        String academicTitle = rs.getString("academic_title");
+                        String hospitalAffiliation = rs.getString("hospital_affiliation");
                         double score = Math.max(0.0, Math.min(1.0, rs.getDouble("similarity_score")));
 
                         // Fetch specialties
@@ -113,7 +116,7 @@ public class DoctorSemanticSearchService {
                                 docId
                         );
 
-                        return new DoctorMatchDto(docId, fullName, bio, license, exp, fee, score, specs);
+                        return new DoctorMatchDto(docId, fullName, bio, license, exp, fee, score, specs, academicTitle, hospitalAffiliation);
                     },
                     vectorSql, vectorSql, limit
             );

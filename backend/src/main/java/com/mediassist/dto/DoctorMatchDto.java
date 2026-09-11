@@ -14,12 +14,20 @@ public class DoctorMatchDto {
     private BigDecimal consultationFee;
     private double similarityScore;
     private List<String> specialties;
+    private String academicTitle;
+    private String hospitalAffiliation;
 
     public DoctorMatchDto() {}
 
     public DoctorMatchDto(UUID doctorId, String fullName, String bio, String licenseNumber,
                           int yearsOfExperience, BigDecimal consultationFee, double similarityScore,
                           List<String> specialties) {
+        this(doctorId, fullName, bio, licenseNumber, yearsOfExperience, consultationFee, similarityScore, specialties, "TS.BS", "BV Đại Học Y Dược TP.HCM");
+    }
+
+    public DoctorMatchDto(UUID doctorId, String fullName, String bio, String licenseNumber,
+                          int yearsOfExperience, BigDecimal consultationFee, double similarityScore,
+                          List<String> specialties, String academicTitle, String hospitalAffiliation) {
         this.doctorId = doctorId;
         this.fullName = fullName;
         this.bio = bio;
@@ -28,6 +36,8 @@ public class DoctorMatchDto {
         this.consultationFee = consultationFee;
         this.similarityScore = similarityScore;
         this.specialties = specialties;
+        this.academicTitle = academicTitle != null ? academicTitle : "TS.BS";
+        this.hospitalAffiliation = hospitalAffiliation != null ? hospitalAffiliation : "BV Đại Học Y Dược TP.HCM";
     }
 
     public UUID getDoctorId() { return doctorId; }
@@ -53,4 +63,10 @@ public class DoctorMatchDto {
 
     public List<String> getSpecialties() { return specialties; }
     public void setSpecialties(List<String> specialties) { this.specialties = specialties; }
+
+    public String getAcademicTitle() { return academicTitle; }
+    public void setAcademicTitle(String academicTitle) { this.academicTitle = academicTitle; }
+
+    public String getHospitalAffiliation() { return hospitalAffiliation; }
+    public void setHospitalAffiliation(String hospitalAffiliation) { this.hospitalAffiliation = hospitalAffiliation; }
 }

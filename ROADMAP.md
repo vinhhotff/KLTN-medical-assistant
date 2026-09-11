@@ -18,7 +18,7 @@
 | **Milestone 1** | **Project Foundation, 2-Layer Cache & Resilience Skeleton** | 🟢 **COMPLETED** | Tag `v1.0.0-m1` (`master`) | Docker, Postgres(pgvector), Redis, L1/L2 Cache, Graceful Shutdown, Auth, Layouts, SRS |
 | **Milestone 2** | **Core Medical & Booking Workflow** | 🟢 **COMPLETED** | Tag `v2.0.0-m2` (`master`) | Doctor schedules, Admin verification, Booking CRUD, Concurrency guard, Cache invalidation |
 | **Milestone 3** | **AI Symptom Triage & Semantic Match** | 🟢 **COMPLETED** | `feature/milestone-3-ai-triage` | Chatbot UI, Guardrail prompts, pgvector semantic search, Rate limiters |
-| **Milestone 4** | **Multimodal Medical Record Summarizer**| 🟡 **READY TO START** | `feature/milestone-4-ocr-summary` | S3 Presigned URL, BullMQ Worker, GPT-4o Vision OCR, Async progress |
+| **Milestone 4** | **Multimodal Medical Record Summarizer & Hospital EMR**| 🟢 **COMPLETED** | `feature/hospital-grade-expansion` | PDF OCR analysis, Cosine doctor match, EMR Passport (BHYT/CCCD/Allergies), Clinical Workstation, ICD-10, e-Prescription |
 | **Milestone 5** | **Admin Analytics & Cost Management** | ⚪ Planned | `feature/milestone-5-admin-cost` | Token cost tracking, doctor review queue, audit logs, System metrics |
 | **Milestone 6** | **High-Load Testing, CI/CD & Final Defense** | ⚪ Planned | `feature/milestone-6-load-defense` | k6 Load Test (500+ VU), Jest/Playwright (≥70%), Docker Nginx HTTPS, Defense Docs |
 

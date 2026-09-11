@@ -123,6 +123,10 @@ public class DoctorService {
         if (req.getLicenseNumber() != null) profile.setLicenseNumber(req.getLicenseNumber());
         if (req.getConsultationFee() != null) profile.setConsultationFee(req.getConsultationFee());
         if (req.getYearsOfExperience() != null) profile.setYearsOfExperience(req.getYearsOfExperience());
+        if (req.getAcademicTitle() != null) profile.setAcademicTitle(req.getAcademicTitle());
+        if (req.getHospitalAffiliation() != null) profile.setHospitalAffiliation(req.getHospitalAffiliation());
+        if (req.getDepartment() != null) profile.setDepartment(req.getDepartment());
+        if (req.getLicenseIssuedBy() != null) profile.setLicenseIssuedBy(req.getLicenseIssuedBy());
 
         if (req.getSpecialtySlugs() != null && !req.getSpecialtySlugs().isEmpty()) {
             Set<Specialty> specialties = new HashSet<>();
