@@ -33,19 +33,25 @@ public class MedicalDocumentAnalysisService {
     private final DocumentAnalysisRepository documentAnalysisRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final MedicalDocumentValidator medicalDocumentValidator;
+    private final StorageService storageService;
 
     public MedicalDocumentAnalysisService(PdfExtractionService pdfExtractionService,
                                           DoctorSemanticSearchService doctorSemanticSearchService,
                                           MedicalDocumentRepository medicalDocumentRepository,
                                           DocumentAnalysisRepository documentAnalysisRepository,
                                           UserRepository userRepository,
-                                          ObjectMapper objectMapper) {
+                                          ObjectMapper objectMapper,
+                                          MedicalDocumentValidator medicalDocumentValidator,
+                                          StorageService storageService) {
         this.pdfExtractionService = pdfExtractionService;
         this.doctorSemanticSearchService = doctorSemanticSearchService;
         this.medicalDocumentRepository = medicalDocumentRepository;
         this.documentAnalysisRepository = documentAnalysisRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
+        this.medicalDocumentValidator = medicalDocumentValidator;
+        this.storageService = storageService;
     }
 
     @Transactional
@@ -56,51 +62,126 @@ public class MedicalDocumentAnalysisService {
 
         log.info("🩺 Ingesting medical document: '{}' ({}, {} bytes) for user: {}", fileName, contentType, size, userEmail);
 
-        User user = null;
-        if (userEmail != null && !userEmail.isBlank()) {
-            user = userRepository.findByEmail(userEmail).orElse(null);
+        // 1. User & Quota Verification (Anti-Abuse)
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new com.mediassist.common.AppException(
+                    org.springframework.http.HttpStatus.UNAUTHORIZED,
+                    "UNAUTHORIZED",
+                    "Vui lòng đăng nhập tài khoản để sử dụng tính năng này."
+            );
+        }
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new com.mediassist.common.AppException(
+                        org.springframework.http.HttpStatus.UNAUTHORIZED,
+                        "UNAUTHORIZED",
+                        "Người dùng không tồn tại trên hệ thống."
+                ));
+
+        byte[] fileBytes;
+        try {
+            fileBytes = file.getBytes();
+        } catch (Exception e) {
+            throw new com.mediassist.common.AppException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "FILE_READ_ERROR",
+                    "Không thể đọc dữ liệu tệp tin tải lên: " + e.getMessage()
+            );
         }
 
-        // 1. Extract content from PDF or text stream
+        // 2. SHA-256 Checksum & Deduplication Lookup (Token Protection)
+        // If document was previously analyzed, return cached result immediately with 0 tokens and 0 quota cost
+        String fileHash = calculateSha256(fileBytes);
+        Optional<MedicalDocument> existingDocOpt = medicalDocumentRepository.findFirstByUserIdAndFileHashOrderByCreatedAtDesc(user.getId(), fileHash);
+        if (existingDocOpt.isPresent()) {
+            MedicalDocument existingDoc = existingDocOpt.get();
+            Optional<DocumentAnalysis> existingAnalysisOpt = documentAnalysisRepository.findByDocumentId(existingDoc.getId());
+            if (existingAnalysisOpt.isPresent()) {
+                DocumentAnalysis existingAnalysis = existingAnalysisOpt.get();
+                log.info("⚡ [CACHE HIT - DEDUPLICATION] Document '{}' (hash: {}) previously analyzed for user {}. Returning cached result. 0 LLM tokens consumed.", fileName, fileHash, userEmail);
+
+                List<AbnormalIndicatorDto> cachedIndicators = new ArrayList<>();
+                List<String> cachedQuestions = new ArrayList<>();
+                try {
+                    cachedIndicators = objectMapper.readValue(existingAnalysis.getAbnormalIndicatorsJson(), new TypeReference<List<AbnormalIndicatorDto>>() {});
+                    cachedQuestions = objectMapper.readValue(existingAnalysis.getSuggestedQuestionsJson(), new TypeReference<List<String>>() {});
+                } catch (Exception ignored) {}
+
+                String queryForDoctorMatch = String.format("%s. Chuyên khoa %s. %s",
+                        existingAnalysis.getClinicalSummary(), existingAnalysis.getRecommendedSpecialtyName(), existingAnalysis.getRecommendedSpecialtySlug());
+                List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(queryForDoctorMatch, 4);
+
+                DocumentAnalysisResponse resp = new DocumentAnalysisResponse();
+                resp.setDocumentId(existingDoc.getId());
+                resp.setFileName(existingDoc.getFileName());
+                resp.setFileSizeBytes(existingDoc.getFileSizeBytes());
+                resp.setContentType(existingDoc.getContentType());
+                resp.setClinicalSummary(existingAnalysis.getClinicalSummary());
+                resp.setPlainLanguageExplanation(existingAnalysis.getPlainLanguageExplanation());
+                resp.setIndicators(cachedIndicators);
+                resp.setRecommendedSpecialtySlug(existingAnalysis.getRecommendedSpecialtySlug());
+                resp.setRecommendedSpecialtyName(existingAnalysis.getRecommendedSpecialtyName());
+                resp.setSuggestedQuestions(cachedQuestions);
+                resp.setMatchedDoctors(matchedDoctors);
+                resp.setStorageUrl(existingDoc.getStorageUrl());
+                resp.setCachedResult(true);
+                return resp;
+            }
+        }
+
+        // 3. Quota Pre-check for NEW analysis (Anti-Abuse)
+        if (!user.hasScanQuota()) {
+            log.warn("🚫 [QUOTA EXCEEDED] User {} has 0 scan quota and is not a VIP subscriber.", userEmail);
+            throw new com.mediassist.common.AppException(
+                    org.springframework.http.HttpStatus.PAYMENT_REQUIRED,
+                    "QUOTA_EXCEEDED",
+                    "Bạn đã sử dụng hết lượt phân tích tài liệu miễn phí. Vui lòng mua gói quét lẻ (29.000đ) hoặc nâng cấp MediPass VIP (149.000đ/tháng) để tiếp tục."
+            );
+        }
+
+        // 3. Extract content from PDF or text stream
         String extractedText = "";
         try {
             if (contentType.toLowerCase().contains("pdf")) {
-                extractedText = pdfExtractionService.extractTextFromPdf(file.getBytes());
+                extractedText = pdfExtractionService.extractTextFromPdf(fileBytes);
             } else {
-                // If text or image with fallback
-                extractedText = new String(file.getBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                extractedText = new String(fileBytes, java.nio.charset.StandardCharsets.UTF_8);
             }
         } catch (Exception e) {
             log.warn("Could not extract text from file: {}", e.getMessage());
         }
 
-        // If extracted text is blank, combine filename as contextual hint
-        if (extractedText.isBlank()) {
-            extractedText = fileName;
-        }
+        // 4. Gatekeeper Validation (Invalid / Blurry / Non-medical filter)
+        // If validation fails, throws AppException(400) -> User quota is NOT deducted!
+        medicalDocumentValidator.validateDocument(fileBytes, contentType, extractedText, fileName);
 
-        // 2. Parse clinical indicators and abnormal findings
+        // 5. Cloud Storage Upload (Supabase Storage with resilient local fallback)
+        String storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
+
+        // 6. Parse clinical indicators and abnormal findings
         List<AbnormalIndicatorDto> indicators = parseIndicators(extractedText, fileName);
 
-        // 3. Determine recommended medical specialty
+        // 7. Determine recommended medical specialty
         SpecialtyTarget specialty = determineSpecialtyFromFindings(extractedText, fileName, indicators);
 
-        // 4. Generate Clinical Scribe Summary & Plain-Language Explanation
+        // 8. Generate Clinical Scribe Summary & Plain-Language Explanation
         String clinicalSummary = generateClinicalSummary(indicators, specialty);
         String plainExplanation = generatePlainLanguageExplanation(indicators, specialty);
         List<String> suggestedQuestions = generateSuggestedQuestions(specialty, indicators);
 
-        // 5. Semantic Doctor Recommendation via pgvector Cosine Similarity
+        // 9. Semantic Doctor Recommendation via pgvector Cosine Similarity
         String queryForDoctorMatch = String.format("%s. Chuyên khoa %s. %s",
                 clinicalSummary, specialty.name(), specialty.slug());
         List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(queryForDoctorMatch, 4);
 
-        // 6. Persist MedicalDocument & DocumentAnalysis
+        // 10. Persist MedicalDocument & DocumentAnalysis
         MedicalDocument medDoc = new MedicalDocument();
         medDoc.setUser(user);
         medDoc.setFileName(fileName);
         medDoc.setFileSizeBytes(size);
         medDoc.setContentType(contentType);
+        medDoc.setFileHash(fileHash);
+        medDoc.setStorageUrl(storageUrl);
+        medDoc.setValidMedical(true);
         medDoc.setStatus("PROCESSED");
         medDoc = medicalDocumentRepository.save(medDoc);
 
@@ -120,7 +201,14 @@ public class MedicalDocumentAnalysisService {
         }
         documentAnalysisRepository.save(analysis);
 
-        // 7. Assemble Response DTO
+        // 11. Deduct Quota (If not VIP)
+        if (user.getSubscriptionTier() == null || !user.getSubscriptionTier().toUpperCase().contains("VIP")) {
+            user.setScanQuota(Math.max(0, user.getScanQuota() - 1));
+            userRepository.save(user);
+            log.info("💳 Deducted 1 scan quota for user {}. Remaining quota: {}", userEmail, user.getScanQuota());
+        }
+
+        // 12. Assemble Response DTO
         DocumentAnalysisResponse response = new DocumentAnalysisResponse();
         response.setDocumentId(medDoc.getId());
         response.setFileName(fileName);
@@ -133,8 +221,52 @@ public class MedicalDocumentAnalysisService {
         response.setRecommendedSpecialtyName(specialty.name());
         response.setSuggestedQuestions(suggestedQuestions);
         response.setMatchedDoctors(matchedDoctors);
+        response.setStorageUrl(storageUrl);
+        response.setCachedResult(false);
 
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public com.mediassist.dto.UserQuotaDto getUserQuota(String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new com.mediassist.common.AppException(
+                    org.springframework.http.HttpStatus.UNAUTHORIZED,
+                    "UNAUTHORIZED",
+                    "Vui lòng đăng nhập tài khoản."
+            );
+        }
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new com.mediassist.common.AppException(
+                        org.springframework.http.HttpStatus.NOT_FOUND,
+                        "USER_NOT_FOUND",
+                        "Người dùng không tồn tại trên hệ thống."
+                ));
+
+        boolean isVip = user.getSubscriptionTier() != null && user.getSubscriptionTier().toUpperCase().contains("VIP");
+        return new com.mediassist.dto.UserQuotaDto(
+                user.getScanQuota(),
+                user.getSubscriptionTier(),
+                user.getVipValidUntil(),
+                isVip,
+                user.hasScanQuota()
+        );
+    }
+
+    private String calculateSha256(byte[] data) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(data);
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            return UUID.randomUUID().toString();
+        }
     }
 
     private List<AbnormalIndicatorDto> parseIndicators(String text, String fileName) {

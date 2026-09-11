@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   UploadCloud,
   FileText,
@@ -14,7 +14,11 @@ import {
   Stethoscope,
   ChevronRight,
   Building2,
-  Printer
+  Printer,
+  RotateCcw,
+  ExternalLink,
+  Zap,
+  Crown
 } from 'lucide-react';
 import { api } from '../../services/api.js';
 import { useAuthStore } from '../../store/useAuthStore.js';
@@ -53,6 +57,16 @@ interface AnalysisResult {
   recommendedSpecialtyName: string;
   suggestedQuestions: string[];
   matchedDoctors: DoctorMatch[];
+  storageUrl?: string;
+  cachedResult?: boolean;
+}
+
+interface UserQuota {
+  scanQuota: number;
+  subscriptionTier: string;
+  vipValidUntil: string | null;
+  vip: boolean;
+  hasQuota: boolean;
 }
 
 interface DoctorSlot {
@@ -86,6 +100,27 @@ export const DocumentSummarizerPage: React.FC = () => {
   const [progressStep, setProgressStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+
+  // Quota & Commercial Monetization State
+  const [quota, setQuota] = useState<UserQuota | null>(null);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+
+  const fetchQuota = async () => {
+    try {
+      const res = await api.get('/documents/quota');
+      if (res.data?.data) {
+        setQuota(res.data.data);
+      }
+    } catch (err) {
+      console.warn('Could not load user quota:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchQuota();
+    }
+  }, [user]);
 
   // Booking Modal State
   const [bookingDoctor, setBookingDoctor] = useState<DoctorMatch | null>(null);
@@ -171,10 +206,17 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
 
       if (res.data?.data) {
         setAnalysis(res.data.data);
+        fetchQuota();
       }
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
-      setError(axiosErr.response?.data?.error?.message || 'Không thể phân tích tài liệu y tế. Vui lòng kiểm tra định dạng tệp.');
+      const axiosErr = err as { response?: { status?: number; data?: { error?: { code?: string; message?: string } } } };
+      const status = axiosErr.response?.status;
+      const code = axiosErr.response?.data?.error?.code;
+      const message = axiosErr.response?.data?.error?.message;
+      if (status === 402 || code === 'QUOTA_EXCEEDED') {
+        setShowPricingModal(true);
+      }
+      setError(message || 'Không thể phân tích tài liệu y tế. Vui lòng kiểm tra định dạng tệp.');
     } finally {
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
@@ -255,7 +297,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-16">
       {/* Header */}
-      <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-teal-600 text-white rounded-xl shadow-xs">
             <UploadCloud className="w-6 h-6" />
@@ -268,6 +310,30 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
               Tải lên phiếu xét nghiệm máu, đơn thuốc hoặc bệnh án (PDF/Ảnh). AI sẽ đối chiếu chỉ số bất thường và tự động tìm Bác sĩ chuyên khoa phù hợp qua pgvector.
             </p>
           </div>
+        </div>
+
+        {/* Quota & Subscription Status Badge */}
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
+          {quota?.vip ? (
+            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-amber-500/15 via-amber-400/20 to-amber-500/15 border border-amber-300 text-amber-900 rounded-full text-xs font-semibold shadow-xs">
+              <Crown className="w-4 h-4 text-amber-600 animate-pulse" />
+              <span>Hội Viên MediPass VIP</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-full text-xs font-semibold shadow-xs">
+              <Zap className="w-4 h-4 text-teal-600" />
+              <span>
+                Lượt quét: <strong className={quota?.scanQuota === 0 ? "text-rose-600" : "text-teal-700"}>{quota?.scanQuota ?? 1}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPricingModal(true)}
+                className="ml-1 px-2.5 py-0.5 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-full text-[11px] font-bold transition border border-teal-200"
+              >
+                + Mua thêm
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -340,9 +406,30 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-xs font-medium flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {error}
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-medium flex flex-wrap items-center justify-between gap-3 shadow-xs animate-fadeIn">
+          <div className="flex items-center gap-2 max-w-2xl">
+            <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {file && (
+              <button
+                type="button"
+                onClick={() => executeAnalysis(file)}
+                disabled={analyzing}
+                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Thử Lại
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowPricingModal(true)}
+              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
+            >
+              <Crown className="w-3.5 h-3.5" /> Gói Quét / VIP
+            </button>
+          </div>
         </div>
       )}
 
@@ -370,6 +457,26 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
       {/* 📊 Analysis Results Display */}
       {analysis && !analyzing && (
         <div className="space-y-6 animate-fadeIn">
+          {/* Deduplication Cache Hit Banner */}
+          {analysis.cachedResult && (
+            <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-emerald-950 text-xs shadow-xs animate-fadeIn">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-emerald-600 text-white rounded-xl flex-shrink-0">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="font-bold text-emerald-900 text-sm">⚡ SHA-256 Deduplication Hit (Tiết kiệm 100% tài nguyên)</p>
+                  <p className="text-emerald-700 mt-0.5">
+                    Tài liệu này đã được phân tích trước đó trong hồ sơ EMR của bạn. Hệ thống trả về kết quả ngay lập tức (0ms) mà <strong>không trừ lượt quét</strong> và không tiêu hao token AI.
+                  </p>
+                </div>
+              </div>
+              <span className="px-3 py-1 bg-emerald-100 text-emerald-800 font-mono font-bold rounded-lg border border-emerald-300 text-[11px] whitespace-nowrap">
+                0 Token AI • 0đ Phí
+              </span>
+            </div>
+          )}
+
           {/* Top Medical Disclaimer Notice */}
           <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 text-xs flex items-start gap-3 shadow-xs">
             <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -432,7 +539,20 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {analysis.storageUrl && (
+                  <a
+                    href={analysis.storageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-xs font-semibold transition"
+                    title="Xem tệp gốc trên Cloud Storage"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Supabase Cloud EMR</span>
+                    <ExternalLink className="w-3 h-3 text-sky-500" />
+                  </a>
+                )}
                 <button
                   type="button"
                   onClick={() => window.print()}
@@ -763,6 +883,113 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 💳 Commercial Pricing & Scan Quota Modal */}
+      {showPricingModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 md:p-8 space-y-6 shadow-2xl animate-fadeIn border border-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-amber-500 text-white rounded-2xl shadow-xs">
+                  <Crown className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-slate-900">Bảng Giá Dịch Vụ & Gói Quét MediAssist-AI</h3>
+                  <p className="text-xs text-slate-500">Mô hình kinh doanh Win-Win: Bảo vệ tài nguyên AI, minh bạch chi phí cho người bệnh</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPricingModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Tier 1: Single Scan */}
+              <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50 flex flex-col justify-between space-y-4">
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Gói Lẻ</span>
+                  <h4 className="text-2xl font-black text-slate-900">29.000đ</h4>
+                  <p className="text-xs text-slate-600 font-medium">1 Lượt Phân Tích Chuyên Sâu</p>
+                  <ul className="text-xs text-slate-600 space-y-1.5 pt-2">
+                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> OCR bóc tách chỉ số sinh hóa</li>
+                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> Đề xuất Bác sĩ qua pgvector</li>
+                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> Lưu trữ Cloud EMR an toàn</li>
+                  </ul>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    alert('Hệ thống đang tích hợp cổng thanh toán trực tuyến VNPAY/MoMo cho phiên bản Doanh Nghiệp!');
+                  }}
+                  className="w-full py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold transition"
+                >
+                  Mua 1 Lượt (29k)
+                </button>
+              </div>
+
+              {/* Tier 2: 5 Scans Pack */}
+              <div className="p-5 rounded-2xl border-2 border-teal-500 bg-teal-50/40 flex flex-col justify-between space-y-4 relative shadow-xs">
+                <span className="absolute -top-2.5 right-4 px-2.5 py-0.5 bg-teal-600 text-white rounded-full text-[10px] font-bold shadow-xs">
+                  Phổ Biến Nhất
+                </span>
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-teal-700">Gói Tiết Kiệm</span>
+                  <h4 className="text-2xl font-black text-teal-950">99.000đ</h4>
+                  <p className="text-xs text-teal-700 font-medium">5 Lượt (Chỉ 19.800đ/lần)</p>
+                  <ul className="text-xs text-slate-600 space-y-1.5 pt-2">
+                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> Tiết kiệm 32% chi phí</li>
+                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> Hạn sử dụng 12 tháng</li>
+                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> Tóm tắt SBAR đính kèm bác sĩ</li>
+                  </ul>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    alert('Hệ thống đang tích hợp cổng thanh toán trực tuyến VNPAY/MoMo cho phiên bản Doanh Nghiệp!');
+                  }}
+                  className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+                >
+                  Mua Gói 5 Lượt (99k)
+                </button>
+              </div>
+
+              {/* Tier 3: MediPass VIP */}
+              <div className="p-5 rounded-2xl border-2 border-amber-400 bg-gradient-to-b from-amber-50/60 to-white flex flex-col justify-between space-y-4 relative shadow-xs">
+                <span className="absolute -top-2.5 right-4 px-2.5 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-bold shadow-xs">
+                  VIP Gia Đình
+                </span>
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">MediPass VIP</span>
+                  <h4 className="text-2xl font-black text-slate-900">149.000đ<span className="text-xs font-normal text-slate-500">/tháng</span></h4>
+                  <p className="text-xs text-amber-800 font-medium">Quét không giới hạn</p>
+                  <ul className="text-xs text-slate-600 space-y-1.5 pt-2">
+                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" /> Không giới hạn lượt quét PDF/Ảnh</li>
+                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" /> Ưu tiên kết nối lịch Bác sĩ</li>
+                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" /> Hỗ trợ hồ sơ sức khỏe cả gia đình</li>
+                  </ul>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    alert('Hệ thống đang tích hợp cổng thanh toán trực tuyến VNPAY/MoMo cho phiên bản Doanh Nghiệp!');
+                  }}
+                  className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+                >
+                  Đăng Ký VIP (149k/tháng)
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-2xl text-slate-500 text-xs text-center border border-slate-200">
+              💡 <em>Chính sách chống lãng phí token: Người bệnh tải lại cùng một tài liệu (SHA-256 Deduplication) sẽ <strong>được miễn phí 100%</strong> trọn đời và không tiêu tốn thêm lượt quét.</em>
+            </div>
           </div>
         </div>
       )}

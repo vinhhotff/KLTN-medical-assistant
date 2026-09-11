@@ -83,4 +83,14 @@ public class MedicalDocumentController {
         List<MedicalDocument> list = medicalDocumentRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
         return ResponseEntity.ok(ApiResponse.success(list));
     }
+
+    @GetMapping("/quota")
+    @Operation(summary = "Lấy thông tin hạn ngạch phân tích tài liệu và gói hội viên của người dùng hiện tại")
+    public ResponseEntity<ApiResponse<com.mediassist.dto.UserQuotaDto>> getUserQuota(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập để kiểm tra hạn ngạch phân tích.");
+        }
+        com.mediassist.dto.UserQuotaDto quotaDto = analysisService.getUserQuota(authentication.getName());
+        return ResponseEntity.ok(ApiResponse.success(quotaDto));
+    }
 }

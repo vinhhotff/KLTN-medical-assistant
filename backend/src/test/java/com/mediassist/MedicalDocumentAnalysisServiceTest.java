@@ -1,6 +1,7 @@
 package com.mediassist;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mediassist.common.AppException;
 import com.mediassist.dto.DoctorMatchDto;
 import com.mediassist.dto.DocumentAnalysisResponse;
 import com.mediassist.model.entity.DocumentAnalysis;
@@ -10,7 +11,9 @@ import com.mediassist.repository.MedicalDocumentRepository;
 import com.mediassist.repository.UserRepository;
 import com.mediassist.service.DoctorSemanticSearchService;
 import com.mediassist.service.MedicalDocumentAnalysisService;
+import com.mediassist.service.MedicalDocumentValidator;
 import com.mediassist.service.PdfExtractionService;
+import com.mediassist.service.StorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,10 +22,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -47,21 +52,39 @@ class MedicalDocumentAnalysisServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private MedicalDocumentValidator medicalDocumentValidator;
+
+    @Mock
+    private StorageService storageService;
+
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private MedicalDocumentAnalysisService analysisService;
 
+    private com.mediassist.model.entity.User testUser;
+
     @BeforeEach
     void setUp() {
-        when(medicalDocumentRepository.save(any(MedicalDocument.class)))
+        testUser = new com.mediassist.model.entity.User();
+        testUser.setId(UUID.randomUUID());
+        testUser.setEmail("patient@mediassist.local");
+        testUser.setScanQuota(1);
+        testUser.setSubscriptionTier("FREE");
+
+        lenient().when(userRepository.findByEmail(anyString())).thenReturn(java.util.Optional.of(testUser));
+        lenient().when(storageService.uploadDocument(any(), any(), any(), any()))
+                .thenReturn("https://supabase.co/storage/v1/object/public/medical-documents/test.pdf");
+
+        lenient().when(medicalDocumentRepository.save(any(MedicalDocument.class)))
                 .thenAnswer(inv -> {
                     MedicalDocument doc = inv.getArgument(0);
                     doc.setId(UUID.randomUUID());
                     return doc;
                 });
-        when(documentAnalysisRepository.save(any(DocumentAnalysis.class)))
+        lenient().when(documentAnalysisRepository.save(any(DocumentAnalysis.class)))
                 .thenAnswer(inv -> {
                     DocumentAnalysis da = inv.getArgument(0);
                     da.setId(UUID.randomUUID());
@@ -129,10 +152,74 @@ class MedicalDocumentAnalysisServiceTest {
         );
         when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(mockReport);
 
-        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, null);
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
 
         assertNotNull(response);
         assertEquals("gastroenterology", response.getRecommendedSpecialtySlug());
         assertTrue(response.getIndicators().stream().anyMatch(i -> i.getName().contains("ALT") && "ELEVATED".equals(i.getStatus())));
+    }
+
+    @Test
+    @DisplayName("Should throw HTTP 402 PAYMENT_REQUIRED when user scan quota is 0 and not VIP")
+    void testQuotaExceededThrowsPaymentRequired() {
+        testUser.setScanQuota(0);
+        testUser.setSubscriptionTier("FREE");
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "Lab.pdf", "application/pdf", "%PDF-1.4 sample content".getBytes()
+        );
+
+        AppException ex = assertThrows(AppException.class, () ->
+                analysisService.analyzeDocument(file, "patient@mediassist.local")
+        );
+
+        assertEquals(HttpStatus.PAYMENT_REQUIRED, ex.getStatus());
+        assertEquals("QUOTA_EXCEEDED", ex.getCode());
+        // Verify no document saved and no storage upload attempted
+        verify(medicalDocumentRepository, never()).save(any());
+        verify(storageService, never()).uploadDocument(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Should return cached analysis result via SHA-256 deduplication without consuming token or quota")
+    void testSha256DeduplicationReturnsCachedResultWithoutTokenCost() {
+        testUser.setScanQuota(1);
+
+        byte[] fileBytes = "%PDF-1.4 DEDUPLICATED CONTENT".getBytes();
+        MockMultipartFile file = new MockMultipartFile("file", "Deduplicated.pdf", "application/pdf", fileBytes);
+
+        UUID existingDocId = UUID.randomUUID();
+        MedicalDocument existingDoc = new MedicalDocument();
+        existingDoc.setId(existingDocId);
+        existingDoc.setFileName("Deduplicated.pdf");
+        existingDoc.setFileSizeBytes((long) fileBytes.length);
+        existingDoc.setContentType("application/pdf");
+        existingDoc.setStorageUrl("https://supabase.co/storage/v1/object/public/medical-documents/cached.pdf");
+
+        DocumentAnalysis existingAnalysis = new DocumentAnalysis();
+        existingAnalysis.setId(UUID.randomUUID());
+        existingAnalysis.setClinicalSummary("Chỉ số mỡ máu tăng nhẹ");
+        existingAnalysis.setPlainLanguageExplanation("Người bệnh có cholesterol hơi cao");
+        existingAnalysis.setRecommendedSpecialtySlug("cardiology");
+        existingAnalysis.setRecommendedSpecialtyName("Tim mạch");
+        existingAnalysis.setAbnormalIndicatorsJson("[]");
+        existingAnalysis.setSuggestedQuestionsJson("[\"Tôi nên ăn gì để hạ men gan?\"]");
+
+        when(medicalDocumentRepository.findFirstByUserIdAndFileHashOrderByCreatedAtDesc(eq(testUser.getId()), anyString()))
+                .thenReturn(Optional.of(existingDoc));
+        when(documentAnalysisRepository.findByDocumentId(existingDocId))
+                .thenReturn(Optional.of(existingAnalysis));
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertTrue(response.isCachedResult(), "Response must be marked as cachedResult");
+        assertEquals("https://supabase.co/storage/v1/object/public/medical-documents/cached.pdf", response.getStorageUrl());
+        assertEquals("cardiology", response.getRecommendedSpecialtySlug());
+
+        // Verify storage upload was NOT triggered and quota was NOT deducted
+        verify(storageService, never()).uploadDocument(any(), any(), any(), any());
+        verify(medicalDocumentValidator, never()).validateDocument(any(), any(), any(), any());
+        assertEquals(1, testUser.getScanQuota(), "Quota must remain untouched on deduplication cache hit");
     }
 }

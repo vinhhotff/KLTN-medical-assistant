@@ -50,6 +50,15 @@ public class User {
     @Column(name = "locked_until")
     private LocalDateTime lockedUntil;
 
+    @Column(name = "scan_quota", nullable = false)
+    private int scanQuota = 1;
+
+    @Column(name = "subscription_tier", nullable = false, length = 30)
+    private String subscriptionTier = "FREE";
+
+    @Column(name = "vip_valid_until")
+    private LocalDateTime vipValidUntil;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -111,6 +120,24 @@ public class User {
 
     public boolean isAccountNonLocked() {
         return lockedUntil == null || LocalDateTime.now().isAfter(lockedUntil);
+    }
+
+    public int getScanQuota() { return scanQuota; }
+    public void setScanQuota(int scanQuota) { this.scanQuota = scanQuota; }
+
+    public String getSubscriptionTier() { return subscriptionTier; }
+    public void setSubscriptionTier(String subscriptionTier) { this.subscriptionTier = subscriptionTier; }
+
+    public LocalDateTime getVipValidUntil() { return vipValidUntil; }
+    public void setVipValidUntil(LocalDateTime vipValidUntil) { this.vipValidUntil = vipValidUntil; }
+
+    public boolean hasScanQuota() {
+        if (subscriptionTier != null && subscriptionTier.toUpperCase().contains("VIP")) {
+            if (vipValidUntil == null || LocalDateTime.now().isBefore(vipValidUntil)) {
+                return true;
+            }
+        }
+        return scanQuota > 0;
     }
 
     public LocalDateTime getCreatedAt() { return createdAt; }

@@ -61,6 +61,9 @@ CREATE TABLE users (
     role VARCHAR(30) NOT NULL CHECK (role IN ('ADMIN', 'DOCTOR', 'PATIENT')),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     is_email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    scan_quota INT NOT NULL DEFAULT 1,            -- Số lượt phân tích tài liệu khả dụng
+    subscription_tier VARCHAR(30) NOT NULL DEFAULT 'FREE', -- FREE, VIP_MONTHLY, VIP_YEARLY
+    vip_valid_until TIMESTAMPTZ,                 -- Hạn hội viên MediPass VIP
     failed_login_attempts INT NOT NULL DEFAULT 0,
     locked_until TIMESTAMPTZ,
     last_login_at TIMESTAMPTZ,
@@ -207,7 +210,10 @@ CREATE TABLE medical_documents (
     file_name VARCHAR(255) NOT NULL,
     file_size_bytes BIGINT NOT NULL,
     content_type VARCHAR(100) NOT NULL,
-    storage_path VARCHAR(500),                   -- Đường dẫn lưu trữ MinIO / S3 Encrypted
+    storage_path VARCHAR(500),                   -- Đường dẫn lưu trữ nội bộ
+    storage_url TEXT,                            -- Đường dẫn công khai / presigned Supabase Storage Cloud EMR
+    file_hash VARCHAR(64),                       -- Mã băm SHA-256 chống trùng lặp và lãng phí token
+    is_valid_medical BOOLEAN NOT NULL DEFAULT TRUE, -- Cờ xác thực tài liệu y khoa từ Gatekeeper Sieve
     status VARCHAR(50) NOT NULL DEFAULT 'PROCESSED', -- PENDING, PROCESSING, PROCESSED, FAILED
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -226,6 +232,7 @@ CREATE TABLE document_analyses (
 
 CREATE INDEX idx_med_doc_user ON medical_documents(user_id);
 CREATE INDEX idx_med_doc_created ON medical_documents(created_at DESC);
+CREATE INDEX idx_med_doc_hash ON medical_documents(user_id, file_hash);
 CREATE INDEX idx_doc_analysis_doc ON document_analyses(document_id);
 CREATE INDEX idx_doc_analysis_specialty ON document_analyses(recommended_specialty_slug);
 ```
