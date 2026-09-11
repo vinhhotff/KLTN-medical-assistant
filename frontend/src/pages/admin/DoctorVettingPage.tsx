@@ -14,6 +14,12 @@ interface PendingDoctor {
   yearsOfExperience: number;
   specialties: string[];
   verified: boolean;
+  academicTitle?: string;
+  hospitalAffiliation?: string;
+  department?: string;
+  licenseIssuedBy?: string;
+  rating?: number;
+  totalConsultations?: number;
 }
 
 export const DoctorVettingPage: React.FC = () => {
@@ -137,6 +143,11 @@ export const DoctorVettingPage: React.FC = () => {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
+                      {doc.academicTitle && (
+                        <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          {doc.academicTitle}
+                        </span>
+                      )}
                       <h4 className="text-lg font-bold text-slate-900">{doc.fullName}</h4>
                       {doc.specialties?.map((spec) => (
                         <span
@@ -151,14 +162,25 @@ export const DoctorVettingPage: React.FC = () => {
                       </span>
                     </div>
 
+                    {doc.hospitalAffiliation && (
+                      <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold bg-teal-50/70 border border-teal-100 px-3 py-1 rounded-xl w-fit">
+                        <Building2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
+                        <span>{doc.hospitalAffiliation}</span>
+                        {doc.department && <span className="text-slate-400 font-normal">| {doc.department}</span>}
+                      </div>
+                    )}
+
                     <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
                       <span className="flex items-center gap-1">
                         <User className="w-3.5 h-3.5 text-slate-400" /> {doc.email}
                       </span>
                       <span>SĐT: {doc.phone || 'Chưa cung cấp'}</span>
                       <span className="flex items-center gap-1 font-mono font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                        <Building2 className="w-3.5 h-3.5 text-slate-400" /> CCHN: {doc.licenseNumber}
+                        <FileBadge className="w-3.5 h-3.5 text-slate-400" /> CCHN: {doc.licenseNumber}
                       </span>
+                      {doc.licenseIssuedBy && (
+                        <span className="text-slate-400">Cấp bởi: {doc.licenseIssuedBy}</span>
+                      )}
                       <span>Kinh nghiệm: {doc.yearsOfExperience} năm</span>
                       <span className="font-bold text-indigo-600">
                         Phí: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(doc.consultationFee || 300000)}

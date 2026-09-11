@@ -57,8 +57,11 @@ public class DoctorSemanticSearchService {
                     .map(Specialty::getName)
                     .collect(Collectors.joining(", "));
 
-            String doctorText = String.format("%s. %s. Chuyên khoa: %s. Kinh nghiệm: %d năm.",
+            String doctorText = String.format("%s %s. %s - %s. %s. Chuyên khoa: %s. Kinh nghiệm: %d năm.",
+                    dp.getAcademicTitle() != null ? dp.getAcademicTitle() : "",
                     dp.getUser() != null ? dp.getUser().getFullName() : "",
+                    dp.getHospitalAffiliation() != null ? dp.getHospitalAffiliation() : "",
+                    dp.getDepartment() != null ? dp.getDepartment() : "",
                     dp.getBio() != null ? dp.getBio() : "",
                     specialtyNames,
                     dp.getYearsOfExperience());
