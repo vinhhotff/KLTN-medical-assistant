@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface MedicalDocumentRepository extends JpaRepository<MedicalDocument, UUID> {
     List<MedicalDocument> findByUserIdOrderByCreatedAtDesc(UUID userId);
+    java.util.Optional<MedicalDocument> findFirstByUserIdAndFileHashOrderByCreatedAtDesc(UUID userId, String fileHash);
 }

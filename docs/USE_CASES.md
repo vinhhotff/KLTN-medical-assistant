@@ -119,32 +119,65 @@ graph TD
 
 ---
 
-### UC-03: Tóm Tắt & Giải Nghĩa Phiếu Xét Nghiệm Bằng AI Đa Phương Thức (Multimodal Document Summarization)
+### UC-03: Tóm Tắt & Giải Nghĩa Phiếu Xét Nghiệm Bằng AI Đa Phương Thức (Multimodal Document Summarization & Token Protection)
 
 * **Mã Use Case:** `UC-CLIN-03`
-* **Tác nhân chính:** Patient, Apache PDFBox Parser, pgvector Semantic Matching Engine.
-* **Mục tiêu:** Chuyển đổi kết quả xét nghiệm máu/sinh hóa/nước tiểu từ tài liệu PDF phức tạp thành bảng chỉ số đối chiếu dễ hiểu cho người bệnh, cảnh báo bất thường và đề xuất bác sĩ chuyên khoa phù hợp tức thì.
-* **Tiền điều kiện:** Người dùng **ĐÃ ĐĂNG NHẬP** (Zero-Trust Login-First, từ chối khách vãng lai với `HTTP 401 Unauthorized`). Tuân thủ Rate Limiter (tối đa 5 lượt tải lên/phút) và giới hạn kích thước tệp tối đa 15MB.
+* **Tác nhân chính:** Patient, Apache PDFBox Parser, MedicalDocumentValidator, Supabase Storage, pgvector Semantic Matching Engine.
+* **Mục tiêu:** Chuyển đổi kết quả xét nghiệm máu/sinh hóa/nước tiểu từ tài liệu PDF phức tạp thành bảng chỉ số đối chiếu dễ hiểu cho người bệnh, cảnh báo bất thường, đề xuất bác sĩ chuyên khoa phù hợp tức thì; đồng thời bảo vệ 100% token AI và lưu trữ an toàn trên Cloud EMR.
+* **Tiền điều kiện:** 
+  - Người dùng **ĐÃ ĐĂNG NHẬP** (Zero-Trust Login-First, từ chối khách vãng lai với `HTTP 401 Unauthorized`).
+  - Người dùng có hạn ngạch quét (`scanQuota > 0`) hoặc là hội viên `MediPass VIP` (nếu hết lượt, chuyển sang ngoại lệ `HTTP 402 Payment Required`).
+  - Tuân thủ Rate Limiter (tối đa 5 lượt tải lên/phút) và giới hạn kích thước tệp tối đa 15MB.
 * **REST Endpoints:**
-  - `POST /api/v1/documents/analyze`: Tiếp nhận tệp PDF xét nghiệm qua `multipart/form-data` (tham số `file`), phân tích chỉ số sinh hóa, tóm tắt lâm sàng và kết hợp `pgvector` Cosine Similarity để gợi ý top bác sĩ chuyên khoa.
+  - `POST /api/v1/documents/analyze`: Tiếp nhận tệp PDF xét nghiệm qua `multipart/form-data` (tham số `file`), kiểm tra SHA-256 deduplication, sàng lọc gatekeeper, bóc tách chỉ số sinh hóa, upload Supabase Storage, trừ hạn ngạch và tìm kiếm bác sĩ qua pgvector.
+  - `GET /api/v1/documents/quota`: Kiểm tra số lượt quét khả dụng, hạn hội viên VIP và trạng thái gói cước của người bệnh.
   - `GET /api/v1/documents/my`: Truy vấn lịch sử các tài liệu y tế đã phân tích của người bệnh đăng nhập (yêu cầu Bearer Token).
 
 #### Luồng sự kiện chính (Happy Path):
 1. Bệnh nhân tải lên tệp kết quả xét nghiệm (`.pdf` hoặc `.txt`, dung lượng $\le 15\text{MB}$) hoặc chọn dữ liệu mẫu sinh hóa (Mỡ máu / Men gan).
-2. Hệ thống kiểm tra Content-Type, sử dụng `PdfExtractionService` (Apache PDFBox 3.0.4 `Loader.loadPDF`) để bóc tách văn bản thô.
-3. `MedicalDocumentAnalysisService` phân tích các chỉ số cận lâm sàng (Cholesterol, Triglyceride, Glucose, Men gan AST/ALT/GGT, Creatinine, eGFR...) bằng biểu thức chính quy chuẩn hóa y khoa.
-4. Tự động gắn nhãn trạng thái chỉ số: `ELEVATED` (Tăng cao), `LOW` (Thấp), `NORMAL` (Bình thường) cùng khoảng tham chiếu chuẩn.
-5. Xác định chuyên khoa lâm sàng liên quan (`cardiology`, `gastroenterology`, `nephrology`, `neurology`...).
-6. Soạn thảo tóm tắt lâm sàng (`clinicalSummary`), bản giải nghĩa bằng ngôn ngữ bình dân (`plainLanguageExplanation`) và bộ 3 câu hỏi tham vấn bác sĩ.
-7. Gọi `DoctorSemanticSearchService` chạy truy vấn `pgvector` HNSW Cosine Similarity đối chiếu `clinicalSummary` với `bio_embedding` của các bác sĩ đã được xác minh (`is_verified = true`).
-8. Lưu kết quả vào bảng `medical_documents` và `document_analyses`.
-9. Giao diện hiển thị:
-   - Thanh tiến trình phân tích 3 bước động.
-   - Thẻ giải nghĩa dễ hiểu kèm khuyến nghị.
-   - Bảng so sánh chỉ số cận lâm sàng với màu cảnh báo đỏ/vàng/xanh trực quan.
-   - Danh sách thẻ bác sĩ đề xuất với điểm tương thích ngữ nghĩa (`%`), chuyên khoa và nút bấm *"Đặt Lịch Khám Ngay"*.
+2. **Kiểm tra Deduplication (SHA-256 Checksum):** Hệ thống tính toán hash SHA-256 của tệp. Nếu tài liệu đã từng được phân tích trong hồ sơ EMR của bệnh nhân này:
+   - Trả về ngay kết quả đã lưu trong DB (`cachedResult = true`).
+   - Tiêu tốn **0 token AI**, độ trễ $< 5\text{ms}$ và **TUYỆT ĐỐI KHÔNG trừ lượt quét**.
+3. **Kiểm tra Hạn Ngạch (Quota Guard):** Nếu tài liệu mới, kiểm tra `user.hasScanQuota()`. Nếu hết lượt và chưa là VIP, trả về `HTTP 402 Payment Required` kèm modal báo giá gói quét.
+4. **Cơ chế Lọc Rác Tiền Thẩm Định (Gatekeeper Sieve Validation):**
+   - Kiểm tra magic bytes nhị phân (chỉ nhận PDF, JPG, PNG).
+   - Kiểm tra độ dài văn bản trích xuất (tối thiểu 15 ký tự; nếu ngắn hơn -> lỗi mờ ảnh `UNREADABLE_DOCUMENT`).
+   - Sàng lọc từ điển chỉ số lâm sàng (40+ thuật ngữ xét nghiệm sinh hóa/huyết học).
+   - *Nếu phát hiện ảnh rác (hóa đơn siêu thị, meme, chó mèo, ảnh mờ):* Ném lỗi `HTTP 400 NON_MEDICAL_DOCUMENT` hoặc `UNREADABLE_DOCUMENT` và **KHÔNG trừ hạn ngạch** của bệnh nhân.
+5. **Lưu trữ Cloud EMR (Supabase Storage):** Tải nhị phân tệp lên bucket `medical-documents` của Supabase qua REST API. Nếu mất mạng hoặc thiếu API key, tự động chuyển vùng dự phòng sang Local EMR Disk không bao giờ sập backend.
+6. **Bóc tách chỉ số & Khớp Bác sĩ:**
+   - `MedicalDocumentAnalysisService` bóc tách chỉ số (Cholesterol, Triglyceride, Glucose, ALT, AST...) gắn nhãn `ELEVATED` / `LOW` / `NORMAL`.
+   - Sinh tóm tắt lâm sàng `clinicalSummary`, bản dịch dễ hiểu `plainLanguageExplanation` và 3 câu hỏi gợi ý.
+   - Gọi `DoctorSemanticSearchService` chạy truy vấn `pgvector` Cosine Similarity tìm top bác sĩ chuyên khoa sâu phù hợp.
+7. **Khấu trừ Hạn Ngạch:** Trừ 1 lượt quét đối với tài khoản FREE (`scanQuota = scanQuota - 1`). Giữ nguyên không giới hạn đối với hội viên MediPass VIP.
+8. Giao diện hiển thị:
+   - Huy hiệu hạn ngạch quét & nút "+ Mua thêm".
+   - Huy hiệu chứng thực lưu trữ `Supabase Cloud EMR` kèm liên kết xem tệp gốc.
+   - Banner thông báo tiết kiệm 100% tài nguyên nếu là lượt hit SHA-256 Deduplication.
+   - Bảng so sánh chỉ số cận lâm sàng và danh sách bác sĩ chuyên khoa.
 
 ---
+
+### UC-11: Quản Lý Hạn Ngạch Quét & Mô Hình Doanh Thu Win-Win (Commercial Scan Quota & Token Protection)
+
+* **Mã Use Case:** `UC-FIN-11`
+* **Tác nhân chính:** Patient, Doctor, System Platform Owner.
+* **Mục tiêu:** Bảo vệ tài nguyên AI chống spam tốn chi phí token, triển khai mô hình kinh tế Win-Win đôi bên cùng có lợi (Bệnh nhân tiết kiệm - Bác sĩ gia tăng thu nhập - Nền tảng bền vững).
+* **REST Endpoints:**
+  - `GET /api/v1/documents/quota`: Lấy thông tin hạn ngạch quét còn lại và trạng thái gói cước VIP.
+* **Chính sách Thương Mại Doanh Nghiệp:**
+  1. **Bệnh nhân:**
+     - Tặng **1 lượt quét miễn phí** cho tài khoản mới trải nghiệm chất lượng.
+     - **Gói lẻ:** 29.000đ / 1 lượt phân tích chuyên sâu.
+     - **Gói Tiết kiệm:** 99.000đ / 5 lượt (giảm 32%, hạn dùng 12 tháng).
+     - **MediPass VIP:** 149.000đ / tháng (Quét không giới hạn + Tư vấn ưu tiên).
+     - **Chính sách Deduplication Vĩnh Viễn:** Tải lại tài liệu đã phân tích hoàn toàn miễn phí trọn đời (0đ, 0 token).
+  2. **Bác sĩ Chuyên Khoa:**
+     - Nhận **85% phí khám** (250.000đ - 450.000đ/ca) qua cơ chế ký quỹ Escrow minh bạch.
+     - Tiếp nhận tóm tắt lâm sàng SBAR chuẩn bị sẵn, tiết kiệm 50% thời gian hội chẩn.
+  3. **Platform Owner:**
+     - Nhận 15% hoa hồng đặt khám và doanh thu gói quét.
+     - Bảo vệ 100% token LLM trước nạn bot/spam ảnh rác nhờ Gatekeeper Sieve Validation.
 
 ### UC-04: Tìm Kiếm Bác Sĩ Bằng Vector Similarity Search (Semantic Doctor Discovery)
 

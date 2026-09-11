@@ -16,6 +16,8 @@ public class DocumentAnalysisResponse {
     private String recommendedSpecialtyName;
     private List<String> suggestedQuestions;
     private List<DoctorMatchDto> matchedDoctors;
+    private String storageUrl;
+    private boolean cachedResult;
 
     public DocumentAnalysisResponse() {}
 
@@ -51,4 +53,10 @@ public class DocumentAnalysisResponse {
 
     public List<DoctorMatchDto> getMatchedDoctors() { return matchedDoctors; }
     public void setMatchedDoctors(List<DoctorMatchDto> matchedDoctors) { this.matchedDoctors = matchedDoctors; }
+
+    public String getStorageUrl() { return storageUrl; }
+    public void setStorageUrl(String storageUrl) { this.storageUrl = storageUrl; }
+
+    public boolean isCachedResult() { return cachedResult; }
+    public void setCachedResult(boolean cachedResult) { this.cachedResult = cachedResult; }
 }

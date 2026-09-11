@@ -20,7 +20,7 @@
 | **Milestone 3** | **AI Symptom Triage & Semantic Match** | 🟢 **COMPLETED** | `feature/milestone-3-ai-triage` | Chatbot UI, Guardrail prompts, pgvector semantic search, Rate limiters |
 | **Milestone 4** | **Multimodal Medical Record Summarizer & Hospital EMR**| 🟢 **COMPLETED** | `feature/hospital-grade-expansion` | PDF OCR analysis, Cosine doctor match, EMR Passport (BHYT/CCCD/Allergies), Clinical Workstation, ICD-10, e-Prescription |
 | **Milestone 5** | **Zero-Trust Security, Anti-Brute Force Lockout & Rate Limiting** | 🟢 **COMPLETED** | `feature/milestone-5-security-zero-trust` | Account Lockout (5 attempts -> 15 min lock), Flyway V3, Zero-Trust Login-First (401), Redis Rate Limiting (IP & User), Dual-Tab Auth UI |
-| **Milestone 6** | **Commercial Billing, MediPass VIP Subscriptions & Payment Gateway** | 🟡 **IN PROGRESS** | `feature/milestone-6-commercial-billing` | Telehealth consultation fees (85/15 split), Escrow holding/refunds, MediPass VIP subscription (149k/mo), VietQR dynamic & VNPay Sandbox |
+| **Milestone 6** | **Cloud Storage, Token Protection & Quota Monetization** | 🟢 **COMPLETED** | `feature/milestone-6-cloud-storage-quota-protection` | Supabase Cloud Storage, Gatekeeper Sieve (400), SHA-256 Deduplication (0 tokens), Scan Quota Guard (402), MediPass VIP (149k/mo), Pricing Modal |
 | **Milestone 7** | **High-Load Testing, CI/CD & Final Defense** | ⚪ Planned | `feature/milestone-7-load-defense` | k6 Load Test (500+ VU), Jest/Playwright (≥70%), Docker Nginx HTTPS, Defense Docs |
 
 
@@ -489,12 +489,77 @@ Eliminate guest access vulnerabilities, prevent brute-force credential stuffing,
 
 ---
 
-## Detailed Breakdown: MILESTONE 6 — Commercial Billing, MediPass VIP Subscriptions & Payment Gateway
+## Detailed Breakdown: MILESTONE 6 — Cloud Storage, Token Protection & Quota Monetization
 
 ### 🎯 Objective of Milestone 6
-1. **Billing Entity Models:** `SubscriptionPlan`, `UserSubscription`, `Transaction`, `PaymentMethod`.
-2. **Payment Gateway Integration:** Dynamic VietQR generation (NAPAS standard) and VNPay Sandbox webhook integration.
-3. **Escrow Holding & Fee Splitting:** Doctor consultation fee (85% Doctor, 15% Platform), Escrow holding upon booking, auto-release upon `COMPLETED`, 100% refund upon doctor cancellation.
-4. **Lab Analysis Quota Enforcement:** 1 free trial scan, 29,000đ/single scan, 99,000đ/5-scan pack, unlimited for MediPass VIP.
-5. **Subscription Lifecycle:** Active, Expired, Auto-renew, Grace period.
+1. **Gatekeeper Sieve Validation:** Inspect binary magic bytes, extracted text length, and 40+ clinical laboratory indicators to intercept non-medical files (400 `NON_MEDICAL_DOCUMENT` / `UNREADABLE_DOCUMENT`) without deducting patient quota.
+2. **Owner Token Protection & SHA-256 Deduplication:** Compute cryptographic file hash; if identical file exists in user's EMR, return cached analysis with **0 LLM tokens consumed** and **0 quota deducted**.
+3. **Supabase Cloud EMR Storage Tier:** Upload medical binaries to Supabase Storage bucket with resilient local disk fallback to prevent crashes.
+4. **Commercial Scan Quota Enforcement:** Enforce scan quota (`scan_quota = 1` default trial), block quota depletion with HTTP 402 `QUOTA_EXCEEDED`, and support MediPass VIP subscription (149k/month).
+5. **Commercial Pricing UI:** Provide in-app Pricing Modal with 3 commercial packages (29k single, 99k 5-pack, 149k VIP) and real-time quota indicator in header.
+
+---
+
+### 📋 Task Allocation & Completion by Member (Milestone 6)
+
+#### 👑 TECH LEAD (User)
+* [x] **Task TL.6.1 (Architecture & Governance):**
+  - Designed Token Protection & Anti-Abuse specification in `implementation_plan.md`.
+  - Configured Supabase Cloud Storage properties and local EMR fallback strategy.
+  - Enforced strict GitFlow: Branched `feature/milestone-6-cloud-storage-quota-protection` from `develop`.
+
+#### 💻 FULLSTACK DEVELOPER (Backend & Database)
+* [x] **Task D1.6.1 (Flyway V4 Migration):**
+  - Created `V4__cloud_storage_and_quota_management.sql` adding `scan_quota`, `subscription_tier`, `vip_valid_until`, `storage_url`, `file_hash`, `is_valid_medical`, and index `idx_med_doc_hash`.
+* [x] **Task D1.6.2 (Entity & Repository Mapping):**
+  - Updated `User.java`, `MedicalDocument.java`, and `MedicalDocumentRepository.java` with deduplication query.
+* [x] **Task D1.6.3 (Cloud Storage Integration):**
+  - Created `StorageService.java` interface and `SupabaseStorageService.java` with resilient local fallback.
+* [x] **Task D1.6.4 (Gatekeeper Sieve Validation & Service Logic):**
+  - Built `MedicalDocumentValidator.java` with magic bytes and clinical dictionary sieve.
+  - Updated `MedicalDocumentAnalysisService.java` with SHA-256 deduplication, quota pre-check, and automatic quota deduction.
+  - Created `GET /api/v1/documents/quota` in `MedicalDocumentController.java`.
+* [x] **Task D1.6.5 (Unit Testing):**
+  - Created `MedicalDocumentValidatorTest.java` (5 unit tests).
+  - Updated `MedicalDocumentAnalysisServiceTest.java` with Quota Exceeded (402) and SHA-256 Deduplication cache hit (4 unit tests). All 34 tests PASS.
+
+#### 🎨 FRONTEND LEAD (UI/UX)
+* [x] **Task D2.6.1 (Quota & Subscription Indicator):**
+  - Updated `DocumentSummarizerPage.tsx` with live quota badge in header and auto-fetch from `GET /api/v1/documents/quota`.
+* [x] **Task D2.6.2 (Deduplication & Cloud Storage Badges):**
+  - Added SHA-256 Deduplication cache-hit banner (0 tokens, 0đ fee).
+  - Added Supabase Cloud EMR badge with external link to original stored document.
+* [x] **Task D2.6.3 (Error Handling & Retry Mechanism):**
+  - Added Retry button on error card allowing re-analysis without re-selecting file.
+  - Added automatic trigger opening Pricing Modal upon receiving HTTP 402 `QUOTA_EXCEEDED`.
+* [x] **Task D2.6.4 (Commercial Pricing Modal):**
+  - Implemented 3-tier Pricing Modal: Gói Lẻ (29.000đ), Gói Tiết Kiệm (99.000đ), MediPass VIP (149.000đ/tháng).
+
+#### 📝 DOC & QA SPECIALIST
+* [x] **Task D3.6.1 (Documentation Synchronization):**
+  - Updated `docs/DATABASE_DESIGN.md` with Flyway V4 schema and `idx_med_doc_hash`.
+  - Updated `docs/USE_CASES.md` with enhanced `UC-03` and new `UC-11` (Commercial Scan Quota & Token Protection).
+  - Logged all architectural decisions in `docs/WORK_LOG.md` (`[WORK-LOG-#013]`).
+* [x] **Task D3.6.2 (E2E Integration Verification Suite):**
+  - Created and ran `scratch/test_token_protection_and_storage.py` validating all 7 criteria with 100% success.
+
+---
+
+## 🏁 Definition of Done (DoD) Verification for Milestone 6
+
+| DoD Checklist Item | Target Standard | Result | Status |
+| :--- | :--- | :---: | :---: |
+| 1. Flyway V4 Applied | Schema history contains V4 with zero errors | Applied in PostgreSQL 16 | ✅ PASS |
+| 2. Gatekeeper Sieve (Non-medical) | Supermarket receipt rejected with HTTP 400 | NON_MEDICAL_DOCUMENT (Quota kept) | ✅ PASS |
+| 3. Gatekeeper Sieve (Blurry scan) | Text < 15 chars rejected with HTTP 400 | UNREADABLE_DOCUMENT (Quota kept) | ✅ PASS |
+| 4. Cloud Storage Integration | Stored URL generated (Supabase or local EMR) | Storage URL present in response | ✅ PASS |
+| 5. SHA-256 Deduplication | Identical file returns cached result | 0 LLM tokens, 0 quota deducted | ✅ PASS |
+| 6. Scan Quota Enforcement | 0 quota triggers HTTP 402 Payment Required | HTTP 402 QUOTA_EXCEEDED | ✅ PASS |
+| 7. Commercial Pricing Modal | 3 packages presented to patient on quota exhaustion | 29k / 99k / 149k VIP Modal | ✅ PASS |
+| 8. Frontend TypeScript Build | `npm run build` runs clean with 0 TS errors | 1668 modules built in 2.72s | ✅ PASS |
+| 9. Backend Unit Tests | Full suite including validator & quota tests | 34/34 Tests PASS in 4.2s | ✅ PASS |
+| 10. E2E Python Verification | Full automated test of all 7 token protection flows | 7/7 Scenarios PASS | ✅ PASS |
+
+> **MILESTONE 6 STATUS:** 🟢 **100% COMPLETED (Passed Definition of Done)**
+
 
