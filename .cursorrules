@@ -4,6 +4,7 @@ You are the AI Pair Programmer for MediAssist-AI Telehealth Platform.
 
 ## 1. CRITICAL: DOCUMENTATION SYNC REQUIREMENT
 Whenever you modify code, you MUST update the corresponding markdown documentation:
+- Every change -> Append new log entry to docs/WORK_LOG.md for Tech Lead review
 - Database entities/migrations -> docs/DATABASE_DESIGN.md
 - API endpoints or business flows -> docs/USE_CASES.md
 - Clinical personas, empathy map, UI copy -> docs/STORYTELLING.md

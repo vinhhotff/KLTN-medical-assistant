@@ -4,6 +4,7 @@ This file instructs Antigravity and Gemini CLI agents on project standards, rule
 
 ## Mandatory Rules for All AI Sessions:
 1. **Always Sync Documentation (`docs/`)**:
+   - Every change $\rightarrow$ append new entry to [`docs/WORK_LOG.md`](file:///docs/WORK_LOG.md) for Tech Lead review.
    - Schema / Entity changes $\rightarrow$ update `docs/DATABASE_DESIGN.md`.
    - Feature / Endpoint changes $\rightarrow$ update `docs/USE_CASES.md`.
    - Product story / Personas $\rightarrow$ update `docs/STORYTELLING.md`.

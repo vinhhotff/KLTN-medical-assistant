@@ -31,6 +31,16 @@ User trong phiên làm việc đóng vai trò là **Tech Lead & Solution Archite
   - Backend: `mvn test` trong `backend/` (Đảm bảo tất cả unit test đều PASS).
   - Git: Tự động stage và commit với format chuẩn Conventional Commits.
 
+### 1.3. NGUYÊN TẮC SỐ 3: BẮT BUỘC CẬP NHẬT NHẬT KÝ PHÁT TRIỂN (WORK_LOG.md)
+> [!IMPORTANT]
+> **MỖI LẦN CẬP NHẬT/SỬA ĐỔI MÃ NGUỒN HOẶC HỆ THỐNG**:  
+> AI **BẮT BUỘC PHẢI THÊM BẢN GHI MỚI** vào đầu mục lịch sử trong [`docs/WORK_LOG.md`](file:///docs/WORK_LOG.md):
+> 1. **Thời gian & Tiêu đề**: Ghi rõ ngày giờ và tên việc đã làm.
+> 2. **Danh sách tệp tin**: Liệt kê rõ các tệp đã tạo mới `[NEW]`, đã sửa `[MOD]`, đã xóa `[DEL]`.
+> 3. **Tài liệu đã đồng bộ**: Đánh dấu các tệp trong `docs/` đã được update theo.
+> 4. **Bằng chứng kiểm thử**: Kết quả `mvn test`, `npm run build` và trạng thái dịch vụ.
+> 5. **Điểm nóng Tech Lead cần Review**: Tóm tắt ngắn gọn các quyết định kỹ thuật để Tech Lead duyệt nhanh.
+
 ---
 
 ## 2. NGUYÊN TẮC KIẾN TRÚC & CÔNG NGHỆ (ARCHITECTURE INTEGRITY)

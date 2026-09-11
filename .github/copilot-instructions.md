@@ -5,6 +5,7 @@ MediAssist-AI is an enterprise-grade Telehealth platform built with Java 21 / Sp
 
 ## AI Guardrails & Instructions:
 1. **Mandatory Documentation Synchronization**:
+   - Every single code change MUST append a concise entry to `docs/WORK_LOG.md` for Tech Lead review.
    - Any database table/column changes MUST be documented in `docs/DATABASE_DESIGN.md`.
    - Any new REST endpoint or business flow MUST be documented in `docs/USE_CASES.md`.
    - Any clinical UI change or ethical AI constraint MUST update `docs/STORYTELLING.md` and `docs/CAPSTONE_DEFENSE.md`.
