@@ -5,8 +5,14 @@ import { AdminLayout } from './layouts/AdminLayout.js';
 import { DoctorLayout } from './layouts/DoctorLayout.js';
 import { PatientLayout } from './layouts/PatientLayout.js';
 import { AdminDashboard } from './pages/admin/AdminDashboard.js';
+import { DoctorVettingPage } from './pages/admin/DoctorVettingPage.js';
+import { UserManagementPage } from './pages/admin/UserManagementPage.js';
+import { SpecialtyManagementPage } from './pages/admin/SpecialtyManagementPage.js';
 import { DoctorDashboard } from './pages/doctor/DoctorDashboard.js';
+import { DoctorProfilePage } from './pages/doctor/DoctorProfilePage.js';
 import { PatientDashboard } from './pages/patient/PatientDashboard.js';
+import { DocumentSummarizerPage } from './pages/patient/DocumentSummarizerPage.js';
+import { DoctorSearchPage } from './pages/patient/DoctorSearchPage.js';
 
 export function App() {
   return (
@@ -19,6 +25,9 @@ export function App() {
         <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
+            <Route path="doctors" element={<DoctorVettingPage />} />
+            <Route path="users" element={<UserManagementPage />} />
+            <Route path="specialties" element={<SpecialtyManagementPage />} />
           </Route>
         </Route>
 
@@ -26,12 +35,15 @@ export function App() {
         <Route element={<ProtectedRoute allowedRoles={['DOCTOR']} />}>
           <Route path="/doctor" element={<DoctorLayout />}>
             <Route index element={<DoctorDashboard />} />
+            <Route path="profile" element={<DoctorProfilePage />} />
           </Route>
         </Route>
 
         {/* Patient Routes */}
         <Route path="/patient" element={<PatientLayout />}>
           <Route index element={<PatientDashboard />} />
+          <Route path="documents" element={<DocumentSummarizerPage />} />
+          <Route path="doctors" element={<DoctorSearchPage />} />
         </Route>
 
         {/* Fallback */}

@@ -22,7 +22,8 @@ export const LoginPage: React.FC = () => {
       const res = await api.post('/auth/login', { email, password });
       if (res.data?.success && res.data?.data?.user) {
         const user = res.data.data.user;
-        setUser(user);
+        const token = res.data.data.token;
+        setUser(user, token);
 
         // Redirect based on role
         if (user.role === 'ADMIN') {

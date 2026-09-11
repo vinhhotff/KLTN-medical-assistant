@@ -8,13 +8,22 @@ export const api = axios.create({
   },
 });
 
+// Dual Auth Transport: attach Bearer token from localStorage if available
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('mediassist_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Intercept 401 Unauthorized errors
     if (error.response?.status === 401) {
-      // If unauthorized on protected routes, can trigger auth reset
-      console.warn('Unauthorized session detected');
+      // Clear localStorage on unauthorized
+      localStorage.removeItem('mediassist_token');
+      localStorage.removeItem('mediassist_user');
     }
     return Promise.reject(error);
   }
