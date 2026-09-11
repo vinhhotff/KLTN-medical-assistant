@@ -10,14 +10,84 @@
 ## 📑 Bảng Mục Lục Lịch Sử Cập Nhật
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
-| :---: | :---: | :--- | :---: | :---: |
-| **#011** | 11/09/2026 | Tích hợp Flyway Database Migration & Nạp Tập Dữ Liệu Bệnh Viện Thực Tế (12 Chuyên Khoa, 12 Bác Sĩ Tuyến TW, 630 Slots, 5 EMR, 8 Ca Khám, pgvector) | AI Assistant | 🟢 Sẵn sàng Review |
+| :---: | :---: | :--- | :--- :---: | :---: |
+| **#012** | 11/09/2026 | Hoàn Tất Milestone 5: Bảo Mật Zero-Trust, Phòng Thủ Anti-Brute Force Lockout & Kiểm Soát Tải Tần Suất Cao (Redis Rate Limiting) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#011** | 11/09/2026 | Tích hợp Flyway Database Migration & Nạp Tập Dữ Liệu Bệnh Viện Thực Tế (12 Chuyên Khoa, 12 Bác Sĩ Tuyến TW, 630 Slots, 5 EMR, 8 Ca Khám, pgvector) | AI Assistant | 🟢 Đã Duyệt |
 | **#010** | 11/09/2026 | Nâng cấp toàn diện Chuẩn Bệnh Viện: EMR Hộ Chiếu Y Tế (BHYT/CCCD/Nhóm Máu/Dị Ứng), Bàn Làm Việc Bác Sĩ (Sinh Hiệu, ICD-10, Toa Thuốc Điện Tử) | AI Assistant | 🟢 Đã Duyệt |
 | **#009** | 11/09/2026 | Hoàn tất Milestone 4: Quét PDF Xét Nghiệm, Trích Xuất Chỉ Số Sinh Hóa & Đề Xuất Bác Sĩ qua pgvector | AI Assistant | 🟢 Đã Duyệt |
 
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#012] Hoàn Tất Milestone 5: Bảo Mật Zero-Trust, Phòng Thủ Anti-Brute Force Lockout & Kiểm Soát Tải Tần Suất Cao (Redis Rate Limiting)
+* **Thời gian:** 2026-09-11 23:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-SEC-01, UC-SEC-10, UC-BIZ-11
+* **Trạng thái Build:** Frontend `npm run build` PASS (0 lỗi TS, 2.62s, 1668 modules) | Backend `mvn test` PASS (27/27 tests, 0 failures) | E2E Security Script PASS (9/9 scenarios).
+* **Nhánh phát triển:** `feature/milestone-5-security-zero-trust` (sẵn sàng merge vào `develop`).
+
+#### 1. Mục Tiêu & Bối Cảnh Nghiệp Vụ
+- Giải quyết triệt để chỉ thị của Tech Lead: *"luôn tính tới khả năng chịu tải, khả năng bảo mật, bảo vệ web khỏi hacker, kẻ xâm nhập cố tình làm sập web, mọi thứ phải thông qua login trước rồi mới tính tới việc trải nghiệm, tính với việc đây là 1 app thu phí, phải lên plan về thu phí khoản nào, chuẩn bị làm từng milestone để không bị lạc đề"*.
+- **Rào chắn Zero-Trust Login-First:** Thu hồi toàn bộ quyền truy cập ẩn danh (`permitAll`) của các dịch vụ AI đắt tiền (`POST /api/v1/triage/assess`, `POST /api/v1/documents/analyze`). Người dùng ẩn danh truy cập nhận ngay mã `HTTP 401 Unauthorized`.
+- **Phòng thủ Brute-Force & Khóa tài khoản:** Tự động tăng bộ đếm số lần sai mật khẩu liên tiếp. Sau đúng 5 lần vi phạm, tài khoản bị khóa trong 15 phút (`HTTP 423 Locked`), ghi log cảnh báo an ninh `[BRUTE-FORCE DETECTED]`. Cơ chế khóa duy trì cấp tài khoản ngay cả khi kẻ tấn công xoay địa chỉ IP (Distributed Botnet Attack).
+- **Kiểm soát tần suất IP phân tán (Redis Rate Limiting):**
+  - Đăng nhập: Tối đa 5 lượt / phút trên mỗi địa chỉ IP (`HTTP 429 Too Many Requests`).
+  - Phân luồng triệu chứng: Tối đa 10 lượt / phút trên mỗi người dùng.
+  - Tải tệp xét nghiệm: Tối đa 5 lượt / phút trên mỗi người dùng.
+- **Tự đăng ký tài khoản bệnh nhân (Self-Registration):** Cung cấp endpoint `POST /api/v1/auth/register`, tự động sinh hồ sơ bệnh án điện tử EMR `PatientProfile` với mã bệnh viện `BN-2026-XXXXX` và cấp JWT tức thì.
+- **Giao diện xác thực 2 tab chuyên nghiệp:** Thiết kế tab kép Đăng Nhập / Đăng Ký, tích hợp banner cảnh báo khóa tài khoản theo thời gian thực, các nút pill đăng nhập nhanh cho tài khoản demo, và bảng giới thiệu các gói thu phí thương mại (MediPass VIP 149k/tháng, Phí khám chuyên khoa 250k-450k/phiên chia 85/15 Escrow, Quota scan PDF xét nghiệm).
+
+#### 2. Chi Tiết Thay Đổi Mã Nguồn (Files Changed)
+- `[NEW]` `backend/src/main/resources/db/migration/V3__account_lockout_and_security_hardening.sql`: Thêm `failed_login_attempts`, `locked_until`, và index `idx_users_locked_until` trên PostgreSQL `users`.
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/RegisterRequest.java`: DTO đăng ký bệnh nhân mới có validation.
+- `[NEW]` `backend/src/main/java/com/mediassist/service/SecurityRateLimiterService.java`: Service giới hạn tần suất phân tán trên Redis (Sliding-window) kèm in-memory fallback.
+- `[NEW]` `backend/src/test/java/com/mediassist/SecurityHardeningTest.java`: Bộ 6 unit test kiểm thử toàn diện cơ chế khóa tài khoản, tự động mở khóa, reset bộ đếm, đăng ký bệnh nhân và rate limiting.
+- `[NEW]` `scratch/test_security_hardening.py`: Kịch bản kiểm thử E2E 9 kịch bản xác thực an ninh hệ thống.
+- `[MOD]` `backend/src/main/java/com/mediassist/model/entity/User.java`: Bổ sung trường `failedLoginAttempts`, `lockedUntil`, getters/setters và phương thức `isAccountNonLocked()`.
+- `[MOD]` `backend/src/main/java/com/mediassist/service/AuthService.java`: Triển khai kiểm tra khóa tài khoản, kích hoạt lockout sau 5 lần sai, đặt `@Transactional(noRollbackFor = AppException.class)` để lưu bộ đếm vi phạm ngay cả khi ném ngoại lệ, và viết hàm `register()`.
+- `[MOD]` `backend/src/main/java/com/mediassist/config/SecurityConfig.java`: Thu hồi `permitAll` đối với Triage và Documents, thiết lập HTTP Security Headers (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`), cấu hình JSON 401 tiếng Việt.
+- `[MOD]` `backend/src/main/java/com/mediassist/controller/AuthController.java`: Bổ sung rate limiting đăng nhập theo IP client (hỗ trợ `X-Forwarded-For`), bổ sung endpoint `POST /register`.
+- `[MOD]` `backend/src/main/java/com/mediassist/controller/TriageController.java`: Ràng buộc bắt buộc xác thực `authentication.isAuthenticated()` trên các endpoint triage.
+- `[MOD]` `backend/src/main/java/com/mediassist/controller/MedicalDocumentController.java`: Ràng buộc bắt buộc xác thực và áp dụng rate limiting 5 lượt/phút.
+- `[MOD]` `frontend/src/pages/LoginPage.tsx`: Nâng cấp giao diện Dual-Tab (Đăng Nhập / Đăng Ký), thông báo trực quan khi tài khoản bị khóa (`HTTP 423`), danh sách demo chips và giới thiệu bảng giá gói dịch vụ y tế thương mại.
+- `[MOD]` `docs/DATABASE_DESIGN.md`: Bổ sung chỉ mục `idx_users_locked_until` và cập nhật Flyway Migration V3.
+- `[MOD]` `docs/USE_CASES.md`: Cập nhật UC-01, UC-02, UC-03 với Zero-Trust Login-First; bổ sung UC-10 (Bảo Mật Zero-Trust & Rate Limiting) và UC-11 (Kế Hoạch Thu Phí Thương Mại).
+- `[MOD]` `ROADMAP.md`: Đánh dấu Milestone 5 COMPLETED 100%, chi tiết hóa Milestone 6 (Commercial Billing & Payment Gateway).
+
+#### 3. Bằng Chứng Kiểm Thử Tự Động (Verification Proof)
+1. **Backend Unit Tests (Surefire):**
+   ```text
+   Tests run: 27, Failures: 0, Errors: 0, Skipped: 0
+   [INFO] BUILD SUCCESS - Total time: 5.648 s
+   ```
+2. **Frontend Build (Vite + TypeScript):**
+   ```text
+   > tsc && vite build
+   ✓ 1668 modules transformed.
+   dist/assets/index-DQmZ55NT.js 405.62 kB
+   ✓ built in 2.62s (0 TypeScript errors)
+   ```
+3. **E2E Security Hardening Test (`test_security_hardening.py`):**
+   ```text
+   [Test 1] Zero-Trust Anonymous Triage Assessment -> 401 Unauthorized (PASS)
+   [Test 2] Zero-Trust Anonymous Lab Document Analysis -> 401 Unauthorized (PASS)
+   [Test 3] Patient Registration (BN-2026-XXXXX) -> 201 Created (PASS)
+   [Test 4] Normal Login -> 200 OK (PASS)
+   [Test 5] Authenticated Triage Assessment -> 200 OK (PASS)
+   [Test 6] 5 Consecutive Wrong Passwords -> 423 Locked (PASS)
+   [Test 7] Immediate Attempt with Correct Password while Locked -> 423 Locked (PASS)
+   [Test 8] Single IP Sending > 5 Login Requests/min -> 429 Too Many Requests (PASS)
+   [Test 9] OWASP Headers: X-Frame-Options: DENY, X-Content-Type-Options: nosniff (PASS)
+   >>> ALL SECURITY HARDENING & ZERO-TRUST TESTS PASSED! <<<
+   ```
+
+#### 4. Điểm Nóng Tech Lead Cần Review (Architectural Decisions)
+1. **Cơ chế Transactional Rollback:** Do `AppException` kế thừa từ `RuntimeException`, nếu không cấu hình `@Transactional(noRollbackFor = AppException.class)`, Spring sẽ rollback giao dịch khi người dùng nhập sai mật khẩu, khiến việc tăng biến đếm `failed_login_attempts` bị hủy bỏ! Cấu hình `noRollbackFor` đảm bảo số lần vi phạm luôn được ghi bền vững vào cơ sở dữ liệu PostgreSQL.
+2. **Chống Bypass bằng Distributed Botnet:** Kẻ tấn công có thể xoay proxy / VPN (đổi IP liên tục) để vượt qua Rate Limit cấp IP. Do đó, cơ chế khóa tài khoản được kiểm tra kép ở cấp Entity (`users.locked_until`), độc lập hoàn toàn với IP nguồn.
+3. **Kế hoạch thu phí Milestone 6:** Định hình 3 nguồn thu chính: Gói Hội Viên MediPass VIP (149k/tháng), Hoa hồng khám trực tuyến (15% trên mỗi phiên 250k-450k qua Escrow), và Gói phân tích OCR xét nghiệm (29k/lần, 99k/5 lần).
 
 ---
 

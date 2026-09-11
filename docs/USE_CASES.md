@@ -66,23 +66,27 @@ graph TD
   - Trình duyệt lưu cookie an toàn `Set-Cookie: access_token=...; HttpOnly; SameSite=Strict; Secure`.
   - Frontend hydration từ localStorage giữ trạng thái đăng nhập tức thì không giật lag.
 
-#### Luồng sự kiện chính (Happy Path):
-1. Người dùng truy cập trang `/login` và nhập Email + Mật khẩu.
-2. Trình duyệt gửi `POST /api/v1/auth/login` với body `{ email, password }`.
-3. Backend `AuthService` kiểm tra số lần đăng nhập sai (`failed_login_attempts < 5`).
-4. `DaoAuthenticationProvider` kiểm tra mã băm mật khẩu với `BCryptPasswordEncoder(12)`.
-5. Hệ thống sinh JWT chứa `sub`, `role`, `fullName`.
-6. Phản hồi trả về:
-   - Header `Set-Cookie` chứa token `HttpOnly`.
-   - Body JSON `{ success: true, data: { token, user: { id, fullName, email, role } } }`.
-7. Frontend lưu trữ thông tin vào Zustand Auth Store và chuyển hướng người dùng theo role:
-   - `ADMIN` $\rightarrow$ `/admin`
-   - `DOCTOR` $\rightarrow$ `/doctor`
-   - `PATIENT` $\rightarrow$ `/patient`
+##### Luồng sự kiện chính (Happy Path):
+1. **Trường hợp Người dùng mới (Bệnh nhân tự đăng ký):**
+   - Bệnh nhân chọn tab *"Đăng Ký Bệnh Nhân Mới"* trên `/login`.
+   - Điền: Họ tên, Email, Mật khẩu, Số điện thoại, Giới tính, Ngày sinh, Địa chỉ.
+   - Trình duyệt gửi `POST /api/v1/auth/register`.
+   - Backend `AuthService.register()` kiểm tra tính duy nhất của email, băm mật khẩu bằng BCrypt, tự động sinh mã hồ sơ bệnh án điện tử EMR `patient_code` dạng `BN-2026-XXXXX`, trả về `HTTP 201 Created` kèm token và set `HttpOnly` cookie.
+2. **Trường hợp Đăng nhập:**
+   - Người dùng nhập Email + Mật khẩu.
+   - Rate Limiter phân tán trên Redis kiểm tra tần suất IP (`< 5 requests / phút`).
+   - Trình duyệt gửi `POST /api/v1/auth/login`.
+   - `AuthService` kiểm tra khóa tài khoản (`locked_until`). Nếu tài khoản đang bị khóa, trả về ngay `HTTP 423 Locked`.
+   - `PasswordEncoder` kiểm tra mật khẩu. Nếu khớp, đặt lại `failed_login_attempts = 0`, cấp token JWT và `HttpOnly` cookie.
+   - Frontend lưu trữ thông tin vào Zustand Auth Store và chuyển hướng người dùng theo role:
+     - `ADMIN` $\rightarrow$ `/admin`
+     - `DOCTOR` $\rightarrow$ `/doctor`
+     - `PATIENT` $\rightarrow$ `/patient`
 
 #### Luồng phụ & Ngoại lệ (Alternative / Exception Flows):
-* **3a. Tài khoản bị tạm khóa do nhập sai quá 5 lần:** Hệ thống trả về `HTTP 423 Locked`, ghi log kiểm toán bảo mật và khóa tài khoản trong 30 phút.
-* **4a. Sai thông tin đăng nhập:** Hệ thống tăng biến đếm `failed_login_attempts`, trả về `HTTP 401 Unauthorized` với thông báo chung *"Email hoặc mật khẩu không chính xác"* (tránh user enumeration attack).
+* **2a. Quá tải tần suất đăng nhập từ 1 IP (Anti-DDoS / Rate Limit):** Khi 1 IP gửi quá 5 request login trong 1 phút, hệ thống từ chối với `HTTP 429 Too Many Requests`.
+* **2b. Sai mật khẩu liên tiếp (Anti-Brute Force Account Lockout):** Mỗi lần sai, `failed_login_attempts` tăng 1. Sau đúng 5 lần sai, tài khoản tự động bị khóa trong 15 phút, trả về `HTTP 423 Locked` kèm cảnh báo thời gian còn lại.
+* **2c. Đăng ký email đã tồn tại:** Trả về `HTTP 409 Conflict` với thông báo thân thiện bằng tiếng Việt.
 
 ---
 
@@ -91,7 +95,7 @@ graph TD
 * **Mã Use Case:** `UC-CLIN-02`
 * **Tác nhân chính:** Patient, Trợ lý AI (OpenAI/Gemini/Deterministic Scribe).
 * **Mục tiêu:** Thu thập lời khai triệu chứng của bệnh nhân, nhận diện dấu hiệu nguy hiểm (Red-flag), phân loại mức độ khẩn cấp (`ROUTINE`, `URGENT`, `EMERGENCY`), tạo bản tóm tắt SBAR và tự động kết nối đề xuất Bác sĩ chuyên khoa qua `pgvector`.
-* **Tiền điều kiện:** Bệnh nhân đã xác nhận đồng ý với *Tuyên bố từ chối trách nhiệm y tế (Medical Disclaimer)*.
+* **Tiền điều kiện:** Người dùng **ĐÃ ĐĂNG NHẬP** (Zero-Trust Login-First, mọi truy cập ẩn danh nhận ngay `HTTP 401 Unauthorized`), và xác nhận đồng ý với *Tuyên bố từ chối trách nhiệm y tế (Medical Disclaimer)*. Tuân thủ hạn mức Rate Limit (tối đa 10 lượt triage/phút).
 * **REST Endpoints:**
   - `POST /api/v1/triage/assess`: Nhận diện triệu chứng, kiểm tra Red-Flag và trả về đánh giá SBAR kèm danh sách Bác sĩ đề xuất.
   - `GET /api/v1/triage/history`: Lấy danh sách lịch sử phân luồng của người dùng hiện tại.
@@ -120,6 +124,7 @@ graph TD
 * **Mã Use Case:** `UC-CLIN-03`
 * **Tác nhân chính:** Patient, Apache PDFBox Parser, pgvector Semantic Matching Engine.
 * **Mục tiêu:** Chuyển đổi kết quả xét nghiệm máu/sinh hóa/nước tiểu từ tài liệu PDF phức tạp thành bảng chỉ số đối chiếu dễ hiểu cho người bệnh, cảnh báo bất thường và đề xuất bác sĩ chuyên khoa phù hợp tức thì.
+* **Tiền điều kiện:** Người dùng **ĐÃ ĐĂNG NHẬP** (Zero-Trust Login-First, từ chối khách vãng lai với `HTTP 401 Unauthorized`). Tuân thủ Rate Limiter (tối đa 5 lượt tải lên/phút) và giới hạn kích thước tệp tối đa 15MB.
 * **REST Endpoints:**
   - `POST /api/v1/documents/analyze`: Tiếp nhận tệp PDF xét nghiệm qua `multipart/form-data` (tham số `file`), phân tích chỉ số sinh hóa, tóm tắt lâm sàng và kết hợp `pgvector` Cosine Similarity để gợi ý top bác sĩ chuyên khoa.
   - `GET /api/v1/documents/my`: Truy vấn lịch sử các tài liệu y tế đã phân tích của người bệnh đăng nhập (yêu cầu Bearer Token).
@@ -277,4 +282,43 @@ graph TD
      - Áp dụng `V2__seed_rich_hospital_data.sql`: Nạp tập dữ liệu thực tế chuẩn bệnh viện tuyến trung ương (12 chuyên khoa, 12 chuyên gia y tế, 630 slots định kỳ, 5 hồ sơ EMR, 8 ca khám lâm sàng).
   3. `DoctorSemanticSearchService` tự động sinh và nạp vector nhúng 1536 chiều vào cột `bio_embedding` cho toàn bộ bác sĩ.
   4. Trạng thái di trú được ghi nhận thành công (`success = true`) trong bảng lịch sử kiểm soát phiên bản.
+
+---
+
+### UC-10: Bảo Mật Zero-Trust, Phòng Thủ Brute-Force & Kiểm Soát Tải Tần Suất Cao (Zero-Trust Security & Rate Limiting Hardening)
+
+* **Mã Use Case:** `UC-SEC-10`
+* **Tác nhân chính:** Attacker/Botnet, Valid User, SecurityRateLimiterService, AuthService, PostgreSQL.
+* **Mục tiêu:** Bảo vệ nền tảng y tế khỏi các cuộc tấn công Brute-force vét cạn mật khẩu, xâm nhập trái phép, DoS/DDoS làm sập hệ thống hoặc làm cạn kiệt chi phí API LLM.
+* **Quy tắc bảo mật bắt buộc:**
+  1. **Zero-Trust Login-First:** Toàn bộ API nghiệp vụ lâm sàng (`/api/v1/triage/**`, `/api/v1/documents/**`, `/api/v1/appointments/**`) bắt buộc phải có JWT Token hợp lệ. Mọi truy cập ẩn danh (Guest) bị từ chối ngay lập tức với `HTTP 401 Unauthorized`.
+  2. **Phòng thủ Brute-force & Khóa tài khoản:** Khi một tài khoản bị nhập sai mật khẩu 5 lần liên tiếp, hệ thống tự động khóa tài khoản trong 15 phút (`HTTP 423 Locked`), ghi cảnh báo bảo mật và ngăn chặn mọi nỗ lực đăng nhập tiếp theo kể cả khi kẻ tấn công xoay địa chỉ IP (Distributed Botnet Defense).
+  3. **Kiểm soát tần suất IP phân tán (Redis Rate Limiting):**
+     - Đăng nhập: Tối đa 5 lượt/phút trên mỗi địa chỉ IP (`HTTP 429 Too Many Requests`).
+     - Phân luồng triệu chứng: Tối đa 10 lượt/phút trên mỗi người dùng.
+     - Tải tệp xét nghiệm: Tối đa 5 tệp/phút trên mỗi người dùng (kích thước $\le 15\text{MB}$).
+  4. **Security Headers Chuẩn OWASP:** `X-Frame-Options: DENY` (chống Clickjacking), `X-Content-Type-Options: nosniff` (chống MIME-sniffing), `X-XSS-Protection`.
+
+---
+
+### UC-11: Kế Hoạch & Kiến Trúc Thu Phí Dịch Vụ Y Tế (Commercial Monetization & Quota Enforcement Architecture)
+
+* **Mã Use Case:** `UC-BIZ-11`
+* **Tác nhân chính:** Patient, Doctor, Platform Admin, Payment Gateway (VietQR / VNPay Sandbox).
+* **Mục tiêu:** Định hình mô hình doanh thu bền vững cho nền tảng MediAssist-AI, quản lý hạn ngạch dịch vụ AI và điều phối giao dịch thanh toán khám chữa bệnh trực tuyến chuẩn Doanh Nghiệp.
+* **Mô hình kinh doanh & Cơ cấu phí (Milestone 6 Baseline):**
+  1. **Gói Hội Viên MediPass VIP Family (149.000đ/tháng hoặc 1.290.000đ/năm):**
+     - Phân luồng Triage AI 24/7 không giới hạn số lượt.
+     - 10 lượt phân tích OCR chuyên sâu hồ sơ xét nghiệm mỗi tháng.
+     - Giảm 10% phí khám trực tuyến với tất cả Bác sĩ chuyên khoa đầu ngành.
+     - Lưu trữ hồ sơ bệnh án điện tử EMR mã hóa đám mây trọn đời cho cả gia đình (tối đa 4 thành viên).
+  2. **Phí Khám Trực Tuyến Chuyên Khoa (Telehealth Consultation Fee):**
+     - Mức phí: 250.000đ - 450.000đ / phiên khám 30 phút (tùy học hàm/học vị GS, PGS, CKII).
+     - Mô hình chia sẻ doanh thu: Bác sĩ nhận **85%**, Nền tảng MediAssist-AI giữ **15%** (phí vận hành hạ tầng, bảo mật và trợ lý AI).
+     - Cơ chế Ký quỹ An toàn (Escrow Mechanism): Tiền được giữ tạm thời tại tài khoản Escrow khi bệnh nhân đặt lịch và chỉ giải ngân cho bác sĩ khi ca khám hoàn tất (`COMPLETED`). Hoàn tiền 100% nếu phiên khám bị bác sĩ hủy vì lý do đột xuất.
+  3. **Hạn Ngạch Phân Tích OCR Báo Cáo Xét Nghiệm (Pay-as-you-go Quota):**
+     - Lần đầu tiên: Miễn phí 1 lần dùng thử cho mọi tài khoản mới đăng ký.
+     - Lần scan lẻ: 29.000đ / lượt phân tích tệp PDF.
+     - Gói tiết kiệm: 99.000đ / 5 lượt phân tích (tiết kiệm 32%).
+
 

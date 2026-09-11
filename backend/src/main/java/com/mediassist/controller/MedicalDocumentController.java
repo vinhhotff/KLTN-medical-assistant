@@ -28,13 +28,16 @@ public class MedicalDocumentController {
     private final MedicalDocumentAnalysisService analysisService;
     private final MedicalDocumentRepository medicalDocumentRepository;
     private final UserRepository userRepository;
+    private final com.mediassist.service.SecurityRateLimiterService rateLimiterService;
 
     public MedicalDocumentController(MedicalDocumentAnalysisService analysisService,
                                      MedicalDocumentRepository medicalDocumentRepository,
-                                     UserRepository userRepository) {
+                                     UserRepository userRepository,
+                                     com.mediassist.service.SecurityRateLimiterService rateLimiterService) {
         this.analysisService = analysisService;
         this.medicalDocumentRepository = medicalDocumentRepository;
         this.userRepository = userRepository;
+        this.rateLimiterService = rateLimiterService;
     }
 
     @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -42,6 +45,18 @@ public class MedicalDocumentController {
     public ResponseEntity<ApiResponse<DocumentAnalysisResponse>> analyzeDocument(
             @RequestParam("file") MultipartFile file,
             Authentication authentication) {
+
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED",
+                    "Vui lòng đăng nhập tài khoản bệnh nhân trước khi tải lên và phân tích hồ sơ xét nghiệm.");
+        }
+
+        String userEmail = authentication.getName();
+
+        if (!rateLimiterService.allowDocumentUpload(userEmail)) {
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
+                    "Bạn đã gửi quá nhiều yêu cầu phân tích hồ sơ trong thời gian ngắn. Vui lòng chờ 1 phút trước khi tải tệp tiếp theo.");
+        }
 
         if (file == null || file.isEmpty()) {
             throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE", "Vui lòng chọn tệp tài liệu y tế (PDF hoặc ảnh) để phân tích.");
@@ -51,7 +66,6 @@ public class MedicalDocumentController {
             throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE", "Dung lượng tệp tối đa cho phép là 15MB.");
         }
 
-        String userEmail = authentication != null ? authentication.getName() : null;
         DocumentAnalysisResponse response = analysisService.analyzeDocument(file, userEmail);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -59,8 +73,8 @@ public class MedicalDocumentController {
     @GetMapping("/my")
     @Operation(summary = "Get list of medical documents uploaded by current patient")
     public ResponseEntity<ApiResponse<List<MedicalDocument>>> getMyDocuments(Authentication authentication) {
-        if (authentication == null) {
-            return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập để xem danh sách hồ sơ y tế của bạn.");
         }
         User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) {

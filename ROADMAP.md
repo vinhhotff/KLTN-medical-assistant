@@ -19,8 +19,9 @@
 | **Milestone 2** | **Core Medical & Booking Workflow** | 🟢 **COMPLETED** | Tag `v2.0.0-m2` (`master`) | Doctor schedules, Admin verification, Booking CRUD, Concurrency guard, Cache invalidation |
 | **Milestone 3** | **AI Symptom Triage & Semantic Match** | 🟢 **COMPLETED** | `feature/milestone-3-ai-triage` | Chatbot UI, Guardrail prompts, pgvector semantic search, Rate limiters |
 | **Milestone 4** | **Multimodal Medical Record Summarizer & Hospital EMR**| 🟢 **COMPLETED** | `feature/hospital-grade-expansion` | PDF OCR analysis, Cosine doctor match, EMR Passport (BHYT/CCCD/Allergies), Clinical Workstation, ICD-10, e-Prescription |
-| **Milestone 5** | **Admin Analytics & Cost Management** | ⚪ Planned | `feature/milestone-5-admin-cost` | Token cost tracking, doctor review queue, audit logs, System metrics |
-| **Milestone 6** | **High-Load Testing, CI/CD & Final Defense** | ⚪ Planned | `feature/milestone-6-load-defense` | k6 Load Test (500+ VU), Jest/Playwright (≥70%), Docker Nginx HTTPS, Defense Docs |
+| **Milestone 5** | **Zero-Trust Security, Anti-Brute Force Lockout & Rate Limiting** | 🟢 **COMPLETED** | `feature/milestone-5-security-zero-trust` | Account Lockout (5 attempts -> 15 min lock), Flyway V3, Zero-Trust Login-First (401), Redis Rate Limiting (IP & User), Dual-Tab Auth UI |
+| **Milestone 6** | **Commercial Billing, MediPass VIP Subscriptions & Payment Gateway** | 🟡 **IN PROGRESS** | `feature/milestone-6-commercial-billing` | Telehealth consultation fees (85/15 split), Escrow holding/refunds, MediPass VIP subscription (149k/mo), VietQR dynamic & VNPay Sandbox |
+| **Milestone 7** | **High-Load Testing, CI/CD & Final Defense** | ⚪ Planned | `feature/milestone-7-load-defense` | k6 Load Test (500+ VU), Jest/Playwright (≥70%), Docker Nginx HTTPS, Defense Docs |
 
 
 
@@ -399,3 +400,101 @@ Build an intelligent multimodal laboratory and diagnostic document ingestion eng
 | 10. Documentation Sync | Database Design, Use Cases, Roadmap, and Work Log updated | 100% Synced | ✅ PASS |
 
 > **MILESTONE 4 STATUS:** 🟢 **100% COMPLETED (Passed Definition of Done)**
+
+---
+
+## Detailed Breakdown: MILESTONE 5 — Zero-Trust Security, Anti-Brute Force Lockout & High-Load Rate Limiting
+
+### 🎯 Objective of Milestone 5
+Eliminate guest access vulnerabilities, prevent brute-force credential stuffing, protect against DDoS / high-concurrency scraping, and establish a login-first zero-trust boundary:
+1. Flyway V3 migration adding `failed_login_attempts`, `locked_until`, and index `idx_users_locked_until` on PostgreSQL `users`.
+2. Account Lockout defense in `AuthService`: 5 consecutive failed logins trigger immediate 15-minute account lockout (`HTTP 423 Locked`), logged with security warning.
+3. Distributed Rate Limiting via `SecurityRateLimiterService` using Redis sliding window:
+   - Login: max 5 attempts/minute per IP (`HTTP 429 Too Many Requests`).
+   - Triage: max 10 requests/minute per user.
+   - Medical Document upload: max 5 uploads/minute per user.
+4. Zero-Trust Login-First: Revoked all public `permitAll` access from `/api/v1/triage/**` and `/api/v1/documents/**`. Anonymous calls strictly return `HTTP 401 Unauthorized`.
+5. Patient Self-Registration endpoint `POST /api/v1/auth/register` with BCrypt encryption, auto-creation of EMR Patient Profile with unique hospital code `BN-2026-XXXXX`.
+6. Frontend `LoginPage.tsx` dual-tab switcher (Login / Register), real-time lockout alerts, fast demo account chips, and commercial monetization tiers preview.
+7. Automated verification: `SecurityHardeningTest.java` (6 unit tests, all pass) and `test_security_hardening.py` (9 E2E test scenarios, 100% pass).
+
+### 📋 Task Allocation & Completion by Member (Milestone 5)
+
+#### 👑 TECH LEAD (User)
+* [x] **Task TL.5.1 (Security Architecture & Policy Definition):**
+  - Defined strict zero-trust login-first mandate and anti-brute force policy (5 failed attempts -> 15 min lock).
+  - Configured HTTP Security Headers in `SecurityConfig.java` (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`).
+  - Authored custom `AuthenticationEntryPoint` returning clean Vietnamese JSON 401 response.
+* [x] **Task TL.5.2 (Code Review & DoD Verification):**
+  - Reviewed and verified 27/27 Maven unit tests passing.
+  - Verified 0 TypeScript errors in `npm run build`.
+  - Approved feature branch `feature/milestone-5-security-zero-trust`.
+
+---
+
+#### 🛠️ CORE DEVELOPER (Fullstack / Backend & Data)
+* [x] **Task D1.5.1 (Flyway V3 Migration & Entity Hardening):**
+  - Authored `V3__account_lockout_and_security_hardening.sql`.
+  - Updated `User.java` with `failedLoginAttempts`, `lockedUntil`, and `isAccountNonLocked()`.
+* [x] **Task D1.5.2 (Authentication & Lockout Service):**
+  - Enhanced `AuthService.login()` with brute-force lockout checking and counter reset.
+  - Added `@Transactional(noRollbackFor = AppException.class)` to commit failed attempt counters across exception boundaries.
+  - Implemented `AuthService.register()` generating patient profile and issuing JWT.
+* [x] **Task D1.5.3 (Security Rate Limiter):**
+  - Implemented `SecurityRateLimiterService` using `StringRedisTemplate` with in-memory fallback.
+  - Enforced rate limits on `/api/v1/auth/login`, `/api/v1/triage/assess`, and `/api/v1/documents/analyze`.
+* [x] **Task D1.5.4 (Automated Tests):**
+  - Created `SecurityHardeningTest.java` testing lockout, IP rate limit, auto-reset, and registration.
+
+---
+
+#### 🎨 FRONTEND LEAD (UI/UX)
+* [x] **Task D2.5.1 (Dual-Tab Authentication UI):**
+  - Redesigned `LoginPage.tsx` with high-contrast dual-tab switcher: "Đăng Nhập" / "Đăng Ký Bệnh Nhân Mới".
+  - Created patient registration form with validation: Full Name, Email, Password, Phone, Gender, DOB, Address.
+* [x] **Task D2.5.2 (Security Alert Banners & Demo Pills):**
+  - Added real-time account lockout alert box (`HTTP 423`) and rate limit warnings (`HTTP 429`).
+  - Built quick-login pills for instant testing: Admin, Dr. Đăng Khoa, Patient Bình.
+* [x] **Task D2.5.3 (Commercial Value Proposition):**
+  - Integrated monetization tier preview: MediPass VIP (149k/mo), Telehealth consultation fees (250k-450k/session), Lab scan packs (miễn phí lần đầu, 29k/lần lẻ, 99k/5 lần).
+
+---
+
+#### 📝 DOC & QA SPECIALIST
+* [x] **Task D3.5.1 (Documentation Synchronization):**
+  - Updated `docs/DATABASE_DESIGN.md` with V3 Flyway migration and `idx_users_locked_until`.
+  - Updated `docs/USE_CASES.md` with `UC-SEC-10` and `UC-BIZ-11`.
+  - Logged all architectural decisions in `docs/WORK_LOG.md` (`[WORK-LOG-#012]`).
+* [x] **Task D3.5.2 (E2E Security Test Suite):**
+  - Created and ran `scratch/test_security_hardening.py` validating 9 security scenarios: unauthenticated 401, registration 201, authenticated 200, 5-attempt brute-force 423, single-IP DoS 429, and OWASP headers.
+
+---
+
+## 🏁 Definition of Done (DoD) Verification for Milestone 5
+
+| DoD Checklist Item | Target Standard | Result | Status |
+| :--- | :--- | :---: | :---: |
+| 1. Flyway V3 Applied | Schema history contains V3 with zero errors | Applied in DB | ✅ PASS |
+| 2. Anti-Brute Force Lockout | 5 consecutive wrong passwords locks user for 15 mins | 5th attempt: 423 Locked | ✅ PASS |
+| 3. Account Auto-Reset | Successful login resets failed attempts counter to 0 | Counter reset to 0 | ✅ PASS |
+| 4. Distributed Rate Limiter | > 5 login req/min from single IP triggers HTTP 429 | 6th attempt: 429 Blocked | ✅ PASS |
+| 5. Zero-Trust Login-First | Unauthenticated requests to Triage/Documents rejected | 401 Unauthorized | ✅ PASS |
+| 6. Patient Registration | Self-registration generates EMR profile and patient code | BN-2026-XXXXX created | ✅ PASS |
+| 7. Security Headers | Strict `X-Frame-Options: DENY` & `nosniff` headers present | Verified on Actuator | ✅ PASS |
+| 8. Dual-Tab Frontend UI | Smooth tab toggle between Login & Register with demo pills | 0 TS Errors | ✅ PASS |
+| 9. Backend Unit Tests | SecurityHardeningTest + all prior suites (27 tests total) | 27/27 Tests PASS | ✅ PASS |
+| 10. E2E Python Verification | Full automated test verifying all security boundaries | 9/9 Tests PASS | ✅ PASS |
+
+> **MILESTONE 5 STATUS:** 🟢 **100% COMPLETED (Passed Definition of Done)**
+
+---
+
+## Detailed Breakdown: MILESTONE 6 — Commercial Billing, MediPass VIP Subscriptions & Payment Gateway
+
+### 🎯 Objective of Milestone 6
+1. **Billing Entity Models:** `SubscriptionPlan`, `UserSubscription`, `Transaction`, `PaymentMethod`.
+2. **Payment Gateway Integration:** Dynamic VietQR generation (NAPAS standard) and VNPay Sandbox webhook integration.
+3. **Escrow Holding & Fee Splitting:** Doctor consultation fee (85% Doctor, 15% Platform), Escrow holding upon booking, auto-release upon `COMPLETED`, 100% refund upon doctor cancellation.
+4. **Lab Analysis Quota Enforcement:** 1 free trial scan, 29,000đ/single scan, 99,000đ/5-scan pack, unlimited for MediPass VIP.
+5. **Subscription Lifecycle:** Active, Expired, Auto-renew, Grace period.
+
