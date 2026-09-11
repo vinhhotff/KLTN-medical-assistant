@@ -49,6 +49,13 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
+        <!-- Embedded Redis (In-Memory Redis for Dev - Zero Setup, No Cloud Account needed) -->
+        <dependency>
+            <groupId>com.github.codemonstur</groupId>
+            <artifactId>embedded-redis</artifactId>
+            <version>1.4.3</version>
+        </dependency>
+
         <!-- Spring Cache Abstraction -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
