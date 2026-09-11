@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Calendar, Clock, MapPin, CheckCircle2, AlertCircle, X } from 'lucide-react';
+import { Search, Calendar, Clock, MapPin, CheckCircle2, AlertCircle, X, Building2, Star, Filter } from 'lucide-react';
 import { api } from '../../services/api.js';
 import { useAuthStore } from '../../store/useAuthStore.js';
 
@@ -16,6 +16,12 @@ interface DoctorDetail {
   yearsOfExperience: number;
   specialties: string[];
   verified: boolean;
+  academicTitle?: string;
+  hospitalAffiliation?: string;
+  department?: string;
+  licenseIssuedBy?: string;
+  rating?: number;
+  totalConsultations?: number;
 }
 
 interface DoctorSlot {
@@ -43,6 +49,8 @@ const formatLocalDate = (d: Date): string => {
 export const DoctorSearchPage: React.FC = () => {
   const { user } = useAuthStore();
   const [doctors, setDoctors] = useState<DoctorDetail[]>([]);
+  const [specialtiesList, setSpecialtiesList] = useState<{ id: string; name: string; slug: string }[]>([]);
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -62,18 +70,25 @@ export const DoctorSearchPage: React.FC = () => {
   const [confirmedAppointment, setConfirmedAppointment] = useState<AppointmentConfirmation | null>(null);
 
   useEffect(() => {
-    fetchDoctors();
+    fetchInitialData();
   }, []);
 
-  const fetchDoctors = async () => {
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/doctors');
-      if (res.data?.data) {
-        setDoctors(res.data.data);
+      const [docsRes, specsRes] = await Promise.allSettled([
+        api.get('/doctors'),
+        api.get('/specialties')
+      ]);
+
+      if (docsRes.status === 'fulfilled' && docsRes.value.data?.data) {
+        setDoctors(docsRes.value.data.data);
+      }
+      if (specsRes.status === 'fulfilled' && specsRes.value.data?.data) {
+        setSpecialtiesList(specsRes.value.data.data);
       }
     } catch (err) {
-      console.error('Failed to load doctors:', err);
+      console.error('Failed to load doctors & specialties:', err);
     } finally {
       setLoading(false);
     }
@@ -110,7 +125,8 @@ export const DoctorSearchPage: React.FC = () => {
     }
   };
 
-  const handleConfirmBooking = async () => {
+  const handleConfirmBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!selectedDoctor || !selectedSlot) return;
 
     if (!user) {
@@ -125,22 +141,20 @@ export const DoctorSearchPage: React.FC = () => {
       const res = await api.post('/appointments', {
         doctorId: selectedDoctor.id,
         scheduledStart: selectedSlot.startDateTime,
-        notes: notes.trim() || 'Khám tổng quát và tư vấn theo triệu chứng',
+        notes: notes.trim() || undefined,
       });
 
       if (res.data?.data) {
         setConfirmedAppointment({
           appointmentCode: res.data.data.appointmentCode,
-          doctorName: res.data.data.doctorName,
+          doctorName: res.data.data.doctorName || selectedDoctor.fullName,
           scheduledStart: res.data.data.scheduledStart,
-          feeAmount: res.data.data.feeAmount,
+          feeAmount: res.data.data.feeAmount || selectedDoctor.consultationFee,
         });
-        // Refresh slots
-        loadSlots(selectedDoctor.id, selectedDate);
       }
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
-      const message = axiosError.response?.data?.error?.message || 'Không thể đặt lịch. Vui lòng thử lại.';
+      const message = axiosError.response?.data?.error?.message || 'Không thể đặt lịch khám. Vui lòng thử lại.';
       setBookingError(message);
     } finally {
       setBookingSubmitting(false);
@@ -151,32 +165,59 @@ export const DoctorSearchPage: React.FC = () => {
     const term = searchTerm.toLowerCase();
     const matchName = d.fullName.toLowerCase().includes(term);
     const matchBio = d.bio?.toLowerCase().includes(term);
+    const matchHosp = d.hospitalAffiliation?.toLowerCase().includes(term);
+    const matchDept = d.department?.toLowerCase().includes(term);
     const matchSpec = d.specialties?.some((s) => s.toLowerCase().includes(term));
-    return matchName || matchBio || matchSpec;
+    const matchesSearch = matchName || matchBio || matchHosp || matchDept || matchSpec;
+
+    const matchesSpecialty =
+      selectedSpecialty === 'ALL' ||
+      d.specialties?.some((s) => s.toLowerCase().includes(selectedSpecialty.toLowerCase()));
+
+    return matchesSearch && matchesSpecialty;
   });
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Tìm Kiếm & Đặt Lịch Khám Bác Sĩ</h2>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Tìm Kiếm & Đặt Lịch Bác Sĩ Chuyên Khoa</h2>
         <p className="text-slate-500 text-sm mt-1">
-          Hệ thống danh bạ bác sĩ chính quy đã được xác minh chứng chỉ hành nghề y tế (Doctor Vetting).
+          Hệ thống danh bạ bác sĩ chính quy tại các Bệnh viện tuyến đầu, đã được thẩm định Chứng Chỉ Hành Nghề (CCHN).
         </p>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-        <Search className="w-5 h-5 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Tìm theo tên bác sĩ, chuyên khoa (Tim mạch, Da liễu, Thần kinh), hoặc từ khóa lâm sàng..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full text-sm bg-transparent outline-none placeholder:text-slate-400"
-        />
+      {/* Filter & Search Toolbar */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="md:col-span-2 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <Search className="w-5 h-5 text-slate-400 flex-shrink-0" />
+          <input
+            type="text"
+            placeholder="Tìm theo tên bác sĩ, bệnh viện (BV Chợ Rẫy, Bạch Mai, ĐH Y Dược...), chuyên khoa..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full text-sm bg-transparent outline-none placeholder:text-slate-400"
+          />
+        </div>
+
+        <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-2">
+          <Filter className="w-4 h-4 text-teal-600 ml-2 flex-shrink-0" />
+          <select
+            value={selectedSpecialty}
+            onChange={(e) => setSelectedSpecialty(e.target.value)}
+            className="w-full text-xs font-semibold text-slate-700 bg-transparent outline-none py-1.5 pr-2 cursor-pointer"
+          >
+            <option value="ALL">Tất cả chuyên khoa ({specialtiesList.length})</option>
+            {specialtiesList.map((s) => (
+              <option key={s.id} value={s.name}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {loading ? (
-        <div className="py-16 text-center text-slate-400 text-sm">Đang tải danh bạ bác sĩ...</div>
+        <div className="py-16 text-center text-slate-400 text-sm">Đang tải danh bạ bác sĩ từ hệ thống...</div>
       ) : filteredDoctors.length === 0 ? (
         <div className="py-16 text-center text-slate-400 text-sm bg-white rounded-2xl border border-slate-200">
           Không tìm thấy bác sĩ phù hợp với tiêu chí tìm kiếm.
@@ -186,14 +227,19 @@ export const DoctorSearchPage: React.FC = () => {
           {filteredDoctors.map((doc) => (
             <div
               key={doc.id}
-              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs hover:border-indigo-200 transition flex flex-col md:flex-row md:items-center justify-between gap-6"
+              className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs hover:border-teal-300 hover:shadow-md transition flex flex-col md:flex-row md:items-center justify-between gap-6"
             >
               <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-lg flex-shrink-0">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-50 to-indigo-50 border border-teal-100 text-teal-700 flex items-center justify-center font-bold text-xl flex-shrink-0 shadow-xs">
                   {doc.fullName.charAt(doc.fullName.length - 1)}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
+                    {doc.academicTitle && (
+                      <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        {doc.academicTitle}
+                      </span>
+                    )}
                     <h3 className="text-base font-bold text-slate-900">{doc.fullName}</h3>
                     {doc.specialties?.map((spec) => (
                       <span
@@ -204,26 +250,55 @@ export const DoctorSearchPage: React.FC = () => {
                       </span>
                     ))}
                     <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Đã xác thực
+                      <CheckCircle2 className="w-3 h-3" /> Đã thẩm định CCHN
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 font-medium">{doc.bio}</p>
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1">
-                    <span className="flex items-center gap-1">
+
+                  {/* Hospital & Department Affiliation */}
+                  {doc.hospitalAffiliation && (
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700 font-medium">
+                      <span className="inline-flex items-center gap-1 text-teal-800 font-semibold">
+                        <Building2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
+                        {doc.hospitalAffiliation}
+                      </span>
+                      {doc.department && (
+                        <>
+                          <span className="text-slate-300">•</span>
+                          <span className="text-slate-500">{doc.department}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="text-xs text-slate-600 font-normal leading-relaxed line-clamp-2">{doc.bio}</p>
+
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1 border-t border-slate-100 mt-2">
+                    <span className="flex items-center gap-1 font-mono text-[11px] text-slate-600">
                       <MapPin className="w-3.5 h-3.5 text-slate-400" /> CCHN: {doc.licenseNumber}
                     </span>
-                    <span>Kinh nghiệm: {doc.yearsOfExperience} năm</span>
+                    <span>Kinh nghiệm: <strong className="text-slate-700">{doc.yearsOfExperience} năm</strong></span>
+                    {doc.rating && (
+                      <span className="inline-flex items-center gap-1 text-amber-600 font-bold">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> {doc.rating.toFixed(2)}
+                      </span>
+                    )}
+                    {doc.totalConsultations && (
+                      <span className="text-slate-400">({doc.totalConsultations.toLocaleString('vi-VN')} lượt khám)</span>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="flex md:flex-col items-center md:items-end justify-between gap-2 border-t md:border-t-0 pt-4 md:pt-0 border-slate-100 flex-shrink-0">
-                <span className="text-base font-bold text-indigo-600">
-                  {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(doc.consultationFee || 300000)}
-                </span>
+              <div className="flex md:flex-col items-center md:items-end justify-between gap-3 border-t md:border-t-0 pt-4 md:pt-0 border-slate-100 flex-shrink-0">
+                <div className="text-left md:text-right">
+                  <span className="text-[11px] text-slate-400 block font-medium">Phí khám tư vấn:</span>
+                  <span className="text-lg font-bold text-teal-700">
+                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(doc.consultationFee || 300000)}
+                  </span>
+                </div>
                 <button
                   onClick={() => handleOpenBooking(doc)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
                 >
                   <Calendar className="w-4 h-4" /> Đặt Khám Ngay
                 </button>
