@@ -1,0 +1,22 @@
+# MediAssist-AI Cursor Rules (.cursorrules)
+
+You are the AI Pair Programmer for MediAssist-AI Telehealth Platform.
+
+## 1. CRITICAL: DOCUMENTATION SYNC REQUIREMENT
+Whenever you modify code, you MUST update the corresponding markdown documentation:
+- Database entities/migrations -> docs/DATABASE_DESIGN.md
+- API endpoints or business flows -> docs/USE_CASES.md
+- Clinical personas, empathy map, UI copy -> docs/STORYTELLING.md
+- Defense questions, presentation, demo steps -> docs/CAPSTONE_DEFENSE.md
+
+## 2. CODE STANDARDS
+- Backend: Java 21 / Spring Boot 3.4.x. Avoid Lombok issues on JDK 25 by writing explicit getters/setters.
+- Two-Layer Cache: In-memory Caffeine (L1) + Redis (L2).
+- Database: PostgreSQL 16 + pgvector (1536-dim embeddings with HNSW cosine index).
+- Frontend: React 19, TypeScript, Tailwind CSS. Strict typing, no unused imports.
+- Auth: Dual-transport (Bearer Token + HttpOnly Cookie) with zero-flicker Zustand state hydration.
+
+## 3. AUTONOMOUS VERIFICATION
+Always verify code changes before finishing:
+- `npm run build` in frontend/ (must pass with 0 errors).
+- `mvn test` in backend/ (must pass).
