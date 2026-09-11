@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Clock, MapPin, CheckCircle2, AlertCircle, X, Building2, Star, Filter } from 'lucide-react';
-import { api } from '../../services/api.js';
-import { useAuthStore } from '../../store/useAuthStore.js';
+import { api } from '../../services/api';
+import { useAuthStore } from '../../store/useAuthStore';
 
 interface DoctorDetail {
   id: string;

@@ -19,8 +19,8 @@ import {
   Stethoscope,
   ChevronRight
 } from 'lucide-react';
-import { api } from '../services/api.js';
-import { useAuthStore } from '../store/useAuthStore.js';
+import { api } from '../services/api';
+import { useAuthStore } from '../store/useAuthStore';
 
 export const LoginPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'LOGIN' | 'REGISTER'>('LOGIN');

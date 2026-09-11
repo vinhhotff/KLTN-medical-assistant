@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Award, CheckCircle2, Save, AlertCircle, Building2 } from 'lucide-react';
-import { useAuthStore } from '../../store/useAuthStore.js';
-import { api } from '../../services/api.js';
+import { useAuthStore } from '../../store/useAuthStore';
+import { api } from '../../services/api';
 
 export const DoctorProfilePage: React.FC = () => {
   const { user } = useAuthStore();

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { Stethoscope, LogOut } from 'lucide-react';
-import { useAuthStore } from '../store/useAuthStore.js';
+import { useAuthStore } from '../store/useAuthStore';
 
 export const DoctorLayout: React.FC = () => {
   const { user, logout } = useAuthStore();

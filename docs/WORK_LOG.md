@@ -10,8 +10,9 @@
 ## 📑 Bảng Mục Lục Lịch Sử Cập Nhật
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
-| :---: | :---: | :--- | :--- :---: | :---: |
-| **#013** | 11/09/2026 | Hoàn Tất Milestone 6: Bảo Vệ Token AI (Gatekeeper Sieve & SHA-256 Deduplication), Lưu Trữ Supabase Cloud EMR & Quản Lý Hạn Ngạch Quét Doanh Nghiệp | AI Assistant | 🟢 Sẵn sàng Review |
+| :---: | :---: | :--- | :---: | :---: |
+| **#014** | 11/09/2026 | Khắc Phục Lỗi TypeScript Toàn Diện & Xây Dựng Trang Đích 3D Scroll-World (Three.js WebGL Fly-Through Landing Page theo Chuẩn `oso95/scroll-world`) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#013** | 11/09/2026 | Hoàn Tất Milestone 6: Bảo Vệ Token AI (Gatekeeper Sieve & SHA-256 Deduplication), Lưu Trữ Supabase Cloud EMR & Quản Lý Hạn Ngạch Quét Doanh Nghiệp | AI Assistant | 🟢 Đã Duyệt |
 | **#012** | 11/09/2026 | Hoàn Tất Milestone 5: Bảo Mật Zero-Trust, Phòng Thủ Anti-Brute Force Lockout & Kiểm Soát Tải Tần Suất Cao (Redis Rate Limiting) | AI Assistant | 🟢 Đã Duyệt |
 | **#011** | 11/09/2026 | Tích hợp Flyway Database Migration & Nạp Tập Dữ Liệu Bệnh Viện Thực Tế (12 Chuyên Khoa, 12 Bác Sĩ Tuyến TW, 630 Slots, 5 EMR, 8 Ca Khám, pgvector) | AI Assistant | 🟢 Đã Duyệt |
 | **#010** | 11/09/2026 | Nâng cấp toàn diện Chuẩn Bệnh Viện: EMR Hộ Chiếu Y Tế (BHYT/CCCD/Nhóm Máu/Dị Ứng), Bàn Làm Việc Bác Sĩ (Sinh Hiệu, ICD-10, Toa Thuốc Điện Tử) | AI Assistant | 🟢 Đã Duyệt |
@@ -20,6 +21,65 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#014] Khắc Phục Lỗi TypeScript Toàn Diện & Xây Dựng Trang Đích 3D Scroll-World (Three.js WebGL Fly-Through Landing Page theo Chuẩn `oso95/scroll-world`)
+* **Thời gian:** 2026-09-11 23:55:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-UX-00
+* **Trạng thái Build:** Frontend `npm run build` PASS (0 lỗi TS, 3.49s, tách chunk `three`, `vendor`, `index` tối ưu) | Backend `mvn test` PASS (34/34 tests, 0 failures) | Integration Probe PASS (HTTP 200, root div OK, Spring Boot Actuator UP).
+* **Nhánh phát triển:** `feature/landing-page-scroll-world` (sẵn sàng merge vào `develop`).
+
+#### 1. Mục Tiêu & Bối Cảnh Nghiệp Vụ
+- Đáp ứng chính xác 100% chỉ thị của Tech Lead: *"Hiện vẫn còn nhiều lỗi typescript khiến page lỗi hãy check, và hiện tại tôi muốn trang loadingpage hẳn hoi về project sau đó mới login chứ không phải login liền, áp dụng skill này vào dể làm https://github.com/oso95/scroll-world.git"*.
+- **Kiểm tra và dọn dẹp lỗi TypeScript toàn diện:**
+  - Phát hiện và chuẩn hóa 37 vị trí import có đuôi `.js` trong các tệp `.ts` và `.tsx` sang chuẩn extensionless ES Module của Vite/TypeScript bundler, loại bỏ toàn bộ lỗi phân giải module trong IDE.
+  - Bổ sung tệp khai báo môi trường `src/vite-env.d.ts` với `/// <reference types="vite/client" />`.
+  - Cấu hình tách chunk chuyên nghiệp trong `vite.config.ts` (`rollupOptions.output.manualChunks`) phân tách `three` và các thư viện `vendor` giúp tải trang ban đầu cực nhanh và tận dụng tối đa browser cache.
+- **Xây dựng Không Gian Y Tế 3D Scroll-World (`LandingPage.tsx` & `MedicalWorldCanvas.tsx`):**
+  - Nghiên cứu và áp dụng trọn vẹn kiến trúc của `oso95/scroll-world`: Scroll-scrubbed camera flight qua các trạm diorama không gian 3D, không có vết cắt giật (seamless fly-through).
+  - Tích hợp **Three.js WebGL Canvas** hiệu năng cao với sương mù chiều sâu `FogExp2`, hệ thống chiếu sáng động (Ambient, Directional, Point Light) và lưới không gian điều khiển mạng lưới y tế (Cyber Matrix Grid).
+  - Khởi tạo đường cong nội suy Catmull-Rom 3 chiều (`CatmullRomCurve3`) cho vị trí và góc nhìn camera tương ứng với 5 trạm khám phá hành trình MediAssist-AI:
+    - **Trạm 00 - Khởi Đầu (Hero):** Giới thiệu sứ mệnh nền tảng Y tế Số toàn diện chuẩn Bộ Y Tế.
+    - **Trạm 01 - Cổng Cấp Cứu (Triage & Red-Flag):** Rào chắn 115, kiểm duyệt từ khóa khẩn cấp < 5ms.
+    - **Trạm 02 - Trung Tâm Chẩn Đoán (OCR Lab):** Bóc tách chỉ số sinh hóa máu, cơ chế SHA-256 Deduplication (0 token, 0đ).
+    - **Trạm 03 - Mạng Lưới Bác Sĩ Tuyến Đầu (pgvector):** Khớp nối Bác sĩ chuyên khoa sâu Chợ Rẫy, Bạch Mai qua 1536 chiều vector.
+    - **Trạm 04 - Bàn Làm Việc Bác Sĩ (HIS/EMR Workstation):** Dấu hiệu sinh tồn Vital Signs, mã hóa bệnh quốc tế WHO ICD-10 và toa thuốc điện tử.
+    - **Trạm 05 - Kinh Tế Y Tế & Ký Quỹ Escrow (Finale CTA):** Bảo vệ quyền lợi bệnh nhân, bảo lãnh viện phí và các gói dịch vụ tiết kiệm (29k, 99k, 149k VIP).
+  - **Màn Chờ Công Nghệ Cao (High-Tech ECG Loading Screen):** Hiển thị nhịp tim đồ và tiến trình nạp tài nguyên (0% -> 100%), chuyển cảnh êm ái mượt mà khi người dùng vừa truy cập website.
+  - **Thanh Điều Hướng Checkpoint (Route Rail):** Nằm cố định ở chân trang cho phép nhảy nhanh đến từng trạm với hiệu ứng chuyển camera 3D mượt mà.
+- **Định tuyến chuẩn xác:**
+  - Route `/` và `/landing` dẫn trực tiếp vào trang `LandingPage.tsx`.
+  - Người dùng xem toàn cảnh dự án trước, sau đó bấm nút CTA hoặc "Đăng Nhập" mới chuyển sang `/login`.
+  - Người dùng đã đăng nhập có nút *"Vào Bảng Điều Khiển"* tức thì.
+
+#### 2. Chi Tiết Thay Đổi Mã Nguồn (Files Changed)
+- `[NEW]` `frontend/src/components/landing/MedicalWorldCanvas.tsx`: Trình diễn Canvas 3D Three.js WebGL với đảo khuôn viên y tế, tháp bệnh viện, chuỗi xoắn kép DNA, tinh thể chẩn đoán và đám mây 750 hạt sinh học di động.
+- `[NEW]` `frontend/src/pages/LandingPage.tsx`: Trang đích Scroll-World giới thiệu toàn cảnh dự án với thanh trượt 3D, 5 trạm thông điệp, màn chờ nhịp tim đồ ECG, bảng giá dịch vụ và các nút CTA.
+- `[NEW]` `frontend/src/vite-env.d.ts`: Khai báo kiểu môi trường Vite client cho dự án.
+- `[MOD]` `frontend/src/App.tsx`: Cập nhật định tuyến root `/` và `/landing` hiển thị `LandingPage`, fallback route về `/`.
+- `[MOD]` `frontend/src/vite.config.ts`: Cấu hình `manualChunks` tách gói `three` và `vendor` riêng biệt.
+- `[MOD]` `37 tệp tin source code frontend`: Chuẩn hóa loại bỏ toàn bộ đuôi `.js` trong các câu lệnh `import` TypeScript.
+- `[MOD]` `docs/USE_CASES.md`: Bổ sung đặc tả use case `UC-UX-00: Khám Phá Không Gian Y Tế Số 3D Scroll-World`.
+- `[MOD]` `docs/WORK_LOG.md`: Cập nhật bản ghi phát triển phiên #014.
+
+#### 3. Bằng Chứng Kiểm Thử & Kiểm Định Kỹ Thuật
+- **Frontend Build (`npm run build`):** 0 lỗi TypeScript, 0 cảnh báo phân giải module, đóng gói thành công trong 3.49s.
+  - `dist/assets/three-C_x96UXJ.js` (536.95 kB)
+  - `dist/assets/vendor-D5q4yzvC.js` (238.55 kB)
+  - `dist/assets/index-C3pda8CV.js` (216.70 kB)
+- **Backend Unit Tests (`mvn test`):** 34/34 tests PASS (100%), 0 lỗi, thời gian chạy 7.24s.
+- **Dịch vụ môi trường kiểm thử:**
+  - Frontend dev server (Vite): Cổng `5173` RUNNING, HMR hoạt động tức thì.
+  - Backend API (Spring Boot): Cổng `5000` RUNNING, `/actuator/health` UP.
+  - PostgreSQL 16 + pgvector: Cổng `5433` UP.
+  - Redis 7: Cổng `6379` UP.
+
+#### 4. Điểm Nóng Tech Lead Cần Duyệt (Review Hotspots)
+1. **Kiến trúc Scroll-World:** Tệp `MedicalWorldCanvas.tsx` sử dụng curve spline `CatmullRomCurve3` tính toán mượt mà theo `scrollProgress` và parallax theo con trỏ chuột, đảm bảo không có giật lag hay rò rỉ bộ nhớ (dispose sạch WebGL buffer khi unmount).
+2. **Trải nghiệm người dùng:** Khách ghé thăm khi vào domain gốc sẽ được xem một trang giới thiệu hoành tráng chuẩn quốc tế về MediAssist-AI trước khi quyết định đăng nhập hay đăng ký.
+3. **Tuân thủ GitFlow:** Toàn bộ công việc thực hiện trên nhánh `feature/landing-page-scroll-world`, sau đó merge `--no-ff` vào `develop` và đẩy lên remote GitHub. Tuyệt đối không commit vào `master`.
 
 ---
 

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuthStore } from '../../store/useAuthStore.js';
+import { useAuthStore } from '../../store/useAuthStore';
 
 interface Props {
   allowedRoles?: Array<'ADMIN' | 'DOCTOR' | 'PATIENT'>;

@@ -20,8 +20,8 @@ import {
   Zap,
   Crown
 } from 'lucide-react';
-import { api } from '../../services/api.js';
-import { useAuthStore } from '../../store/useAuthStore.js';
+import { api } from '../../services/api';
+import { useAuthStore } from '../../store/useAuthStore';
 
 interface AbnormalIndicator {
   name: string;

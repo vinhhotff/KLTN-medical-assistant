@@ -55,6 +55,32 @@ graph TD
 
 ---
 
+### UC-00: Khám Phá Không Gian Y Tế Số 3D Scroll-World (Immersive 3D Landing Experience)
+
+* **Mã Use Case:** `UC-UX-00`
+* **Tác nhân chính:** Khách vãng lai (Guest Visitor), Người bệnh (Patient), Bác sĩ (Doctor), Hội đồng Đánh giá.
+* **Mục tiêu:** Cung cấp trang đích giới thiệu hệ sinh thái MediAssist-AI sống động dưới dạng hành trình bay 3D (Scroll-driven fly-through world, cảm hứng từ `oso95/scroll-world`), giúp người dùng hiểu rõ toàn bộ luồng giá trị lâm sàng trước khi chuyển tiếp vào quy trình Đăng nhập / Đăng ký.
+* **Tiền điều kiện:** Người dùng truy cập URL gốc `/` hoặc `/landing`.
+* **Hậu điều kiện thành công:**
+  - Trình duyệt tải Canvas 3D Three.js WebGL với độ mượt 60 FPS, không gây giật lag (Zero-jank).
+  - Người dùng cuộn trang để di chuyển camera mượt mà qua 5 trạm kiểm soát y tế:
+    1. Trạm 01: Sàng lọc khẩn cấp Red-Flag & Rào chắn 115.
+    2. Trạm 02: Quét PDF Xét nghiệm, OCR & Cơ chế SHA-256 Deduplication.
+    3. Trạm 03: Khớp Bác sĩ chuyên khoa sâu qua vector ngữ nghĩa 1536 chiều pgvector.
+    4. Trạm 04: Bàn làm việc Bác sĩ chuẩn bệnh viện (HIS/EMR) & Mã hóa WHO ICD-10.
+    5. Trạm 05: Kinh tế y tế minh bạch, bảo lãnh viện phí Escrow & Gói MediPass VIP.
+  - Người dùng dễ dàng chuyển hướng sang `/login` (đăng nhập hoặc đăng ký) hoặc vào thẳng Dashboard nếu đã có phiên xác thực hợp lệ.
+
+##### Luồng sự kiện chính (Happy Path):
+1. Người dùng mở trang web tại địa chỉ `http://localhost:5173/`.
+2. Màn hình hiển thị màn chờ công nghệ cao (High-Tech ECG Loading Screen) với đường nhịp tim đồ và bộ đếm phần trăm khởi tạo tài nguyên 3D.
+3. Không gian 3D mở ra với mô hình khuôn viên y tế số, tháp bệnh viện kính, chuỗi xoắn kép DNA, tinh thể chẩn đoán và đám mây dữ liệu sinh học trôi dạt.
+4. Khi cuộn trang (Scroll scrub), góc nhìn camera lướt chuyển mượt mà qua các trạm với thông điệp rõ ràng, nhãn chứng chỉ và thẻ minh họa thực tế.
+5. Thanh điều hướng dưới chân trang (Route Rail) cho phép nhấp vào các mốc `01` - `05` để camera tự động lướt đến trạm tương ứng.
+6. Khi bấm nút *"Bắt Đầu Khám Bệnh Ngay"* hoặc *"Đăng Nhập"*, hệ thống điều hướng tức thì tới `/login`.
+
+---
+
 ### UC-01: Xác Thực Kép Chuẩn Doanh Nghiệp (Dual-Transport Authentication)
 
 * **Mã Use Case:** `UC-SEC-01`

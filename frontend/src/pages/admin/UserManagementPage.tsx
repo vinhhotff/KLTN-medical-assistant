@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ShieldCheck, Mail, Phone, Calendar, RefreshCw } from 'lucide-react';
-import { api } from '../../services/api.js';
+import { api } from '../../services/api';
 
 interface UserRecord {
   id: string;

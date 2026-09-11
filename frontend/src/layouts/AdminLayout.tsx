@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { Shield, Users, Activity, LogOut, CheckCircle, Database } from 'lucide-react';
-import { useAuthStore } from '../store/useAuthStore.js';
+import { useAuthStore } from '../store/useAuthStore';
 
 export const AdminLayout: React.FC = () => {
   const { user, logout } = useAuthStore();
