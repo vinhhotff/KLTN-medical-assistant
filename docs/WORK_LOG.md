@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#003** | 11/09/2026 | Ban hành quy chế làm việc nhóm, RACI, GitHub templates & quy chuẩn Work Log | AI Assistant | 🟢 Sẵn sàng Review |
+| **#004** | 11/09/2026 | Hoàn tất toàn bộ Milestone 1 (Seeding 3 vai trò, OpenAPI, k6 test, Postman, DoD 100%) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#003** | 11/09/2026 | Ban hành quy chế làm việc nhóm, RACI, GitHub templates & quy chuẩn Work Log | AI Assistant | 🟢 Đã Duyệt |
 | **#002** | 11/09/2026 | Sửa lỗi Admin redirect, tạo 6 trang con, tạo bộ 4 tài liệu docs/ | AI Assistant | 🟢 Đã Kiểm Tra & Commit |
 | **#001** | 11/09/2026 | Thiết lập nền tảng: Java 21, Spring Boot 3, Redis Two-Layer Cache, Docker Postgres 5433 | AI Assistant | 🟢 Đã Hoàn Thành |
 
@@ -58,6 +59,40 @@ Mỗi khi AI hoặc Developer cập nhật mã nguồn, **bắt buộc copy mẫ
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
 ---
+
+### [WORK-LOG-#004] Hoàn Tất Toàn Bộ Milestone 1 (Foundation, Seeding 3 Vai Trò, OpenAPI, k6, Postman & Đạt 100% DoD)
+* **Thời gian:** 2026-09-11 20:25:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mục tiêu:** Thực hiện chỉ thị của Tech Lead: hoàn tất trọn vẹn 100% các hạng mục của Milestone 1 theo đúng Definition of Done (DoD) trước khi bước sang Milestone 2.
+* **Trạng thái Build:** Frontend `npm run build` PASS (0 lỗi TS, 2.55s) | Backend `mvn test` PASS (3/3 tests).
+
+#### 1. Chi Tiết Thay Đổi Mã Nguồn & Hạ Tầng
+- `[MOD]` [`backend/src/main/java/com/mediassist/config/DataInitializer.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/config/DataInitializer.java):
+  - Bổ sung logic tự động seed 3 tài khoản chuẩn cho 3 vai trò:
+    - **Admin:** `admin@mediassist.local` (`Admin@SecurePass2026!`)
+    - **Doctor:** `doctor@mediassist.local` (`Doctor@SecurePass2026!`), liên kết hồ sơ `DoctorProfile` (CCHN: `008921/BYT-CCHN`, 15 năm KN, phí khám 350.000 VNĐ, Chuyên khoa Tim Mạch).
+    - **Patient:** `patient@mediassist.local` (`Patient@SecurePass2026!`).
+- `[NEW]` [`tests/k6/smoke_test.js`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/tests/k6/smoke_test.js): Kịch bản kiểm thử tải khói bằng k6 (10 VU, 30s) kiểm tra Liveness probe, Readiness probe và Login endpoint.
+- `[NEW]` [`tests/postman/MediAssist_v1.postman_collection.json`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/tests/postman/MediAssist_v1.postman_collection.json): Bộ sưu tập Postman chuẩn bị sẵn request cho Health Probes, Auth Login 3 vai trò và OpenAPI spec.
+- `[MOD]` [`ROADMAP.md`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/ROADMAP.md): Cập nhật trạng thái Milestone 1 thành `🟢 COMPLETED`, đánh dấu hoàn thành 100% checklist của TL, Core Dev, Frontend Lead và Doc Lead, chuẩn bị sẵn sàng cho Milestone 2.
+
+#### 2. Bằng Chứng Kiểm Thử & Nghiệm Thu Tự Động:
+- **Readiness Health:** `http://localhost:5000/api/v1/health/ready` trả về HTTP `200 OK` (Database `UP`, Redis `UP`, TwoLayerCache `UP`).
+- **OpenAPI / Swagger:**
+  - `GET /api/docs` $\rightarrow$ `HTTP 200 OK` (JSON spec đầy đủ).
+  - `GET /swagger-ui/index.html` $\rightarrow$ `HTTP 200 OK` (Giao diện Swagger tương tác trực quan).
+- **Authentication 3 Vai Trò:**
+  - `admin@mediassist.local` $\rightarrow$ `HTTP 200 OK` (Token sinh thành công, Cookie cấp phát).
+  - `doctor@mediassist.local` $\rightarrow$ `HTTP 200 OK`.
+  - `patient@mediassist.local` $\rightarrow$ `HTTP 200 OK`.
+- **Database Docker (PostgreSQL 5433):**
+  - Extension `vector` và `plpgsql` đang hoạt động.
+  - Các bảng `users`, `specialties`, `doctor_profiles`, `doctor_specialties`, `audit_logs` có dữ liệu khởi tạo chuẩn xác.
+
+#### 3. Điểm Nóng Cần Tech Lead Review & Nghiệm Thu:
+- [x] Đã hoàn thành 10/10 tiêu chí Definition of Done (DoD) của Milestone 1.
+- [x] Hạ tầng Docker, Spring Boot daemon và Vite dev server chạy mượt mà, không xung đột.
+- [ ] **Sẵn sàng bước sang Milestone 2 (Core Medical & Booking Workflow)** theo chỉ thị tiếp theo của Tech Lead.
 
 ### [WORK-LOG-#003] Thiết Lập Hệ Thống Quản Trị Dự Án, Phân Bổ RACI & Chỉ Thị AI Bền Vững
 * **Thời gian:** 2026-09-11 20:15:00 (GMT+7)

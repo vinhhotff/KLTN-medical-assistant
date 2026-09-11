@@ -1,9 +1,7 @@
 package com.mediassist.config;
 
-import com.mediassist.model.entity.Role;
-import com.mediassist.model.entity.Specialty;
-import com.mediassist.model.entity.User;
-import com.mediassist.model.entity.UserStatus;
+import com.mediassist.model.entity.*;
+import com.mediassist.repository.DoctorProfileRepository;
 import com.mediassist.repository.SpecialtyRepository;
 import com.mediassist.repository.UserRepository;
 import org.slf4j.Logger;
@@ -13,7 +11,11 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -22,6 +24,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final SpecialtyRepository specialtyRepository;
+    private final DoctorProfileRepository doctorProfileRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.seed.admin.email:admin@mediassist.local}")
@@ -33,17 +36,34 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${app.seed.admin.name:System Administrator}")
     private String adminName;
 
-    public DataInitializer(UserRepository userRepository, SpecialtyRepository specialtyRepository, PasswordEncoder passwordEncoder) {
+    public DataInitializer(UserRepository userRepository,
+                           SpecialtyRepository specialtyRepository,
+                           DoctorProfileRepository doctorProfileRepository,
+                           PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.specialtyRepository = specialtyRepository;
+        this.doctorProfileRepository = doctorProfileRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public void run(String... args) {
-        log.info("🌱 Checking database seed requirements...");
+        log.info("🌱 Checking database seed requirements for Milestone 1...");
 
-        // 1. Seed Admin User
+        // 1. Seed Specialties
+        seedSpecialties();
+
+        // 2. Seed Admin User
+        seedAdmin();
+
+        // 3. Seed Demo Doctor
+        seedDoctor();
+
+        // 4. Seed Demo Patient
+        seedPatient();
+    }
+
+    private void seedAdmin() {
         if (!userRepository.existsByEmail(adminEmail)) {
             User admin = User.builder()
                     .email(adminEmail)
@@ -53,13 +73,54 @@ public class DataInitializer implements CommandLineRunner {
                     .status(UserStatus.ACTIVE)
                     .build();
             userRepository.save(admin);
-            log.info("✅ Admin user seeded: {} with role ADMIN", adminEmail);
-        } else {
-            log.info("ℹ️ Admin user already exists ({})", adminEmail);
+            log.info("✅ Seeded Admin: {}", adminEmail);
         }
+    }
 
-        // 2. Seed Medical Specialties
-        seedSpecialties();
+    private void seedDoctor() {
+        String docEmail = "doctor@mediassist.local";
+        if (!userRepository.existsByEmail(docEmail)) {
+            User docUser = User.builder()
+                    .email(docEmail)
+                    .fullName("TS. BS. Nguyễn Văn An")
+                    .phone("0912345678")
+                    .passwordHash(passwordEncoder.encode("Doctor@SecurePass2026!"))
+                    .role(Role.DOCTOR)
+                    .status(UserStatus.ACTIVE)
+                    .build();
+            docUser = userRepository.save(docUser);
+
+            var cardio = specialtyRepository.findBySlug("cardiology");
+            DoctorProfile profile = new DoctorProfile();
+            profile.setUser(docUser);
+            profile.setBio("Hơn 15 năm kinh nghiệm tầm soát và điều trị rối loạn nhịp tim, bệnh mạch vành can thiệp tại BV Đại Học Y Dược TP.HCM.");
+            profile.setLicenseNumber("008921/BYT-CCHN");
+            profile.setYearsOfExperience(15);
+            profile.setConsultationFee(new BigDecimal("350000.00"));
+            profile.setVerified(true);
+            profile.setVerifiedAt(LocalDateTime.now());
+            if (cardio.isPresent()) {
+                profile.setSpecialties(new HashSet<>(Set.of(cardio.get())));
+            }
+            doctorProfileRepository.save(profile);
+            log.info("✅ Seeded Doctor: {} (License: 008921/BYT-CCHN)", docEmail);
+        }
+    }
+
+    private void seedPatient() {
+        String patientEmail = "patient@mediassist.local";
+        if (!userRepository.existsByEmail(patientEmail)) {
+            User patientUser = User.builder()
+                    .email(patientEmail)
+                    .fullName("Trần Thị Bình")
+                    .phone("0987654321")
+                    .passwordHash(passwordEncoder.encode("Patient@SecurePass2026!"))
+                    .role(Role.PATIENT)
+                    .status(UserStatus.ACTIVE)
+                    .build();
+            userRepository.save(patientUser);
+            log.info("✅ Seeded Patient: {}", patientEmail);
+        }
     }
 
     private void seedSpecialties() {
