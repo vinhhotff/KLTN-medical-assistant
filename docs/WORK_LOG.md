@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#020** | 12/09/2026 | Tinh Chỉnh Độ Chuẩn Xác Tuyệt Đối (Pixel-Perfect Fidelity) Trang Chủ MedConnect AI: Logo Gốc, Filled Stars Hạt Vàng Cho Đánh Giá Lâm Sàng, Thẻ Bác Sĩ & Dropzone Chuẩn Xác Bản Mẫu | AI Assistant | 🟢 Sẵn sàng Review |
+| **#021** | 12/09/2026 | Khởi Động Toàn Diện Hạ Tầng Local (Docker Desktop, pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173) & Hoàn Thiện @layer base, Box-Shadow, Border-Radius | AI Assistant | 🟢 Sẵn sàng Review |
+| **#020** | 12/09/2026 | Tinh Chỉnh Độ Chuẩn Xác Tuyệt Đối (Pixel-Perfect Fidelity) Trang Chủ MedConnect AI: Logo Gốc, Filled Stars Hạt Vàng Cho Đánh Giá Lâm Sàng, Thẻ Bác Sĩ & Dropzone Chuẩn Xác Bản Mẫu | AI Assistant | 🟢 Đã Duyệt |
 | **#019** | 12/09/2026 | Triển Khai Hoàn Hảo Thiết Kế HTML Mẫu Từ Tech Lead: Tích Hợp Hệ Màu Material Clinical, Font Plus Jakarta Sans/Inter, Sandbox Bóc Tách PDF Tương Tác & Bác Sĩ Đầu Ngành | AI Assistant | 🟢 Đã Duyệt |
 | **#018** | 12/09/2026 | Tinh Chỉnh Đột Phá UI/UX Trang Chủ: Khắc Phục Lỗi Dính Chữ/Xuống Hàng Navbar, Tái Cấu Trúc Monitor ECG Sáng Sủa & Tối Ưu Copy Lâm Sàng | AI Assistant | 🟢 Đã Duyệt |
 | **#017** | 12/09/2026 | Hoàn Tất Milestone 7: Tích Hợp Clinical RAG Bằng LLM Bên Thứ Ba (OpenRouter Gateway 0đ), Xoay Tua Đa Mô Hình Chống Quá Tải HTTP 429 & Dự Phòng Cục Bộ Offline Safe Engine | AI Assistant | 🟢 Đã Duyệt |
@@ -27,6 +28,34 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#021] Khởi Động Toàn Diện Hạ Tầng Local (Docker Desktop, pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173) & Hoàn Thiện @layer base, Box-Shadow, Border-Radius
+* **Thời gian:** 2026-09-12 10:03:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-OPS-01 (Full-Stack Local Containerized Environment & Asset Pipeline)
+* **Trạng thái Dịch vụ:**
+  - Docker Desktop Engine: **RUNNING**
+  - PostgreSQL (pgvector 16): `mediassist_postgres` cổng **5433** (Healthy)
+  - Redis 7 Alpine: `mediassist_redis` cổng **6379** (Healthy)
+  - Backend (Spring Boot 3.4.3 / Java 21): cổng **5000** (Actuator status: `UP`)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (`http://localhost:5173/`)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Mục Tiêu & Yêu Cầu Từ Tech Lead
+- Khởi chạy toàn diện 3 tầng kiến trúc: Docker (pgvector & Redis), Backend Spring Boot và Frontend Vite.
+- Xử lý triệt để phản hồi UI CSS: đồng bộ toàn bộ quy tắc `@layer base` và `::-webkit-scrollbar` từ template gốc vào `frontend/src/index.css`, cấu hình `borderRadius` và `boxShadow.xs` trong `frontend/tailwind.config.js`.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi
+- `[MOD] frontend/src/index.css`: Cập nhật `@layer base` bỏ giới hạn nền trắng cứng, hỗ trợ `bg-surface` linh hoạt.
+- `[MOD] frontend/tailwind.config.js`: Bổ sung scale `borderRadius` (`lg`, `xl`, `2xl`, `3xl`) và `boxShadow.xs`.
+- `[MOD] docs/WORK_LOG.md`: Bổ sung bản ghi #021.
+
+#### 3. Bằng Chứng Hoạt Động
+- `docker ps`: 2 container `mediassist_postgres` (0.0.0.0:5433->5432/tcp) và `mediassist_redis` (0.0.0.0:6379->6379/tcp) đều `Up (healthy)`.
+- Backend Actuator: `http://localhost:5000/actuator/health` trả về `{"status":"UP","components":{"db":{"status":"UP"},"redis":{"status":"UP"}}}`.
+- Frontend Dev Server: `http://localhost:5173/` trả về HTTP 200, HMR Hot Module Reload hoạt động trơn tru.
 
 ---
 

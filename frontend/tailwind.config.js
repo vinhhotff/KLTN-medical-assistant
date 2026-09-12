@@ -99,6 +99,17 @@ export default {
         "body-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }],
         "label-md": ["13px", { lineHeight: "18px", letterSpacing: "0.01em", fontWeight: "600" }],
         "label-sm": ["11px", { lineHeight: "14px", letterSpacing: "0.04em", fontWeight: "600" }],
+      },
+      borderRadius: {
+        "DEFAULT": "0.25rem",
+        "lg": "0.5rem",
+        "xl": "0.75rem",
+        "2xl": "1rem",
+        "3xl": "1.5rem",
+        "full": "9999px"
+      },
+      boxShadow: {
+        "xs": "0 1px 2px 0 rgba(15, 41, 66, 0.05)",
       }
     },
   },
