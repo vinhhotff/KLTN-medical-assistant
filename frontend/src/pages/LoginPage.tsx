@@ -61,11 +61,68 @@ export const LoginPage: React.FC = () => {
   }, [regPassword]);
 
   const passwordStrength = useMemo(() => {
-    if (!regPassword) return { label: 'Chưa nhập', level: 0, color: 'bg-slate-200' };
-    const score = (passCriteria.length ? 1 : 0) + (passCriteria.uppercase ? 1 : 0) + (passCriteria.special ? 1 : 0);
-    if (score === 1) return { label: 'Yếu (Cần thêm ký tự)', level: 33, color: 'bg-rose-500' };
-    if (score === 2) return { label: 'Trung bình', level: 66, color: 'bg-amber-500' };
-    return { label: 'Rất mạnh (Tối ưu Y Tế)', level: 100, color: 'bg-emerald-500' };
+    if (!regPassword || regPassword.length === 0) {
+      return {
+        label: 'Chưa nhập',
+        level: 0,
+        color: 'bg-slate-200',
+        textColor: 'text-slate-400',
+      };
+    }
+
+    const { length, uppercase, special } = passCriteria;
+    const hasNumber = /[0-9]/.test(regPassword);
+    const hasLower = /[a-z]/.test(regPassword);
+
+    // If under 8 characters, it is strictly NOT compliant with HIPAA / EMR standards
+    if (!length) {
+      return {
+        label: `Không đạt chuẩn (${regPassword.length}/8 ký tự)`,
+        level: Math.max(15, Math.min(Math.round((regPassword.length / 8) * 33), 33)),
+        color: 'bg-rose-500',
+        textColor: 'text-rose-600',
+      };
+    }
+
+    // Length is >= 8 characters
+    let criteriaMet = 1; // has length >= 8
+    if (uppercase) criteriaMet++;
+    if (special) criteriaMet++;
+    if (hasNumber && hasLower) criteriaMet++;
+
+    if (criteriaMet === 1) {
+      return {
+        label: 'Yếu (Cần thêm chữ hoa & ký tự đặc biệt)',
+        level: 35,
+        color: 'bg-rose-500',
+        textColor: 'text-rose-600',
+      };
+    }
+
+    if (criteriaMet === 2) {
+      return {
+        label: 'Trung bình (Nên thêm chữ hoa hoặc ký tự đặc biệt)',
+        level: 66,
+        color: 'bg-amber-500',
+        textColor: 'text-amber-600',
+      };
+    }
+
+    if (criteriaMet === 3) {
+      return {
+        label: 'Khá mạnh (Gần đạt chuẩn tối ưu)',
+        level: 85,
+        color: 'bg-teal-500',
+        textColor: 'text-teal-600',
+      };
+    }
+
+    return {
+      label: 'Rất mạnh (Tối ưu Y Tế 256-Bit)',
+      level: 100,
+      color: 'bg-emerald-500',
+      textColor: 'text-emerald-600',
+    };
   }, [regPassword, passCriteria]);
 
   // Handle Registration
@@ -611,28 +668,40 @@ export const LoginPage: React.FC = () => {
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60">
                   <div className="flex items-center justify-between text-[11px] mb-1.5">
                     <span className="font-semibold text-slate-600">Độ mạnh mật khẩu y tế:</span>
-                    <span className={`font-bold ${passwordStrength.level >= 66 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    <span className={`font-bold ${passwordStrength.textColor}`}>
                       {passwordStrength.label}
                     </span>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mb-2">
+                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mb-2.5">
                     <div
                       className={`h-full transition-all duration-300 ${passwordStrength.color}`}
                       style={{ width: `${passwordStrength.level}%` }}
                     ></div>
                   </div>
-                  <div className="flex items-center gap-4 text-[10px] text-slate-500">
-                    <span className={`flex items-center gap-1 ${passCriteria.length ? 'text-emerald-600 font-bold' : ''}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                      8+ ký tự
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[10px]">
+                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors ${
+                      passCriteria.length
+                        ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200'
+                        : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      <span>{passCriteria.length ? '✓' : '○'}</span>
+                      <span>8+ ký tự</span>
                     </span>
-                    <span className={`flex items-center gap-1 ${passCriteria.uppercase ? 'text-emerald-600 font-bold' : ''}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                      Chữ hoa (A-Z)
+                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors ${
+                      passCriteria.uppercase
+                        ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200'
+                        : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      <span>{passCriteria.uppercase ? '✓' : '○'}</span>
+                      <span>Chữ hoa (A-Z)</span>
                     </span>
-                    <span className={`flex items-center gap-1 ${passCriteria.special ? 'text-emerald-600 font-bold' : ''}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                      Ký tự đặc biệt (!@#)
+                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors ${
+                      passCriteria.special
+                        ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200'
+                        : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      <span>{passCriteria.special ? '✓' : '○'}</span>
+                      <span>Ký tự đặc biệt (!@#)</span>
                     </span>
                   </div>
                 </div>

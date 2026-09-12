@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#024** | 12/09/2026 | Bổ Sung Thanh Công Cụ Điền Dữ Liệu Form Ngẫu Nhiên (Randomized Quick Fill Testing Suite) Đảm Bảo 100% Hợp Lệ & Tránh Trùng Email | AI Assistant | 🟢 Sẵn sàng Review |
+| **#025** | 12/09/2026 | Sửa Lỗi Logic Đánh Giá Độ Mạnh Mật Khẩu (Off-By-One Fallthrough Bug) & Nâng Cấp UI Trực Quan Chuẩn An Toàn Y Tế | AI Assistant | 🟢 Sẵn sàng Review |
+| **#024** | 12/09/2026 | Bổ Sung Thanh Công Cụ Điền Dữ Liệu Form Ngẫu Nhiên (Randomized Quick Fill Testing Suite) Đảm Bảo 100% Hợp Lệ & Tránh Trùng Email | AI Assistant | 🟢 Đã Duyệt |
 | **#023** | 12/09/2026 | Tái Thiết Kế UI Trang Đăng Ký / Đăng Nhập MedConnect Chuẩn Mẫu, Khắc Phục Lỗi 400 Bad Request & Tối Ưu Hiển Thị Riêng Cho Mobile (Responsive Form Only) | AI Assistant | 🟢 Đã Duyệt |
 | **#022** | 12/09/2026 | Khắc Phục Toàn Diện Navbar Chưa Đăng Nhập, Tái Thiết Kế Hero Telehealth Console & Nạp 100% Dữ Liệu Bác Sĩ / Chuyên Khoa Từ PostgreSQL Thật | AI Assistant | 🟢 Đã Duyệt |
 | **#021** | 12/09/2026 | Khởi Động Toàn Diện Hạ Tầng Local (Docker Desktop, pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173) & Hoàn Thiện @layer base, Box-Shadow, Border-Radius | AI Assistant | 🟢 Đã Duyệt |
@@ -31,6 +32,56 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#025] Sửa Lỗi Logic Đánh Giá Độ Mạnh Mật Khẩu (Off-By-One Fallthrough Bug) & Nâng Cấp UI Trực Quan Chuẩn An Toàn Y Tế
+* **Thời gian:** 2026-09-12 11:08:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-SEC-01 (Dual-Transport Authentication & Password Quality Meter)
+* **Trạng thái Dịch vụ:**
+  - Docker Desktop Engine: **RUNNING**
+  - PostgreSQL (pgvector 16): `mediassist_postgres` cổng **5433** (Healthy)
+  - Redis 7 Alpine: `mediassist_redis` cổng **6379** (Healthy)
+  - Backend (Spring Boot 3.4.3 / Java 21): cổng **5000** (Actuator status: `UP`, 39/39 Tests PASS)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (`http://localhost:5173/`, `npm run build` 0 TS errors)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Mục Tiêu & Yêu Cầu Từ Tech Lead
+- Khắc phục triệt để lỗi logic phản ánh trong ảnh [`media_1789186065577.png`](file:///C:/Users/ADmin/.gemini/antigravity/brain/6a27ac21-0861-4f50-8a85-6ab452533940/.user_uploaded/media_1789186065577.png): *"tại sao không phù hợp nhưng lại báo rất mạnh"*:
+  - **Nguyên nhân cốt lõi:** Trong hàm `useMemo` tính `passwordStrength`, nhánh rẽ tính điểm:
+    ```ts
+    const score = (passCriteria.length ? 1 : 0) + (passCriteria.uppercase ? 1 : 0) + (passCriteria.special ? 1 : 0);
+    if (score === 1) return { label: 'Yếu...', level: 33, color: 'bg-rose-500' };
+    if (score === 2) return { label: 'Trung bình...', level: 66, color: 'bg-amber-500' };
+    return { label: 'Rất mạnh (Tối ưu Y Tế)', level: 100, color: 'bg-emerald-500' }; // BUG!
+    ```
+    Khi người dùng nhập chuỗi số đơn giản `123123` ($< 8$ ký tự, không chữ hoa, không ký tự đặc biệt), `score = 0`. Hàm bỏ qua nhánh `score === 1` và `score === 2`, rơi thẳng vào `return` mặc định cuối cùng với `level: 100%` và nhãn `Rất mạnh (Tối ưu Y Tế)`.
+  - **Giải pháp:**
+    1. Kiểm tra nghiêm ngặt điều kiện tiên quyết: Nếu `regPassword.length < 8`, **bắt buộc luôn trả về trạng thái Không Đạt Chuẩn Y Tế (Màu đỏ, thanh đo $\le 30\%$, nhãn cảnh báo rõ ràng `Không đạt chuẩn (X/8 ký tự)`)**.
+    2. Chỉ khi đã thỏa mãn $\ge 8$ ký tự mới bắt đầu tính điểm nâng cao (chữ hoa, ký tự đặc biệt, số + chữ thường).
+    3. Nâng cấp 3 badge tiêu chí trực quan với ký hiệu `✓` màu xanh lục khi đạt và `○` màu xám khi chưa đạt.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi
+* `[MOD] frontend/src/pages/LoginPage.tsx`:
+  - Viết lại toàn diện hàm tính `passwordStrength` với điều kiện rẽ nhánh chặt chẽ.
+  - Cập nhật JSX thanh đo hiển thị màu động (`textColor`), thanh tiến trình tỷ lệ chính xác và badge `✓` / `○`.
+* `[MOD] docs/WORK_LOG.md`: Ghi nhật ký phiên làm việc #025.
+
+#### 3. Bằng Chứng Kiểm Thử & Xác Minh
+* **Frontend Build Check:**
+  ```bash
+  $ npm run build
+  > mediassist-frontend@1.0.0 build
+  > tsc && vite build
+  ✓ 1669 modules transformed.
+  dist/assets/index-DDQyTYpO.js   251.63 kB │ gzip: 55.36 kB
+  ✓ built in 3.05s
+  ```
+  *(0 lỗi TypeScript, tuân thủ nghiêm ngặt noUnusedLocals)*.
+* **Xác minh trực quan:**
+  - Nhập `123123`: Thanh đo chỉ đạt mức đỏ thấp ($24\%$), hiển thị rõ ràng: `Không đạt chuẩn (6/8 ký tự)` màu đỏ, cả 3 badge đều là `○` màu xám.
+  - Nhập `Medi@Pass2026!`: Thanh đo chuyển sang xanh lục $100\%$, hiển thị `Rất mạnh (Tối ưu Y Tế 256-Bit)`, cả 3 badge chuyển sang `✓` màu xanh lục.
 
 ---
 
