@@ -128,6 +128,15 @@ export const DocumentSummarizerPage: React.FC = () => {
   const [paymentSuccessToast, setPaymentSuccessToast] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
+  // Analysis Success Notification Banner
+  const [analysisSuccessNotification, setAnalysisSuccessNotification] = useState<{
+    fileName: string;
+    indicatorsCount: number;
+    specialtyName: string;
+    matchedDoctorsCount: number;
+    modelUsed?: string;
+  } | null>(null);
+
   const handleConfirmPayment = async () => {
     if (!selectedPaymentPackage) return;
     try {
@@ -219,18 +228,22 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
       setError(null);
       setAnalysis(null);
+      setAnalysisSuccessNotification(null);
+      executeAnalysis(selectedFile);
     }
   };
 
   const handleSelectPreset = (preset: typeof samplePresets[0]) => {
-    const blob = new Blob([preset.content], { type: 'application/pdf' });
-    const fakeFile = new File([blob], preset.fileName, { type: 'application/pdf' });
+    const blob = new Blob([preset.content], { type: 'text/plain;charset=utf-8' });
+    const fakeFile = new File([blob], preset.fileName.replace('.pdf', '.txt'), { type: 'text/plain' });
     setFile(fakeFile);
     setError(null);
     setAnalysis(null);
+    setAnalysisSuccessNotification(null);
     executeAnalysis(fakeFile);
   };
 
@@ -238,22 +251,41 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
     setAnalyzing(true);
     setError(null);
     setAnalysis(null);
+    setAnalysisSuccessNotification(null);
     setProgressStep(1);
 
-    const stepTimer1 = setTimeout(() => setProgressStep(2), 700);
-    const stepTimer2 = setTimeout(() => setProgressStep(3), 1400);
+    const stepTimer1 = setTimeout(() => setProgressStep(2), 600);
+    const stepTimer2 = setTimeout(() => setProgressStep(3), 1200);
 
     try {
       const formData = new FormData();
       formData.append('file', fileToAnalyze);
 
-      const res = await api.post('/documents/analyze', formData, {
+      // Resilient endpoint routing: authenticated users get EMR storage + quota, guest/preview users get zero-barrier preview
+      const endpoint = user ? '/documents/analyze' : '/documents/analyze-preview';
+      const res = await api.post(endpoint, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
       if (res.data?.data) {
-        setAnalysis(res.data.data);
-        fetchQuota();
+        const data: AnalysisResult = res.data.data;
+        setAnalysis(data);
+        if (user) {
+          fetchQuota();
+        }
+
+        setAnalysisSuccessNotification({
+          fileName: data.fileName || fileToAnalyze.name,
+          indicatorsCount: data.indicators ? data.indicators.length : 0,
+          specialtyName: data.recommendedSpecialtyName || 'Chuyên khoa phù hợp',
+          matchedDoctorsCount: data.matchedDoctors ? data.matchedDoctors.length : 0,
+          modelUsed: data.modelUsed
+        });
+
+        // Instant smooth scroll down to analysis results section
+        setTimeout(() => {
+          document.getElementById('analysis-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150);
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { status?: number; data?: { error?: { code?: string; message?: string } } } };
@@ -278,7 +310,10 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
     setBookingError(null);
     setConfirmedAppt(null);
     setBookingNotes(analysis ? `Phân tích tệp ${analysis.fileName}: ${analysis.clinicalSummary.slice(0, 150)}...` : '');
-    loadSlots(doc.doctorId, selectedDate);
+    const docId = doc.doctorId || (doc as any).id;
+    if (docId) {
+      loadSlots(docId, selectedDate);
+    }
   };
 
   const loadSlots = async (doctorId: string, date: string) => {
@@ -299,7 +334,10 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
     if (bookingDoctor) {
-      loadSlots(bookingDoctor.doctorId, date);
+      const docId = bookingDoctor.doctorId || (bookingDoctor as any).id;
+      if (docId) {
+        loadSlots(docId, date);
+      }
     }
   };
 
@@ -316,8 +354,9 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
       setBookingError(null);
 
       const slotTime = selectedSlot.scheduledStart || selectedSlot.startDateTime;
+      const docId = bookingDoctor.doctorId || (bookingDoctor as any).id;
       const res = await api.post('/appointments', {
-        doctorId: bookingDoctor.doctorId,
+        doctorId: docId,
         scheduledStart: slotTime,
         notes: bookingNotes
       });
@@ -353,6 +392,50 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
           <button onClick={() => setPaymentSuccessToast(null)} className="text-slate-400 hover:text-slate-600 p-1">
             <X className="w-4 h-4" />
           </button>
+        </div>
+      )}
+
+      {/* Prominent Instant Upload & Analysis Success Notification */}
+      {analysisSuccessNotification && (
+        <div className="p-5 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-2 border-emerald-500 rounded-3xl flex flex-wrap items-center justify-between gap-4 text-emerald-950 shadow-md animate-fadeIn ring-4 ring-emerald-500/10">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-sm flex-shrink-0">
+              <CheckCircle2 className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 bg-emerald-600 text-white text-[10px] font-extrabold rounded-full uppercase tracking-wider shadow-xs">
+                  Phân Tích Hoàn Tất
+                </span>
+                <h4 className="font-bold text-emerald-900 text-base">
+                  Đã Phân Tích & Số Hóa Tài Liệu Y Tế Thành Công!
+                </h4>
+              </div>
+              <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
+                Tệp <strong>{analysisSuccessNotification.fileName}</strong> đã được trích xuất{' '}
+                <strong>{analysisSuccessNotification.indicatorsCount} chỉ số lâm sàng</strong>, phân luồng chuyên khoa{' '}
+                <strong className="underline decoration-emerald-500">{analysisSuccessNotification.specialtyName}</strong>{' '}
+                và đề xuất thành công <strong>{analysisSuccessNotification.matchedDoctorsCount} Bác sĩ chuyên môn cao</strong> qua PostgreSQL pgvector.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => document.getElementById('analysis-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>Xem Kết Quả Ngay</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setAnalysisSuccessNotification(null)}
+              className="text-slate-400 hover:text-slate-600 p-2 rounded-lg hover:bg-emerald-100 transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -516,7 +599,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
 
       {/* 📊 Analysis Results Display */}
       {analysis && !analyzing && (
-        <div className="space-y-6 animate-fadeIn">
+        <div id="analysis-results" className="space-y-6 animate-fadeIn scroll-mt-6">
           {/* Deduplication Cache Hit Banner */}
           {analysis.cachedResult && (
             <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-emerald-950 text-xs shadow-xs animate-fadeIn">
@@ -724,110 +807,119 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 </p>
               </div>
               <span className="text-xs text-slate-400">
-                Tìm thấy {analysis.matchedDoctors.length} bác sĩ phù hợp
+                Tìm thấy {analysis.matchedDoctors ? analysis.matchedDoctors.length : 0} bác sĩ phù hợp
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {analysis.matchedDoctors.map((doc) => {
-                const matchPct = Math.round(doc.similarityScore * 100);
-                return (
-                  <div
-                    key={doc.doctorId}
-                    className={`rounded-2xl transition p-5 flex flex-col justify-between space-y-4 ${
-                      doc.aiRecommended
-                        ? 'bg-gradient-to-b from-teal-50/50 to-white border-2 border-teal-500 shadow-md ring-2 ring-teal-500/20'
-                        : 'bg-white border border-slate-200 shadow-xs hover:shadow-md'
-                    }`}
-                  >
-                    {/* AI Recommendation Highlight Badge */}
-                    {doc.aiRecommended && (
-                      <div className="flex items-center gap-1.5 px-3 py-1 bg-teal-600 text-white text-[11px] font-bold rounded-lg shadow-xs -mt-1">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Được AI Lựa Chọn Ưu Tiên Cho Ca Bệnh Này</span>
-                      </div>
-                    )}
-
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            {doc.academicTitle && (
-                              <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
-                                {doc.academicTitle}
-                              </span>
-                            )}
-                            <h4 className="font-bold text-slate-900 text-base">{doc.fullName}</h4>
-                            <span title="Đã thẩm định CCHN">
-                              <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-500">
-                            {doc.hospitalAffiliation && (
-                              <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
-                                <Building2 className="w-3.5 h-3.5 text-teal-600" />
-                                {doc.hospitalAffiliation}
-                              </span>
-                            )}
-                            <span>•</span>
-                            <span className="font-mono">CCHN: {doc.licenseNumber}</span>
-                          </div>
-                        </div>
-
-                        {/* Match Score Badge */}
-                        <div className="flex flex-col items-end">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                            matchPct >= 80
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
-                              : 'bg-teal-50 text-teal-700 border border-teal-200'
-                          }`}>
-                            Độ khớp: {matchPct}%
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Specialties */}
-                      <div className="flex flex-wrap gap-1.5">
-                        {doc.specialties.map((spec, i) => (
-                          <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-md">
-                            {spec}
-                          </span>
-                        ))}
-                      </div>
-
-                      {/* Bio */}
-                      <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
-                        {doc.bio}
-                      </p>
-
-                      {/* AI Doctor Recommendation Reason Callout */}
-                      {doc.aiRecommendationReason && (
-                        <div className="p-3 bg-teal-50/80 rounded-xl border border-teal-200 text-xs text-teal-950 flex items-start gap-2">
-                          <span className="font-bold text-teal-800 flex-shrink-0">Lý do đề xuất:</span>
-                          <span className="leading-relaxed">{doc.aiRecommendationReason}</span>
+            {analysis.matchedDoctors && analysis.matchedDoctors.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {analysis.matchedDoctors.map((doc) => {
+                  const matchPct = Math.round(doc.similarityScore * 100);
+                  const docKey = doc.doctorId || (doc as any).id;
+                  return (
+                    <div
+                      key={docKey}
+                      className={`rounded-2xl transition p-5 flex flex-col justify-between space-y-4 ${
+                        doc.aiRecommended
+                          ? 'bg-gradient-to-b from-teal-50/50 to-white border-2 border-teal-500 shadow-md ring-2 ring-teal-500/20'
+                          : 'bg-white border border-slate-200 shadow-xs hover:shadow-md'
+                      }`}
+                    >
+                      {/* AI Recommendation Highlight Badge */}
+                      {doc.aiRecommended && (
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-teal-600 text-white text-[11px] font-bold rounded-lg shadow-xs -mt-1">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Được AI Lựa Chọn Ưu Tiên Cho Ca Bệnh Này</span>
                         </div>
                       )}
-                    </div>
 
-                    {/* Footer / Booking Action */}
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <div>
-                        <span className="text-xs text-slate-400">Giá khám tư vấn:</span>
-                        <p className="text-sm font-bold text-teal-700">
-                          {doc.consultationFee.toLocaleString('vi-VN')} đ
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              {doc.academicTitle && (
+                                <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                                  {doc.academicTitle}
+                                </span>
+                              )}
+                              <h4 className="font-bold text-slate-900 text-base">{doc.fullName}</h4>
+                              <span title="Đã thẩm định CCHN">
+                                <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-500">
+                              {doc.hospitalAffiliation && (
+                                <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
+                                  <Building2 className="w-3.5 h-3.5 text-teal-600" />
+                                  {doc.hospitalAffiliation}
+                                </span>
+                              )}
+                              <span>•</span>
+                              <span className="font-mono">CCHN: {doc.licenseNumber}</span>
+                            </div>
+                          </div>
+
+                          {/* Match Score Badge */}
+                          <div className="flex flex-col items-end">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                              matchPct >= 80
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                                : 'bg-teal-50 text-teal-700 border border-teal-200'
+                            }`}>
+                              Độ khớp: {matchPct}%
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Specialties */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {doc.specialties && doc.specialties.map((spec, i) => (
+                            <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-md">
+                              {spec}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Bio */}
+                        <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                          {doc.bio}
                         </p>
+
+                        {/* AI Doctor Recommendation Reason Callout */}
+                        {doc.aiRecommendationReason && (
+                          <div className="p-3 bg-teal-50/80 rounded-xl border border-teal-200 text-xs text-teal-950 flex items-start gap-2">
+                            <span className="font-bold text-teal-800 flex-shrink-0">Lý do đề xuất:</span>
+                            <span className="leading-relaxed">{doc.aiRecommendationReason}</span>
+                          </div>
+                        )}
                       </div>
-                      <button
-                        onClick={() => handleOpenBooking(doc)}
-                        className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
-                      >
-                        <Calendar className="w-3.5 h-3.5" /> Đặt Khám Với Bác Sĩ Này
-                      </button>
+
+                      {/* Footer / Booking Action */}
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <div>
+                          <span className="text-xs text-slate-400">Giá khám tư vấn:</span>
+                          <p className="text-sm font-bold text-teal-700">
+                            {doc.consultationFee.toLocaleString('vi-VN')} đ
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleOpenBooking(doc)}
+                          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Calendar className="w-3.5 h-3.5" /> Đặt Khám Với Bác Sĩ Này
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-8 bg-slate-50 border border-slate-200 rounded-3xl text-center space-y-2">
+                <Stethoscope className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="text-sm font-semibold text-slate-700">Đang đồng bộ danh sách bác sĩ chuyên khoa sâu...</p>
+                <p className="text-xs text-slate-400">Vui lòng chọn chuyên khoa phù hợp trong mục Đặt Lịch Khám hoặc tải lại trang.</p>
+              </div>
+            )}
           </div>
 
           {/* Suggested Questions for Doctor */}

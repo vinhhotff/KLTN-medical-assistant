@@ -62,6 +62,24 @@ public class ClinicalRagService {
                 }
             }
         }
+
+        // Ensure at least one doctor is prominently marked as AI-recommended from candidates
+        if (candidateDoctors != null && !candidateDoctors.isEmpty()) {
+            boolean anyRecommended = candidateDoctors.stream().anyMatch(DoctorMatchDto::isAiRecommended);
+            if (!anyRecommended) {
+                DoctorMatchDto top = candidateDoctors.get(0);
+                top.setAiRecommended(true);
+                String reason = (result.getDoctorRecommendationReason() != null && !result.getDoctorRecommendationReason().isBlank())
+                        ? result.getDoctorRecommendationReason()
+                        : String.format("Bác sĩ chuyên khoa %s có độ tương thích cao nhất (%d%%) với các chỉ số trong tài liệu này theo phân tích pgvector.",
+                                (top.getSpecialties() != null && !top.getSpecialties().isEmpty()) ? top.getSpecialties().get(0) : "Chuyên khoa",
+                                Math.round(top.getSimilarityScore() * 100));
+                top.setAiRecommendationReason(reason);
+                result.setRecommendedDoctorId(top.getDoctorId());
+                result.setDoctorRecommendationReason(reason);
+                log.info("RAG Top Doctor Match: Assigned {} as AI recommended", top.getFullName());
+            }
+        }
         return result;
     }
 

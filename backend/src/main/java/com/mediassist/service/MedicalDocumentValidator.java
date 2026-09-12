@@ -109,10 +109,19 @@ public class MedicalDocumentValidator {
             return true;
         }
 
-        // Text files or documents with text/plain mime type
-        if (contentType != null && (contentType.contains("text/plain") || contentType.contains("application/pdf") || contentType.contains("image/"))) {
+        // Text files or documents with text/plain or valid clinical text mime type
+        if (contentType != null && (contentType.contains("text/") || contentType.contains("application/pdf") || contentType.contains("image/"))) {
             return true;
         }
+
+        // Resilient check for printable UTF-8 text documents
+        try {
+            String utf8 = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+            long printable = utf8.chars().filter(c -> c >= 32 || c == '\n' || c == '\r' || c == '\t').count();
+            if (utf8.length() >= 10 && ((double) printable / utf8.length()) > 0.80) {
+                return true;
+            }
+        } catch (Exception ignored) {}
 
         return false;
     }

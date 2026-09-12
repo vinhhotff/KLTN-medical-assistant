@@ -25,12 +25,30 @@ public class PdfExtractionService {
         try (PDDocument document = Loader.loadPDF(pdfBytes)) {
             PDFTextStripper stripper = new PDFTextStripper();
             String extracted = stripper.getText(document);
-            log.info("📄 Successfully extracted {} characters from PDF document ({} pages)",
-                    extracted.length(), document.getNumberOfPages());
-            return extracted != null ? extracted.trim() : "";
-        } catch (IOException e) {
+            if (extracted != null && !extracted.trim().isBlank()) {
+                log.info("📄 Successfully extracted {} characters from PDF document ({} pages)",
+                        extracted.length(), document.getNumberOfPages());
+                return extracted.trim();
+            }
+        } catch (Exception e) {
             log.warn("Failed to extract text from PDF using PDFBox: {}", e.getMessage());
-            return "";
         }
+
+        // Resilient Fallback: If PDFBox failed or document is a text-based stream
+        try {
+            String utf8 = new String(pdfBytes, java.nio.charset.StandardCharsets.UTF_8);
+            if (isReadableClinicalText(utf8)) {
+                log.info("📄 Fallback: Extracted {} characters as readable text stream", utf8.trim().length());
+                return utf8.trim();
+            }
+        } catch (Exception ignored) {}
+
+        return "";
+    }
+
+    private boolean isReadableClinicalText(String text) {
+        if (text == null || text.trim().length() < 10) return false;
+        long printable = text.chars().filter(c -> c >= 32 || c == '\n' || c == '\r' || c == '\t').count();
+        return ((double) printable / text.length()) > 0.80;
     }
 }

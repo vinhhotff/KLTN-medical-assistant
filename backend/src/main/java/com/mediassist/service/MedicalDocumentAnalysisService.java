@@ -439,139 +439,166 @@ public class MedicalDocumentAnalysisService {
     }
 
     private List<AbnormalIndicatorDto> parseIndicators(String text, String fileName) {
+        if (text == null || text.isBlank()) {
+            return Collections.emptyList();
+        }
+
         List<AbnormalIndicatorDto> list = new ArrayList<>();
-        String normalized = stripAccents((text + " " + fileName).toLowerCase());
+        String[] lines = text.split("\\r?\\n");
 
-        // Check for Lipid / Cardiology markers
-        if (normalized.contains("cholesterol") || normalized.contains("lipid") || normalized.contains("triglyceride") || normalized.contains("tim")) {
-            list.add(new AbnormalIndicatorDto(
-                    "Cholesterol toàn phần (Total Cholesterol)",
-                    extractNumericValue(text, "cholesterol", "6.3"),
-                    "mmol/L",
-                    "3.9 - 5.2",
-                    "ELEVATED",
-                    "Tăng nguy cơ xơ vữa động mạch và bệnh lý tim mạch nếu kéo dài."
-            ));
-            list.add(new AbnormalIndicatorDto(
-                    "Triglyceride",
-                    extractNumericValue(text, "triglyceride", "2.4"),
-                    "mmol/L",
-                    "0.46 - 1.88",
-                    "ELEVATED",
-                    "Chỉ số mỡ máu trung tính cao, liên quan đến chế độ ăn và chuyển hóa."
-            ));
-            list.add(new AbnormalIndicatorDto(
-                    "HDL-Cholesterol (Mỡ tốt)",
-                    "1.1",
-                    "mmol/L",
-                    "> 1.3",
-                    "LOW",
-                    "Chỉ số bảo vệ tim mạch hơi thấp, cần tăng cường vận động thể lực."
-            ));
-            list.add(new AbnormalIndicatorDto(
-                    "Đường huyết lúc đói (Fasting Glucose)",
-                    "5.2",
-                    "mmol/L",
-                    "4.1 - 5.9",
-                    "NORMAL",
-                    "Mức đường huyết kiểm soát tốt trong giới hạn bình thường."
-            ));
-            return list;
-        }
+        record IndicatorDefinition(String name, String regex, String defaultUnit, String defaultRef,
+                                   Double lowerBound, Double upperBound, String clinicalHigh, String clinicalLow) {}
 
-        // Check for Liver / Gastroenterology markers
-        if (normalized.contains("gan") || normalized.contains("alt") || normalized.contains("ast") || normalized.contains("tieu hoa") || normalized.contains("da day")) {
-            list.add(new AbnormalIndicatorDto(
-                    "Men gan ALT (GPT)",
-                    extractNumericValue(text, "alt", "84"),
-                    "U/L",
-                    "0 - 41",
-                    "ELEVATED",
-                    "Men gan tăng gấp đôi ngưỡng chuẩn, biểu hiện tổn thương tế bào gan cấp hoặc mạn."
-            ));
-            list.add(new AbnormalIndicatorDto(
-                    "Men gan AST (GOT)",
-                    extractNumericValue(text, "ast", "76"),
-                    "U/L",
-                    "0 - 37",
-                    "ELEVATED",
-                    "Men gan tăng liên quan đến viêm gan siêu vi, bia rượu hoặc gan nhiễm mỡ."
-            ));
-            list.add(new AbnormalIndicatorDto(
-                    "Bilirubin toàn phần",
-                    "14.5",
-                    "µmol/L",
-                    "5.1 - 17.0",
-                    "NORMAL",
-                    "Chức năng bài tiết mật của gan vẫn duy trì bình thường."
-            ));
-            return list;
-        }
+        List<IndicatorDefinition> definitions = List.of(
+                new IndicatorDefinition("Cholesterol toàn phần", "(?i)\\b(?:cholesterol(?:\\s*toan\\s*phan)?|total\\s*cholesterol)\\b", "mmol/L", "3.9 - 5.2", 3.9, 5.2,
+                        "Tăng nguy cơ xơ vữa động mạch và bệnh lý tim mạch nếu kéo dài.", "Nồng độ cholesterol toàn phần thấp hơn bình thường."),
+                new IndicatorDefinition("Triglyceride", "(?i)\\btriglycerid(?:e|es)?\\b", "mmol/L", "0.46 - 1.88", 0.46, 1.88,
+                        "Chỉ số mỡ máu trung tính cao, liên quan đến chế độ ăn và chuyển hóa.", "Triglyceride huyết thanh thấp."),
+                new IndicatorDefinition("HDL-Cholesterol", "(?i)\\bhdl(?:[\\s-]*cholesterol)?\\b", "mmol/L", "> 1.3", 1.3, null,
+                        "Mức mỡ tốt bảo vệ tim mạch tối ưu.", "Chỉ số bảo vệ tim mạch giảm, cần tăng cường vận động thể lực."),
+                new IndicatorDefinition("LDL-Cholesterol", "(?i)\\bldl(?:[\\s-]*cholesterol)?\\b", "mmol/L", "< 3.4", null, 3.4,
+                        "Mỡ xấu tăng cao, tăng nguy cơ mảng bám xơ vữa thành mạch.", "Mức LDL trong giới hạn an toàn."),
+                new IndicatorDefinition("Fasting Glucose", "(?i)\\b(?:(?:fasting\\s*)?glucose|duong\\s*huyet(?:\\s*luc\\s*doi)?|duong\\s*mau)\\b", "mmol/L", "3.9 - 6.4", 3.9, 6.4,
+                        "Đường huyết tăng vượt ngưỡng, cần đối chiếu HbA1c và tầm soát đái tháo đường.", "Hạ đường huyết, cần theo dõi triệu chứng vã mồ hôi, hoa mắt."),
+                new IndicatorDefinition("HbA1c", "(?i)\\bhba1c\\b", "%", "4.0 - 5.6", 4.0, 5.6,
+                        "Kiểm soát đường huyết 3 tháng qua chưa tối ưu.", "Chỉ số bình thường."),
+                new IndicatorDefinition("Men gan ALT (GPT)", "(?i)(?:men\\s*gan\\s*)?\\b(?:alt|gpt)\\b", "U/L", "0 - 41", 0.0, 41.0,
+                        "Tổn thương tế bào gan cấp hoặc mạn tính (viêm gan, gan nhiễm mỡ, rượu bia).", "Chỉ số ALT bình thường."),
+                new IndicatorDefinition("Men gan AST (GOT)", "(?i)(?:men\\s*gan\\s*)?\\b(?:ast|got)\\b", "U/L", "0 - 37", 0.0, 37.0,
+                        "Men gan AST tăng liên quan tổn thương mô gan hoặc cơ tim.", "Chỉ số AST bình thường."),
+                new IndicatorDefinition("Bilirubin toàn phần", "(?i)\\bbilirubin(?:\\s*toan\\s*phan)?\\b", "µmol/L", "5.1 - 17.0", 5.1, 17.0,
+                        "Tăng sắc tố mật, theo dõi vàng da, tán huyết hoặc tắc mật.", "Chức năng bài tiết mật của gan vẫn duy trì bình thường."),
+                new IndicatorDefinition("Creatinine huyết thanh", "(?i)\\bcreatinin(?:e)?\\b", "µmol/L", "62 - 106", 62.0, 106.0,
+                        "Chức năng lọc cầu thận có dấu hiệu giảm, cần kiểm tra eGFR.", "Chức năng lọc cầu thận bình thường."),
+                new IndicatorDefinition("Acid Uric", "(?i)\\b(?:acid\\s*uric|uric\\s*acid)\\b", "µmol/L", "200 - 420", 200.0, 420.0,
+                        "Tăng acid uric máu, nguy cơ kết tinh urat tại khớp (Gout) hoặc thận.", "Chỉ số bình thường."),
+                new IndicatorDefinition("Ure máu", "(?i)\\b(?:ure(?:a)?|bun)\\b", "mmol/L", "2.5 - 7.5", 2.5, 7.5,
+                        "Phản ánh chức năng bài tiết ure và tình trạng dị hóa đạm.", "Chỉ số bình thường."),
+                new IndicatorDefinition("Tổng lượng bạch cầu (WBC)", "(?i)\\b(?:wbc|bach\\s*cau|leukocyte)\\b", "G/L", "4.0 - 10.0", 4.0, 10.0,
+                        "Bạch cầu tăng, phản ánh phản ứng viêm hoặc nhiễm khuẩn.", "Không ghi nhận phản ứng viêm nhiễm cấp tính."),
+                new IndicatorDefinition("Hồng cầu (RBC)", "(?i)\\b(?:rbc|hong\\s*cau|erythrocyte)\\b", "T/L", "3.8 - 5.5", 3.8, 5.5,
+                        "Đa hồng cầu hoặc cô đặc máu.", "Thiếu máu, giảm oxy nuôi dưỡng mô."),
+                new IndicatorDefinition("Huyết sắc tố (Hb/HGB)", "(?i)\\b(?:hgb|hemoglobin)\\b", "g/L", "120 - 160", 120.0, 160.0,
+                        "Tăng nồng độ huyết sắc tố.", "Biểu hiện thiếu máu, cần khảo sát nguyên nhân."),
+                new IndicatorDefinition("Tiểu cầu (PLT)", "(?i)\\b(?:plt|tieu\\s*cau|platelet)\\b", "G/L", "150 - 400", 150.0, 400.0,
+                        "Tăng tiểu cầu phản ứng.", "Giảm tiểu cầu, tăng nguy cơ xuất huyết.")
+        );
 
-        // Check for Neurology markers
-        if (normalized.contains("dien nao") || normalized.contains("eeg") || normalized.contains("than kinh") || normalized.contains("nao") || normalized.contains("dau dau")) {
-            list.add(new AbnormalIndicatorDto(
-                    "Điện não đồ (EEG)",
-                    "Sóng chậm Theta rải rác vùng thái dương",
-                    "-",
-                    "Nhịp Alpha đồng đều",
-                    "ELEVATED",
-                    "Ghi nhận rối loạn hoạt động điện sinh lý não vùng trán - thái dương."
-            ));
-            list.add(new AbnormalIndicatorDto(
-                    "Lưu huyết não (Cerebral Blood Flow)",
-                    "Giảm lưu lượng tuần hoàn 18%",
-                    "%",
-                    "Đối xứng hai bên",
-                    "LOW",
-                    "Biểu hiện thiểu năng tuần hoàn não, thiếu máu não thoáng qua."
-            ));
-            return list;
-        }
+        Set<String> detected = new HashSet<>();
 
-        // Only extract indicators that are explicitly mentioned in document text
-        if (normalized.contains("glucose") || normalized.contains("duong huyet") || normalized.contains("duong mau")) {
-            list.add(new AbnormalIndicatorDto(
-                    "Đường huyết mao mạch (Glucose)",
-                    extractNumericValue(text, "glucose", "5.6"),
-                    "mmol/L",
-                    "4.1 - 5.9",
-                    "NORMAL",
-                    "Chỉ số đường huyết trong giới hạn bình thường."
-            ));
-        }
-        if (normalized.contains("creatinine") || normalized.contains("than") || normalized.contains("egfr")) {
-            list.add(new AbnormalIndicatorDto(
-                    "Creatinine huyết thanh (Thận)",
-                    extractNumericValue(text, "creatinine", "88"),
-                    "µmol/L",
-                    "62 - 106",
-                    "NORMAL",
-                    "Chức năng lọc cầu thận bình thường."
-            ));
-        }
-        if (normalized.contains("wbc") || normalized.contains("bach cau") || normalized.contains("leukocyte")) {
-            list.add(new AbnormalIndicatorDto(
-                    "Tổng lượng bạch cầu (WBC)",
-                    extractNumericValue(text, "wbc", "7.2"),
-                    "G/L",
-                    "4.0 - 10.0",
-                    "NORMAL",
-                    "Không ghi nhận phản ứng viêm nhiễm cấp tính."
-            ));
-        }
-        return list;
-    }
+        for (String rawLine : lines) {
+            String line = rawLine.trim();
+            if (line.isBlank() || line.length() < 3) continue;
 
-    private String extractNumericValue(String text, String keyword, String defaultValue) {
-        try {
-            Pattern pattern = Pattern.compile(keyword + ".*?([0-9]+[.,]?[0-9]*)", Pattern.CASE_INSENSITIVE);
-            Matcher matcher = pattern.matcher(text);
-            if (matcher.find()) {
-                return matcher.group(1).replace(',', '.');
+            for (IndicatorDefinition def : definitions) {
+                if (detected.contains(def.name())) continue;
+
+                Matcher mName = Pattern.compile(def.regex()).matcher(line);
+                if (mName.find()) {
+                    // Extract numeric value from line
+                    Matcher mVal = Pattern.compile("[:=\\s]\\s*([0-9]+[.,]?[0-9]*)").matcher(line);
+                    String valStr = null;
+                    Double valNum = null;
+                    if (mVal.find()) {
+                        valStr = mVal.group(1).replace(',', '.');
+                        try { valNum = Double.parseDouble(valStr); } catch (Exception ignored) {}
+                    }
+
+                    if (valStr == null) {
+                        Matcher mAny = Pattern.compile("([0-9]+[.,]?[0-9]*)").matcher(line.substring(mName.end()));
+                        if (mAny.find()) {
+                            valStr = mAny.group(1).replace(',', '.');
+                            try { valNum = Double.parseDouble(valStr); } catch (Exception ignored) {}
+                        }
+                    }
+
+                    if (valStr == null) continue;
+
+                    // Extract reference range if explicitly present on line
+                    String refRange = def.defaultRef();
+                    Matcher mRef = Pattern.compile("(?:tham\\s*chieu|binh\\s*thuong|reference)?\\s*[:(]\\s*([0-9]+[.,]?[0-9]*\\s*-\\s*[0-9]+[.,]?[0-9]*|[><]\\s*[0-9]+[.,]?[0-9]*)\\s*\\)?", Pattern.CASE_INSENSITIVE).matcher(line);
+                    if (mRef.find()) {
+                        refRange = mRef.group(1).trim();
+                    }
+
+                    // Extract unit if present
+                    String unit = def.defaultUnit();
+                    Matcher mUnit = Pattern.compile("(mmol/l|u/l|µmol/l|umol/l|g/l|t/l|%|mg/dl)", Pattern.CASE_INSENSITIVE).matcher(line);
+                    if (mUnit.find()) {
+                        unit = mUnit.group(1);
+                    }
+
+                    // Determine status (ELEVATED / LOW / NORMAL)
+                    String status = "NORMAL";
+                    String lineClean = stripAccents(line).toLowerCase();
+
+                    // Check numerical value against parsed reference bounds
+                    Double parsedLow = def.lowerBound();
+                    Double parsedHigh = def.upperBound();
+
+                    Matcher mRange = Pattern.compile("([0-9]+[.,]?[0-9]*)\\s*-\\s*([0-9]+[.,]?[0-9]*)").matcher(refRange);
+                    if (mRange.find()) {
+                        try {
+                            parsedLow = Double.parseDouble(mRange.group(1).replace(',', '.'));
+                            parsedHigh = Double.parseDouble(mRange.group(2).replace(',', '.'));
+                        } catch (Exception ignored) {}
+                    } else if (refRange.contains(">")) {
+                        Matcher mGt = Pattern.compile(">\\s*([0-9]+[.,]?[0-9]*)").matcher(refRange);
+                        if (mGt.find()) {
+                            try { parsedLow = Double.parseDouble(mGt.group(1).replace(',', '.')); } catch (Exception ignored) {}
+                        }
+                    } else if (refRange.contains("<")) {
+                        Matcher mLt = Pattern.compile("<\\s*([0-9]+[.,]?[0-9]*)").matcher(refRange);
+                        if (mLt.find()) {
+                            try { parsedHigh = Double.parseDouble(mLt.group(1).replace(',', '.')); } catch (Exception ignored) {}
+                        }
+                    }
+
+                    boolean hasExplicitElevated = lineClean.contains("tang") || lineClean.contains("cao") ||
+                            lineClean.contains("high") || lineClean.contains("elevated") || lineClean.contains("(h)");
+                    boolean hasExplicitLow = lineClean.contains("giam") || lineClean.contains("thap") ||
+                            lineClean.contains("low") || lineClean.contains("(l)");
+
+                    // Prioritize numerical bounds check: 85 > 41 is always ELEVATED even if label says "Bình thường: 0 - 41"
+                    if (valNum != null && parsedHigh != null && valNum > parsedHigh) {
+                        status = "ELEVATED";
+                    } else if (valNum != null && parsedLow != null && valNum < parsedLow) {
+                        status = "LOW";
+                    } else if (hasExplicitElevated) {
+                        status = "ELEVATED";
+                    } else if (hasExplicitLow) {
+                        status = "LOW";
+                    } else {
+                        status = "NORMAL";
+                    }
+
+                    String significance = "Chỉ số trong giới hạn bình thường.";
+                    if ("ELEVATED".equals(status)) {
+                        significance = def.clinicalHigh();
+                    } else if ("LOW".equals(status)) {
+                        significance = def.clinicalLow();
+                    }
+
+                    list.add(new AbnormalIndicatorDto(def.name(), valStr, unit, refRange, status, significance));
+                    detected.add(def.name());
+                }
             }
-        } catch (Exception ignored) {}
-        return defaultValue;
+        }
+
+        // Check for EEG / Neurology text findings if present
+        String lowerText = (text + " " + fileName).toLowerCase();
+        if ((lowerText.contains("dien nao") || lowerText.contains("eeg")) && !detected.contains("Điện não đồ (EEG)")) {
+            Matcher mEeg = Pattern.compile("(?:eeg|dien\\s*nao)[^\\n]*?:?\\s*([^\\n]+)", Pattern.CASE_INSENSITIVE).matcher(text);
+            String finding = mEeg.find() ? mEeg.group(1).trim() : "Rối loạn sóng chậm rải rác vùng thái dương";
+            list.add(new AbnormalIndicatorDto("Điện não đồ (EEG)", finding, "-", "Sóng Alpha đồng đều", "ELEVATED",
+                    "Ghi nhận rối loạn hoạt động điện sinh lý não vùng trán - thái dương."));
+        }
+        if ((lowerText.contains("luu huyet nao") || lowerText.contains("tuan hoan nao")) && !detected.contains("Lưu huyết não")) {
+            list.add(new AbnormalIndicatorDto("Lưu huyết não", "Giảm lưu lượng tuần hoàn não", "%", "Đối xứng hai bên", "LOW",
+                    "Biểu hiện thiểu năng tuần hoàn não, giảm cung cấp máu não thoáng qua."));
+        }
+
+        return list;
     }
 
     private SpecialtyTarget determineSpecialtyFromFindings(String text, String fileName, List<AbnormalIndicatorDto> indicators) {

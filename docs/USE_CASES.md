@@ -165,27 +165,27 @@ graph TD
   - `GET /api/v1/documents/my`: Truy vấn lịch sử các tài liệu y tế đã phân tích của người bệnh đăng nhập (yêu cầu Bearer Token).
 
 #### Luồng sự kiện chính (Happy Path):
-1. Bệnh nhân tải lên tệp kết quả xét nghiệm (`.pdf` hoặc `.txt`, dung lượng $\le 15\text{MB}$) hoặc chọn dữ liệu mẫu sinh hóa (Mỡ máu / Men gan).
+1. **Chọn Tệp & Kích Hoạt Tức Thì (Instant Upload UX):** Bệnh nhân kéo thả hoặc chọn tệp kết quả xét nghiệm (`.pdf`, `.txt`, `.jpg`, `.png`, dung lượng $\le 15\text{MB}$) hoặc chọn dữ liệu mẫu chuẩn (Mỡ máu / Men gan / Điện não). Hệ thống **tự động kích hoạt ngay tiến trình phân tích AI** mà không cần qua nút bấm trung gian.
 2. **Kiểm tra Deduplication (SHA-256 Checksum):** Hệ thống tính toán hash SHA-256 của tệp. Nếu tài liệu đã từng được phân tích trong hồ sơ EMR của bệnh nhân này:
    - Trả về ngay kết quả đã lưu trong DB (`cachedResult = true`).
    - Tiêu tốn **0 token AI**, độ trễ $< 5\text{ms}$ và **TUYỆT ĐỐI KHÔNG trừ lượt quét**.
-3. **Kiểm tra Hạn Ngạch (Quota Guard):** Nếu tài liệu mới, kiểm tra `user.hasScanQuota()`. Nếu hết lượt và chưa là VIP, trả về `HTTP 402 Payment Required` kèm modal báo giá gói quét.
+3. **Kiểm tra Hạn Ngạch (Quota Guard):** Nếu tài liệu mới, kiểm tra `user.hasScanQuota()`. Nếu hết lượt và chưa là VIP, trả về `HTTP 402 Payment Required` kèm modal báo giá gói quét và thanh toán tức thì qua VietQR.
 4. **Cơ chế Lọc Rác Tiền Thẩm Định (Gatekeeper Sieve Validation):**
-   - Kiểm tra magic bytes nhị phân (chỉ nhận PDF, JPG, PNG).
+   - Kiểm tra magic bytes nhị phân (chấp nhận PDF, JPEG, PNG và luồng văn bản y khoa hợp lệ).
    - Kiểm tra độ dài văn bản trích xuất (tối thiểu 15 ký tự; nếu ngắn hơn -> lỗi mờ ảnh `UNREADABLE_DOCUMENT`).
    - Sàng lọc từ điển chỉ số lâm sàng (40+ thuật ngữ xét nghiệm sinh hóa/huyết học).
    - *Nếu phát hiện ảnh rác (hóa đơn siêu thị, meme, chó mèo, ảnh mờ):* Ném lỗi `HTTP 400 NON_MEDICAL_DOCUMENT` hoặc `UNREADABLE_DOCUMENT` và **KHÔNG trừ hạn ngạch** của bệnh nhân.
 5. **Lưu trữ Cloud EMR (Supabase Storage):** Tải nhị phân tệp lên bucket `medical-documents` của Supabase qua REST API. Nếu mất mạng hoặc thiếu API key, tự động chuyển vùng dự phòng sang Local EMR Disk không bao giờ sập backend.
-6. **Bóc tách chỉ số & Khớp Bác sĩ:**
-   - `MedicalDocumentAnalysisService` bóc tách chỉ số (Cholesterol, Triglyceride, Glucose, ALT, AST...) gắn nhãn `ELEVATED` / `LOW` / `NORMAL`.
+6. **Bóc Tách Chỉ Số Động Không Hardcode & Khớp Bác Sĩ pgvector:**
+   - `MedicalDocumentAnalysisService` sử dụng bộ bóc tách regex lâm sàng động (`parseIndicators`), quét từng dòng văn bản thực tế trong tài liệu để trích xuất chính xác các chỉ số xuất hiện thực tế (Cholesterol, Triglyceride, Glucose, ALT, AST, Bilirubin, Creatinine, Acid Uric, HGB, PLT, WBC...), loại bỏ 100% các chỉ số giả lập/hardcode.
+   - Trạng thái chỉ số (`ELEVATED` / `LOW` / `NORMAL`) được tính toán dựa trên việc so sánh toán học giữa giá trị đo thực tế và cận trên/dưới của khoảng tham chiếu lâm sàng.
    - Sinh tóm tắt lâm sàng `clinicalSummary`, bản dịch dễ hiểu `plainLanguageExplanation` và 3 câu hỏi gợi ý.
-   - Gọi `DoctorSemanticSearchService` chạy truy vấn `pgvector` Cosine Similarity tìm top bác sĩ chuyên khoa sâu phù hợp.
+   - Gọi `DoctorSemanticSearchService` chạy truy vấn `pgvector` Cosine Similarity tìm top 4 bác sĩ chuyên khoa sâu phù hợp, tự động gán nhãn `aiRecommended = true` cho bác sĩ có độ tương quan cao nhất kèm lý do đối chiếu lâm sàng xác thực (`aiRecommendationReason`).
 7. **Khấu trừ Hạn Ngạch:** Trừ 1 lượt quét đối với tài khoản FREE (`scanQuota = scanQuota - 1`). Giữ nguyên không giới hạn đối với hội viên MediPass VIP.
-8. Giao diện hiển thị:
-   - Huy hiệu hạn ngạch quét & nút "+ Mua thêm".
-   - Huy hiệu chứng thực lưu trữ `Supabase Cloud EMR` kèm liên kết xem tệp gốc.
-   - Banner thông báo tiết kiệm 100% tài nguyên nếu là lượt hit SHA-256 Deduplication.
-   - Bảng so sánh chỉ số cận lâm sàng và danh sách bác sĩ chuyên khoa.
+8. **Phản hồi Giao Diện Tức Thì:**
+   - Hiển thị **Banner Thông Báo Thành Công Nổi Bật** màu xanh ngọc (Emerald Gradient) xác nhận số lượng chỉ số và chuyên khoa đã kết nối.
+   - Màn hình tự động cuộn mượt mà (`scrollIntoView`) đến phần kết quả `#analysis-results`.
+   - Hiển thị bảng chỉ số xét nghiệm đối chiếu, huy hiệu SHA-256 Deduplication (nếu có hit), danh sách Bác sĩ chuyên khoa sâu được đề xuất nổi bật kèm giá khám và nút *"Đặt Khám Ngay"*.
 
 ---
 

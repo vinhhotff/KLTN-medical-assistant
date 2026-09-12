@@ -40,35 +40,38 @@ public class DeterministicFallbackAiProvider implements AiProvider {
             result.setClinicalSummary("Rối loạn chuyển hóa Lipid máu kèm nguy cơ xơ vữa động mạch ngoại vi. Cần theo dõi điện tâm đồ và chức năng nội mô.");
             result.setPlainLanguageExplanation("Kết quả cho thấy mỡ máu của bạn cao hơn mức an toàn. Nếu để lâu có thể gây đóng mảng bám vào thành mạch tim, cần điều chỉnh chế độ ăn giảm dầu mỡ và tập thể dục đều đặn.");
             result.setDoctorRecommendationReason("Bác sĩ chuyên khoa Tim Mạch giàu kinh nghiệm điều trị xơ vữa và phòng ngừa biến cố nhồi máu cơ tim.");
-
-            list.add(new AbnormalIndicatorDto("Cholesterol toàn phần", "6.3", "mmol/L", "3.9 - 5.2", "ELEVATED", "Tăng nguy cơ xơ vữa thành mạch."));
-            list.add(new AbnormalIndicatorDto("Triglyceride", "2.4", "mmol/L", "0.46 - 1.88", "ELEVATED", "Chỉ số mỡ máu trung tính cao, liên quan thói quen ăn uống."));
         } else if (textLower.contains("alt") || textLower.contains("ast") || textLower.contains("men gan") || textLower.contains("gan")) {
             result.setRecommendedSpecialtySlug("tieu-hoa");
             result.setRecommendedSpecialtyName("Tiêu Hóa - Gan Mật");
-            result.setClinicalSummary("Tăng men gan tế bào ALT/AST mức độ trung bình. Cần tầm soát viêm gan siêu vi và đánh giá siêu âm nhu mô gan.");
+            result.setClinicalSummary("Tăng men gan tế bào ALT/AST. Cần tầm soát viêm gan siêu vi và đánh giá siêu âm nhu mô gan.");
             result.setPlainLanguageExplanation("Chỉ số men gan của bạn đang tăng báo hiệu gan đang bị tổn thương nhẹ, có thể do thức khuya, dùng bia rượu hoặc thuốc. Bạn nên kiêng rượu bia và khám chuyên khoa sớm.");
             result.setDoctorRecommendationReason("Bác sĩ Tiêu Hóa - Gan Mật có kinh nghiệm hạ men gan và tầm soát viêm gan vi rút hiệu quả.");
-
-            list.add(new AbnormalIndicatorDto("Men gan ALT (GPT)", "125", "U/L", "< 41", "ELEVATED", "Tổn thương tế bào gan cấp hoặc mạn tính."));
-            list.add(new AbnormalIndicatorDto("Men gan AST (GOT)", "98", "U/L", "< 40", "ELEVATED", "Men gan tăng do quá tải chuyển hóa gan."));
         } else if (textLower.contains("glucose") || textLower.contains("duong huyet") || textLower.contains("tieu duong")) {
             result.setRecommendedSpecialtySlug("noi-tiet");
             result.setRecommendedSpecialtyName("Nội Tiết - Đái Tháo Đường");
             result.setClinicalSummary("Chỉ số đường huyết vượt ngưỡng tham chiếu lúc đói. Cần đối chiếu HbA1c và kiểm tra chuyên sâu.");
             result.setPlainLanguageExplanation("Lượng đường trong máu của bạn cao hơn tiêu chuẩn. Cần kiểm soát chế độ ăn tinh bột và khám chuyên khoa Nội Tiết.");
             result.setDoctorRecommendationReason("Bác sĩ Nội Tiết giúp tầm soát đái tháo đường và điều chỉnh dinh dưỡng tối ưu.");
-            list.add(new AbnormalIndicatorDto("Glucose máu lúc đói", "6.8", "mmol/L", "3.9 - 6.4", "ELEVATED", "Đường huyết cao hơn ngưỡng chuẩn."));
         } else {
             result.setRecommendedSpecialtySlug("noi-tong-quat");
             result.setRecommendedSpecialtyName("Nội Tổng Quát");
             result.setClinicalSummary("Các chỉ số cận lâm sàng trong tài liệu nằm trong giới hạn an toàn.");
             result.setPlainLanguageExplanation("Hồ sơ xét nghiệm không ghi nhận chỉ số bất thường vượt ngưỡng cảnh báo. Tiếp tục duy trì lối sống khoa học.");
             result.setDoctorRecommendationReason("Bác sĩ Nội Tổng Quát tư vấn chăm sóc sức khỏe chủ động và theo dõi định kỳ.");
-            // Do NOT fabricate fake indicators! list remains empty.
         }
 
-        result.setIndicators(list);
+        // Extract first candidate doctor ID from user prompt if available
+        if (userPrompt != null) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("ID:\\s*([0-9a-fA-F-]{36})").matcher(userPrompt);
+            if (m.find()) {
+                try {
+                    result.setRecommendedDoctorId(java.util.UUID.fromString(m.group(1)));
+                } catch (Exception ignored) {}
+            }
+        }
+
+        // Leave indicators empty so MedicalDocumentAnalysisService extracts real dynamic indicators
+        result.setIndicators(new ArrayList<>());
         result.setSuggestedQuestions(List.of(
                 "Tôi có cần làm thêm xét nghiệm chuyên sâu nào để xác định nguyên nhân không?",
                 "Chế độ ăn uống và vận động hiện tại của tôi cần điều chỉnh như thế nào?",

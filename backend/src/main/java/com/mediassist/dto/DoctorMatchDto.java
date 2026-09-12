@@ -45,6 +45,12 @@ public class DoctorMatchDto {
     public UUID getDoctorId() { return doctorId; }
     public void setDoctorId(UUID doctorId) { this.doctorId = doctorId; }
 
+    @com.fasterxml.jackson.annotation.JsonProperty("id")
+    public UUID getId() { return doctorId; }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("id")
+    public void setId(UUID id) { this.doctorId = id; }
+
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
 
