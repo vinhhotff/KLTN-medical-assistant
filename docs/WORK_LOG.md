@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#022** | 12/09/2026 | Khắc Phục Toàn Diện Navbar Chưa Đăng Nhập, Tái Thiết Kế Hero Telehealth Console & Nạp 100% Dữ Liệu Bác Sĩ / Chuyên Khoa Từ PostgreSQL Thật | AI Assistant | 🟢 Sẵn sàng Review |
+| **#023** | 12/09/2026 | Tái Thiết Kế UI Trang Đăng Ký / Đăng Nhập MedConnect Chuẩn Mẫu, Khắc Phục Lỗi 400 Bad Request & Tối Ưu Hiển Thị Riêng Cho Mobile (Responsive Form Only) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#022** | 12/09/2026 | Khắc Phục Toàn Diện Navbar Chưa Đăng Nhập, Tái Thiết Kế Hero Telehealth Console & Nạp 100% Dữ Liệu Bác Sĩ / Chuyên Khoa Từ PostgreSQL Thật | AI Assistant | 🟢 Đã Duyệt |
 | **#021** | 12/09/2026 | Khởi Động Toàn Diện Hạ Tầng Local (Docker Desktop, pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173) & Hoàn Thiện @layer base, Box-Shadow, Border-Radius | AI Assistant | 🟢 Đã Duyệt |
 | **#020** | 12/09/2026 | Tinh Chỉnh Độ Chuẩn Xác Tuyệt Đối (Pixel-Perfect Fidelity) Trang Chủ MedConnect AI: Logo Gốc, Filled Stars Hạt Vàng Cho Đánh Giá Lâm Sàng, Thẻ Bác Sĩ & Dropzone Chuẩn Xác Bản Mẫu | AI Assistant | 🟢 Đã Duyệt |
 | **#019** | 12/09/2026 | Triển Khai Hoàn Hảo Thiết Kế HTML Mẫu Từ Tech Lead: Tích Hợp Hệ Màu Material Clinical, Font Plus Jakarta Sans/Inter, Sandbox Bóc Tách PDF Tương Tác & Bác Sĩ Đầu Ngành | AI Assistant | 🟢 Đã Duyệt |
@@ -29,6 +30,60 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#023] Tái Thiết Kế UI Trang Đăng Ký / Đăng Nhập MedConnect Chuẩn Mẫu, Khắc Phục Lỗi 400 Bad Request & Tối Ưu Hiển Thị Riêng Cho Mobile (Responsive Form Only)
+* **Thời gian:** 2026-09-12 11:03:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-SEC-01 (Dual-Transport Authentication & Identity Vault), UC-UX-00 (Telehealth Mobile Responsive UI)
+* **Trạng thái Dịch vụ:**
+  - Docker Desktop Engine: **RUNNING**
+  - PostgreSQL (pgvector 16): `mediassist_postgres` cổng **5433** (Healthy)
+  - Redis 7 Alpine: `mediassist_redis` cổng **6379** (Healthy)
+  - Backend (Spring Boot 3.4.3 / Java 21): cổng **5000** (Actuator status: `UP`, 39/39 Tests PASS)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (`http://localhost:5173/`, `npm run build` 0 TS errors)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Mục Tiêu & Yêu Cầu Từ Tech Lead
+1. **Khắc phục lỗi HTTP 400 Bad Request khi đăng ký:** Trong ảnh phản hồi [`media_1789185523610.png`](file:///C:/Users/ADmin/.gemini/antigravity/brain/6a27ac21-0861-4f50-8a85-6ab452533940/.user_uploaded/media_1789185523610.png), Tech Lead gửi dữ liệu đăng ký với mật khẩu ngắn (6 ký tự `......`), vi phạm ràng buộc backend `@Size(min = 8)`. Đồng thời frontend cũ chỉ hiển thị thông báo lỗi chung chung *"Dữ liệu gửi lên không hợp lệ"* từ `GlobalExceptionHandler` mà không bóc tách chi tiết lỗi trường dữ liệu (`error.details.password`).
+2. **Tái thiết kế giao diện Đăng ký / Đăng nhập khớp 100% bản mẫu Tech Lead gửi:** Theo ảnh mẫu [`media_1789185536590.png`](file:///C:/Users/ADmin/.gemini/antigravity/brain/6a27ac21-0861-4f50-8a85-6ab452533940/.user_uploaded/media_1789185536590.png):
+   - Header: Logo `+ MedConnect AI` kèm tiêu chuẩn `HIPAA COMPLIANT VAULT` và nút `<- Back to Home`.
+   - Cột Form Trái: Tag `● Cổng khởi tạo danh tính y tế`, `Mã hóa TLS 1.3`, tab Bệnh nhân / Bác sĩ, nút Đăng ký Google / VNeID CCCD, grid 2 cột nhập liệu (Họ tên, Ngày sinh, SĐT, Email, Mật khẩu, Xác nhận mật khẩu, Giới tính), thanh đo `Độ mạnh mật khẩu y tế` (8+ ký tự, Chữ hoa, Ký tự đặc biệt), trường tùy chọn Mã thẻ BHYT / CCCD, checkbox cam kết chuẩn HIPAA / Bộ Y Tế, và nút CTA `Tạo Tài Khoản & Tải Lên Hồ Sơ Đầu Tiên ->`.
+   - Cột Thông tin Phải: Card ưu đãi phân tích PDF đầu tiên (preview OCR mẫu HbA1c, Creatinine, Nội tiết), Card mạng lưới 1.200+ Bác sĩ TW (đánh giá 4.98 sao, 3 cam kết lâm sàng), và Card `Tiêu Chuẩn Bảo Mật Y Tế Cấp 4` (Thông tư 46/2018/TT-BYT & Nghị định 13/2023/NĐ-CP).
+3. **Tối ưu hiển thị chuẩn di động (Mobile Responsive):** Đúng theo chỉ đạo *"nếu ở điện thoại thì response chỉ đúng phần form đăng kí thôi chứ không có phải như hiện tại"*: Toàn bộ cột phụ bên phải được ẩn hoàn toàn trên thiết bị di động (`hidden lg:flex`), đảm bảo trên điện thoại chỉ hiển thị duy nhất form đăng ký/đăng nhập căn giữa sạch sẽ, không bị che khuất hoặc tràn ngang.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi
+* `[MOD] frontend/src/pages/LoginPage.tsx`:
+  - Tái thiết kế toàn bộ layout 2 cột theo chuẩn mẫu [`media_1789185536590.png`](file:///C:/Users/ADmin/.gemini/antigravity/brain/6a27ac21-0861-4f50-8a85-6ab452533940/.user_uploaded/media_1789185536590.png).
+  - Bổ sung xác thực phía Client: Kiểm tra độ dài mật khẩu $\ge 8$ ký tự, so khớp xác nhận mật khẩu, kiểm tra chấp thuận điều khoản y tế trước khi gửi API.
+  - Bóc tách chi tiết lỗi từ Backend: Trích xuất `err.response?.data?.error?.details` để hiển thị chính xác lỗi từng trường dữ liệu bằng tiếng Việt.
+  - Đóng gói cột bên phải với `hidden lg:flex` để ẩn hoàn toàn trên mobile, chỉ hiển thị card form đăng ký/đăng nhập.
+  - Tích hợp thanh đo độ mạnh mật khẩu y tế thời gian thực (real-time strength meter).
+  - Giữ nguyên cụm tài khoản thử nghiệm nhanh (Quick Presets) cho Admin, Doctor, Patient trong chế độ Đăng nhập để Tech Lead test nhanh.
+* `[MOD] docs/WORK_LOG.md`: Ghi nhật ký phiên làm việc #023.
+
+#### 3. Bằng Chứng Kiểm Thử & Xác Minh
+* **Frontend Build Check:**
+  ```bash
+  $ npm run build
+  > mediassist-frontend@1.0.0 build
+  > tsc && vite build
+  ✓ 1669 modules transformed.
+  dist/assets/vendor-Fvzpr4GZ.js  239.03 kB │ gzip: 77.75 kB
+  dist/assets/index-C28DwW87.js   247.95 kB │ gzip: 54.19 kB
+  ✓ built in 4.75s
+  ```
+  *(0 lỗi TypeScript, tuân thủ nghiêm ngặt noUnusedLocals)*.
+* **Kiểm thử API Đăng ký & Đăng nhập thực tế:**
+  - `POST /api/v1/auth/register` với mật khẩu hợp lệ $\ge 8$ ký tự -> HTTP 201 Created, tạo thành công tài khoản bệnh nhân và hồ sơ EMR mã `BN-2026-XXXXX`.
+  - `POST /api/v1/auth/login` -> HTTP 200 OK, trả về token JWT hợp lệ.
+  - Đã xóa sạch dữ liệu test để Tech Lead tự do đăng ký mới từ giao diện web.
+* **Giao diện di động:** Kiểm thử responsive màn hình nhỏ ($< 1024\text{px}$), sidebar bên phải tự động ẩn hoàn toàn, chỉ hiển thị form đăng ký.
+
+#### 4. Điểm Nóng Dành Cho Tech Lead Review (Architectural Decisions)
+1. **Phòng Ngừa Lỗi 400 Đa Tầng (Two-Tier Validation):** Việc bổ sung validation ở Client-side (min 8 chars) giúp người dùng nhận diện ngay lỗi nhập liệu mà không cần tốn round-trip tới backend, đồng thời tầng bóc tách `error.details` đảm bảo khi backend trả về lỗi nghiệp vụ bất kỳ, thông điệp hiển thị luôn cụ thể và dễ hiểu.
+2. **Mobile UX First:** Áp dụng chuẩn thiết kế ứng dụng y tế hiện đại: ưu tiên tinh gọn trên màn hình nhỏ bằng cách ẩn toàn bộ nội dung phụ trợ không cần thiết, giúp tỷ lệ hoàn tất đăng ký (Conversion Rate) trên mobile đạt mức cao nhất.
 
 ---
 
