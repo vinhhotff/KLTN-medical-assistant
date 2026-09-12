@@ -54,19 +54,23 @@ public class DoctorService {
                 .collect(Collectors.toList());
     }
 
-    public DoctorDetailDto getDoctorById(UUID doctorUserId) {
-        DoctorProfile profile = doctorProfileRepository.findByUserId(doctorUserId)
+    public DoctorDetailDto getDoctorById(UUID doctorIdentifier) {
+        DoctorProfile profile = doctorProfileRepository.findByUserId(doctorIdentifier)
+                .or(() -> doctorProfileRepository.findById(doctorIdentifier))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy thông tin bác sĩ"));
         return DoctorDetailDto.fromEntity(profile);
     }
 
-    public List<DoctorSlotDto> getAvailableSlots(UUID doctorUserId, LocalDate date) {
+    public List<DoctorSlotDto> getAvailableSlots(UUID doctorIdentifier, LocalDate date) {
         if (date.isBefore(LocalDate.now())) {
             return Collections.emptyList();
         }
 
-        DoctorProfile profile = doctorProfileRepository.findByUserId(doctorUserId)
+        DoctorProfile profile = doctorProfileRepository.findByUserId(doctorIdentifier)
+                .or(() -> doctorProfileRepository.findById(doctorIdentifier))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Bác sĩ không tồn tại"));
+
+        UUID doctorUserId = profile.getUser() != null ? profile.getUser().getId() : doctorIdentifier;
 
         // Query active appointments on this day
         LocalDateTime dayStart = date.atStartOfDay();

@@ -53,6 +53,7 @@ public class AppointmentService {
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Bệnh nhân không tồn tại"));
 
         User doctor = userRepository.findById(request.getDoctorId())
+                .or(() -> doctorProfileRepository.findById(request.getDoctorId()).map(DoctorProfile::getUser))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Bác sĩ không tồn tại"));
 
         if (doctor.getRole() != Role.DOCTOR) {

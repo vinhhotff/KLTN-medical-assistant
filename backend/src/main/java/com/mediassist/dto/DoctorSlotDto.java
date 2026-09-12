@@ -30,8 +30,12 @@ public class DoctorSlotDto {
     public LocalDateTime getStartDateTime() { return startDateTime; }
     public void setStartDateTime(LocalDateTime startDateTime) { this.startDateTime = startDateTime; }
 
+    public LocalDateTime getScheduledStart() { return startDateTime; }
+
     public LocalDateTime getEndDateTime() { return endDateTime; }
     public void setEndDateTime(LocalDateTime endDateTime) { this.endDateTime = endDateTime; }
+
+    public LocalDateTime getScheduledEnd() { return endDateTime; }
 
     public boolean isAvailable() { return isAvailable; }
     public void setAvailable(boolean available) { isAvailable = available; }

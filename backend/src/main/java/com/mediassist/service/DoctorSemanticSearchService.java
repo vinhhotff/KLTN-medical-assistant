@@ -83,7 +83,7 @@ public class DoctorSemanticSearchService {
         String vectorSql = embeddingService.toVectorSqlString(queryVector);
 
         String sql = """
-            SELECT dp.id, u.full_name, dp.bio, dp.license_number,
+            SELECT u.id AS doctor_user_id, dp.id AS doctor_profile_id, u.full_name, dp.bio, dp.license_number,
                    dp.years_of_experience, dp.consultation_fee,
                    dp.academic_title, dp.hospital_affiliation,
                    1 - (dp.bio_embedding <=> CAST(? AS vector)) AS similarity_score
@@ -98,7 +98,8 @@ public class DoctorSemanticSearchService {
             return jdbcTemplate.query(
                     sql,
                     (rs, rowNum) -> {
-                        UUID docId = UUID.fromString(rs.getString("id"));
+                        UUID docUserId = UUID.fromString(rs.getString("doctor_user_id"));
+                        UUID profileId = UUID.fromString(rs.getString("doctor_profile_id"));
                         String fullName = rs.getString("full_name");
                         String bio = rs.getString("bio");
                         String license = rs.getString("license_number");
@@ -116,10 +117,10 @@ public class DoctorSemanticSearchService {
                                 WHERE ds.doctor_profile_id = ?
                                 """,
                                 (rsSpec, idx) -> rsSpec.getString("name"),
-                                docId
+                                profileId
                         );
 
-                        return new DoctorMatchDto(docId, fullName, bio, license, exp, fee, score, specs, academicTitle, hospitalAffiliation);
+                        return new DoctorMatchDto(docUserId, fullName, bio, license, exp, fee, score, specs, academicTitle, hospitalAffiliation);
                     },
                     vectorSql, vectorSql, limit
             );

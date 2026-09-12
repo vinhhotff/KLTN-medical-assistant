@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, Calendar, Clock, MapPin, CheckCircle2, AlertCircle, X, Building2, Star, Filter } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -27,8 +28,10 @@ interface DoctorDetail {
 interface DoctorSlot {
   startTime: string;
   endTime: string;
-  startDateTime: string;
-  endDateTime: string;
+  startDateTime?: string;
+  endDateTime?: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
   available: boolean;
 }
 
@@ -48,6 +51,9 @@ const formatLocalDate = (d: Date): string => {
 
 export const DoctorSearchPage: React.FC = () => {
   const { user } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const queryDoctorId = searchParams.get('doctorId');
+
   const [doctors, setDoctors] = useState<DoctorDetail[]>([]);
   const [specialtiesList, setSpecialtiesList] = useState<{ id: string; name: string; slug: string }[]>([]);
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('ALL');
@@ -103,6 +109,18 @@ export const DoctorSearchPage: React.FC = () => {
     loadSlots(doc.id, selectedDate);
   };
 
+  // Auto-open booking modal if navigated with ?doctorId=...
+  useEffect(() => {
+    if (queryDoctorId && doctors.length > 0 && !selectedDoctor) {
+      const targetDoc = doctors.find(
+        (d) => d.id === queryDoctorId || d.profileId === queryDoctorId
+      );
+      if (targetDoc) {
+        handleOpenBooking(targetDoc);
+      }
+    }
+  }, [queryDoctorId, doctors]);
+
   const loadSlots = async (doctorId: string, date: string) => {
     try {
       setSlotsLoading(true);
@@ -138,9 +156,10 @@ export const DoctorSearchPage: React.FC = () => {
       setBookingSubmitting(true);
       setBookingError(null);
 
+      const slotTime = selectedSlot.startDateTime || selectedSlot.scheduledStart;
       const res = await api.post('/appointments', {
         doctorId: selectedDoctor.id,
-        scheduledStart: selectedSlot.startDateTime,
+        scheduledStart: slotTime,
         notes: notes.trim() || undefined,
       });
 

@@ -74,12 +74,14 @@ interface UserQuota {
 }
 
 interface DoctorSlot {
-  slotId: string;
-  dayOfWeek: string;
+  slotId?: string;
+  dayOfWeek?: string;
   startTime: string;
   endTime: string;
-  scheduledStart: string;
-  scheduledEnd: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
+  startDateTime?: string;
+  endDateTime?: string;
   available: boolean;
 }
 
@@ -272,9 +274,10 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
       setBookingSubmitting(true);
       setBookingError(null);
 
+      const slotTime = selectedSlot.scheduledStart || selectedSlot.startDateTime;
       const res = await api.post('/appointments', {
         doctorId: bookingDoctor.doctorId,
-        scheduledStart: selectedSlot.scheduledStart,
+        scheduledStart: slotTime,
         notes: bookingNotes
       });
 
@@ -282,7 +285,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
         setConfirmedAppt({
           appointmentCode: res.data.data.appointmentCode,
           doctorName: bookingDoctor.fullName,
-          scheduledStart: selectedSlot.scheduledStart,
+          scheduledStart: slotTime || selectedSlot.scheduledStart || '',
           feeAmount: bookingDoctor.consultationFee
         });
       }

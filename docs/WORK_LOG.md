@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#027** | 12/09/2026 | Loại Bỏ Hoàn Toàn Mockdata, Khắc Phục Lỗi Tự Động Đề Xuất Bệnh Án Khi Ảnh Không Hợp Lệ, Tích Hợp Multimodal Vision & Kết Nối Toàn Bộ Bóc Tách Vào Spring Boot Backend Thật (Cổng 5000 + pgvector 5433) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#028** | 12/09/2026 | Khắc Phục Triệt Để Lỗi Lệch ID Bác Sĩ Khi Đặt Khám Từ AI Recommendations, Hỗ Trợ Đa Nhận Diện Dual-ID (User & Profile) & Tự Động Mở Modal Đặt Khám Từ Trang Chủ | AI Assistant | 🟢 Sẵn sàng Review |
+| **#027** | 12/09/2026 | Loại Bỏ Hoàn Toàn Mockdata, Khắc Phục Lỗi Tự Động Đề Xuất Bệnh Án Khi Ảnh Không Hợp Lệ, Tích Hợp Multimodal Vision & Kết Nối Toàn Bộ Bóc Tách Vào Spring Boot Backend Thật (Cổng 5000 + pgvector 5433) | AI Assistant | 🟢 Đã Duyệt |
 | **#026** | 12/09/2026 | Giải Thích Hiện Tượng PDF Rỗng Quét Ra Data, Tích Hợp Xác Thực Chặn File Rỗng (< 100 Bytes) & Cung Cấp Bộ Quét Mock 4 Giai Đoạn Kèm PDF Bệnh Án Mẫu Chuẩn BYT | AI Assistant | 🟢 Đã Duyệt |
 | **#025** | 12/09/2026 | Sửa Lỗi Logic Đánh Giá Độ Mạnh Mật Khẩu (Off-By-One Fallthrough Bug) & Nâng Cấp UI Trực Quan Chuẩn An Toàn Y Tế | AI Assistant | 🟢 Đã Duyệt |
 | **#024** | 12/09/2026 | Bổ Sung Thanh Công Cụ Điền Dữ Liệu Form Ngẫu Nhiên (Randomized Quick Fill Testing Suite) Đảm Bảo 100% Hợp Lệ & Tránh Trùng Email | AI Assistant | 🟢 Đã Duyệt |
@@ -34,6 +35,55 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#028] Khắc Phục Triệt Để Lỗi Lệch ID Bác Sĩ Khi Đặt Khám Từ AI Recommendations, Hỗ Trợ Đa Nhận Diện Dual-ID (User & Profile) & Tự Động Mở Modal Đặt Khám Từ Trang Chủ
+* **Thời gian:** 2026-09-12 18:59:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-CLIN-04 (Doctor Semantic Search), UC-OPS-05 (Appointment Booking & Concurrency Guard)
+* **Trạng thái Dịch vụ:**
+  - Docker Desktop Engine: **RUNNING**
+  - PostgreSQL (pgvector 16): `mediassist_postgres` cổng **5433** (Healthy)
+  - Redis 7 Alpine: `mediassist_redis` cổng **6379** (Healthy)
+  - Backend (Spring Boot 3.4.3 / Java 21): cổng **5000** (Actuator status: `UP`, 39/39 Tests PASS)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (`npm run build` 0 TS errors, 7.59s)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Nguyên Nhân Gốc Của 2 Lỗi Đã Được Sửa
+1. **Lỗi Lệch ID Bác Sĩ Khi Đặt Khám Từ AI Triage / Quét Xét Nghiệm (Doctor ID Mismatch Bug):**
+   - **Vấn đề:** Khi người dùng nhận được đề xuất bác sĩ từ `TriageService` hoặc `MedicalDocumentAnalysisService` và bấm "Đặt Khám", hệ thống trả về lỗi `HTTP 404 NOT FOUND: Bác sĩ không tồn tại` tại `/api/v1/doctors/{id}/slots` và `POST /api/v1/appointments`.
+   - **Nguyên nhân:** Bảng `doctor_profiles` có 2 định danh: `id` (profile ID, dạng `c0000000-...`) và `user_id` (user ID, dạng `b0000000-...`). `DoctorSemanticSearchService` trước đây chọn `SELECT dp.id ...` và gán `docId = dp.id` (`c0000...`). Nhưng `DoctorService` và `AppointmentService` lại chỉ tìm kiếm theo `users.id` (`b0000...`).
+   - **Khắc phục:** 
+     - Sửa `DoctorSemanticSearchService.java`: `SELECT u.id AS doctor_user_id, dp.id AS doctor_profile_id...` và gán `doctorId = docUserId`.
+     - Tăng cường cơ chế **Dual-ID Fallback** tại `DoctorService.java` (`getDoctorById`, `getAvailableSlots`) và `AppointmentService.java` (`bookAppointment`): Tra cứu linh hoạt theo cả `userId` và `profileId`, bất kể client gửi mã ID nào cũng tìm thấy bác sĩ chính xác 100%.
+     - Bổ sung alias getters `getScheduledStart()` và `getScheduledEnd()` trong `DoctorSlotDto.java` đồng bộ với `startDateTime` để frontend không bị lỗi `undefined` gây HTTP 400.
+
+2. **Query Parameter `?doctorId=` Bị Bỏ Quên Trên Trang Tìm Bác Sĩ:**
+   - **Vấn đề:** Khi bấm "Đặt Khám" tại danh sách bác sĩ trên Trang chủ (`LandingPage.tsx`), code chuyển hướng sang `/patient/doctors?doctorId=...` nhưng Modal Đặt Khám không tự động mở.
+   - **Khắc phục:** Tích hợp `useSearchParams` trong `DoctorSearchPage.tsx`, tự động mở modal `handleOpenBooking` ngay khi danh sách bác sĩ được tải xong nếu phát hiện tham số `doctorId`.
+
+#### 2. Danh Sách Tệp Thay Đổi
+- `[MOD]` [`backend/src/main/java/com/mediassist/service/DoctorSemanticSearchService.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/service/DoctorSemanticSearchService.java): Trả về `doctor_user_id` và dùng `doctor_profile_id` cho chuyên khoa.
+- `[MOD]` [`backend/src/main/java/com/mediassist/service/DoctorService.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/service/DoctorService.java): Hỗ trợ dual-lookup theo `userId` hoặc `profileId`.
+- `[MOD]` [`backend/src/main/java/com/mediassist/service/AppointmentService.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/service/AppointmentService.java): Fallback tìm bác sĩ qua `doctorProfileRepository` nếu không tìm thấy trực tiếp qua `userRepository`.
+- `[MOD]` [`backend/src/main/java/com/mediassist/dto/DoctorSlotDto.java`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/backend/src/main/java/com/mediassist/dto/DoctorSlotDto.java): Bổ sung `getScheduledStart()` và `getScheduledEnd()` alias getters.
+- `[MOD]` [`frontend/src/pages/patient/DoctorSearchPage.tsx`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/frontend/src/pages/patient/DoctorSearchPage.tsx): Đọc `useSearchParams`, auto-open booking modal và hỗ trợ cả `startDateTime` / `scheduledStart`.
+- `[MOD]` [`frontend/src/pages/patient/SymptomTriagePage.tsx`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/frontend/src/pages/patient/SymptomTriagePage.tsx): Đồng bộ `slotTime` an toàn.
+- `[MOD]` [`frontend/src/pages/patient/DocumentSummarizerPage.tsx`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/frontend/src/pages/patient/DocumentSummarizerPage.tsx): Đồng bộ `slotTime` an toàn.
+- `[MOD]` [`docs/WORK_LOG.md`](file:///c:/Users/ADmin/Documents/antigravity/resilient-fermi/docs/WORK_LOG.md): Ghi nhận chi tiết phiên làm việc #028.
+
+#### 3. Bằng Chứng Kiểm Thử Thực Tế (Live E2E Verification)
+- **Kiểm thử Luồng E2E AI Triage $\rightarrow$ Đặt Lịch:**
+  1. Bệnh nhân gửi triệu chứng: `"Toi bi dau nguc trai 2 ngay nay, kem kho tho khi leo cau thang"`
+  2. AI phân luồng: `Urgency = URGENT`, `Specialty = Neurology (Thần Kinh)`, Đề xuất BS `Lê Hoàng Long` (ID: `b0000000-0000-0000-0000-000000000019`, Score 0.937)
+  3. Tải khung giờ khám: `GET /api/v1/doctors/{id}/slots` $\rightarrow$ `HTTP 200 OK` (15 khung giờ, Slot 1: `08:00:00`, Available: `true`)
+  4. Đặt lịch khám: `POST /api/v1/appointments` $\rightarrow$ `HTTP 201 CREATED` (`Code: AP-20260912-A79DE0`, `Status: SCHEDULED`)
+  5. Kiểm tra lịch hẹn: `GET /api/v1/appointments/my` $\rightarrow$ `HTTP 200 OK` (Hiển thị 1 cuộc hẹn chính xác)
+- **Kiểm thử Dual-ID Fallback:** Gọi API bằng mã `doctorProfileId` (`c0000000-...`) trực tiếp $\rightarrow$ Cả `slots` và `appointments` đều hoạt động hoàn hảo (`Code: AP-20260912-FDAF2A`).
+- **Kiểm thử Biên dịch:**
+  - Frontend: `npm run build` $\rightarrow$ 0 lỗi TypeScript, built in 7.59s.
+  - Backend: `mvn test` $\rightarrow$ 39/39 Tests PASS (0 Failures, 0 Errors).
 
 ---
 

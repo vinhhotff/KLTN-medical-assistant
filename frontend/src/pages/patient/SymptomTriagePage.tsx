@@ -47,12 +47,14 @@ interface TriageResponseData {
 }
 
 interface DoctorSlot {
-  slotId: string;
-  dayOfWeek: string;
+  slotId?: string;
+  dayOfWeek?: string;
   startTime: string;
   endTime: string;
-  scheduledStart: string;
-  scheduledEnd: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
+  startDateTime?: string;
+  endDateTime?: string;
   available: boolean;
 }
 
@@ -168,9 +170,10 @@ export const SymptomTriagePage: React.FC = () => {
       setBookingSubmitting(true);
       setBookingError(null);
 
+      const slotTime = selectedSlot.scheduledStart || selectedSlot.startDateTime;
       const res = await api.post('/appointments', {
         doctorId: bookingDoctor.doctorId,
-        scheduledStart: selectedSlot.scheduledStart,
+        scheduledStart: slotTime,
         notes: bookingNotes
       });
 
@@ -178,7 +181,7 @@ export const SymptomTriagePage: React.FC = () => {
         setConfirmedAppt({
           appointmentCode: res.data.data.appointmentCode,
           doctorName: bookingDoctor.fullName,
-          scheduledStart: selectedSlot.scheduledStart,
+          scheduledStart: slotTime || '',
           feeAmount: bookingDoctor.consultationFee
         });
       }
