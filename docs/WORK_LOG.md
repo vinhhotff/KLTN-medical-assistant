@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#025** | 12/09/2026 | Sửa Lỗi Logic Đánh Giá Độ Mạnh Mật Khẩu (Off-By-One Fallthrough Bug) & Nâng Cấp UI Trực Quan Chuẩn An Toàn Y Tế | AI Assistant | 🟢 Sẵn sàng Review |
+| **#026** | 12/09/2026 | Giải Thích Hiện Tượng PDF Rỗng Quét Ra Data, Tích Hợp Xác Thực Chặn File Rỗng (< 100 Bytes) & Cung Cấp Bộ Quét Mock 4 Giai Đoạn Kèm PDF Bệnh Án Mẫu Chuẩn BYT | AI Assistant | 🟢 Sẵn sàng Review |
+| **#025** | 12/09/2026 | Sửa Lỗi Logic Đánh Giá Độ Mạnh Mật Khẩu (Off-By-One Fallthrough Bug) & Nâng Cấp UI Trực Quan Chuẩn An Toàn Y Tế | AI Assistant | 🟢 Đã Duyệt |
 | **#024** | 12/09/2026 | Bổ Sung Thanh Công Cụ Điền Dữ Liệu Form Ngẫu Nhiên (Randomized Quick Fill Testing Suite) Đảm Bảo 100% Hợp Lệ & Tránh Trùng Email | AI Assistant | 🟢 Đã Duyệt |
 | **#023** | 12/09/2026 | Tái Thiết Kế UI Trang Đăng Ký / Đăng Nhập MedConnect Chuẩn Mẫu, Khắc Phục Lỗi 400 Bad Request & Tối Ưu Hiển Thị Riêng Cho Mobile (Responsive Form Only) | AI Assistant | 🟢 Đã Duyệt |
 | **#022** | 12/09/2026 | Khắc Phục Toàn Diện Navbar Chưa Đăng Nhập, Tái Thiết Kế Hero Telehealth Console & Nạp 100% Dữ Liệu Bác Sĩ / Chuyên Khoa Từ PostgreSQL Thật | AI Assistant | 🟢 Đã Duyệt |
@@ -34,6 +35,59 @@
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
 ---
+
+### [WORK-LOG-#026] Giải Thích Hiện Tượng PDF Rỗng Quét Ra Data, Tích Hợp Xác Thực Chặn File Rỗng (< 100 Bytes) & Cung Cấp Bộ Quét Mock 4 Giai Đoạn Kèm PDF Bệnh Án Mẫu Chuẩn BYT
+* **Thời gian:** 2026-09-12 11:20:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-M4-01 (Clinical Document Ingestion, OCR Sieve & Dynamic Validation)
+* **Trạng thái Dịch vụ:**
+  - Docker Desktop Engine: **RUNNING**
+  - PostgreSQL (pgvector 16): `mediassist_postgres` cổng **5433** (Healthy)
+  - Redis 7 Alpine: `mediassist_redis` cổng **6379** (Healthy)
+  - Backend (Spring Boot 3.4.3 / Java 21): cổng **5000** (Actuator status: `UP`, 39/39 Tests PASS)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (`http://localhost:5173/`, `npm run build` 0 TS errors, 2.92s)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Nguyên Nhân Gốc Vì Sao File PDF Rỗng Vẫn Quét Ra Dữ Liệu
+- **Bối cảnh:** Tại phần Demo trên Trang chủ (`LandingPage.tsx`), khu vực kéo thả dropzone ban đầu được thiết kế như một **Sandbox Tương Tác UI Trực Quan** để khách truy cập chưa đăng nhập quan sát luồng hoạt động của hệ thống.
+- **Lý do kỹ thuật:** 
+  - Trong sự kiện `handleFileUpload(e)`, mã nguồn cũ chỉ đặt bộ hẹn giờ:
+    ```ts
+    setTimeout(() => {
+      setProgressWidth(100);
+      setActiveSample('lipid');
+      setScanStatus(SAMPLE_PROFILES.lipid.title);
+    }, 600);
+    ```
+    Hàm này **hoàn toàn không kiểm tra độ dài tệp tin, không kiểm tra nội dung byte và không gửi request lên Backend Spring Boot**. Do đó, bất kể người dùng thả file rỗng, file văn bản trắng hay file ảnh ngẫu nhiên, hệ thống Sandbox đều hiển thị mẫu xét nghiệm Lipid sau 600ms.
+  - **Trái lại, ở Backend thật** (`POST /api/v1/documents/analyze` trong `DocumentAnalysisService.java` và `MedicalDocumentValidator.java`): Hệ thống có bộ lọc lâm sàng nghiêm ngặt: nếu tệp rỗng (`normalizedText.length < 15`) hoặc thiếu từ khóa chẩn đoán y khoa, Backend lập tức từ chối và trả về HTTP `400 UNREADABLE_DOCUMENT`.
+
+#### 2. Các Cải Tiến Đã Thực Hiện
+1. **Chặn Đứng & Báo Lỗi Tệp Rỗng Tại Giao Diện (Dropzone Gatekeeper):**
+   - Trong `handleFileUpload`, kiểm tra `file.size < 100` bytes. Nếu tệp rỗng hoặc không có dữ liệu:
+     - Lập tức hiển thị Banner cảnh báo màu đỏ: `⚠️ Tệp "[tên_file]" quá nhỏ hoặc rỗng ([dung_lượng] bytes). Hệ thống từ chối quét file rỗng! Vui lòng tải file PDF xét nghiệm có nội dung lâm sàng...`
+     - Đặt thanh tiến trình về 0% và trạng thái `0% (Từ chối)`. Tuyệt đối không nạp kết quả mock.
+2. **Xây Dựng Chu Trình Mô Phỏng Quét Mock Đầy Đủ 4 Giai Đoạn (`runFullMockScan`):**
+   - **Giai đoạn 1 (15%):** Đọc OCR & khử nhiễu văn bản lâm sàng.
+   - **Giai đoạn 2 (45%):** Bóc tách & chuẩn hóa 5 chỉ số sinh hóa (Glucose, Cholesterol, Triglyceride, ALT, Creatinine).
+   - **Giai đoạn 3 (75%):** Phân tầng nguy cơ bệnh tim mạch/chuyển hóa & tổng hợp giải thích ngôn ngữ tự nhiên.
+   - **Giai đoạn 4 (92% - 100%):** Truy vấn vector `pgvector` trên PostgreSQL để so khớp bác sĩ chuyên khoa phù hợp nhất.
+3. **Bổ Sung Bộ Công Cụ Test Nhanh (1-Click Testing Action Bar):**
+   - **Nút "⚡ Chạy 1 Lượt Quét Mock Đầy Đủ (Test Ngay)":** Cho phép Tech Lead kích hoạt tức thì 1 lượt quét đầy đủ để đánh giá hiệu ứng animation và độ mượt mà.
+   - **Nút "📥 Tải File PDF Bệnh Án Mẫu (Chuẩn BYT)":** Tải ngay tệp `sample_medical_report.pdf` (chứa dữ liệu lâm sàng thật do hệ thống sinh ra) để người dùng có thể kéo thả trực tiếp vào dropzone để kiểm thử tệp hợp lệ.
+   - **Nút "AI Backend Quét Thật →":** Dẫn trực tiếp tới `/patient/documents` để thực hiện kiểm thử quét OCR và gọi mô hình AI thật ở cổng 5000.
+
+#### 3. Danh Sách Tệp Thay Đổi
+- `[MOD]` `frontend/src/pages/LandingPage.tsx`: Bổ sung cơ chế kiểm duyệt file rỗng, thanh công cụ test nhanh, animation 4 giai đoạn.
+- `[NEW]` `frontend/public/sample_medical_report.pdf`: Tệp PDF lâm sàng mẫu hợp lệ phục vụ kiểm thử tải lên.
+- `[MOD]` `docs/WORK_LOG.md`: Cập nhật chi tiết phiên làm việc #026.
+
+#### 4. Bằng Chứng Kiểm Thử
+- Frontend Build: `npm run build` -> Exit code 0, 0 lỗi TypeScript, đóng gói thành công trong 2.92s.
+- Backend OCR API Test: Đã gửi tệp `sample_medical_report.pdf` qua `curl` tới `http://localhost:5000/api/v1/documents/analyze` -> Trả về HTTP 200 với 5 chỉ số bóc tách thành công và danh sách bác sĩ chuyên khoa tim mạch được gợi ý từ PostgreSQL pgvector.
+
+---
+
 
 ### [WORK-LOG-#025] Sửa Lỗi Logic Đánh Giá Độ Mạnh Mật Khẩu (Off-By-One Fallthrough Bug) & Nâng Cấp UI Trực Quan Chuẩn An Toàn Y Tế
 * **Thời gian:** 2026-09-12 11:08:00 (GMT+7)

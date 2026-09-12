@@ -123,6 +123,8 @@ export const LandingPage: React.FC = () => {
   const [scanStatus, setScanStatus] = useState<string>(SAMPLE_PROFILES.lipid.title);
   const [scanPercent, setScanPercent] = useState<string>('100% (Sẵn sàng)');
   const [progressWidth, setProgressWidth] = useState<number>(100);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // 1. Fetch real doctors and specialties from PostgreSQL Database
   useEffect(() => {
@@ -185,6 +187,8 @@ export const LandingPage: React.FC = () => {
   }, [doctors]);
 
   const handleSelectSample = (type: 'lipid' | 'respiratory' | 'general') => {
+    if (isScanning) return;
+    setUploadError(null);
     setActiveSample(type);
     setProgressWidth(20);
     setScanPercent('Đang đọc OCR...');
@@ -196,20 +200,65 @@ export const LandingPage: React.FC = () => {
     }, 280);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const fileName = e.target.files[0].name;
-      setScanStatus(`Đang phân tích: ${fileName}`);
-      setProgressWidth(40);
-      setScanPercent('40%');
+  /**
+   * Full 4-Phase Mock Scanning Simulation
+   * Simulates real medical OCR, biomarker standardization, risk stratification, and pgvector doctor matching.
+   */
+  const runFullMockScan = (customName?: string) => {
+    setIsScanning(true);
+    setUploadError(null);
+    setProgressWidth(15);
+    const targetName = customName || 'Bệnh Án Xét Nghiệm Mẫu (Chuẩn BYT - Lipid & Gan)';
+    setScanStatus(`Giai đoạn 1/4: Đang đọc OCR & lọc nhiễu văn bản lâm sàng (${targetName})...`);
+    setScanPercent('15%');
 
-      setTimeout(() => {
-        setProgressWidth(100);
-        setScanPercent('100% (Hoàn tất)');
-        setActiveSample('lipid');
-        setScanStatus(SAMPLE_PROFILES.lipid.title);
-      }, 600);
+    setTimeout(() => {
+      setProgressWidth(45);
+      setScanStatus('Giai đoạn 2/4: Chuẩn hóa 5 chỉ số sinh hóa (Glucose, Cholesterol, Triglyceride, ALT, Creatinine)...');
+      setScanPercent('45%');
+    }, 500);
+
+    setTimeout(() => {
+      setProgressWidth(75);
+      setScanStatus('Giai đoạn 3/4: Phân tầng nguy cơ tim mạch & Tạo tóm tắt lâm sàng ngôn ngữ tự nhiên...');
+      setScanPercent('75%');
+    }, 1100);
+
+    setTimeout(() => {
+      setProgressWidth(92);
+      setScanStatus('Giai đoạn 4/4: Đối soát Vector pgvector tìm kiếm bác sĩ chuyên khoa phù hợp...');
+      setScanPercent('92%');
+    }, 1700);
+
+    setTimeout(() => {
+      setProgressWidth(100);
+      setScanPercent('100% (Hoàn tất)');
+      setActiveSample('lipid');
+      setScanStatus(`✅ Phân tích hoàn tất: ${targetName}`);
+      setIsScanning(false);
+    }, 2300);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+
+    // Gatekeeper: Validate empty/blank file (< 100 bytes)
+    if (file.size < 100) {
+      setUploadError(
+        `⚠️ Tệp "${file.name}" quá nhỏ hoặc rỗng (${file.size} bytes). Hệ thống từ chối quét file rỗng! Vui lòng tải file PDF xét nghiệm có nội dung lâm sàng (hoặc bấm "Tải File PDF Mẫu" bên dưới).`
+      );
+      setScanStatus(`Lỗi: Tệp tin "${file.name}" không có nội dung xét nghiệm hợp lệ`);
+      setProgressWidth(0);
+      setScanPercent('0% (Từ chối)');
+      return;
     }
+
+    setUploadError(null);
+    runFullMockScan(file.name);
   };
 
 
@@ -570,12 +619,48 @@ export const LandingPage: React.FC = () => {
                   {/* Left 7 cols: Upload and File Selector */}
                   <div className="lg:col-span-7 flex flex-col justify-between bg-surface-container-lowest p-space-lg rounded-xl shadow-sm">
                     
+                    {/* Test Action Bar: 1-Click Mock Scan & Sample PDF Download */}
+                    <div className="mb-space-md p-space-sm bg-surface-container-low rounded-xl border border-outline-variant/40">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => runFullMockScan()}
+                          disabled={isScanning}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-secondary hover:bg-secondary/90 text-on-secondary font-label-md text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                        >
+                          <span className={`material-symbols-outlined text-[16px] ${isScanning ? 'animate-spin' : ''}`}>
+                            {isScanning ? 'sync' : 'bolt'}
+                          </span>
+                          <span>{isScanning ? 'Đang Chạy Quét 4 Giai Đoạn...' : '⚡ Chạy 1 Lượt Quét Mock Đầy Đủ (Test Ngay)'}</span>
+                        </button>
+
+                        <a
+                          href="/sample_medical_report.pdf"
+                          download="benh_an_xet_nghiem_mau_mediassist.pdf"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary font-label-md text-xs font-semibold transition-all border border-outline-variant/40"
+                          title="Tải về file PDF mẫu có 5 chỉ số sinh hóa hợp lệ để kiểm thử tải lên"
+                        >
+                          <span className="material-symbols-outlined text-[16px] text-secondary">download</span>
+                          <span>📥 Tải File PDF Bệnh Án Mẫu (Chuẩn BYT)</span>
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={() => navigate(isAuthenticated ? '/patient/documents' : '/login')}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-secondary hover:bg-secondary-container/30 font-label-sm text-[11px] font-semibold transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">psychology</span>
+                          <span>AI Backend Quét Thật →</span>
+                        </button>
+                      </div>
+                    </div>
+
                     {/* Sample Files Selector */}
                     <div>
                       <span className="font-label-md text-label-md text-on-surface-variant mb-space-xs block font-semibold">
-                        1. Chọn hồ sơ y tế mẫu để chạy demo ngay:
+                        1. Hoặc chọn nhanh hồ sơ y tế mẫu có sẵn:
                       </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-space-xs mb-space-lg">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-space-xs mb-space-md">
                         <button
                           className={`text-left p-space-sm rounded-lg transition-all duration-150 cursor-pointer ${
                             activeSample === 'lipid'
@@ -623,8 +708,26 @@ export const LandingPage: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* Empty File / Validation Error Warning Banner */}
+                    {uploadError && (
+                      <div className="mb-space-sm p-3 rounded-xl bg-error-container/80 text-on-error-container border border-error/40 text-body-sm flex items-start gap-2.5">
+                        <span className="material-symbols-outlined text-[20px] text-error shrink-0 mt-0.5">error</span>
+                        <div className="flex-1">
+                          <div className="font-bold text-error">Hệ thống từ chối tệp không hợp lệ:</div>
+                          <div className="mt-0.5 text-xs text-on-error-container leading-relaxed">{uploadError}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setUploadError(null)}
+                          className="text-on-error-container hover:text-error text-sm font-bold px-1"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
                     {/* Drag & Drop zone */}
-                    <div className="relative cursor-pointer bg-surface-container-low hover:bg-surface-container rounded-xl p-space-xl flex flex-col items-center justify-center text-center transition-colors">
+                    <div className={`relative cursor-pointer bg-surface-container-low hover:bg-surface-container rounded-xl p-space-xl flex flex-col items-center justify-center text-center transition-all ${isScanning ? 'ring-2 ring-secondary/50 bg-secondary-container/10' : ''}`}>
                       <input
                         accept=".pdf,.png,.jpg,.jpeg"
                         className="absolute inset-0 opacity-0 cursor-pointer"
@@ -632,10 +735,16 @@ export const LandingPage: React.FC = () => {
                         type="file"
                       />
                       <div className="w-14 h-14 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center mb-space-sm">
-                        <span className="material-symbols-outlined text-[28px]">cloud_upload</span>
+                        <span className={`material-symbols-outlined text-[28px] ${isScanning ? 'animate-bounce' : ''}`}>
+                          {isScanning ? 'vital_signs' : 'cloud_upload'}
+                        </span>
                       </div>
-                      <div className="font-title-md text-title-md text-primary font-bold">Kéo và thả tệp PDF bệnh án hoặc hình chụp tại đây</div>
-                      <div className="font-body-sm text-body-sm text-outline mt-space-2xs">Hỗ trợ PDF, PNG, JPG, DICOM • Dung lượng tối đa 25MB</div>
+                      <div className="font-title-md text-title-md text-primary font-bold">
+                        {isScanning ? 'Đang thực hiện phân tích tài liệu lâm sàng...' : 'Kéo và thả tệp PDF bệnh án hoặc hình chụp tại đây'}
+                      </div>
+                      <div className="font-body-sm text-body-sm text-outline mt-space-2xs">
+                        Hỗ trợ PDF, PNG, JPG • Yêu cầu có nội dung xét nghiệm • Dung lượng tối đa 25MB
+                      </div>
                       <div className="mt-space-md inline-flex items-center gap-2 bg-surface-container-lowest px-space-md py-1.5 rounded-lg shadow-sm text-primary font-label-md text-label-md font-semibold">
                         <span className="material-symbols-outlined text-[18px]">folder_open</span> Duyệt file từ máy tính
                       </div>
