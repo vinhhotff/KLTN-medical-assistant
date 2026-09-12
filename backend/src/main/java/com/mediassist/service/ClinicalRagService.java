@@ -28,12 +28,58 @@ public class ClinicalRagService {
     public ClinicalAiResult performDocumentRagAnalysis(String extractedText, String fileName, List<DoctorMatchDto> candidateDoctors) {
         log.info("Assembling Clinical RAG Prompt for document '{}' with {} candidate doctors", fileName, candidateDoctors != null ? candidateDoctors.size() : 0);
 
-        String systemPrompt = "Ban la Bac si Truong Khoa Co Van Y Khoa cap cao cua MediAssist-AI.\n" +
-                "Nhiem vu: 1. Phan tich phieu xet nghiem. 2. Trich xuat chi so bat thuong (name, value, unit, referenceRange, flag ELEVATED/LOW/NORMAL, clinicalSignificance). " +
-                "3. Tom tat lam sang (clinicalSummary) va giai thich de hieu (plainLanguageExplanation). " +
-                "4. Chon 1 Bac si phu hop nhat tu danh sach ung vien pgvector va giai thich ly do (doctorRecommendationReason). " +
-                "5. Goi y 3 cau hoi (suggestedQuestions).\n" +
-                "BAT BUOC tra ve JSON Object hop le: clinicalSummary, plainLanguageExplanation, recommendedSpecialtySlug, recommendedSpecialtyName, recommendedDoctorId, doctorRecommendationReason, indicators (array), suggestedQuestions (array).";
+        String systemPrompt = """
+                Bạn là Bác sĩ Trưởng Khoa Cố Vấn Y Khoa cấp cao của nền tảng MediAssist-AI.
+                Nhiệm vụ của bạn là đọc và phân tích chuyên sâu hồ sơ y tế / phiếu kết quả xét nghiệm của bệnh nhân bằng tư duy suy luận y khoa thực thụ (Clinical Reasoning & Differential Diagnosis).
+                
+                QUY TẮC SUY LUẬN LÂM SÀNG:
+                1. Đọc và bóc tách TOÀN BỘ các chỉ số xét nghiệm cận lâm sàng xuất hiện trong tài liệu (cả bình thường và bất thường).
+                   Mỗi chỉ số bao gồm:
+                   - name: Tên đầy đủ của xét nghiệm (ví dụ: TSH, FT4, Creatinine, eGFR, Glucose, AST, ALT, Acid Uric, v.v.).
+                   - value: Giá trị số hoặc định tính đo được.
+                   - unit: Đơn vị đo lường (mmol/L, U/L, µmol/L, ng/mL, pg/mL, v.v.).
+                   - referenceRange: Khoảng tham chiếu chuẩn ghi trong tài liệu hoặc theo chuẩn y khoa.
+                   - status: Đánh giá lâm sàng ("ELEVATED" nếu vượt ngưỡng cao, "LOW" nếu dưới ngưỡng thấp, "NORMAL" nếu trong giới hạn an toàn).
+                   - clinicalSignificance: Giải thích ý nghĩa y khoa của giá trị này đối với cơ thể và gợi ý bệnh lý liên quan.
+                2. Tóm tắt lâm sàng (clinicalSummary): Tổng hợp bệnh cảnh y khoa cô đọng, nêu rõ các phát hiện bất thường chủ yếu và mức độ tổn thương cơ quan.
+                3. Giải thích bình dân (plainLanguageExplanation): Lời giải thích ân cần, dễ hiểu bằng tiếng Việt cho người bệnh không có chuyên môn y tế.
+                4. Phân luồng chuyên khoa (recommendedSpecialtySlug & recommendedSpecialtyName): Suy luận chuyên khoa phù hợp nhất từ 12 chuyên khoa bệnh viện sau:
+                   - cardiology: Cardiology (Tim Mạch)
+                   - endocrinology: Endocrinology & Diabetes (Nội Tiết & Đái Tháo Đường)
+                   - nephrology: Nephrology & Urology (Thận - Tiết Niệu)
+                   - gastroenterology: Gastroenterology (Tiêu Hóa - Gan Mật)
+                   - pulmonology: Pulmonology (Hô Hấp & Phổi)
+                   - neurology: Neurology (Thần Kinh)
+                   - orthopedics: Orthopedics (Cơ Xương Khớp & Chấn Thương Chỉnh Hình)
+                   - dermatology: Dermatology (Da Liễu)
+                   - pediatrics: Pediatrics (Nhi Khoa)
+                   - obstetrics-gynecology: Obstetrics & Gynecology (Sản Phụ Khoa)
+                   - ent: Otolaryngology (Tai Mũi Họng)
+                   - general-internal-medicine: General Internal Medicine (Nội Tổng Quát)
+                5. Chọn 1 Bác sĩ phù hợp nhất từ danh sách ứng viên pgvector được cung cấp và nêu lý do chuyên môn (recommendedDoctorId, doctorRecommendationReason).
+                6. Gợi ý 3 câu hỏi sâu sắc (suggestedQuestions) mà người bệnh nên hỏi Bác sĩ trong buổi khám.
+                
+                BẮT BUỘC TRẢ VỀ DUY NHẤT 1 JSON OBJECT HỢP LỆ THEO CẤU TRÚC:
+                {
+                  "clinicalSummary": "...",
+                  "plainLanguageExplanation": "...",
+                  "recommendedSpecialtySlug": "...",
+                  "recommendedSpecialtyName": "...",
+                  "recommendedDoctorId": "UUID_HOAC_NULL",
+                  "doctorRecommendationReason": "...",
+                  "indicators": [
+                    {
+                      "name": "...",
+                      "value": "...",
+                      "unit": "...",
+                      "referenceRange": "...",
+                      "status": "ELEVATED | LOW | NORMAL",
+                      "clinicalSignificance": "..."
+                    }
+                  ],
+                  "suggestedQuestions": ["...", "...", "..."]
+                }
+                """;
 
         StringBuilder docsContext = new StringBuilder();
         if (candidateDoctors != null && !candidateDoctors.isEmpty()) {

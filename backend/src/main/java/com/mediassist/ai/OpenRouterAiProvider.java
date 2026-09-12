@@ -219,13 +219,24 @@ public class OpenRouterAiProvider implements AiProvider {
             if (node.has("indicators") && node.get("indicators").isArray()) {
                 List<AbnormalIndicatorDto> indicators = new ArrayList<>();
                 for (JsonNode indNode : node.get("indicators")) {
+                    String status = "NORMAL";
+                    if (indNode.has("status") && !indNode.get("status").asText().isBlank()) {
+                        status = indNode.get("status").asText().toUpperCase();
+                    } else if (indNode.has("flag") && !indNode.get("flag").asText().isBlank()) {
+                        status = indNode.get("flag").asText().toUpperCase();
+                    }
+
+                    String sig = indNode.has("clinicalSignificance")
+                            ? indNode.get("clinicalSignificance").asText()
+                            : indNode.path("significance").asText("");
+
                     indicators.add(new AbnormalIndicatorDto(
-                            indNode.path("name").asText("Chỉ số sinh hóa"),
-                            indNode.path("value").asText("0"),
+                            indNode.path("name").asText("Chỉ số xét nghiệm"),
+                            indNode.path("value").asText(""),
                             indNode.path("unit").asText(""),
                             indNode.path("referenceRange").asText(""),
-                            indNode.path("flag").asText("NORMAL"),
-                            indNode.path("clinicalSignificance").asText("")
+                            status,
+                            sig
                     ));
                 }
                 result.setIndicators(indicators);
