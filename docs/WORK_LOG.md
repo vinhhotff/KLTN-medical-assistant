@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#019** | 12/09/2026 | Triển Khai Hoàn Hảo Thiết Kế HTML Mẫu Từ Tech Lead: Tích Hợp Hệ Màu Material Clinical, Font Plus Jakarta Sans/Inter, Sandbox Bóc Tách PDF Tương Tác & Bác Sĩ Đầu Ngành | AI Assistant | 🟢 Sẵn sàng Review |
+| **#020** | 12/09/2026 | Tinh Chỉnh Độ Chuẩn Xác Tuyệt Đối (Pixel-Perfect Fidelity) Trang Chủ MedConnect AI: Logo Gốc, Filled Stars Hạt Vàng Cho Đánh Giá Lâm Sàng, Thẻ Bác Sĩ & Dropzone Chuẩn Xác Bản Mẫu | AI Assistant | 🟢 Sẵn sàng Review |
+| **#019** | 12/09/2026 | Triển Khai Hoàn Hảo Thiết Kế HTML Mẫu Từ Tech Lead: Tích Hợp Hệ Màu Material Clinical, Font Plus Jakarta Sans/Inter, Sandbox Bóc Tách PDF Tương Tác & Bác Sĩ Đầu Ngành | AI Assistant | 🟢 Đã Duyệt |
 | **#018** | 12/09/2026 | Tinh Chỉnh Đột Phá UI/UX Trang Chủ: Khắc Phục Lỗi Dính Chữ/Xuống Hàng Navbar, Tái Cấu Trúc Monitor ECG Sáng Sủa & Tối Ưu Copy Lâm Sàng | AI Assistant | 🟢 Đã Duyệt |
 | **#017** | 12/09/2026 | Hoàn Tất Milestone 7: Tích Hợp Clinical RAG Bằng LLM Bên Thứ Ba (OpenRouter Gateway 0đ), Xoay Tua Đa Mô Hình Chống Quá Tải HTTP 429 & Dự Phòng Cục Bộ Offline Safe Engine | AI Assistant | 🟢 Đã Duyệt |
 | **#016** | 12/09/2026 | Redesign Toàn Diện Trang Chủ Phong Cách Y Tế Trắng - Xanh Hiện Đại (Clinical White & Medical Blue) & Hoạt Ảnh Sinh Học Sống Động (ECG Waveform Monitor, Nhịp Tim 2 Pha, Vital Signs) | AI Assistant | 🟢 Đã Duyệt |
@@ -26,6 +27,33 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#020] Tinh Chỉnh Độ Chuẩn Xác Tuyệt Đối (Pixel-Perfect Fidelity) Trang Chủ MedConnect AI: Logo Gốc, Filled Stars Hạt Vàng Cho Đánh Giá Lâm Sàng, Thẻ Bác Sĩ & Dropzone Chuẩn Xác Bản Mẫu
+* **Thời gian:** 2026-09-12 09:44:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-UX-00 & UC-UX-02 (Pixel-Perfect Clinical UI/UX Alignment)
+* **Trạng thái Build:** Frontend `npm run build` PASS (0 lỗi TS, 1669 modules transformed, 2.85s) | Backend `mvn test` PASS (39/39 tests, 0 failures, 4.74s).
+* **Nhánh phát triển:** `feature/homepage-pixel-perfect-fidelity` (phân nhánh từ `develop`).
+
+#### 1. Mục Tiêu & Yêu Cầu Từ Tech Lead
+- Đối chiếu tỉ mỉ từng chi tiết giữa ảnh chụp thực tế từ Tech Lead (`media_1789180792315.png`) và component React `LandingPage.tsx`.
+- Khắc phục các sai khác nhỏ về hình ảnh và glyph:
+  1. Thay thế icon placeholder bằng logo gốc MedConnect AI (hình chữ thập y tế trên nền tròn màu xanh gradient).
+  2. Bổ sung cấu hình thuộc tính `style={{ fontVariationSettings: "'FILL' 1" }}` cho toàn bộ icon sao đánh giá (Testimonials, Doctor Cards, Floating Card) để hiển thị ngôi sao vàng đặc (Solid Gold Stars) thay vì ngôi sao rỗng.
+  3. Cập nhật thẻ bác sĩ trên Navbar với avatar Dr. A. Vance và badge Physician Portal chuẩn xác theo bản thiết kế gốc.
+  4. Chuẩn hóa vùng thả tệp PDF Dropzone: loại bỏ viền nét đứt (dashed border) thô kệch, sử dụng nền phẳng `bg-surface-container-low` thanh lịch.
+  5. Đồng bộ văn bản thanh cảnh báo khẩn cấp đầu trang và các tiêu chuẩn bảo mật e-PHI.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi
+- `[MOD] frontend/index.html`: Bổ sung đường dẫn font `Material Symbols Outlined:wght,FILL@100..700,0..1` từ Google Fonts.
+- `[MOD] frontend/src/pages/LandingPage.tsx`: Cập nhật logo hình ảnh, thẻ bác sĩ navbar, filled stars vàng đặc, tối ưu vùng upload sandbox.
+- `[MOD] docs/WORK_LOG.md`: Thêm bản ghi #020 vào nhật ký kiến trúc.
+
+#### 3. Bằng Chứng Kiểm Thử
+- Frontend: `npm run build` PASS (0 lỗi TS, 2.85s).
+- Backend: `mvn test` PASS (39/39 tests, 0 failures, 4.74s).
 
 ---
 

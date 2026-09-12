@@ -32,8 +32,8 @@ const SAMPLE_DATA: Record<'lipid' | 'thyroid' | 'general', SamplePayload> = {
       { name: "HDL-Cholesterol (Tốt)", ref: "Tham chiếu: > 40 mg/dL", val: "48 mg/dL", status: "Đạt chuẩn ✓", color: "text-secondary" }
     ],
     summary: "Chỉ số mỡ máu toàn phần và triglycerides tăng vừa phải, có thể làm tăng nguy cơ mảng bám động mạch. Khuyến nghị tư vấn Chuyên khoa Tim mạch hoặc Dinh dưỡng lâm sàng.",
-    doctorName: "BS. CKII Nguyễn Minh Tuấn",
-    doctorSpecialty: "Khớp 98% chuyên khoa Tim mạch • BV Tim Hà Nội",
+    doctorName: "Bác sĩ đề xuất: BS. CKII Tuấn",
+    doctorSpecialty: "Khớp 98% chuyên khoa Tim mạch",
     doctorImg: "https://lh3.googleusercontent.com/aida-public/AB6AXuB9dNw07t-qFJgqPYpgTRow1U8l_j39x3P-q9tb_n0VzsrsEN9vLwalX_fEWLBV_yVhCIdggIsmpbL4yOTxmNgt7tvsvspQCq0JIBYMidO6EOOpxxdiQuEXr2x5T6vpHCCKF_kf6mEPGFHm5vNI-a1LpmGs5DByOpQYJfwQVYMvhNv84Rr4vR26Lw7v6EXNA4YHb26fSzZNCqE2Eau4B4mgcmDTtSVXgBYAVj1I9IkSCv4ir_SzFe9m7A"
   },
   thyroid: {
@@ -46,8 +46,8 @@ const SAMPLE_DATA: Record<'lipid' | 'thyroid' | 'general', SamplePayload> = {
       { name: "Anti-TPO (Kháng thể)", ref: "Tham chiếu: < 35 IU/mL", val: "112 IU/mL", status: "Dương tính ↑", color: "text-error" }
     ],
     summary: "Dấu hiệu điển hình của suy giáp nguyên phát (có thể do viêm tuyến giáp Hashimoto). Cần bác sĩ Nội tiết kê đơn bù hormone thyroxine kịp thời.",
-    doctorName: "BS. CKII Lê Hoàng Oanh",
-    doctorSpecialty: "Khớp 99% chuyên khoa Nội Tiết • BV Chợ Rẫy",
+    doctorName: "Bác sĩ đề xuất: BS. CKII Oanh",
+    doctorSpecialty: "Khớp 99% chuyên khoa Nội Tiết",
     doctorImg: "https://lh3.googleusercontent.com/aida-public/AB6AXuB9cJehecZXYTwfOiCCLiPD-OUTDDjCmmHEziK1Uv0tNPqNrHoLh7svXrLl27ip7z5If6dVLpfNVYWjp2sEBO4pFqZNpky6Bezg8HcpfTl5XzS8TMBG0kNgPvUdHyl3uSm450LngbLp4T9ZWuEiYjL6jDVOpU_RuhvunIxvtafIiK6qHJ6ORo3b4asi05dvoiW7RDKDNAaR-SDUPP6Qoef7cU5a9dqyeUdDcSwBTtjnE1Og1lflk3TUuw"
   },
   general: {
@@ -60,8 +60,8 @@ const SAMPLE_DATA: Record<'lipid' | 'thyroid' | 'general', SamplePayload> = {
       { name: "Độ lọc cầu thận eGFR", ref: "Tham chiếu: > 90 mL/min", val: "98 mL/min", status: "Chức năng tốt ✓", color: "text-secondary" }
     ],
     summary: "Tất cả các chỉ số cơ bản của thận, gan và đường huyết đều nằm trong giới hạn tối ưu. Tiếp tục duy trì chế độ sinh hoạt và tái khám định kỳ 6 tháng.",
-    doctorName: "TS. BS. Trần Hải Đăng",
-    doctorSpecialty: "Khớp 96% Nội Tổng Quát & Thần Kinh • BV Bạch Mai",
+    doctorName: "Bác sĩ đề xuất: TS. BS. Đăng",
+    doctorSpecialty: "Khớp 96% Nội Tổng Quát & Thần Kinh",
     doctorImg: "https://lh3.googleusercontent.com/aida-public/AB6AXuB9uyDi1trgqaS24jm6kY_UkDTY6dgNsu-F4UsPKYAsoAAieXS1tOyTq3kLEe7HPhu5sSbTPpZqsg_tGjKkT1iRtXg-X9pIJa4xsr_LxwDcTp6T9pt0MY4pylx2xdIMW34AQuegw3o0a7hMqtBlOV1V5BSa8Z5aApIuka3NxhlFL1tulF16UgD4tq84WiOZNWUHgWhQuRC1ZyPZApHgqUi9HEHS235KSeEOtqYdxk9xHCa1kuT_KamI5g"
   }
 };
@@ -77,9 +77,8 @@ export const LandingPage: React.FC = () => {
 
   const handleSelectSample = (type: 'lipid' | 'thyroid' | 'general') => {
     setActiveSample(type);
-    setProgressWidth(25);
+    setProgressWidth(20);
     setScanPercent('Đang đọc OCR...');
-    setScanStatus('Đang bóc tách chỉ số y khoa bằng AI...');
 
     setTimeout(() => {
       setProgressWidth(100);
@@ -93,14 +92,14 @@ export const LandingPage: React.FC = () => {
       const fileName = e.target.files[0].name;
       setScanStatus(`Đang phân tích: ${fileName}`);
       setProgressWidth(40);
-      setScanPercent('Đang quét OCR...');
+      setScanPercent('40%');
 
       setTimeout(() => {
         setProgressWidth(100);
         setScanPercent('100% (Hoàn tất)');
         setActiveSample('lipid');
         setScanStatus(SAMPLE_DATA.lipid.title);
-      }, 500);
+      }, 600);
     }
   };
 
@@ -126,19 +125,19 @@ export const LandingPage: React.FC = () => {
     <div className="bg-surface font-body-md text-body-md text-on-surface antialiased min-h-screen">
       
       {/* 1. Clinical Emergency Warning Bar */}
-      <header className="fixed top-0 w-full z-50 bg-surface-container-lowest/95 backdrop-blur-xl shadow-[0_1px_8px_rgba(15,41,66,0.04)]">
+      <header className="fixed top-0 w-full z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(15,41,66,0.04)]">
         <div className="bg-error-container text-on-error-container px-margin-sm md:px-margin py-space-2xs">
           <div className="max-w-[1440px] mx-auto flex items-center justify-between font-label-sm text-label-sm">
             <div className="flex items-center gap-space-xs">
               <span className="material-symbols-outlined text-[15px] font-bold">emergency</span>
-              <span>Cảnh báo khẩn cấp hoặc Đe dọa tính mạng: Gọi ngay 115 hoặc di chuyển tới phòng cấp cứu gần nhất.</span>
+              <span>Clinical Emergency or Immediate Threat: Call 911 or visit the nearest ER immediately.</span>
             </div>
             <div className="flex items-center gap-space-md">
-              <a className="flex items-center gap-space-2xs underline font-semibold hover:text-error transition-colors" href="tel:115">
-                Cấp Cứu Toàn Quốc (115)
+              <a className="flex items-center gap-space-2xs underline font-semibold hover:text-error transition-colors" href="tel:988">
+                Crisis Lifeline (988)
               </a>
               <span className="hidden sm:inline text-on-error-container/40">|</span>
-              <span className="hidden sm:inline">Hỗ trợ khẩn cấp: 1-800-555-0199</span>
+              <span className="hidden sm:inline">Fast Dispatch: 1-800-555-0199</span>
             </div>
           </div>
         </div>
@@ -147,30 +146,41 @@ export const LandingPage: React.FC = () => {
         <div className="h-20 max-w-[1440px] mx-auto px-margin-sm md:px-margin flex items-center justify-between gap-space-lg">
           <div className="flex items-center gap-space-lg flex-shrink-0">
             <Link to="/" className="flex items-center gap-space-sm group">
-              <div className="w-9 h-9 rounded-xl bg-primary-container text-secondary-container flex items-center justify-center font-bold shadow-xs group-hover:scale-105 transition-transform">
-                <span className="material-symbols-outlined text-[22px] text-secondary">vital_signs</span>
-              </div>
+              <img
+                alt="MedConnect AI Logo"
+                className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
+                src="https://lh3.googleusercontent.com/aida/AEtjO1UBwKoWHTNVC61PE8gNcnAcd5TNBVOYCcM7JW-n-0ZXrYHWHOifiwm65q6hKTavEG4pe1HojBPg3TiVg3BFDUQ-4cLnEBB8gMY_DrsijqI16uRjnTMn_G0F1cs-f8NGjNjT68dNuTYaS1EpQ3Tu8Xt8vmKBeNUJn_YYfJaPWElwf_Jn2mKYiYzk5QDgns14SFu3HFBW2fOjlNLCVS23dqmt0xiBaamXNfIe_krZzT3-lkE8RqEBOURR0oRV"
+              />
               <span className="font-title-md text-title-md text-primary tracking-tight font-bold">
-                MediAssist<span className="text-secondary"> AI</span>
+                MedConnect AI
               </span>
             </Link>
 
             <div className="hidden xl:flex items-center gap-space-xs bg-surface-container-low text-secondary px-space-sm py-space-2xs rounded-full border border-secondary/20">
               <span className="material-symbols-outlined text-[14px]">verified_user</span>
               <span className="font-label-sm text-label-sm uppercase tracking-wider font-semibold">
-                Chuẩn BYT &amp; HL7 FHIR Encrypted
+                HIPAA Compliant &amp; Encrypted
               </span>
             </div>
           </div>
 
           <nav className="hidden lg:flex items-center gap-space-xs">
-            <a className="px-space-md py-space-xs font-body-md text-body-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors rounded-lg font-medium" href="#">
+            <a
+              className="px-space-md py-space-xs font-body-md text-body-md text-on-surface hover:text-on-surface bg-surface-container-low transition-colors rounded-lg font-medium"
+              href="#"
+            >
               Trang chủ
             </a>
-            <a className="px-space-md py-space-xs font-body-md text-body-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors rounded-lg font-medium" href="#quick-demo">
+            <a
+              className="px-space-md py-space-xs font-body-md text-body-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors rounded-lg font-medium"
+              href="#quick-demo"
+            >
               Report Analysis
             </a>
-            <a className="px-space-md py-space-xs font-body-md text-body-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors rounded-lg font-medium" href="#specialists-section">
+            <a
+              className="px-space-md py-space-xs font-body-md text-body-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors rounded-lg font-medium"
+              href="#specialists-section"
+            >
               Doctor Matches
             </a>
             <button
@@ -180,7 +190,7 @@ export const LandingPage: React.FC = () => {
               Live Consultation
             </button>
             <button
-              onClick={handlePrimaryCta}
+              onClick={() => navigate('/doctor')}
               className="px-space-md py-space-xs font-body-md text-body-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors rounded-lg font-medium cursor-pointer"
             >
               Doctor Workspace
@@ -202,42 +212,37 @@ export const LandingPage: React.FC = () => {
 
             <div className="h-6 w-[1px] bg-outline-variant/40 hidden sm:block"></div>
 
-            {isAuthenticated && user ? (
-              <button
-                onClick={() => {
-                  if (user.role === 'ADMIN') navigate('/admin');
-                  else if (user.role === 'DOCTOR') navigate('/doctor');
-                  else navigate('/patient');
-                }}
-                className="flex items-center gap-space-sm pl-space-2xs cursor-pointer"
+            {/* Physician / User Profile */}
+            <div className="flex items-center gap-space-sm pl-space-2xs">
+              <div
+                className="relative cursor-pointer"
+                onClick={() => navigate(isAuthenticated ? (user?.role === 'ADMIN' ? '/admin' : user?.role === 'DOCTOR' ? '/doctor' : '/patient') : '/login')}
               >
-                <div className="relative">
-                  <div className="w-8 h-8 rounded-full bg-primary-container text-white font-bold flex items-center justify-center text-xs ring-2 ring-primary-fixed">
-                    {user.fullName ? user.fullName.split(' ').slice(-1)[0][0] : 'U'}
-                  </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-secondary ring-2 ring-surface-container-lowest"></span>
-                </div>
-                <div className="flex flex-col text-left">
-                  <span className="font-semibold text-xs text-on-surface">{user.fullName}</span>
-                  <span className="font-label-sm text-label-sm text-outline">{user.role} Portal</span>
-                </div>
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link
-                  to="/login"
-                  className="px-space-md py-space-xs font-label-md text-label-md text-primary hover:bg-surface-container rounded-lg transition-colors"
-                >
-                  Đăng Nhập
-                </Link>
-                <button
-                  onClick={() => navigate('/login')}
-                  className="px-space-md py-space-xs font-label-md text-label-md bg-primary-container hover:bg-primary text-on-primary rounded-lg shadow-sm transition-all cursor-pointer"
-                >
-                  Khám Ngay
-                </button>
+                <img
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full object-cover ring-2 ring-primary-fixed"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9dNw07t-qFJgqPYpgTRow1U8l_j39x3P-q9tb_n0VzsrsEN9vLwalX_fEWLBV_yVhCIdggIsmpbL4yOTxmNgt7tvsvspQCq0JIBYMidO6EOOpxxdiQuEXr2x5T6vpHCCKF_kf6mEPGFHm5vNI-a1LpmGs5DByOpQYJfwQVYMvhNv84Rr4vR26Lw7v6EXNA4YHb26fSzZNCqE2Eau4B4mgcmDTtSVXgBYAVj1I9IkSCv4ir_SzFe9m7A"
+                />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-secondary ring-2 ring-surface-container-lowest"></span>
               </div>
-            )}
+              <div className="flex flex-col">
+                <button
+                  onClick={() => navigate(isAuthenticated ? (user?.role === 'ADMIN' ? '/admin' : user?.role === 'DOCTOR' ? '/doctor' : '/patient') : '/login')}
+                  className="flex items-center gap-space-2xs font-label-md text-label-md text-on-surface hover:text-primary transition-colors cursor-pointer"
+                  type="button"
+                >
+                  <span className="font-semibold">{isAuthenticated && user?.fullName ? user.fullName : 'Dr. A. Vance'}</span>
+                  <span className="material-symbols-outlined text-[16px]">expand_more</span>
+                </button>
+                <div className="flex items-center gap-space-2xs">
+                  <span className="font-label-sm text-label-sm bg-secondary-container text-on-secondary-container px-space-xs py-[1px] rounded font-semibold">
+                    {isAuthenticated && user?.role ? user.role : 'Physician'}
+                  </span>
+                  <span className="font-label-sm text-label-sm text-outline hidden md:inline">Portal</span>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </header>
@@ -259,7 +264,7 @@ export const LandingPage: React.FC = () => {
                 <div className="lg:col-span-7 flex flex-col items-start">
                   
                   {/* Live Status Pill */}
-                  <div className="inline-flex items-center gap-space-xs bg-surface-container-low text-secondary px-space-md py-space-xs rounded-full shadow-xs mb-space-md">
+                  <div className="inline-flex items-center gap-space-xs bg-surface-container-low text-secondary px-space-md py-space-xs rounded-full shadow-sm mb-space-md">
                     <span className="relative flex h-2.5 w-2.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-secondary"></span>
@@ -281,15 +286,15 @@ export const LandingPage: React.FC = () => {
 
                   {/* CTA Buttons Group */}
                   <div className="flex flex-wrap items-center gap-space-md w-full sm:w-auto">
-                    <button
-                      onClick={handlePrimaryCta}
-                      className="inline-flex items-center justify-center gap-space-sm bg-primary-container hover:bg-primary text-on-primary font-title-md text-title-md px-space-xl py-space-md rounded-lg shadow-md transition-all duration-200 transform hover:-translate-y-0.5 cursor-pointer"
+                    <a
+                      className="inline-flex items-center justify-center gap-space-sm bg-primary-container hover:bg-primary text-on-primary font-title-md text-title-md px-space-xl py-space-md rounded-lg shadow-md transition-all duration-200 transform hover:-translate-y-0.5 cursor-pointer font-bold"
+                      href="#quick-demo"
                     >
                       <span className="material-symbols-outlined text-[22px]">upload_file</span>
                       <span>Tải Lên Bệnh Án PDF Miễn Phí</span>
-                    </button>
+                    </a>
                     <a
-                      className="inline-flex items-center justify-center gap-space-sm bg-surface-container-lowest text-primary hover:bg-surface-container font-title-md text-title-md px-space-lg py-space-md rounded-lg shadow-xs transition-all duration-200"
+                      className="inline-flex items-center justify-center gap-space-sm bg-surface-container-lowest text-primary hover:bg-surface-container font-title-md text-title-md px-space-lg py-space-md rounded-lg shadow-sm transition-all duration-200 cursor-pointer font-semibold"
                       href="#specialists-section"
                     >
                       <span className="material-symbols-outlined text-[20px] text-secondary">stethoscope</span>
@@ -332,10 +337,10 @@ export const LandingPage: React.FC = () => {
 
                 {/* Right Column: Hero Visual Showcase with Floating Overlays */}
                 <div className="lg:col-span-5 relative mt-space-lg lg:mt-0">
-                  <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-surface-container-lowest border border-outline-variant/30">
+                  <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-surface-container-lowest">
                     <img
-                      alt="Bác sĩ chuyên khoa MediAssist AI đang tư vấn kết quả phân tích tim mạch trên màn hình cho bệnh nhân"
-                      className="w-full h-auto object-cover max-h-[520px] transform transition-transform duration-700 hover:scale-[1.01]"
+                      alt="Bác sĩ chuyên khoa MedConnect AI đang tư vấn kết quả phân tích tim mạch trên màn hình cho bệnh nhân"
+                      className="w-full h-auto object-cover max-h-[540px] transform transition-transform duration-700 hover:scale-[1.01]"
                       src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKapt12RlJP5C-7szFWNFCLng5nuqRmQ9wnAu6Ozez8-0PKzsEXvMjZY_DN5nQEdWzlLdTLn-x_YWuDHq_uvflmLJQqy4J27uqbKmua_WECsQ0jExiRWvEKL8qCjqr_Bmxbsj_Tsst4a7HeYpEOrQP-M_gKrCy5M9Aigv_08JIhU-pb4vomjnZLR3YTHdgrwhc4oI6ci24GJyyuim1d7RVAR13TQMU-ONgVHzeRkPz0oywlL5sX5Qcfw"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-primary/70 via-transparent to-transparent"></div>
@@ -358,7 +363,7 @@ export const LandingPage: React.FC = () => {
                   </div>
 
                   {/* Floating Card: Specialist Match Overlap */}
-                  <div className="-mt-8 -ml-6 relative z-10 w-72 bg-surface-container-lowest p-space-md rounded-xl shadow-xl hidden sm:flex flex-col gap-space-xs border border-outline-variant/30">
+                  <div className="-mt-8 -ml-6 relative z-10 w-72 bg-surface-container-lowest p-space-md rounded-xl shadow-xl hidden sm:flex flex-col gap-space-xs">
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1 font-label-sm text-label-sm text-secondary font-semibold">
                         <span className="material-symbols-outlined text-[16px]">bolt</span> Ghép Đôi Siêu Tốc
@@ -369,7 +374,7 @@ export const LandingPage: React.FC = () => {
                     <div className="font-body-sm text-body-sm text-outline">Viện Tim Mạch Quốc Gia • 18 năm kinh nghiệm</div>
                     <div className="flex items-center justify-between pt-space-xs mt-space-2xs">
                       <div className="flex items-center text-secondary font-label-sm text-label-sm gap-1">
-                        <span className="material-symbols-outlined text-[16px] text-amber-500">star</span>
+                        <span className="material-symbols-outlined text-[16px] text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
                         <span className="font-bold text-on-surface">4.99</span> (340+ tư vấn)
                       </div>
                       <span className="inline-flex h-2 w-2 rounded-full bg-secondary"></span>
@@ -382,15 +387,15 @@ export const LandingPage: React.FC = () => {
 
             {/* ==================== INTERACTIVE PDF DEMO DROPZONE ==================== */}
             <section className="my-space-2xl" id="quick-demo">
-              <div className="bg-surface-container-low rounded-2xl p-space-lg md:p-space-2xl shadow-xs">
+              <div className="bg-surface-container-low rounded-2xl p-space-lg md:p-space-2xl shadow-sm">
                 <div className="max-w-3xl mx-auto text-center mb-space-xl">
                   <div className="font-label-sm text-label-sm text-secondary uppercase tracking-wider font-semibold mb-space-2xs">
                     Trải Nghiệm Trực Quan
                   </div>
-                  <h2 className="font-headline-lg text-headline-lg text-primary tracking-tight">
+                  <h2 className="font-headline-lg text-headline-lg text-primary tracking-tight font-bold">
                     Thử Nghiệm Tải Lên &amp; Phân Tích Bệnh Án Mẫu
                   </h2>
-                  <p className="font-body-md text-body-md text-on-surface-variant mt-space-xs leading-relaxed">
+                  <p className="font-body-md text-body-md text-on-surface-variant mt-space-xs">
                     Chọn một hồ sơ xét nghiệm có sẵn dưới đây hoặc kéo thả file PDF của bạn để quan sát cách trí tuệ nhân tạo giải mã kết quả y khoa chỉ trong vài giây.
                   </p>
                 </div>
@@ -399,18 +404,18 @@ export const LandingPage: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-stretch">
                   
                   {/* Left 7 cols: Upload and File Selector */}
-                  <div className="lg:col-span-7 flex flex-col justify-between bg-surface-container-lowest p-space-lg rounded-xl shadow-xs border border-outline-variant/30">
+                  <div className="lg:col-span-7 flex flex-col justify-between bg-surface-container-lowest p-space-lg rounded-xl shadow-sm">
                     
                     {/* Sample Files Selector */}
                     <div>
-                      <span className="font-label-md text-label-md text-on-surface-variant mb-space-xs block font-medium">
+                      <span className="font-label-md text-label-md text-on-surface-variant mb-space-xs block">
                         1. Chọn hồ sơ y tế mẫu để chạy demo ngay:
                       </span>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-space-xs mb-space-lg">
                         <button
                           className={`text-left p-space-sm rounded-lg transition-all duration-150 cursor-pointer ${
                             activeSample === 'lipid'
-                              ? 'bg-surface-container text-primary ring-1 ring-secondary/30'
+                              ? 'bg-surface-container text-primary'
                               : 'bg-surface hover:bg-surface-container text-on-surface-variant'
                           }`}
                           onClick={() => handleSelectSample('lipid')}
@@ -425,7 +430,7 @@ export const LandingPage: React.FC = () => {
                         <button
                           className={`text-left p-space-sm rounded-lg transition-all duration-150 cursor-pointer ${
                             activeSample === 'thyroid'
-                              ? 'bg-surface-container text-primary ring-1 ring-secondary/30'
+                              ? 'bg-surface-container text-primary'
                               : 'bg-surface hover:bg-surface-container text-on-surface-variant'
                           }`}
                           onClick={() => handleSelectSample('thyroid')}
@@ -440,7 +445,7 @@ export const LandingPage: React.FC = () => {
                         <button
                           className={`text-left p-space-sm rounded-lg transition-all duration-150 cursor-pointer ${
                             activeSample === 'general'
-                              ? 'bg-surface-container text-primary ring-1 ring-secondary/30'
+                              ? 'bg-surface-container text-primary'
                               : 'bg-surface hover:bg-surface-container text-on-surface-variant'
                           }`}
                           onClick={() => handleSelectSample('general')}
@@ -455,7 +460,7 @@ export const LandingPage: React.FC = () => {
                     </div>
 
                     {/* Drag & Drop zone */}
-                    <div className="relative cursor-pointer bg-surface-container-low hover:bg-surface-container rounded-xl p-space-xl flex flex-col items-center justify-center text-center transition-colors border-2 border-dashed border-outline-variant/50">
+                    <div className="relative cursor-pointer bg-surface-container-low hover:bg-surface-container rounded-xl p-space-xl flex flex-col items-center justify-center text-center transition-colors">
                       <input
                         accept=".pdf,.png,.jpg,.jpeg"
                         className="absolute inset-0 opacity-0 cursor-pointer"
@@ -467,7 +472,7 @@ export const LandingPage: React.FC = () => {
                       </div>
                       <div className="font-title-md text-title-md text-primary font-bold">Kéo và thả tệp PDF bệnh án hoặc hình chụp tại đây</div>
                       <div className="font-body-sm text-body-sm text-outline mt-space-2xs">Hỗ trợ PDF, PNG, JPG, DICOM • Dung lượng tối đa 25MB</div>
-                      <div className="mt-space-md inline-flex items-center gap-2 bg-surface-container-lowest px-space-md py-1.5 rounded-lg shadow-xs text-primary font-label-md text-label-md font-semibold">
+                      <div className="mt-space-md inline-flex items-center gap-2 bg-surface-container-lowest px-space-md py-1.5 rounded-lg shadow-sm text-primary font-label-md text-label-md font-semibold">
                         <span className="material-symbols-outlined text-[18px]">folder_open</span> Duyệt file từ máy tính
                       </div>
                     </div>
@@ -489,7 +494,7 @@ export const LandingPage: React.FC = () => {
                   </div>
 
                   {/* Right 5 cols: Instant Live Diagnosis Simulator Panel */}
-                  <div className="lg:col-span-5 bg-surface-container-lowest p-space-lg rounded-xl shadow-xs flex flex-col justify-between border border-outline-variant/30">
+                  <div className="lg:col-span-5 bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between mb-space-sm">
                         <span className="font-label-md text-label-md font-semibold text-primary uppercase tracking-wide flex items-center gap-1">
@@ -538,7 +543,7 @@ export const LandingPage: React.FC = () => {
                       </div>
                       <button
                         onClick={handleDoctorBooking}
-                        className="w-full flex items-center justify-center gap-2 bg-secondary text-on-secondary hover:bg-on-secondary-container font-title-md text-title-md py-space-sm rounded-lg transition-colors cursor-pointer"
+                        className="w-full flex items-center justify-center gap-2 bg-secondary text-on-secondary hover:bg-on-secondary-container font-title-md text-title-md py-space-sm rounded-lg transition-colors cursor-pointer font-semibold"
                       >
                         <span className="material-symbols-outlined text-[18px]">video_call</span>
                         <span>Đặt Khám Với Bác Sĩ Này Ngay</span>
@@ -571,7 +576,7 @@ export const LandingPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
                 
                 {/* Step 1 */}
-                <div className="bg-surface-container-lowest p-space-xl rounded-2xl shadow-xs relative group hover:shadow-md transition-shadow border border-outline-variant/30">
+                <div className="bg-surface-container-lowest p-space-xl rounded-2xl shadow-sm relative group hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between mb-space-lg">
                     <div className="w-14 h-14 rounded-xl bg-surface-container flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-colors">
                       <span className="material-symbols-outlined text-[28px]">document_scanner</span>
@@ -589,7 +594,7 @@ export const LandingPage: React.FC = () => {
                 </div>
 
                 {/* Step 2 */}
-                <div className="bg-surface-container-lowest p-space-xl rounded-2xl shadow-xs relative group hover:shadow-md transition-shadow border border-outline-variant/30">
+                <div className="bg-surface-container-lowest p-space-xl rounded-2xl shadow-sm relative group hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between mb-space-lg">
                     <div className="w-14 h-14 rounded-xl bg-secondary-container flex items-center justify-center text-on-secondary-container group-hover:bg-secondary group-hover:text-on-secondary transition-colors">
                       <span className="material-symbols-outlined text-[28px]">analytics</span>
@@ -607,7 +612,7 @@ export const LandingPage: React.FC = () => {
                 </div>
 
                 {/* Step 3 */}
-                <div className="bg-surface-container-lowest p-space-xl rounded-2xl shadow-xs relative group hover:shadow-md transition-shadow border border-outline-variant/30">
+                <div className="bg-surface-container-lowest p-space-xl rounded-2xl shadow-sm relative group hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between mb-space-lg">
                     <div className="w-14 h-14 rounded-xl bg-primary-fixed flex items-center justify-center text-on-primary-fixed group-hover:bg-primary group-hover:text-on-primary transition-colors">
                       <span className="material-symbols-outlined text-[28px]">video_chat</span>
@@ -650,7 +655,7 @@ export const LandingPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-space-lg border-t border-surface-container-high/20 flex flex-wrap items-center justify-between gap-space-md">
+              <div className="pt-space-lg border-t-0 flex flex-wrap items-center justify-between gap-space-md">
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-surface-variant font-semibold">
                   Tiêu Chuẩn Tuân Thủ Y Tế Quốc Tế:
                 </span>
@@ -698,7 +703,7 @@ export const LandingPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
                 
                 {/* Doctor 1 */}
-                <div className="bg-surface-container-lowest rounded-2xl p-space-lg shadow-xs hover:shadow-md transition-all flex flex-col justify-between border border-outline-variant/30">
+                <div className="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between border-0">
                   <div>
                     <div className="flex items-center gap-space-md mb-space-md">
                       <img
@@ -718,7 +723,7 @@ export const LandingPage: React.FC = () => {
                     <div className="flex items-center justify-between text-body-sm font-body-sm mb-space-md bg-surface p-space-xs rounded-lg">
                       <span className="text-on-surface-variant">Đánh giá:</span>
                       <span className="font-semibold text-primary flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[16px] text-amber-500">star</span>
+                        <span className="material-symbols-outlined text-[16px] text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
                         4.98 (420 lượt)
                       </span>
                     </div>
@@ -732,7 +737,7 @@ export const LandingPage: React.FC = () => {
                     </div>
                     <button
                       onClick={handleDoctorBooking}
-                      className="w-full py-2.5 rounded-lg bg-primary-container text-on-primary font-title-md text-title-md hover:bg-primary transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full py-2.5 rounded-lg bg-primary-container text-on-primary font-title-md text-title-md hover:bg-primary transition-colors flex items-center justify-center gap-2 cursor-pointer font-semibold"
                     >
                       <span className="material-symbols-outlined text-[18px]">calendar_today</span> Đặt Lịch Tư Vấn
                     </button>
@@ -740,7 +745,7 @@ export const LandingPage: React.FC = () => {
                 </div>
 
                 {/* Doctor 2 */}
-                <div className="bg-surface-container-lowest rounded-2xl p-space-lg shadow-xs hover:shadow-md transition-all flex flex-col justify-between border border-outline-variant/30">
+                <div className="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between border-0">
                   <div>
                     <div className="flex items-center gap-space-md mb-space-md">
                       <img
@@ -760,7 +765,7 @@ export const LandingPage: React.FC = () => {
                     <div className="flex items-center justify-between text-body-sm font-body-sm mb-space-md bg-surface p-space-xs rounded-lg">
                       <span className="text-on-surface-variant">Đánh giá:</span>
                       <span className="font-semibold text-primary flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[16px] text-amber-500">star</span>
+                        <span className="material-symbols-outlined text-[16px] text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
                         4.99 (512 lượt)
                       </span>
                     </div>
@@ -774,7 +779,7 @@ export const LandingPage: React.FC = () => {
                     </div>
                     <button
                       onClick={handleDoctorBooking}
-                      className="w-full py-2.5 rounded-lg bg-primary-container text-on-primary font-title-md text-title-md hover:bg-primary transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full py-2.5 rounded-lg bg-primary-container text-on-primary font-title-md text-title-md hover:bg-primary transition-colors flex items-center justify-center gap-2 cursor-pointer font-semibold"
                     >
                       <span className="material-symbols-outlined text-[18px]">calendar_today</span> Đặt Lịch Tư Vấn
                     </button>
@@ -782,7 +787,7 @@ export const LandingPage: React.FC = () => {
                 </div>
 
                 {/* Doctor 3 */}
-                <div className="bg-surface-container-lowest rounded-2xl p-space-lg shadow-xs hover:shadow-md transition-all flex flex-col justify-between border border-outline-variant/30">
+                <div className="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between border-0">
                   <div>
                     <div className="flex items-center gap-space-md mb-space-md">
                       <img
@@ -802,7 +807,7 @@ export const LandingPage: React.FC = () => {
                     <div className="flex items-center justify-between text-body-sm font-body-sm mb-space-md bg-surface p-space-xs rounded-lg">
                       <span className="text-on-surface-variant">Đánh giá:</span>
                       <span className="font-semibold text-primary flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[16px] text-amber-500">star</span>
+                        <span className="material-symbols-outlined text-[16px] text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
                         4.96 (280 lượt)
                       </span>
                     </div>
@@ -816,7 +821,7 @@ export const LandingPage: React.FC = () => {
                     </div>
                     <button
                       onClick={handleDoctorBooking}
-                      className="w-full py-2.5 rounded-lg bg-primary-container text-on-primary font-title-md text-title-md hover:bg-primary transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full py-2.5 rounded-lg bg-primary-container text-on-primary font-title-md text-title-md hover:bg-primary transition-colors flex items-center justify-center gap-2 cursor-pointer font-semibold"
                     >
                       <span className="material-symbols-outlined text-[18px]">calendar_today</span> Đặt Lịch Tư Vấn
                     </button>
@@ -840,15 +845,17 @@ export const LandingPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-space-lg">
                   {/* Patient Review */}
-                  <div className="bg-surface-container-lowest p-space-xl rounded-xl shadow-xs flex flex-col justify-between border border-outline-variant/30">
+                  <div className="bg-surface-container-lowest p-space-xl rounded-xl shadow-sm flex flex-col justify-between">
                     <div>
                       <div className="flex items-center gap-1 text-amber-500 mb-space-sm">
                         {[...Array(5)].map((_, i) => (
-                          <span key={i} className="material-symbols-outlined text-[18px]">star</span>
+                          <span key={i} className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                            star
+                          </span>
                         ))}
                       </div>
                       <p className="font-body-md text-body-md text-on-surface italic mb-space-md leading-relaxed">
-                        “Cầm tờ kết quả xét nghiệm máu với 4 chỉ số bôi đỏ, tôi thực sự hoang mang không biết phải đi khám khoa nào trước. Sau khi tải PDF lên MediAssist AI, hệ thống giải thích mạch lạc mức độ nguy cơ và kết nối ngay với BS Tuấn. Buổi khám trực tuyến kéo dài 25 phút giúp tôi an tâm tuyệt đối.”
+                        “Cầm tờ kết quả xét nghiệm máu với 4 chỉ số bôi đỏ, tôi thực sự hoang mang không biết phải đi khám khoa nào trước. Sau khi tải PDF lên MedConnect AI, hệ thống giải thích mạch lạc mức độ nguy cơ và kết nối ngay với BS Tuấn. Buổi khám trực tuyến kéo dài 25 phút giúp tôi an tâm tuyệt đối.”
                       </p>
                     </div>
                     <div className="flex items-center gap-space-sm pt-space-sm border-t-0">
@@ -863,15 +870,17 @@ export const LandingPage: React.FC = () => {
                   </div>
 
                   {/* Physician Review */}
-                  <div className="bg-surface-container-lowest p-space-xl rounded-xl shadow-xs flex flex-col justify-between border border-outline-variant/30">
+                  <div className="bg-surface-container-lowest p-space-xl rounded-xl shadow-sm flex flex-col justify-between">
                     <div>
                       <div className="flex items-center gap-1 text-amber-500 mb-space-sm">
                         {[...Array(5)].map((_, i) => (
-                          <span key={i} className="material-symbols-outlined text-[18px]">star</span>
+                          <span key={i} className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                            star
+                          </span>
                         ))}
                       </div>
                       <p className="font-body-md text-body-md text-on-surface italic mb-space-md leading-relaxed">
-                        “MediAssist AI giúp bác sĩ tiết kiệm ít nhất 10 phút đọc lại các chồng giấy xét nghiệm cũ. Khi tôi bắt đầu phiên khám, toàn bộ lịch sử bệnh án và các chỉ số quan trọng đã được hệ thống OCR và chuẩn hóa theo chuẩn quốc tế, giúp việc đưa ra phác đồ chính xác hơn rất nhiều.”
+                        “MedConnect AI giúp bác sĩ tiết kiệm ít nhất 10 phút đọc lại các chồng giấy xét nghiệm cũ. Khi tôi bắt đầu phiên khám, toàn bộ lịch sử bệnh án và các chỉ số quan trọng đã được hệ thống OCR và chuẩn hóa theo chuẩn quốc tế, giúp việc đưa ra phác đồ chính xác hơn rất nhiều.”
                       </p>
                     </div>
                     <div className="flex items-center gap-space-sm pt-space-sm border-t-0">
@@ -895,7 +904,7 @@ export const LandingPage: React.FC = () => {
                 <div className="absolute -left-16 -top-16 w-64 h-64 bg-secondary/20 rounded-full blur-3xl pointer-events-none"></div>
                 <div className="max-w-2xl">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary text-on-secondary font-label-sm text-label-sm font-semibold mb-space-sm">
-                    <span className="material-symbols-outlined text-[14px]">shield_person</span> Bảo mật e-PHI chuẩn Bộ Y Tế
+                    <span className="material-symbols-outlined text-[14px]">shield_person</span> Bảo mật e-PHI chuẩn Hoa Kỳ
                   </span>
                   <h2 className="font-display-lg text-display-lg text-white tracking-tight mb-space-xs font-bold">
                     Sẵn Sàng Hiểu Rõ Tình Trạng Sức Khỏe Của Bạn?
@@ -906,14 +915,14 @@ export const LandingPage: React.FC = () => {
                 </div>
                 <div className="flex flex-col sm:flex-row items-center gap-space-sm shrink-0 w-full lg:w-auto">
                   <a
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-secondary-fixed text-on-secondary-fixed hover:bg-secondary-fixed-dim font-title-md text-title-md px-space-xl py-space-md rounded-lg shadow-md transition-all font-bold"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-secondary-fixed text-on-secondary-fixed hover:bg-secondary-fixed-dim font-title-md text-title-md px-space-xl py-space-md rounded-lg shadow-md transition-all font-bold cursor-pointer"
                     href="#quick-demo"
                   >
                     <span className="material-symbols-outlined text-[20px]">upload_file</span>
                     <span>Tải Bệnh Án Ngay Bây Giờ</span>
                   </a>
                   <a
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-surface-container-lowest/10 hover:bg-surface-container-lowest/20 text-white font-title-md text-title-md px-space-lg py-space-md rounded-lg transition-colors font-semibold"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-surface-container-lowest/10 hover:bg-surface-container-lowest/20 text-white font-title-md text-title-md px-space-lg py-space-md rounded-lg transition-colors font-semibold cursor-pointer"
                     href="#specialists-section"
                   >
                     <span>Tìm Bác Sĩ Phù Hợp</span>
@@ -929,12 +938,12 @@ export const LandingPage: React.FC = () => {
       {/* ==================== FOOTER ==================== */}
       <footer className="w-full bg-surface-container-low border-t border-outline-variant/20 py-space-xl mt-space-2xl">
         <div className="max-w-[1440px] mx-auto px-margin-sm md:px-margin flex flex-col md:flex-row items-center justify-between gap-space-md text-on-surface-variant font-body-sm text-body-sm">
-          <div>© 2026 MediAssist-AI Clinical Technologies Inc. All rights reserved. Encrypted e-PHI Infrastructure.</div>
+          <div>© 2026 MedConnect AI Clinical Technologies Inc. All rights reserved. Encrypted e-PHI Infrastructure.</div>
           <div className="flex items-center gap-space-lg font-medium">
-            <Link to="/login" className="hover:text-on-surface hover:underline">Cổng Bác Sĩ</Link>
-            <Link to="/login" className="hover:text-on-surface hover:underline">Cổng Quản Trị Viên</Link>
-            <a className="hover:text-on-surface hover:underline" href="#">Bảo Mật HIPAA / ISO 27001</a>
-            <a className="hover:text-on-surface hover:underline text-error" href="tel:115">Khẩn Cấp 115</a>
+            <a className="hover:text-on-surface hover:underline" href="#">HIPAA Notice</a>
+            <a className="hover:text-on-surface hover:underline" href="#">Security Protocol</a>
+            <a className="hover:text-on-surface hover:underline" href="#">Specialist Directory</a>
+            <a className="hover:text-on-surface hover:underline" href="#">Emergency Terms</a>
           </div>
         </div>
       </footer>
