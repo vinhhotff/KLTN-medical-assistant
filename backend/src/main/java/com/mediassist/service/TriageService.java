@@ -26,17 +26,20 @@ public class TriageService {
     private final TriageSessionRepository triageSessionRepository;
     private final SpecialtyRepository specialtyRepository;
     private final UserRepository userRepository;
+    private final ClinicalRagService clinicalRagService;
 
     public TriageService(RedFlagService redFlagService,
                          DoctorSemanticSearchService doctorSemanticSearchService,
                          TriageSessionRepository triageSessionRepository,
                          SpecialtyRepository specialtyRepository,
-                         UserRepository userRepository) {
+                         UserRepository userRepository,
+                         ClinicalRagService clinicalRagService) {
         this.redFlagService = redFlagService;
         this.doctorSemanticSearchService = doctorSemanticSearchService;
         this.triageSessionRepository = triageSessionRepository;
         this.specialtyRepository = specialtyRepository;
         this.userRepository = userRepository;
+        this.clinicalRagService = clinicalRagService;
     }
 
     @Transactional
@@ -70,6 +73,15 @@ public class TriageService {
                 4
         );
 
+        // 5. Clinical RAG Triage Reasoning (OpenRouter / Fallback)
+        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performTriageRagAnalysis(symptoms, urgency.name(), matchedDoctors);
+        if (ragResult.getSbarSummary() != null && !ragResult.getSbarSummary().isBlank()) {
+            sbar = ragResult.getSbarSummary();
+        }
+        if (ragResult.getAiAdvice() != null && !ragResult.getAiAdvice().isBlank()) {
+            aiAdvice = ragResult.getAiAdvice();
+        }
+
         // 5. Persist Triage Session
         TriageSession session = new TriageSession();
         session.setUser(patientUser);
@@ -96,6 +108,8 @@ public class TriageService {
         response.setAiAdvice(aiAdvice);
         response.setClarifyingQuestions(clarifyingQuestions);
         response.setMatchedDoctors(matchedDoctors);
+        response.setModelUsed(ragResult.getModelUsed());
+        response.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
 
         return response;
     }

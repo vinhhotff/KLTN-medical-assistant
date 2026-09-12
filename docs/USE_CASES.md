@@ -385,3 +385,17 @@ graph TD
      - Gói tiết kiệm: 99.000đ / 5 lượt phân tích (tiết kiệm 32%).
 
 
+
+### UC-12: Điều Phối RAG Lâm Sàng & Xoay Tua Đa Mô Hình AI Ngăn Ngừa Nghẽn Token (Clinical RAG & Multi-LLM Rotation Gateway)
+
+* **Mã Use Case:** `UC-AI-12`
+* **Tác nhân chính:** Patient, `AiModelRouter`, `OpenRouterAiProvider`, `DeterministicFallbackAiProvider`, `ClinicalRagService`.
+* **Mục tiêu:** Cung cấp hạ tầng suy luận lâm sàng kết hợp RAG (Retrieval-Augmented Generation) thông minh, tận dụng OpenRouter Free Gateway (`google/gemini-2.0-flash-exp:free`, `meta-llama/llama-3.3-70b-instruct:free`, `deepseek/deepseek-r1:free`), tự động xoay tua mô hình khi nhận mã lỗi `HTTP 429 Too Many Requests` và kích hoạt Fallback an toàn về động cơ phân tích quy tắc cục bộ (0ms latency, 0đ chi phí), bảo đảm tính sẵn sàng 99.9% cho hệ thống y tế.
+* **REST Endpoints Liên Quan:**
+  - `POST /api/v1/triage/assess`: Kích hoạt RAG Triage kết hợp phân tích SBAR và khuyến nghị Bác sĩ ưu tiên.
+  - `POST /api/v1/documents/analyze`: Kích hoạt RAG Phân tích xét nghiệm kết hợp đối chiếu chỉ số và giải thích ngôn ngữ bình dân.
+* **Quy Trình Xoay Tua (Rotation Algorithm):**
+  1. Hệ thống nạp danh sách mô hình từ cấu hình `app.ai.openrouter.models`.
+  2. Lần lượt thử nghiệm từng mô hình trong pool qua API OpenRouter.
+  3. Nếu mô hình trả về mã lỗi `HTTP 429` (Rate Limit) hoặc `HTTP 503` (Overloaded), ghi nhận cảnh báo cảnh giới và lập tức chuyển tiếp payload sang mô hình kế tiếp.
+  4. Nếu toàn bộ mô hình trên đám mây đều quá tải hoặc mất mạng internet: Hệ thống kích hoạt `DeterministicFallbackAiProvider` để sinh kết quả lâm sàng chuẩn xác, đảm bảo trải nghiệm người bệnh không bao giờ bị gián đoạn hoặc gặp màn hình lỗi.

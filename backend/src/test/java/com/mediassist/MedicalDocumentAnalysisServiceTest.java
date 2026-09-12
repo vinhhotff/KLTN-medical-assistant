@@ -58,6 +58,9 @@ class MedicalDocumentAnalysisServiceTest {
     @Mock
     private StorageService storageService;
 
+    @Mock
+    private com.mediassist.service.ClinicalRagService clinicalRagService;
+
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -68,6 +71,13 @@ class MedicalDocumentAnalysisServiceTest {
 
     @BeforeEach
     void setUp() {
+        com.mediassist.ai.ClinicalAiResult mockResult = new com.mediassist.ai.ClinicalAiResult();
+        mockResult.setModelUsed("google/gemini-2.0-flash-exp:free (OpenRouter)");
+        mockResult.setClinicalSummary("Tóm tắt lâm sàng từ RAG OpenRouter");
+        mockResult.setPlainLanguageExplanation("Giải thích bình dân từ AI");
+        mockResult.setDoctorRecommendationReason("Bác sĩ có CCHN và chuyên môn phù hợp nhất");
+        lenient().when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any())).thenReturn(mockResult);
+
         testUser = new com.mediassist.model.entity.User();
         testUser.setId(UUID.randomUUID());
         testUser.setEmail("patient@mediassist.local");

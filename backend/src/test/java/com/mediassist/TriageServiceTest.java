@@ -47,11 +47,20 @@ class TriageServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private com.mediassist.service.ClinicalRagService clinicalRagService;
+
     @InjectMocks
     private TriageService triageService;
 
     @BeforeEach
     void setUp() {
+        com.mediassist.ai.ClinicalAiResult mockResult = new com.mediassist.ai.ClinicalAiResult();
+        mockResult.setModelUsed("google/gemini-2.0-flash-exp:free (OpenRouter)");
+        mockResult.setSbarSummary("SBAR RAG summary");
+        mockResult.setAiAdvice("Clinical advice from AI");
+        lenient().when(clinicalRagService.performTriageRagAnalysis(any(), any(), any())).thenReturn(mockResult);
+
         when(triageSessionRepository.save(any(TriageSession.class)))
                 .thenAnswer(inv -> {
                     TriageSession s = inv.getArgument(0);
