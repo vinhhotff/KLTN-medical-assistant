@@ -47,6 +47,20 @@ Thiết kế trong y tế không chỉ mang tính thẩm mỹ mà là một ph�
 
 ---
 
+
+### 2.4. Kiến Trúc Clinical RAG & Giải Bài Toán "Đốt Tiền Token" Bằng OpenRouter Gateway 0đ
+Trong các ứng dụng y tế thông thường, nhà phát triển thường mắc phải hai sai lầm lớn:
+1. **Lạm dụng API độc quyền trả phí đắt đỏ:** Sử dụng trực tiếp OpenAI GPT-4o với chi phí hàng chục đô-la mỗi ngày khiến ngân sách vận hành cạn kiệt nhanh chóng trong giai đoạn thử nghiệm và triển khai tại các bệnh viện công.
+2. **Rủi ro phụ thuộc một nhà cung cấp (Vendor Lock-in):** Khi OpenAI hoặc Google gặp sự cố mạng hoặc khóa API key, toàn bộ hệ sinh thái bệnh viện bị tê liệt.
+
+**Cách tiếp cận đột phá của MediAssist-AI:**
+* **Kiến trúc RAG (Retrieval-Augmented Generation):** Không gửi toàn bộ dữ liệu thô vào LLM một cách lãng phí. Hệ thống trước hết dùng `pgvector` để truy xuất đúng top 4 bác sĩ phù hợp nhất và dùng bộ lọc sinh hóa trích xuất các chỉ số bất thường. Sau đó, một *Augmented Prompt* súc tích được tạo ra và gửi tới LLM.
+* **OpenRouter Free Tier Gateway:** Tận dụng OpenRouter API để truy cập các mô hình mở tiên tiến nhất hoàn toàn miễn phí (`Gemini 2.0 Flash Free`, `Llama 3.3 70B Free`, `DeepSeek R1 Free`).
+* **Cơ chế Xoay Tua Tự Động (Auto-Rotation on HTTP 429):** Mô hình miễn phí thường xuyên bị giới hạn tần suất trong giờ cao điểm. Thuật toán `AiModelRouter` tự động bắt mã `HTTP 429` và nhảy sang mô hình dự phòng kế tiếp trong chưa đầy 1 giây mà người dùng không hề hay biết.
+* **Động cơ Offline Safe Fallback Engine:** Nếu toàn bộ mô hình đám mây bị ngắt, động cơ phân tích quy tắc cục bộ sẽ kích hoạt ngay lập tức, đảm bảo bệnh nhân luôn nhận được đánh giá an toàn mà không bao giờ gặp lỗi sập web.
+
+---
+
 ## 3. Chân Dung Người Dùng & Bản Đồ Đồng Cảm (User Personas & Empathy Map)
 
 ### Persona 1: Bác Ba (63 tuổi, nông dân tại Vĩnh Long)

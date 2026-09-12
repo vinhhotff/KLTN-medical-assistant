@@ -16,6 +16,8 @@ public class DoctorMatchDto {
     private List<String> specialties;
     private String academicTitle;
     private String hospitalAffiliation;
+    private boolean aiRecommended;
+    private String aiRecommendationReason;
 
     public DoctorMatchDto() {}
 
@@ -69,4 +71,10 @@ public class DoctorMatchDto {
 
     public String getHospitalAffiliation() { return hospitalAffiliation; }
     public void setHospitalAffiliation(String hospitalAffiliation) { this.hospitalAffiliation = hospitalAffiliation; }
+
+    public boolean isAiRecommended() { return aiRecommended; }
+    public void setAiRecommended(boolean aiRecommended) { this.aiRecommended = aiRecommended; }
+
+    public String getAiRecommendationReason() { return aiRecommendationReason; }
+    public void setAiRecommendationReason(String aiRecommendationReason) { this.aiRecommendationReason = aiRecommendationReason; }
 }

@@ -11,6 +11,7 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
+| **#017** | 12/09/2026 | Hoàn Tất Milestone 7: Tích Hợp Clinical RAG Bằng LLM Bên Thứ Ba (OpenRouter Gateway 0đ), Xoay Tua Đa Mô Hình Chống Quá Tải HTTP 429 & Dự Phòng Cục Bộ Offline Safe Engine | AI Assistant | 🟢 Sẵn sàng Review |
 | **#016** | 12/09/2026 | Redesign Toàn Diện Trang Chủ Phong Cách Y Tế Trắng - Xanh Hiện Đại (Clinical White & Medical Blue) & Hoạt Ảnh Sinh Học Sống Động (ECG Waveform Monitor, Nhịp Tim 2 Pha, Vital Signs) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#015** | 12/09/2026 | Tái Thiết Kế Giao Diện Trang Chủ Telehealth Hiện Đại & Khắc Phục Lỗi Tương Phản/Màu Chữ Trang Đăng Nhập | AI Assistant | 🟢 Sẵn sàng Review |
 | **#014** | 11/09/2026 | Khắc Phục Lỗi TypeScript Toàn Diện & Xây Dựng Trang Đích 3D Scroll-World (Three.js WebGL Fly-Through Landing Page theo Chuẩn `oso95/scroll-world`) | AI Assistant | 🟢 Đã Duyệt |
@@ -23,6 +24,75 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#017] Hoàn Tất Milestone 7: Clinical RAG Bằng LLM Bên Thứ Ba (OpenRouter Free Gateway 0đ), Xoay Tua Mô Hình Chống Quá Tải HTTP 429 & Dự Phòng Cục Bộ Offline Safe Engine
+* **Thời gian:** 2026-09-12 09:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-CLIN-02 (Triage RAG), UC-CLIN-03 (Document Analysis RAG), UC-AI-12 (Multi-LLM Rotation Gateway)
+* **Trạng thái Build:** 
+  - Backend: `mvn test` PASS (39/39 tests, 0 lỗi, thời gian chạy 6.172s).
+  - Frontend: `npm run build` PASS (0 lỗi TS, 1670 modules transformed, 2.80s).
+* **Nhánh phát triển:** `feature/milestone-7-rag-openrouter-failover` (tách từ `develop`).
+
+#### 1. Mục Tiêu & Yêu Cầu Từ Tech Lead
+- Trả lời và hiện thực hóa trọn vẹn chỉ đạo của Tech Lead:
+  1. *"Hiện tại quét PDF đang dùng model gì, đề xuất user và doctor hoạt động sao, hiện tại đang hardcode à, mọi thứ phải có sự đề xuất của bên thứ 3 chứ"*: Trước đây PDF quét bằng Apache PDFBox + Regex sinh hóa và pgvector cosine similarity nhưng thiếu sự lập luận y khoa của mô hình ngôn ngữ lớn bên thứ ba.
+  2. *"Hiện tại tôi muốn dùng RAG để đề xuất và xoay chuyển AI khi hết token"*: Xây dựng pipeline Clinical RAG (Retrieval-Augmented Generation) kết hợp truy xuất ngữ nghĩa từ pgvector + kết quả xét nghiệm/triệu chứng, đưa vào mô hình LLM để đưa ra lý do đề xuất bác sĩ chuyên sâu và tóm tắt SBAR.
+  3. *"Thêm vào nhưng hiện ở local tôi dùng với openrouter để tiết kiệm chi phí được không, free mà chứ giờ mà test dùng model thật thì đốt tiền lắm"*: Tích hợp OpenRouter AI Gateway sử dụng các mô hình Free-tier (`google/gemini-2.0-flash-exp:free`, `meta-llama/llama-3.3-70b-instruct:free`, `deepseek/deepseek-r1:free`, `qwen/qwen-2.5-72b-instruct:free`), với chi phí vận hành 0đ, tự động xoay tua model khi gặp lỗi HTTP 429 (Rate Limit), và fallback về Offline Deterministic Safe Engine nếu toàn bộ API bên ngoài quá tải.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi
+- `[NEW] backend/src/main/java/com/mediassist/ai/ClinicalAiResult.java`: DTO chuẩn hóa kết quả lâm sàng từ LLM (tóm tắt SBAR, giải thích bệnh nhân, chỉ số sinh hóa, mã bác sĩ đề xuất, lý do đề xuất, model đã dùng).
+- `[NEW] backend/src/main/java/com/mediassist/ai/AiProviderOverloadedException.java`: Ngoại lệ chuyên biệt ném ra khi API AI trả về mã HTTP 429 hoặc 503 để kích hoạt xoay tua model.
+- `[NEW] backend/src/main/java/com/mediassist/ai/AiProvider.java`: Giao diện chung (Strategy Pattern) cho các dịch vụ AI.
+- `[NEW] backend/src/main/java/com/mediassist/ai/OpenRouterAiProvider.java`: Hiện thực gọi OpenRouter `/chat/completions` bằng Spring 6 `RestClient`, bóc tách JSON có cấu trúc, xử lý rate limit.
+- `[NEW] backend/src/main/java/com/mediassist/ai/DeterministicFallbackAiProvider.java`: Động cơ suy luận quy tắc lâm sàng cục bộ (Offline Safe Engine) đảm bảo hệ thống không bao giờ sập ngay cả khi mất mạng internet hoặc hết token.
+- `[NEW] backend/src/main/java/com/mediassist/ai/AiModelRouter.java`: Quản trị viên điều phối xoay tua mô hình trong pool `configuredModels` (Gemini 2.0 Flash -> Llama 3.3 -> DeepSeek R1 -> Offline Fallback).
+- `[NEW] backend/src/main/java/com/mediassist/service/ClinicalRagService.java`: Dịch vụ ghép bối cảnh RAG kết hợp kết quả truy xuất pgvector bác sĩ + triệu chứng/xét nghiệm, gắn cờ `aiRecommended = true` và `aiRecommendationReason`.
+- `[NEW] backend/src/test/java/com/mediassist/ai/AiModelRouterTest.java`: Unit test kiểm thử xoay tua khi gặp 429 và fallback an toàn.
+- `[NEW] backend/src/test/java/com/mediassist/service/ClinicalRagServiceTest.java`: Unit test kiểm thử RAG prompt assembly và đánh dấu bác sĩ được AI đề xuất.
+- `[MOD] backend/src/main/java/com/mediassist/dto/DoctorMatchDto.java`: Thêm `aiRecommended` và `aiRecommendationReason`.
+- `[MOD] backend/src/main/java/com/mediassist/dto/DocumentAnalysisResponse.java`: Thêm `modelUsed` và `doctorRecommendationReason`.
+- `[MOD] backend/src/main/java/com/mediassist/dto/TriageResponse.java`: Thêm `modelUsed` và `doctorRecommendationReason`.
+- `[MOD] backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`: Nối ghép `ClinicalRagService` vào quy trình phân tích tài liệu.
+- `[MOD] backend/src/main/java/com/mediassist/service/TriageService.java`: Nối ghép `ClinicalRagService` vào quy trình Triage triệu chứng.
+- `[MOD] backend/src/main/resources/application.properties` & `application-dev.properties`: Cấu hình OpenRouter Gateway (`app.ai.openrouter.*`).
+- `[MOD] backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java`: Cập nhật mock `ClinicalRagService`.
+- `[MOD] backend/src/test/java/com/mediassist/TriageServiceTest.java`: Cập nhật mock `ClinicalRagService`.
+- `[MOD] frontend/src/pages/patient/DocumentSummarizerPage.tsx`: Hiển thị huy hiệu Động cơ AI đã sử dụng (Model attribution) và làm nổi bật danh thiếp bác sĩ được AI đề xuất kèm lý do chuyên môn.
+- `[MOD] frontend/src/pages/patient/SymptomTriagePage.tsx`: Hiển thị huy hiệu Động cơ Triage AI và lý do đề xuất bác sĩ.
+- `[MOD] docs/USE_CASES.md`: Đồng bộ đặc tả UC-CLIN-02, UC-CLIN-03 và bổ sung UC-AI-12.
+- `[MOD] docs/STORYTELLING.md`: Bổ sung kiến trúc RAG OpenRouter 0đ bảo vệ ngân sách khởi nghiệp.
+- `[MOD] docs/CAPSTONE_DEFENSE.md`: Bổ sung 2 câu hỏi phản biện chuyên sâu về RAG & Model Failover.
+- `[MOD] docs/WORK_LOG.md`: Thêm bản ghi #017.
+
+#### 3. Bằng Chứng Kiểm Thử & Xác Minh Kỹ Thuật
+- **Backend Tests Verification (`mvn test`):**
+  ```text
+  [INFO] Running com.mediassist.ai.AiModelRouterTest
+  09:29:57.775 [main] WARN com.mediassist.ai.AiModelRouter -- Model 'google/gemini-2.0-flash-exp:free' rate limited (HTTP 429). Rotating to next model in pool...
+  09:29:57.782 [main] INFO com.mediassist.ai.AiModelRouter -- Routing to OpenRouter free model: 'meta-llama/llama-3.3-70b-instruct:free'...
+  09:29:57.783 [main] INFO com.mediassist.ai.AiModelRouter -- Successfully processed by model 'meta-llama/llama-3.3-70b-instruct:free'
+  [INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0 -- in com.mediassist.ai.AiModelRouterTest
+  [INFO] Running com.mediassist.service.ClinicalRagServiceTest
+  [INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0 -- in com.mediassist.service.ClinicalRagServiceTest
+  [INFO] Results:
+  [INFO] Tests run: 39, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS
+  ```
+- **Frontend Build Verification (`npm run build`):**
+  ```text
+  > mediassist-frontend@1.0.0 build
+  > tsc && vite build
+  ✓ 1670 modules transformed.
+  ✓ built in 2.80s
+  ```
+
+#### 4. Điểm Nóng Tech Lead Cần Review
+1. **Kiến trúc OpenRouter Strategy & Fallback:** `AiModelRouter` đọc chuỗi mô hình ưu tiên từ cấu hình `app.ai.openrouter.models`. Khi chạy local không cần cấu hình API key đắt tiền, hệ thống tự động nhận diện và fallback sang mô hình quy tắc offline hoặc gọi qua API free của OpenRouter mà không gây gián đoạn dịch vụ.
+2. **Clinical RAG Flow:** Dữ liệu bác sĩ từ pgvector được nhúng vào context prompt kèm học vị, số năm kinh nghiệm, bệnh viện công tác để LLM phân tích và chọn ra bác sĩ phù hợp nhất thay vì chọn ngẫu nhiên.
+3. **Chi Phí Vận Hành 0đ:** Hoàn toàn không tốn ngân sách của chủ sở hữu (Owner) khi kiểm thử và demo đồ án.
 
 ---
 

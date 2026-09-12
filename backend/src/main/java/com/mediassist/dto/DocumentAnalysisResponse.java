@@ -18,6 +18,8 @@ public class DocumentAnalysisResponse {
     private List<DoctorMatchDto> matchedDoctors;
     private String storageUrl;
     private boolean cachedResult;
+    private String modelUsed;
+    private String doctorRecommendationReason;
 
     public DocumentAnalysisResponse() {}
 
@@ -59,4 +61,10 @@ public class DocumentAnalysisResponse {
 
     public boolean isCachedResult() { return cachedResult; }
     public void setCachedResult(boolean cachedResult) { this.cachedResult = cachedResult; }
+
+    public String getModelUsed() { return modelUsed; }
+    public void setModelUsed(String modelUsed) { this.modelUsed = modelUsed; }
+
+    public String getDoctorRecommendationReason() { return doctorRecommendationReason; }
+    public void setDoctorRecommendationReason(String doctorRecommendationReason) { this.doctorRecommendationReason = doctorRecommendationReason; }
 }

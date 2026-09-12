@@ -35,6 +35,7 @@ public class MedicalDocumentAnalysisService {
     private final ObjectMapper objectMapper;
     private final MedicalDocumentValidator medicalDocumentValidator;
     private final StorageService storageService;
+    private final ClinicalRagService clinicalRagService;
 
     public MedicalDocumentAnalysisService(PdfExtractionService pdfExtractionService,
                                           DoctorSemanticSearchService doctorSemanticSearchService,
@@ -43,7 +44,8 @@ public class MedicalDocumentAnalysisService {
                                           UserRepository userRepository,
                                           ObjectMapper objectMapper,
                                           MedicalDocumentValidator medicalDocumentValidator,
-                                          StorageService storageService) {
+                                          StorageService storageService,
+                                          ClinicalRagService clinicalRagService) {
         this.pdfExtractionService = pdfExtractionService;
         this.doctorSemanticSearchService = doctorSemanticSearchService;
         this.medicalDocumentRepository = medicalDocumentRepository;
@@ -52,6 +54,7 @@ public class MedicalDocumentAnalysisService {
         this.objectMapper = objectMapper;
         this.medicalDocumentValidator = medicalDocumentValidator;
         this.storageService = storageService;
+        this.clinicalRagService = clinicalRagService;
     }
 
     @Transactional
@@ -157,21 +160,29 @@ public class MedicalDocumentAnalysisService {
         // 5. Cloud Storage Upload (Supabase Storage with resilient local fallback)
         String storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
 
-        // 6. Parse clinical indicators and abnormal findings
-        List<AbnormalIndicatorDto> indicators = parseIndicators(extractedText, fileName);
-
-        // 7. Determine recommended medical specialty
-        SpecialtyTarget specialty = determineSpecialtyFromFindings(extractedText, fileName, indicators);
-
-        // 8. Generate Clinical Scribe Summary & Plain-Language Explanation
-        String clinicalSummary = generateClinicalSummary(indicators, specialty);
-        String plainExplanation = generatePlainLanguageExplanation(indicators, specialty);
-        List<String> suggestedQuestions = generateSuggestedQuestions(specialty, indicators);
-
-        // 9. Semantic Doctor Recommendation via pgvector Cosine Similarity
-        String queryForDoctorMatch = String.format("%s. Chuyên khoa %s. %s",
-                clinicalSummary, specialty.name(), specialty.slug());
+        // 6. Semantic Doctor Retrieval via pgvector Cosine Similarity
+        String queryForDoctorMatch = (extractedText != null && !extractedText.isBlank()) ? extractedText : fileName;
         List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(queryForDoctorMatch, 4);
+
+        // 7. Clinical RAG Analysis (Retrieval-Augmented Generation with OpenRouter / Fallback Engine)
+        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(extractedText, fileName, matchedDoctors);
+
+        // 8. Integrate structured indicators and clinical findings
+        List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
+                ? ragResult.getIndicators()
+                : parseIndicators(extractedText, fileName);
+
+        SpecialtyTarget specialty = determineSpecialtyFromFindings(extractedText, fileName, indicators);
+        String specialtySlug = ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank()
+                ? ragResult.getRecommendedSpecialtySlug() : specialty.slug();
+        String specialtyName = ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank()
+                ? ragResult.getRecommendedSpecialtyName() : specialty.name();
+        String clinicalSummary = ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank()
+                ? ragResult.getClinicalSummary() : generateClinicalSummary(indicators, specialty);
+        String plainExplanation = ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank()
+                ? ragResult.getPlainLanguageExplanation() : generatePlainLanguageExplanation(indicators, specialty);
+        List<String> suggestedQuestions = (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty())
+                ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(specialty, indicators);
 
         // 10. Persist MedicalDocument & DocumentAnalysis
         MedicalDocument medDoc = new MedicalDocument();
@@ -223,6 +234,8 @@ public class MedicalDocumentAnalysisService {
         response.setMatchedDoctors(matchedDoctors);
         response.setStorageUrl(storageUrl);
         response.setCachedResult(false);
+        response.setModelUsed(ragResult.getModelUsed());
+        response.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
 
         return response;
     }

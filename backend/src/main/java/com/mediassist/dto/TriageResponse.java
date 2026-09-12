@@ -17,6 +17,8 @@ public class TriageResponse {
     private String aiAdvice;
     private List<String> clarifyingQuestions;
     private List<DoctorMatchDto> matchedDoctors;
+    private String modelUsed;
+    private String doctorRecommendationReason;
 
     public TriageResponse() {}
 
@@ -49,4 +51,10 @@ public class TriageResponse {
 
     public List<DoctorMatchDto> getMatchedDoctors() { return matchedDoctors; }
     public void setMatchedDoctors(List<DoctorMatchDto> matchedDoctors) { this.matchedDoctors = matchedDoctors; }
+
+    public String getModelUsed() { return modelUsed; }
+    public void setModelUsed(String modelUsed) { this.modelUsed = modelUsed; }
+
+    public String getDoctorRecommendationReason() { return doctorRecommendationReason; }
+    public void setDoctorRecommendationReason(String doctorRecommendationReason) { this.doctorRecommendationReason = doctorRecommendationReason; }
 }

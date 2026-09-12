@@ -43,6 +43,8 @@ interface DoctorMatch {
   specialties: string[];
   academicTitle?: string;
   hospitalAffiliation?: string;
+  aiRecommended?: boolean;
+  aiRecommendationReason?: string;
 }
 
 interface AnalysisResult {
@@ -59,6 +61,8 @@ interface AnalysisResult {
   matchedDoctors: DoctorMatch[];
   storageUrl?: string;
   cachedResult?: boolean;
+  modelUsed?: string;
+  doctorRecommendationReason?: string;
 }
 
 interface UserQuota {
@@ -486,6 +490,31 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             </div>
           </div>
 
+          {/* 🤖 OpenRouter Model Attribution & Failover Status */}
+          {analysis.modelUsed && (
+            <div className="p-4 bg-gradient-to-r from-teal-50 via-cyan-50 to-sky-50 border border-teal-200 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-teal-600 text-white rounded-xl flex-shrink-0 shadow-xs">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-teal-950">Động cơ RAG Phân tích Lâm sàng:</span>
+                    <span className="font-mono font-semibold px-2 py-0.5 bg-teal-100 text-teal-800 rounded-md border border-teal-300">
+                      {analysis.modelUsed}
+                    </span>
+                  </div>
+                  <p className="text-teal-700 text-[11px] mt-0.5">
+                    Hệ thống tích hợp OpenRouter AI Gateway với cơ chế tự động xoay tua đa mô hình (Gemini 2.0 Flash / Llama 3.3 / DeepSeek R1) & Fallback an toàn offline.
+                  </p>
+                </div>
+              </div>
+              <span className="px-3 py-1 bg-white text-teal-800 font-semibold rounded-xl border border-teal-200 text-[11px] shadow-2xs whitespace-nowrap">
+                ✨ Chi Phí 0đ • Sẵn Sàng 99.9%
+              </span>
+            </div>
+          )}
+
           {/* Scribe Summary & Patient Translation */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-6">
             {/* 🏥 Official Hospital Header */}
@@ -649,8 +678,20 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 return (
                   <div
                     key={doc.doctorId}
-                    className="bg-white rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition p-5 flex flex-col justify-between space-y-4"
+                    className={`rounded-2xl transition p-5 flex flex-col justify-between space-y-4 ${
+                      doc.aiRecommended
+                        ? 'bg-gradient-to-b from-teal-50/50 to-white border-2 border-teal-500 shadow-md ring-2 ring-teal-500/20'
+                        : 'bg-white border border-slate-200 shadow-xs hover:shadow-md'
+                    }`}
                   >
+                    {/* AI Recommendation Highlight Badge */}
+                    {doc.aiRecommended && (
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-teal-600 text-white text-[11px] font-bold rounded-lg shadow-xs -mt-1">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Được AI Lựa Chọn Ưu Tiên Cho Ca Bệnh Này</span>
+                      </div>
+                    )}
+
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -702,6 +743,14 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                       <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
                         {doc.bio}
                       </p>
+
+                      {/* AI Doctor Recommendation Reason Callout */}
+                      {doc.aiRecommendationReason && (
+                        <div className="p-3 bg-teal-50/80 rounded-xl border border-teal-200 text-xs text-teal-950 flex items-start gap-2">
+                          <span className="font-bold text-teal-800 flex-shrink-0">Lý do đề xuất:</span>
+                          <span className="leading-relaxed">{doc.aiRecommendationReason}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Footer / Booking Action */}

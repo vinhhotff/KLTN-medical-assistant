@@ -25,6 +25,10 @@ interface DoctorMatch {
   consultationFee: number;
   similarityScore: number;
   specialties: string[];
+  academicTitle?: string;
+  hospitalAffiliation?: string;
+  aiRecommended?: boolean;
+  aiRecommendationReason?: string;
 }
 
 interface TriageResponseData {
@@ -38,6 +42,8 @@ interface TriageResponseData {
   aiAdvice: string;
   clarifyingQuestions: string[];
   matchedDoctors: DoctorMatch[];
+  modelUsed?: string;
+  doctorRecommendationReason?: string;
 }
 
 interface DoctorSlot {
@@ -331,6 +337,26 @@ export const SymptomTriagePage: React.FC = () => {
               </div>
             </div>
 
+            {/* 🤖 OpenRouter AI Model Badge */}
+            {result.modelUsed && (
+              <div className="p-3 bg-gradient-to-r from-indigo-50 via-purple-50 to-blue-50 border border-indigo-200 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-indigo-600 text-white rounded-lg">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-indigo-900">Động cơ Phân Luồng & Triage Lâm Sàng: </span>
+                    <span className="font-mono font-semibold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-md border border-indigo-300">
+                      {result.modelUsed}
+                    </span>
+                  </div>
+                </div>
+                <span className="px-2.5 py-0.5 bg-white text-indigo-800 font-medium rounded-full text-[11px] border border-indigo-300">
+                  OpenRouter 0đ Gateway • Tự động Xoay Tua Model
+                </span>
+              </div>
+            )}
+
             {/* SBAR Text Block */}
             <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 font-mono text-xs text-slate-800 whitespace-pre-line leading-relaxed">
               {result.sbarSummary}
@@ -382,8 +408,18 @@ export const SymptomTriagePage: React.FC = () => {
                 return (
                   <div
                     key={doc.doctorId}
-                    className="bg-white rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition p-5 flex flex-col justify-between space-y-4"
+                    className={`rounded-2xl transition p-5 flex flex-col justify-between space-y-4 ${
+                      doc.aiRecommended
+                        ? 'bg-gradient-to-b from-indigo-50/50 to-white border-2 border-indigo-500 shadow-md ring-2 ring-indigo-500/20'
+                        : 'bg-white border border-slate-200 shadow-xs hover:shadow-md'
+                    }`}
                   >
+                    {doc.aiRecommended && (
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600 text-white text-[11px] font-bold rounded-lg shadow-xs -mt-1">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Được AI Lựa Chọn Ưu Tiên Cho Ca Bệnh Này</span>
+                      </div>
+                    )}
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -421,6 +457,13 @@ export const SymptomTriagePage: React.FC = () => {
                       <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
                         {doc.bio}
                       </p>
+
+                      {doc.aiRecommendationReason && (
+                        <div className="p-3 bg-indigo-50/80 rounded-xl border border-indigo-200 text-xs text-indigo-950 flex items-start gap-2">
+                          <span className="font-bold text-indigo-800 flex-shrink-0">Lý do đề xuất:</span>
+                          <span className="leading-relaxed">{doc.aiRecommendationReason}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Footer / Booking Action */}
