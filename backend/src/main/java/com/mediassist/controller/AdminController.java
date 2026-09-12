@@ -1,9 +1,7 @@
 package com.mediassist.controller;
 
 import com.mediassist.common.ApiResponse;
-import com.mediassist.dto.DoctorDetailDto;
-import com.mediassist.dto.UserDto;
-import com.mediassist.dto.VetDoctorRequest;
+import com.mediassist.dto.*;
 import com.mediassist.security.UserPrincipal;
 import com.mediassist.service.AdminVettingService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,5 +47,24 @@ public class AdminController {
     @Operation(summary = "List all registered users", description = "Returns user account details for admin supervision.")
     public ResponseEntity<ApiResponse<List<UserDto>>> getAllUsers() {
         return ResponseEntity.ok(ApiResponse.success(adminVettingService.getAllUsers()));
+    }
+
+    @PatchMapping("/users/{id}/status")
+    @Operation(summary = "Update user account status", description = "Admin can suspend or reactivate a user account.")
+    public ResponseEntity<ApiResponse<UserDto>> updateUserStatus(
+            @PathVariable("id") UUID id,
+            @Valid @RequestBody UpdateUserStatusRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UserDto result = adminVettingService.updateUserStatus(id, request.getStatus(), request.getReason(), principal.getId());
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PostMapping("/specialties")
+    @Operation(summary = "Create medical specialty", description = "Admin adds a new clinical specialty to the catalog.")
+    public ResponseEntity<ApiResponse<SpecialtyDto>> createSpecialty(
+            @Valid @RequestBody CreateSpecialtyRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        SpecialtyDto result = adminVettingService.createSpecialty(request, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 }

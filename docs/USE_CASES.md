@@ -400,3 +400,38 @@ graph TD
   2. Lần lượt thử nghiệm từng mô hình trong pool qua API OpenRouter.
   3. Nếu mô hình trả về mã lỗi `HTTP 429` (Rate Limit) hoặc `HTTP 503` (Overloaded), ghi nhận cảnh báo cảnh giới và lập tức chuyển tiếp payload sang mô hình kế tiếp.
   4. Nếu toàn bộ mô hình trên đám mây đều quá tải hoặc mất mạng internet: Hệ thống kích hoạt `DeterministicFallbackAiProvider` để sinh kết quả lâm sàng chuẩn xác, đảm bảo trải nghiệm người bệnh không bao giờ bị gián đoạn hoặc gặp màn hình lỗi.
+
+---
+
+### UC-13: Quản Trị Tài Khoản Người Dùng & Danh Mục Chuyên Khoa Lâm Sàng (Admin RBAC & Specialty Management)
+
+* **Mã Use Case:** `UC-ADM-13`
+* **Tác nhân chính:** System Administrator, PostgreSQL Database, AuditLogRepository.
+* **Mục tiêu:** Cho phép Quản trị viên kiểm soát toàn diện trạng thái tài khoản người dùng theo mô hình RBAC và mở rộng danh mục chuyên khoa phục vụ AI Triage và ghép bác sĩ pgvector.
+* **REST Endpoints Liên Quan:**
+  - `GET /api/v1/admin/users`: Danh sách toàn bộ tài khoản trong hệ thống.
+  - `PATCH /api/v1/admin/users/{id}/status`: Cập nhật trạng thái người dùng (`ACTIVE` <-> `SUSPENDED`) kèm lý do và ghi nhận Audit Log.
+  - `POST /api/v1/admin/specialties`: Thêm mới chuyên khoa lâm sàng (`name`, `slug`, `description`) kèm kiểm tra trùng lặp slug và ghi nhận Audit Log.
+* **Quy Trình Hoạt Động:**
+  1. Quản trị viên truy cập `/admin/users`, chọn người dùng cần khóa/mở khóa.
+  2. Hệ thống mở Modal xác nhận, yêu cầu nhập lý do điều chỉnh để lưu vết kiểm toán pháp lý y tế.
+  3. Khi gửi yêu cầu, backend cập nhật cột `status` trong bảng `users` và ghi một bản ghi mới vào bảng `audit_logs` với `admin_id`.
+  4. Quản trị viên truy cập `/admin/specialties`, nhấn "Thêm Chuyên Khoa", nhập tên chuyên khoa. Hệ thống tự động sinh `slug` chuẩn hóa (loại bỏ dấu tiếng Việt, ký tự đặc biệt).
+  5. Sau khi lưu, chuyên khoa mới lập tức sẵn sàng để các Bác sĩ đăng ký và AI Triage phân luồng.
+
+---
+
+### UC-14: Thanh Toán Sandbox VietQR & Nạp Quota / Kích Hoạt Hội Viên VIP Tức Thì (Sandbox Payment Gateway & Instant Quota Fulfillment)
+
+* **Mã Use Case:** `UC-PAY-14`
+* **Tác nhân chính:** Patient, Payment Gateway Simulator (VietQR Pro / VNPAY / MoMo), MedicalDocumentAnalysisService, PostgreSQL.
+* **Mục tiêu:** Cung cấp trải nghiệm nạp hạn ngạch quét tài liệu y tế và nâng cấp gói VIP mượt mà, trực quan với mã QR ngân hàng NAPAS 247 và cơ chế xác thực thanh toán Sandbox tức thì (0đ tiền thật).
+* **REST Endpoints Liên Quan:**
+  - `GET /api/v1/documents/quota`: Kiểm tra số lượt quét còn lại, gói hội viên (`subscriptionTier`), hạn sử dụng VIP (`vipValidUntil`) và quyền được quét (`hasQuota`).
+  - `POST /api/v1/documents/quota/purchase`: Gửi yêu cầu thanh toán gói dịch vụ (`BASIC_5`, `VIP_MONTHLY`, `VIP_ENTERPRISE`) và phương thức thanh toán (`VIETQR`, `VNPAY`, `MOMO`).
+* **Quy Trình Nghiệp Vụ:**
+  1. Bệnh nhân bấm nút chọn gói (Gói Lẻ 29k, Gói Tiết Kiệm 99k, Gói VIP Gia Đình 149k) trên trang Quét Hồ Sơ.
+  2. Giao diện mở Modal Thanh Toán với mã VietQR mô phỏng (Ngân hàng MB Bank, STK 999988886666, Chủ tài khoản BENH VIEN DIEN TU MEDIASSIST) cùng nội dung chuyển khoản tự động gắn email bệnh nhân.
+  3. Bệnh nhân nhấn "Xác Nhận Đã Chuyển Khoản (Sandbox Auto-Verify)".
+  4. Backend xử lý cộng ngay hạn ngạch (ví dụ: +5 lượt quét cho gói `BASIC_5`, hoặc kích hoạt 30 ngày VIP cho gói `VIP_MONTHLY`) và cập nhật cơ sở dữ liệu `users`.
+  5. Giao diện frontend cập nhật trực tiếp huy hiệu VIP / số lượt quét trên thanh trạng thái mà không cần tải lại trang.

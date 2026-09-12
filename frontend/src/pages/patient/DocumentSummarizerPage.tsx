@@ -18,7 +18,11 @@ import {
   RotateCcw,
   ExternalLink,
   Zap,
-  Crown
+  Crown,
+  QrCode,
+  CreditCard,
+  Wallet,
+  BadgeCheck
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -110,6 +114,43 @@ export const DocumentSummarizerPage: React.FC = () => {
   // Quota & Commercial Monetization State
   const [quota, setQuota] = useState<UserQuota | null>(null);
   const [showPricingModal, setShowPricingModal] = useState(false);
+
+  // Sandbox Payment Checkout Modal State
+  const [selectedPaymentPackage, setSelectedPaymentPackage] = useState<{
+    packageId: string;
+    title: string;
+    price: string;
+    priceNum: number;
+    benefits: string;
+  } | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'VIETQR' | 'VNPAY' | 'MOMO'>('VIETQR');
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [paymentSuccessToast, setPaymentSuccessToast] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  const handleConfirmPayment = async () => {
+    if (!selectedPaymentPackage) return;
+    try {
+      setProcessingPayment(true);
+      setPaymentError(null);
+      const res = await api.post('/documents/quota/purchase', {
+        packageId: selectedPaymentPackage.packageId,
+        paymentMethod,
+      });
+      if (res.data?.data) {
+        setQuota(res.data.data);
+        setPaymentSuccessToast(`Thanh toán thành công! Bạn đã kích hoạt thành công ${selectedPaymentPackage.title}.`);
+        setSelectedPaymentPackage(null);
+        setShowPricingModal(false);
+        setTimeout(() => setPaymentSuccessToast(null), 5000);
+      }
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
+      setPaymentError(axiosError.response?.data?.error?.message || 'Giao dịch thanh toán không thành công.');
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
 
   const fetchQuota = async () => {
     try {
@@ -303,6 +344,18 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-16">
+      {paymentSuccessToast && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-sm font-semibold text-emerald-800 animate-fadeIn shadow-xs">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <span>{paymentSuccessToast}</span>
+          </div>
+          <button onClick={() => setPaymentSuccessToast(null)} className="text-slate-400 hover:text-slate-600 p-1">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -978,9 +1031,15 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 <button
                   type="button"
                   onClick={() => {
-                    alert('Hệ thống đang tích hợp cổng thanh toán trực tuyến VNPAY/MoMo cho phiên bản Doanh Nghiệp!');
+                    setSelectedPaymentPackage({
+                      packageId: 'BASIC_5',
+                      title: 'Gói Lẻ (+5 Lượt Phân Tích)',
+                      price: '29.000đ',
+                      priceNum: 29000,
+                      benefits: '+5 lượt quét trích xuất chỉ số sinh hóa và gợi ý bác sĩ',
+                    });
                   }}
-                  className="w-full py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold transition"
+                  className="w-full py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold transition cursor-pointer"
                 >
                   Mua 1 Lượt (29k)
                 </button>
@@ -1004,9 +1063,15 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 <button
                   type="button"
                   onClick={() => {
-                    alert('Hệ thống đang tích hợp cổng thanh toán trực tuyến VNPAY/MoMo cho phiên bản Doanh Nghiệp!');
+                    setSelectedPaymentPackage({
+                      packageId: 'VIP_MONTHLY',
+                      title: 'Gói Tiết Kiệm (30 Ngày VIP)',
+                      price: '99.000đ',
+                      priceNum: 99000,
+                      benefits: 'Không giới hạn lượt quét tài liệu y tế trong 30 ngày',
+                    });
                   }}
-                  className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+                  className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
                 >
                   Mua Gói 5 Lượt (99k)
                 </button>
@@ -1030,9 +1095,15 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 <button
                   type="button"
                   onClick={() => {
-                    alert('Hệ thống đang tích hợp cổng thanh toán trực tuyến VNPAY/MoMo cho phiên bản Doanh Nghiệp!');
+                    setSelectedPaymentPackage({
+                      packageId: 'VIP_ENTERPRISE',
+                      title: 'MediPass VIP Gia Đình (90 Ngày VIP)',
+                      price: '149.000đ',
+                      priceNum: 149000,
+                      benefits: 'Không giới hạn lượt quét trong 90 ngày cho cả gia đình',
+                    });
                   }}
-                  className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+                  className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
                 >
                   Đăng Ký VIP (149k/tháng)
                 </button>
@@ -1041,6 +1112,154 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
 
             <div className="p-4 bg-slate-50 rounded-2xl text-slate-500 text-xs text-center border border-slate-200">
               💡 <em>Chính sách chống lãng phí token: Người bệnh tải lại cùng một tài liệu (SHA-256 Deduplication) sẽ <strong>được miễn phí 100%</strong> trọn đời và không tiêu tốn thêm lượt quét.</em>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sandbox Payment & VietQR Checkout Modal */}
+      {selectedPaymentPackage && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Thanh Toán Dịch Vụ Y Tế</h3>
+                  <p className="text-xs text-slate-500">Cổng thanh toán điện tử & Quỹ khám bệnh MediAssist</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedPaymentPackage(null)}
+                className="p-1 rounded-xl text-slate-400 hover:text-slate-600 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {paymentError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{paymentError}</span>
+              </div>
+            )}
+
+            {/* Package Summary */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-900">{selectedPaymentPackage.title}</p>
+                <p className="text-[11px] text-teal-700 font-medium">{selectedPaymentPackage.benefits}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs text-slate-400 block">Tổng tiền</span>
+                <span className="text-lg font-black text-teal-700">{selectedPaymentPackage.price}</span>
+              </div>
+            </div>
+
+            {/* Payment Method Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-700 block">Chọn phương thức thanh toán:</label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('VIETQR')}
+                  className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                    paymentMethod === 'VIETQR'
+                      ? 'border-teal-600 bg-teal-50/60 text-teal-900'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <QrCode className="w-4 h-4 text-teal-600" />
+                  <span>VietQR Pro</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('VNPAY')}
+                  className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                    paymentMethod === 'VNPAY'
+                      ? 'border-teal-600 bg-teal-50/60 text-teal-900'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Wallet className="w-4 h-4 text-blue-600" />
+                  <span>VNPAY QR</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('MOMO')}
+                  className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                    paymentMethod === 'MOMO'
+                      ? 'border-teal-600 bg-teal-50/60 text-teal-900'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <CreditCard className="w-4 h-4 text-pink-600" />
+                  <span>Ví MoMo</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Simulated VietQR Payment Details */}
+            <div className="p-4 bg-teal-50/40 rounded-2xl border border-teal-200/80 flex flex-col items-center text-center space-y-3">
+              <div className="w-36 h-36 bg-white p-2 rounded-2xl border border-slate-200 shadow-xs flex flex-col items-center justify-center relative">
+                {/* SVG Mock QR Code */}
+                <svg viewBox="0 0 100 100" className="w-28 h-28 text-slate-900">
+                  <rect x="5" y="5" width="25" height="25" fill="currentColor" />
+                  <rect x="10" y="10" width="15" height="15" fill="white" />
+                  <rect x="12" y="12" width="11" height="11" fill="currentColor" />
+                  <rect x="70" y="5" width="25" height="25" fill="currentColor" />
+                  <rect x="75" y="10" width="15" height="15" fill="white" />
+                  <rect x="77" y="12" width="11" height="11" fill="currentColor" />
+                  <rect x="5" y="70" width="25" height="25" fill="currentColor" />
+                  <rect x="10" y="75" width="15" height="15" fill="white" />
+                  <rect x="12" y="77" width="11" height="11" fill="currentColor" />
+                  <rect x="40" y="15" width="20" height="5" fill="currentColor" />
+                  <rect x="45" y="25" width="10" height="5" fill="currentColor" />
+                  <rect x="40" y="40" width="20" height="20" fill="currentColor" />
+                  <rect x="70" y="40" width="10" height="10" fill="currentColor" />
+                  <rect x="85" y="40" width="10" height="10" fill="currentColor" />
+                  <rect x="40" y="70" width="15" height="15" fill="currentColor" />
+                  <rect x="65" y="70" width="20" height="5" fill="currentColor" />
+                  <rect x="70" y="80" width="25" height="15" fill="currentColor" />
+                </svg>
+                <span className="text-[9px] font-mono font-bold text-teal-800 uppercase tracking-wider">VietQR NAPAS 247</span>
+              </div>
+              <div className="space-y-1 text-xs">
+                <p className="font-semibold text-slate-800">Ngân hàng TMCP Quân Đội (MB Bank)</p>
+                <p className="text-slate-600 font-mono">Số tài khoản: <strong className="text-slate-900">9999 8888 6666</strong></p>
+                <p className="text-slate-600 font-mono">Chủ tài khoản: <strong>BENH VIEN DIEN TU MEDIASSIST</strong></p>
+                <p className="text-[11px] text-teal-800 bg-teal-100/70 px-2.5 py-1 rounded-lg font-mono">
+                  Nội dung: NAPQUOTA {user?.email?.split('@')[0]?.toUpperCase()}
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedPaymentPackage(null)}
+                className="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPayment}
+                disabled={processingPayment}
+                className="px-5 py-2.5 text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl transition shadow-xs flex items-center gap-2 cursor-pointer"
+              >
+                {processingPayment ? (
+                  'Đang xử lý giao dịch...'
+                ) : (
+                  <>
+                    <BadgeCheck className="w-4 h-4" />
+                    Xác Nhận Đã Chuyển Khoản (Sandbox Auto-Verify)
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

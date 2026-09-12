@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mediassist.dto.AbnormalIndicatorDto;
 import com.mediassist.dto.DoctorMatchDto;
 import com.mediassist.dto.DocumentAnalysisResponse;
+import com.mediassist.dto.PurchaseQuotaRequest;
+import com.mediassist.dto.UserQuotaDto;
 import com.mediassist.model.entity.DocumentAnalysis;
 import com.mediassist.model.entity.MedicalDocument;
 import com.mediassist.model.entity.User;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.text.Normalizer;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -360,6 +363,62 @@ public class MedicalDocumentAnalysisService {
                 user.getVipValidUntil(),
                 isVip,
                 user.hasScanQuota()
+        );
+    }
+
+    @Transactional
+    public UserQuotaDto purchaseQuota(String userEmail, PurchaseQuotaRequest request) {
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new com.mediassist.common.AppException(
+                    org.springframework.http.HttpStatus.UNAUTHORIZED,
+                    "UNAUTHORIZED",
+                    "Vui lòng đăng nhập tài khoản."
+            );
+        }
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new com.mediassist.common.AppException(
+                        org.springframework.http.HttpStatus.NOT_FOUND,
+                        "USER_NOT_FOUND",
+                        "Người dùng không tồn tại trên hệ thống."
+                ));
+
+        String pkg = request.getPackageId() != null ? request.getPackageId().toUpperCase() : "BASIC_5";
+        LocalDateTime now = LocalDateTime.now();
+
+        switch (pkg) {
+            case "VIP_MONTHLY" -> {
+                user.setSubscriptionTier("VIP_MONTHLY");
+                LocalDateTime validUntil = (user.getVipValidUntil() != null && user.getVipValidUntil().isAfter(now))
+                        ? user.getVipValidUntil().plusDays(30)
+                        : now.plusDays(30);
+                user.setVipValidUntil(validUntil);
+                log.info("💎 [PURCHASE] User {} subscribed to VIP_MONTHLY until {}", userEmail, validUntil);
+            }
+            case "VIP_ENTERPRISE" -> {
+                user.setSubscriptionTier("VIP_ENTERPRISE");
+                LocalDateTime validUntil = (user.getVipValidUntil() != null && user.getVipValidUntil().isAfter(now))
+                        ? user.getVipValidUntil().plusDays(90)
+                        : now.plusDays(90);
+                user.setVipValidUntil(validUntil);
+                log.info("💎 [PURCHASE] User {} subscribed to VIP_ENTERPRISE until {}", userEmail, validUntil);
+            }
+            default -> { // BASIC_5
+                user.setScanQuota(user.getScanQuota() + 5);
+                if (user.getSubscriptionTier() == null) {
+                    user.setSubscriptionTier("BASIC");
+                }
+                log.info("💳 [PURCHASE] User {} purchased +5 scan quota. Total quota: {}", userEmail, user.getScanQuota());
+            }
+        }
+
+        User updated = userRepository.save(user);
+        boolean isVip = updated.getSubscriptionTier() != null && updated.getSubscriptionTier().toUpperCase().contains("VIP");
+        return new UserQuotaDto(
+                updated.getScanQuota(),
+                updated.getSubscriptionTier(),
+                updated.getVipValidUntil(),
+                isVip,
+                updated.hasScanQuota()
         );
     }
 

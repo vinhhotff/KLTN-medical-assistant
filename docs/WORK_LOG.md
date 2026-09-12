@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#028** | 12/09/2026 | Khắc Phục Triệt Để Lỗi Lệch ID Bác Sĩ Khi Đặt Khám Từ AI Recommendations, Hỗ Trợ Đa Nhận Diện Dual-ID (User & Profile) & Tự Động Mở Modal Đặt Khám Từ Trang Chủ | AI Assistant | 🟢 Sẵn sàng Review |
+| **#029** | 12/09/2026 | Hoàn Thiện Các Tính Năng Hệ Thống: Quản Trị User (Khóa/Mở Tài Khoản RBAC), Quản Trị Chuyên Khoa Mới, Cổng Thanh Toán Sandbox VietQR Nạp Quota/VIP & Loại Bỏ 100% alert() Bằng Modal Y Tế | AI Assistant | 🟢 Sẵn sàng Review |
+| **#028** | 12/09/2026 | Khắc Phục Triệt Để Lỗi Lệch ID Bác Sĩ Khi Đặt Khám Từ AI Recommendations, Hỗ Trợ Đa Nhận Diện Dual-ID (User & Profile) & Tự Động Mở Modal Đặt Khám Từ Trang Chủ | AI Assistant | 🟢 Đã Duyệt |
 | **#027** | 12/09/2026 | Loại Bỏ Hoàn Toàn Mockdata, Khắc Phục Lỗi Tự Động Đề Xuất Bệnh Án Khi Ảnh Không Hợp Lệ, Tích Hợp Multimodal Vision & Kết Nối Toàn Bộ Bóc Tách Vào Spring Boot Backend Thật (Cổng 5000 + pgvector 5433) | AI Assistant | 🟢 Đã Duyệt |
 | **#026** | 12/09/2026 | Giải Thích Hiện Tượng PDF Rỗng Quét Ra Data, Tích Hợp Xác Thực Chặn File Rỗng (< 100 Bytes) & Cung Cấp Bộ Quét Mock 4 Giai Đoạn Kèm PDF Bệnh Án Mẫu Chuẩn BYT | AI Assistant | 🟢 Đã Duyệt |
 | **#025** | 12/09/2026 | Sửa Lỗi Logic Đánh Giá Độ Mạnh Mật Khẩu (Off-By-One Fallthrough Bug) & Nâng Cấp UI Trực Quan Chuẩn An Toàn Y Tế | AI Assistant | 🟢 Đã Duyệt |
@@ -35,6 +36,56 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#029] Hoàn Thiện Các Tính Năng Hệ Thống: Quản Trị User (Khóa/Mở Tài Khoản RBAC), Quản Trị Chuyên Khoa Mới, Cổng Thanh Toán Sandbox VietQR Nạp Quota/VIP & Loại Bỏ 100% alert() Bằng Modal Y Tế
+* **Thời gian:** 2026-09-12 19:35:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-ADM-13 (Admin RBAC & Specialty Management), UC-PAY-14 (Sandbox Payment & Quota Fulfillment), UC-BIZ-11
+* **Trạng thái Dịch vụ:**
+  - Docker Desktop Engine: **RUNNING**
+  - PostgreSQL (pgvector 16): `mediassist_postgres` cổng **5433** (Healthy)
+  - Redis 7 Alpine: `mediassist_redis` cổng **6379** (Healthy)
+  - Backend (Spring Boot 3.4.3 / Java 21): cổng **5000** (Actuator status: `UP`, 39/39 Tests PASS)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (`npm run build` 0 TS errors, 3.78s)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Tính Năng Đã Được Hoàn Thiện & Kiểm Thử Sống (Live Verified)
+1. **Quản trị người dùng (Admin RBAC User Management):**
+   - **Backend:** Thêm DTO `UpdateUserStatusRequest`, endpoint `PATCH /api/v1/admin/users/{id}/status` và phương thức `updateUserStatus` trong `AdminVettingService`. Ghi nhận toàn bộ thao tác vào `audit_logs` (`action = UPDATE_USER_STATUS`, `userId = adminId`).
+   - **Frontend:** Cập nhật `UserManagementPage.tsx`, bổ sung cột "Hành Động", nút bấm "Tạm Khóa" (rose) / "Kích Hoạt" (emerald), modal xác nhận lý do điều chỉnh, và toast thông báo trạng thái cập nhật mượt mà. Đã kiểm thử đổi trạng thái `ACTIVE` -> `SUSPENDED` -> `ACTIVE` thành công 100%.
+2. **Quản trị danh mục chuyên khoa lâm sàng (Admin Specialty Management):**
+   - **Backend:** Thêm DTO `CreateSpecialtyRequest`, endpoint `POST /api/v1/admin/specialties` và phương thức `createSpecialty` trong `AdminVettingService`. Kiểm tra trùng lặp `slug` (`SPECIALTY_SLUG_EXISTS`) và lưu vết `audit_logs`.
+   - **Frontend:** Bổ sung nút bấm "Thêm Chuyên Khoa" trên header `SpecialtyManagementPage.tsx`, kèm Modal Form tự động chuyển đổi tên tiếng Việt có dấu thành `slug` không dấu chuẩn URL/Embedding, lưu vào DB và tự động làm mới danh sách. Đã kiểm thử thêm chuyên khoa mới thành công 100%.
+3. **Cổng thanh toán Sandbox VietQR & Nạp Quota / Nâng cấp VIP:**
+   - **Backend:** Thêm DTO `PurchaseQuotaRequest`, endpoint `POST /api/v1/documents/quota/purchase` và phương thức `purchaseQuota` trong `MedicalDocumentAnalysisService`. Hỗ trợ 3 gói: `BASIC_5` (+5 lượt quét), `VIP_MONTHLY` (kích hoạt 30 ngày VIP), `VIP_ENTERPRISE` (kích hoạt 90 ngày VIP).
+   - **Frontend:** Thay thế hoàn toàn 3 hàm `alert()` ở trang `DocumentSummarizerPage.tsx` bằng Modal thanh toán VietQR / VNPAY / MoMo trực quan với mã QR ngân hàng mô phỏng (MB Bank, NAPAS 247). Nút "Xác Nhận Đã Chuyển Khoản (Sandbox Auto-Verify)" gọi trực tiếp API nạp quota và cập nhật trạng thái UI tức thì không cần F5. Đã kiểm thử nạp 5 lượt và kích hoạt VIP thành công.
+4. **Loại bỏ triệt để 100% `alert()` trên toàn bộ ứng dụng:**
+   - Thay thế `alert('Quên mật khẩu?')` bằng Modal "Khôi Phục Mật Khẩu Y Tế" với form nhập email và mã OTP thử nghiệm.
+   - Thay thế `alert()` Google SSO & VNeID bằng Modal "Định Danh Y Tế & SSO" giải thích kiến trúc xác thực liên đoàn OpenID Connect và Đề án 06/CP.
+   - Thay thế `alert()` ở Footer bằng Drawer "Chính Sách Bảo Mật Y Tế (HIPAA & Nghị định 13)", "Giao Thức An Toàn TLS 1.3" và "Khước Từ Trách Nhiệm Lâm Sàng".
+
+#### 2. Danh Sách Tệp Thay Đổi
+* **Tệp mới tạo [NEW]:**
+  - `backend/src/main/java/com/mediassist/dto/UpdateUserStatusRequest.java`: DTO cập nhật trạng thái tài khoản.
+  - `backend/src/main/java/com/mediassist/dto/CreateSpecialtyRequest.java`: DTO tạo mới chuyên khoa y tế.
+  - `backend/src/main/java/com/mediassist/dto/PurchaseQuotaRequest.java`: DTO gửi yêu cầu mua gói/quota.
+* **Tệp sửa đổi [MOD]:**
+  - `backend/src/main/java/com/mediassist/controller/AdminController.java`: Thêm `PATCH /admin/users/{id}/status` và `POST /admin/specialties`.
+  - `backend/src/main/java/com/mediassist/service/AdminVettingService.java`: Hiện thực `updateUserStatus` và `createSpecialty` kèm audit trail.
+  - `backend/src/main/java/com/mediassist/controller/MedicalDocumentController.java`: Thêm `POST /documents/quota/purchase`.
+  - `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`: Hiện thực `purchaseQuota`.
+  - `frontend/src/pages/admin/UserManagementPage.tsx`: Cột hành động, modal xác nhận khóa/kích hoạt tài khoản, toast phản hồi.
+  - `frontend/src/pages/admin/SpecialtyManagementPage.tsx`: Nút và Modal tạo chuyên khoa mới, auto-slugify.
+  - `frontend/src/pages/patient/DocumentSummarizerPage.tsx`: Modal thanh toán VietQR / Sandbox checkout, nạp quota sống.
+  - `frontend/src/pages/LoginPage.tsx`: Thay thế toàn bộ `alert()` bằng các modal phục hồi mật khẩu, SSO và điều khoản HIPAA.
+* **Tài liệu đã đồng bộ [DOCS]:**
+  - `docs/USE_CASES.md`: Bổ sung chi tiết UC-13 (Admin RBAC & Specialty Management) và UC-14 (Sandbox Payment Gateway & Quota Fulfillment).
+  - `docs/WORK_LOG.md`: Ghi nhận bản tin #029.
+
+#### 3. Bằng Chứng Kiểm Thử Tự Động (Verification Proof)
+* **Backend Build & Unit Tests:** `mvn test` -> **39/39 Tests PASS (100%)**
+* **Frontend TypeScript Build:** `npm run build` -> **0 lỗi (Build thành công trong 3.78s)**
+* **Kiểm tra không còn bất kỳ hàm `alert()` nào:** Grep toàn bộ `frontend/src` -> **0 kết quả**.
 
 ---
 

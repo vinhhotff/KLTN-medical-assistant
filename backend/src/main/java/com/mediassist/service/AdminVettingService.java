@@ -1,14 +1,19 @@
 package com.mediassist.service;
 
 import com.mediassist.common.AppException;
+import com.mediassist.dto.CreateSpecialtyRequest;
 import com.mediassist.dto.DoctorDetailDto;
+import com.mediassist.dto.SpecialtyDto;
 import com.mediassist.dto.UserDto;
 import com.mediassist.model.entity.AuditLog;
 import com.mediassist.model.entity.DoctorProfile;
 import com.mediassist.model.entity.Role;
+import com.mediassist.model.entity.Specialty;
 import com.mediassist.model.entity.User;
+import com.mediassist.model.entity.UserStatus;
 import com.mediassist.repository.AuditLogRepository;
 import com.mediassist.repository.DoctorProfileRepository;
+import com.mediassist.repository.SpecialtyRepository;
 import com.mediassist.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,17 +34,20 @@ public class AdminVettingService {
 
     private final DoctorProfileRepository doctorProfileRepository;
     private final UserRepository userRepository;
+    private final SpecialtyRepository specialtyRepository;
     private final AuditLogRepository auditLogRepository;
     private final TwoLayerCacheService cacheService;
     private final DoctorSemanticSearchService doctorSemanticSearchService;
 
     public AdminVettingService(DoctorProfileRepository doctorProfileRepository,
                                UserRepository userRepository,
+                               SpecialtyRepository specialtyRepository,
                                AuditLogRepository auditLogRepository,
                                TwoLayerCacheService cacheService,
                                DoctorSemanticSearchService doctorSemanticSearchService) {
         this.doctorProfileRepository = doctorProfileRepository;
         this.userRepository = userRepository;
+        this.specialtyRepository = specialtyRepository;
         this.auditLogRepository = auditLogRepository;
         this.cacheService = cacheService;
         this.doctorSemanticSearchService = doctorSemanticSearchService;
@@ -95,5 +103,49 @@ public class AdminVettingService {
         return userRepository.findAll().stream()
                 .map(UserDto::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public UserDto updateUserStatus(UUID userId, UserStatus status, String reason, UUID adminId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
+
+        user.setStatus(status);
+        User updated = userRepository.save(user);
+
+        // Audit log
+        AuditLog audit = new AuditLog();
+        audit.setUserId(adminId);
+        audit.setAction("UPDATE_USER_STATUS");
+        audit.setResource("users/" + userId);
+        audit.setMetadata("NewStatus: " + status + ", Reason: " + (reason != null ? reason : "N/A"));
+        auditLogRepository.save(audit);
+
+        log.info("🛡️ Admin {} updated user {} status to {}. Reason: {}", adminId, userId, status, reason);
+        return UserDto.fromEntity(updated);
+    }
+
+    @Transactional
+    public SpecialtyDto createSpecialty(CreateSpecialtyRequest request, UUID adminId) {
+        String slug = request.getSlug().trim().toLowerCase();
+        if (specialtyRepository.existsBySlug(slug)) {
+            throw new AppException(HttpStatus.CONFLICT, "SPECIALTY_SLUG_EXISTS", "Mã chuyên khoa (slug) đã tồn tại trong hệ thống: " + slug);
+        }
+
+        Specialty specialty = new Specialty();
+        specialty.setName(request.getName().trim());
+        specialty.setSlug(slug);
+        specialty.setDescription(request.getDescription() != null ? request.getDescription().trim() : "");
+        Specialty saved = specialtyRepository.save(specialty);
+
+        AuditLog audit = new AuditLog();
+        audit.setUserId(adminId);
+        audit.setAction("CREATE_SPECIALTY");
+        audit.setResource("specialties/" + saved.getId());
+        audit.setMetadata("Specialty: " + saved.getName() + " (" + saved.getSlug() + ")");
+        auditLogRepository.save(audit);
+
+        log.info("🛡️ Admin {} created new specialty: {} ({})", adminId, saved.getName(), saved.getSlug());
+        return SpecialtyDto.fromEntity(saved);
     }
 }

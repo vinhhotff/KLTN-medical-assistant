@@ -10,6 +10,7 @@ import com.mediassist.repository.UserRepository;
 import com.mediassist.service.MedicalDocumentAnalysisService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -108,6 +109,18 @@ public class MedicalDocumentController {
             throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập để kiểm tra hạn ngạch phân tích.");
         }
         com.mediassist.dto.UserQuotaDto quotaDto = analysisService.getUserQuota(authentication.getName());
+        return ResponseEntity.ok(ApiResponse.success(quotaDto));
+    }
+
+    @PostMapping("/quota/purchase")
+    @Operation(summary = "Nạp lượt quét hoặc đăng ký gói VIP hội viên (Sandbox / VietQR)")
+    public ResponseEntity<ApiResponse<com.mediassist.dto.UserQuotaDto>> purchaseQuota(
+            @Valid @RequestBody com.mediassist.dto.PurchaseQuotaRequest request,
+            Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập để nâng cấp gói dịch vụ.");
+        }
+        com.mediassist.dto.UserQuotaDto quotaDto = analysisService.purchaseQuota(authentication.getName(), request);
         return ResponseEntity.ok(ApiResponse.success(quotaDto));
     }
 }
