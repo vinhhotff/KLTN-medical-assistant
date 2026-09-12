@@ -46,6 +46,39 @@ public class PdfExtractionService {
         return "";
     }
 
+    /**
+     * Renders initial pages of a PDF as JPEG images (up to maxPages) for OCR / Vision fallback
+     * when the document is a scanned image without an embedded text layer.
+     */
+    public java.util.List<byte[]> renderPdfPagesToImages(byte[] pdfBytes, int maxPages) {
+        if (pdfBytes == null || pdfBytes.length == 0) {
+            return java.util.Collections.emptyList();
+        }
+
+        java.util.List<byte[]> images = new java.util.ArrayList<>();
+        try (PDDocument document = Loader.loadPDF(pdfBytes)) {
+            int totalPages = document.getNumberOfPages();
+            int pagesToRender = Math.min(totalPages, Math.max(1, maxPages));
+            org.apache.pdfbox.rendering.PDFRenderer renderer = new org.apache.pdfbox.rendering.PDFRenderer(document);
+
+            for (int i = 0; i < pagesToRender; i++) {
+                try {
+                    java.awt.image.BufferedImage bim = renderer.renderImageWithDPI(i, 150, org.apache.pdfbox.rendering.ImageType.RGB);
+                    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                    javax.imageio.ImageIO.write(bim, "jpeg", baos);
+                    images.add(baos.toByteArray());
+                    log.info("🖼️ Rendered PDF page {}/{} as JPEG image ({} bytes) for OCR vision fallback",
+                            (i + 1), totalPages, baos.size());
+                } catch (Exception e) {
+                    log.warn("Could not render PDF page {} to image: {}", i, e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load PDF for page rendering: {}", e.getMessage());
+        }
+        return images;
+    }
+
     private boolean isReadableClinicalText(String text) {
         if (text == null || text.trim().length() < 10) return false;
         long printable = text.chars().filter(c -> c >= 32 || c == '\n' || c == '\r' || c == '\t').count();

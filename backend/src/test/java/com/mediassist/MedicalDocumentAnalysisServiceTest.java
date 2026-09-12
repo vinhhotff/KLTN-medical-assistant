@@ -232,4 +232,77 @@ class MedicalDocumentAnalysisServiceTest {
         verify(medicalDocumentValidator, never()).validateDocument(any(), any(), any(), any());
         assertEquals(1, testUser.getScanQuota(), "Quota must remain untouched on deduplication cache hit");
     }
+
+    @Test
+    @DisplayName("Should handle verbose multi-page medical record, apply smart windowing and use focused doctor pgvector query")
+    void testAnalyzeMultiPageVerboseDocumentWithSmartWindowing() {
+        // Construct a simulated 10-page document (> 6,000 characters)
+        StringBuilder multiPageText = new StringBuilder();
+        multiPageText.append("BỆNH VIỆN ĐA KHOA QUỐC TẾ - HỒ SƠ TỔNG HỢP RA VIỆN\n");
+        multiPageText.append("Họ và tên: Trần Văn D - Năm sinh: 1968 - Giới tính: Nam - Mã BN: BN-9988\n");
+        multiPageText.append("Địa chỉ: 123 Nguyễn Trãi, Quận 5, TP. Hồ Chí Minh\n\n");
+
+        // Add boilerplate hospital rules and insurance policies (> 5,000 chars)
+        for (int p = 1; p <= 25; p++) {
+            multiPageText.append(String.format("--- TRANG %d / 25: QUY ĐỊNH NỘI TRÚ VÀ VIỆN PHÍ ---\n", p));
+            multiPageText.append("Quy định số tài khoản thanh toán viện phí và chính sách bảo hiểm y tế doanh nghiệp theo thông tư bộ y tế số 45/2024/TT-BYT. ")
+                    .append("Người bệnh vui lòng giữ gìn vệ sinh chung, không hút thuốc lá trong khuôn viên phòng bệnh, chấp hành giờ thăm bệnh từ 16h đến 20h mỗi ngày. ")
+                    .append("Mật khẩu wifi bệnh viện là bvquocte2026. Bệnh viện không chịu trách nhiệm về tư trang cá nhân của người bệnh. ")
+                    .append("Xin chân thành cảm ơn quý khách đã tin tưởng và sử dụng dịch vụ y tế của bệnh viện đa khoa quốc tế.\n\n");
+        }
+
+        // Add laboratory test results
+        multiPageText.append("--- KẾT QUẢ XÉT NGHIỆM SINH HÓA MÁU VÀ CHỨC NĂNG GAN ---\n");
+        multiPageText.append("Men gan ALT (GPT): 88 U/L (Tham chiếu: 0 - 41) -> TĂNG CAO\n");
+        multiPageText.append("Men gan AST (GOT): 76 U/L (Tham chiếu: 0 - 37) -> TĂNG CAO\n");
+        multiPageText.append("Fasting Glucose: 7.2 mmol/L (Tham chiếu: 3.9 - 6.4) -> TĂNG\n");
+        multiPageText.append("Bilirubin toàn phần: 15.2 µmol/L (Tham chiếu: 5.1 - 17.0) -> Bình thường\n\n");
+
+        // Add diagnostic summary and doctor orders
+        multiPageText.append("--- TÓM TẮT BỆNH ÁN VÀ ĐỀ NGHỊ ĐIỀU TRỊ ---\n");
+        multiPageText.append("Chẩn đoán xuất viện: Viêm gan cấp tính kết hợp rối loạn đường huyết đói.\n");
+        multiPageText.append("Đề nghị: Tái khám chuyên khoa Tiêu hóa - Gan mật sau 2 tuần để đánh giá lại men gan.\n");
+
+        String fullDocumentText = multiPageText.toString();
+        assertTrue(fullDocumentText.length() > 4600, "Simulated document should exceed 4600 chars to trigger windowing");
+
+        when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(fullDocumentText);
+
+        DoctorMatchDto gastroDoc = new DoctorMatchDto(
+                UUID.randomUUID(), "PGS. TS. Trần Minh Tuấn", "Chuyên gia gan mật tiêu hóa",
+                "001928/BYT-CCHN", 22, new BigDecimal("400000.00"), 0.96,
+                List.of("Gastroenterology (Tiêu Hóa - Gan Mật)")
+        );
+        when(doctorSemanticSearchService.searchDoctors(anyString(), eq(4)))
+                .thenReturn(List.of(gastroDoc));
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "Ho_So_Benh_An_10_Trang.pdf", "application/pdf", fullDocumentText.getBytes()
+        );
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertEquals("gastroenterology", response.getRecommendedSpecialtySlug());
+
+        // Verify indicators parsed across pages
+        assertTrue(response.getIndicators().stream().anyMatch(i -> i.getName().contains("ALT") && "ELEVATED".equals(i.getStatus())));
+        assertTrue(response.getIndicators().stream().anyMatch(i -> i.getName().contains("AST") && "ELEVATED".equals(i.getStatus())));
+        assertTrue(response.getIndicators().stream().anyMatch(i -> i.getName().contains("Glucose") && "ELEVATED".equals(i.getStatus())));
+
+        // Verify doctor search query was focused, containing specialty and abnormal findings, NOT raw boilerplate
+        org.mockito.ArgumentCaptor<String> queryCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(doctorSemanticSearchService).searchDoctors(queryCaptor.capture(), eq(4));
+        String capturedQuery = queryCaptor.getValue();
+        assertTrue(capturedQuery.contains("Gastroenterology"), "Query should specify target specialty");
+        assertTrue(capturedQuery.contains("ALT") || capturedQuery.contains("AST"), "Query should mention abnormal findings");
+        assertFalse(capturedQuery.contains("bvquocte2026"), "Query should not contain wifi or administrative boilerplate");
+
+        // Verify Clinical RAG prompt received distilled context (shorter and filtered)
+        org.mockito.ArgumentCaptor<String> ragPromptCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(clinicalRagService).performDocumentRagAnalysis(ragPromptCaptor.capture(), anyString(), any());
+        String capturedRagText = ragPromptCaptor.getValue();
+        assertTrue(capturedRagText.length() < fullDocumentText.length(), "RAG context should be distilled and shorter than full raw text");
+        assertTrue(capturedRagText.contains("CÁC CHỈ SỐ CẬN LÂM SÀNG BẤT THƯỜNG GHI NHẬN"), "Should have prioritized lab indicators");
+    }
 }

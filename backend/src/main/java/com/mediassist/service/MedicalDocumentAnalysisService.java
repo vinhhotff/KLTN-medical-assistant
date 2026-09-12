@@ -144,21 +144,8 @@ public class MedicalDocumentAnalysisService {
             );
         }
 
-        // 3. Extract content from PDF, text or image stream
-        String extractedText = "";
-        try {
-            if (contentType.toLowerCase().contains("pdf")) {
-                extractedText = pdfExtractionService.extractTextFromPdf(fileBytes);
-            } else if (contentType.toLowerCase().contains("text") || contentType.toLowerCase().contains("plain")) {
-                extractedText = new String(fileBytes, java.nio.charset.StandardCharsets.UTF_8);
-            } else if (contentType.toLowerCase().contains("image/")) {
-                if (clinicalRagService.canProcessVision()) {
-                    extractedText = clinicalRagService.extractTextWithVision(fileBytes, contentType, fileName);
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Could not extract text from file: {}", e.getMessage());
-        }
+        // 3. Extract content from PDF, text or image stream (with scanned PDF fallback)
+        String extractedText = extractDocumentText(fileBytes, contentType, fileName);
 
         // 4. Gatekeeper Validation (Invalid / Blurry / Non-medical filter)
         // If validation fails, throws AppException(400) -> User quota is NOT deducted!
@@ -167,23 +154,31 @@ public class MedicalDocumentAnalysisService {
         // 5. Cloud Storage Upload (Supabase Storage with resilient local fallback)
         String storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
 
-        // 6. Semantic Doctor Retrieval via pgvector Cosine Similarity
-        String queryForDoctorMatch = (extractedText != null && !extractedText.isBlank()) ? extractedText : fileName;
-        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(queryForDoctorMatch, 4);
+        // 6. Comprehensive Lab Scanning across all pages
+        List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName);
+        SpecialtyTarget preliminarySpecialty = determineSpecialtyFromFindings(extractedText, fileName, parsedIndicators);
 
-        // 7. Clinical RAG Analysis (Retrieval-Augmented Generation with OpenRouter / Fallback Engine)
-        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(extractedText, fileName, matchedDoctors);
+        // 7. Focused pgvector Doctor Retrieval (prevents multi-page noise from diluting cosine similarity)
+        String focusedDoctorQuery = buildFocusedDoctorQuery(preliminarySpecialty, parsedIndicators, fileName);
+        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
 
-        // 8. Integrate structured indicators and clinical findings
+        // 8. Smart Clinical Windowing for Multi-Page Verbose Documents
+        String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators, preliminarySpecialty);
+
+        // 9. Clinical RAG Analysis (Retrieval-Augmented Generation with OpenRouter / Fallback Engine)
+        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, matchedDoctors);
+
+        // 10. Integrate structured indicators and clinical findings
         List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
                 ? ragResult.getIndicators()
-                : parseIndicators(extractedText, fileName);
+                : parsedIndicators;
 
-        SpecialtyTarget specialty = determineSpecialtyFromFindings(extractedText, fileName, indicators);
-        String specialtySlug = ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank()
-                ? ragResult.getRecommendedSpecialtySlug() : specialty.slug();
-        String specialtyName = ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank()
-                ? ragResult.getRecommendedSpecialtyName() : specialty.name();
+        SpecialtyTarget specialty = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
+                ? new SpecialtyTarget(ragResult.getRecommendedSpecialtySlug(), ragResult.getRecommendedSpecialtyName() != null ? ragResult.getRecommendedSpecialtyName() : preliminarySpecialty.name())
+                : preliminarySpecialty;
+
+        String specialtySlug = specialty.slug();
+        String specialtyName = specialty.name();
         String clinicalSummary = ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank()
                 ? ragResult.getClinicalSummary() : generateClinicalSummary(indicators, specialty);
         String plainExplanation = ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank()
@@ -278,42 +273,37 @@ public class MedicalDocumentAnalysisService {
             );
         }
 
-        // 1. Extract content from PDF, text or image stream
-        String extractedText = "";
-        try {
-            if (contentType.toLowerCase().contains("pdf")) {
-                extractedText = pdfExtractionService.extractTextFromPdf(fileBytes);
-            } else if (contentType.toLowerCase().contains("text") || contentType.toLowerCase().contains("plain")) {
-                extractedText = new String(fileBytes, java.nio.charset.StandardCharsets.UTF_8);
-            } else if (contentType.toLowerCase().contains("image/")) {
-                if (clinicalRagService.canProcessVision()) {
-                    extractedText = clinicalRagService.extractTextWithVision(fileBytes, contentType, fileName);
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Could not extract text in preview: {}", e.getMessage());
-        }
+        // 1. Extract content from PDF, text or image stream (with scanned PDF fallback)
+        String extractedText = extractDocumentText(fileBytes, contentType, fileName);
 
         // 2. Strict Gatekeeper Validation (Rejects non-medical / unreadable images without guessing!)
         medicalDocumentValidator.validateDocument(fileBytes, contentType, extractedText, fileName);
 
-        // 3. Semantic Doctor Retrieval via pgvector Cosine Similarity
-        String queryForDoctorMatch = (extractedText != null && !extractedText.isBlank()) ? extractedText : fileName;
-        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(queryForDoctorMatch, 4);
+        // 3. Comprehensive Lab Scanning across all pages
+        List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName);
+        SpecialtyTarget preliminarySpecialty = determineSpecialtyFromFindings(extractedText, fileName, parsedIndicators);
 
-        // 4. Clinical RAG Analysis (or Safe Deterministic Fallback)
-        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(extractedText, fileName, matchedDoctors);
+        // 4. Focused pgvector Doctor Retrieval (prevents multi-page noise from diluting cosine similarity)
+        String focusedDoctorQuery = buildFocusedDoctorQuery(preliminarySpecialty, parsedIndicators, fileName);
+        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
 
-        // 5. Structure abnormal indicators
+        // 5. Smart Clinical Windowing for Multi-Page Verbose Documents
+        String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators, preliminarySpecialty);
+
+        // 6. Clinical RAG Analysis (or Safe Deterministic Fallback)
+        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, matchedDoctors);
+
+        // 7. Structure abnormal indicators
         List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
                 ? ragResult.getIndicators()
-                : parseIndicators(extractedText, fileName);
+                : parsedIndicators;
 
-        SpecialtyTarget specialty = determineSpecialtyFromFindings(extractedText, fileName, indicators);
-        String specialtySlug = ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank()
-                ? ragResult.getRecommendedSpecialtySlug() : specialty.slug();
-        String specialtyName = ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank()
-                ? ragResult.getRecommendedSpecialtyName() : specialty.name();
+        SpecialtyTarget specialty = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
+                ? new SpecialtyTarget(ragResult.getRecommendedSpecialtySlug(), ragResult.getRecommendedSpecialtyName() != null ? ragResult.getRecommendedSpecialtyName() : preliminarySpecialty.name())
+                : preliminarySpecialty;
+
+        String specialtySlug = specialty.slug();
+        String specialtyName = specialty.name();
         String clinicalSummary = ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank()
                 ? ragResult.getClinicalSummary() : generateClinicalSummary(indicators, specialty);
         String plainExplanation = ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank()
@@ -678,6 +668,160 @@ public class MedicalDocumentAnalysisService {
                 "Bác sĩ có khuyến nghị tôi làm thêm kiểm tra định kỳ nào sau 3 hoặc 6 tháng không?",
                 "Tôi có cần điều chỉnh chế độ sinh hoạt, ngủ nghỉ để cải thiện các chỉ số này không?"
         );
+    }
+
+    private String extractDocumentText(byte[] fileBytes, String contentType, String fileName) {
+        String extractedText = "";
+        try {
+            if (contentType.toLowerCase().contains("pdf")) {
+                extractedText = pdfExtractionService.extractTextFromPdf(fileBytes);
+                // Resilient fallback for Scanned Image-only PDFs without text layer
+                if ((extractedText == null || extractedText.trim().length() < 30) && clinicalRagService.canProcessVision()) {
+                    log.info("📄 PDF text layer is empty (< 30 chars). Invoking PDFRenderer + Vision OCR fallback for '{}'", fileName);
+                    List<byte[]> pageImages = pdfExtractionService.renderPdfPagesToImages(fileBytes, 3);
+                    if (!pageImages.isEmpty()) {
+                        StringBuilder sb = new StringBuilder();
+                        for (int i = 0; i < pageImages.size(); i++) {
+                            String ocr = clinicalRagService.extractTextWithVision(pageImages.get(i), "image/jpeg", fileName + " - Trang " + (i + 1));
+                            if (ocr != null && !ocr.isBlank()) {
+                                sb.append("--- TRANG ").append(i + 1).append(" ---\n").append(ocr).append("\n\n");
+                            }
+                        }
+                        if (!sb.isEmpty()) {
+                            extractedText = sb.toString().trim();
+                            log.info("📄 Successfully extracted {} characters from scanned PDF via Vision OCR", extractedText.length());
+                        }
+                    }
+                }
+            } else if (contentType.toLowerCase().contains("text") || contentType.toLowerCase().contains("plain")) {
+                extractedText = new String(fileBytes, java.nio.charset.StandardCharsets.UTF_8);
+            } else if (contentType.toLowerCase().contains("image/")) {
+                if (clinicalRagService.canProcessVision()) {
+                    extractedText = clinicalRagService.extractTextWithVision(fileBytes, contentType, fileName);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not extract text from file '{}': {}", fileName, e.getMessage());
+        }
+        return extractedText != null ? extractedText : "";
+    }
+
+    /**
+     * Distills long, verbose multi-page medical text into a focused clinical context (<= 5500 chars).
+     * Retains patient metadata header, detected abnormal indicators, clinical findings, and diagnostic conclusions,
+     * while discarding repetitive non-medical administrative boilerplate.
+     */
+    private String distillClinicalContext(String fullText, String fileName, List<AbnormalIndicatorDto> indicators, SpecialtyTarget specialty) {
+        if (fullText == null || fullText.isBlank() || fullText.length() <= 4500) {
+            return fullText != null ? fullText : "";
+        }
+
+        log.info("🔍 [SMART CLINICAL WINDOWING] Document '{}' has {} chars. Distilling to high-density clinical context...",
+                fileName, fullText.length());
+
+        StringBuilder distilled = new StringBuilder();
+        distilled.append("=== TÓM TẮT HỒ SƠ Y TẾ TẬP TRUNG (DISTILLED CLINICAL CONTEXT) ===\n");
+        distilled.append(String.format("Tài liệu: %s | Chuyên khoa định hướng: %s\n\n", fileName, specialty.name()));
+
+        // 1. Patient & Document Header (first 10-15 lines)
+        String[] lines = fullText.split("\\r?\\n");
+        int headerLines = Math.min(15, lines.length);
+        distilled.append("[THÔNG TIN HỒ SƠ / HÀNH CHÍNH]:\n");
+        for (int i = 0; i < headerLines; i++) {
+            String l = lines[i].trim();
+            if (!l.isBlank()) {
+                distilled.append(l).append("\n");
+            }
+        }
+        distilled.append("\n");
+
+        // 2. High-priority Abnormal Lab Indicators
+        distilled.append("[CÁC CHỈ SỐ CẬN LÂM SÀNG BẤT THƯỜNG GHI NHẬN]:\n");
+        if (indicators != null && !indicators.isEmpty()) {
+            boolean hasAbnormal = false;
+            for (AbnormalIndicatorDto ind : indicators) {
+                if ("ELEVATED".equals(ind.getStatus()) || "LOW".equals(ind.getStatus())) {
+                    distilled.append(String.format("- %s: %s %s (Tham chiếu: %s, Đánh giá: %s) -> %s\n",
+                            ind.getName(), ind.getValue(), ind.getUnit(), ind.getReferenceRange(), ind.getStatus(), ind.getClinicalSignificance()));
+                    hasAbnormal = true;
+                }
+            }
+            if (!hasAbnormal) {
+                distilled.append("(Tất cả chỉ số bóc tách đều nằm trong giới hạn tham chiếu chuẩn)\n");
+            }
+        }
+        distilled.append("\n");
+
+        // 3. Scan lines with high clinical relevance (exclude administrative noise)
+        distilled.append("[DỮ LIỆU LÂM SÀNG & KẾT LUẬN TỪ CÁC TRANG]:\n");
+        Set<String> addedLines = new HashSet<>();
+        List<String> clinicalKeywords = List.of(
+                "ket qua", "xet nghiem", "chan doan", "ket luan", "de nghi", "kham",
+                "glucose", "cholesterol", "triglyceride", "alt", "ast", "got", "gpt",
+                "creatinine", "ure", "acid uric", "wbc", "rbc", "hgb", "plt",
+                "sieu am", "x-quang", "ct", "mri", "dien tim", "dien nao", "benh ly",
+                "dieu tri", "don thuoc", "hen kham", "trieu chung"
+        );
+
+        for (String rawLine : lines) {
+            String line = rawLine.trim();
+            if (line.length() < 4 || addedLines.contains(line)) continue;
+
+            String unaccentLine = stripAccents(line).toLowerCase();
+            // Skip boilerplate noise
+            if (unaccentLine.contains("so tai khoan") || unaccentLine.contains("quy dinh") ||
+                unaccentLine.contains("hoa don vat") || unaccentLine.contains("tien phong") ||
+                unaccentLine.contains("wifi") || unaccentLine.contains("xin cam on") ||
+                unaccentLine.contains("trang ") && unaccentLine.length() < 15) {
+                continue;
+            }
+
+            boolean isRelevant = false;
+            for (String kw : clinicalKeywords) {
+                if (unaccentLine.contains(kw)) {
+                    isRelevant = true;
+                    break;
+                }
+            }
+
+            if (isRelevant) {
+                distilled.append(line).append("\n");
+                addedLines.add(line);
+                if (distilled.length() > 5200) {
+                    distilled.append("... [Đã lược bớt nội dung lặp lại để tối ưu hóa context window] ...\n");
+                    break;
+                }
+            }
+        }
+
+        return distilled.toString();
+    }
+
+    /**
+     * Builds a laser-focused query for pgvector doctor matching.
+     * Prevents multi-page non-medical administrative noise from degrading cosine similarity.
+     */
+    private String buildFocusedDoctorQuery(SpecialtyTarget specialty, List<AbnormalIndicatorDto> indicators, String fileName) {
+        StringBuilder query = new StringBuilder();
+        query.append("Bác sĩ chuyên khoa ").append(specialty.name()).append(". ");
+
+        List<String> abnormalSummary = new ArrayList<>();
+        if (indicators != null) {
+            for (AbnormalIndicatorDto ind : indicators) {
+                if ("ELEVATED".equals(ind.getStatus()) || "LOW".equals(ind.getStatus())) {
+                    abnormalSummary.add(ind.getName() + " " + ind.getValue() + " " + ind.getUnit() + " (" + ind.getStatus() + ")");
+                }
+            }
+        }
+
+        if (!abnormalSummary.isEmpty()) {
+            query.append("Tình trạng cận lâm sàng bất thường: ")
+                    .append(String.join(", ", abnormalSummary))
+                    .append(". ");
+        }
+
+        query.append("Tư vấn chẩn đoán và điều trị bệnh lý chuyên khoa ").append(specialty.slug()).append(".");
+        return query.toString();
     }
 
     private String stripAccents(String s) {
