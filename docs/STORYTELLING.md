@@ -39,6 +39,12 @@ Xây dựng một nền tảng khám chữa bệnh từ xa chuẩn doanh nghiệ
 2. **Bình dân hóa ngôn ngữ y khoa (Medical Plain Language Translation):** Sử dụng các mô hình ngôn ngữ lớn đa phương thức (Multimodal LLM) để dịch các chỉ số xét nghiệm khô khan thành ngôn ngữ mộc mạc, dễ hiểu kèm theo những câu hỏi gợi ý để bệnh nhân trao đổi hiệu quả hơn với bác sĩ.
 3. **Bác sĩ xác thực (Verified Healthcare):** Mọi ca tư vấn từ xa đều do các bác sĩ có chứng chỉ hành nghề được quản trị viên thẩm định chặt chẽ đảm nhiệm.
 
+### 2.3. Ngôn Ngữ Thiết Kế Trắng - Xanh Y Tế & Hoạt Ảnh Sinh Học Trực Quan (Modern Clinical White & Blue UI)
+Thiết kế trong y tế không chỉ mang tính thẩm mỹ mà là một phần cốt lõi của an toàn lâm sàng và trải nghiệm tâm lý người bệnh:
+1. **Sắc Trắng & Xanh Lâm Sàng (Clinical White & Medical Blue):** Sự phối hợp giữa sắc trắng tinh khiết (`#ffffff`, `#f8fafc`) và các sắc thái xanh y tế (`#0284c7`, `#0ea5e9`, `#0d9488`) mang lại cảm giác vô trùng, minh bạch, tĩnh tâm và độ tin cậy chuẩn bệnh viện quốc tế, xua tan cảm giác âu lo, sợ hãi của bệnh nhân.
+2. **Trực quan hóa Hoạt Ảnh Sóng Điện Tim ECG & Nhịp Tim Sống Động:** Tích hợp màn hình monitor mô phỏng sóng điện tâm đồ P-Q-R-S-T chuyển động thời gian thực cùng nhịp tim 2 thì (tâm thu & tâm trương) và 4 chỉ số sinh tồn cốt lõi (Nhịp tim, SpO2, Huyết áp, Thân nhiệt). Điều này biến nền tảng từ một trang web tĩnh thành một "Bàn khám lâm sàng số" sống động, nâng cao tính chuyên nghiệp và trực quan cho người bệnh ngay từ giây đầu tiên tiếp cận.
+3. **Phân luồng SBAR Tức thì & Rào chắn Red-Flag < 5ms:** Trình mô phỏng lâm sàng tương tác trực tiếp giúp người bệnh kiểm nghiệm tính an toàn của hệ thống trước khi quyết định đặt khám, minh bạch hóa cơ chế hoạt động của AI chuẩn y khoa.
+
 ---
 
 ## 3. Chân Dung Người Dùng & Bản Đồ Đồng Cảm (User Personas & Empathy Map)

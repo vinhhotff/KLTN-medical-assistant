@@ -11,6 +11,7 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
+| **#016** | 12/09/2026 | Redesign Toàn Diện Trang Chủ Phong Cách Y Tế Trắng - Xanh Hiện Đại (Clinical White & Medical Blue) & Hoạt Ảnh Sinh Học Sống Động (ECG Waveform Monitor, Nhịp Tim 2 Pha, Vital Signs) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#015** | 12/09/2026 | Tái Thiết Kế Giao Diện Trang Chủ Telehealth Hiện Đại & Khắc Phục Lỗi Tương Phản/Màu Chữ Trang Đăng Nhập | AI Assistant | 🟢 Sẵn sàng Review |
 | **#014** | 11/09/2026 | Khắc Phục Lỗi TypeScript Toàn Diện & Xây Dựng Trang Đích 3D Scroll-World (Three.js WebGL Fly-Through Landing Page theo Chuẩn `oso95/scroll-world`) | AI Assistant | 🟢 Đã Duyệt |
 | **#013** | 11/09/2026 | Hoàn Tất Milestone 6: Bảo Vệ Token AI (Gatekeeper Sieve & SHA-256 Deduplication), Lưu Trữ Supabase Cloud EMR & Quản Lý Hạn Ngạch Quét Doanh Nghiệp | AI Assistant | 🟢 Đã Duyệt |
@@ -22,6 +23,57 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#016] Redesign Toàn Diện Trang Chủ Phong Cách Y Tế Trắng - Xanh Hiện Đại & Hoạt Ảnh Sinh Học Sống Động
+* **Thời gian:** 2026-09-12 09:15:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-UX-00 (Clinical Patient Onboarding & Visual Trust)
+* **Trạng thái Build:** Frontend `npm run build` PASS (0 lỗi TS, 1670 modules transformed, 2.73s) | Baseline tests PASS.
+* **Nhánh phát triển:** `feature/redesign-medical-white-blue-home` (tách từ `develop`).
+
+#### 1. Mục Tiêu & Yêu Cầu Từ Tech Lead
+- Thực thi chỉ đạo: *"Redesign lai homepage cho toi, xoa tat ca moi thu , dessign lai home sao cho theo phong cách y tế , trắng xanh hiện đại và có animation y tế"*.
+- Xóa bỏ giao diện cũ, chuyển toàn diện sang phong cách Y tế Lâm sàng hiện đại: **Trắng Tinh Khiết (Clinical White)** kết hợp **Xanh Y Tế & Cyan Hiện Đại (Medical Blue / Cyan / Hospital Teal)**.
+- Tích hợp hệ thống **Animation Y Tế (Medical Animations)** tối ưu phần cứng 60 FPS:
+  1. Màn hình theo dõi sóng điện tim ECG (`EcgMonitor.tsx`) với đồ thị P-Q-R-S-T chạy động liên tục.
+  2. Hiệu ứng nhịp đập tim hai thì chuẩn tâm thu & tâm trương (`animate-cardiac`).
+  3. Bộ chỉ số sinh tồn trực tiếp (Vital Signs): Nhịp tim, SpO2 99%, Huyết áp 120/80 mmHg, Thân nhiệt 36.8°C.
+  4. Sóng radar siêu âm đồng tâm (`animate-radar`), các thẻ y tế bồng bềnh (`animate-float-slow`).
+
+#### 2. Danh Sách Tệp Tin Thay Đổi
+- `[NEW] frontend/src/components/landing/EcgMonitor.tsx`: Component màn hình ECG sinh học và 4 chỉ số sinh tồn thời gian thực chuẩn HL7 FHIR.
+- `[MOD] frontend/src/index.css`: Bổ sung keyframes `@keyframes cardiac-pulse`, `@keyframes ecg-sweep`, `@keyframes medical-radar`, `@keyframes glow-cyan`, cùng nền lưới giấy đo điện tim `.bg-medical-grid`.
+- `[MOD] frontend/src/pages/LandingPage.tsx`: Tái thiết kế toàn diện 100% trang chủ theo phong cách Trắng - Xanh Y Tế, tích hợp `EcgMonitor`, mô phỏng lâm sàng SBAR, 4 trụ cột công nghệ y tế, danh sách bác sĩ CKI/CKII, bảng viện phí Escrow, và quy trình 4 bước.
+- `[MOD] docs/STORYTELLING.md`: Bổ sung mục 2.3 về Ngôn Ngữ Thiết Kế Trắng - Xanh Y Tế & Trực Quan Hóa Hoạt Ảnh Sinh Học Sống Động.
+- `[MOD] docs/WORK_LOG.md`: Thêm bản ghi phiên làm việc #016.
+
+#### 3. Bằng Chứng Kiểm Thử & Xác Minh Kỹ Thuật
+- **Frontend Build Verification (`npm run build`):**
+  ```text
+  > mediassist-frontend@1.0.0 build
+  > tsc && vite build
+
+  vite v6.4.3 building for production...
+  transforming...
+  ✓ 1670 modules transformed.
+  rendering chunks...
+  computing gzip size...
+  dist/index.html                   0.65 kB │ gzip:  0.42 kB
+  dist/assets/index-DprlLLoH.css   59.16 kB │ gzip:  9.83 kB
+  dist/assets/vendor-DCuGwg_n.js  240.28 kB │ gzip: 78.48 kB
+  dist/assets/index-CEOZIa0y.js   249.32 kB │ gzip: 51.32 kB
+  ✓ built in 2.73s
+  ```
+- **Tuân thủ quy định dự án:**
+  - Thanh Medical Disclaimer Banner cố định ở đầu trang, không đóng được (`dismissible={false}`).
+  - Tuân thủ nghiêm ngặt Gitflow trên nhánh `feature/redesign-medical-white-blue-home`.
+  - 0 unused imports (`noUnusedLocals` compliant).
+
+#### 4. Điểm Nóng Tech Lead Cần Lưu Tâm (Architecture Highlights)
+1. **Zero Layout Shift & High FPS:** Toàn bộ hiệu ứng ECG và nhịp tim được xây dựng bằng SVG path và CSS GPU-accelerated transforms (`stroke-dashoffset`, `scale()`, `translateY()`), không gây đơ giật UI hay re-render React liên tục.
+2. **Medical Brand Identity:** Bảng màu trắng sáng kết hợp xanh y tế tạo cảm giác chuẩn mực bệnh viện tuyến trung ương, tăng độ tin cậy và sự an tâm cho người bệnh ngay từ lần đầu truy cập.
 
 ---
 

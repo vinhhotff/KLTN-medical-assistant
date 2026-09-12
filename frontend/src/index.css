@@ -5,4 +5,86 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color: #0f172a;
+  background-color: #ffffff;
+  overflow-x: hidden;
 }
+
+/* --- MEDICAL ANIMATIONS & UTILITIES --- */
+
+/* 1. Authentic Cardiac Double-Beat (Tâm thu & Tâm trương) */
+@keyframes cardiac-pulse {
+  0% { transform: scale(1); }
+  14% { transform: scale(1.18); }
+  28% { transform: scale(1.05); }
+  42% { transform: scale(1.22); }
+  70% { transform: scale(1); }
+  100% { transform: scale(1); }
+}
+
+.animate-cardiac {
+  animation: cardiac-pulse 1.25s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  transform-origin: center center;
+}
+
+/* 2. ECG Sweep Waveform Animation */
+@keyframes ecg-sweep {
+  0% { stroke-dashoffset: 1000; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.animate-ecg {
+  stroke-dasharray: 1000;
+  animation: ecg-sweep 3.5s linear infinite;
+}
+
+/* 3. Soft Floating Medical Badges */
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-float-slow {
+  animation: float-gentle 4s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-gentle 4.5s ease-in-out 1.5s infinite;
+}
+
+/* 4. Medical Radar / Ultrasound Wave */
+@keyframes medical-radar {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.4); opacity: 0.3; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+.animate-radar {
+  animation: medical-radar 2.8s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+/* 5. Clinical Glow Ripples */
+@keyframes glow-cyan {
+  0%, 100% { box-shadow: 0 0 15px -3px rgba(6, 182, 212, 0.3), 0 0 6px -2px rgba(6, 182, 212, 0.2); }
+  50% { box-shadow: 0 0 25px 2px rgba(14, 165, 233, 0.5), 0 0 12px 1px rgba(14, 165, 233, 0.3); }
+}
+
+.animate-glow-cyan {
+  animation: glow-cyan 3s ease-in-out infinite;
+}
+
+/* 6. Subtle Clinical Grid (Giấy đo điện tim / màn hình lâm sàng số) */
+.bg-medical-grid {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(14, 165, 233, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(14, 165, 233, 0.05) 1px, transparent 1px);
+}
+
+.bg-medical-grid-dense {
+  background-size: 16px 16px;
+  background-image: 
+    linear-gradient(to right, rgba(6, 182, 212, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(6, 182, 212, 0.08) 1px, transparent 1px);
+}
+
