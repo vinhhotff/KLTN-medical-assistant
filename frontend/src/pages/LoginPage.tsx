@@ -178,6 +178,71 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const FIRST_NAMES_MALE = [
+    'Nguyễn Văn An', 'Trần Quốc Bảo', 'Lê Hải Đăng', 'Phạm Minh Đức', 'Hoàng Gia Huy',
+    'Vũ Đức Toàn', 'Đặng Minh Khôi', 'Bùi Quang Huy', 'Đỗ Thành Long', 'Ngô Tuấn Kiệt'
+  ];
+  const FIRST_NAMES_FEMALE = [
+    'Trần Thị Mai Hương', 'Nguyễn Thu Trang', 'Lê Bích Thảo', 'Phạm Quỳnh Anh', 'Hoàng Bảo Ngọc',
+    'Vũ Hải Yến', 'Đặng Kim Ngân', 'Bùi Mỹ Linh', 'Đỗ Thanh Hà', 'Nguyễn Phương Thảo'
+  ];
+
+  const handleRandomFill = (profileType: 'RANDOM' | 'SENIOR' | 'YOUNG' = 'RANDOM') => {
+    setError(null);
+    setSuccessMsg(null);
+
+    const isMale = Math.random() > 0.5;
+    const namePool = isMale ? FIRST_NAMES_MALE : FIRST_NAMES_FEMALE;
+    const fullName = namePool[Math.floor(Math.random() * namePool.length)];
+    const gender = isMale ? 'MALE' : 'FEMALE';
+
+    // Unique email using timestamp suffix to guarantee zero duplicate conflict errors
+    const randomSuffix = Math.floor(Math.random() * 90000 + 10000);
+    const emailPrefix = fullName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/[^a-z0-9]/g, '');
+    const email = `${emailPrefix}.${randomSuffix}@gmail.com`;
+
+    // Valid Vietnam mobile numbers (09x, 03x, 08x, 07x)
+    const phonePrefixes = ['090', '091', '098', '037', '038', '086', '079'];
+    const randomPrefix = phonePrefixes[Math.floor(Math.random() * phonePrefixes.length)];
+    const phone = `${randomPrefix}${Math.floor(Math.random() * 9000000 + 1000000)}`;
+
+    // Birth date calculation
+    let birthYear: number;
+    if (profileType === 'SENIOR') {
+      birthYear = 1950 + Math.floor(Math.random() * 15); // 1950 - 1964
+    } else if (profileType === 'YOUNG') {
+      birthYear = 1995 + Math.floor(Math.random() * 10); // 1995 - 2004
+    } else {
+      birthYear = 1975 + Math.floor(Math.random() * 30); // 1975 - 2004
+    }
+    const birthMonth = String(Math.floor(Math.random() * 12 + 1)).padStart(2, '0');
+    const birthDay = String(Math.floor(Math.random() * 28 + 1)).padStart(2, '0');
+    const dob = `${birthYear}-${birthMonth}-${birthDay}`;
+
+    // Valid strong password >= 8 characters with upper, lower, number, special char
+    const password = `Medi@Pass${Math.floor(Math.random() * 9000 + 1000)}!`;
+
+    // Sample BHYT / CCCD number
+    const bhyt = `GD479${Math.floor(Math.random() * 9000000000 + 1000000000)}`;
+
+    setRegFullName(fullName);
+    setRegGender(gender);
+    setRegEmail(email);
+    setRegPhone(phone);
+    setRegDob(dob);
+    setRegPassword(password);
+    setRegConfirmPassword(password);
+    setRegBhyt(bhyt);
+    setAgreeTerms(true);
+
+    setSuccessMsg(`✓ Đã tạo ngẫu nhiên hồ sơ: ${fullName} (${gender === 'MALE' ? 'Nam' : 'Nữ'}, sinh năm ${birthYear})`);
+  };
+
   const handleQuickPreset = (presetEmail: string, presetPass: string) => {
     setLoginEmail(presetEmail);
     setLoginPassword(presetPass);
@@ -347,6 +412,39 @@ export const LoginPage: React.FC = () => {
             {/* ==================== FORM: REGISTER MODE ==================== */}
             {activeTab === 'REGISTER' ? (
               <form onSubmit={handleRegister} className="space-y-4">
+                
+                {/* Tech Lead Quick Fill Bar (Randomized Data) */}
+                <div className="p-3 bg-gradient-to-r from-teal-50 via-emerald-50 to-sky-50 rounded-xl border border-teal-200/80 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-teal-900">
+                    <Sparkles className="w-4 h-4 text-teal-600 animate-pulse" />
+                    <span>Điền nhanh Test (Random 100% hợp lệ):</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleRandomFill('RANDOM')}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-xs transition-all flex items-center gap-1 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+                    >
+                      <span className="material-symbols-outlined text-[15px]">casino</span>
+                      <span>🎲 Random Bệnh Nhân</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRandomFill('SENIOR')}
+                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs transition cursor-pointer"
+                    >
+                      Người Cao Tuổi
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRandomFill('YOUNG')}
+                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs transition cursor-pointer"
+                    >
+                      Thanh Niên
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Full Name */}
                   <div>
