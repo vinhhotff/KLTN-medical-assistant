@@ -305,4 +305,97 @@ class MedicalDocumentAnalysisServiceTest {
         assertTrue(capturedRagText.length() < fullDocumentText.length(), "RAG context should be distilled and shorter than full raw text");
         assertTrue(capturedRagText.contains("CÁC CHỈ SỐ CẬN LÂM SÀNG BẤT THƯỜNG GHI NHẬN"), "Should have prioritized lab indicators");
     }
+
+    @Test
+    @DisplayName("Should parse Thyroid hormone panel (TSH, FT4) and route dynamically to endocrinology")
+    void testAnalyzeThyroidEndocrinologyPanel() {
+        String mockThyroidReport = """
+                TRUNG TÂM NỘI TIẾT & CHUYỂN HÓA - KẾT QUẢ XÉT NGHIỆM MIỄN DỊCH
+                Bệnh nhân: Lê Thị H - Tuổi: 35
+                1. TSH (Thyroid Stimulating Hormone): 8.5 µIU/mL (Tham chiếu: 0.27 - 4.2) -> TĂNG CAO
+                2. FT4 (Free Thyroxine): 8.2 pmol/L (Tham chiếu: 12.0 - 22.0) -> GIẢM
+                Chẩn đoán sơ bộ: Theo dõi suy giáp nguyên phát / viêm tuyến giáp Hashimoto.
+                """;
+
+        when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(mockThyroidReport);
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "Xet_Nghiem_Tuyen_Giap.pdf", "application/pdf", mockThyroidReport.getBytes()
+        );
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertEquals("endocrinology", response.getRecommendedSpecialtySlug());
+        assertTrue(response.getRecommendedSpecialtyName().contains("Nội Tiết"));
+
+        // Verify indicators parsed
+        assertTrue(response.getIndicators().stream().anyMatch(i -> i.getName().contains("TSH") && "ELEVATED".equals(i.getStatus())));
+        assertTrue(response.getIndicators().stream().anyMatch(i -> i.getName().contains("FT4") && "LOW".equals(i.getStatus())));
+
+        // Verify questions
+        assertNotNull(response.getSuggestedQuestions());
+        assertFalse(response.getSuggestedQuestions().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should parse Renal impairment panel (Creatinine, eGFR, BUN) and route to nephrology")
+    void testAnalyzeRenalNephrologyPanel() {
+        String mockRenalReport = """
+                KHOA THẬN - TIẾT NIỆU & LỌC MÁU
+                PHIẾU ĐÁNH GIÁ CHỨC NĂNG THẬN
+                Bệnh nhân: Hoàng Văn K - Tuổi: 62
+                - Creatinine huyết thanh: 185 µmol/L (Tham chiếu: 62 - 106) -> TĂNG
+                - eGFR (Mức lọc cầu thận ước tính): 35 mL/min/1.73m2 (Tham chiếu: > 90) -> GIẢM
+                - Ure máu (BUN): 14.5 mmol/L (Tham chiếu: 2.5 - 7.5) -> TĂNG
+                Kết luận: Tổn thương thận mạn giai đoạn 3b.
+                """;
+
+        when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(mockRenalReport);
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "Chuc_Nang_Than_Creatinine.pdf", "application/pdf", mockRenalReport.getBytes()
+        );
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertEquals("nephrology", response.getRecommendedSpecialtySlug());
+        assertTrue(response.getRecommendedSpecialtyName().contains("Thận - Tiết Niệu"));
+
+        assertTrue(response.getIndicators().stream().anyMatch(i -> i.getName().contains("Creatinine") && "ELEVATED".equals(i.getStatus())));
+        assertTrue(response.getIndicators().stream().anyMatch(i -> i.getName().contains("eGFR") && "LOW".equals(i.getStatus())));
+        assertTrue(response.getIndicators().stream().anyMatch(i -> i.getName().contains("Ure") && "ELEVATED".equals(i.getStatus())));
+    }
+
+    @Test
+    @DisplayName("Should dynamically extract arbitrary unlisted lab parameter using Generic Tabular Parser")
+    void testUniversalGenericLabExtraction() {
+        String mockUnlistedReport = """
+                BỆNH VIỆN ĐA KHOA TRUNG ƯƠNG
+                KẾT QUẢ XÉT NGHIỆM CHUYÊN SÂU
+                1. Total Testosterone: 1.2 ng/mL (Reference: 2.8 - 8.0)
+                2. Vitamin D3: 15 ng/mL (Tham chiếu: 30 - 100)
+                Kết luận: Suy giảm nội tiết sinh dục và thiếu hụt vitamin D.
+                """;
+
+        when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(mockUnlistedReport);
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "Chuyen_Sau_Testosterone.pdf", "application/pdf", mockUnlistedReport.getBytes()
+        );
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertFalse(response.getIndicators().isEmpty());
+
+        // Generic tabular parser dynamically caught "Total Testosterone" or "Vitamin D3" with LOW status
+        assertTrue(response.getIndicators().stream().anyMatch(i ->
+                i.getName().toLowerCase().contains("testosterone") && "LOW".equals(i.getStatus())
+        ));
+        assertTrue(response.getIndicators().stream().anyMatch(i ->
+                i.getName().toLowerCase().contains("vitamin") && "LOW".equals(i.getStatus())
+        ));
+    }
 }

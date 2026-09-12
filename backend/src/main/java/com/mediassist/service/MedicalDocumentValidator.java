@@ -16,17 +16,42 @@ public class MedicalDocumentValidator {
 
     private static final Logger log = LoggerFactory.getLogger(MedicalDocumentValidator.class);
 
-    // Common medical and laboratory keywords in Vietnamese & English
+    // Comprehensive multi-domain medical and laboratory keywords dictionary
     private static final List<String> MEDICAL_DICTIONARY = Arrays.asList(
+            // General clinical vocabulary
             "xet nghiem", "ket qua", "chi so", "tham chieu", "khoang tham chieu",
-            "don vi", "sinh hoa", "huyet hoc", "nuoc tieu", "mien dich",
-            "glucose", "duong huyet", "cholesterol", "triglyceride", "hdl", "ldl",
-            "ast", "got", "alt", "gpt", "ggt", "creatinine", "ure", "acid uric",
-            "hgb", "hemoglobin", "rbc", "wbc", "plt", "tieu cau", "bach cau", "hong cau",
-            "ferritin", "crp", "dien giai", "natri", "kali", "clo", "canxi", "egfr",
+            "don vi", "sinh hoa", "huyet hoc", "nuoc tieu", "mien dich", "vi sinh",
             "phong kham", "benh vien", "bac si", "chan doan", "kham benh", "chuyen khoa",
-            "am tinh", "duong tinh", "mg/dl", "mmol/l", "u/l", "g/l", "g/dl", "ui/l",
-            "ng/ml", "pg/ml", "fl", "pg", "sgot", "sgpt", "bilirubin", "albumin"
+            "am tinh", "duong tinh", "positive", "negative", "binh thuong", "bat thuong",
+            // Common units
+            "mg/dl", "mmol/l", "u/l", "g/l", "g/dl", "ui/l", "iu/l", "ng/ml", "pg/ml",
+            "fl", "pg", "µmol/l", "umol/l", "ml/min", "%", "g/24h", "mg/24h", "g/l",
+            // Biochemistry & Metabolic
+            "glucose", "duong huyet", "duong mau", "hba1c", "cholesterol", "triglyceride",
+            "hdl", "ldl", "vldl", "lipid", "ast", "got", "alt", "gpt", "ggt", "sgot", "sgpt",
+            "bilirubin", "albumin", "globulin", "protein toan phan", "protein", "alp",
+            "creatinine", "ure", "urea", "bun", "acid uric", "egfr", "do thanh thai",
+            // Thyroid & Endocrine Hormones
+            "tsh", "ft3", "ft4", "t3", "t4", "anti-tpo", "anti-tg", "cortisol", "acth",
+            "insulin", "c-peptide", "prolactin", "testosterone", "estradiol", "lh", "fsh", "beta-hcg", "hcg",
+            // Cardiac Biomarkers
+            "troponin", "troponin t", "troponin i", "ck-mb", "ck", "bnp", "nt-probnp", "myoglobin",
+            // Hematology & Coagulation
+            "hgb", "hemoglobin", "rbc", "wbc", "plt", "tieu cau", "bach cau", "hong cau",
+            "hct", "hematocrit", "mcv", "mch", "mchc", "rdw", "neutrophil", "lymphocyte",
+            "monocyte", "eosinophil", "basophil", "pt", "inr", "aptt", "fibrinogen", "d-dimer",
+            // Electrolytes & Minerals
+            "dien giai", "natri", "kali", "clo", "canxi", "calcium", "magie", "phospho",
+            "ferritin", "sat huyet thanh", "iron", "transferrin",
+            // Inflammation & Infection
+            "crp", "hs-crp", "procalcitonin", "pct", "toc do lang mau", "esr",
+            "hbsag", "anti-hbs", "anti-hcv", "hcv", "hiv", "dengue", "ns1", "vdrl", "tpha",
+            // Tumor Markers
+            "psa", "cea", "afp", "ca 19-9", "ca 125", "ca 15-3",
+            // Urine & Renal Specific
+            "protein nieu", "microalbumin", "can lang", "tru nieu", "hong cau nieu", "bach cau nieu",
+            // Imaging & Diagnostics
+            "sieu am", "x-quang", "ct scanner", "mri", "dien tim", "ecg", "dien nao", "eeg", "noi soi"
     );
 
     /**

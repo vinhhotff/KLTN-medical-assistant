@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#031** | 12/09/2026 | Nâng Cấp Khả Năng Xử Lý Hồ Sơ Bệnh Án Đa Trang Rườm Rà (10–30 Trang), Smart Clinical Windowing Chống Tràn Token & Tối Ưu Hóa Truy Vấn pgvector Bác Sĩ Chuẩn Xác Cao | AI Assistant | 🟢 Sẵn sàng Review |
+| **#032** | 12/09/2026 | Bộ Bóc Tách Cận Lâm Sàng Vạn Năng (Universal Dynamic Lab Extractor), Mở Rộng 100+ Chỉ Số Đa Lĩnh Vực & Hệ Thống Định Tuyến 12 Chuyên Khoa Bệnh Viện Tự Động | AI Assistant | 🟢 Sẵn sàng Review |
+| **#031** | 12/09/2026 | Nâng Cấp Khả Năng Xử Lý Hồ Sơ Bệnh Án Đa Trang Rườm Rà (10–30 Trang), Smart Clinical Windowing Chống Tràn Token & Tối Ưu Hóa Truy Vấn pgvector Bác Sĩ Chuẩn Xác Cao | AI Assistant | 🟢 Đã Duyệt |
 | **#030** | 12/09/2026 | Khắc Phục Triệt Để Lỗi Tải PDF/Không Phản Hồi, Bổ Sung Banner/Modal Thông Báo Thành Công Tức Thì, Tự Động Cuộn Mượt Kết Quả, Xóa Bỏ Hoàn Toàn Chỉ Số Hardcode Bằng Bộ Bóc Tách Regex Lâm Sàng & Đề Xuất Bác Sĩ Từ pgvector | AI Assistant | 🟢 Đã Duyệt |
 | **#029** | 12/09/2026 | Hoàn Thiện Các Tính Năng Hệ Thống: Quản Trị User (Khóa/Mở Tài Khoản RBAC), Quản Trị Chuyên Khoa Mới, Cổng Thanh Toán Sandbox VietQR Nạp Quota/VIP & Loại Bỏ 100% alert() Bằng Modal Y Tế | AI Assistant | 🟢 Đã Duyệt |
 | **#028** | 12/09/2026 | Khắc Phục Triệt Để Lỗi Lệch ID Bác Sĩ Khi Đặt Khám Từ AI Recommendations, Hỗ Trợ Đa Nhận Diện Dual-ID (User & Profile) & Tự Động Mở Modal Đặt Khám Từ Trang Chủ | AI Assistant | 🟢 Đã Duyệt |
@@ -38,6 +39,66 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#032] Bộ Bóc Tách Cận Lâm Sàng Vạn Năng (Universal Dynamic Lab Extractor), Mở Rộng 100+ Chỉ Số Đa Lĩnh Vực & Hệ Thống Định Tuyến 12 Chuyên Khoa Bệnh Viện Tự Động
+* **Thời gian:** 2026-09-12 20:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-CLIN-03 (Multimodal Document Summarization & Universal Lab Extractor), UC-CLIN-04 (pgvector Doctor Semantic Retrieval)
+* **Trạng thái Dịch vụ:**
+  - Docker Desktop Engine: **RUNNING**
+  - PostgreSQL (pgvector 16): `mediassist_postgres` cổng **5433** (Healthy)
+  - Redis 7 Alpine: `mediassist_redis` cổng **6379** (Healthy)
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS / JDK 25): cổng **5000** (Actuator status: `UP`, 43/43 Tests PASS)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (`npm run build` 0 TS errors, 2.59s)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Vấn Đề Kỹ Thuật Đã Giải Quyết (Key Technical Implementations)
+1. **Triệt phá hoàn toàn tình trạng bóc tách hardcode (Zero Hardcoding)**:
+   - Trước đây `parseIndicators` chỉ hỗ trợ 16 chỉ số cố định (ALT, AST, Glucose, Cholesterol...), khiến các xét nghiệm tuyến giáp (TSH, FT4), suy thận (Creatinine, eGFR, BUN), tim mạch (Troponin, BNP), ung bướu (PSA, CEA, AFP) hoặc điện giải đồ bị bỏ qua hoàn toàn.
+   - Nâng cấp lên cấu trúc 3 pha bóc tách linh hoạt:
+     - **Pha 1 - Clinical Laboratory Ontology**: Mở rộng 100+ định nghĩa chỉ số y khoa chuẩn hóa thuộc 8 phân hệ lâm sàng (Nội tiết, Thận - Tiết niệu, Tim mạch & Mỡ máu, Tiêu hóa - Gan mật, Huyết học & Đông máu, Điện giải đồ, Viêm & Nhiễm trùng, Dấu ấn khối u).
+     - **Pha 2 - Universal Tabular Line Parser**: Nhận diện động mọi định dạng xét nghiệm bệnh viện dạng `[Tên chỉ số]: [Giá trị] [Đơn vị] ([Khoảng tham chiếu])`, tự động trích xuất cận trên/cận dưới và tính toán trạng thái `ELEVATED` / `LOW` / `NORMAL` ngay cả khi chỉ số đó chưa từng được định nghĩa trong từ điển (ví dụ: Testosterone, Vitamin D3, Homocysteine...).
+     - **Pha 3 - Serology / Qualitative Parser**: Bóc tách chính xác các xét nghiệm định tính (Dương tính / Âm tính) như HBsAg, Anti-HCV, Dengue NS1/IgM/IgG, HIV, VDRL, Helicobacter pylori...
+2. **Hệ thống phân luồng 12 chuyên khoa bệnh viện động (12-Department Dynamic Routing)**:
+   - Thay thế việc chỉ hỗ trợ 4 chuyên khoa bằng thuật toán chấm điểm ma trận trọng số đa chiều khớp chính xác 12 chuyên khoa trong cơ sở dữ liệu `specialties`: `cardiology`, `neurology`, `gastroenterology`, `dermatology`, `pediatrics`, `general-internal-medicine`, `pulmonology`, `orthopedics`, `nephrology`, `obstetrics-gynecology`, `endocrinology`, `ent`.
+   - Tính điểm theo 2 nguồn dữ liệu:
+     - Dấu hiệu bất thường bóc tách được (Trọng số +8 cho chỉ số bất thường, +3 cho chỉ số bình thường).
+     - Thuật ngữ lâm sàng trong toàn văn tài liệu và tên tệp tin (Trọng số +4 cho mỗi từ khóa khớp).
+3. **Bộ câu hỏi định hướng lâm sàng cá nhân hóa (Contextual Suggested Questions Generator)**:
+   - Không trả câu hỏi chung chung. Tự động kích hoạt bộ câu hỏi theo đúng bệnh lý phát hiện:
+     - Tuyến giáp (TSH/FT4): hỏi về siêu âm Doppler tuyến giáp, triệu chứng sụt cân/rụng tóc/tim đập nhanh.
+     - Thận (Creatinine/eGFR): hỏi về giai đoạn suy thận, chế độ ăn giảm đạm/giảm muối, loại thuốc giảm đau NSAIDs cần tránh.
+     - Đái tháo đường (Glucose/HbA1c): hỏi về tiền đái tháo đường, theo dõi đường huyết mao mạch, chế độ ăn giảm tinh bột.
+     - Gan mật (ALT/AST): hỏi về nguyên nhân virus/rượu bia, siêu âm FibroScan đo xơ hóa gan.
+     - Gout (Acid Uric): hỏi về thuốc hạ acid uric, thực phẩm purine cần kiêng, xử trí sưng đau ngón chân cái.
+     - Tiền liệt tuyến (PSA): hỏi về u xơ lành tính vs ung thư, chỉ định chụp MRI vùng chậu / sinh thiết.
+     - Cùng 12 bộ câu hỏi dự phòng chuyên sâu cho từng chuyên khoa.
+4. **Đồng bộ hóa Deterministic Fallback Engine**:
+   - Mở rộng bộ phân loại offline an toàn `DeterministicFallbackAiProvider` để nhận diện đầy đủ cả 12 chuyên khoa khi mất kết nối mạng bên ngoài.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi
+- `[MOD]` `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`: Bộ bóc tách 3 pha 100+ chỉ số, Universal Generic Parser, chấm điểm 12 chuyên khoa, sinh câu hỏi & giải thích bình dân theo kết quả đo.
+- `[MOD]` `backend/src/main/java/com/mediassist/service/MedicalDocumentValidator.java`: Mở rộng từ điển y khoa lên 120+ thuật ngữ lâm sàng.
+- `[MOD]` `backend/src/main/java/com/mediassist/ai/DeterministicFallbackAiProvider.java`: Hỗ trợ đầy đủ 12 chuyên khoa bệnh viện cho bộ dự phòng offline.
+- `[MOD]` `backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java`: Bổ sung 3 unit tests mới (`testAnalyzeThyroidEndocrinologyPanel`, `testAnalyzeRenalNephrologyPanel`, `testUniversalGenericLabExtraction`).
+- `[MOD]` `docs/WORK_LOG.md`: Ghi chép nhật ký phát triển phiên #032.
+- `[MOD]` `docs/USE_CASES.md`: Cập nhật đặc tả Use Case UC-CLIN-03.
+
+#### 3. Bằng Chứng Kiểm Thử (Testing Proof)
+- **Backend Unit Tests**: `mvn test` -> **43/43 tests PASS**, `BUILD SUCCESS` (0 failures, 0 errors).
+  - Kiểm thử bóc tách hormone tuyến giáp TSH + FT4 -> định tuyến chính xác `endocrinology`.
+  - Kiểm thử suy thận Creatinine + eGFR + BUN -> định tuyến chính xác `nephrology`.
+  - Kiểm thử bóc tách chỉ số chưa có trong từ điển (Total Testosterone, Vitamin D3) -> Generic Tabular Parser bắt chính xác giá trị và gán cờ `LOW`.
+- **Frontend Build**: `npm run build` -> **0 TypeScript errors**, `built in 2.59s`.
+- **Live Endpoint Test**:
+  - `POST /api/v1/documents/analyze-preview` với phiếu xét nghiệm TSH 8.5 µIU/mL, FT4 8.2 pmol/L -> phản hồi chuyên khoa `endocrinology` (`Endocrinology & Diabetes`), bóc tách đủ 2 chỉ số, trạng thái `ELEVATED` và `LOW`, kèm đề xuất bác sĩ qua pgvector.
+  - `POST /api/v1/documents/analyze-preview` với phiếu xét nghiệm Creatinine 185 µmol/L, eGFR 35 mL/min/1.73m2, Ure 14.5 mmol/L -> phản hồi chuyên khoa `nephrology` (`Nephrology & Urology (Thận - Tiết Niệu)`).
+
+#### 4. Điểm Nóng Tech Lead Cần Review (Architectural Decisions)
+- **Cân bằng giữa hiệu năng và độ bao quát**: Pha 1 ưu tiên tìm theo ontology cố định để có độ tin cậy và giải thích ý nghĩa lâm sàng chuẩn xác nhất. Pha 2 đóng vai trò lưới quét an toàn bắt các chỉ số đặc thù hoặc xét nghiệm mới mà không cần sửa code.
+- **Phòng ngừa đụng độ ký tự viết tắt**: Ký hiệu ion điện giải như `Na+`, `K+`, `Ca2+` được ràng buộc chặt chẽ với dấu điện tích hoặc từ khóa đầy đủ để tránh trùng tên viết tắt bệnh nhân (ví dụ: `Nguyễn Văn K - 65 tuổi`).
+
+---
 
 ### [WORK-LOG-#031] Nâng Cấp Khả Năng Xử Lý Hồ Sơ Bệnh Án Đa Trang Rườm Rà (10–30 Trang), Smart Clinical Windowing Chống Tràn Token & Tối Ưu Hóa Truy Vấn pgvector Bác Sĩ Chuẩn Xác Cao
 * **Thời gian:** 2026-09-12 20:05:00 (GMT+7)
