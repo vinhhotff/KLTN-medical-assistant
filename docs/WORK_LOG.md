@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#021** | 12/09/2026 | Khởi Động Toàn Diện Hạ Tầng Local (Docker Desktop, pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173) & Hoàn Thiện @layer base, Box-Shadow, Border-Radius | AI Assistant | 🟢 Sẵn sàng Review |
+| **#022** | 12/09/2026 | Khắc Phục Toàn Diện Navbar Chưa Đăng Nhập, Tái Thiết Kế Hero Telehealth Console & Nạp 100% Dữ Liệu Bác Sĩ / Chuyên Khoa Từ PostgreSQL Thật | AI Assistant | 🟢 Sẵn sàng Review |
+| **#021** | 12/09/2026 | Khởi Động Toàn Diện Hạ Tầng Local (Docker Desktop, pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173) & Hoàn Thiện @layer base, Box-Shadow, Border-Radius | AI Assistant | 🟢 Đã Duyệt |
 | **#020** | 12/09/2026 | Tinh Chỉnh Độ Chuẩn Xác Tuyệt Đối (Pixel-Perfect Fidelity) Trang Chủ MedConnect AI: Logo Gốc, Filled Stars Hạt Vàng Cho Đánh Giá Lâm Sàng, Thẻ Bác Sĩ & Dropzone Chuẩn Xác Bản Mẫu | AI Assistant | 🟢 Đã Duyệt |
 | **#019** | 12/09/2026 | Triển Khai Hoàn Hảo Thiết Kế HTML Mẫu Từ Tech Lead: Tích Hợp Hệ Màu Material Clinical, Font Plus Jakarta Sans/Inter, Sandbox Bóc Tách PDF Tương Tác & Bác Sĩ Đầu Ngành | AI Assistant | 🟢 Đã Duyệt |
 | **#018** | 12/09/2026 | Tinh Chỉnh Đột Phá UI/UX Trang Chủ: Khắc Phục Lỗi Dính Chữ/Xuống Hàng Navbar, Tái Cấu Trúc Monitor ECG Sáng Sủa & Tối Ưu Copy Lâm Sàng | AI Assistant | 🟢 Đã Duyệt |
@@ -28,6 +29,62 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#022] Khắc Phục Toàn Diện Navbar Chưa Đăng Nhập, Tái Thiết Kế Hero Telehealth Console & Nạp 100% Dữ Liệu Bác Sĩ / Chuyên Khoa Từ PostgreSQL Thật
+* **Thời gian:** 2026-09-12 10:55:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-UX-00 (Modern Telehealth Landing Page & Live Triage Simulator), UC-SEC-01 (Dual-Transport Authentication)
+* **Trạng thái Dịch vụ:**
+  - Docker Desktop Engine: **RUNNING**
+  - PostgreSQL (pgvector 16): `mediassist_postgres` cổng **5433** (Healthy)
+  - Redis 7 Alpine: `mediassist_redis` cổng **6379** (Healthy)
+  - Backend (Spring Boot 3.4.3 / Java 21): cổng **5000** (Actuator status: `UP`, 39/39 Tests PASS)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (`http://localhost:5173/`, `npm run build` 0 TS errors)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Mục Tiêu & Yêu Cầu Từ Tech Lead
+1. **Khắc phục trạng thái Navbar giả mạo đăng nhập:** Trang chủ trước đó luôn hiển thị tĩnh profile `Dr. A. Vance - Physician Portal` ngay cả khi chưa đăng nhập (`!isAuthenticated`). Yêu cầu sửa lại hiển thị chuẩn xác hai nút *"Đăng Nhập"* và *"Khám Ngay"* khi chưa login, và hiển thị profile, role badge, nút logout khi đã đăng nhập.
+2. **Tái thiết kế khối Hero Section ("khá xấu"):** Theo ảnh chụp phản hồi [`media_1789185010955.png`](file:///C:/Users/ADmin/.gemini/antigravity/brain/6a27ac21-0861-4f50-8a85-6ab452533940/.user_uploaded/media_1789185010955.png), khối card bên phải có lề âm (`-mt-8 -ml-6`) tạo thành một mảng xám thừa lơ lửng chòi xuống khoảng trắng bên dưới hình ảnh, che mất phân nửa ảnh bác sĩ. Yêu cầu tái thiết kế thành một khung Telehealth Console chuẩn y tế cao cấp, nguyên khối, sắc nét, không có khối treo lơ lửng.
+3. **Nạp 100% Dữ Liệu từ Database (Không dùng Mock Data):** Gọi trực tiếp `/api/v1/doctors` và `/api/v1/specialties` từ PostgreSQL để nạp:
+   - Thẻ bác sĩ tiêu biểu trên Hero (gắn với `doctors[0]` GS.TS. BS. Nguyễn Văn An).
+   - Bộ lọc chuyên khoa lâm sàng động (12 chuyên khoa thực tế từ DB).
+   - Danh sách thẻ bác sĩ đầu ngành có rating, bằng cấp, số ca khám, phí khám và liên kết đặt khám thực tế.
+   - Thống kê ca khám tổng hợp động từ dữ liệu thật.
+   - Gợi ý bác sĩ trong Interactive Sandbox khớp chính xác chuyên khoa với hồ sơ bệnh án mẫu.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi
+* `[MOD] frontend/src/pages/LandingPage.tsx`:
+  - Thêm hook `useEffect` gọi song song `api.get('/doctors')` và `api.get('/specialties')`.
+  - Điều kiện hiển thị Navbar: `isAuthenticated && user` hiển thị Avatar, Tên, Role badge, Logout; ngược lại hiển thị nút "Đăng Nhập" và "Khám Ngay".
+  - Tái thiết kế toàn bộ cột phải Hero Section: Khung bo góc 3xl, thanh điều khiển Live Session MacOS/Telehealth (HD 1080p, status lights), HUD tag đo OCR, và thẻ bác sĩ tiêu biểu tích hợp nguyên khối trong khung console.
+  - Cập nhật các mẫu bệnh án tương tác: `lipid` (Tim mạch -> GS.TS. BS. Nguyễn Văn An), `respiratory` (Hô hấp -> PGS.TS. BS. Trần Thị Mai Hương), `general` (Nội tổng quát -> BS. CKI. Bùi Quang Huy).
+  - Tự động sinh filter pills chuyên khoa tiếng Việt thân thiện, hỗ trợ toggle chọn/hủy bộ lọc và lọc bác sĩ real-time.
+* `[MOD] docs/WORK_LOG.md`: Ghi nhật ký phiên làm việc #022.
+
+#### 3. Bằng Chứng Kiểm Thử & Xác Minh
+* **Frontend Build Check:**
+  ```bash
+  $ npm run build
+  > mediassist-frontend@1.0.0 build
+  > tsc && vite build
+  ✓ 1669 modules transformed.
+  dist/assets/index-CzaTiqZl.js   234.63 kB │ gzip: 50.50 kB
+  dist/assets/vendor-4N3JXewX.js  238.47 kB │ gzip: 77.60 kB
+  ✓ built in 2.91s
+  ```
+  *(0 lỗi TypeScript, tuân thủ nghiêm ngặt noUnusedLocals)*.
+* **Backend Health & Database Verification:**
+  - `http://localhost:5000/actuator/health` -> `{"status":"UP"}`.
+  - `/api/v1/doctors` -> Trả về 9 bác sĩ chuyên khoa thực tế từ Flyway Seed Data.
+  - `/api/v1/specialties` -> Trả về 12 chuyên khoa lâm sàng với đầy đủ slug và tên song ngữ Anh - Việt.
+* **Frontend Dev Server:**
+  - `http://localhost:5173/` phản hồi HTTP 200, Hot Module Replacement hoạt động mượt mà.
+
+#### 4. Điểm Nóng Dành Cho Tech Lead Review (Architectural Decisions)
+1. **Dữ Liệu Động Hai Chiều:** Việc gọi `/api/v1/doctors` và `/api/v1/specialties` đồng thời bằng `Promise.all` giúp tối ưu số round-trip, đồng thời các chỉ số thống kê (20,500+ ca khám, số lượng bác sĩ và chuyên khoa) đều tự động cập nhật ngay khi database thêm bác sĩ mới mà không cần sửa code giao diện.
+2. **Loại Bỏ Hoàn Toàn Khối Lơ Lửng Ở Hero:** Thay vì dùng margin âm phá vỡ grid layout như bản cũ, console mới đóng gói toàn bộ thẻ bác sĩ tiêu biểu vào bên trong container có bo góc và đổ bóng nhẹ nhàng, tạo cảm giác một ứng dụng Telehealth Hospital Console chuyên nghiệp, đáng tin cậy.
 
 ---
 
