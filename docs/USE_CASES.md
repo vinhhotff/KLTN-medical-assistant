@@ -159,7 +159,8 @@ graph TD
   - Người dùng có hạn ngạch quét (`scanQuota > 0`) hoặc là hội viên `MediPass VIP` (nếu hết lượt, chuyển sang ngoại lệ `HTTP 402 Payment Required`).
   - Tuân thủ Rate Limiter (tối đa 5 lượt tải lên/phút) và giới hạn kích thước tệp tối đa 15MB.
 * **REST Endpoints:**
-  - `POST /api/v1/documents/analyze`: Tiếp nhận tệp PDF xét nghiệm qua `multipart/form-data` (tham số `file`), kiểm tra SHA-256 deduplication, sàng lọc gatekeeper, bóc tách chỉ số sinh hóa, upload Supabase Storage, trừ hạn ngạch và tìm kiếm bác sĩ qua pgvector.
+  - `POST /api/v1/documents/analyze`: Tiếp nhận tệp PDF xét nghiệm qua `multipart/form-data` (tham số `file`), kiểm tra SHA-256 deduplication, sàng lọc gatekeeper, bóc tách chỉ số sinh hóa, upload Supabase Storage, trừ hạn ngạch và tìm kiếm bác sĩ qua pgvector. (Yêu cầu đăng nhập).
+  - `POST /api/v1/documents/analyze-preview`: Quét thử nghiệm tài liệu xét nghiệm trực tiếp từ Landing Page không cần đăng nhập. Sàng lọc Gatekeeper nghiêm ngặt chống ảnh rác/ảnh mờ/ảnh ngoài ngành y, bóc tách chỉ số thật 100% từ PDF/Vision (không suy đoán, không dùng mock), truy vấn danh mục bác sĩ pgvector tương thích nhưng không lưu Cloud EMR và không trừ quota.
   - `GET /api/v1/documents/quota`: Kiểm tra số lượt quét khả dụng, hạn hội viên VIP và trạng thái gói cước của người bệnh.
   - `GET /api/v1/documents/my`: Truy vấn lịch sử các tài liệu y tế đã phân tích của người bệnh đăng nhập (yêu cầu Bearer Token).
 

@@ -57,36 +57,34 @@ public class MedicalDocumentValidator {
             );
         }
 
-        // 3. Readability Check
-        String normalizedText = unaccent(extractedText != null ? extractedText : "");
-        String normalizedFileName = unaccent(fileName != null ? fileName : "");
-        String combinedContext = (normalizedText + " " + normalizedFileName).toLowerCase().trim();
+        // 3. Readability Check (Strictly on extracted clinical text)
+        String normalizedText = unaccent(extractedText != null ? extractedText : "").toLowerCase().trim();
 
-        if (normalizedText.trim().length() < 15) {
-            log.warn("🚨 [UNREADABLE DOCUMENT DETECTED] Extracted text too short ({} chars) for '{}'", normalizedText.trim().length(), fileName);
+        if (normalizedText.length() < 15) {
+            log.warn("🚨 [UNREADABLE DOCUMENT DETECTED] Extracted text too short ({} chars) for '{}'", normalizedText.length(), fileName);
             throw new AppException(
                     HttpStatus.BAD_REQUEST,
                     "UNREADABLE_DOCUMENT",
-                    "Tài liệu bị lỗi, hình ảnh quá mờ hoặc không thể trích xuất nội dung văn bản. Vui lòng chụp/quét lại bản rõ nét hơn và thử lại."
+                    "Tài liệu bị lỗi, hình ảnh không có văn bản hoặc không thể trích xuất nội dung xét nghiệm. Vui lòng tải lên tệp PDF kết quả xét nghiệm hoặc ảnh chụp rõ nét."
             );
         }
 
-        // 4. Clinical Laboratory Keywords Sieve
+        // 4. Clinical Laboratory Keywords Sieve (Strictly inspects document content, NOT file name)
         boolean containsMedicalKeyword = false;
         for (String keyword : MEDICAL_DICTIONARY) {
-            if (combinedContext.contains(keyword)) {
+            if (normalizedText.contains(keyword)) {
                 containsMedicalKeyword = true;
                 break;
             }
         }
 
         if (!containsMedicalKeyword) {
-            log.warn("🚨 [NON-MEDICAL DOCUMENT DETECTED] Uploaded file '{}' rejected: No clinical laboratory keywords found in text: '{}'",
-                    fileName, combinedContext.length() > 100 ? combinedContext.substring(0, 100) : combinedContext);
+            log.warn("🚨 [NON-MEDICAL DOCUMENT DETECTED] Uploaded file '{}' rejected: No clinical laboratory keywords found in extracted text: '{}'",
+                    fileName, normalizedText.length() > 100 ? normalizedText.substring(0, 100) : normalizedText);
             throw new AppException(
                     HttpStatus.BAD_REQUEST,
                     "NON_MEDICAL_DOCUMENT",
-                    "Hệ thống không phát hiện thấy bất kỳ chỉ số xét nghiệm hoặc thuật ngữ y tế nào trong tài liệu này. Vui lòng tải lên đúng phiếu kết quả xét nghiệm."
+                    "Hệ thống không phát hiện thấy bất kỳ chỉ số xét nghiệm hoặc thuật ngữ y tế nào trong nội dung tài liệu này. Vui lòng tải lên đúng phiếu kết quả xét nghiệm y khoa."
             );
         }
 

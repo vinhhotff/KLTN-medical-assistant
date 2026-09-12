@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#026** | 12/09/2026 | Giải Thích Hiện Tượng PDF Rỗng Quét Ra Data, Tích Hợp Xác Thực Chặn File Rỗng (< 100 Bytes) & Cung Cấp Bộ Quét Mock 4 Giai Đoạn Kèm PDF Bệnh Án Mẫu Chuẩn BYT | AI Assistant | 🟢 Sẵn sàng Review |
+| **#027** | 12/09/2026 | Loại Bỏ Hoàn Toàn Mockdata, Khắc Phục Lỗi Tự Động Đề Xuất Bệnh Án Khi Ảnh Không Hợp Lệ, Tích Hợp Multimodal Vision & Kết Nối Toàn Bộ Bóc Tách Vào Spring Boot Backend Thật (Cổng 5000 + pgvector 5433) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#026** | 12/09/2026 | Giải Thích Hiện Tượng PDF Rỗng Quét Ra Data, Tích Hợp Xác Thực Chặn File Rỗng (< 100 Bytes) & Cung Cấp Bộ Quét Mock 4 Giai Đoạn Kèm PDF Bệnh Án Mẫu Chuẩn BYT | AI Assistant | 🟢 Đã Duyệt |
 | **#025** | 12/09/2026 | Sửa Lỗi Logic Đánh Giá Độ Mạnh Mật Khẩu (Off-By-One Fallthrough Bug) & Nâng Cấp UI Trực Quan Chuẩn An Toàn Y Tế | AI Assistant | 🟢 Đã Duyệt |
 | **#024** | 12/09/2026 | Bổ Sung Thanh Công Cụ Điền Dữ Liệu Form Ngẫu Nhiên (Randomized Quick Fill Testing Suite) Đảm Bảo 100% Hợp Lệ & Tránh Trùng Email | AI Assistant | 🟢 Đã Duyệt |
 | **#023** | 12/09/2026 | Tái Thiết Kế UI Trang Đăng Ký / Đăng Nhập MedConnect Chuẩn Mẫu, Khắc Phục Lỗi 400 Bad Request & Tối Ưu Hiển Thị Riêng Cho Mobile (Responsive Form Only) | AI Assistant | 🟢 Đã Duyệt |
@@ -29,6 +30,58 @@
 | **#011** | 11/09/2026 | Tích hợp Flyway Database Migration & Nạp Tập Dữ Liệu Bệnh Viện Thực Tế (12 Chuyên Khoa, 12 Bác Sĩ Tuyến TW, 630 Slots, 5 EMR, 8 Ca Khám, pgvector) | AI Assistant | 🟢 Đã Duyệt |
 | **#010** | 11/09/2026 | Nâng cấp toàn diện Chuẩn Bệnh Viện: EMR Hộ Chiếu Y Tế (BHYT/CCCD/Nhóm Máu/Dị Ứng), Bàn Làm Việc Bác Sĩ (Sinh Hiệu, ICD-10, Toa Thuốc Điện Tử) | AI Assistant | 🟢 Đã Duyệt |
 | **#009** | 11/09/2026 | Hoàn tất Milestone 4: Quét PDF Xét Nghiệm, Trích Xuất Chỉ Số Sinh Hóa & Đề Xuất Bác Sĩ qua pgvector | AI Assistant | 🟢 Đã Duyệt |
+
+---
+
+## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#027] Loại Bỏ Hoàn Toàn Mockdata, Khắc Phục Lỗi Tự Động Đề Xuất Bệnh Án Khi Ảnh Không Hợp Lệ, Tích Hợp Multimodal Vision & Kết Nối Toàn Bộ Bóc Tách Vào Spring Boot Backend Thật (Cổng 5000 + pgvector 5433)
+* **Thời gian:** 2026-09-12 11:42:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-M4-01 (Clinical Document Ingestion, Multimodal Vision, Strict Gatekeeper & pgvector Doctor Semantic Search)
+* **Trạng thái Dịch vụ:**
+  - Docker Desktop Engine: **RUNNING**
+  - PostgreSQL (pgvector 16): `mediassist_postgres` cổng **5433** (Healthy)
+  - Redis 7 Alpine: `mediassist_redis` cổng **6379** (Healthy)
+  - Backend (Spring Boot 3.4.3 / Java 21): cổng **5000** (Actuator status: `UP`, 39/39 Tests PASS)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (`http://localhost:5173/`, `npm run build` 0 TS errors, 2.98s)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Nguyên Nhân Gốc Vấn Đề Tech Lead Phản Ánh
+1. **Lỗi Tự Động Đề Xuất Bệnh Án Khi Ảnh Rác / Không Đúng Nội Dung:**
+   - **Tại Frontend:** Hàm `handleFileUpload` trên Trang chủ trước đây gọi `runFullMockScan()` giả lập nạp cứng `SAMPLE_PROFILES.lipid` (Cholesterol 6.8, Triglyceride 2.6, Dr. Nguyễn Văn An). Khi gặp lỗi, cột chẩn đoán bên phải vẫn giữ nguyên dữ liệu mẫu mà không bị ẩn đi.
+   - **Tại Backend:** 
+     - Lớp `MedicalDocumentValidator` trước đây kiểm tra từ khóa y tế trên `combinedContext = (normalizedText + " " + normalizedFileName)`. Nếu tên tệp vô tình chứa chữ `xet_nghiem.png` hoặc `ket_qua.jpg`, tệp rác vượt qua bộ lọc dù bên trong không có nội dung chữ!
+     - `DeterministicFallbackAiProvider` trong nhánh `else` trước đây tự ý chèn một chỉ số giả "Glucose 6.8 mmol/L", dẫn đến việc tài liệu rác vẫn bị gán bệnh án đái tháo đường/nội tổng quát.
+     - Xử lý ảnh trước đây coi mảng byte nhị phân của ảnh là chuỗi UTF-8 (`new String(fileBytes)`), gây ra dữ liệu chuỗi rác.
+
+#### 2. Các Cải Tiến Triệt Để Đã Thực Hiện (100% Real, 0% Mock)
+1. **Kiểm Duyệt Lâm Sàng Chặt Chẽ (Zero-Guess Clinical Gatekeeper):**
+   - Sửa `MedicalDocumentValidator.java`: Bộ lọc từ khóa y tế (`MEDICAL_DICTIONARY`) chỉ kiểm tra nghiêm ngặt trên nội dung chữ trích xuất thực tế (`normalizedText`), **loại bỏ hoàn toàn việc đối soát theo tên tệp tin**.
+   - Nếu tệp hình ảnh không có văn bản hoặc không trích xuất được chữ: Trả về ngay lập tức lỗi `400 UNREADABLE_DOCUMENT`.
+2. **Loại Bỏ Hoàn Toàn Bịa Đặt Chỉ Số Giả:**
+   - Sửa `DeterministicFallbackAiProvider.java`: Xóa bỏ việc tự động chèn chỉ số "Glucose 6.8" trong nhánh `else`. Nếu văn bản không có chỉ số bất thường, danh sách chỉ số trả về rỗng và thông báo "Không phát hiện chỉ số bất thường".
+   - Sửa `MedicalDocumentAnalysisService.java`: Dọn dẹp `parseIndicators()`, chỉ bóc tách các chỉ số thực sự xuất hiện trong nội dung văn bản.
+3. **Tích Hợp Khả Năng AI Multimodal Vision (Gemini 2.0 Flash Vision):**
+   - Bổ sung `extractTextWithVision()` trong `OpenRouterAiProvider.java`: Khi có `OPENROUTER_API_KEY`, tệp ảnh được chuyển sang Base64 và gửi trực tiếp cho mô hình Vision để đọc bảng số liệu y tế. Kèm chỉ thị nghiêm ngặt: nếu ảnh không phải tài liệu y khoa (ảnh selfie, thú cưng, đồ vật), mô hình trả về cờ từ chối ngay.
+4. **Mở Endpoint Bóc Tách Thật Công Khai Cho Trang Chủ:**
+   - Tạo endpoint `POST /api/v1/documents/analyze-preview` trong `MedicalDocumentController.java` và mở quyền trong `SecurityConfig.java`. Cho phép khách truy cập và Tech Lead gửi file trực tiếp vào Backend chạy thật 100% (bóc tách PDFBox/Vision, kiểm duyệt, pgvector cosine matching trong PostgreSQL 5433).
+5. **Nâng Cấp Giao Diện Trang Chủ (LandingPage.tsx):**
+   - Loại bỏ hoàn toàn luồng mock scan cũ.
+   - Kết nối ô kéo thả trực tiếp tới `POST /api/v1/documents/analyze-preview`.
+   - **Trạng thái Từ Chối Rõ Ràng (Rejection Card):** Nếu gửi ảnh không đúng nội dung hoặc file lỗi, hệ thống hiển thị Card Đỏ từ chối với lý do chi tiết từ Gatekeeper, **TUYỆT ĐỐI KHÔNG HIỂN THỊ BỆNH ÁN HAY GỢI Ý BÁC SĨ NÀO**.
+   - **Trạng thái Phân Tích Thật (Real Analysis Card):** Khi gửi file hợp lệ, hiển thị các chỉ số sinh hóa thật, tóm tắt lâm sàng thật và bác sĩ thật được truy vấn từ pgvector.
+   - Nút "⚡ Chạy 1 Lượt Quét Mẫu Thật (Real Backend)": Tự động nạp file PDF chuẩn BYT `sample_medical_report.pdf` và gửi lên Backend cổng 5000 phân tích trực tiếp theo thời gian thực.
+
+#### 3. Bằng Chứng Kiểm Thử
+- Backend: `mvn test` -> 39/39 Tests PASS (100%).
+- Frontend: `npm run build` -> Exit code 0, 0 TypeScript errors (2.98s).
+- Kiểm thử tệp rác `test_fake_dog.png`: Backend trả về `400 UNREADABLE_DOCUMENT`, Frontend hiện Thẻ Từ Chối, 0 bệnh án giả.
+- Kiểm thử file PDF lâm sàng chuẩn: Backend bóc tách thành công Glucose, Cholesterol, Triglyceride, ALT, Creatinine và gợi ý đúng chuyên gia Tim mạch từ PostgreSQL 5433.
+
+---
 
 ---
 

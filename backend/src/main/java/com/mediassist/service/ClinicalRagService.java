@@ -17,6 +17,14 @@ public class ClinicalRagService {
         this.aiModelRouter = aiModelRouter;
     }
 
+    public boolean canProcessVision() {
+        return aiModelRouter.canProcessVision();
+    }
+
+    public String extractTextWithVision(byte[] imageBytes, String contentType, String fileName) {
+        return aiModelRouter.extractTextWithVision(imageBytes, contentType, fileName);
+    }
+
     public ClinicalAiResult performDocumentRagAnalysis(String extractedText, String fileName, List<DoctorMatchDto> candidateDoctors) {
         log.info("Assembling Clinical RAG Prompt for document '{}' with {} candidate doctors", fileName, candidateDoctors != null ? candidateDoctors.size() : 0);
 

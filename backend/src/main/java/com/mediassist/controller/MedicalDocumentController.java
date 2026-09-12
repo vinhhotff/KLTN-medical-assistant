@@ -70,6 +70,23 @@ public class MedicalDocumentController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @PostMapping(value = "/analyze-preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Kiểm thử và bóc tách tức thì hồ sơ y tế không cần đăng nhập (Preview cho Trang chủ & Thử nghiệm)")
+    public ResponseEntity<ApiResponse<DocumentAnalysisResponse>> analyzeDocumentPreview(
+            @RequestParam("file") MultipartFile file) {
+
+        if (file == null || file.isEmpty()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE", "Vui lòng chọn tệp tài liệu y tế (PDF hoặc ảnh) để phân tích.");
+        }
+
+        if (file.getSize() > 15 * 1024 * 1024) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE", "Dung lượng tệp tối đa cho phép là 15MB.");
+        }
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocumentPreview(file);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @GetMapping("/my")
     @Operation(summary = "Get list of medical documents uploaded by current patient")
     public ResponseEntity<ApiResponse<List<MedicalDocument>>> getMyDocuments(Authentication authentication) {

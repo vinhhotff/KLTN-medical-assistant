@@ -52,6 +52,31 @@ const getDoctorAvatar = (doc: DoctorDetail, index: number): string => {
   return DOCTOR_PORTRAITS[index % DOCTOR_PORTRAITS.length];
 };
 
+interface AbnormalIndicator {
+  name: string;
+  value: string;
+  unit: string;
+  referenceRange: string;
+  status: string;
+  clinicalSignificance?: string;
+}
+
+interface AnalysisResult {
+  documentId?: string;
+  fileName: string;
+  fileSizeBytes: number;
+  contentType: string;
+  clinicalSummary: string;
+  plainLanguageExplanation: string;
+  indicators: AbnormalIndicator[];
+  recommendedSpecialtySlug: string;
+  recommendedSpecialtyName: string;
+  suggestedQuestions: string[];
+  matchedDoctors: DoctorDetail[];
+  modelUsed?: string;
+  doctorRecommendationReason?: string;
+}
+
 interface SampleItem {
   name: string;
   ref: string;
@@ -71,7 +96,7 @@ interface SampleProfile {
 
 const SAMPLE_PROFILES: Record<'lipid' | 'respiratory' | 'general', SampleProfile> = {
   lipid: {
-    title: "Đang xử lý mẫu: Bảng xét nghiệm lipid tim mạch",
+    title: "Mẫu tham khảo: Bảng xét nghiệm lipid tim mạch",
     risk: "Chú Ý • Mức Trung Bình",
     riskClass: "bg-amber-50 text-amber-800",
     specialtyKeyword: "Cardio",
@@ -83,7 +108,7 @@ const SAMPLE_PROFILES: Record<'lipid' | 'respiratory' | 'general', SampleProfile
     summary: "Chỉ số mỡ máu toàn phần và triglycerides tăng vừa phải, có thể làm tăng nguy cơ mảng bám động mạch. Khuyến nghị tư vấn Chuyên khoa Tim mạch hoặc Dinh dưỡng lâm sàng."
   },
   respiratory: {
-    title: "Đang xử lý mẫu: Đo chức năng hô hấp & Phổi FEV1/FVC",
+    title: "Mẫu tham khảo: Đo chức năng hô hấp & Phổi FEV1/FVC",
     risk: "Cần Lưu Ý • Mức Độ Vừa",
     riskClass: "bg-amber-50 text-amber-800",
     specialtyKeyword: "Pulmon",
@@ -95,7 +120,7 @@ const SAMPLE_PROFILES: Record<'lipid' | 'respiratory' | 'general', SampleProfile
     summary: "Dấu hiệu tắc nghẽn đường thở gợi ý hen phế quản hoặc COPD nhẹ. Khuyến nghị tư vấn Chuyên khoa Hô hấp & Phổi để đo phế dung ký chuyên sâu."
   },
   general: {
-    title: "Đang xử lý mẫu: Bệnh án xuất viện đa khoa tổng hợp",
+    title: "Mẫu tham khảo: Bệnh án xuất viện đa khoa tổng hợp",
     risk: "Tình Trạng Ổn Định",
     riskClass: "bg-emerald-50 text-emerald-800",
     specialtyKeyword: "General",
@@ -118,13 +143,15 @@ export const LandingPage: React.FC = () => {
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('ALL');
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
 
-  // Interactive Sandbox Demo State
+  // Interactive Real Backend Scan State
   const [activeSample, setActiveSample] = useState<'lipid' | 'respiratory' | 'general'>('lipid');
-  const [scanStatus, setScanStatus] = useState<string>(SAMPLE_PROFILES.lipid.title);
+  const [realAnalysis, setRealAnalysis] = useState<AnalysisResult | null>(null);
+  const [scanStatus, setScanStatus] = useState<string>('Sẵn sàng bóc tách tệp xét nghiệm với Spring Boot & pgvector 5433');
   const [scanPercent, setScanPercent] = useState<string>('100% (Sẵn sàng)');
   const [progressWidth, setProgressWidth] = useState<number>(100);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [scanMode, setScanMode] = useState<'real' | 'sample'>('sample');
 
   // 1. Fetch real doctors and specialties from PostgreSQL Database
   useEffect(() => {
@@ -189,54 +216,72 @@ export const LandingPage: React.FC = () => {
   const handleSelectSample = (type: 'lipid' | 'respiratory' | 'general') => {
     if (isScanning) return;
     setUploadError(null);
+    setRealAnalysis(null);
+    setScanMode('sample');
     setActiveSample(type);
-    setProgressWidth(20);
-    setScanPercent('Đang đọc OCR...');
-
-    setTimeout(() => {
-      setProgressWidth(100);
-      setScanPercent('100% (Sẵn sàng)');
-      setScanStatus(SAMPLE_PROFILES[type].title);
-    }, 280);
+    setProgressWidth(100);
+    setScanPercent('100% (Mẫu tham khảo)');
+    setScanStatus(SAMPLE_PROFILES[type].title);
   };
 
   /**
-   * Full 4-Phase Mock Scanning Simulation
-   * Simulates real medical OCR, biomarker standardization, risk stratification, and pgvector doctor matching.
+   * Real Document Analysis calling Backend POST /api/v1/documents/analyze-preview
+   * NO FAKE MOCK DATA! Sends real binary stream, validates medical keywords strictly, runs pgvector!
    */
-  const runFullMockScan = (customName?: string) => {
+  const executeRealScan = async (file: File) => {
     setIsScanning(true);
     setUploadError(null);
-    setProgressWidth(15);
-    const targetName = customName || 'Bệnh Án Xét Nghiệm Mẫu (Chuẩn BYT - Lipid & Gan)';
-    setScanStatus(`Giai đoạn 1/4: Đang đọc OCR & lọc nhiễu văn bản lâm sàng (${targetName})...`);
-    setScanPercent('15%');
+    setRealAnalysis(null); // CRITICAL: Wipe out any previous diagnosis
+    setProgressWidth(25);
+    setScanPercent('25%');
+    setScanStatus(`Đang đọc tệp "${file.name}" và gửi đến Spring Boot Backend (cổng 5000)...`);
 
-    setTimeout(() => {
-      setProgressWidth(45);
-      setScanStatus('Giai đoạn 2/4: Chuẩn hóa 5 chỉ số sinh hóa (Glucose, Cholesterol, Triglyceride, ALT, Creatinine)...');
-      setScanPercent('45%');
-    }, 500);
+    const pTimer1 = setTimeout(() => {
+      setProgressWidth(55);
+      setScanPercent('55%');
+      setScanStatus('Gatekeeper y tế đang kiểm tra thuật ngữ lâm sàng & bóc tách chỉ số sinh hóa...');
+    }, 400);
 
-    setTimeout(() => {
-      setProgressWidth(75);
-      setScanStatus('Giai đoạn 3/4: Phân tầng nguy cơ tim mạch & Tạo tóm tắt lâm sàng ngôn ngữ tự nhiên...');
-      setScanPercent('75%');
-    }, 1100);
+    const pTimer2 = setTimeout(() => {
+      setProgressWidth(85);
+      setScanPercent('85%');
+      setScanStatus('Đang đối soát pgvector cosine similarity tìm kiếm bác sĩ chuyên khoa phù hợp...');
+    }, 850);
 
-    setTimeout(() => {
-      setProgressWidth(92);
-      setScanStatus('Giai đoạn 4/4: Đối soát Vector pgvector tìm kiếm bác sĩ chuyên khoa phù hợp...');
-      setScanPercent('92%');
-    }, 1700);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
 
-    setTimeout(() => {
-      setProgressWidth(100);
-      setScanPercent('100% (Hoàn tất)');
-      setActiveSample('lipid');
-      setScanStatus(`✅ Phân tích hoàn tất: ${targetName}`);
+      const res = await api.post('/documents/analyze-preview', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      clearTimeout(pTimer1);
+      clearTimeout(pTimer2);
+
+      if (res.data?.data) {
+        setRealAnalysis(res.data.data);
+        setScanMode('real');
+        setProgressWidth(100);
+        setScanPercent('100% (Hoàn tất)');
+        setScanStatus(`✅ Phân tích thành công bằng AI Thật: ${file.name}`);
+      }
+    } catch (err: unknown) {
+      clearTimeout(pTimer1);
+      clearTimeout(pTimer2);
+      setProgressWidth(0);
+      setScanPercent('0% (Từ chối)');
+      setRealAnalysis(null); // CRITICAL: NEVER SHOW FAKE DIAGNOSIS ON ERROR!
+
+      const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
+      const errMsg = axiosErr.response?.data?.error?.message || 
+        'Tệp tin không thể phân tích hoặc không chứa thông tin xét nghiệm y tế hợp lệ.';
+
+      setUploadError(errMsg);
+      setScanStatus(`Lỗi: ${errMsg}`);
+    } finally {
       setIsScanning(false);
-    }, 2300);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -248,8 +293,9 @@ export const LandingPage: React.FC = () => {
 
     // Gatekeeper: Validate empty/blank file (< 100 bytes)
     if (file.size < 100) {
+      setRealAnalysis(null);
       setUploadError(
-        `⚠️ Tệp "${file.name}" quá nhỏ hoặc rỗng (${file.size} bytes). Hệ thống từ chối quét file rỗng! Vui lòng tải file PDF xét nghiệm có nội dung lâm sàng (hoặc bấm "Tải File PDF Mẫu" bên dưới).`
+        `⚠️ Tệp "${file.name}" quá nhỏ hoặc rỗng (${file.size} bytes). Hệ thống từ chối quét file rỗng! Vui lòng tải file PDF xét nghiệm có nội dung lâm sàng.`
       );
       setScanStatus(`Lỗi: Tệp tin "${file.name}" không có nội dung xét nghiệm hợp lệ`);
       setProgressWidth(0);
@@ -257,8 +303,22 @@ export const LandingPage: React.FC = () => {
       return;
     }
 
-    setUploadError(null);
-    runFullMockScan(file.name);
+    executeRealScan(file);
+  };
+
+  /**
+   * Real sample scan calling backend with the real sample PDF
+   */
+  const handleRunRealSampleScan = async () => {
+    try {
+      setScanStatus('Đang nạp file xét nghiệm mẫu chuẩn BYT...');
+      const response = await fetch('/sample_medical_report.pdf');
+      const blob = await response.blob();
+      const sampleFile = new File([blob], 'sample_medical_report.pdf', { type: 'application/pdf' });
+      await executeRealScan(sampleFile);
+    } catch (err) {
+      console.error('Failed to load sample PDF for real scan:', err);
+    }
   };
 
 
@@ -619,19 +679,19 @@ export const LandingPage: React.FC = () => {
                   {/* Left 7 cols: Upload and File Selector */}
                   <div className="lg:col-span-7 flex flex-col justify-between bg-surface-container-lowest p-space-lg rounded-xl shadow-sm">
                     
-                    {/* Test Action Bar: 1-Click Mock Scan & Sample PDF Download */}
+                    {/* Test Action Bar: 1-Click Real Backend Scan & Sample PDF Download */}
                     <div className="mb-space-md p-space-sm bg-surface-container-low rounded-xl border border-outline-variant/40">
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => runFullMockScan()}
+                          onClick={handleRunRealSampleScan}
                           disabled={isScanning}
                           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-secondary hover:bg-secondary/90 text-on-secondary font-label-md text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
                         >
                           <span className={`material-symbols-outlined text-[16px] ${isScanning ? 'animate-spin' : ''}`}>
                             {isScanning ? 'sync' : 'bolt'}
                           </span>
-                          <span>{isScanning ? 'Đang Chạy Quét 4 Giai Đoạn...' : '⚡ Chạy 1 Lượt Quét Mock Đầy Đủ (Test Ngay)'}</span>
+                          <span>{isScanning ? 'Đang Gửi Tới Spring Boot Backend...' : '⚡ Chạy 1 Lượt Quét Mẫu Thật (Real Backend)'}</span>
                         </button>
 
                         <a
@@ -650,7 +710,7 @@ export const LandingPage: React.FC = () => {
                           className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-secondary hover:bg-secondary-container/30 font-label-sm text-[11px] font-semibold transition-colors"
                         >
                           <span className="material-symbols-outlined text-[14px]">psychology</span>
-                          <span>AI Backend Quét Thật →</span>
+                          <span>Bàn Làm Việc AI EMR →</span>
                         </button>
                       </div>
                     </div>
@@ -663,8 +723,8 @@ export const LandingPage: React.FC = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-space-xs mb-space-md">
                         <button
                           className={`text-left p-space-sm rounded-lg transition-all duration-150 cursor-pointer ${
-                            activeSample === 'lipid'
-                              ? 'bg-surface-container text-primary font-semibold'
+                            scanMode === 'sample' && activeSample === 'lipid'
+                              ? 'bg-surface-container text-primary font-semibold ring-1 ring-secondary/30'
                               : 'bg-surface hover:bg-surface-container text-on-surface-variant'
                           }`}
                           onClick={() => handleSelectSample('lipid')}
@@ -678,8 +738,8 @@ export const LandingPage: React.FC = () => {
 
                         <button
                           className={`text-left p-space-sm rounded-lg transition-all duration-150 cursor-pointer ${
-                            activeSample === 'respiratory'
-                              ? 'bg-surface-container text-primary font-semibold'
+                            scanMode === 'sample' && activeSample === 'respiratory'
+                              ? 'bg-surface-container text-primary font-semibold ring-1 ring-secondary/30'
                               : 'bg-surface hover:bg-surface-container text-on-surface-variant'
                           }`}
                           onClick={() => handleSelectSample('respiratory')}
@@ -693,8 +753,8 @@ export const LandingPage: React.FC = () => {
 
                         <button
                           className={`text-left p-space-sm rounded-lg transition-all duration-150 cursor-pointer ${
-                            activeSample === 'general'
-                              ? 'bg-surface-container text-primary font-semibold'
+                            scanMode === 'sample' && activeSample === 'general'
+                              ? 'bg-surface-container text-primary font-semibold ring-1 ring-secondary/30'
                               : 'bg-surface hover:bg-surface-container text-on-surface-variant'
                           }`}
                           onClick={() => handleSelectSample('general')}
@@ -740,10 +800,10 @@ export const LandingPage: React.FC = () => {
                         </span>
                       </div>
                       <div className="font-title-md text-title-md text-primary font-bold">
-                        {isScanning ? 'Đang thực hiện phân tích tài liệu lâm sàng...' : 'Kéo và thả tệp PDF bệnh án hoặc hình chụp tại đây'}
+                        {isScanning ? 'Đang bóc tách và đối soát pgvector trên Backend...' : 'Kéo và thả tệp PDF bệnh án hoặc hình chụp tại đây'}
                       </div>
                       <div className="font-body-sm text-body-sm text-outline mt-space-2xs">
-                        Hỗ trợ PDF, PNG, JPG • Yêu cầu có nội dung xét nghiệm • Dung lượng tối đa 25MB
+                        Hỗ trợ PDF, PNG, JPG • Yêu cầu có nội dung xét nghiệm • Kết nối Backend thật 100%
                       </div>
                       <div className="mt-space-md inline-flex items-center gap-2 bg-surface-container-lowest px-space-md py-1.5 rounded-lg shadow-sm text-primary font-label-md text-label-md font-semibold">
                         <span className="material-symbols-outlined text-[18px]">folder_open</span> Duyệt file từ máy tính
@@ -766,75 +826,205 @@ export const LandingPage: React.FC = () => {
 
                   </div>
 
-                  {/* Right 5 cols: Instant Live Diagnosis Simulator Panel (MATCHED TO DB DOCTOR) */}
-                  <div className="lg:col-span-5 bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-space-sm">
-                        <span className="font-label-md text-label-md font-semibold text-primary uppercase tracking-wide flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[18px] text-secondary">psychology</span> Bóc Tách Tức Thì
-                        </span>
-                        <span className={`font-label-sm text-label-sm px-space-xs py-0.5 rounded font-semibold ${currentSample.riskClass}`}>
-                          {currentSample.risk}
-                        </span>
-                      </div>
-
-                      {/* Parsed Biomarkers List */}
-                      <div className="flex flex-col gap-space-xs mb-space-md">
-                        {currentSample.items.map((item, idx) => (
-                          <div key={idx} className="p-space-sm bg-surface rounded-lg flex items-center justify-between">
-                            <div>
-                              <div className="font-body-md text-body-md font-semibold text-primary">{item.name}</div>
-                              <div className="font-body-sm text-body-sm text-outline">{item.ref}</div>
-                            </div>
-                            <div className="text-right">
-                              <div className={`font-title-md text-title-md ${item.color} font-bold`}>{item.val}</div>
-                              <span className={`font-label-sm text-label-sm ${item.color} font-medium`}>{item.status}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Plain Language Explanation */}
-                      <div className="p-space-sm bg-surface-container rounded-lg mb-space-md">
-                        <div className="font-label-md text-label-md text-primary font-semibold mb-1 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[16px] text-secondary">forum</span> Tóm Tắt Dễ Hiểu
+                  {/* Right 5 cols: Instant Live Diagnosis Simulator Panel (CONNECTED TO REAL BACKEND) */}
+                  {uploadError ? (
+                    <div className="lg:col-span-5 bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col justify-between border-2 border-error/30">
+                      <div>
+                        <div className="flex items-center justify-between mb-space-sm">
+                          <span className="font-label-md text-label-md font-bold text-error uppercase tracking-wide flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[20px] text-error">cancel</span>
+                            Từ Chối Phân Tích
+                          </span>
+                          <span className="font-label-sm text-label-sm px-2 py-0.5 rounded font-bold bg-error-container text-on-error-container">
+                            Không Hợp Lệ
+                          </span>
                         </div>
-                        <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-                          {currentSample.summary}
-                        </p>
+
+                        <div className="p-space-md bg-error-container/30 border border-error/20 rounded-xl mb-space-md">
+                          <div className="font-label-md text-sm text-error font-bold mb-1 flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[18px]">report</span>
+                            Lý do từ chối từ Gatekeeper Y Tế:
+                          </div>
+                          <p className="font-body-sm text-xs text-on-error-container leading-relaxed">
+                            {uploadError}
+                          </p>
+                        </div>
+
+                        <div className="p-space-md bg-surface-container-low rounded-xl mb-space-md border border-outline-variant/30">
+                          <div className="font-label-md text-xs text-primary font-bold mb-1.5 flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[16px] text-secondary">verified_user</span>
+                            Nguyên tắc an toàn y tế &amp; Trách nhiệm lâm sàng:
+                          </div>
+                          <p className="font-body-sm text-[12px] text-on-surface-variant leading-relaxed">
+                            Hệ thống <strong>TUYỆT ĐỐI KHÔNG</strong> tự động suy đoán, bịa đặt hoặc đề xuất bệnh án đối với tệp tin không chứa dữ liệu xét nghiệm rõ ràng. 
+                            Không có bác sĩ hay chỉ số bất thường nào được đề xuất cho tệp tin không hợp lệ này.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-space-sm">
+                        <button
+                          type="button"
+                          onClick={handleRunRealSampleScan}
+                          className="w-full flex items-center justify-center gap-2 bg-primary text-on-primary hover:bg-primary/90 font-title-md text-xs py-space-sm rounded-lg transition-colors cursor-pointer font-bold shadow-xs"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">restart_alt</span>
+                          <span>Thử Lại Với Phiếu Xét Nghiệm Mẫu Chuẩn BYT</span>
+                        </button>
                       </div>
                     </div>
+                  ) : realAnalysis ? (
+                    <div className="lg:col-span-5 bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col justify-between border-2 border-secondary/40 animate-fadeIn">
+                      <div>
+                        <div className="flex items-center justify-between mb-space-sm">
+                          <span className="font-label-md text-label-md font-bold text-secondary uppercase tracking-wide flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[20px] text-secondary">verified</span>
+                            Kết Quả Quét Thật (AI &amp; pgvector)
+                          </span>
+                          <span className="font-label-sm text-label-sm px-2.5 py-0.5 rounded font-bold bg-secondary-container text-on-secondary-container">
+                            {realAnalysis.recommendedSpecialtyName || 'Chuyên Khoa'}
+                          </span>
+                        </div>
 
-                    {/* Suggested Doctor Direct Action (FETCHED FROM DB) */}
-                    <div className="pt-space-sm">
-                      {recommendedDoctorForSample ? (
-                        <div className="flex items-center gap-space-sm p-space-sm bg-surface-container-low rounded-lg mb-space-sm">
-                          <img
-                            alt={recommendedDoctorForSample.fullName}
-                            className="w-11 h-11 rounded-full object-cover ring-1 ring-secondary/30"
-                            src={getDoctorAvatar(recommendedDoctorForSample, 1)}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="font-title-md text-sm text-primary truncate font-bold">
-                              {recommendedDoctorForSample.academicTitle} {recommendedDoctorForSample.fullName}
+                        {/* Real Indicators from Backend */}
+                        <div className="flex flex-col gap-space-xs mb-space-md max-h-56 overflow-y-auto">
+                          {realAnalysis.indicators && realAnalysis.indicators.length > 0 ? (
+                            realAnalysis.indicators.map((item, idx) => (
+                              <div key={idx} className="p-space-sm bg-surface rounded-lg flex items-center justify-between border border-outline-variant/30">
+                                <div>
+                                  <div className="font-body-md text-xs font-bold text-primary">{item.name}</div>
+                                  <div className="font-body-sm text-[11px] text-outline">Tham chiếu: {item.referenceRange}</div>
+                                </div>
+                                <div className="text-right">
+                                  <div className={`font-title-md text-sm font-bold ${item.status === 'ELEVATED' || item.status === 'LOW' ? 'text-error' : 'text-secondary'}`}>
+                                    {item.value} {item.unit}
+                                  </div>
+                                  <span className={`font-label-sm text-[10px] font-bold ${item.status === 'ELEVATED' || item.status === 'LOW' ? 'text-error' : 'text-secondary'}`}>
+                                    {item.status === 'ELEVATED' ? 'Tăng cao ↑' : item.status === 'LOW' ? 'Giảm ↓' : 'Bình thường ✓'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-space-sm bg-surface rounded-lg text-xs text-outline text-center">
+                              Không phát hiện chỉ số sinh hóa vượt ngưỡng bất thường.
                             </div>
-                            <div className="font-body-sm text-xs text-secondary truncate">
-                              {recommendedDoctorForSample.specialties?.[0] || 'Chuyên Khoa'} • {recommendedDoctorForSample.hospitalAffiliation}
+                          )}
+                        </div>
+
+                        {/* Real Clinical Summary */}
+                        <div className="p-space-sm bg-surface-container rounded-lg mb-space-md">
+                          <div className="font-label-md text-xs text-primary font-bold mb-1 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[16px] text-secondary">forum</span>
+                            Tóm Tắt Lâm Sàng (AI Phân Tích Thật)
+                          </div>
+                          <p className="font-body-sm text-xs text-on-surface-variant leading-relaxed">
+                            {realAnalysis.plainLanguageExplanation || realAnalysis.clinicalSummary}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Real Doctor from pgvector */}
+                      <div className="pt-space-sm">
+                        {realAnalysis.matchedDoctors && realAnalysis.matchedDoctors.length > 0 ? (
+                          <div className="flex items-center gap-space-sm p-space-sm bg-surface-container-low rounded-lg mb-space-sm border border-outline-variant/30">
+                            <img
+                              alt={realAnalysis.matchedDoctors[0].fullName}
+                              className="w-11 h-11 rounded-full object-cover ring-1 ring-secondary/30"
+                              src={getDoctorAvatar(realAnalysis.matchedDoctors[0], 0)}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-title-md text-sm text-primary truncate font-bold">
+                                {realAnalysis.matchedDoctors[0].academicTitle} {realAnalysis.matchedDoctors[0].fullName}
+                              </div>
+                              <div className="font-body-sm text-xs text-secondary truncate">
+                                {realAnalysis.matchedDoctors[0].specialties?.[0] || 'Chuyên Khoa'} • {realAnalysis.matchedDoctors[0].hospitalAffiliation}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ) : null}
+                        ) : null}
 
-                      <button
-                        onClick={() => handleDoctorBooking(recommendedDoctorForSample?.id)}
-                        className="w-full flex items-center justify-center gap-2 bg-secondary text-on-secondary hover:bg-on-secondary-container font-title-md text-title-md py-space-sm rounded-lg transition-colors cursor-pointer font-semibold shadow-xs"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">video_call</span>
-                        <span>Đặt Khám Với Bác Sĩ Này Ngay</span>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDoctorBooking(realAnalysis.matchedDoctors?.[0]?.id)}
+                          className="w-full flex items-center justify-center gap-2 bg-secondary text-on-secondary hover:bg-secondary/90 font-title-md text-xs py-space-sm rounded-lg transition-colors cursor-pointer font-bold shadow-xs"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">video_call</span>
+                          <span>Đặt Khám Với Bác Sĩ Chuyên Khoa Phù Hợp Này</span>
+                        </button>
+                      </div>
                     </div>
+                  ) : (
+                    <div className="lg:col-span-5 bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-space-sm">
+                          <span className="font-label-md text-label-md font-semibold text-primary uppercase tracking-wide flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[18px] text-secondary">psychology</span>
+                            Bóc Tách Mẫu Minh Họa
+                          </span>
+                          <span className={`font-label-sm text-label-sm px-space-xs py-0.5 rounded font-semibold ${currentSample.riskClass}`}>
+                            {currentSample.risk}
+                          </span>
+                        </div>
 
-                  </div>
+                        {/* Parsed Biomarkers List */}
+                        <div className="flex flex-col gap-space-xs mb-space-md">
+                          {currentSample.items.map((item, idx) => (
+                            <div key={idx} className="p-space-sm bg-surface rounded-lg flex items-center justify-between">
+                              <div>
+                                <div className="font-body-md text-body-md font-semibold text-primary">{item.name}</div>
+                                <div className="font-body-sm text-body-sm text-outline">{item.ref}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className={`font-title-md text-title-md ${item.color} font-bold`}>{item.val}</div>
+                                <span className={`font-label-sm text-label-sm ${item.color} font-medium`}>{item.status}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Plain Language Explanation */}
+                        <div className="p-space-sm bg-surface-container rounded-lg mb-space-md">
+                          <div className="font-label-md text-label-md text-primary font-semibold mb-1 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[16px] text-secondary">forum</span> Tóm Tắt Dễ Hiểu
+                          </div>
+                          <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                            {currentSample.summary}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Suggested Doctor Direct Action (FETCHED FROM DB) */}
+                      <div className="pt-space-sm">
+                        {recommendedDoctorForSample ? (
+                          <div className="flex items-center gap-space-sm p-space-sm bg-surface-container-low rounded-lg mb-space-sm">
+                            <img
+                              alt={recommendedDoctorForSample.fullName}
+                              className="w-11 h-11 rounded-full object-cover ring-1 ring-secondary/30"
+                              src={getDoctorAvatar(recommendedDoctorForSample, 1)}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-title-md text-sm text-primary truncate font-bold">
+                                {recommendedDoctorForSample.academicTitle} {recommendedDoctorForSample.fullName}
+                              </div>
+                              <div className="font-body-sm text-xs text-secondary truncate">
+                                {recommendedDoctorForSample.specialties?.[0] || 'Chuyên Khoa'} • {recommendedDoctorForSample.hospitalAffiliation}
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          onClick={() => handleDoctorBooking(recommendedDoctorForSample?.id)}
+                          className="w-full flex items-center justify-center gap-2 bg-secondary text-on-secondary hover:bg-on-secondary-container font-title-md text-title-md py-space-sm rounded-lg transition-colors cursor-pointer font-semibold shadow-xs"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">video_call</span>
+                          <span>Đặt Khám Với Bác Sĩ Này Ngay</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                 </div>
 

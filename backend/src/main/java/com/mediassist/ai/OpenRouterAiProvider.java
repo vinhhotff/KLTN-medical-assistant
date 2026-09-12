@@ -57,6 +57,69 @@ public class OpenRouterAiProvider implements AiProvider {
         return executeChatCompletion(systemPrompt, userPrompt, modelId, true);
     }
 
+    /**
+     * Extracts text and clinical indicators from a medical image using multimodal LLM (Gemini 2.0 Flash Vision).
+     * If the image is non-medical, returns empty string to trigger gatekeeper rejection.
+     */
+    public String extractTextWithVision(byte[] imageBytes, String contentType, String fileName) {
+        if (!isAvailable() || imageBytes == null || imageBytes.length == 0) {
+            return "";
+        }
+
+        String targetModel = "google/gemini-2.0-flash-exp:free";
+        String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+        String mime = (contentType != null && !contentType.isBlank()) ? contentType : "image/jpeg";
+
+        log.info("🔍 Invoking Multimodal Vision model '{}' for image file '{}' ({} bytes)...", targetModel, fileName, imageBytes.length);
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("model", targetModel);
+        requestBody.put("temperature", 0.1);
+
+        List<Map<String, Object>> messages = new ArrayList<>();
+        messages.add(Map.of("role", "system", "content",
+                "Bạn là trợ lý OCR y tế lâm sàng. Hãy đọc hình ảnh được cung cấp và trích xuất TOÀN BỘ nội dung văn bản, tên chỉ số xét nghiệm, giá trị số, đơn vị đo và khoảng tham chiếu có trong ảnh. " +
+                "QUY TẮC BẮT BUỘC: Nếu bức ảnh KHÔNG phải là phiếu kết quả xét nghiệm / tài liệu y tế (ví dụ ảnh người, selfie, meme, thú cưng, phong cảnh, đồ vật ngẫu nhiên), bạn CHỈ ĐƯỢC trả về dòng chữ duy nhất: KHONG_PHAI_TAI_LIEU_Y_TE."));
+
+        List<Map<String, Object>> userContent = new ArrayList<>();
+        userContent.add(Map.of("type", "text", "text", "Trích xuất văn bản từ hình ảnh phiếu xét nghiệm này:"));
+        userContent.add(Map.of("type", "image_url", "image_url", Map.of("url", "data:" + mime + ";base64," + base64Image)));
+
+        messages.add(Map.of("role", "user", "content", userContent));
+        requestBody.put("messages", messages);
+
+        try {
+            String responseJson = restClient.post()
+                    .uri(baseUrl + "/chat/completions")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey.trim())
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                    .header("HTTP-Referer", "http://localhost:5173")
+                    .header("X-Title", "MediAssist-AI Telehealth")
+                    .body(requestBody)
+                    .retrieve()
+                    .body(String.class);
+
+            if (responseJson == null || responseJson.isBlank()) {
+                return "";
+            }
+
+            JsonNode root = objectMapper.readTree(responseJson);
+            JsonNode choices = root.path("choices");
+            if (choices.isArray() && !choices.isEmpty()) {
+                String content = choices.get(0).path("message").path("content").asText();
+                if (content != null && content.contains("KHONG_PHAI_TAI_LIEU_Y_TE")) {
+                    log.warn("🚨 Multimodal Vision classified image '{}' as NON-MEDICAL.", fileName);
+                    return "";
+                }
+                log.info("✅ Multimodal Vision successfully extracted {} characters from '{}'", content.length(), fileName);
+                return content;
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ Multimodal Vision call failed for '{}': {}", fileName, e.getMessage());
+        }
+        return "";
+    }
+
     private ClinicalAiResult executeChatCompletion(String systemPrompt, String userPrompt, String modelId, boolean isTriage) {
         if (!isAvailable()) {
             throw new IllegalStateException("OpenRouter is not configured with an API key.");

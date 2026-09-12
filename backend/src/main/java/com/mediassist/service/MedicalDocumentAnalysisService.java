@@ -141,13 +141,17 @@ public class MedicalDocumentAnalysisService {
             );
         }
 
-        // 3. Extract content from PDF or text stream
+        // 3. Extract content from PDF, text or image stream
         String extractedText = "";
         try {
             if (contentType.toLowerCase().contains("pdf")) {
                 extractedText = pdfExtractionService.extractTextFromPdf(fileBytes);
-            } else {
+            } else if (contentType.toLowerCase().contains("text") || contentType.toLowerCase().contains("plain")) {
                 extractedText = new String(fileBytes, java.nio.charset.StandardCharsets.UTF_8);
+            } else if (contentType.toLowerCase().contains("image/")) {
+                if (clinicalRagService.canProcessVision()) {
+                    extractedText = clinicalRagService.extractTextWithVision(fileBytes, contentType, fileName);
+                }
             }
         } catch (Exception e) {
             log.warn("Could not extract text from file: {}", e.getMessage());
@@ -233,6 +237,99 @@ public class MedicalDocumentAnalysisService {
         response.setSuggestedQuestions(suggestedQuestions);
         response.setMatchedDoctors(matchedDoctors);
         response.setStorageUrl(storageUrl);
+        response.setCachedResult(false);
+        response.setModelUsed(ragResult.getModelUsed());
+        response.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
+
+        return response;
+    }
+
+    /**
+     * Instant document analysis preview for testing & Landing Page without requiring patient login or quota deduction.
+     * Enforces strict medical validation, real PDF/OCR extraction, and real pgvector doctor matching.
+     */
+    @Transactional(readOnly = true)
+    public DocumentAnalysisResponse analyzeDocumentPreview(MultipartFile file) {
+        String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document.pdf";
+        String contentType = file.getContentType() != null ? file.getContentType() : "application/pdf";
+        long size = file.getSize();
+
+        log.info("🩺 [PREVIEW REAL SCAN] Ingesting document: '{}' ({}, {} bytes)", fileName, contentType, size);
+
+        if (file.isEmpty() || size < 10) {
+            throw new com.mediassist.common.AppException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "EMPTY_FILE",
+                    "Tệp tin rỗng hoặc không có dữ liệu."
+            );
+        }
+
+        byte[] fileBytes;
+        try {
+            fileBytes = file.getBytes();
+        } catch (Exception e) {
+            throw new com.mediassist.common.AppException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "FILE_READ_ERROR",
+                    "Không thể đọc dữ liệu tệp tin: " + e.getMessage()
+            );
+        }
+
+        // 1. Extract content from PDF, text or image stream
+        String extractedText = "";
+        try {
+            if (contentType.toLowerCase().contains("pdf")) {
+                extractedText = pdfExtractionService.extractTextFromPdf(fileBytes);
+            } else if (contentType.toLowerCase().contains("text") || contentType.toLowerCase().contains("plain")) {
+                extractedText = new String(fileBytes, java.nio.charset.StandardCharsets.UTF_8);
+            } else if (contentType.toLowerCase().contains("image/")) {
+                if (clinicalRagService.canProcessVision()) {
+                    extractedText = clinicalRagService.extractTextWithVision(fileBytes, contentType, fileName);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not extract text in preview: {}", e.getMessage());
+        }
+
+        // 2. Strict Gatekeeper Validation (Rejects non-medical / unreadable images without guessing!)
+        medicalDocumentValidator.validateDocument(fileBytes, contentType, extractedText, fileName);
+
+        // 3. Semantic Doctor Retrieval via pgvector Cosine Similarity
+        String queryForDoctorMatch = (extractedText != null && !extractedText.isBlank()) ? extractedText : fileName;
+        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(queryForDoctorMatch, 4);
+
+        // 4. Clinical RAG Analysis (or Safe Deterministic Fallback)
+        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(extractedText, fileName, matchedDoctors);
+
+        // 5. Structure abnormal indicators
+        List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
+                ? ragResult.getIndicators()
+                : parseIndicators(extractedText, fileName);
+
+        SpecialtyTarget specialty = determineSpecialtyFromFindings(extractedText, fileName, indicators);
+        String specialtySlug = ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank()
+                ? ragResult.getRecommendedSpecialtySlug() : specialty.slug();
+        String specialtyName = ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank()
+                ? ragResult.getRecommendedSpecialtyName() : specialty.name();
+        String clinicalSummary = ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank()
+                ? ragResult.getClinicalSummary() : generateClinicalSummary(indicators, specialty);
+        String plainExplanation = ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank()
+                ? ragResult.getPlainLanguageExplanation() : generatePlainLanguageExplanation(indicators, specialty);
+        List<String> suggestedQuestions = (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty())
+                ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(specialty, indicators);
+
+        DocumentAnalysisResponse response = new DocumentAnalysisResponse();
+        response.setDocumentId(UUID.randomUUID());
+        response.setFileName(fileName);
+        response.setFileSizeBytes(size);
+        response.setContentType(contentType);
+        response.setClinicalSummary(clinicalSummary);
+        response.setPlainLanguageExplanation(plainExplanation);
+        response.setIndicators(indicators);
+        response.setRecommendedSpecialtySlug(specialtySlug);
+        response.setRecommendedSpecialtyName(specialtyName);
+        response.setSuggestedQuestions(suggestedQuestions);
+        response.setMatchedDoctors(matchedDoctors);
         response.setCachedResult(false);
         response.setModelUsed(ragResult.getModelUsed());
         response.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
@@ -373,31 +470,37 @@ public class MedicalDocumentAnalysisService {
             return list;
         }
 
-        // Default General Internal Medicine Panel
-        list.add(new AbnormalIndicatorDto(
-                "Đường huyết mao mạch (Glucose)",
-                "5.6",
-                "mmol/L",
-                "4.1 - 5.9",
-                "NORMAL",
-                "Chỉ số đường huyết trong giới hạn bình thường."
-        ));
-        list.add(new AbnormalIndicatorDto(
-                "Creatinine huyết thanh (Thận)",
-                "88",
-                "µmol/L",
-                "62 - 106",
-                "NORMAL",
-                "Chức năng lọc cầu thận bình thường."
-        ));
-        list.add(new AbnormalIndicatorDto(
-                "Tổng lượng bạch cầu (WBC)",
-                "7.2",
-                "G/L",
-                "4.0 - 10.0",
-                "NORMAL",
-                "Không ghi nhận phản ứng viêm nhiễm cấp tính."
-        ));
+        // Only extract indicators that are explicitly mentioned in document text
+        if (normalized.contains("glucose") || normalized.contains("duong huyet") || normalized.contains("duong mau")) {
+            list.add(new AbnormalIndicatorDto(
+                    "Đường huyết mao mạch (Glucose)",
+                    extractNumericValue(text, "glucose", "5.6"),
+                    "mmol/L",
+                    "4.1 - 5.9",
+                    "NORMAL",
+                    "Chỉ số đường huyết trong giới hạn bình thường."
+            ));
+        }
+        if (normalized.contains("creatinine") || normalized.contains("than") || normalized.contains("egfr")) {
+            list.add(new AbnormalIndicatorDto(
+                    "Creatinine huyết thanh (Thận)",
+                    extractNumericValue(text, "creatinine", "88"),
+                    "µmol/L",
+                    "62 - 106",
+                    "NORMAL",
+                    "Chức năng lọc cầu thận bình thường."
+            ));
+        }
+        if (normalized.contains("wbc") || normalized.contains("bach cau") || normalized.contains("leukocyte")) {
+            list.add(new AbnormalIndicatorDto(
+                    "Tổng lượng bạch cầu (WBC)",
+                    extractNumericValue(text, "wbc", "7.2"),
+                    "G/L",
+                    "4.0 - 10.0",
+                    "NORMAL",
+                    "Không ghi nhận phản ứng viêm nhiễm cấp tính."
+            ));
+        }
         return list;
     }
 

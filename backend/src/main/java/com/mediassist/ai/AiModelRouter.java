@@ -34,6 +34,17 @@ public class AiModelRouter {
                 .toList();
     }
 
+    public boolean canProcessVision() {
+        return openRouterAiProvider.isAvailable();
+    }
+
+    public String extractTextWithVision(byte[] imageBytes, String contentType, String fileName) {
+        if (!openRouterAiProvider.isAvailable()) {
+            return "";
+        }
+        return openRouterAiProvider.extractTextWithVision(imageBytes, contentType, fileName);
+    }
+
     public ClinicalAiResult routeClinicalAnalysis(String systemPrompt, String userPrompt) {
         List<String> pool = getModelRotationPool();
 
