@@ -11,8 +11,9 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#016** | 12/09/2026 | Redesign Toàn Diện Trang Chủ Phong Cách Y Tế Trắng - Xanh Hiện Đại (Clinical White & Medical Blue) & Hoạt Ảnh Sinh Học Sống Động (ECG Waveform Monitor, Nhịp Tim 2 Pha, Vital Signs) | AI Assistant | 🟢 Sẵn sàng Review |
-| **#015** | 12/09/2026 | Tái Thiết Kế Giao Diện Trang Chủ Telehealth Hiện Đại & Khắc Phục Lỗi Tương Phản/Màu Chữ Trang Đăng Nhập | AI Assistant | 🟢 Sẵn sàng Review |
+| **#017** | 12/09/2026 | Tinh Chỉnh Đột Phá UI/UX Trang Chủ: Khắc Phục Lỗi Dính Chữ/Xuống Hàng Navbar, Tái Cấu Trúc Monitor ECG Sáng Sủa & Tối Ưu Copy Lâm Sàng | AI Assistant | 🟢 Sẵn sàng Review |
+| **#016** | 12/09/2026 | Redesign Toàn Diện Trang Chủ Phong Cách Y Tế Trắng - Xanh Hiện Đại (Clinical White & Medical Blue) & Hoạt Ảnh Sinh Học Sống Động (ECG Waveform Monitor, Nhịp Tim 2 Pha, Vital Signs) | AI Assistant | 🟢 Đã Duyệt |
+| **#015** | 12/09/2026 | Tái Thiết Kế Giao Diện Trang Chủ Telehealth Hiện Đại & Khắc Phục Lỗi Tương Phản/Màu Chữ Trang Đăng Nhập | AI Assistant | 🟢 Đã Duyệt |
 | **#014** | 11/09/2026 | Khắc Phục Lỗi TypeScript Toàn Diện & Xây Dựng Trang Đích 3D Scroll-World (Three.js WebGL Fly-Through Landing Page theo Chuẩn `oso95/scroll-world`) | AI Assistant | 🟢 Đã Duyệt |
 | **#013** | 11/09/2026 | Hoàn Tất Milestone 6: Bảo Vệ Token AI (Gatekeeper Sieve & SHA-256 Deduplication), Lưu Trữ Supabase Cloud EMR & Quản Lý Hạn Ngạch Quét Doanh Nghiệp | AI Assistant | 🟢 Đã Duyệt |
 | **#012** | 11/09/2026 | Hoàn Tất Milestone 5: Bảo Mật Zero-Trust, Phòng Thủ Anti-Brute Force Lockout & Kiểm Soát Tải Tần Suất Cao (Redis Rate Limiting) | AI Assistant | 🟢 Đã Duyệt |
@@ -23,6 +24,36 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+---
+
+### [WORK-LOG-#017] Tinh Chỉnh Đột Phá UI/UX Trang Chủ: Khắc Phục Lỗi Dính Chữ/Xuống Hàng Navbar, Tái Cấu Trúc Monitor ECG Sáng Sủa & Tối Ưu Copy Lâm Sàng
+* **Thời gian:** 2026-09-12 09:35:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-UX-00 & UC-UX-01 (Clinical Aesthetic Polish & Zero-Clutter UI)
+* **Trạng thái Build:** Frontend `npm run build` PASS (0 lỗi TS, 1670 modules transformed, 2.76s).
+* **Nhánh phát triển:** `feature/redesign-medical-white-blue-home` (chuẩn bị merge vào `develop`).
+
+#### 1. Mục Tiêu & Vấn Đề Tech Lead Chỉ Ra
+- Tech Lead phản hồi trực tiếp dựa trên ảnh chụp thực tế: *"sao nó vẫn như cũ vậy, mọi thứ khá xấu, xấu kinh tệ, nhiều chữ dính liền nhau khá xấu"*.
+- **Phân tích lỗi giao diện thực tế (Root Cause Analysis):**
+  1. **Lỗi ngắt dòng dính chữ Navbar:** Các mục điều hướng quá dài khiến các từ bị bẻ dòng cụt cỡn (`4 Cột Trụ Lâm` \n `Sàng`, `Bác Sĩ Tuyến` \n `Đầu`, `Quy Trình 4` \n `Bước`, `Hỏi Đáp` \n `FAQ`), tạo cảm giác chật chội, nghiệp dư.
+  2. **Banner khuyến cáo y tế màu vàng thô:** Nền vàng cam chói chiếm dụng không gian và dồn cục chữ quá nhiều.
+  3. **Đoạn mô tả Hero bị nhồi nhét thuật ngữ kỹ thuật:** Các từ ngữ học thuật như *"SHA-256 Deduplication 0đ"*, *"PostgreSQL pgvector 1536 chiều"* làm câu văn nặng nề, khó tiếp cận với người bệnh thực tế.
+  4. **Thẻ Monitor ECG có hộp đen tối (`bg-slate-900`) lạc quẻ:** Giữa một trang web trắng xanh y tế, hộp đen tối của màn hình sóng ECG trông như một khung video nhúng bị lỗi, các huy hiệu bay bên ngoài bị cắt cạnh vụn vặt.
+
+#### 2. Giải Pháp Hoàn Thiện Triệt Để
+- **Navbar Thoáng Đãng:** Rút gọn các nhãn điều hướng thành các từ đơn xúc tích, bật `whitespace-nowrap`: `Sàng Lọc AI` • `Giải Pháp Y Tế` • `Đội Ngũ Bác Sĩ` • `Quy Trình Khám` • `Bảng Giá Escrow`. Cân đối khoảng cách `gap-8`, padding rộng rãi.
+- **Tái Thiết Kế Medical Disclaimer:** Chuyển sang thanh dải màu xanh đêm y tế sang trọng (`bg-gradient-to-r from-sky-900 via-slate-900 to-sky-950`), chữ tinh gọn, huy hiệu hổ phách thanh nhã.
+- **Tối Ưu Copywriting Hero Thân Thiện & Đẳng Cấp:** Loại bỏ thuật ngữ kỹ thuật cơ sở dữ liệu, thay bằng ngôn ngữ y khoa truyền cảm hứng, an tâm và chuyên nghiệp.
+- **Chuyển Đổi EcgMonitor Sang Chế Độ Trắng - Xanh Y Tế (Light-Mode Clinical Screen):**
+  - Màn hình sóng điện tim chuyển từ nền đen sang nền xanh băng mát dịu (`bg-gradient-to-b from-sky-50/90 to-white border border-sky-200/90`), sóng điện tim xanh ngọc phát sáng mượt mà.
+  - Tích hợp liền mạch thẻ gợi ý bác sĩ CKI Chợ Rẫy vào đáy component, không còn các huy hiệu trôi nổi đè vỡ viền thẻ.
+  - 4 chỉ số sinh tồn (HR, SpO2, Huyết áp, Thân nhiệt) có khoảng đệm rộng rãi, bo góc lớn mềm mại.
+
+#### 3. Bằng Chứng Kiểm Thử
+- `npm run build` PASS trong 2.76s với 0 lỗi TS.
+- Giao diện đạt độ thoáng đãng cao, tỷ lệ khoảng trắng cân đối chuẩn Apple Health / Doctolib.
 
 ---
 
