@@ -39,6 +39,9 @@ public class DocumentAnalysis {
     @Column(columnDefinition = "TEXT")
     private String suggestedQuestionsJson;
 
+    @Column(name = "metadata_json", columnDefinition = "TEXT")
+    private String metadataJson;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -68,6 +71,9 @@ public class DocumentAnalysis {
 
     public String getSuggestedQuestionsJson() { return suggestedQuestionsJson; }
     public void setSuggestedQuestionsJson(String suggestedQuestionsJson) { this.suggestedQuestionsJson = suggestedQuestionsJson; }
+
+    public String getMetadataJson() { return metadataJson; }
+    public void setMetadataJson(String metadataJson) { this.metadataJson = metadataJson; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

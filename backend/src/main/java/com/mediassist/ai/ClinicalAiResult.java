@@ -23,6 +23,17 @@ public class ClinicalAiResult {
     private String urgencyLevel;
     private List<String> clarifyingQuestions = new ArrayList<>();
 
+    // Dynamic Clinical Metadata
+    private String hospitalName;
+    private String departmentName;
+    private String orderingDoctor;
+    private String testDate;
+    private String sidCode;
+    private String patientName;
+    private String patientAge;
+    private String patientGender;
+    private String deviceModel;
+
     public ClinicalAiResult() {}
 
     public String getModelUsed() { return modelUsed; }
@@ -66,4 +77,31 @@ public class ClinicalAiResult {
 
     public List<String> getClarifyingQuestions() { return clarifyingQuestions; }
     public void setClarifyingQuestions(List<String> clarifyingQuestions) { this.clarifyingQuestions = clarifyingQuestions != null ? clarifyingQuestions : new ArrayList<>(); }
+
+    public String getHospitalName() { return hospitalName; }
+    public void setHospitalName(String hospitalName) { this.hospitalName = hospitalName; }
+
+    public String getDepartmentName() { return departmentName; }
+    public void setDepartmentName(String departmentName) { this.departmentName = departmentName; }
+
+    public String getOrderingDoctor() { return orderingDoctor; }
+    public void setOrderingDoctor(String orderingDoctor) { this.orderingDoctor = orderingDoctor; }
+
+    public String getTestDate() { return testDate; }
+    public void setTestDate(String testDate) { this.testDate = testDate; }
+
+    public String getSidCode() { return sidCode; }
+    public void setSidCode(String sidCode) { this.sidCode = sidCode; }
+
+    public String getPatientName() { return patientName; }
+    public void setPatientName(String patientName) { this.patientName = patientName; }
+
+    public String getPatientAge() { return patientAge; }
+    public void setPatientAge(String patientAge) { this.patientAge = patientAge; }
+
+    public String getPatientGender() { return patientGender; }
+    public void setPatientGender(String patientGender) { this.patientGender = patientGender; }
+
+    public String getDeviceModel() { return deviceModel; }
+    public void setDeviceModel(String deviceModel) { this.deviceModel = deviceModel; }
 }

@@ -6,40 +6,40 @@ import com.mediassist.dto.AbnormalIndicatorDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.*;
 
 @Component
-public class OpenRouterAiProvider implements AiProvider {
+public class GeminiAiProvider implements AiProvider {
 
-    private static final Logger log = LoggerFactory.getLogger(OpenRouterAiProvider.class);
+    private static final Logger log = LoggerFactory.getLogger(GeminiAiProvider.class);
 
-    @Value("${app.ai.openrouter.base-url:https://openrouter.ai/api/v1}")
+    @Value("${app.ai.gemini.base-url:https://generativelanguage.googleapis.com/v1beta}")
     private String baseUrl;
 
-    @Value("${app.ai.openrouter.api-key:}")
+    @Value("${app.ai.gemini.api-key:${GEMINI_API_KEY:}}")
     private String apiKey;
 
-    @Value("${app.ai.openrouter.enabled:true}")
-    private boolean enabled;
+    @Value("${app.ai.gemini.model:gemini-1.5-flash}")
+    private String defaultModel;
 
-    @Value("${app.ai.openrouter.vision-models:inclusionai/ling-3.0-flash-vl:free,nex-agi/nex-n2.5-pro:free,nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free}")
-    private String visionModelsConfig;
+    @Value("${app.ai.gemini.enabled:true}")
+    private boolean enabled;
 
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
 
-    public OpenRouterAiProvider(ObjectMapper objectMapper) {
+    public GeminiAiProvider(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
         var requestFactory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(java.time.Duration.ofSeconds(5));
-        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(20));
+        requestFactory.setConnectTimeout(Duration.ofSeconds(5));
+        requestFactory.setReadTimeout(Duration.ofSeconds(15));
         this.restClient = RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
@@ -47,39 +47,32 @@ public class OpenRouterAiProvider implements AiProvider {
 
     @Override
     public String getProviderName() {
-        return "OpenRouter";
+        return "Google Gemini";
     }
 
     @Override
     public boolean isAvailable() {
-        return enabled && apiKey != null && !apiKey.isBlank();
+        return enabled && apiKey != null && !apiKey.trim().isBlank();
     }
 
     @Override
     public ClinicalAiResult generateClinicalAnalysis(String systemPrompt, String userPrompt, String modelId) {
-        return executeChatCompletion(systemPrompt, userPrompt, modelId, false);
+        return executeGeminiGeneration(systemPrompt, userPrompt, modelId, false);
     }
 
     @Override
     public ClinicalAiResult generateTriageAnalysis(String systemPrompt, String userPrompt, String modelId) {
-        return executeChatCompletion(systemPrompt, userPrompt, modelId, true);
+        return executeGeminiGeneration(systemPrompt, userPrompt, modelId, true);
     }
 
-    /**
-     * Extracts text and clinical indicators from a medical image using resilient Multimodal Vision LLMs.
-     * Implements automatic fallback rotation across healthy free vision models:
-     * 1. inclusionai/ling-3.0-flash-vl:free
-     * 2. nex-agi/nex-n2.5-pro:free
-     * 3. nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
-     *
-     * If the image is non-medical, returns empty string to trigger gatekeeper rejection.
-     */
     public String extractTextWithVision(byte[] imageBytes, String contentType, String fileName) {
         if (!isAvailable() || imageBytes == null || imageBytes.length == 0) {
             return "";
         }
 
-        List<String> visionModels = parseVisionModels();
+        String targetModel = (defaultModel != null && !defaultModel.isBlank()) ? defaultModel : "gemini-1.5-flash";
+        log.info("🔍 [GEMINI VISION OCR] Invoking model '{}' for file '{}' ({} bytes)...", targetModel, fileName, imageBytes.length);
+
         String base64Image = Base64.getEncoder().encodeToString(imageBytes);
         String mime = (contentType != null && !contentType.isBlank()) ? contentType : "image/jpeg";
 
@@ -87,148 +80,141 @@ public class OpenRouterAiProvider implements AiProvider {
                 Bạn là chuyên gia OCR & Vision y tế lâm sàng cao cấp của nền tảng MediAssist-AI.
                 Nhiệm vụ của bạn là đọc hình ảnh phiếu xét nghiệm / hồ sơ bệnh án và bóc tách toàn bộ dữ liệu văn bản sang tiếng Việt:
                 1. Đọc cẩn thận từng chi tiết, kể cả khi ảnh chụp bị mờ, góc chụp nghiêng, thiếu sáng hoặc độ phân giải thấp.
-                2. Bóc tách thông tin hành chính: Họ tên bệnh nhân, tuổi, giới tính, khoa, chẩn đoán, ngày giờ làm xét nghiệm.
-                3. Bóc tách bảng kết quả: Tên xét nghiệm, Trị số đo được (Kết quả), Đơn vị đo, Trị số bình thường (Khoảng tham chiếu).
-                4. ĐẶC BIỆT LƯU Ý: Nếu phiếu xét nghiệm là phiếu trắng, phiếu chỉ định chưa điền kết quả (toàn bộ cột 'Kết quả' đang để trống), bạn BẮT BUỘC ghi rõ ở đầu bản dịch:
+                2. Bóc tách thông tin hành chính: Tên bệnh viện / cơ sở y tế, Bác sĩ chỉ định, Mã xét nghiệm (SID/Mã BN), Họ tên bệnh nhân, tuổi, giới tính, khoa, ngày giờ tiếp nhận.
+                3. Bóc tách bảng kết quả cận lâm sàng đầy đủ: Tên xét nghiệm, Trị số đo được (Kết quả), Đơn vị đo, Trị số bình thường (Khoảng tham chiếu).
+                4. ĐẶC BIỆT LƯU Ý: Nếu phiếu xét nghiệm là phiếu trắng, phiếu chỉ định chưa điền kết quả (toàn bộ cột 'Kết quả' đang để trống), bạn BẮT BUỘC ghi rõ ở đầu:
                    '[LƯU Ý LÂM SÀNG: Phiếu xét nghiệm trắng / chưa điền kết quả đo lường, cột kết quả đang để trống]'.
                 5. QUY TẮC AN TOÀN TUYỆT ĐỐI: Nếu bức ảnh hoàn toàn KHÔNG phải là tài liệu y tế hoặc phiếu xét nghiệm (ví dụ ảnh selfie, meme, phong cảnh, thú cưng, đồ vật ngẫu nhiên), bạn CHỈ ĐƯỢC trả về duy nhất một dòng chữ: KHONG_PHAI_TAI_LIEU_Y_TE.
                 """;
 
-        for (String targetModel : visionModels) {
-            log.info("🔍 [VISION OCR] Invoking model '{}' for file '{}' ({} bytes)...", targetModel, fileName, imageBytes.length);
-
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", targetModel);
-            requestBody.put("temperature", 0.1);
-
-            List<Map<String, Object>> messages = new ArrayList<>();
-            messages.add(Map.of("role", "system", "content", ocrSystemPrompt));
-
-            List<Map<String, Object>> userContent = new ArrayList<>();
-            userContent.add(Map.of("type", "text", "text", "Trích xuất toàn bộ văn bản từ hình ảnh phiếu xét nghiệm này:"));
-            userContent.add(Map.of("type", "image_url", "image_url", Map.of("url", "data:" + mime + ";base64," + base64Image)));
-
-            messages.add(Map.of("role", "user", "content", userContent));
-            requestBody.put("messages", messages);
-
-            try {
-                String responseJson = restClient.post()
-                        .uri(baseUrl + "/chat/completions")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey.trim())
-                        .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                        .header("HTTP-Referer", "http://localhost:5173")
-                        .header("X-Title", "MediAssist-AI Telehealth")
-                        .body(requestBody)
-                        .retrieve()
-                        .body(String.class);
-
-                if (responseJson != null && !responseJson.isBlank()) {
-                    JsonNode root = objectMapper.readTree(responseJson);
-                    JsonNode choices = root.path("choices");
-                    if (choices.isArray() && !choices.isEmpty()) {
-                        String content = choices.get(0).path("message").path("content").asText();
-                        if (content != null && content.contains("KHONG_PHAI_TAI_LIEU_Y_TE")) {
-                            log.warn("🚨 Multimodal Vision classified image '{}' as NON-MEDICAL by model '{}'.", fileName, targetModel);
-                            return "";
-                        }
-                        if (content != null && !content.isBlank()) {
-                            log.info("✅ Multimodal Vision model '{}' successfully extracted {} characters from '{}'", targetModel, content.length(), fileName);
-                            return content;
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("⚠️ Vision model '{}' failed for '{}': {}. Rotating to next vision model...", targetModel, fileName, e.getMessage());
-            }
-        }
-
-        log.error("❌ All vision models in fallback pool failed to extract text from image '{}'", fileName);
-        return "";
-    }
-
-    private List<String> parseVisionModels() {
-        if (visionModelsConfig == null || visionModelsConfig.isBlank()) {
-            return List.of("inclusionai/ling-3.0-flash-vl:free", "nex-agi/nex-n2.5-pro:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free");
-        }
-        return Arrays.stream(visionModelsConfig.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isBlank())
-                .toList();
-    }
-
-    private ClinicalAiResult executeChatCompletion(String systemPrompt, String userPrompt, String modelId, boolean isTriage) {
-        if (!isAvailable()) {
-            throw new IllegalStateException("OpenRouter is not configured with an API key.");
-        }
-
-        String targetModel = modelId != null && !modelId.isBlank() ? modelId : "openrouter/free";
-        log.info("Invoking OpenRouter model: {}", targetModel);
-
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", targetModel);
-        requestBody.put("temperature", 0.2);
-
-        List<Map<String, String>> messages = new ArrayList<>();
-        messages.add(Map.of("role", "system", "content", systemPrompt));
-        messages.add(Map.of("role", "user", "content", userPrompt));
-        requestBody.put("messages", messages);
-
         try {
+            Map<String, Object> requestBody = new HashMap<>();
+
+            // System instruction
+            requestBody.put("system_instruction", Map.of(
+                    "parts", List.of(Map.of("text", ocrSystemPrompt))
+            ));
+
+            // Contents
+            List<Map<String, Object>> parts = new ArrayList<>();
+            parts.add(Map.of("text", "Trích xuất toàn bộ văn bản và bảng chỉ số từ hình ảnh phiếu xét nghiệm này:"));
+            parts.add(Map.of("inline_data", Map.of(
+                    "mime_type", mime,
+                    "data", base64Image
+            )));
+
+            requestBody.put("contents", List.of(Map.of(
+                    "role", "user",
+                    "parts", parts
+            )));
+
+            requestBody.put("generationConfig", Map.of(
+                    "temperature", 0.1
+            ));
+
+            String url = String.format("%s/models/%s:generateContent?key=%s", baseUrl, targetModel, apiKey.trim());
+
             String responseJson = restClient.post()
-                    .uri(baseUrl + "/chat/completions")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey.trim())
-                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                    .header("HTTP-Referer", "http://localhost:5173")
-                    .header("X-Title", "MediAssist-AI Telehealth")
+                    .uri(url)
+                    .contentType(MediaType.APPLICATION_JSON)
                     .body(requestBody)
                     .retrieve()
                     .body(String.class);
 
             if (responseJson == null || responseJson.isBlank()) {
-                throw new AiProviderOverloadedException("OpenRouter", targetModel, 500, "Empty response from OpenRouter API");
+                return "";
             }
 
             JsonNode root = objectMapper.readTree(responseJson);
-            JsonNode choices = root.path("choices");
-            if (!choices.isArray() || choices.isEmpty()) {
-                throw new AiProviderOverloadedException("OpenRouter", targetModel, 500, "No completion choices returned");
+            JsonNode textNode = root.path("candidates").path(0).path("content").path("parts").path(0).path("text");
+            String extracted = textNode.asText("");
+
+            if (extracted.trim().equalsIgnoreCase("KHONG_PHAI_TAI_LIEU_Y_TE")) {
+                log.warn("🚨 [GEMINI VISION GATEKEEPER] Non-medical document detected for '{}'", fileName);
+                return "KHONG_PHAI_TAI_LIEU_Y_TE";
             }
 
-            String content = choices.get(0).path("message").path("content").asText();
-            log.info("Received response from model {} (length: {} chars)", targetModel, content.length());
+            log.info("✅ [GEMINI VISION OCR] Successfully extracted {} characters from '{}'", extracted.length(), fileName);
+            return extracted.trim();
+
+        } catch (HttpClientErrorException.TooManyRequests e) {
+            log.warn("Gemini Vision 429 Rate Limit hit: {}", e.getMessage());
+            throw new AiProviderOverloadedException("Google Gemini", targetModel, 429, e.getMessage());
+        } catch (Exception e) {
+            log.warn("Gemini Vision failed for '{}': {}", fileName, e.getMessage());
+            return "";
+        }
+    }
+
+    private ClinicalAiResult executeGeminiGeneration(String systemPrompt, String userPrompt, String modelId, boolean isTriage) {
+        String targetModel = (modelId != null && !modelId.isBlank() && !modelId.contains("/")) ? modelId : defaultModel;
+        if (targetModel == null || targetModel.isBlank()) {
+            targetModel = "gemini-1.5-flash";
+        }
+
+        try {
+            Map<String, Object> requestBody = new HashMap<>();
+
+            requestBody.put("system_instruction", Map.of(
+                    "parts", List.of(Map.of("text", systemPrompt))
+            ));
+
+            requestBody.put("contents", List.of(Map.of(
+                    "role", "user",
+                    "parts", List.of(Map.of("text", userPrompt))
+            )));
+
+            Map<String, Object> genConfig = new HashMap<>();
+            genConfig.put("temperature", 0.15);
+            genConfig.put("response_mime_type", "application/json");
+            requestBody.put("generationConfig", genConfig);
+
+            String url = String.format("%s/models/%s:generateContent?key=%s", baseUrl, targetModel, apiKey.trim());
+
+            String responseJson = restClient.post()
+                    .uri(url)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(requestBody)
+                    .retrieve()
+                    .body(String.class);
+
+            if (responseJson == null || responseJson.isBlank()) {
+                throw new RuntimeException("Gemini returned empty response body");
+            }
+
+            JsonNode root = objectMapper.readTree(responseJson);
+            JsonNode textNode = root.path("candidates").path(0).path("content").path("parts").path(0).path("text");
+            String content = textNode.asText("");
+
+            if (content.isBlank()) {
+                throw new RuntimeException("No text candidates returned from Gemini");
+            }
 
             return parseModelJsonOutput(content, targetModel, isTriage);
 
         } catch (HttpClientErrorException.TooManyRequests e) {
-            log.warn("Model {} returned 429 Too Many Requests. Rotating model.", targetModel);
-            throw new AiProviderOverloadedException("OpenRouter", targetModel, 429, e.getMessage());
+            log.warn("Gemini returned 429 Too Many Requests: {}", e.getMessage());
+            throw new AiProviderOverloadedException("Google Gemini", targetModel, 429, e.getMessage());
         } catch (HttpServerErrorException.ServiceUnavailable e) {
-            log.warn("Model {} returned 503 Service Unavailable. Rotating model.", targetModel);
-            throw new AiProviderOverloadedException("OpenRouter", targetModel, 503, e.getMessage());
+            log.warn("Gemini returned 503 Service Unavailable: {}", e.getMessage());
+            throw new AiProviderOverloadedException("Google Gemini", targetModel, 503, e.getMessage());
         } catch (org.springframework.web.client.ResourceAccessException e) {
-            log.warn("Model {} timed out after 15s. Rotating to next model in pool.", targetModel);
-            throw new AiProviderOverloadedException("OpenRouter", targetModel, 408, "Timeout: " + e.getMessage());
-        } catch (HttpClientErrorException e) {
-            int code = e.getStatusCode().value();
-            if (code == 429) {
-                throw new AiProviderOverloadedException("OpenRouter", targetModel, 429, e.getMessage());
-            }
-            log.error("OpenRouter HTTP error {}: {}", code, e.getResponseBodyAsString());
-            throw new RuntimeException("OpenRouter HTTP Error " + code + ": " + e.getMessage(), e);
+            log.warn("Gemini timed out: {}", e.getMessage());
+            throw new AiProviderOverloadedException("Google Gemini", targetModel, 408, "Timeout: " + e.getMessage());
         } catch (Exception e) {
             String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-            if (msg.contains("429") || msg.contains("rate limit") || msg.contains("overloaded") || msg.contains("busy")) {
-                throw new AiProviderOverloadedException("OpenRouter", targetModel, 429, e.getMessage());
+            if (msg.contains("429") || msg.contains("rate limit") || msg.contains("quota")) {
+                throw new AiProviderOverloadedException("Google Gemini", targetModel, 429, e.getMessage());
             }
-            log.error("OpenRouter call failed for {}: {}", targetModel, e.getMessage());
-            throw new RuntimeException("OpenRouter call failed: " + e.getMessage(), e);
+            log.error("Gemini call failed for {}: {}", targetModel, e.getMessage());
+            throw new RuntimeException("Gemini call failed: " + e.getMessage(), e);
         }
     }
 
-    private ClinicalAiResult parseModelJsonOutput(String rawText, String modelUsed, boolean isTriage) {
+    public ClinicalAiResult parseModelJsonOutput(String rawText, String modelUsed, boolean isTriage) {
         ClinicalAiResult result = new ClinicalAiResult();
         result.setModelUsed(modelUsed);
-        result.setProvider("OpenRouter");
+        result.setProvider("Google Gemini");
 
         String cleanJson = rawText.trim();
         int firstBrace = cleanJson.indexOf("{");
@@ -298,6 +284,7 @@ public class OpenRouterAiProvider implements AiProvider {
                 result.setDeviceModel(meta.get("deviceModel").asText().trim());
             }
 
+            // Lab Indicators Array
             if (node.has("indicators") && node.get("indicators").isArray()) {
                 List<AbnormalIndicatorDto> indicators = new ArrayList<>();
                 for (JsonNode indNode : node.get("indicators")) {
@@ -347,7 +334,7 @@ public class OpenRouterAiProvider implements AiProvider {
             return result;
 
         } catch (Exception e) {
-            log.warn("Could not parse as pure JSON. Using text fallback: {}", e.getMessage());
+            log.warn("Could not parse as pure JSON from Gemini. Using text fallback: {}", e.getMessage());
             result.setClinicalSummary(rawText.length() > 300 ? rawText.substring(0, 300) + "..." : rawText);
             result.setPlainLanguageExplanation(rawText);
             result.setDoctorRecommendationReason("Phân tích lâm sàng được khởi tạo bởi mô hình AI: " + modelUsed);

@@ -75,6 +75,15 @@ interface AnalysisResult {
   matchedDoctors: DoctorDetail[];
   modelUsed?: string;
   doctorRecommendationReason?: string;
+  hospitalName?: string;
+  departmentName?: string;
+  orderingDoctor?: string;
+  testDate?: string;
+  sidCode?: string;
+  patientName?: string;
+  patientAge?: string;
+  patientGender?: string;
+  deviceModel?: string;
 }
 
 interface SampleItem {

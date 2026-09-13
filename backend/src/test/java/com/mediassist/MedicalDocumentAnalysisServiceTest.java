@@ -501,4 +501,62 @@ class MedicalDocumentAnalysisServiceTest {
         verify(storageService).deleteDocument(eq(uploadedUrl));
         verify(rateLimiterService).recordFailedUpload("patient@mediassist.local");
     }
+
+    @Test
+    @DisplayName("Should extract dynamic hospital metadata and parse columnar table format without colons")
+    void testMultiPatternParserAndDynamicMetadataExtraction() {
+        testUser.setScanQuota(1);
+        String hospitalReport = """
+                BỆNH VIỆN ĐẠI HỌC Y DƯỢC TP.HCM
+                Khoa Hóa Sinh Lâm Sàng
+                Mã SID: 2026-DHYD-88219
+                Bác sĩ chỉ định: PGS.TS Trần Minh Tuấn
+                Họ và tên: Lê Thị Mai
+                Tuổi: 52
+                Giới tính: Nữ
+                Ngày xét nghiệm: 12/09/2026 09:15
+                Thiết bị: Cobas Pro Integrated Solutions
+                
+                Tên xét nghiệm          Kết quả     Khoảng tham chiếu    Đơn vị
+                Glucose                 9.2         3.9 - 6.4            mmol/L
+                Creatinine              115         44 - 88              umol/L
+                Acid Uric               420         150 - 360            umol/L
+                """;
+
+        when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(hospitalReport);
+
+        DoctorMatchDto doctor = new DoctorMatchDto(
+                UUID.randomUUID(), "PGS.TS Vũ Đình Hùng", "Chuyên khoa Nội tiết & Chuyển hóa",
+                "001234/BYT-CCHN", 20, new BigDecimal("400000.00"), 0.95,
+                List.of("Endocrinology (Nội tiết)")
+        );
+        when(doctorSemanticSearchService.searchDoctors(anyString(), eq(4))).thenReturn(List.of(doctor));
+
+        com.mediassist.ai.ClinicalAiResult customAiResult = new com.mediassist.ai.ClinicalAiResult();
+        customAiResult.setModelUsed("gemini-1.5-flash (Google Direct)");
+        customAiResult.setClinicalSummary("Đái tháo đường và suy giảm chức năng thận");
+        when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any())).thenReturn(customAiResult);
+
+        MockMultipartFile file = new MockMultipartFile("file", "hospital_report.pdf", "application/pdf", hospitalReport.getBytes());
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertEquals("BỆNH VIỆN ĐẠI HỌC Y DƯỢC TP.HCM", response.getHospitalName());
+        assertEquals("2026-DHYD-88219", response.getSidCode());
+        assertEquals("PGS.TS Trần Minh Tuấn", response.getOrderingDoctor());
+        assertEquals("Lê Thị Mai", response.getPatientName());
+        assertEquals("Nữ", response.getPatientGender());
+        assertEquals("52", response.getPatientAge());
+        assertEquals("Cobas Pro Integrated Solutions", response.getDeviceModel());
+
+        // Multi-pattern parser should extract Glucose, Creatinine, Acid Uric even without colons
+        assertFalse(response.getIndicators().isEmpty());
+        assertTrue(response.getIndicators().stream().anyMatch(i -> i.getName().equalsIgnoreCase("Glucose") && ("ELEVATED".equals(i.getStatus()) || "HIGH".equals(i.getStatus()))));
+        assertTrue(response.getIndicators().stream().anyMatch(i -> i.getName().equalsIgnoreCase("Creatinine") && ("ELEVATED".equals(i.getStatus()) || "HIGH".equals(i.getStatus()))));
+
+        // Clinical reason should mention the abnormal indicators
+        assertNotNull(response.getDoctorRecommendationReason());
+        assertTrue(response.getDoctorRecommendationReason().contains("Glucose") || response.getDoctorRecommendationReason().contains("chỉ số bất thường"));
+    }
 }

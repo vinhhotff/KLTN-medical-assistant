@@ -42,6 +42,9 @@ public class MedicalDocumentAnalysisService {
     private final ClinicalRagService clinicalRagService;
     private final SecurityRateLimiterService rateLimiterService;
 
+    @org.springframework.beans.factory.annotation.Value("${app.pdf.max-pages:10}")
+    private int maxPdfPages = 10;
+
     @Autowired
     public MedicalDocumentAnalysisService(PdfExtractionService pdfExtractionService,
                                           DoctorSemanticSearchService doctorSemanticSearchService,
@@ -149,6 +152,22 @@ public class MedicalDocumentAnalysisService {
                 resp.setMatchedDoctors(matchedDoctors);
                 resp.setStorageUrl(existingDoc.getStorageUrl());
                 resp.setCachedResult(true);
+
+                if (existingAnalysis.getMetadataJson() != null && !existingAnalysis.getMetadataJson().isBlank()) {
+                    try {
+                        com.fasterxml.jackson.databind.JsonNode metaNode = objectMapper.readTree(existingAnalysis.getMetadataJson());
+                        if (metaNode.has("hospitalName") && !metaNode.get("hospitalName").isNull()) resp.setHospitalName(metaNode.get("hospitalName").asText());
+                        if (metaNode.has("departmentName") && !metaNode.get("departmentName").isNull()) resp.setDepartmentName(metaNode.get("departmentName").asText());
+                        if (metaNode.has("orderingDoctor") && !metaNode.get("orderingDoctor").isNull()) resp.setOrderingDoctor(metaNode.get("orderingDoctor").asText());
+                        if (metaNode.has("testDate") && !metaNode.get("testDate").isNull()) resp.setTestDate(metaNode.get("testDate").asText());
+                        if (metaNode.has("sidCode") && !metaNode.get("sidCode").isNull()) resp.setSidCode(metaNode.get("sidCode").asText());
+                        if (metaNode.has("patientName") && !metaNode.get("patientName").isNull()) resp.setPatientName(metaNode.get("patientName").asText());
+                        if (metaNode.has("patientAge") && !metaNode.get("patientAge").isNull()) resp.setPatientAge(metaNode.get("patientAge").asText());
+                        if (metaNode.has("patientGender") && !metaNode.get("patientGender").isNull()) resp.setPatientGender(metaNode.get("patientGender").asText());
+                        if (metaNode.has("deviceModel") && !metaNode.get("deviceModel").isNull()) resp.setDeviceModel(metaNode.get("deviceModel").asText());
+                    } catch (Exception ignored) {}
+                }
+
                 return resp;
             }
         }
@@ -177,13 +196,17 @@ public class MedicalDocumentAnalysisService {
             throw ex;
         }
 
-        // 5. Comprehensive Lab Scanning across all pages (generic tabular parser - format only)
-        List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName);
+        // 5. Dynamic Metadata Extraction from raw text
+        Map<String, String> rawMeta = extractDocumentMetadata(extractedText);
+        String patientGender = rawMeta.get("patientGender");
 
-        // 6. Smart Clinical Windowing for Multi-Page Verbose Documents
+        // 6. Comprehensive Lab Scanning across all pages (columnar, delimiter & tab parsers)
+        List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName, patientGender);
+
+        // 7. Smart Clinical Windowing for Multi-Page Verbose Documents
         String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
 
-        // 7. AI-First Clinical Reasoning via OpenRouter (or Safe Deterministic Fallback if offline)
+        // 8. AI-First Clinical Reasoning via Gemini / OpenRouter (or Safe Deterministic Fallback if offline)
         // NOTICE: AI processing happens completely in-memory on byte[] BEFORE any cloud upload!
         com.mediassist.ai.ClinicalAiResult ragResult;
         try {
@@ -195,7 +218,7 @@ public class MedicalDocumentAnalysisService {
             throw ex;
         }
 
-        // 8. Derive specialty and findings strictly from AI reasoning with clinical safety gating
+        // 9. Derive specialty and findings strictly from AI reasoning with clinical safety gating
         List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
                 ? ragResult.getIndicators()
                 : parsedIndicators;
@@ -214,7 +237,7 @@ public class MedicalDocumentAnalysisService {
                     ? ragResult.getRecommendedSpecialtyName()
                     : getSpecialtyDisplayName(specialtySlug);
 
-            // 9. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
+            // 10. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
             String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
             matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
 
@@ -223,8 +246,7 @@ public class MedicalDocumentAnalysisService {
                 top.setAiRecommended(true);
                 String reason = (ragResult.getDoctorRecommendationReason() != null && !ragResult.getDoctorRecommendationReason().isBlank())
                         ? ragResult.getDoctorRecommendationReason()
-                        : String.format("Bác sĩ chuyên khoa %s được đề xuất dựa trên thuật toán tương đồng ngữ nghĩa pgvector (độ tương thích %d%%).",
-                                specialtyName, Math.round(top.getSimilarityScore() * 100));
+                        : buildClinicalDoctorRecommendationReason(top, specialtyName, indicators);
                 top.setAiRecommendationReason(reason);
                 ragResult.setRecommendedDoctorId(top.getDoctorId());
                 ragResult.setDoctorRecommendationReason(reason);
@@ -248,6 +270,37 @@ public class MedicalDocumentAnalysisService {
 
         List<String> suggestedQuestions = (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty())
                 ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(indicators);
+
+        // Dynamic Metadata Consolidation
+        String finalHospital = (ragResult.getHospitalName() != null && !ragResult.getHospitalName().isBlank())
+                ? ragResult.getHospitalName() : rawMeta.get("hospitalName");
+        String finalDept = (ragResult.getDepartmentName() != null && !ragResult.getDepartmentName().isBlank())
+                ? ragResult.getDepartmentName() : rawMeta.get("departmentName");
+        String finalDoc = (ragResult.getOrderingDoctor() != null && !ragResult.getOrderingDoctor().isBlank())
+                ? ragResult.getOrderingDoctor() : rawMeta.get("orderingDoctor");
+        String finalDate = (ragResult.getTestDate() != null && !ragResult.getTestDate().isBlank())
+                ? ragResult.getTestDate() : rawMeta.get("testDate");
+        String finalSid = (ragResult.getSidCode() != null && !ragResult.getSidCode().isBlank())
+                ? ragResult.getSidCode() : rawMeta.get("sidCode");
+        String finalPat = (ragResult.getPatientName() != null && !ragResult.getPatientName().isBlank())
+                ? ragResult.getPatientName() : rawMeta.get("patientName");
+        String finalAge = (ragResult.getPatientAge() != null && !ragResult.getPatientAge().isBlank())
+                ? ragResult.getPatientAge() : rawMeta.get("patientAge");
+        String finalGender = (ragResult.getPatientGender() != null && !ragResult.getPatientGender().isBlank())
+                ? ragResult.getPatientGender() : rawMeta.get("patientGender");
+        String finalDev = (ragResult.getDeviceModel() != null && !ragResult.getDeviceModel().isBlank())
+                ? ragResult.getDeviceModel() : rawMeta.get("deviceModel");
+
+        Map<String, String> metadataMap = new HashMap<>();
+        if (finalHospital != null) metadataMap.put("hospitalName", finalHospital);
+        if (finalDept != null) metadataMap.put("departmentName", finalDept);
+        if (finalDoc != null) metadataMap.put("orderingDoctor", finalDoc);
+        if (finalDate != null) metadataMap.put("testDate", finalDate);
+        if (finalSid != null) metadataMap.put("sidCode", finalSid);
+        if (finalPat != null) metadataMap.put("patientName", finalPat);
+        if (finalAge != null) metadataMap.put("patientAge", finalAge);
+        if (finalGender != null) metadataMap.put("patientGender", finalGender);
+        if (finalDev != null) metadataMap.put("deviceModel", finalDev);
 
         // 10. LAZY CLOUD UPLOAD & PERSISTENCE WITH ROLLBACK COMPENSATING HOOK
         // Architecture Rule: ONLY upload to Supabase Cloud when AI analysis has 100% SUCCEEDED!
@@ -276,6 +329,7 @@ public class MedicalDocumentAnalysisService {
             analysis.setRecommendedSpecialtyName(specialtyName);
 
             try {
+                analysis.setMetadataJson(objectMapper.writeValueAsString(metadataMap));
                 analysis.setAbnormalIndicatorsJson(objectMapper.writeValueAsString(indicators));
                 analysis.setSuggestedQuestionsJson(objectMapper.writeValueAsString(suggestedQuestions));
             } catch (Exception e) {
@@ -327,6 +381,17 @@ public class MedicalDocumentAnalysisService {
         response.setModelUsed(ragResult.getModelUsed());
         response.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
 
+        // Dynamic Clinical Metadata
+        response.setHospitalName(finalHospital);
+        response.setDepartmentName(finalDept);
+        response.setOrderingDoctor(finalDoc);
+        response.setTestDate(finalDate);
+        response.setSidCode(finalSid);
+        response.setPatientName(finalPat);
+        response.setPatientAge(finalAge);
+        response.setPatientGender(finalGender);
+        response.setDeviceModel(finalDev);
+
         return response;
     }
 
@@ -367,16 +432,20 @@ public class MedicalDocumentAnalysisService {
         // 2. Strict Gatekeeper Validation (Rejects non-medical / unreadable images without guessing!)
         medicalDocumentValidator.validateDocument(fileBytes, contentType, extractedText, fileName);
 
-        // 3. Comprehensive Lab Scanning across all pages (generic tabular parser - format only)
-        List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName);
+        // 3. Dynamic Metadata Extraction from raw text
+        Map<String, String> rawMeta = extractDocumentMetadata(extractedText);
+        String patientGender = rawMeta.get("patientGender");
 
-        // 4. Smart Clinical Windowing for Multi-Page Verbose Documents
+        // 4. Comprehensive Lab Scanning across all pages (columnar, delimiter & tab parsers)
+        List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName, patientGender);
+
+        // 5. Smart Clinical Windowing for Multi-Page Verbose Documents
         String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
 
-        // 5. AI-First Clinical Reasoning via OpenRouter (or Safe Deterministic Fallback if offline)
+        // 6. AI-First Clinical Reasoning via Gemini / OpenRouter (or Safe Deterministic Fallback if offline)
         com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, Collections.emptyList());
 
-        // 6. Derive specialty and findings strictly from AI reasoning with clinical safety gating
+        // 7. Derive specialty and findings strictly from AI reasoning with clinical safety gating
         List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
                 ? ragResult.getIndicators()
                 : parsedIndicators;
@@ -395,7 +464,7 @@ public class MedicalDocumentAnalysisService {
                     ? ragResult.getRecommendedSpecialtyName()
                     : getSpecialtyDisplayName(specialtySlug);
 
-            // 7. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
+            // 8. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
             String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
             matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
 
@@ -404,8 +473,7 @@ public class MedicalDocumentAnalysisService {
                 top.setAiRecommended(true);
                 String reason = (ragResult.getDoctorRecommendationReason() != null && !ragResult.getDoctorRecommendationReason().isBlank())
                         ? ragResult.getDoctorRecommendationReason()
-                        : String.format("Bác sĩ chuyên khoa %s được đề xuất dựa trên thuật toán tương đồng ngữ nghĩa pgvector (độ tương thích %d%%).",
-                                specialtyName, Math.round(top.getSimilarityScore() * 100));
+                        : buildClinicalDoctorRecommendationReason(top, specialtyName, indicators);
                 top.setAiRecommendationReason(reason);
                 ragResult.setRecommendedDoctorId(top.getDoctorId());
                 ragResult.setDoctorRecommendationReason(reason);
@@ -430,6 +498,26 @@ public class MedicalDocumentAnalysisService {
         List<String> suggestedQuestions = (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty())
                 ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(indicators);
 
+        // Dynamic Metadata Consolidation
+        String finalHospital = (ragResult.getHospitalName() != null && !ragResult.getHospitalName().isBlank())
+                ? ragResult.getHospitalName() : rawMeta.get("hospitalName");
+        String finalDept = (ragResult.getDepartmentName() != null && !ragResult.getDepartmentName().isBlank())
+                ? ragResult.getDepartmentName() : rawMeta.get("departmentName");
+        String finalDoc = (ragResult.getOrderingDoctor() != null && !ragResult.getOrderingDoctor().isBlank())
+                ? ragResult.getOrderingDoctor() : rawMeta.get("orderingDoctor");
+        String finalDate = (ragResult.getTestDate() != null && !ragResult.getTestDate().isBlank())
+                ? ragResult.getTestDate() : rawMeta.get("testDate");
+        String finalSid = (ragResult.getSidCode() != null && !ragResult.getSidCode().isBlank())
+                ? ragResult.getSidCode() : rawMeta.get("sidCode");
+        String finalPat = (ragResult.getPatientName() != null && !ragResult.getPatientName().isBlank())
+                ? ragResult.getPatientName() : rawMeta.get("patientName");
+        String finalAge = (ragResult.getPatientAge() != null && !ragResult.getPatientAge().isBlank())
+                ? ragResult.getPatientAge() : rawMeta.get("patientAge");
+        String finalGender = (ragResult.getPatientGender() != null && !ragResult.getPatientGender().isBlank())
+                ? ragResult.getPatientGender() : rawMeta.get("patientGender");
+        String finalDev = (ragResult.getDeviceModel() != null && !ragResult.getDeviceModel().isBlank())
+                ? ragResult.getDeviceModel() : rawMeta.get("deviceModel");
+
         DocumentAnalysisResponse response = new DocumentAnalysisResponse();
         response.setDocumentId(UUID.randomUUID());
         response.setFileName(fileName);
@@ -445,6 +533,17 @@ public class MedicalDocumentAnalysisService {
         response.setCachedResult(false);
         response.setModelUsed(ragResult.getModelUsed());
         response.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
+
+        // Dynamic Clinical Metadata
+        response.setHospitalName(finalHospital);
+        response.setDepartmentName(finalDept);
+        response.setOrderingDoctor(finalDoc);
+        response.setTestDate(finalDate);
+        response.setSidCode(finalSid);
+        response.setPatientName(finalPat);
+        response.setPatientAge(finalAge);
+        response.setPatientGender(finalGender);
+        response.setDeviceModel(finalDev);
 
         return response;
     }
@@ -548,11 +647,82 @@ public class MedicalDocumentAnalysisService {
     }
 
     /**
+    /**
+     * Extracts administrative clinical metadata directly from the document header lines:
+     * Hospital Name, Department, Ordering Doctor, Test Date, SID, Patient Name, Age, Gender, Device Model.
+     */
+    public Map<String, String> extractDocumentMetadata(String text) {
+        Map<String, String> meta = new HashMap<>();
+        if (text == null || text.isBlank()) return meta;
+
+        // Hospital / Clinic Name: matches "Bệnh viện ...", "BV ...", "Trung tâm y tế ...", "Phòng khám ..."
+        Matcher mHosp = Pattern.compile("(?ium)^[ \\t]*((?:bệnh\\s*viện|bv|trung\\s*tâm\\s*y\\s*tế|phòng\\s*khám|hospital|clinic)[ \\t]*[:–-]?[ \\t]*[^\\r\\n]{3,80})").matcher(text);
+        if (mHosp.find()) {
+            meta.put("hospitalName", mHosp.group(1).trim());
+        }
+
+        // Department:
+        Matcher mDept = Pattern.compile("(?ium)^[ \\t]*((?:khoa|phòng|department)[ \\t]*[:–-]?[ \\t]*[^\\r\\n]{3,60})").matcher(text);
+        if (mDept.find()) {
+            meta.put("departmentName", mDept.group(1).trim());
+        }
+
+        // Ordering Doctor:
+        Matcher mDoc = Pattern.compile("(?ium)(?:bác\\s*sĩ\\s*chỉ\\s*định|bs\\s*chỉ\\s*định|bác\\s*sĩ\\s*điều\\s*trị|bác\\s*sĩ|người\\s*ký|doctor)\\s*[:–-]?[ \\t]*([\\p{L}\\p{M}0-9_\\-. ]{3,40})").matcher(text);
+        if (mDoc.find()) {
+            meta.put("orderingDoctor", mDoc.group(1).trim());
+        }
+
+        // Test Date:
+        Matcher mDate = Pattern.compile("(?ium)(?:ngày\\s*xét\\s*nghiệm|ngày\\s*lấy\\s*mẫu|ngày|thời\\s*gian|date|time)\\s*[:–-]?[ \\t]*([0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4}(?:[ \\t]+[0-9]{1,2}:[0-9]{1,2}(?::[0-9]{1,2})?)?)").matcher(text);
+        if (mDate.find()) {
+            meta.put("testDate", mDate.group(1).trim());
+        }
+
+        // SID / Barcode:
+        Matcher mSid = Pattern.compile("(?ium)(?:mã\\s*sid|sid|mã\\s*xn|mã\\s*bn|số\\s*phiếu|barcode|stt)\\s*[:–-]?[ \\t]*([A-Za-z0-9_\\-]{3,25})").matcher(text);
+        if (mSid.find()) {
+            meta.put("sidCode", mSid.group(1).trim());
+        }
+
+        // Patient Name:
+        Matcher mPatient = Pattern.compile("(?ium)(?:họ\\s*(?:và|&)?\\s*tên(?:\\s*bn|\\s*bệnh\\s*nhân)?|tên\\s*bệnh\\s*nhân|patient\\s*name)\\s*[:–-]?[ \\t]*([\\p{L}\\p{M} ]{3,40})").matcher(text);
+        if (mPatient.find()) {
+            meta.put("patientName", mPatient.group(1).trim());
+        }
+
+        // Patient Age:
+        Matcher mAge = Pattern.compile("(?ium)(?:tuổi|tuoi|age)\\s*[:–-]?[ \\t]*([0-9]{1,3})\\b").matcher(text);
+        if (mAge.find()) {
+            meta.put("patientAge", mAge.group(1).trim());
+        }
+
+        // Patient Gender:
+        Matcher mGender = Pattern.compile("(?ium)(?:giới\\s*tính|gioi\\s*tinh|gender|sex)\\s*[:–-]?[ \\t]*(nam|nữ|nu|male|female)(?:[^\\p{L}]|$)").matcher(text);
+        if (mGender.find()) {
+            String g = mGender.group(1).trim();
+            meta.put("patientGender", (stripAccents(g).equalsIgnoreCase("nam") || g.equalsIgnoreCase("male")) ? "Nam" : "Nữ");
+        }
+
+        // Device Model:
+        Matcher mDev = Pattern.compile("(?ium)(?:thiết\\s*bị|máy\\s*xn|máy\\s*xét\\s*nghiệm|máy\\s*tự\\s*động|analyzer|instrument)\\s*[:–-]?[ \\t]*([^\\r\\n]{3,40})").matcher(text);
+        if (mDev.find()) {
+            meta.put("deviceModel", mDev.group(1).trim());
+        }
+
+        return meta;
+    }
+
+    /**
      * Universal Dynamic Laboratory Indicator Extractor.
-     * Operates dynamically without hardcoded test names, extracting tabular laboratory lines,
+     * Operates with Multi-Pattern Resilient Strategy (Delimiter, Columnar, Tabular),
      * numeric values, units, reference ranges, and qualitative findings directly from the document.
      */
-    private List<AbnormalIndicatorDto> parseIndicators(String text, String fileName) {
+    public List<AbnormalIndicatorDto> parseIndicators(String text, String fileName) {
+        return parseIndicators(text, fileName, null);
+    }
+
+    public List<AbnormalIndicatorDto> parseIndicators(String text, String fileName, String patientGender) {
         if (text == null || text.isBlank()) {
             return Collections.emptyList();
         }
@@ -561,34 +731,75 @@ public class MedicalDocumentAnalysisService {
         String[] lines = text.split("\\r?\\n");
         Set<String> detected = new HashSet<>();
 
-        // Generic Tabular Line Parser (Captures ANY arbitrary lab indicator dynamically)
+        // Regex Pattern 1: Delimiter-based (Name : Value Unit RefRange or Name = Value, or Name - Value preceded by letter)
         Pattern genericPattern = Pattern.compile(
-                "^\\s*(?:[0-9]+[.)-]|[-*•])?\\s*([\\p{L}\\p{M}0-9_\\-\\s()/+]{2,45})\\s*[:=–-]\\s*([0-9]+[.,]?[0-9]*)\\s*([a-zA-Zµ/%]+(?:/[a-zA-Z0-9.]+)?)*(.*)$",
+                "^\\s*(?:[0-9]+[.)-]|[-*•])?\\s*([\\p{L}\\p{M}0-9_\\-\\s()/+]{2,45}?)(?:\\s*[:=]\\s*|(?<=[\\p{L}\\)])\\s*[-–]\\s*)([0-9]+[.,]?[0-9]*)\\s*([a-zA-Zµ/%]+(?:/[a-zA-Z0-9.]+)?)*(.*)$",
                 Pattern.CASE_INSENSITIVE
         );
 
         for (String rawLine : lines) {
             String line = rawLine.trim();
-            if (line.length() < 6) continue;
+            if (line.length() < 5) continue;
+
+            String candidateName = null;
+            String valStr = null;
+            String unit = "";
+            String remainder = "";
 
             Matcher mGeneric = genericPattern.matcher(line);
             if (mGeneric.find()) {
-                String candidateName = mGeneric.group(1).trim();
-                String valStr = mGeneric.group(2).replace(',', '.');
-                String unit = mGeneric.group(3) != null ? mGeneric.group(3).trim() : "";
-                String remainder = mGeneric.group(4) != null ? mGeneric.group(4).trim() : "";
+                candidateName = mGeneric.group(1).trim();
+                valStr = mGeneric.group(2).replace(',', '.');
+                unit = mGeneric.group(3) != null ? mGeneric.group(3).trim() : "";
+                remainder = mGeneric.group(4) != null ? mGeneric.group(4).trim() : "";
+            } else {
+                // Table-splitting strategy for whitespace or tab columns (2+ spaces or tabs)
+                String[] parts = line.split("\\t+|\\s{2,}");
+                if (parts.length >= 2) {
+                    String col0 = parts[0].replaceAll("^(?:[0-9]+[.)-]|[-*•])\\s*", "").trim();
+                    String col1 = parts[1].trim();
 
+                    if (col1.matches("^[0-9]+[.,]?[0-9]*$")) {
+                        candidateName = col0;
+                        valStr = col1.replace(',', '.');
+
+                        for (int p = 2; p < parts.length; p++) {
+                            String part = parts[p].trim();
+                            if (part.matches(".*[0-9]+[.,]?[0-9]*\\s*-\\s*[0-9]+[.,]?[0-9]*.*") || part.matches(".*[><=]\\s*[0-9]+.*")) {
+                                if (remainder.isBlank()) {
+                                    remainder = part;
+                                } else {
+                                    remainder += " " + part;
+                                }
+                            } else if (part.matches("^[a-zA-Zµ/%]+(/[a-zA-Z0-9.]+)?$") && !part.equalsIgnoreCase("H") && !part.equalsIgnoreCase("L")) {
+                                if (unit.isBlank()) {
+                                    unit = part;
+                                } else {
+                                    remainder += " " + part;
+                                }
+                            } else {
+                                remainder = remainder.isBlank() ? part : remainder + " " + part;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (candidateName != null && valStr != null) {
                 // Filter out non-test administrative lines
                 String cleanName = stripAccents(candidateName).toLowerCase();
                 if (cleanName.contains("ngay") || cleanName.contains("thang") || cleanName.contains("nam") ||
                     cleanName.contains("gio") || cleanName.contains("tuoi") || cleanName.contains("trang") ||
                     cleanName.contains("khoa") || cleanName.contains("dien thoai") || cleanName.contains("stt") ||
-                    cleanName.contains("ma bn") || cleanName.contains("dia chi")) {
+                    cleanName.contains("ma bn") || cleanName.contains("dia chi") || cleanName.contains("bac si") ||
+                    cleanName.contains("benh vien") || cleanName.contains("phong kham")) {
                     continue;
                 }
 
                 // Check if already captured
-                boolean alreadyCaptured = detected.stream().anyMatch(d -> d.equalsIgnoreCase(candidateName) || cleanName.contains(stripAccents(d).toLowerCase()));
+                final String finalCandidate = candidateName;
+                final String finalCleanName = cleanName;
+                boolean alreadyCaptured = detected.stream().anyMatch(d -> d.equalsIgnoreCase(finalCandidate) || finalCleanName.contains(stripAccents(d).toLowerCase()));
                 if (alreadyCaptured) continue;
 
                 // Extract reference range from remainder (handles e.g. "Tham chiếu: 30 - 100", "(Ref: 2.8-8.0)", "[> 90]")
@@ -601,7 +812,7 @@ public class MedicalDocumentAnalysisService {
                 Double valNum = null;
                 try { valNum = Double.parseDouble(valStr); } catch (Exception ignored) {}
 
-                String status = calculateStatus(valNum, refRange, null, null, line);
+                String status = calculateStatus(valNum, refRange, null, null, line, patientGender);
                 String significance = "Chỉ số cận lâm sàng đo được trong tài liệu y tế.";
                 if ("ELEVATED".equals(status)) {
                     significance = String.format("Chỉ số %s đo được %s %s vượt ngưỡng tham chiếu (%s), cần đánh giá chuyên khoa.", candidateName, valStr, unit, refRange);
@@ -641,25 +852,49 @@ public class MedicalDocumentAnalysisService {
     }
 
     private String calculateStatus(Double valNum, String refRange, Double defaultLow, Double defaultHigh, String line) {
+        return calculateStatus(valNum, refRange, defaultLow, defaultHigh, line, null);
+    }
+
+    private String calculateStatus(Double valNum, String refRange, Double defaultLow, Double defaultHigh, String line, String patientGender) {
         String lineClean = stripAccents(line).toLowerCase();
+        String genderClean = patientGender != null ? stripAccents(patientGender).toLowerCase() : "";
 
         Double parsedLow = defaultLow;
         Double parsedHigh = defaultHigh;
 
-        if (refRange != null && !refRange.isBlank()) {
-            Matcher mRange = Pattern.compile("([0-9]+[.,]?[0-9]*)\\s*-\\s*([0-9]+[.,]?[0-9]*)").matcher(refRange);
+        // Gender-specific reference range adaptation
+        boolean isFemale = genderClean.contains("nu") || genderClean.contains("female") || lineClean.contains("gioi tinh: nu");
+        boolean isMale = !isFemale && (genderClean.contains("nam") || genderClean.contains("male") || lineClean.contains("gioi tinh: nam"));
+
+        String effectiveRange = refRange;
+        String combined = (line + " " + (refRange != null ? refRange : "")).toLowerCase();
+
+        if (isFemale) {
+            Matcher mFem = Pattern.compile("(?:nữ|nu|female|f)\\s*[:=]?\\s*([0-9]+[.,]?[0-9]*)\\s*-\\s*([0-9]+[.,]?[0-9]*)").matcher(combined);
+            if (mFem.find()) {
+                effectiveRange = mFem.group(1) + " - " + mFem.group(2);
+            }
+        } else if (isMale) {
+            Matcher mMal = Pattern.compile("(?:nam|male|m)\\s*[:=]?\\s*([0-9]+[.,]?[0-9]*)\\s*-\\s*([0-9]+[.,]?[0-9]*)").matcher(combined);
+            if (mMal.find()) {
+                effectiveRange = mMal.group(1) + " - " + mMal.group(2);
+            }
+        }
+
+        if (effectiveRange != null && !effectiveRange.isBlank()) {
+            Matcher mRange = Pattern.compile("([0-9]+[.,]?[0-9]*)\\s*-\\s*([0-9]+[.,]?[0-9]*)").matcher(effectiveRange);
             if (mRange.find()) {
                 try {
                     parsedLow = Double.parseDouble(mRange.group(1).replace(',', '.'));
                     parsedHigh = Double.parseDouble(mRange.group(2).replace(',', '.'));
                 } catch (Exception ignored) {}
-            } else if (refRange.contains(">")) {
-                Matcher mGt = Pattern.compile(">\\s*([0-9]+[.,]?[0-9]*)").matcher(refRange);
+            } else if (effectiveRange.contains(">")) {
+                Matcher mGt = Pattern.compile(">\\s*([0-9]+[.,]?[0-9]*)").matcher(effectiveRange);
                 if (mGt.find()) {
                     try { parsedLow = Double.parseDouble(mGt.group(1).replace(',', '.')); } catch (Exception ignored) {}
                 }
-            } else if (refRange.contains("<")) {
-                Matcher mLt = Pattern.compile("<\\s*([0-9]+[.,]?[0-9]*)").matcher(refRange);
+            } else if (effectiveRange.contains("<")) {
+                Matcher mLt = Pattern.compile("<\\s*([0-9]+[.,]?[0-9]*)").matcher(effectiveRange);
                 if (mLt.find()) {
                     try { parsedHigh = Double.parseDouble(mLt.group(1).replace(',', '.')); } catch (Exception ignored) {}
                 }
@@ -668,9 +903,9 @@ public class MedicalDocumentAnalysisService {
 
         boolean hasExplicitElevated = lineClean.contains("tang") || lineClean.contains("cao") ||
                 lineClean.contains("high") || lineClean.contains("elevated") || lineClean.contains("(h)") ||
-                lineClean.contains("duong tinh") || lineClean.contains("positive");
+                lineClean.contains("duong tinh") || lineClean.contains("positive") || lineClean.contains("▲");
         boolean hasExplicitLow = lineClean.contains("giam") || lineClean.contains("thap") ||
-                lineClean.contains("low") || lineClean.contains("(l)");
+                lineClean.contains("low") || lineClean.contains("(l)") || lineClean.contains("▼");
 
         if (valNum != null && parsedHigh != null && valNum > parsedHigh) {
             return "ELEVATED";
@@ -682,6 +917,26 @@ public class MedicalDocumentAnalysisService {
             return "LOW";
         }
         return "NORMAL";
+    }
+
+    private String buildClinicalDoctorRecommendationReason(DoctorMatchDto doctor, String specialtyName, List<AbnormalIndicatorDto> indicators) {
+        String titleAndName = String.format("%s %s", doctor.getAcademicTitle() != null ? doctor.getAcademicTitle() : "BS", doctor.getFullName());
+
+        if (indicators != null && !indicators.isEmpty()) {
+            List<String> abnormalSummary = indicators.stream()
+                    .filter(i -> "ELEVATED".equalsIgnoreCase(i.getStatus()) || "LOW".equalsIgnoreCase(i.getStatus()))
+                    .map(i -> String.format("%s (%s %s)", i.getName(), i.getValue(), i.getUnit()))
+                    .limit(3)
+                    .toList();
+
+            if (!abnormalSummary.isEmpty()) {
+                return String.format("Đề xuất %s (%s) vì tài liệu xét nghiệm ghi nhận chỉ số bất thường: %s, cần bác sĩ chuyên khoa thăm khám lâm sàng và định hướng phác đồ can thiệp kịp thời.",
+                        titleAndName, specialtyName, String.join(", ", abnormalSummary));
+            }
+        }
+
+        return String.format("Đề xuất %s tiếp nhận thăm khám dựa trên năng lực chuyên môn sâu về %s phù hợp với hồ sơ cận lâm sàng.",
+                titleAndName, specialtyName);
     }
 
     private static final Map<String, String> SPECIALTY_NAMES = Map.ofEntries(
@@ -758,8 +1013,8 @@ public class MedicalDocumentAnalysisService {
                 extractedText = pdfExtractionService.extractTextFromPdf(fileBytes);
                 // Resilient fallback for Scanned Image-only PDFs without text layer
                 if ((extractedText == null || extractedText.trim().length() < 30) && clinicalRagService.canProcessVision()) {
-                    log.info("📄 PDF text layer is empty (< 30 chars). Invoking PDFRenderer + Vision OCR fallback for '{}'", fileName);
-                    List<byte[]> pageImages = pdfExtractionService.renderPdfPagesToImages(fileBytes, 3);
+                    log.info("📄 PDF text layer is empty (< 30 chars). Invoking PDFRenderer + Vision OCR fallback for '{}' (up to {} pages)", fileName, maxPdfPages);
+                    List<byte[]> pageImages = pdfExtractionService.renderPdfPagesToImages(fileBytes, Math.max(1, maxPdfPages));
                     if (!pageImages.isEmpty()) {
                         StringBuilder sb = new StringBuilder();
                         for (int i = 0; i < pageImages.size(); i++) {

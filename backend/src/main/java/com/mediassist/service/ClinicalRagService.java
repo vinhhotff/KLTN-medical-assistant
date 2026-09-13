@@ -32,7 +32,18 @@ public class ClinicalRagService {
                 Bạn là Bác sĩ Trưởng Khoa Cố Vấn Y Khoa cấp cao của nền tảng MediAssist-AI.
                 Nhiệm vụ của bạn là đọc và phân tích chuyên sâu hồ sơ y tế / phiếu kết quả xét nghiệm của bệnh nhân bằng tư duy suy luận y khoa thực thụ (Clinical Reasoning & Differential Diagnosis).
                 
-                QUY TẮC SUY LUẬN LÂM SÀNG:
+                QUY TẮC SUY LUẬN LÂM SÀNG & BÓC TÁCH DỮ LIỆU:
+                0. BÓC TÁCH HÀNH CHÍNH & CƠ SỞ Y TẾ (metadata):
+                   - hospitalName: Tên chính thức của bệnh viện / trung tâm y tế / phòng khám in trên phiếu (ví dụ: Bệnh viện Chợ Rẫy, Bệnh viện Bạch Mai, Trung tâm Xét nghiệm Medlatec, Bệnh viện ĐH Y Dược TP.HCM, v.v.). Tuyệt đối không bịa đặt tên bệnh viện giả. Nếu tài liệu không ghi, để null.
+                   - departmentName: Tên khoa / phòng xét nghiệm (ví dụ: Khoa Xét nghiệm Hóa sinh, Khoa Huyết học...).
+                   - orderingDoctor: Bác sĩ chỉ định hoặc bác sĩ ký duyệt kết quả.
+                   - testDate: Ngày giờ tiếp nhận / lấy mẫu / in kết quả xét nghiệm.
+                   - sidCode: Mã vạch, mã xét nghiệm (SID), số phiếu hoặc mã bệnh nhân (Mã BN).
+                   - patientName: Họ và tên người bệnh ghi trên phiếu.
+                   - patientAge: Tuổi hoặc năm sinh của người bệnh.
+                   - patientGender: Giới tính người bệnh ("Nam" hoặc "Nữ").
+                   - deviceModel: Thiết bị xét nghiệm tự động (nếu có ghi trên phiếu, ví dụ: Cobas 8000, Sysmex XN-1000, AU5800...).
+                
                 1. Đọc và bóc tách TOÀN BỘ các chỉ số xét nghiệm cận lâm sàng xuất hiện trong tài liệu (cả bình thường và bất thường).
                    Mỗi chỉ số bao gồm:
                    - name: Tên đầy đủ của xét nghiệm (ví dụ: TSH, FT4, Creatinine, eGFR, Glucose, AST, ALT, Acid Uric, v.v.).
@@ -57,6 +68,7 @@ public class ClinicalRagService {
                    - ent: Otolaryngology (Tai Mũi Họng)
                    - general-internal-medicine: General Internal Medicine (Nội Tổng Quát)
                 5. Chọn 1 Bác sĩ phù hợp nhất từ danh sách ứng viên pgvector được cung cấp và nêu lý do chuyên môn (recommendedDoctorId, doctorRecommendationReason).
+                   LÝ DO ĐỀ XUẤT BÁC SĨ BẮT BUỘC PHẢI GẮN VỚI CHỈ SỐ BẤT THƯỜNG CỤ THỂ CỦA BỆNH NHÂN (ví dụ: "Đề xuất BS Nguyễn Văn An vì bệnh nhân có LDL-C 4.5 mmol/L và Triglyceride 3.2 mmol/L vượt ngưỡng, cần chuyên khoa Tim mạch theo dõi xơ vữa"). TUYỆT ĐỐI KHÔNG DÙNG CÂU VĂN MẪU PHẦN TRĂM PGVECTOR VÔ NGHĨA.
                 6. Gợi ý 3 câu hỏi sâu sắc (suggestedQuestions) mà người bệnh nên hỏi Bác sĩ trong buổi khám.
                 7. NGUYÊN TẮC AN TOÀN Y TẾ & PHÒNG CHỐNG BỊA ĐẶT (CRITICAL MEDICAL INTEGRITY):
                    - Nếu tài liệu KHÔNG có kết quả xét nghiệm cụ thể (phiếu chỉ định trắng chưa điền kết quả, ảnh mờ không đọc được số liệu, hoặc không có chỉ số lâm sàng nào):
@@ -71,6 +83,17 @@ public class ClinicalRagService {
                 
                 BẮT BUỘC TRẢ VỀ DUY NHẤT 1 JSON OBJECT HỢP LỆ THEO CẤU TRÚC:
                 {
+                  "metadata": {
+                    "hospitalName": "Tên bệnh viện hoặc null",
+                    "departmentName": "Tên khoa hoặc null",
+                    "orderingDoctor": "Bác sĩ chỉ định hoặc null",
+                    "testDate": "Ngày giờ hoặc null",
+                    "sidCode": "Mã SID / Mã BN hoặc null",
+                    "patientName": "Tên người bệnh hoặc null",
+                    "patientAge": "Tuổi hoặc null",
+                    "patientGender": "Nam / Nữ hoặc null",
+                    "deviceModel": "Thiết bị xét nghiệm hoặc null"
+                  },
                   "clinicalSummary": "...",
                   "plainLanguageExplanation": "...",
                   "recommendedSpecialtySlug": "SLUG_HOAC_NULL",
@@ -130,13 +153,11 @@ public class ClinicalRagService {
                 top.setAiRecommended(true);
                 String reason = (result.getDoctorRecommendationReason() != null && !result.getDoctorRecommendationReason().isBlank())
                         ? result.getDoctorRecommendationReason()
-                        : String.format("Bác sĩ chuyên khoa %s được đề xuất dựa trên thuật toán tương đồng ngữ nghĩa pgvector (độ tương thích %d%%).",
-                                (top.getSpecialties() != null && !top.getSpecialties().isEmpty()) ? top.getSpecialties().get(0) : "Chuyên khoa",
-                                Math.round(top.getSimilarityScore() * 100));
+                        : buildClinicalRecommendationReason(top, result.getIndicators());
                 top.setAiRecommendationReason(reason);
                 result.setRecommendedDoctorId(top.getDoctorId());
                 result.setDoctorRecommendationReason(reason);
-                log.info("RAG Top Doctor Match: Assigned {} as AI recommended", top.getFullName());
+                log.info("RAG Top Doctor Match: Assigned {} as AI recommended: {}", top.getFullName(), reason);
             }
         } else if (!hasIndicators && !hasExplicitDoctor && candidateDoctors != null) {
             // Safety gate: Wipe any recommendation flag when no lab indicators exist and no doctor was explicitly selected
@@ -217,5 +238,26 @@ public class ClinicalRagService {
         }
 
         return aiModelRouter.routeTriageAnalysis(systemPrompt, userPrompt.toString());
+    }
+
+    private String buildClinicalRecommendationReason(DoctorMatchDto doctor, List<com.mediassist.dto.AbnormalIndicatorDto> indicators) {
+        String spec = (doctor.getSpecialties() != null && !doctor.getSpecialties().isEmpty()) ? doctor.getSpecialties().get(0) : "Chuyên khoa";
+        String titleAndName = String.format("%s %s", doctor.getAcademicTitle() != null ? doctor.getAcademicTitle() : "BS", doctor.getFullName());
+
+        if (indicators != null && !indicators.isEmpty()) {
+            List<String> abnormalSummary = indicators.stream()
+                    .filter(i -> "ELEVATED".equalsIgnoreCase(i.getStatus()) || "LOW".equalsIgnoreCase(i.getStatus()))
+                    .map(i -> String.format("%s (%s %s)", i.getName(), i.getValue(), i.getUnit()))
+                    .limit(3)
+                    .toList();
+
+            if (!abnormalSummary.isEmpty()) {
+                return String.format("Đề xuất %s (%s) vì tài liệu ghi nhận chỉ số bất thường: %s, cần bác sĩ chuyên khoa thăm khám và định hướng phác đồ can thiệp.",
+                        titleAndName, spec, String.join(", ", abnormalSummary));
+            }
+        }
+
+        return String.format("Đề xuất %s tiếp nhận thăm khám dựa trên năng lực chuyên môn sâu về %s phù hợp với hồ sơ cận lâm sàng.",
+                titleAndName, spec);
     }
 }

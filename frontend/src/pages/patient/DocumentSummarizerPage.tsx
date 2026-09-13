@@ -69,6 +69,15 @@ interface AnalysisResult {
   cachedResult?: boolean;
   modelUsed?: string;
   doctorRecommendationReason?: string;
+  hospitalName?: string;
+  departmentName?: string;
+  orderingDoctor?: string;
+  testDate?: string;
+  sidCode?: string;
+  patientName?: string;
+  patientAge?: string;
+  patientGender?: string;
+  deviceModel?: string;
 }
 
 interface UserQuota {
@@ -688,34 +697,50 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                     <Building2 className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-base tracking-tight text-white uppercase">Bệnh Viện Đa Khoa Quốc Tế MediAssist</h4>
-                    <p className="text-xs text-slate-400">Khoa Xét Nghiệm Hóa Sinh - Huyết Học & Chẩn Đoán Phân Tử | ISO 15189:2022</p>
+                    <h4 className="font-bold text-base tracking-tight text-white uppercase">
+                      {analysis.hospitalName || 'Cơ Sở Khám Chữa Bệnh / Đơn Vị Xét Nghiệm'}
+                    </h4>
+                    <p className="text-xs text-slate-400">
+                      {analysis.departmentName || 'Khoa Xét Nghiệm Cận Lâm Sàng | Tiêu Chuẩn ISO 15189'}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right text-xs space-y-1">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full font-mono text-[11px]">
                     <ShieldCheck className="w-3.5 h-3.5" /> Chữ ký số điện tử hợp lệ
                   </div>
-                  <p className="text-slate-400 font-mono">Mã SID: <span className="text-teal-300 font-bold">SID-2026-LAB-08492</span></p>
+                  <p className="text-slate-400 font-mono">
+                    Mã SID: <span className="text-teal-300 font-bold">{analysis.sidCode || (analysis.documentId ? `SID-${analysis.documentId.substring(0, 8).toUpperCase()}` : 'SID-CHƯA-XÁC-ĐỊNH')}</span>
+                  </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div className="p-2.5 bg-slate-800/80 rounded-xl">
                   <span className="text-slate-400 text-[10px] block">Người Bệnh:</span>
-                  <span className="font-bold text-white">{user?.fullName || 'Nguyễn Văn B'}</span>
+                  <span className="font-bold text-white">
+                    {analysis.patientName || user?.fullName || 'Người Bệnh'}
+                    {analysis.patientAge ? ` (${analysis.patientAge}t` : ''}
+                    {analysis.patientGender ? ` - ${analysis.patientGender})` : (analysis.patientAge ? ')' : '')}
+                  </span>
                 </div>
                 <div className="p-2.5 bg-slate-800/80 rounded-xl">
                   <span className="text-slate-400 text-[10px] block">Thiết Bị Tự Động:</span>
-                  <span className="font-bold text-slate-200">Roche Cobas 8000</span>
+                  <span className="font-bold text-slate-200">
+                    {analysis.deviceModel || 'Hệ thống phân tích tự động'}
+                  </span>
                 </div>
                 <div className="p-2.5 bg-slate-800/80 rounded-xl">
                   <span className="text-slate-400 text-[10px] block">Bác Sĩ Chỉ Định:</span>
-                  <span className="font-bold text-slate-200">TS.BS. Nguyễn Văn An</span>
+                  <span className="font-bold text-slate-200">
+                    {analysis.orderingDoctor || 'Bác sĩ điều trị / KTV'}
+                  </span>
                 </div>
                 <div className="p-2.5 bg-slate-800/80 rounded-xl">
                   <span className="text-slate-400 text-[10px] block">Thời Gian Tiếp Nhận:</span>
-                  <span className="font-mono text-slate-200">11/09/2026 08:30</span>
+                  <span className="font-mono text-slate-200">
+                    {analysis.testDate || new Date().toLocaleDateString('vi-VN')}
+                  </span>
                 </div>
               </div>
             </div>

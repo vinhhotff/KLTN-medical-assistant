@@ -183,23 +183,28 @@ graph TD
    - **Lazy Upload Pattern:** Chỉ khi và chỉ khi toàn bộ pipeline phân tích AI hoàn tất 100% thành công, tệp nhị phân mới được tải lên Supabase Storage (`storageService.uploadDocument()`). Nếu AI lỗi hoặc file hỏng, luồng hủy ngay tại chỗ, **0 byte rác lọt lên Cloud**.
    - **Compensating Rollback Hook:** Nếu quá trình ghi Database EMR gặp sự cố sau khi đã tải lên Cloud, hệ thống tự động gọi `storageService.deleteDocument()` để xóa file trên Supabase ngay lập tức, triệt tiêu 100% nguy cơ file mồ côi (Zero Orphan Files).
    - **Upload Circuit Breaker:** Người dùng gửi liên tiếp 3 file không hợp lệ sẽ bị áp dụng án phạt Cooldown 10 phút.
-6. **Kiến Trúc AI-First Toàn Diện & Xử Lý Hồ Sơ Đa Trang (AI-First Clinical Reasoning & Multi-Page Windowing):**
-   - **Xóa Bỏ 100% Ma Trận Hardcode & Bịa Bệnh (Zero Fake Diagnoses & Zero Keyword Maps):** Hệ thống không sử dụng các bảng tra cứu tĩnh hay chuỗi if-else chấm điểm từ khóa cố định. Toàn bộ suy luận y khoa được điều phối theo luồng AI-First:
-     - *Pha 1 - Universal Tabular Line Parser:* Quét động mọi dòng cận lâm sàng dạng bảng `[Tên xét nghiệm]: [Kết quả] [Đơn vị] ([Khoảng tham chiếu])`, bóc tách dữ liệu số/định tính thô mà không áp đặt định kiến bệnh tật.
-     - *Pha 2 - Smart Clinical Windowing:* Chắt lọc ngữ cảnh y khoa tập trung cho hồ sơ bệnh án đa trang ($\le 5.500$ ký tự), loại bỏ nhiễu hành chính/viện phí.
-     - *Pha 3 - AI Clinical Reasoning (OpenRouter Gateway):* Mô hình LLM đọc toàn bộ ngữ cảnh lâm sàng, tự suy luận bệnh cảnh, tổng hợp `clinicalSummary`, dịch nghĩa `plainLanguageExplanation`, xác định chuyên khoa phù hợp nhất từ 12 chuyên khoa bệnh viện, và sinh 3 câu hỏi sâu sắc cho người bệnh.
-     - *Pha 4 - pgvector Cosine Similarity Doctor Matching:* Sử dụng chuyên khoa và các chỉ số bất thường do AI xác nhận làm câu truy vấn ngữ nghĩa, tính toán độ tương đồng cosine toán học (`1 - (bio_embedding <=> query_vector)`) trên PostgreSQL pgvector. Bác sĩ đứng đầu danh sách được đề xuất minh bạch kèm tỷ lệ phần trăm tương thích (Tuyệt đối không chọn ngẫu nhiên).
-     - *Chế Độ Ngoại Tuyến Minh Bạch (Transparent Offline Mode):* Khi thiếu `OPENROUTER_API_KEY` hoặc ngoại tuyến, hệ thống hiển thị rõ ràng nhãn cảnh báo Ngoại Tuyến (Offline Fallback), chuyển tuyến Nội Tổng Quát an toàn và không tự tiện suy đoán chẩn đoán bệnh.
+6. **Kiến Trúc AI-First Toàn Diện & Xử Lý Hồ Sơ Đa Trang (AI-First Clinical Reasoning & Multi-Pattern Table Pipeline):**
+   - **Xóa Bỏ 100% Ma Trận Hardcode & Bịa Bệnh (Zero Fake Diagnoses & Dynamic Metadata 100%):** Hệ thống không sử dụng dữ liệu tĩnh hay chuỗi if-else cố định. Toàn bộ suy luận y khoa và thông tin hành chính được xử lý động:
+     - *Pha 1 - Dynamic Administrative Metadata Extraction:* Tự động nhận diện cơ sở khám bệnh (`hospitalName`), khoa phòng (`departmentName`), bác sĩ chỉ định (`orderingDoctor`), mã định danh mẫu (`sidCode`), ngày xét nghiệm (`testDate`), máy phân tích (`deviceModel`), họ tên, tuổi và giới tính người bệnh với cờ regex `(?ium)` hỗ trợ chuẩn Unicode tiếng Việt.
+     - *Pha 2 - Multi-Pattern Resilient Table Parser:* Quét động mọi dòng cận lâm sàng hỗ trợ 3 chiến lược: Delimiter (`Name : Value`), Columnar Whitespace (`Name    Value   RefRange   Unit`), và Tabular (`\t`). Tự động nhận diện cả 2 thứ tự cột (Unit trước hoặc RefRange trước), không phụ thuộc vào dấu hai chấm.
+     - *Pha 3 - Gender & Age Adaptive Reference Ranges:* Tự động điều chỉnh khoảng tham chiếu sinh lý chuẩn theo giới tính bệnh nhân (Creatinine Nữ 44-88 µmol/L vs Nam 62-115 µmol/L; Acid Uric Nữ 150-360 µmol/L vs Nam 200-420 µmol/L) để đánh giá trạng thái `ELEVATED`, `LOW`, `NORMAL` chính xác.
+     - *Pha 4 - Smart Clinical Windowing & PDF 10 Trang:* Quét tối đa 10 trang hồ sơ bệnh án qua Apache PDFBox (`app.pdf.max-pages=10`). Chắt lọc ngữ cảnh y khoa tập trung ($\le 5.500$ ký tự), loại bỏ nhiễu hành chính/viện phí.
+     - *Pha 5 - Google Gemini 1.5 Flash Gateway (Tier 1 AI) & Fallback Pool:* 
+       + **Priority 1**: Google Gemini 1.5 Flash (Direct REST API) hỗ trợ JSON có cấu trúc và Vision OCR đa phương thức siêu nhanh.
+       + **Priority 2**: Bể xoay vòng OpenRouter Free Models (`inclusionai/ling-3.0-flash-sante:free`, `nex-agi/nex-n2.5-mini:free`, `openrouter/free`) với cơ chế tự động xoay chuyển khi chạm `HTTP 429`.
+       + **Priority 3**: Safe Local Deterministic Fallback Engine (0đ chi phí, chuyển tuyến an toàn).
+     - *Pha 6 - pgvector Cosine Similarity Doctor Matching & Clinically Justified Reasons:* Sử dụng chuyên khoa và các chỉ số bất thường do AI xác nhận để truy vấn vector cosine (`1 - (bio_embedding <=> query_vector)`). Đề xuất bác sĩ đi kèm lý do lâm sàng cá nhân hóa, trích dẫn trực tiếp tên và giá trị của các chỉ số xét nghiệm bất thường (ví dụ: *"Đề xuất PGS.TS Vũ Đình Hùng vì tài liệu xét nghiệm ghi nhận Glucose (9.2 mmol/L), Creatinine (115 umol/L)..."*).
     - **Dự phòng Scanned PDF (Vision OCR) & Bể Model Thị Giác Đa Tầng (Multi-Model Vision Pool):**
       - Nếu PDF là bản scan thuần ảnh không có text layer ($< 30$ ký tự), hệ thống tự động render ảnh từng trang với độ phân giải cao **200 DPI** qua `PDFRenderer`.
-      - Xây dựng bể xoay vòng tự động 3 model Vision mạnh nhất trên OpenRouter: `inclusionai/ling-3.0-flash-vl:free` $\rightarrow$ `nex-agi/nex-n2.5-pro:free` $\rightarrow$ `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`. Tự động fallback nếu chạm rate-limit `HTTP 429`.
+      - Ưu tiên Google Gemini Flash Vision native, kết hợp bể xoay vòng tự động các mô hình Vision mạnh trên OpenRouter.
     - **Rào Chắn An Toàn Y Tế & Triệt Tiêu Đề Xuất Ảo (Medical Safety Gating & Zero Fake Recommendation):**
       - *Trường hợp phiếu trắng / ảnh mờ / không có số liệu:* Nếu tài liệu là phiếu chỉ định trắng chưa điền kết quả (cột kết quả để trống) hoặc ảnh chụp mờ không bóc tách được số liệu cận lâm sàng (`indicators.isEmpty()`):
         + **Tuyệt đối không đoán mò chuyên khoa:** Để `recommendedSpecialtySlug = null`, `recommendedSpecialtyName = "Chưa xác định (Cần bổ sung kết quả)"`.
         + **Tuyệt đối không đề xuất bác sĩ:** Khóa toàn bộ danh sách `matchedDoctors = []`, `recommendedDoctorId = null`, không gán cờ `aiRecommended`.
         + **Giao diện cảnh báo an toàn y tế:** Hiển thị Banner màu hổ phách giải thích rõ ràng nguyên nhân, công bố nguyên tắc an toàn không phán đoán khi thiếu dữ liệu, và hướng dẫn người bệnh chụp lại ảnh rõ nét hoặc tải phiếu có kết quả đầy đủ.
 7. **Khấu trừ Hạn Ngạch:** Trừ 1 lượt quét đối với tài khoản FREE (`scanQuota = scanQuota - 1`). Giữ nguyên không giới hạn đối với hội viên MediPass VIP.
-8. **Phản hồi Giao Diện Tức Thì & Phân Định Trạng Thái AI:**
+8. **Phản hồi Giao Diện Tức Thì & Bảng Tiêu Đề Bệnh Viện Động 100%:**
+   - Thay thế toàn bộ dữ liệu tĩnh hardcode bằng dữ liệu bóc tách từ phiếu xét nghiệm: Tên bệnh viện, Khoa phòng, Mã SID, Tên bệnh nhân, Bác sĩ chỉ định, Thời gian xét nghiệm, Thiết bị phân tích.
    - Hiển thị **Banner Thông Báo Thành Công Nổi Bật** phân định rõ: Huy hiệu Xanh Ngọc (*"AI Phân Tích Hoàn Tất"*) khi có LLM, hoặc Huy hiệu Vàng Hổ Phách (*"Chế Độ Ngoại Tuyến"*) khi chạy fallback an toàn.
    - Thẻ hiển thị động cơ phân tích minh bạch tên mô hình AI đã xử lý (`modelUsed`).
    - Màn hình tự động cuộn mượt mà (`scrollIntoView`) đến phần kết quả `#analysis-results`.

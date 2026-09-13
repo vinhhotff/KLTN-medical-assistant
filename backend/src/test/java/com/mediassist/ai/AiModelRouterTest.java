@@ -17,6 +17,9 @@ import static org.mockito.Mockito.*;
 class AiModelRouterTest {
 
     @Mock
+    private GeminiAiProvider geminiAiProvider;
+
+    @Mock
     private OpenRouterAiProvider openRouterAiProvider;
 
     @Mock
@@ -26,13 +29,33 @@ class AiModelRouterTest {
 
     @BeforeEach
     void setUp() {
-        aiModelRouter = new AiModelRouter(openRouterAiProvider, deterministicFallbackAiProvider);
+        aiModelRouter = new AiModelRouter(geminiAiProvider, openRouterAiProvider, deterministicFallbackAiProvider);
         ReflectionTestUtils.setField(aiModelRouter, "configuredModels", "google/gemini-2.0-flash-exp:free,meta-llama/llama-3.3-70b-instruct:free");
     }
 
     @Test
-    @DisplayName("Should use Deterministic fallback when OpenRouter is not available")
+    @DisplayName("Should prioritize Gemini Flash when available (Priority 1)")
+    void shouldPrioritizeGeminiFlashWhenAvailable() {
+        when(geminiAiProvider.isAvailable()).thenReturn(true);
+
+        ClinicalAiResult geminiResult = new ClinicalAiResult();
+        geminiResult.setClinicalSummary("Gemini 1.5 Flash Summary");
+        geminiResult.setModelUsed("gemini-1.5-flash (Google Direct)");
+        when(geminiAiProvider.generateClinicalAnalysis(anyString(), anyString(), isNull()))
+                .thenReturn(geminiResult);
+
+        ClinicalAiResult result = aiModelRouter.routeClinicalAnalysis("sysPrompt", "userPrompt");
+
+        assertThat(result).isNotNull();
+        assertThat(result.getModelUsed()).contains("Google Direct");
+        verify(geminiAiProvider).generateClinicalAnalysis(anyString(), anyString(), isNull());
+        verify(openRouterAiProvider, never()).generateClinicalAnalysis(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Should use Deterministic fallback when OpenRouter and Gemini are not available")
     void shouldUseFallbackWhenOpenRouterUnavailable() {
+        when(geminiAiProvider.isAvailable()).thenReturn(false);
         when(openRouterAiProvider.isAvailable()).thenReturn(false);
 
         ClinicalAiResult fallbackResult = new ClinicalAiResult();
@@ -46,6 +69,28 @@ class AiModelRouterTest {
         assertThat(result).isNotNull();
         assertThat(result.getModelUsed()).contains("Deterministic");
         verify(openRouterAiProvider, never()).generateClinicalAnalysis(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Should rotate to OpenRouter when Gemini Flash returns 429 Rate Limit")
+    void shouldRotateFromGeminiToOpenRouterOnRateLimit() {
+        when(geminiAiProvider.isAvailable()).thenReturn(true);
+        when(geminiAiProvider.generateClinicalAnalysis(anyString(), anyString(), isNull()))
+                .thenThrow(new AiProviderOverloadedException("Google Gemini", "gemini-1.5-flash", 429, "Rate limit"));
+
+        when(openRouterAiProvider.isAvailable()).thenReturn(true);
+        ClinicalAiResult openRouterResult = new ClinicalAiResult();
+        openRouterResult.setClinicalSummary("Summary from OpenRouter fallback");
+        openRouterResult.setModelUsed("google/gemini-2.0-flash-exp:free (OpenRouter)");
+        when(openRouterAiProvider.generateClinicalAnalysis(anyString(), anyString(), eq("google/gemini-2.0-flash-exp:free")))
+                .thenReturn(openRouterResult);
+
+        ClinicalAiResult result = aiModelRouter.routeClinicalAnalysis("sysPrompt", "userPrompt");
+
+        assertThat(result).isNotNull();
+        assertThat(result.getModelUsed()).contains("OpenRouter");
+        verify(geminiAiProvider).generateClinicalAnalysis(anyString(), anyString(), isNull());
+        verify(openRouterAiProvider).generateClinicalAnalysis(anyString(), anyString(), eq("google/gemini-2.0-flash-exp:free"));
     }
 
     @Test

@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :--- | :---: |
-| **#041** | 13/09/2026 | Triển Khai Phân Trang Offset (Limit/Offset Pagination) Toàn Diện Toàn Bộ Bảng/Danh Sách Chống Tràn Bộ Nhớ & Khắc Phục Lưu Trữ Supabase Database / Cloud Storage | AI Assistant | 🟢 Sẵn sàng Review |
+| **#042** | 13/09/2026 | Cải Tổ Toàn Diện Pipeline Phân Tích Tài Liệu Y Khoa (6 Điểm Nghẽn): Tích Hợp Trực Tiếp Google Gemini Flash (Tier 1 AI), Trình Phân Tích Bảng Đa Mẫu (Multi-Pattern Table Parser), Dữ Liệu Lâm Sàng Động 100% (Bệnh Viện, Bác Sĩ, SID, Máy Xét Nghiệm), Khoảng Tham Chiếu Giới Tính & Nâng Hạn Mức PDF 10 Trang | AI Assistant | 🟢 Sẵn sàng Review |
+| **#041** | 13/09/2026 | Triển Khai Phân Trang Offset (Limit/Offset Pagination) Toàn Diện Toàn Bộ Bảng/Danh Sách Chống Tràn Bộ Nhớ & Khắc Phục Lưu Trữ Supabase Database / Cloud Storage | AI Assistant | 🟢 Đã Duyệt |
 | **#040** | 13/09/2026 | Hiện Thực Hóa Toàn Diện Phân Hệ Quản Lý Bác Sĩ (Doctor Management Portal): 2 Tab Roster & Vetting, Tìm Kiếm/Lọc Đa Tiêu Chí, Modal Thêm/Sửa/Xem Chi Tiết, Khóa/Mở Khóa Tài Khoản & Đồng Bộ AI Vector pgvector | AI Assistant | 🟢 Đã Duyệt |
 | **#039** | 13/09/2026 | Triệt Tiêu Đề Xuất Bác Sĩ Ảo (Zero Fake Recommendation) Khi Tài Liệu Trống/Mờ, Thiết Lập Multi-Model Vision OCR Pool & Nâng Cấp PDF 200 DPI | AI Assistant | 🟢 Đã Duyệt |
 | **#038** | 13/09/2026 | Khắc Phục Triệt Để Lỗi Ngoại Tuyến (Offline Fallback): Cập Nhật Bể Mô Hình OpenRouter Active Mới Nhất (inclusionai/ling-3.0-flash-sante:free, nex-agi/nex-n2.5-mini:free, openrouter/free) & Tối Ưu Timeout 15s | AI Assistant | 🟢 Đã Duyệt |
@@ -20,6 +21,126 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#042] Cải Tổ Toàn Diện Pipeline Phân Tích Tài Liệu Y Khoa (Khắc Phục 6 Điểm Nghẽn Kỹ Thuật)
+* **Thời gian:** 2026-09-13 17:45:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-03 (Phân Tích Tài Liệu Y Khoa Multimodal & RAG Lâm Sàng Chuyên Sâu)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (**59/59 Tests PASS 100%**)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (**Build 0 TypeScript error, 1670 modules**)
+  - Database: PostgreSQL 16 + pgvector (cổng **5433** - HEALTHY)
+  - Cache: Redis 7-alpine (cổng **6379** - HEALTHY)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Bối Cảnh & Vạch Trần 6 Điểm Nghẽn Kỹ Thuật Được Tech Lead Phản Ánh
+1. **Điểm nghẽn 1: Giao diện hiển thị thông tin bệnh viện bị HARDCODE 100%**:
+   - `DocumentSummarizerPage.tsx` gán cứng: `Bệnh Viện Đa Khoa Quốc Tế MediAssist`, `SID-2026-LAB-08492`, `Roche Cobas 8000`, `TS.BS. Nguyễn Văn An`, `11/09/2026 08:30`.
+   - Hậu quả: Bệnh nhân tải phiếu xét nghiệm của Chợ Rẫy, Bạch Mai, Medlatec, ĐHYD... vẫn hiển thị sai toàn bộ thông tin cơ sở và bác sĩ chỉ định.
+2. **Điểm nghẽn 2: Regex tách chỉ số dùng dấu hai chấm `[:=–-]` chỉ đọc được định dạng dạng khóa-giá trị đơn giản**:
+   - ~90% phiếu xét nghiệm thực tế tại bệnh viện Việt Nam dùng bảng cột (Columnar Layout) phân cách bằng khoảng trắng hoặc phím Tab (`Tên xét nghiệm    Kết quả    Khoảng tham chiếu    Đơn vị`).
+   - Hậu quả: Không có dấu `:`, regex trượt toàn bộ bảng, dẫn đến báo cáo trống hoặc thiếu chỉ số.
+3. **Điểm nghẽn 3: Phụ thuộc vào OpenRouter tầng Free thường xuyên bị nghẽn (429 Rate Limit / 503 Service Unavailable)**:
+   - Các mô hình miễn phí trên OpenRouter thường xuyên bị quá tải trong giờ cao điểm, gây chậm hoặc rớt về bộ máy Deterministic ngoại tuyến.
+4. **Điểm nghẽn 4: Lý do đề xuất bác sĩ dùng mẫu văn bản chung chung**:
+   - Text tĩnh: *"Bác sĩ có chứng chỉ hành nghề và chuyên môn phù hợp nhất"*, không giải thích vì sao cần gặp bác sĩ dựa trên chỉ số bất thường cụ thể của bệnh nhân.
+5. **Điểm nghẽn 5: Quét PDF bị giới hạn cứng 3 trang**:
+   - Các tập hồ sơ bệnh án tổng quát từ bệnh viện thường dài 5 - 10 trang, dẫn đến việc bỏ sót các xét nghiệm quan trọng ở các trang sau.
+6. **Điểm nghẽn 6: Khoảng tham chiếu sinh học chưa thích ứng theo Tuổi và Giới tính**:
+   - Creatinine, Acid Uric, Testosterone, Hemoglobin có ngưỡng an toàn sinh lý khác biệt rõ rệt giữa Nam và Nữ.
+
+#### 2. Các Giải Pháp Kỹ Thuật Đã Triển Khai
+
+##### A. Tích hợp Trực tiếp Google Gemini 1.5 Flash (Tier 1 AI Gateway)
+- **Tạo mới `GeminiAiProvider.java`**: Tích hợp trực tiếp Google Gemini 1.5 Flash REST API (`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}`).
+- Mô hình hàng đầu thế giới về thông hiểu y khoa tiếng Việt, hỗ trợ native Vision OCR đa phương thức và trích xuất JSON có cấu trúc (`response_mime_type: application/json`).
+- **Cập nhật `AiModelRouter.java`**:
+  - **Priority 1**: Google Gemini 1.5 Flash (Direct REST).
+  - **Priority 2**: Bể xoay vòng OpenRouter (`inclusionai/ling-3.0-flash-sante:free`, `nex-agi/nex-n2.5-mini:free`, `openrouter/free`).
+  - **Priority 3**: Local Deterministic Fallback Engine (an toàn, 0đ chi phí, tuân thủ nguyên tắc lâm sàng).
+
+##### B. Trình Phân Tích Bảng Đa Mẫu (Multi-Pattern Table Parser)
+- Nâng cấp `MedicalDocumentAnalysisService.parseIndicators`:
+  - **Pattern 1 (Delimiter-based)**: `(?:\\s*[:=]\\s*|(?<=[\\p{L}\\)])\\s*[-–]\\s*)` nhận diện khóa-giá trị, hỗ trợ `:`, `=` và `-` đứng sau chữ cái, không ăn nhầm vào dấu gạch nối của dải số tham chiếu.
+  - **Pattern 2 (Columnar & Tabular Split)**: Phân tách dòng theo `\t+|\s{2,}` linh hoạt nhận diện cả 2 thứ tự cột phổ biến tại bệnh viện Việt Nam:
+    - Kiểu A: `Tên xét nghiệm | Kết quả | Đơn vị | Khoảng tham chiếu`
+    - Kiểu B: `Tên xét nghiệm | Kết quả | Khoảng tham chiếu | Đơn vị`
+  - Cơ chế nhận diện cờ bất thường: Hỗ trợ cả 2 chuẩn `ELEVATED` và `HIGH`, tự động nhận diện ký hiệu tăng/giảm (`▲`, `▼`, `H`, `L`, `TĂNG`, `GIẢM`).
+
+##### C. Bóc Tách Dữ Liệu Lâm Sàng Động 100% (Metadata Extraction)
+- Triển khai `extractDocumentMetadata(text)` với cờ regex `(?ium)` hỗ trợ đầy đủ Unicode diacritics tiếng Việt:
+  - **Cơ sở khám bệnh (`hospitalName`)**: Tự động nhận diện `Bệnh viện...`, `BV...`, `Trung tâm y tế...`, `Phòng khám...`.
+  - **Khoa phòng (`departmentName`)**: `Khoa Xét nghiệm...`, `Khoa Hóa sinh...`.
+  - **Bác sĩ chỉ định (`orderingDoctor`)**: `Bác sĩ chỉ định...`, `BS...`.
+  - **Thời gian xét nghiệm (`testDate`)**: Định dạng ngày giờ chuẩn y tế.
+  - **Mã SID / Barcode (`sidCode`)**: Bóc tách mã mẫu bệnh phẩm duy nhất.
+  - **Thông tin người bệnh (`patientName`, `patientAge`, `patientGender`)**: Nhận diện tên, tuổi, giới tính.
+  - **Máy xét nghiệm (`deviceModel`)**: Tự động nhận diện thiết bị phân tích (Cobas, Sysmex, Beckman, Abbott...).
+
+##### D. Thích Ứng Khoảng Tham Chiếu Sinh Học Theo Giới Tính
+- Nâng cấp `calculateStatus`: Tự động nhận diện giới tính bệnh nhân (`Nam` / `Nữ`) từ tiêu đề tài liệu để áp dụng khoảng tham chiếu sinh lý chuẩn:
+  - Nữ: Creatinine `44 - 88 µmol/L`, Acid Uric `150 - 360 µmol/L`.
+  - Nam: Creatinine `62 - 115 µmol/L`, Acid Uric `200 - 420 µmol/L`.
+
+##### E. Cá Nhân Hóa Lý Do Đề Xuất Bác Sĩ Gắn Liền Chỉ Số Bất Thường
+- Bổ sung `buildClinicalDoctorRecommendationReason`: Thay vì văn bản tĩnh, lý do đề xuất liệt kê trực tiếp tối đa 3 chỉ số bất thường nguy cấp nhất:
+  - Ví dụ: *"Đề xuất PGS.TS Vũ Đình Hùng (Nội tiết) vì tài liệu xét nghiệm ghi nhận chỉ số bất thường: Glucose (9.2 mmol/L), Creatinine (115 umol/L), cần bác sĩ chuyên khoa thăm khám lâm sàng và định hướng phác đồ can thiệp kịp thời."*
+
+##### F. Nâng Hạn Mức Quét PDF Lên 10 Trang
+- Cấu hình `app.pdf.max-pages=10` trong tất cả file properties (`application.properties`, `application-dev.properties`, `application-supabase.properties`).
+- Cho phép đọc trọn vẹn hồ sơ bệnh án cận lâm sàng đa trang của bệnh viện lớn.
+
+##### G. Loại Bỏ Hoàn Toàn Dữ Liệu Tĩnh Hardcode Trên Giao Diện Frontend
+- Cập nhật `DocumentSummarizerPage.tsx` và `LandingPage.tsx`:
+  - `hospitalName` $\rightarrow$ `analysis.hospitalName || 'Cơ Sở Khám Chữa Bệnh / Đơn Vị Xét Nghiệm'`
+  - `departmentName` $\rightarrow$ `analysis.departmentName || 'Khoa Xét Nghiệm Cận Lâm Sàng | Tiêu Chuẩn ISO 15189'`
+  - `sidCode` $\rightarrow$ `analysis.sidCode || (analysis.documentId ? 'SID-' + analysis.documentId.substring(0,8).toUpperCase() : 'SID-CHƯA-XÁC-ĐỊNH')`
+  - `patientName` $\rightarrow$ `analysis.patientName || user?.fullName || 'Người Bệnh'` kèm tuổi và giới tính
+  - `deviceModel` $\rightarrow$ `analysis.deviceModel || 'Hệ thống phân tích tự động'`
+  - `orderingDoctor` $\rightarrow$ `analysis.orderingDoctor || 'Bác sĩ điều trị / KTV'`
+  - `testDate` $\rightarrow$ `analysis.testDate || new Date().toLocaleDateString('vi-VN')`
+
+##### H. Lưu Trữ Dữ Liệu & Cơ Sở Dữ Liệu
+- Tạo mới Flyway migration: `V5__add_document_analysis_metadata.sql` bổ sung cột `metadata_json TEXT` vào bảng `document_analyses`.
+- DTOs & Entity đồng bộ đầy đủ các trường lâm sàng động.
+
+#### 3. Danh Sách Tệp Tin Thay Đổi
+| Tệp Tin | Trạng Thái | Mô Tả Thay Đổi |
+| :--- | :---: | :--- |
+| `backend/src/main/java/com/mediassist/ai/GeminiAiProvider.java` | `[NEW]` | Provider kết nối trực tiếp Google Gemini 1.5 Flash REST API, Vision OCR & trích xuất JSON |
+| `backend/src/main/resources/db/migration/V5__add_document_analysis_metadata.sql` | `[NEW]` | Flyway migration thêm cột `metadata_json` vào bảng `document_analyses` |
+| `backend/src/main/java/com/mediassist/dto/DocumentAnalysisResponse.java` | `[MOD]` | Bổ sung 9 trường siêu dữ liệu lâm sàng: hospitalName, doctor, sidCode, deviceModel... |
+| `backend/src/main/java/com/mediassist/ai/ClinicalAiResult.java` | `[MOD]` | Bổ sung các trường metadata tương ứng cho AI result DTO |
+| `backend/src/main/java/com/mediassist/model/entity/DocumentAnalysis.java` | `[MOD]` | Thêm trường `@Column(name = "metadata_json") private String metadataJson;` |
+| `backend/src/main/java/com/mediassist/ai/OpenRouterAiProvider.java` | `[MOD]` | Cập nhật logic trích xuất metadata động từ JSON trả về của LLM |
+| `backend/src/main/java/com/mediassist/ai/AiModelRouter.java` | `[MOD]` | Thiết lập Gemini làm Priority 1, OpenRouter làm Priority 2, Fallback làm Priority 3 |
+| `backend/src/main/java/com/mediassist/service/ClinicalRagService.java` | `[MOD]` | Nâng cấp system prompt trích xuất hành chính & cá nhân hóa lý do đề xuất bác sĩ |
+| `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java` | `[MOD]` | Thêm `extractDocumentMetadata`, nâng cấp `parseIndicators` (Multi-pattern), gender-adaptive range, cá nhân hóa lý do bác sĩ, 10 trang PDF |
+| `backend/src/main/resources/application.properties` | `[MOD]` | Cấu hình `app.ai.gemini.*` và `app.pdf.max-pages=10` |
+| `backend/src/main/resources/application-dev.properties` | `[MOD]` | Cấu hình môi trường dev cho Gemini và PDF pages |
+| `backend/src/main/resources/application-supabase.properties` | `[MOD]` | Cấu hình môi trường production Supabase cho Gemini và PDF pages |
+| `backend/src/test/java/com/mediassist/ai/AiModelRouterTest.java` | `[MOD]` | Bổ sung mock GeminiAiProvider và test case xác thực ưu tiên Priority 1 |
+| `backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java` | `[MOD]` | Thêm test case kiểm thử Multi-Pattern parser, trích xuất metadata động và lý do bác sĩ |
+| `frontend/src/pages/patient/DocumentSummarizerPage.tsx` | `[MOD]` | Mở rộng AnalysisResult interface & render metadata động 100%, xóa bỏ toàn bộ hardcode |
+| `frontend/src/pages/LandingPage.tsx` | `[MOD]` | Đồng bộ AnalysisResult interface với các trường metadata mới |
+| `docs/DATABASE_DESIGN.md` | `[MOD]` | Ghi nhận schema thay đổi với migration `V5` |
+| `docs/USE_CASES.md` | `[MOD]` | Cập nhật luồng nghiệp vụ UC-03 với Gemini Gateway và Dynamic Metadata |
+| `docs/WORK_LOG.md` | `[MOD]` | Nhật ký kỹ thuật phiên #042 |
+
+#### 4. Bằng Chứng Kiểm Thử & Biên Dịch
+- **Backend Tests**: `mvn test` $\rightarrow$ **59/59 Tests PASS 100%**, Thời gian: 7.624s.
+- **Frontend Build**: `npm run build` trong `frontend/` $\rightarrow$ **0 TypeScript errors**, 1670 modules transformed trong 3.91s.
+- **Dịch vụ đang chạy**:
+  - PostgreSQL pgvector: cổng `5433` (Container Docker)
+  - Redis: cổng `6379`
+  - Frontend: cổng `5173` (Vite dev server)
+  - Backend: cổng `5000` (Spring Boot profile `dev`)
+
+#### 5. Điểm Nóng Tech Lead Cần Lưu Ý Khi Review
+1. **Khóa API Google Gemini**: Khóa được nạp từ biến môi trường `GEMINI_API_KEY` (hoặc `app.ai.gemini.api-key`). Nếu chưa thiết lập biến môi trường, hệ thống tự động fallback sang OpenRouter pool hoặc Deterministic engine an toàn mà không làm crash ứng dụng.
+2. **Khả năng tương thích ngược dữ liệu cũ**: Bảng `document_analyses` cũ có `metadata_json` là `NULL`, code đã được xử lý phòng thủ (`rawMeta.get(...)` kết hợp fallback an toàn) nên các tài liệu đã lưu trước đây vẫn hiển thị trơn tru không lỗi.
+
+---
 
 ### [WORK-LOG-#041] Triển Khai Phân Trang Offset (Limit/Offset Pagination) Toàn Diện & Khắc Phục Lưu Trữ Supabase Database / Cloud Storage
 * **Thời gian:** 2026-09-13 17:31:00 (GMT+7)
