@@ -11,6 +11,7 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :--- | :---: |
+| **#043** | 13/09/2026 | Khởi Tạo & Đẩy Lên Toàn Bộ 3 Tệp Cấu Hình Môi Trường (.env & .env.example) Cho Cả 3 Phân Hệ (Root, Backend, Frontend) Kèm Tích Hợp Vite Environment Variable | AI Assistant | 🟢 Sẵn sàng Review |
 | **#042** | 13/09/2026 | Cải Tổ Toàn Diện Pipeline Phân Tích Tài Liệu Y Khoa (6 Điểm Nghẽn): Tích Hợp Trực Tiếp Google Gemini Flash (Tier 1 AI), Trình Phân Tích Bảng Đa Mẫu (Multi-Pattern Table Parser), Dữ Liệu Lâm Sàng Động 100% (Bệnh Viện, Bác Sĩ, SID, Máy Xét Nghiệm), Khoảng Tham Chiếu Giới Tính & Nâng Hạn Mức PDF 10 Trang | AI Assistant | 🟢 Sẵn sàng Review |
 | **#041** | 13/09/2026 | Triển Khai Phân Trang Offset (Limit/Offset Pagination) Toàn Diện Toàn Bộ Bảng/Danh Sách Chống Tràn Bộ Nhớ & Khắc Phục Lưu Trữ Supabase Database / Cloud Storage | AI Assistant | 🟢 Đã Duyệt |
 | **#040** | 13/09/2026 | Hiện Thực Hóa Toàn Diện Phân Hệ Quản Lý Bác Sĩ (Doctor Management Portal): 2 Tab Roster & Vetting, Tìm Kiếm/Lọc Đa Tiêu Chí, Modal Thêm/Sửa/Xem Chi Tiết, Khóa/Mở Khóa Tài Khoản & Đồng Bộ AI Vector pgvector | AI Assistant | 🟢 Đã Duyệt |
@@ -21,6 +22,57 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#043] Khởi Tạo & Đẩy Lên 3 Tệp Cấu Hình Môi Trường (.env & .env.example) Cho Root, Backend và Frontend
+* **Thời gian:** 2026-09-13 19:10:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-SYS-06 (Multi-Tier Environment Variable Lifecycle & Zero-Setup Developer Experience)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (**59/59 Tests PASS 100%**)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (**Build 0 TypeScript error, 1670 modules**)
+  - Database: PostgreSQL 16 + pgvector (cổng **5433** - HEALTHY)
+  - Cache: Redis 7-alpine (cổng **6379** - HEALTHY)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Bối Cảnh & Yêu Cầu Từ Tech Lead
+- Yêu cầu từ Tech Lead: *"push len 3 file env cho toi luon di"*
+- Trước đây, `.gitignore` loại trừ toàn bộ các tệp `.env`, dẫn đến việc các thành viên trong nhóm hoặc môi trường CI/CD khi clone/pull nhánh `develop` về máy bị thiếu cấu hình môi trường khởi chạy, phải gõ tay hoặc hỏi lại cấu hình kết nối.
+- Cần cung cấp bộ 3 tệp môi trường chuẩn hóa cho 3 tầng phân hệ:
+  1. **Root `.env`**: Cấu hình chung toàn dự án (Docker Compose, cổng nội bộ PostgreSQL 5433, Redis 6379, OpenRouter/Gemini AI Gateway, Supabase Cloud Storage EMR).
+  2. **Backend `backend/.env`**: Cấu hình Spring Boot Java 25 (được nạp tự động qua `MediAssistApplication.loadDotEnv()`).
+  3. **Frontend `frontend/.env`**: Cấu hình Vite React (`VITE_API_BASE_URL=/api/v1`, `VITE_BACKEND_URL=http://localhost:5000`).
+
+#### 2. Các Giải Pháp Kỹ Thuật Đã Triển Khai
+1. **Khởi tạo Bộ 3 Tệp `.env` Baseline**:
+   - `.env` (Thư mục gốc): Đồng bộ với `docker-compose.yml` và cấu hình tổng thể hệ thống.
+   - `backend/.env`: Đầy đủ cấu hình kết nối JDBC PostgreSQL, Redis cache, JWT secret và các AI provider.
+   - `frontend/.env`: Cấu hình endpoint API gateway và metadata ứng dụng.
+2. **Khởi tạo Bộ 3 Tệp Mẫu `.env.example`**:
+   - Cập nhật `.env.example` ở thư mục gốc.
+   - Tạo mới `backend/.env.example` và `frontend/.env.example` phục vụ tài liệu hóa cho thành viên mới.
+3. **Cập nhật `.gitignore`**:
+   - Chuyển quy tắc loại trừ sang `.env.local` và `.env.*.local` để bảo vệ các secret cá nhân của từng máy phát triển, đồng thời cho phép Git theo dõi 3 tệp `.env` baseline phục vụ Tech Lead và toàn bộ dự án.
+4. **Tích hợp Vite Environment Variable**:
+   - Cập nhật `frontend/src/services/api.ts`: `baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1'`.
+
+#### 3. Danh Sách Tệp Tin Thay Đổi
+| Tệp Tin | Trạng Thái | Mô Tả Thay Đổi |
+| :--- | :---: | :--- |
+| `.env` | `[NEW]` | Cấu hình môi trường gốc (Docker, DB, Redis, AI Gateway, Supabase) |
+| `backend/.env` | `[NEW]` | Cấu hình môi trường Backend Spring Boot |
+| `frontend/.env` | `[NEW]` | Cấu hình môi trường Frontend Vite React |
+| `backend/.env.example` | `[NEW]` | Tệp mẫu môi trường cho Backend |
+| `frontend/.env.example` | `[NEW]` | Tệp mẫu môi trường cho Frontend |
+| `.env.example` | `[MOD]` | Cập nhật tệp mẫu môi trường gốc |
+| `.gitignore` | `[MOD]` | Cho phép theo dõi baseline .env, loại trừ .env.*.local |
+| `frontend/src/services/api.ts` | `[MOD]` | Nạp baseURL từ `import.meta.env.VITE_API_BASE_URL` |
+| `docs/WORK_LOG.md` | `[MOD]` | Ghi nhận nhật ký kỹ thuật phiên #043 |
+
+#### 4. Bằng Chứng Kiểm Thử & Biên Dịch
+- `npm run build` trong `frontend/`: **0 TypeScript error**, built trong 3.04s.
+- `mvn test` trong `backend/`: **59/59 Tests PASS (100%)**, thời gian 5.13s.
+
+---
 
 ### [WORK-LOG-#042] Cải Tổ Toàn Diện Pipeline Phân Tích Tài Liệu Y Khoa (Khắc Phục 6 Điểm Nghẽn Kỹ Thuật)
 * **Thời gian:** 2026-09-13 17:45:00 (GMT+7)
