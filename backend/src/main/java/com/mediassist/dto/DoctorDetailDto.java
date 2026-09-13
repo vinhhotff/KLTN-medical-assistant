@@ -29,6 +29,8 @@ public class DoctorDetailDto {
     private String licenseIssuedBy;
     private Double rating;
     private Integer totalConsultations;
+    private String userStatus;
+    private java.time.LocalDateTime createdAt;
 
     public DoctorDetailDto() {}
 
@@ -42,6 +44,8 @@ public class DoctorDetailDto {
             dto.setEmail(u.getEmail());
             dto.setPhone(u.getPhone());
             dto.setAvatarUrl(u.getAvatarUrl());
+            dto.setUserStatus(u.getStatus() != null ? u.getStatus().name() : "ACTIVE");
+            dto.setCreatedAt(profile.getCreatedAt() != null ? profile.getCreatedAt() : u.getCreatedAt());
         }
         dto.setBio(profile.getBio());
         dto.setLicenseNumber(profile.getLicenseNumber());
@@ -115,4 +119,10 @@ public class DoctorDetailDto {
 
     public Integer getTotalConsultations() { return totalConsultations; }
     public void setTotalConsultations(Integer totalConsultations) { this.totalConsultations = totalConsultations; }
+
+    public String getUserStatus() { return userStatus; }
+    public void setUserStatus(String userStatus) { this.userStatus = userStatus; }
+
+    public java.time.LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(java.time.LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

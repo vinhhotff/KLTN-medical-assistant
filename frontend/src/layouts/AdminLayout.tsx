@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
-import { Shield, Users, Activity, LogOut, CheckCircle, Database } from 'lucide-react';
+import { Shield, Users, Activity, LogOut, Database, Stethoscope } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
 export const AdminLayout: React.FC = () => {
@@ -31,10 +31,10 @@ export const AdminLayout: React.FC = () => {
             </Link>
             <Link
               to="/admin/doctors"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition text-slate-300 hover:text-white"
             >
-              <CheckCircle className="w-4 h-4 text-emerald-400" />
-              Duyệt Bác Sĩ (Vetting)
+              <Stethoscope className="w-4 h-4 text-emerald-400" />
+              Quản lý Bác Sĩ
             </Link>
             <Link
               to="/admin/users"

@@ -6,7 +6,7 @@ import { AdminLayout } from './layouts/AdminLayout';
 import { DoctorLayout } from './layouts/DoctorLayout';
 import { PatientLayout } from './layouts/PatientLayout';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { DoctorVettingPage } from './pages/admin/DoctorVettingPage';
+import { DoctorManagementPage } from './pages/admin/DoctorManagementPage';
 import { UserManagementPage } from './pages/admin/UserManagementPage';
 import { SpecialtyManagementPage } from './pages/admin/SpecialtyManagementPage';
 import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
@@ -29,7 +29,7 @@ export function App() {
         <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
-            <Route path="doctors" element={<DoctorVettingPage />} />
+            <Route path="doctors" element={<DoctorManagementPage />} />
             <Route path="users" element={<UserManagementPage />} />
             <Route path="specialties" element={<SpecialtyManagementPage />} />
           </Route>

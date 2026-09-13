@@ -27,6 +27,57 @@ public class AdminController {
         this.adminVettingService = adminVettingService;
     }
 
+    @GetMapping("/doctors")
+    @Operation(summary = "List all doctor profiles", description = "Returns all registered doctors in the system with credentials and user status.")
+    public ResponseEntity<ApiResponse<List<DoctorDetailDto>>> getAllDoctors() {
+        return ResponseEntity.ok(ApiResponse.success(adminVettingService.getAllDoctors()));
+    }
+
+    @PostMapping("/doctors")
+    @Operation(summary = "Create new doctor account & profile", description = "Admin directly onboards a verified or pending doctor with initial vector embedding.")
+    public ResponseEntity<ApiResponse<DoctorDetailDto>> createDoctor(
+            @Valid @RequestBody AdminCreateDoctorRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        DoctorDetailDto result = adminVettingService.createDoctorByAdmin(request, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PutMapping("/doctors/{id}")
+    @Operation(summary = "Update doctor profile credentials", description = "Admin edits professional clinical details, hospital, fee, and specialties.")
+    public ResponseEntity<ApiResponse<DoctorDetailDto>> updateDoctor(
+            @PathVariable("id") UUID id,
+            @Valid @RequestBody AdminUpdateDoctorRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        DoctorDetailDto result = adminVettingService.updateDoctorByAdmin(id, request, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PatchMapping("/doctors/{id}/toggle-status")
+    @Operation(summary = "Toggle doctor account status", description = "Switch doctor status between ACTIVE and SUSPENDED.")
+    public ResponseEntity<ApiResponse<DoctorDetailDto>> toggleDoctorStatus(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        DoctorDetailDto result = adminVettingService.toggleDoctorStatus(id, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PostMapping("/doctors/{id}/sync-vector")
+    @Operation(summary = "Synchronize AI Vector embedding for a doctor", description = "Recalculates pgvector bio_embedding for semantic matching.")
+    public ResponseEntity<ApiResponse<DoctorDetailDto>> syncDoctorVector(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        DoctorDetailDto result = adminVettingService.syncDoctorVector(id, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PostMapping("/doctors/sync-vectors")
+    @Operation(summary = "Batch synchronize all doctor AI vector embeddings", description = "Iterates and recalculates pgvector embeddings for all doctors.")
+    public ResponseEntity<ApiResponse<Integer>> syncAllDoctorVectors(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        int count = adminVettingService.syncAllDoctorVectors(principal.getId());
+        return ResponseEntity.ok(ApiResponse.success(count));
+    }
+
     @GetMapping("/doctors/pending")
     @Operation(summary = "List pending doctor profiles", description = "Returns doctors awaiting medical license verification.")
     public ResponseEntity<ApiResponse<List<DoctorDetailDto>>> getPendingDoctors() {

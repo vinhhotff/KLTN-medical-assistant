@@ -11,13 +11,83 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :--- | :---: |
-| **#039** | 13/09/2026 | Triệt Tiêu Đề Xuất Bác Sĩ Ảo (Zero Fake Recommendation) Khi Tài Liệu Trống/Mờ, Thiết Lập Multi-Model Vision OCR Pool & Nâng Cấp PDF 200 DPI | AI Assistant | 🟢 Sẵn sàng Review |
+| **#040** | 13/09/2026 | Hiện Thực Hóa Toàn Diện Phân Hệ Quản Lý Bác Sĩ (Doctor Management Portal): 2 Tab Roster & Vetting, Tìm Kiếm/Lọc Đa Tiêu Chí, Modal Thêm/Sửa/Xem Chi Tiết, Khóa/Mở Khóa Tài Khoản & Đồng Bộ AI Vector pgvector | AI Assistant | 🟢 Sẵn sàng Review |
+| **#039** | 13/09/2026 | Triệt Tiêu Đề Xuất Bác Sĩ Ảo (Zero Fake Recommendation) Khi Tài Liệu Trống/Mờ, Thiết Lập Multi-Model Vision OCR Pool & Nâng Cấp PDF 200 DPI | AI Assistant | 🟢 Đã Duyệt |
 | **#038** | 13/09/2026 | Khắc Phục Triệt Để Lỗi Ngoại Tuyến (Offline Fallback): Cập Nhật Bể Mô Hình OpenRouter Active Mới Nhất (inclusionai/ling-3.0-flash-sante:free, nex-agi/nex-n2.5-mini:free, openrouter/free) & Tối Ưu Timeout 15s | AI Assistant | 🟢 Đã Duyệt |
 | **#037** | 13/09/2026 | Khởi Động Toàn Diện Hệ Sinh Thái MediAssist-AI (Docker pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173), Sửa Lỗi Constructor Injection & Xác Thực End-to-End | AI Assistant | 🟢 Đã Duyệt |
 
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#040] Hiện Thực Hóa Toàn Diện Phân Hệ Quản Lý Bác Sĩ (Doctor Management Portal)
+* **Thời gian:** 2026-09-13 17:18:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-ADM-15 (Admin Doctor Management & AI Vector Sync)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (54/54 Tests PASS 100%)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (Build 0 TypeScript error)
+  - Database: PostgreSQL 16 + pgvector (cổng **5433** - HEALTHY)
+  - Cache: Redis 7-alpine (cổng **6379** - HEALTHY)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Bối Cảnh & Yêu Cầu Từ Tech Lead
+- Menu quản trị Admin trước đây chỉ có mục *"Duyệt Bác Sĩ (Vetting)"* (`/admin/doctors`), vốn chỉ gọi API `/api/v1/admin/doctors/pending` để hiển thị những bác sĩ chưa duyệt.
+- Khi toàn bộ 12 bác sĩ mẫu đã được kích hoạt, trang này hiển thị trống (*"Không có hồ sơ bác sĩ nào đang chờ duyệt"*).
+- Quản trị viên không có bất kỳ công cụ nào để xem danh sách toàn bộ bác sĩ, tìm kiếm lọc chuyên khoa/trạng thái, chỉnh sửa hồ sơ y tế, khóa/mở khóa tài khoản, hoặc đồng bộ lại vector embedding 1536 chiều cho AI Doctor Matching.
+
+#### 2. Các Giải Pháp Kỹ Thuật Đã Triển Khai
+1. **Backend REST API (`AdminController.java` & `AdminVettingService.java`)**:
+   - `GET /api/v1/admin/doctors`: Trả về danh sách toàn bộ bác sĩ trong hệ thống kèm trạng thái tài khoản (`userStatus`), ngày tạo, học hàm, CCHN, giá khám, rating.
+   - `POST /api/v1/admin/doctors`: Thêm mới bác sĩ trực tiếp từ Admin (tạo User, DoctorProfile, gán Specialties, mã hóa mật khẩu BCrypt, tự động tính vector embedding và ghi Audit Log).
+   - `PUT /api/v1/admin/doctors/{id}`: Cập nhật thông tin chuyên môn, học hàm, bệnh viện, khoa phòng, CCHN, giá khám, năm kinh nghiệm, bio và tính toán lại vector embedding.
+   - `PATCH /api/v1/admin/doctors/{id}/toggle-status`: Khóa hoặc kích hoạt lại tài khoản bác sĩ (`ACTIVE` <-> `SUSPENDED`) và ghi Audit Log.
+   - `POST /api/v1/admin/doctors/{id}/sync-vector`: Tính toán và đồng bộ lại vector embedding 1536 chiều cho 1 bác sĩ cụ thể vào cột `bio_embedding` (PostgreSQL `pgvector`).
+   - `POST /api/v1/admin/doctors/sync-vectors`: Đồng bộ hàng loạt vector embedding cho toàn bộ bác sĩ trong hệ thống.
+2. **DTO Mới & Cải Tiến**:
+   - `DoctorDetailDto`: Bổ sung trường `userStatus` (`ACTIVE` / `SUSPENDED`) và `createdAt`.
+   - `AdminCreateDoctorRequest`: DTO đầy đủ thông tin tài khoản và chứng chỉ lâm sàng khi tạo mới bác sĩ.
+   - `AdminUpdateDoctorRequest`: DTO hỗ trợ chỉnh sửa linh hoạt thông tin chuyên môn bác sĩ.
+3. **Frontend UI Hoàn Chỉnh (`DoctorManagementPage.tsx`)**:
+   - Thẻ Thống kê Tổng quan (Quick Stats): Tổng số bác sĩ, Đang hoạt động, Chờ duyệt CCHN, Tạm khóa.
+   - Nút hành động nhanh: *"+ Thêm Bác Sĩ Mới"* và *"Đồng bộ AI Vector Toàn Bộ"* kèm spinner loading và thông báo toast.
+   - **Tab 1 - Tất cả Bác sĩ:**
+     - Thanh tìm kiếm thời gian thực (tên, email, CCHN, bệnh viện, khoa phòng).
+     - Bộ lọc Chuyên khoa (dynamic từ `/specialties`) & Bộ lọc Trạng thái (Active/Pending/Suspended).
+     - Bảng dữ liệu chuẩn Enterprise: Bác sĩ & Avatar, Đơn vị & Chuyên khoa, CCHN & Cơ quan cấp, Kinh nghiệm & Đánh giá sao, Giá khám, Huy hiệu trạng thái, Menu thao tác: Xem hồ sơ, Sửa hồ sơ, Khóa/Mở khóa, Đồng bộ Vector.
+   - **Tab 2 - Duyệt hồ sơ (Vetting):**
+     - Giữ trọn vẹn quy trình kiểm duyệt CCHN, nút Phê duyệt (Approve) và Từ chối (Reject) kèm lý do giải trình.
+   - Các Modal tương tác chuyên nghiệp: `CreateDoctorModal`, `EditDoctorModal`, `ViewDoctorModal`, `RejectDoctorModal`.
+4. **Cập nhật Layout & Routing**:
+   - `AdminLayout.tsx`: Đổi menu thành *"Quản lý Bác Sĩ"* với icon `<Stethoscope />`.
+   - `App.tsx`: Định tuyến `/admin/doctors` sang `DoctorManagementPage`.
+
+#### 3. Danh Sách Tệp Đã Thay Đổi
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/AdminCreateDoctorRequest.java`
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/AdminUpdateDoctorRequest.java`
+- `[NEW]` `backend/src/test/java/com/mediassist/service/AdminVettingServiceTest.java`
+- `[NEW]` `frontend/src/pages/admin/DoctorManagementPage.tsx`
+- `[MOD]` `backend/src/main/java/com/mediassist/dto/DoctorDetailDto.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/service/AdminVettingService.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/controller/AdminController.java`
+- `[MOD]` `frontend/src/layouts/AdminLayout.tsx`
+- `[MOD]` `frontend/src/App.tsx`
+- `[MOD]` `docs/USE_CASES.md` (Thêm Use Case UC-ADM-15)
+- `[MOD]` `docs/WORK_LOG.md` (Bản ghi #040)
+
+#### 4. Bằng Chứng Kiểm Thử
+- **Backend Tests:** Chạy `mvn test` $\rightarrow$ **54/54 tests PASS 100%** (trong đó có 6 unit tests mới cho `AdminVettingServiceTest`).
+- **Frontend Build:** Chạy `npm run build` $\rightarrow$ **0 lỗi TypeScript**, tạo production bundle thành công trong 7.92s.
+- **Kiểm thử API Thực Tế:**
+  - `GET /api/v1/admin/doctors`: Trả về danh sách 12 bác sĩ mẫu kèm `userStatus: ACTIVE`.
+  - `POST /api/v1/admin/doctors`: Tạo thành công bác sĩ `BS.CKII Le Hoang Quan` (CCHN-887766-BYT).
+  - `PATCH /api/v1/admin/doctors/{id}/toggle-status`: Chuyển đổi trạng thái `ACTIVE` $\rightarrow$ `SUSPENDED` $\rightarrow$ `ACTIVE` chính xác.
+  - `POST /api/v1/admin/doctors/{id}/sync-vector`: Tính toán và đồng bộ pgvector embedding thành công.
+
+#### 5. Điểm Nóng Tech Lead Cần Review
+- Đã kiểm tra tính tương thích ngược: Khách hàng (bệnh nhân) tìm kiếm bác sĩ qua `pgvector` (`UC-CLIN-04`) chỉ lấy các bác sĩ có `is_verified = true` và tài khoản `ACTIVE`. Khi Admin khóa một bác sĩ, hệ thống tự động xóa cache Redis `doctors:verified` để bác sĩ đó không còn xuất hiện trong kết quả đề xuất.
+
+---
 
 ### [WORK-LOG-#039] Triệt Tiêu Đề Xuất Bác Sĩ Ảo (Zero Fake Recommendation) Khi Tài Liệu Trống/Mờ, Thiết Lập Multi-Model Vision OCR Pool & Nâng Cấp PDF 200 DPI
 * **Thời gian:** 2026-09-13 15:10:00 (GMT+7)

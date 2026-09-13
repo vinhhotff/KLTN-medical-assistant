@@ -1,6 +1,8 @@
 package com.mediassist.service;
 
 import com.mediassist.common.AppException;
+import com.mediassist.dto.AdminCreateDoctorRequest;
+import com.mediassist.dto.AdminUpdateDoctorRequest;
 import com.mediassist.dto.CreateSpecialtyRequest;
 import com.mediassist.dto.DoctorDetailDto;
 import com.mediassist.dto.SpecialtyDto;
@@ -18,11 +20,14 @@ import com.mediassist.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -38,19 +43,28 @@ public class AdminVettingService {
     private final AuditLogRepository auditLogRepository;
     private final TwoLayerCacheService cacheService;
     private final DoctorSemanticSearchService doctorSemanticSearchService;
+    private final PasswordEncoder passwordEncoder;
 
     public AdminVettingService(DoctorProfileRepository doctorProfileRepository,
                                UserRepository userRepository,
                                SpecialtyRepository specialtyRepository,
                                AuditLogRepository auditLogRepository,
                                TwoLayerCacheService cacheService,
-                               DoctorSemanticSearchService doctorSemanticSearchService) {
+                               DoctorSemanticSearchService doctorSemanticSearchService,
+                               PasswordEncoder passwordEncoder) {
         this.doctorProfileRepository = doctorProfileRepository;
         this.userRepository = userRepository;
         this.specialtyRepository = specialtyRepository;
         this.auditLogRepository = auditLogRepository;
         this.cacheService = cacheService;
         this.doctorSemanticSearchService = doctorSemanticSearchService;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    public List<DoctorDetailDto> getAllDoctors() {
+        return doctorProfileRepository.findAll().stream()
+                .map(DoctorDetailDto::fromEntity)
+                .collect(Collectors.toList());
     }
 
     public List<DoctorDetailDto> getPendingDoctors() {
@@ -97,6 +111,209 @@ public class AdminVettingService {
 
         log.info("🛡️ Admin {} vetted doctor profile {}: {}", adminId, doctorProfileId, approve ? "APPROVED" : "REJECTED");
         return DoctorDetailDto.fromEntity(updated);
+    }
+
+    @Transactional
+    public DoctorDetailDto createDoctorByAdmin(AdminCreateDoctorRequest req, UUID adminId) {
+        String email = req.getEmail().trim().toLowerCase();
+        if (userRepository.existsByEmail(email)) {
+            throw new AppException(HttpStatus.CONFLICT, "EMAIL_EXISTS", "Email này đã được sử dụng trong hệ thống: " + email);
+        }
+        if (req.getLicenseNumber() != null && doctorProfileRepository.findByLicenseNumber(req.getLicenseNumber().trim()).isPresent()) {
+            throw new AppException(HttpStatus.CONFLICT, "LICENSE_EXISTS", "Số chứng chỉ hành nghề này đã tồn tại: " + req.getLicenseNumber());
+        }
+
+        // 1. Create User
+        User user = new User();
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
+        user.setFullName(req.getFullName().trim());
+        user.setPhone(req.getPhone() != null ? req.getPhone().trim() : null);
+        user.setRole(Role.DOCTOR);
+        user.setStatus(UserStatus.ACTIVE);
+        User savedUser = userRepository.save(user);
+
+        // 2. Create DoctorProfile
+        DoctorProfile profile = new DoctorProfile();
+        profile.setUser(savedUser);
+        profile.setAcademicTitle(req.getAcademicTitle() != null ? req.getAcademicTitle().trim() : "BS");
+        profile.setHospitalAffiliation(req.getHospitalAffiliation() != null ? req.getHospitalAffiliation().trim() : "");
+        profile.setDepartment(req.getDepartment() != null ? req.getDepartment().trim() : "");
+        profile.setLicenseNumber(req.getLicenseNumber().trim());
+        profile.setLicenseIssuedBy(req.getLicenseIssuedBy() != null ? req.getLicenseIssuedBy().trim() : "Bộ Y Tế");
+        profile.setConsultationFee(req.getConsultationFee() != null ? req.getConsultationFee() : BigDecimal.valueOf(300000));
+        profile.setYearsOfExperience(req.getYearsOfExperience() != null ? req.getYearsOfExperience() : 5);
+        profile.setBio(req.getBio() != null ? req.getBio().trim() : "");
+        profile.setVerified(req.isAutoVerify());
+        if (req.isAutoVerify()) {
+            profile.setVerifiedAt(LocalDateTime.now());
+        }
+
+        // 3. Specialties
+        if (req.getSpecialtySlugs() != null && !req.getSpecialtySlugs().isEmpty()) {
+            Set<Specialty> specialties = req.getSpecialtySlugs().stream()
+                    .map(slug -> specialtyRepository.findBySlug(slug.trim().toLowerCase()))
+                    .filter(java.util.Optional::isPresent)
+                    .map(java.util.Optional::get)
+                    .collect(Collectors.toSet());
+            profile.setSpecialties(specialties);
+        }
+
+        DoctorProfile savedProfile = doctorProfileRepository.save(profile);
+        cacheService.evict(CACHE_VERIFIED_DOCTORS);
+
+        // 4. Vector sync if verified
+        if (savedProfile.isVerified()) {
+            syncDoctorVectorInternal(savedProfile);
+        }
+
+        // 5. Audit Log
+        AuditLog audit = new AuditLog();
+        audit.setUserId(adminId);
+        audit.setAction("ADMIN_CREATE_DOCTOR");
+        audit.setResource("doctor_profiles/" + savedProfile.getId());
+        audit.setMetadata("Created doctor: " + savedUser.getFullName() + " (" + savedUser.getEmail() + ")");
+        auditLogRepository.save(audit);
+
+        log.info("🛡️ Admin {} created doctor account {} ({})", adminId, savedUser.getFullName(), savedUser.getEmail());
+        return DoctorDetailDto.fromEntity(savedProfile);
+    }
+
+    @Transactional
+    public DoctorDetailDto updateDoctorByAdmin(UUID doctorProfileId, AdminUpdateDoctorRequest req, UUID adminId) {
+        DoctorProfile profile = doctorProfileRepository.findById(doctorProfileId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorProfileId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        User user = profile.getUser();
+        if (user != null) {
+            if (req.getFullName() != null && !req.getFullName().isBlank()) {
+                user.setFullName(req.getFullName().trim());
+            }
+            if (req.getPhone() != null) {
+                user.setPhone(req.getPhone().trim());
+            }
+            userRepository.save(user);
+        }
+
+        if (req.getAcademicTitle() != null) profile.setAcademicTitle(req.getAcademicTitle().trim());
+        if (req.getHospitalAffiliation() != null) profile.setHospitalAffiliation(req.getHospitalAffiliation().trim());
+        if (req.getDepartment() != null) profile.setDepartment(req.getDepartment().trim());
+        if (req.getLicenseNumber() != null && !req.getLicenseNumber().isBlank()) profile.setLicenseNumber(req.getLicenseNumber().trim());
+        if (req.getLicenseIssuedBy() != null) profile.setLicenseIssuedBy(req.getLicenseIssuedBy().trim());
+        if (req.getConsultationFee() != null) profile.setConsultationFee(req.getConsultationFee());
+        if (req.getYearsOfExperience() != null) profile.setYearsOfExperience(req.getYearsOfExperience());
+        if (req.getBio() != null) profile.setBio(req.getBio().trim());
+        if (req.getIsVerified() != null) {
+            profile.setVerified(req.getIsVerified());
+            if (req.getIsVerified() && profile.getVerifiedAt() == null) {
+                profile.setVerifiedAt(LocalDateTime.now());
+            }
+        }
+
+        if (req.getSpecialtySlugs() != null) {
+            Set<Specialty> specialties = req.getSpecialtySlugs().stream()
+                    .map(slug -> specialtyRepository.findBySlug(slug.trim().toLowerCase()))
+                    .filter(java.util.Optional::isPresent)
+                    .map(java.util.Optional::get)
+                    .collect(Collectors.toSet());
+            profile.setSpecialties(specialties);
+        }
+
+        DoctorProfile updated = doctorProfileRepository.save(profile);
+        cacheService.evict(CACHE_VERIFIED_DOCTORS);
+
+        if (updated.isVerified()) {
+            syncDoctorVectorInternal(updated);
+        }
+
+        AuditLog audit = new AuditLog();
+        audit.setUserId(adminId);
+        audit.setAction("ADMIN_UPDATE_DOCTOR");
+        audit.setResource("doctor_profiles/" + doctorProfileId);
+        audit.setMetadata("Updated doctor profile: " + (user != null ? user.getFullName() : doctorProfileId));
+        auditLogRepository.save(audit);
+
+        log.info("🛡️ Admin {} updated doctor profile {}", adminId, doctorProfileId);
+        return DoctorDetailDto.fromEntity(updated);
+    }
+
+    @Transactional
+    public DoctorDetailDto toggleDoctorStatus(UUID doctorProfileId, UUID adminId) {
+        DoctorProfile profile = doctorProfileRepository.findById(doctorProfileId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorProfileId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        User user = profile.getUser();
+        if (user == null) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "NO_USER", "Hồ sơ bác sĩ không có tài khoản người dùng tương ứng");
+        }
+
+        UserStatus newStatus = user.getStatus() == UserStatus.ACTIVE ? UserStatus.SUSPENDED : UserStatus.ACTIVE;
+        user.setStatus(newStatus);
+        userRepository.save(user);
+        cacheService.evict(CACHE_VERIFIED_DOCTORS);
+
+        AuditLog audit = new AuditLog();
+        audit.setUserId(adminId);
+        audit.setAction("TOGGLE_DOCTOR_STATUS");
+        audit.setResource("doctor_profiles/" + doctorProfileId);
+        audit.setMetadata("Doctor user status changed to: " + newStatus);
+        auditLogRepository.save(audit);
+
+        log.info("🛡️ Admin {} changed doctor {} user status to {}", adminId, user.getFullName(), newStatus);
+        return DoctorDetailDto.fromEntity(profile);
+    }
+
+    @Transactional
+    public DoctorDetailDto syncDoctorVector(UUID doctorProfileId, UUID adminId) {
+        DoctorProfile profile = doctorProfileRepository.findById(doctorProfileId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorProfileId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        syncDoctorVectorInternal(profile);
+
+        AuditLog audit = new AuditLog();
+        audit.setUserId(adminId);
+        audit.setAction("SYNC_DOCTOR_VECTOR");
+        audit.setResource("doctor_profiles/" + doctorProfileId);
+        audit.setMetadata("Vector embedding re-synced");
+        auditLogRepository.save(audit);
+
+        return DoctorDetailDto.fromEntity(profile);
+    }
+
+    private void syncDoctorVectorInternal(DoctorProfile profile) {
+        try {
+            String specNames = profile.getSpecialties().stream()
+                    .map(Specialty::getName)
+                    .collect(Collectors.joining(", "));
+            String docText = String.format("%s %s. %s - %s. %s. Chuyên khoa: %s. Kinh nghiệm: %d năm.",
+                    profile.getAcademicTitle() != null ? profile.getAcademicTitle() : "",
+                    profile.getUser() != null ? profile.getUser().getFullName() : "",
+                    profile.getHospitalAffiliation() != null ? profile.getHospitalAffiliation() : "",
+                    profile.getDepartment() != null ? profile.getDepartment() : "",
+                    profile.getBio() != null ? profile.getBio() : "",
+                    specNames,
+                    profile.getYearsOfExperience());
+            doctorSemanticSearchService.updateDoctorEmbedding(profile.getId(), docText);
+        } catch (Exception e) {
+            log.warn("Failed to generate embedding for doctor profile {}: {}", profile.getId(), e.getMessage());
+        }
+    }
+
+    @Transactional
+    public int syncAllDoctorVectors(UUID adminId) {
+        doctorSemanticSearchService.syncAllDoctorEmbeddings();
+
+        AuditLog audit = new AuditLog();
+        audit.setUserId(adminId);
+        audit.setAction("SYNC_ALL_DOCTOR_VECTORS");
+        audit.setResource("doctor_profiles");
+        audit.setMetadata("Batch re-synced all doctor embeddings");
+        auditLogRepository.save(audit);
+
+        return (int) doctorProfileRepository.count();
     }
 
     public List<UserDto> getAllUsers() {

@@ -458,3 +458,32 @@ graph TD
   3. Bệnh nhân nhấn "Xác Nhận Đã Chuyển Khoản (Sandbox Auto-Verify)".
   4. Backend xử lý cộng ngay hạn ngạch (ví dụ: +5 lượt quét cho gói `BASIC_5`, hoặc kích hoạt 30 ngày VIP cho gói `VIP_MONTHLY`) và cập nhật cơ sở dữ liệu `users`.
   5. Giao diện frontend cập nhật trực tiếp huy hiệu VIP / số lượt quét trên thanh trạng thái mà không cần tải lại trang.
+
+---
+
+### UC-15: Quản Lý Toàn Diện Đội Ngũ Bác Sĩ & Đồng Bộ AI Vector Matching (Admin Doctor Management & AI Vector Sync)
+
+* **Mã Use Case:** `UC-ADM-15`
+* **Tác nhân chính:** System Administrator, Doctor, PostgreSQL `pgvector`, `DoctorSemanticSearchService`, `AdminVettingService`.
+* **Mục tiêu:** Cung cấp cho Quản trị viên cổng quản lý chuyên sâu đội ngũ bác sĩ trong hệ thống MediAssist-AI: Theo dõi hồ sơ lâm sàng, duyệt chứng chỉ CCHN, thêm mới bác sĩ trực tiếp, điều chỉnh học hàm / bệnh viện / phí tư vấn / chuyên khoa, khóa/mở khóa tài khoản, và đồng bộ vector embedding 1536 chiều vào PostgreSQL `pgvector` phục vụ thuật toán AI Doctor Recommendation.
+* **REST Endpoints Liên Quan:**
+  - `GET /api/v1/admin/doctors`: Lấy toàn bộ danh sách bác sĩ kèm trạng thái tài khoản (`userStatus`), rating, lượt khám, và chuyên khoa.
+  - `POST /api/v1/admin/doctors`: Thêm mới bác sĩ (tạo tài khoản `User` role `DOCTOR`, tạo `DoctorProfile`, gán chuyên khoa, tự động tính vector embedding, ghi Audit Log).
+  - `PUT /api/v1/admin/doctors/{id}`: Chỉnh sửa thông tin lâm sàng, học hàm, bệnh viện, khoa phòng, CCHN, giá khám, năm kinh nghiệm, bio và cập nhật vector.
+  - `PATCH /api/v1/admin/doctors/{id}/toggle-status`: Khóa hoặc kích hoạt lại tài khoản bác sĩ (`ACTIVE` <-> `SUSPENDED`).
+  - `POST /api/v1/admin/doctors/{id}/sync-vector`: Đồng bộ lại vector embedding cho 1 bác sĩ cụ thể.
+  - `POST /api/v1/admin/doctors/sync-vectors`: Đồng bộ hàng loạt vector embedding cho toàn bộ bác sĩ.
+  - `GET /api/v1/admin/doctors/pending`: Danh sách bác sĩ đang chờ thẩm định CCHN.
+  - `POST /api/v1/admin/doctors/{id}/vet`: Phê duyệt hoặc từ chối hồ sơ bác sĩ kèm lý do.
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. Quản trị viên truy cập `/admin/doctors` (menu *"Quản lý Bác Sĩ"*).
+  2. Giao diện hiển thị các thẻ thống kê tổng quan: Tổng số bác sĩ, Bác sĩ hoạt động, Chờ duyệt CCHN, Tạm khóa.
+  3. **Tab 1 - Tất cả Bác sĩ:**
+     - Tìm kiếm nhanh đa tiêu chí (tên, email, CCHN, bệnh viện, chuyên khoa).
+     - Lọc theo chuyên khoa và trạng thái tài khoản.
+     - Bảng danh sách chi tiết kèm các nút thao tác: Xem hồ sơ, Sửa thông tin, Khóa/Mở khóa tài khoản, Đồng bộ AI Vector.
+     - Nút *"Thêm Bác Sĩ Mới"* mở Modal tạo tài khoản và hồ sơ lâm sàng nhanh chóng.
+     - Nút *"Đồng bộ AI Vector Toàn Bộ"* kích hoạt tính toán lại embedding 1536 chiều cho toàn bộ bác sĩ.
+  4. **Tab 2 - Duyệt hồ sơ (Vetting):**
+     - Giữ nguyên quy trình thẩm định CCHN với Bộ Y Tế, nút Phê duyệt (Approve) và nút Từ chối (Reject) kèm lý do giải trình.
+
