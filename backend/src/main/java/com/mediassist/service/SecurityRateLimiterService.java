@@ -73,4 +73,55 @@ public class SecurityRateLimiterService {
     }
 
     private record WindowCounter(long minute, AtomicInteger counter) {}
+
+    private final Map<String, Long> fallbackPenaltyMap = new ConcurrentHashMap<>();
+    private final Map<String, AtomicInteger> fallbackFailCountMap = new ConcurrentHashMap<>();
+
+    /**
+     * Checks if user is in upload cooldown penalty due to consecutive invalid/malicious files.
+     */
+    public boolean isUploadPenalized(String userKey) {
+        String penaltyKey = "penalty:doc_upload:" + userKey;
+        try {
+            return Boolean.TRUE.equals(redisTemplate.hasKey(penaltyKey));
+        } catch (Exception e) {
+            Long expireAt = fallbackPenaltyMap.get(userKey);
+            return expireAt != null && expireAt > System.currentTimeMillis();
+        }
+    }
+
+    /**
+     * Records a failed upload (e.g. rejected by gatekeeper or corrupted).
+     * If failed 3 consecutive times in 5 minutes, triggers a 10-minute cooldown penalty.
+     */
+    public void recordFailedUpload(String userKey) {
+        String failureKey = "fail:doc_upload:" + userKey;
+        try {
+            Long failures = redisTemplate.opsForValue().increment(failureKey);
+            if (failures != null && failures == 1) {
+                redisTemplate.expire(failureKey, Duration.ofMinutes(5));
+            }
+            if (failures != null && failures >= 3) {
+                String penaltyKey = "penalty:doc_upload:" + userKey;
+                redisTemplate.opsForValue().set(penaltyKey, "BLOCKED", Duration.ofMinutes(10));
+                log.warn("🚨 [UPLOAD CIRCUIT BREAKER] User {} triggered 3 consecutive invalid upload failures. Imposing 10-minute upload penalty.", userKey);
+            }
+        } catch (Exception e) {
+            AtomicInteger count = fallbackFailCountMap.computeIfAbsent(userKey, k -> new AtomicInteger(0));
+            if (count.incrementAndGet() >= 3) {
+                fallbackPenaltyMap.put(userKey, System.currentTimeMillis() + 10 * 60 * 1000);
+                log.warn("🚨 [UPLOAD CIRCUIT BREAKER - IN-MEMORY] User {} blocked for 10 minutes", userKey);
+            }
+        }
+    }
+
+    /**
+     * Resets failure counter upon a successful upload.
+     */
+    public void recordSuccessfulUpload(String userKey) {
+        try {
+            redisTemplate.delete("fail:doc_upload:" + userKey);
+        } catch (Exception ignored) {}
+        fallbackFailCountMap.remove(userKey);
+    }
 }

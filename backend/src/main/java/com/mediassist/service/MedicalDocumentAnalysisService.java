@@ -39,6 +39,29 @@ public class MedicalDocumentAnalysisService {
     private final MedicalDocumentValidator medicalDocumentValidator;
     private final StorageService storageService;
     private final ClinicalRagService clinicalRagService;
+    private final SecurityRateLimiterService rateLimiterService;
+
+    public MedicalDocumentAnalysisService(PdfExtractionService pdfExtractionService,
+                                          DoctorSemanticSearchService doctorSemanticSearchService,
+                                          MedicalDocumentRepository medicalDocumentRepository,
+                                          DocumentAnalysisRepository documentAnalysisRepository,
+                                          UserRepository userRepository,
+                                          ObjectMapper objectMapper,
+                                          MedicalDocumentValidator medicalDocumentValidator,
+                                          StorageService storageService,
+                                          ClinicalRagService clinicalRagService,
+                                          SecurityRateLimiterService rateLimiterService) {
+        this.pdfExtractionService = pdfExtractionService;
+        this.doctorSemanticSearchService = doctorSemanticSearchService;
+        this.medicalDocumentRepository = medicalDocumentRepository;
+        this.documentAnalysisRepository = documentAnalysisRepository;
+        this.userRepository = userRepository;
+        this.objectMapper = objectMapper;
+        this.medicalDocumentValidator = medicalDocumentValidator;
+        this.storageService = storageService;
+        this.clinicalRagService = clinicalRagService;
+        this.rateLimiterService = rateLimiterService;
+    }
 
     public MedicalDocumentAnalysisService(PdfExtractionService pdfExtractionService,
                                           DoctorSemanticSearchService doctorSemanticSearchService,
@@ -49,15 +72,9 @@ public class MedicalDocumentAnalysisService {
                                           MedicalDocumentValidator medicalDocumentValidator,
                                           StorageService storageService,
                                           ClinicalRagService clinicalRagService) {
-        this.pdfExtractionService = pdfExtractionService;
-        this.doctorSemanticSearchService = doctorSemanticSearchService;
-        this.medicalDocumentRepository = medicalDocumentRepository;
-        this.documentAnalysisRepository = documentAnalysisRepository;
-        this.userRepository = userRepository;
-        this.objectMapper = objectMapper;
-        this.medicalDocumentValidator = medicalDocumentValidator;
-        this.storageService = storageService;
-        this.clinicalRagService = clinicalRagService;
+        this(pdfExtractionService, doctorSemanticSearchService, medicalDocumentRepository,
+             documentAnalysisRepository, userRepository, objectMapper, medicalDocumentValidator,
+             storageService, clinicalRagService, null);
     }
 
     @Transactional
@@ -148,22 +165,35 @@ public class MedicalDocumentAnalysisService {
         String extractedText = extractDocumentText(fileBytes, contentType, fileName);
 
         // 4. Gatekeeper Validation (Invalid / Blurry / Non-medical filter)
-        // If validation fails, throws AppException(400) -> User quota is NOT deducted!
-        medicalDocumentValidator.validateDocument(fileBytes, contentType, extractedText, fileName);
+        // If validation fails, throws AppException(400) -> User quota is NOT deducted & 0 bytes stored!
+        try {
+            medicalDocumentValidator.validateDocument(fileBytes, contentType, extractedText, fileName);
+        } catch (com.mediassist.common.AppException ex) {
+            if (rateLimiterService != null) {
+                rateLimiterService.recordFailedUpload(userEmail);
+            }
+            throw ex;
+        }
 
-        // 5. Cloud Storage Upload (Supabase Storage with resilient local fallback)
-        String storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
-
-        // 6. Comprehensive Lab Scanning across all pages (generic tabular parser - format only)
+        // 5. Comprehensive Lab Scanning across all pages (generic tabular parser - format only)
         List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName);
 
-        // 7. Smart Clinical Windowing for Multi-Page Verbose Documents
+        // 6. Smart Clinical Windowing for Multi-Page Verbose Documents
         String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
 
-        // 8. AI-First Clinical Reasoning via OpenRouter (or Safe Deterministic Fallback if offline)
-        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, Collections.emptyList());
+        // 7. AI-First Clinical Reasoning via OpenRouter (or Safe Deterministic Fallback if offline)
+        // NOTICE: AI processing happens completely in-memory on byte[] BEFORE any cloud upload!
+        com.mediassist.ai.ClinicalAiResult ragResult;
+        try {
+            ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, Collections.emptyList());
+        } catch (Exception ex) {
+            if (rateLimiterService != null) {
+                rateLimiterService.recordFailedUpload(userEmail);
+            }
+            throw ex;
+        }
 
-        // 9. Derive specialty and findings strictly from AI reasoning
+        // 8. Derive specialty and findings strictly from AI reasoning
         String specialtySlug = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
                 ? ragResult.getRecommendedSpecialtySlug().toLowerCase().trim()
                 : "general-internal-medicine";
@@ -182,7 +212,7 @@ public class MedicalDocumentAnalysisService {
         List<String> suggestedQuestions = (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty())
                 ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(indicators);
 
-        // 10. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
+        // 9. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
         String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
         List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
 
@@ -198,33 +228,58 @@ public class MedicalDocumentAnalysisService {
             ragResult.setDoctorRecommendationReason(reason);
         }
 
-        // 10. Persist MedicalDocument & DocumentAnalysis
-        MedicalDocument medDoc = new MedicalDocument();
-        medDoc.setUser(user);
-        medDoc.setFileName(fileName);
-        medDoc.setFileSizeBytes(size);
-        medDoc.setContentType(contentType);
-        medDoc.setFileHash(fileHash);
-        medDoc.setStorageUrl(storageUrl);
-        medDoc.setValidMedical(true);
-        medDoc.setStatus("PROCESSED");
-        medDoc = medicalDocumentRepository.save(medDoc);
-
-        DocumentAnalysis analysis = new DocumentAnalysis();
-        analysis.setDocument(medDoc);
-        analysis.setClinicalSummary(clinicalSummary);
-        analysis.setPlainLanguageExplanation(plainExplanation);
-        analysis.setRecommendedSpecialtySlug(specialtySlug);
-        analysis.setRecommendedSpecialtyName(specialtyName);
-
+        // 10. LAZY CLOUD UPLOAD & PERSISTENCE WITH ROLLBACK COMPENSATING HOOK
+        // Architecture Rule: ONLY upload to Supabase Cloud when AI analysis has 100% SUCCEEDED!
+        // If DB persistence fails, immediately invoke deleteDocument hook to eliminate orphan files.
+        String storageUrl = null;
+        MedicalDocument medDoc;
         try {
-            analysis.setAbnormalIndicatorsJson(objectMapper.writeValueAsString(indicators));
-            analysis.setSuggestedQuestionsJson(objectMapper.writeValueAsString(suggestedQuestions));
+            storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
+
+            medDoc = new MedicalDocument();
+            medDoc.setUser(user);
+            medDoc.setFileName(fileName);
+            medDoc.setFileSizeBytes(size);
+            medDoc.setContentType(contentType);
+            medDoc.setFileHash(fileHash);
+            medDoc.setStorageUrl(storageUrl);
+            medDoc.setValidMedical(true);
+            medDoc.setStatus("PROCESSED");
+            medDoc = medicalDocumentRepository.save(medDoc);
+
+            DocumentAnalysis analysis = new DocumentAnalysis();
+            analysis.setDocument(medDoc);
+            analysis.setClinicalSummary(clinicalSummary);
+            analysis.setPlainLanguageExplanation(plainExplanation);
+            analysis.setRecommendedSpecialtySlug(specialtySlug);
+            analysis.setRecommendedSpecialtyName(specialtyName);
+
+            try {
+                analysis.setAbnormalIndicatorsJson(objectMapper.writeValueAsString(indicators));
+                analysis.setSuggestedQuestionsJson(objectMapper.writeValueAsString(suggestedQuestions));
+            } catch (Exception e) {
+                analysis.setAbnormalIndicatorsJson("[]");
+                analysis.setSuggestedQuestionsJson("[]");
+            }
+            documentAnalysisRepository.save(analysis);
+
+            if (rateLimiterService != null) {
+                rateLimiterService.recordSuccessfulUpload(userEmail);
+            }
         } catch (Exception e) {
-            analysis.setAbnormalIndicatorsJson("[]");
-            analysis.setSuggestedQuestionsJson("[]");
+            if (storageUrl != null) {
+                log.warn("🚨 [ROLLBACK COMPENSATING ACTION] Transaction failure after cloud upload. Deleting orphan file: {}", storageUrl);
+                try {
+                    storageService.deleteDocument(storageUrl);
+                } catch (Exception deleteEx) {
+                    log.error("Failed to delete orphan file: {}", deleteEx.getMessage());
+                }
+            }
+            if (rateLimiterService != null) {
+                rateLimiterService.recordFailedUpload(userEmail);
+            }
+            throw e;
         }
-        documentAnalysisRepository.save(analysis);
 
         // 11. Deduct Quota (If not VIP)
         if (user.getSubscriptionTier() == null || !user.getSubscriptionTier().toUpperCase().contains("VIP")) {

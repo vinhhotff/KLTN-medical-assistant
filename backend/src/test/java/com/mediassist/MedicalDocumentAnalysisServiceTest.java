@@ -14,6 +14,7 @@ import com.mediassist.service.MedicalDocumentAnalysisService;
 import com.mediassist.service.MedicalDocumentValidator;
 import com.mediassist.service.PdfExtractionService;
 import com.mediassist.service.StorageService;
+import com.mediassist.service.SecurityRateLimiterService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,6 +61,9 @@ class MedicalDocumentAnalysisServiceTest {
 
     @Mock
     private com.mediassist.service.ClinicalRagService clinicalRagService;
+
+    @Mock
+    private SecurityRateLimiterService rateLimiterService;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -457,5 +461,44 @@ class MedicalDocumentAnalysisServiceTest {
         assertEquals("general-internal-medicine", response.getRecommendedSpecialtySlug());
         assertTrue(response.getModelUsed().contains("Offline"));
         assertFalse(response.getIndicators().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should demonstrate Lazy Upload: Zero bytes uploaded to storage when AI analysis fails")
+    void testLazyUploadDoesNotUploadToStorageWhenAiAnalysisFails() {
+        testUser.setScanQuota(1);
+        byte[] fileBytes = "%PDF-1.4 glucose cholesterol".getBytes();
+        MockMultipartFile file = new MockMultipartFile("file", "lab_test.pdf", "application/pdf", fileBytes);
+
+        when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any()))
+                .thenThrow(new RuntimeException("AI Model Down / Out of Memory"));
+
+        assertThrows(RuntimeException.class, () ->
+                analysisService.analyzeDocument(file, "patient@mediassist.local")
+        );
+
+        // Crucial: Storage upload must NEVER be invoked if AI analysis fails!
+        verify(storageService, never()).uploadDocument(any(), any(), any(), any());
+        verify(rateLimiterService).recordFailedUpload("patient@mediassist.local");
+    }
+
+    @Test
+    @DisplayName("Should trigger Rollback Compensating Hook to delete orphan file if DB persistence fails")
+    void testRollbackCompensatingHookDeletesStorageFileWhenDbSaveFails() {
+        testUser.setScanQuota(1);
+        byte[] fileBytes = "%PDF-1.4 glucose cholesterol".getBytes();
+        MockMultipartFile file = new MockMultipartFile("file", "lab_test.pdf", "application/pdf", fileBytes);
+
+        String uploadedUrl = "https://supabase.co/storage/v1/object/public/medical-documents/test.pdf";
+        when(storageService.uploadDocument(any(), any(), any(), any())).thenReturn(uploadedUrl);
+        when(medicalDocumentRepository.save(any())).thenThrow(new RuntimeException("DB Disk Full / Constraint Violation"));
+
+        assertThrows(RuntimeException.class, () ->
+                analysisService.analyzeDocument(file, "patient@mediassist.local")
+        );
+
+        // Crucial: deleteDocument must be invoked to eliminate orphan file on Supabase!
+        verify(storageService).deleteDocument(eq(uploadedUrl));
+        verify(rateLimiterService).recordFailedUpload("patient@mediassist.local");
     }
 }

@@ -932,6 +932,55 @@
 
 ---
 
+### [WORK-LOG-#018] Hoàn Tất Milestone 8: Tối Ưu Hóa Supabase Storage: Cơ Chế Lazy Upload, Rollback Compensating Hook Chống File Mồ Côi, Giới Hạn Tệp 10MB & Circuit Breaker Phạt Spam
+* **Thời gian:** 2026-09-13 14:15:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-CLIN-03 (Document Analysis Storage Resilience), UC-SEC-08 (Storage Protection & Circuit Breaker)
+* **Trạng thái Build:** 
+  - Backend: `mvn test` PASS (47/47 tests, 0 lỗi, thời gian chạy 8.614s).
+  - Frontend: `npm run build` PASS (0 lỗi TS, 1669 modules transformed, 3.87s).
+* **Nhánh phát triển:** `feature/milestone-8-storage-hardening-lazy-upload` (tách từ `develop`).
+
+#### 1. Mục Tiêu & Yêu Cầu Từ Tech Lead
+- Giải quyết bài toán bảo vệ hạ tầng lưu trữ Supabase Storage và ngăn chặn tấn công từ chối dịch vụ (Storage Exhaustion Attack / Denial of Wallet):
+  1. *"Ở trên Supabase có nên restrict dung lượng file gửi lên không?"*: Bắt buộc giới hạn dung lượng 10MB (ngưỡng tối ưu cho phiếu xét nghiệm lâm sàng từ 500KB - 5MB), thiết lập phòng thủ 3 tầng: Client Frontend, Spring Boot Gateway (`spring.servlet.multipart.max-file-size=10MB`) và Supabase Storage Bucket Policy (`file_size_limit = 10485760`).
+  2. *"Hiện nếu gửi cho AI quét file mà quá nhiều nhưng lỗi, thì vẫn lưu ở cloud hay sao, tính toán cho tôi trường hợp này sao cho tối ưu mà không bị xâm phạm"*: 
+     - Hiện thực hóa mẫu thiết kế **Lazy Upload Pattern (Commit-After-Success)**: Chỉ đẩy file lên Supabase Storage SAU KHI quá trình bóc tách và suy luận AI RAG thành công 100%. Nếu AI lỗi hoặc file hỏng, luồng xử lý ngắt ngay trong RAM, **0 byte rác lọt lên Cloud**.
+     - Bổ sung **Compensating Rollback Hook (`storageService.deleteDocument`)**: Nếu việc ghi nhận Database EMR thất bại sau khi đã tải lên Cloud, khối `catch` tự động gửi HTTP DELETE để xóa ngay lập tức file vừa tải lên, xóa sổ 100% "File mồ côi" (Zero Orphan Files).
+     - Thiết lập **Upload Circuit Breaker Penalty**: Nếu 1 tài khoản/IP gửi liên tiếp 3 file không hợp lệ trong 5 phút, hệ thống tự động khóa tính năng tải tệp trong 10 phút để triệt tiêu botnet thử nghiệm khai thác.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi
+- `[MOD] backend/src/main/java/com/mediassist/service/StorageService.java`: Bổ sung phương thức `boolean deleteDocument(String storageUrl)` phục vụ rollback compensating action.
+- `[MOD] backend/src/main/java/com/mediassist/service/SupabaseStorageService.java`: Cài đặt logic xóa file trên Supabase Storage qua HTTP DELETE REST API và xóa file cục bộ an toàn.
+- `[MOD] backend/src/main/java/com/mediassist/service/SecurityRateLimiterService.java`: Bổ sung `isUploadPenalized`, `recordFailedUpload` (phạt cooldown 10 phút sau 3 lần lỗi liên tiếp), `recordSuccessfulUpload`.
+- `[MOD] backend/src/main/java/com/mediassist/controller/MedicalDocumentController.java`: Kiểm tra giới hạn dung lượng 10MB và chặn người dùng đang bị áp dụng cooldown phạt upload (`UPLOAD_COOLDOWN_ACTIVE`).
+- `[MOD] backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`: Tái cấu trúc theo Lazy Upload Pattern, bọc DB persistence với Rollback Compensating Hook và ghi nhận lỗi/thành công vào Rate Limiter.
+- `[MOD] backend/src/main/resources/application.properties` & `application-dev.properties`: Cấu hình `spring.servlet.multipart.max-file-size=10MB` và `spring.servlet.multipart.max-request-size=10MB`.
+- `[MOD] backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java`: Bổ sung 2 unit test xác minh Lazy Upload (không lưu cloud khi AI lỗi) và Rollback Hook (xóa file storage khi DB save lỗi).
+- `[MOD] frontend/src/pages/patient/DocumentSummarizerPage.tsx`: Bổ sung kiểm tra dung lượng `file.size <= 10MB` ngay tại trình duyệt client.
+- `[MOD] docs/USE_CASES.md`: Cập nhật UC-CLIN-03 với quy chuẩn Lazy Upload và Zero Orphan Files.
+- `[MOD] docs/CAPSTONE_DEFENSE.md`: Bổ sung Câu hỏi 10 về bảo vệ Supabase Storage và giải bài toán File mồ côi.
+- `[MOD] docs/WORK_LOG.md`: Thêm bản ghi phiên làm việc #018.
+
+#### 3. Bằng Chứng Kiểm Thử & Xác Minh Kỹ Thuật
+- **Backend Verification (`mvn test`):**
+  ```text
+  14:13:47.904 [main] WARN com.mediassist.service.MedicalDocumentAnalysisService -- ? [ROLLBACK COMPENSATING ACTION] Transaction failure after cloud upload. Deleting orphan file: https://supabase.co/storage/v1/object/public/medical-documents/test.pdf
+  [INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0 -- in com.mediassist.MedicalDocumentAnalysisServiceTest
+  [INFO] Results:
+  [INFO] Tests run: 47, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS (8.614s)
+  ```
+- **Frontend Verification (`npm run build`):**
+  ```text
+  > mediassist-frontend@1.0.0 build
+  > tsc && vite build
+  ✓ 1669 modules transformed.
+  ✓ built in 3.87s
+  ```
+
+---
+
 ### [WORK-LOG-#017] Hoàn Tất Milestone 7: Clinical RAG Bằng LLM Bên Thứ Ba (OpenRouter Free Gateway 0đ), Xoay Tua Mô Hình Chống Quá Tải HTTP 429 & Dự Phòng Cục Bộ Offline Safe Engine
 * **Thời gian:** 2026-09-12 09:30:00 (GMT+7)
 * **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
@@ -999,6 +1048,55 @@
 2. **Clinical RAG Flow:** Dữ liệu bác sĩ từ pgvector được nhúng vào context prompt kèm học vị, số năm kinh nghiệm, bệnh viện công tác để LLM phân tích và chọn ra bác sĩ phù hợp nhất thay vì chọn ngẫu nhiên.
 3. **Chi Phí Vận Hành 0đ:** Hoàn toàn không tốn ngân sách của chủ sở hữu (Owner) khi kiểm thử và demo đồ án.
 =======
+### [WORK-LOG-#018] Hoàn Tất Milestone 8: Tối Ưu Hóa Supabase Storage: Cơ Chế Lazy Upload, Rollback Compensating Hook Chống File Mồ Côi, Giới Hạn Tệp 10MB & Circuit Breaker Phạt Spam
+* **Thời gian:** 2026-09-13 14:15:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-CLIN-03 (Document Analysis Storage Resilience), UC-SEC-08 (Storage Protection & Circuit Breaker)
+* **Trạng thái Build:** 
+  - Backend: `mvn test` PASS (47/47 tests, 0 lỗi, thời gian chạy 8.614s).
+  - Frontend: `npm run build` PASS (0 lỗi TS, 1669 modules transformed, 3.87s).
+* **Nhánh phát triển:** `feature/milestone-8-storage-hardening-lazy-upload` (tách từ `develop`).
+
+#### 1. Mục Tiêu & Yêu Cầu Từ Tech Lead
+- Giải quyết bài toán bảo vệ hạ tầng lưu trữ Supabase Storage và ngăn chặn tấn công từ chối dịch vụ (Storage Exhaustion Attack / Denial of Wallet):
+  1. *"Ở trên Supabase có nên restrict dung lượng file gửi lên không?"*: Bắt buộc giới hạn dung lượng 10MB (ngưỡng tối ưu cho phiếu xét nghiệm lâm sàng từ 500KB - 5MB), thiết lập phòng thủ 3 tầng: Client Frontend, Spring Boot Gateway (`spring.servlet.multipart.max-file-size=10MB`) và Supabase Storage Bucket Policy (`file_size_limit = 10485760`).
+  2. *"Hiện nếu gửi cho AI quét file mà quá nhiều nhưng lỗi, thì vẫn lưu ở cloud hay sao, tính toán cho tôi trường hợp này sao cho tối ưu mà không bị xâm phạm"*: 
+     - Hiện thực hóa mẫu thiết kế **Lazy Upload Pattern (Commit-After-Success)**: Chỉ đẩy file lên Supabase Storage SAU KHI quá trình bóc tách và suy luận AI RAG thành công 100%. Nếu AI lỗi hoặc file hỏng, luồng xử lý ngắt ngay trong RAM, **0 byte rác lọt lên Cloud**.
+     - Bổ sung **Compensating Rollback Hook (`storageService.deleteDocument`)**: Nếu việc ghi nhận Database EMR thất bại sau khi đã tải lên Cloud, khối `catch` tự động gửi HTTP DELETE để xóa ngay lập tức file vừa tải lên, xóa sổ 100% "File mồ côi" (Zero Orphan Files).
+     - Thiết lập **Upload Circuit Breaker Penalty**: Nếu 1 tài khoản/IP gửi liên tiếp 3 file không hợp lệ trong 5 phút, hệ thống tự động khóa tính năng tải tệp trong 10 phút để triệt tiêu botnet thử nghiệm khai thác.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi
+- `[MOD] backend/src/main/java/com/mediassist/service/StorageService.java`: Bổ sung phương thức `boolean deleteDocument(String storageUrl)` phục vụ rollback compensating action.
+- `[MOD] backend/src/main/java/com/mediassist/service/SupabaseStorageService.java`: Cài đặt logic xóa file trên Supabase Storage qua HTTP DELETE REST API và xóa file cục bộ an toàn.
+- `[MOD] backend/src/main/java/com/mediassist/service/SecurityRateLimiterService.java`: Bổ sung `isUploadPenalized`, `recordFailedUpload` (phạt cooldown 10 phút sau 3 lần lỗi liên tiếp), `recordSuccessfulUpload`.
+- `[MOD] backend/src/main/java/com/mediassist/controller/MedicalDocumentController.java`: Kiểm tra giới hạn dung lượng 10MB và chặn người dùng đang bị áp dụng cooldown phạt upload (`UPLOAD_COOLDOWN_ACTIVE`).
+- `[MOD] backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`: Tái cấu trúc theo Lazy Upload Pattern, bọc DB persistence với Rollback Compensating Hook và ghi nhận lỗi/thành công vào Rate Limiter.
+- `[MOD] backend/src/main/resources/application.properties` & `application-dev.properties`: Cấu hình `spring.servlet.multipart.max-file-size=10MB` và `spring.servlet.multipart.max-request-size=10MB`.
+- `[MOD] backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java`: Bổ sung 2 unit test xác minh Lazy Upload (không lưu cloud khi AI lỗi) và Rollback Hook (xóa file storage khi DB save lỗi).
+- `[MOD] frontend/src/pages/patient/DocumentSummarizerPage.tsx`: Bổ sung kiểm tra dung lượng `file.size <= 10MB` ngay tại trình duyệt client.
+- `[MOD] docs/USE_CASES.md`: Cập nhật UC-CLIN-03 với quy chuẩn Lazy Upload và Zero Orphan Files.
+- `[MOD] docs/CAPSTONE_DEFENSE.md`: Bổ sung Câu hỏi 10 về bảo vệ Supabase Storage và giải bài toán File mồ côi.
+- `[MOD] docs/WORK_LOG.md`: Thêm bản ghi phiên làm việc #018.
+
+#### 3. Bằng Chứng Kiểm Thử & Xác Minh Kỹ Thuật
+- **Backend Verification (`mvn test`):**
+  ```text
+  14:13:47.904 [main] WARN com.mediassist.service.MedicalDocumentAnalysisService -- ? [ROLLBACK COMPENSATING ACTION] Transaction failure after cloud upload. Deleting orphan file: https://supabase.co/storage/v1/object/public/medical-documents/test.pdf
+  [INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0 -- in com.mediassist.MedicalDocumentAnalysisServiceTest
+  [INFO] Results:
+  [INFO] Tests run: 47, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS (8.614s)
+  ```
+- **Frontend Verification (`npm run build`):**
+  ```text
+  > mediassist-frontend@1.0.0 build
+  > tsc && vite build
+  ✓ 1669 modules transformed.
+  ✓ built in 3.87s
+  ```
+
+---
+
 ### [WORK-LOG-#017] Tinh Chỉnh Đột Phá UI/UX Trang Chủ: Khắc Phục Lỗi Dính Chữ/Xuống Hàng Navbar, Tái Cấu Trúc Monitor ECG Sáng Sủa & Tối Ưu Copy Lâm Sàng
 * **Thời gian:** 2026-09-12 09:35:00 (GMT+7)
 * **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
