@@ -29,6 +29,9 @@ public class OpenRouterAiProvider implements AiProvider {
     @Value("${app.ai.openrouter.enabled:true}")
     private boolean enabled;
 
+    @Value("${app.ai.openrouter.vision-models:inclusionai/ling-3.0-flash-vl:free,nex-agi/nex-n2.5-pro:free,nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free}")
+    private String visionModelsConfig;
+
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
 
@@ -36,7 +39,7 @@ public class OpenRouterAiProvider implements AiProvider {
         this.objectMapper = objectMapper;
         var requestFactory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(java.time.Duration.ofSeconds(5));
-        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(15));
+        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(20));
         this.restClient = RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
@@ -63,7 +66,12 @@ public class OpenRouterAiProvider implements AiProvider {
     }
 
     /**
-     * Extracts text and clinical indicators from a medical image using multimodal LLM (Gemini 2.0 Flash Vision).
+     * Extracts text and clinical indicators from a medical image using resilient Multimodal Vision LLMs.
+     * Implements automatic fallback rotation across healthy free vision models:
+     * 1. inclusionai/ling-3.0-flash-vl:free
+     * 2. nex-agi/nex-n2.5-pro:free
+     * 3. nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+     *
      * If the image is non-medical, returns empty string to trigger gatekeeper rejection.
      */
     public String extractTextWithVision(byte[] imageBytes, String contentType, String fileName) {
@@ -71,58 +79,81 @@ public class OpenRouterAiProvider implements AiProvider {
             return "";
         }
 
-        String targetModel = "inclusionai/ling-3.0-flash-vl:free";
+        List<String> visionModels = parseVisionModels();
         String base64Image = Base64.getEncoder().encodeToString(imageBytes);
         String mime = (contentType != null && !contentType.isBlank()) ? contentType : "image/jpeg";
 
-        log.info("🔍 Invoking Multimodal Vision model '{}' for image file '{}' ({} bytes)...", targetModel, fileName, imageBytes.length);
+        String ocrSystemPrompt = """
+                Bạn là chuyên gia OCR & Vision y tế lâm sàng cao cấp của nền tảng MediAssist-AI.
+                Nhiệm vụ của bạn là đọc hình ảnh phiếu xét nghiệm / hồ sơ bệnh án và bóc tách toàn bộ dữ liệu văn bản sang tiếng Việt:
+                1. Đọc cẩn thận từng chi tiết, kể cả khi ảnh chụp bị mờ, góc chụp nghiêng, thiếu sáng hoặc độ phân giải thấp.
+                2. Bóc tách thông tin hành chính: Họ tên bệnh nhân, tuổi, giới tính, khoa, chẩn đoán, ngày giờ làm xét nghiệm.
+                3. Bóc tách bảng kết quả: Tên xét nghiệm, Trị số đo được (Kết quả), Đơn vị đo, Trị số bình thường (Khoảng tham chiếu).
+                4. ĐẶC BIỆT LƯU Ý: Nếu phiếu xét nghiệm là phiếu trắng, phiếu chỉ định chưa điền kết quả (toàn bộ cột 'Kết quả' đang để trống), bạn BẮT BUỘC ghi rõ ở đầu bản dịch:
+                   '[LƯU Ý LÂM SÀNG: Phiếu xét nghiệm trắng / chưa điền kết quả đo lường, cột kết quả đang để trống]'.
+                5. QUY TẮC AN TOÀN TUYỆT ĐỐI: Nếu bức ảnh hoàn toàn KHÔNG phải là tài liệu y tế hoặc phiếu xét nghiệm (ví dụ ảnh selfie, meme, phong cảnh, thú cưng, đồ vật ngẫu nhiên), bạn CHỈ ĐƯỢC trả về duy nhất một dòng chữ: KHONG_PHAI_TAI_LIEU_Y_TE.
+                """;
 
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", targetModel);
-        requestBody.put("temperature", 0.1);
+        for (String targetModel : visionModels) {
+            log.info("🔍 [VISION OCR] Invoking model '{}' for file '{}' ({} bytes)...", targetModel, fileName, imageBytes.length);
 
-        List<Map<String, Object>> messages = new ArrayList<>();
-        messages.add(Map.of("role", "system", "content",
-                "Bạn là trợ lý OCR y tế lâm sàng. Hãy đọc hình ảnh được cung cấp và trích xuất TOÀN BỘ nội dung văn bản, tên chỉ số xét nghiệm, giá trị số, đơn vị đo và khoảng tham chiếu có trong ảnh. " +
-                "QUY TẮC BẮT BUỘC: Nếu bức ảnh KHÔNG phải là phiếu kết quả xét nghiệm / tài liệu y tế (ví dụ ảnh người, selfie, meme, thú cưng, phong cảnh, đồ vật ngẫu nhiên), bạn CHỈ ĐƯỢC trả về dòng chữ duy nhất: KHONG_PHAI_TAI_LIEU_Y_TE."));
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("model", targetModel);
+            requestBody.put("temperature", 0.1);
 
-        List<Map<String, Object>> userContent = new ArrayList<>();
-        userContent.add(Map.of("type", "text", "text", "Trích xuất văn bản từ hình ảnh phiếu xét nghiệm này:"));
-        userContent.add(Map.of("type", "image_url", "image_url", Map.of("url", "data:" + mime + ";base64," + base64Image)));
+            List<Map<String, Object>> messages = new ArrayList<>();
+            messages.add(Map.of("role", "system", "content", ocrSystemPrompt));
 
-        messages.add(Map.of("role", "user", "content", userContent));
-        requestBody.put("messages", messages);
+            List<Map<String, Object>> userContent = new ArrayList<>();
+            userContent.add(Map.of("type", "text", "text", "Trích xuất toàn bộ văn bản từ hình ảnh phiếu xét nghiệm này:"));
+            userContent.add(Map.of("type", "image_url", "image_url", Map.of("url", "data:" + mime + ";base64," + base64Image)));
 
-        try {
-            String responseJson = restClient.post()
-                    .uri(baseUrl + "/chat/completions")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey.trim())
-                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                    .header("HTTP-Referer", "http://localhost:5173")
-                    .header("X-Title", "MediAssist-AI Telehealth")
-                    .body(requestBody)
-                    .retrieve()
-                    .body(String.class);
+            messages.add(Map.of("role", "user", "content", userContent));
+            requestBody.put("messages", messages);
 
-            if (responseJson == null || responseJson.isBlank()) {
-                return "";
-            }
+            try {
+                String responseJson = restClient.post()
+                        .uri(baseUrl + "/chat/completions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey.trim())
+                        .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .header("HTTP-Referer", "http://localhost:5173")
+                        .header("X-Title", "MediAssist-AI Telehealth")
+                        .body(requestBody)
+                        .retrieve()
+                        .body(String.class);
 
-            JsonNode root = objectMapper.readTree(responseJson);
-            JsonNode choices = root.path("choices");
-            if (choices.isArray() && !choices.isEmpty()) {
-                String content = choices.get(0).path("message").path("content").asText();
-                if (content != null && content.contains("KHONG_PHAI_TAI_LIEU_Y_TE")) {
-                    log.warn("🚨 Multimodal Vision classified image '{}' as NON-MEDICAL.", fileName);
-                    return "";
+                if (responseJson != null && !responseJson.isBlank()) {
+                    JsonNode root = objectMapper.readTree(responseJson);
+                    JsonNode choices = root.path("choices");
+                    if (choices.isArray() && !choices.isEmpty()) {
+                        String content = choices.get(0).path("message").path("content").asText();
+                        if (content != null && content.contains("KHONG_PHAI_TAI_LIEU_Y_TE")) {
+                            log.warn("🚨 Multimodal Vision classified image '{}' as NON-MEDICAL by model '{}'.", fileName, targetModel);
+                            return "";
+                        }
+                        if (content != null && !content.isBlank()) {
+                            log.info("✅ Multimodal Vision model '{}' successfully extracted {} characters from '{}'", targetModel, content.length(), fileName);
+                            return content;
+                        }
+                    }
                 }
-                log.info("✅ Multimodal Vision successfully extracted {} characters from '{}'", content.length(), fileName);
-                return content;
+            } catch (Exception e) {
+                log.warn("⚠️ Vision model '{}' failed for '{}': {}. Rotating to next vision model...", targetModel, fileName, e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("⚠️ Multimodal Vision call failed for '{}': {}", fileName, e.getMessage());
         }
+
+        log.error("❌ All vision models in fallback pool failed to extract text from image '{}'", fileName);
         return "";
+    }
+
+    private List<String> parseVisionModels() {
+        if (visionModelsConfig == null || visionModelsConfig.isBlank()) {
+            return List.of("inclusionai/ling-3.0-flash-vl:free", "nex-agi/nex-n2.5-pro:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free");
+        }
+        return Arrays.stream(visionModelsConfig.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .toList();
     }
 
     private ClinicalAiResult executeChatCompletion(String systemPrompt, String userPrompt, String modelId, boolean isTriage) {

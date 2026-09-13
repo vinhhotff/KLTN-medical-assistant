@@ -10,15 +10,63 @@
 ## 📑 Bảng Mục Lục Lịch Sử Cập Nhật
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
-| :---: | :---: | :--- | :---: | :---: |
-| **#038** | 13/09/2026 | Khắc Phục Triệt Để Lỗi Ngoại Tuyến (Offline Fallback): Cập Nhật Bể Mô Hình OpenRouter Active Mới Nhất (inclusionai/ling-3.0-flash-sante:free, nex-agi/nex-n2.5-mini:free, openrouter/free) & Tối Ưu Timeout 15s | AI Assistant | 🟢 Sẵn sàng Review |
+| :---: | :---: | :--- | :--- | :---: |
+| **#039** | 13/09/2026 | Triệt Tiêu Đề Xuất Bác Sĩ Ảo (Zero Fake Recommendation) Khi Tài Liệu Trống/Mờ, Thiết Lập Multi-Model Vision OCR Pool & Nâng Cấp PDF 200 DPI | AI Assistant | 🟢 Sẵn sàng Review |
+| **#038** | 13/09/2026 | Khắc Phục Triệt Để Lỗi Ngoại Tuyến (Offline Fallback): Cập Nhật Bể Mô Hình OpenRouter Active Mới Nhất (inclusionai/ling-3.0-flash-sante:free, nex-agi/nex-n2.5-mini:free, openrouter/free) & Tối Ưu Timeout 15s | AI Assistant | 🟢 Đã Duyệt |
 | **#037** | 13/09/2026 | Khởi Động Toàn Diện Hệ Sinh Thái MediAssist-AI (Docker pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173), Sửa Lỗi Constructor Injection & Xác Thực End-to-End | AI Assistant | 🟢 Đã Duyệt |
 
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
-### [WORK-LOG-#038] Khắc Phục Triệt Để Lỗi Ngoại Tuyến (Offline Fallback): Cập Nhật Bể Mô Hình OpenRouter Active Mới Nhất (inclusionai/ling-3.0-flash-sante:free, nex-agi/nex-n2.5-mini:free, openrouter/free) & Tối Ưu Timeout 15s
+### [WORK-LOG-#039] Triệt Tiêu Đề Xuất Bác Sĩ Ảo (Zero Fake Recommendation) Khi Tài Liệu Trống/Mờ, Thiết Lập Multi-Model Vision OCR Pool & Nâng Cấp PDF 200 DPI
+* **Thời gian:** 2026-09-13 15:10:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-CLIN-02 (Clinical Laboratory Document RAG Analysis & Medical Safety Gating)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (48/48 Tests PASS)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (Build 0 TypeScript error)
+  - Database: PostgreSQL 16 + pgvector (cổng **5433** - HEALTHY)
+  - Cache: Redis 7-alpine (cổng **6379** - HEALTHY)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Bối Cảnh & Nguyên Nhân Gốc Rễ (Root Cause Analysis)
+1. **Bản chất tệp tải lên của người dùng (`Screenshot 2026-09-13 145403.png`)**:
+   - Model Vision `inclusionai/ling-3.0-flash-vl:free` đã trích xuất toàn bộ tên xét nghiệm (*Uré, Glucose, Creatinin, AST, ALT...*) và khoảng tham chiếu chính xác từng ô.
+   - Tuy nhiên, tệp ảnh thực tế là **MẪU PHIẾU CHỈ ĐỊNH XÉT NGHIỆM TRẮNG**: Toàn bộ cột `Kết quả` chưa được phòng xét nghiệm điền số liệu (đang để trống).
+   - AI Reasoning đã tóm tắt chính xác: *"Phiếu xét nghiệm được cung cấp đang để TRỐNG ... Không thể đánh giá bất kỳ chỉ số nào do thiếu dữ liệu số liệu."* $\rightarrow$ Trả về mảng `indicators = []` (0 chỉ số).
+2. **Lỗi logic tự đề xuất bác sĩ khi thiếu dữ liệu**:
+   - `MedicalDocumentAnalysisService.java` và `ClinicalRagService.java` trước đó có cơ chế cưỡng ép: Nếu `indicators` rỗng hoặc LLM không trả về chuyên khoa, backend tự fallback về `"general-internal-medicine"` và cưỡng ép gán `top.setAiRecommended(true)`.
+   - Prompt ép AI chọn 1 bác sĩ, khiến AI sinh ra lý do gượng gạo: *"Danh sách ứng viên bác sĩ pgvector không có dữ liệu; đồng thời chưa có kết quả xét nghiệm để xác định chuyên khoa cụ thể hơn."*
+   - Giao diện `DocumentSummarizerPage.tsx` vẫn render card bác sĩ với huy hiệu to tướng *"Được AI Lựa Chọn Ưu Tiên Cho Ca Bệnh Này"* dù tài liệu không có bất kỳ số liệu kết quả nào.
+
+#### 2. Các Giải Pháp Đã Hiện Thực Hóa (Key Technical Implementations)
+1. **Triệt tiêu đề xuất ảo & Rào chắn an toàn y tế (Zero Fake Recommendation)**:
+   - Trong `MedicalDocumentAnalysisService.java` (cả `analyzeDocument` và `analyzeDocumentPreview`): Khi `indicators.isEmpty()`, hệ thống lập tức khóa đề xuất bác sĩ: `matchedDoctors = Collections.emptyList()`, `specialtySlug = null`, `specialtyName = "Chưa xác định (Cần bổ sung kết quả)"`, `recommendedDoctorId = null`.
+   - Cập nhật Prompt y khoa trong `ClinicalRagService.java`: Bổ sung nguyên tắc an toàn y tế số 7 nghiêm cấm AI tự ý bịa đặt bác sĩ hoặc chuyên khoa khi tài liệu là phiếu trắng hoặc ảnh mờ.
+   - Bỏ cơ chế ép `top.setAiRecommended(true)` trong `ClinicalRagService.java` khi danh sách chỉ số rỗng.
+2. **Bể mô hình Vision OCR Đa Tầng (Multi-Model Vision Fallback Pool)**:
+   - Cập nhật cấu hình `app.ai.openrouter.vision-models=inclusionai/ling-3.0-flash-vl:free,nex-agi/nex-n2.5-pro:free,nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`.
+   - Cải tiến `OpenRouterAiProvider.extractTextWithVision`: Tự động xoay vòng giữa 3 model Vision khi gặp lỗi rate-limit `HTTP 429`, `HTTP 503` hoặc timeout, đảm bảo dịch vụ không bị gián đoạn.
+3. **Nâng cấp độ phân giải quét PDF (High-DPI PDFRenderer)**:
+   - Tăng độ phân giải render ảnh trang PDF từ `150 DPI` lên `200 DPI` trong `PdfExtractionService.java` để làm sắc nét các nét chữ nhỏ, bảng biểu khi gửi cho Vision model.
+4. **Cải tiến Giao diện Frontend (`DocumentSummarizerPage.tsx`)**:
+   - Khi `analysis.indicators.length === 0`:
+     - Hiển thị Banner Cảnh Báo An Toàn Y Tế (Amber Alert Card): Giải thích lý do tài liệu chưa có kết quả, tuyên bố nguyên tắc y khoa không tự ý chẩn đoán khi thiếu số liệu, và hướng dẫn người bệnh cách chụp lại ảnh rõ nét.
+     - Bảng chỉ số hiển thị Empty State trực quan (`FileQuestion` icon) thay vì bảng trống.
+     - Khối đề xuất bác sĩ: Ẩn huy hiệu AI đề xuất ưu tiên, hiển thị thông báo rõ ràng rằng hệ thống chỉ chỉ định bác sĩ khi có kết quả xét nghiệm định lượng bất thường.
+
+#### 3. Danh Sách Tệp Đã Thay Đổi
+- `[MOD]` `backend/src/main/resources/application.properties` (Cấu hình vision-models pool)
+- `[MOD]` `backend/src/main/resources/application-dev.properties` (Cấu hình vision-models pool)
+- `[MOD]` `backend/src/main/java/com/mediassist/ai/OpenRouterAiProvider.java` (Vision fallback rotation & enhanced OCR prompt)
+- `[MOD]` `backend/src/main/java/com/mediassist/service/ClinicalRagService.java` (Anti-hallucination prompt & conditional doctor recommendation)
+- `[MOD]` `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java` (Zero fake doctor recommendation gate)
+- `[MOD]` `backend/src/main/java/com/mediassist/service/PdfExtractionService.java` (Render PDF 200 DPI)
+- `[MOD]` `backend/src/test/java/com/mediassist/service/ClinicalRagServiceTest.java` (Thêm unit test cho tài liệu trắng/mờ)
+- `[MOD]` `frontend/src/pages/patient/DocumentSummarizerPage.tsx` (Medical safety banner, empty state, conditional doctor display)
+- `[MOD]` `docs/WORK_LOG.md` (Ghi nhận phiên #039)
+- `[MOD]` `docs/USE_CASES.md` (Cập nhật UC-CLIN-02 với Medical Safety Gating)
 * **Thời gian:** 2026-09-13 14:50:00 (GMT+7)
 * **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
 * **Mã Use Case:** UC-CLIN-01 (AI Symptom Triage), UC-CLIN-02 (Clinical Laboratory Document RAG Analysis)

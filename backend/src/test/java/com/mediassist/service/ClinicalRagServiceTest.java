@@ -88,4 +88,32 @@ class ClinicalRagServiceTest {
         assertThat(result.getSbarSummary()).isEqualTo("SBAR Triage Result");
         verify(aiModelRouter).routeTriageAnalysis(anyString(), anyString());
     }
+
+    @Test
+    @DisplayName("Should NOT recommend doctor when document has no indicators or is blank")
+    void shouldNotRecommendDoctorWhenDocumentHasNoIndicatorsOrBlank() {
+        UUID doc1Id = UUID.randomUUID();
+        DoctorMatchDto doc1 = new DoctorMatchDto(
+                doc1Id, "Bui Quang Huy", "BS CKI Noi tong quat", "099999/CCHN",
+                12, BigDecimal.valueOf(300000), 0.75, List.of("Noi tong quat"),
+                "BS.CKI", "BV Cho Ray"
+        );
+        List<DoctorMatchDto> candidates = new ArrayList<>(List.of(doc1));
+
+        ClinicalAiResult blankResult = new ClinicalAiResult();
+        blankResult.setClinicalSummary("Phieu xet nghiem trang, cot ket qua trong.");
+        blankResult.setPlainLanguageExplanation("Phieu chua co ket qua.");
+        blankResult.setRecommendedDoctorId(null);
+        blankResult.setIndicators(List.of());
+
+        when(aiModelRouter.routeClinicalAnalysis(anyString(), anyString())).thenReturn(blankResult);
+
+        ClinicalAiResult result = clinicalRagService.performDocumentRagAnalysis(
+                "Phieu chi dinh trang", "phieu-trang.pdf", candidates
+        );
+
+        assertThat(result).isNotNull();
+        assertThat(result.getRecommendedDoctorId()).isNull();
+        assertThat(doc1.isAiRecommended()).isFalse();
+    }
 }

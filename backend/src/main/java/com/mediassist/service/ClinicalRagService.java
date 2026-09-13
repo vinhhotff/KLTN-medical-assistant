@@ -58,13 +58,23 @@ public class ClinicalRagService {
                    - general-internal-medicine: General Internal Medicine (Nội Tổng Quát)
                 5. Chọn 1 Bác sĩ phù hợp nhất từ danh sách ứng viên pgvector được cung cấp và nêu lý do chuyên môn (recommendedDoctorId, doctorRecommendationReason).
                 6. Gợi ý 3 câu hỏi sâu sắc (suggestedQuestions) mà người bệnh nên hỏi Bác sĩ trong buổi khám.
+                7. NGUYÊN TẮC AN TOÀN Y TẾ & PHÒNG CHỐNG BỊA ĐẶT (CRITICAL MEDICAL INTEGRITY):
+                   - Nếu tài liệu KHÔNG có kết quả xét nghiệm cụ thể (phiếu chỉ định trắng chưa điền kết quả, ảnh mờ không đọc được số liệu, hoặc không có chỉ số lâm sàng nào):
+                     + BẮT BUỘC ĐỂ:
+                       "recommendedSpecialtySlug": null,
+                       "recommendedSpecialtyName": "Chưa xác định (Cần bổ sung kết quả)",
+                       "recommendedDoctorId": null,
+                       "doctorRecommendationReason": "Không đủ cơ sở lâm sàng để đề xuất bác sĩ do tài liệu chưa có kết quả xét nghiệm cụ thể.",
+                       "indicators": []
+                     + clinicalSummary & plainLanguageExplanation: BẮT BUỘC giải thích rõ ràng tài liệu chưa có kết quả đo lường cụ thể (phiếu trắng hoặc ảnh chụp bị mờ), nhắc người bệnh chụp lại rõ nét hoặc tải phiếu có kết quả đầy đủ để bảo đảm an toàn.
+                     + TUYỆT ĐỐI KHÔNG TỰ BỊA CHỈ SỐ, KHÔNG ĐOÁN MÒ CHUYÊN KHOA VÀ KHÔNG ĐỀ XUẤT BÁC SĨ KHI THIẾU KẾT QUẢ XÉT NGHIỆM!
                 
                 BẮT BUỘC TRẢ VỀ DUY NHẤT 1 JSON OBJECT HỢP LỆ THEO CẤU TRÚC:
                 {
                   "clinicalSummary": "...",
                   "plainLanguageExplanation": "...",
-                  "recommendedSpecialtySlug": "...",
-                  "recommendedSpecialtyName": "...",
+                  "recommendedSpecialtySlug": "SLUG_HOAC_NULL",
+                  "recommendedSpecialtyName": "TEN_HOAC_NULL",
                   "recommendedDoctorId": "UUID_HOAC_NULL",
                   "doctorRecommendationReason": "...",
                   "indicators": [
@@ -99,7 +109,10 @@ public class ClinicalRagService {
 
         ClinicalAiResult result = aiModelRouter.routeClinicalAnalysis(systemPrompt, userPrompt);
 
-        if (candidateDoctors != null && result.getRecommendedDoctorId() != null) {
+        boolean hasExplicitDoctor = result.getRecommendedDoctorId() != null;
+        boolean hasIndicators = result.getIndicators() != null && !result.getIndicators().isEmpty();
+
+        if (hasExplicitDoctor && candidateDoctors != null) {
             for (DoctorMatchDto doc : candidateDoctors) {
                 if (doc.getDoctorId() != null && doc.getDoctorId().equals(result.getRecommendedDoctorId())) {
                     doc.setAiRecommended(true);
@@ -109,8 +122,8 @@ public class ClinicalRagService {
             }
         }
 
-        // Ensure at least one doctor is prominently marked as AI-recommended from candidates
-        if (candidateDoctors != null && !candidateDoctors.isEmpty()) {
+        // Only enforce top fallback doctor if the document actually has clinical indicators!
+        if (hasIndicators && candidateDoctors != null && !candidateDoctors.isEmpty()) {
             boolean anyRecommended = candidateDoctors.stream().anyMatch(DoctorMatchDto::isAiRecommended);
             if (!anyRecommended) {
                 DoctorMatchDto top = candidateDoctors.get(0);
@@ -125,6 +138,14 @@ public class ClinicalRagService {
                 result.setDoctorRecommendationReason(reason);
                 log.info("RAG Top Doctor Match: Assigned {} as AI recommended", top.getFullName());
             }
+        } else if (!hasIndicators && !hasExplicitDoctor && candidateDoctors != null) {
+            // Safety gate: Wipe any recommendation flag when no lab indicators exist and no doctor was explicitly selected
+            for (DoctorMatchDto doc : candidateDoctors) {
+                doc.setAiRecommended(false);
+                doc.setAiRecommendationReason(null);
+            }
+            result.setRecommendedDoctorId(null);
+            result.setDoctorRecommendationReason("Không đủ cơ sở lâm sàng để đề xuất bác sĩ do tài liệu chưa có kết quả xét nghiệm cụ thể.");
         }
         return result;
     }

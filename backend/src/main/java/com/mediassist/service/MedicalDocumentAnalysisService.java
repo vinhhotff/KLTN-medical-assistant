@@ -195,40 +195,59 @@ public class MedicalDocumentAnalysisService {
             throw ex;
         }
 
-        // 8. Derive specialty and findings strictly from AI reasoning
-        String specialtySlug = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
-                ? ragResult.getRecommendedSpecialtySlug().toLowerCase().trim()
-                : "general-internal-medicine";
-        String specialtyName = (ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank())
-                ? ragResult.getRecommendedSpecialtyName()
-                : getSpecialtyDisplayName(specialtySlug);
-
+        // 8. Derive specialty and findings strictly from AI reasoning with clinical safety gating
         List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
                 ? ragResult.getIndicators()
                 : parsedIndicators;
 
-        String clinicalSummary = ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank()
-                ? ragResult.getClinicalSummary() : generateClinicalSummary(indicators, specialtyName);
-        String plainExplanation = ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank()
-                ? ragResult.getPlainLanguageExplanation() : generatePlainLanguageExplanation(indicators, specialtyName);
+        boolean hasClinicalIndicators = indicators != null && !indicators.isEmpty();
+
+        String specialtySlug;
+        String specialtyName;
+        List<DoctorMatchDto> matchedDoctors;
+
+        if (hasClinicalIndicators) {
+            specialtySlug = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
+                    ? ragResult.getRecommendedSpecialtySlug().toLowerCase().trim()
+                    : "general-internal-medicine";
+            specialtyName = (ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank())
+                    ? ragResult.getRecommendedSpecialtyName()
+                    : getSpecialtyDisplayName(specialtySlug);
+
+            // 9. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
+            String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
+            matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+
+            if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+                DoctorMatchDto top = matchedDoctors.get(0);
+                top.setAiRecommended(true);
+                String reason = (ragResult.getDoctorRecommendationReason() != null && !ragResult.getDoctorRecommendationReason().isBlank())
+                        ? ragResult.getDoctorRecommendationReason()
+                        : String.format("Bác sĩ chuyên khoa %s được đề xuất dựa trên thuật toán tương đồng ngữ nghĩa pgvector (độ tương thích %d%%).",
+                                specialtyName, Math.round(top.getSimilarityScore() * 100));
+                top.setAiRecommendationReason(reason);
+                ragResult.setRecommendedDoctorId(top.getDoctorId());
+                ragResult.setDoctorRecommendationReason(reason);
+            }
+        } else {
+            // CRITICAL MEDICAL INTEGRITY RULE: Zero Fake Recommendations on blank / blurry documents
+            specialtySlug = null;
+            specialtyName = "Chưa xác định (Cần bổ sung kết quả)";
+            matchedDoctors = Collections.emptyList();
+            ragResult.setRecommendedDoctorId(null);
+            ragResult.setDoctorRecommendationReason("Không đủ cơ sở lâm sàng để đề xuất bác sĩ do tài liệu chưa có chỉ số kết quả xét nghiệm cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu.");
+        }
+
+        String clinicalSummary = (ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank())
+                ? ragResult.getClinicalSummary()
+                : (hasClinicalIndicators ? generateClinicalSummary(indicators, specialtyName) : "Tài liệu y tế chưa ghi nhận kết quả đo lường cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu. Hệ thống không chỉ định chuyên khoa và bác sĩ khi thiếu dữ liệu lâm sàng.");
+
+        String plainExplanation = (ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank())
+                ? ragResult.getPlainLanguageExplanation()
+                : (hasClinicalIndicators ? generatePlainLanguageExplanation(indicators, specialtyName) : "⚠️ Thông báo an toàn y tế: Phiếu xét nghiệm của bạn chưa có kết quả đo lường (phiếu chỉ định trắng hoặc hình ảnh mờ không đọc được số liệu). Để bảo đảm an toàn và không chẩn đoán sai lệch, hệ thống chưa đề xuất chuyên khoa và bác sĩ. Vui lòng chụp lại ảnh rõ nét hoặc tải phiếu có kết quả đầy đủ từ bệnh viện.");
+
         List<String> suggestedQuestions = (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty())
                 ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(indicators);
-
-        // 9. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
-        String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
-        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
-
-        if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
-            DoctorMatchDto top = matchedDoctors.get(0);
-            top.setAiRecommended(true);
-            String reason = (ragResult.getDoctorRecommendationReason() != null && !ragResult.getDoctorRecommendationReason().isBlank())
-                    ? ragResult.getDoctorRecommendationReason()
-                    : String.format("Bác sĩ chuyên khoa %s được đề xuất dựa trên thuật toán tương đồng ngữ nghĩa pgvector (độ tương thích %d%%).",
-                            specialtyName, Math.round(top.getSimilarityScore() * 100));
-            top.setAiRecommendationReason(reason);
-            ragResult.setRecommendedDoctorId(top.getDoctorId());
-            ragResult.setDoctorRecommendationReason(reason);
-        }
 
         // 10. LAZY CLOUD UPLOAD & PERSISTENCE WITH ROLLBACK COMPENSATING HOOK
         // Architecture Rule: ONLY upload to Supabase Cloud when AI analysis has 100% SUCCEEDED!
@@ -357,40 +376,59 @@ public class MedicalDocumentAnalysisService {
         // 5. AI-First Clinical Reasoning via OpenRouter (or Safe Deterministic Fallback if offline)
         com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, Collections.emptyList());
 
-        // 6. Derive specialty and findings strictly from AI reasoning
-        String specialtySlug = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
-                ? ragResult.getRecommendedSpecialtySlug().toLowerCase().trim()
-                : "general-internal-medicine";
-        String specialtyName = (ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank())
-                ? ragResult.getRecommendedSpecialtyName()
-                : getSpecialtyDisplayName(specialtySlug);
-
+        // 6. Derive specialty and findings strictly from AI reasoning with clinical safety gating
         List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
                 ? ragResult.getIndicators()
                 : parsedIndicators;
 
-        String clinicalSummary = ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank()
-                ? ragResult.getClinicalSummary() : generateClinicalSummary(indicators, specialtyName);
-        String plainExplanation = ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank()
-                ? ragResult.getPlainLanguageExplanation() : generatePlainLanguageExplanation(indicators, specialtyName);
+        boolean hasClinicalIndicators = indicators != null && !indicators.isEmpty();
+
+        String specialtySlug;
+        String specialtyName;
+        List<DoctorMatchDto> matchedDoctors;
+
+        if (hasClinicalIndicators) {
+            specialtySlug = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
+                    ? ragResult.getRecommendedSpecialtySlug().toLowerCase().trim()
+                    : "general-internal-medicine";
+            specialtyName = (ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank())
+                    ? ragResult.getRecommendedSpecialtyName()
+                    : getSpecialtyDisplayName(specialtySlug);
+
+            // 7. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
+            String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
+            matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+
+            if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+                DoctorMatchDto top = matchedDoctors.get(0);
+                top.setAiRecommended(true);
+                String reason = (ragResult.getDoctorRecommendationReason() != null && !ragResult.getDoctorRecommendationReason().isBlank())
+                        ? ragResult.getDoctorRecommendationReason()
+                        : String.format("Bác sĩ chuyên khoa %s được đề xuất dựa trên thuật toán tương đồng ngữ nghĩa pgvector (độ tương thích %d%%).",
+                                specialtyName, Math.round(top.getSimilarityScore() * 100));
+                top.setAiRecommendationReason(reason);
+                ragResult.setRecommendedDoctorId(top.getDoctorId());
+                ragResult.setDoctorRecommendationReason(reason);
+            }
+        } else {
+            // CRITICAL MEDICAL INTEGRITY RULE: Zero Fake Recommendations on blank / blurry documents
+            specialtySlug = null;
+            specialtyName = "Chưa xác định (Cần bổ sung kết quả)";
+            matchedDoctors = Collections.emptyList();
+            ragResult.setRecommendedDoctorId(null);
+            ragResult.setDoctorRecommendationReason("Không đủ cơ sở lâm sàng để đề xuất bác sĩ do tài liệu chưa có chỉ số kết quả xét nghiệm cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu.");
+        }
+
+        String clinicalSummary = (ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank())
+                ? ragResult.getClinicalSummary()
+                : (hasClinicalIndicators ? generateClinicalSummary(indicators, specialtyName) : "Tài liệu y tế chưa ghi nhận kết quả đo lường cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu. Hệ thống không chỉ định chuyên khoa và bác sĩ khi thiếu dữ liệu lâm sàng.");
+
+        String plainExplanation = (ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank())
+                ? ragResult.getPlainLanguageExplanation()
+                : (hasClinicalIndicators ? generatePlainLanguageExplanation(indicators, specialtyName) : "⚠️ Thông báo an toàn y tế: Phiếu xét nghiệm của bạn chưa có kết quả đo lường (phiếu chỉ định trắng hoặc hình ảnh mờ không đọc được số liệu). Để bảo đảm an toàn và không chẩn đoán sai lệch, hệ thống chưa đề xuất chuyên khoa và bác sĩ. Vui lòng chụp lại ảnh rõ nét hoặc tải phiếu có kết quả đầy đủ từ bệnh viện.");
+
         List<String> suggestedQuestions = (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty())
                 ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(indicators);
-
-        // 7. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
-        String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
-        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
-
-        if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
-            DoctorMatchDto top = matchedDoctors.get(0);
-            top.setAiRecommended(true);
-            String reason = (ragResult.getDoctorRecommendationReason() != null && !ragResult.getDoctorRecommendationReason().isBlank())
-                    ? ragResult.getDoctorRecommendationReason()
-                    : String.format("Bác sĩ chuyên khoa %s được đề xuất dựa trên thuật toán tương đồng ngữ nghĩa pgvector (độ tương thích %d%%).",
-                            specialtyName, Math.round(top.getSimilarityScore() * 100));
-            top.setAiRecommendationReason(reason);
-            ragResult.setRecommendedDoctorId(top.getDoctorId());
-            ragResult.setDoctorRecommendationReason(reason);
-        }
 
         DocumentAnalysisResponse response = new DocumentAnalysisResponse();
         response.setDocumentId(UUID.randomUUID());

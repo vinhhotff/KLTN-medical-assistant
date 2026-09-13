@@ -63,11 +63,11 @@ public class PdfExtractionService {
 
             for (int i = 0; i < pagesToRender; i++) {
                 try {
-                    java.awt.image.BufferedImage bim = renderer.renderImageWithDPI(i, 150, org.apache.pdfbox.rendering.ImageType.RGB);
+                    java.awt.image.BufferedImage bim = renderer.renderImageWithDPI(i, 200, org.apache.pdfbox.rendering.ImageType.RGB);
                     java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
                     javax.imageio.ImageIO.write(bim, "jpeg", baos);
                     images.add(baos.toByteArray());
-                    log.info("🖼️ Rendered PDF page {}/{} as JPEG image ({} bytes) for OCR vision fallback",
+                    log.info("🖼️ Rendered PDF page {}/{} as high-resolution JPEG (200 DPI, {} bytes) for OCR vision fallback",
                             (i + 1), totalPages, baos.size());
                 } catch (Exception e) {
                     log.warn("Could not render PDF page {} to image: {}", i, e.getMessage());

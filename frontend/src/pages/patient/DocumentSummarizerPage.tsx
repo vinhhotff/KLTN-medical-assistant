@@ -22,7 +22,9 @@ import {
   QrCode,
   CreditCard,
   Wallet,
-  BadgeCheck
+  BadgeCheck,
+  AlertTriangle,
+  FileQuestion
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -751,10 +753,33 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   <Printer className="w-3.5 h-3.5" /> In Phiếu Xét Nghiệm
                 </button>
                 <span className="px-3.5 py-1.5 bg-teal-50 text-teal-700 rounded-full text-xs font-bold border border-teal-200">
-                  Chuyên khoa đề xuất: {analysis.recommendedSpecialtyName}
+                  {analysis.recommendedSpecialtyName
+                    ? `Chuyên khoa: ${analysis.recommendedSpecialtyName}`
+                    : 'Chuyên khoa: Chưa xác định (Cần bổ sung kết quả)'}
                 </span>
               </div>
             </div>
+
+            {/* Medical Safety Alert Banner when document has NO indicators (blank order form or blurry) */}
+            {analysis.indicators.length === 0 && (
+              <div className="p-4.5 bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl flex items-start gap-3.5 text-amber-900 shadow-xs">
+                <div className="p-2 bg-amber-500 text-white rounded-xl shrink-0 mt-0.5 shadow-xs">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="space-y-1 text-xs">
+                  <h4 className="font-bold text-amber-950 text-sm flex items-center gap-2">
+                    Phiếu Xét Nghiệm Chưa Có Kết Quả Đo Lường Hoặc Ảnh Không Rõ Số Liệu
+                  </h4>
+                  <p className="text-amber-900 leading-relaxed">
+                    Hệ thống không nhận diện được giá trị kết quả cận lâm sàng nào trong tài liệu này (phiếu chỉ định chưa điền kết quả hoặc ảnh bị mờ/mất nét).
+                    Theo tiêu chuẩn an toàn y tế <strong>MediAssist Medical Integrity</strong>: Hệ thống <strong>tuyệt đối không suy đoán chẩn đoán hoặc chỉ định bác sĩ khi thiếu dữ liệu lâm sàng</strong>.
+                  </p>
+                  <p className="text-amber-800 font-medium">
+                    👉 <strong>Khuyến nghị</strong>: Vui lòng chụp lại ảnh rõ nét, đủ ánh sáng, căn thẳng góc hoặc tải tệp PDF điện tử gốc từ bệnh viện để AI phân tích chính xác.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Plain Language Explanation Box */}
             <div className="p-5 bg-teal-50/50 rounded-2xl border border-teal-100 space-y-2">
@@ -776,44 +801,58 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
           {/* Indicators Comparison Table */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-4">
             <h3 className="font-bold text-slate-900 text-base">Bảng Đối Chiếu Chỉ Số Xét Nghiệm</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                    <th className="py-3 px-4 font-semibold">Tên Xét Nghiệm</th>
-                    <th className="py-3 px-4 font-semibold">Kết Quả Đo Được</th>
-                    <th className="py-3 px-4 font-semibold">Khoảng Tham Chiếu</th>
-                    <th className="py-3 px-4 font-semibold">Đánh Giá</th>
-                    <th className="py-3 px-4 font-semibold">Ý Nghĩa Lâm Sàng</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {analysis.indicators.map((ind, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/60 transition">
-                      <td className="py-3 px-4 font-bold text-slate-800">{ind.name}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-indigo-700">
-                        {ind.value} {ind.unit}
-                      </td>
-                      <td className="py-3 px-4 text-slate-500">{ind.referenceRange}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                          ind.status === 'ELEVATED'
-                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                            : ind.status === 'LOW'
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        }`}>
-                          {ind.status === 'ELEVATED' ? 'TĂNG CAO' : ind.status === 'LOW' ? 'HẠ THẤP' : 'BÌNH THƯỜNG'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-slate-600 text-[11px] leading-relaxed">
-                        {ind.clinicalSignificance}
-                      </td>
+            {analysis.indicators.length === 0 ? (
+              <div className="text-center py-10 px-4 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200 space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+                  <FileQuestion className="w-6 h-6" />
+                </div>
+                <div className="space-y-1 max-w-md mx-auto">
+                  <p className="font-bold text-slate-800 text-sm">Chưa có chỉ số cận lâm sàng để đối chiếu</p>
+                  <p className="text-xs text-slate-500">
+                    Toàn bộ cột kết quả xét nghiệm trong tài liệu đang để trống hoặc chất lượng ảnh quá mờ để nhận diện số liệu đo lường.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
+                      <th className="py-3 px-4 font-semibold">Tên Xét Nghiệm</th>
+                      <th className="py-3 px-4 font-semibold">Kết Quả Đo Được</th>
+                      <th className="py-3 px-4 font-semibold">Khoảng Tham Chiếu</th>
+                      <th className="py-3 px-4 font-semibold">Đánh Giá</th>
+                      <th className="py-3 px-4 font-semibold">Ý Nghĩa Lâm Sàng</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {analysis.indicators.map((ind, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/60 transition">
+                        <td className="py-3 px-4 font-bold text-slate-800">{ind.name}</td>
+                        <td className="py-3 px-4 font-mono font-bold text-indigo-700">
+                          {ind.value} {ind.unit}
+                        </td>
+                        <td className="py-3 px-4 text-slate-500">{ind.referenceRange}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                            ind.status === 'ELEVATED'
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : ind.status === 'LOW'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          }`}>
+                            {ind.status === 'ELEVATED' ? 'TĂNG CAO' : ind.status === 'LOW' ? 'HẠ THẤP' : 'BÌNH THƯỜNG'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 text-[11px] leading-relaxed">
+                          {ind.clinicalSignificance}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* 🧑‍⚕️ Recommended Doctors (pgvector Cosine Similarity Match from PDF findings) */}
@@ -833,7 +872,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
               </span>
             </div>
 
-            {analysis.matchedDoctors && analysis.matchedDoctors.length > 0 ? (
+            {analysis.matchedDoctors && analysis.matchedDoctors.length > 0 && analysis.indicators.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {analysis.matchedDoctors.map((doc) => {
                   const matchPct = Math.round(doc.similarityScore * 100);
@@ -938,8 +977,10 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             ) : (
               <div className="p-8 bg-slate-50 border border-slate-200 rounded-3xl text-center space-y-2">
                 <Stethoscope className="w-8 h-8 text-slate-400 mx-auto" />
-                <p className="text-sm font-semibold text-slate-700">Đang đồng bộ danh sách bác sĩ chuyên khoa sâu...</p>
-                <p className="text-xs text-slate-400">Vui lòng chọn chuyên khoa phù hợp trong mục Đặt Lịch Khám hoặc tải lại trang.</p>
+                <p className="text-sm font-bold text-slate-700">Chưa có chỉ định Bác sĩ chuyên khoa</p>
+                <p className="text-xs text-slate-500 max-w-lg mx-auto leading-relaxed">
+                  Hệ thống tuân thủ tiêu chuẩn an toàn y tế <strong>MediAssist Medical Safety</strong>: Chỉ đề xuất Bác sĩ chuyên khoa khi có kết quả xét nghiệm định lượng bất thường cụ thể. Khi tài liệu là phiếu trắng hoặc ảnh không rõ số liệu, hệ thống không chỉ định bác sĩ để bảo đảm an toàn điều trị cho người bệnh.
+                </p>
               </div>
             )}
           </div>

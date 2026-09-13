@@ -190,13 +190,20 @@ graph TD
      - *Pha 3 - AI Clinical Reasoning (OpenRouter Gateway):* Mô hình LLM đọc toàn bộ ngữ cảnh lâm sàng, tự suy luận bệnh cảnh, tổng hợp `clinicalSummary`, dịch nghĩa `plainLanguageExplanation`, xác định chuyên khoa phù hợp nhất từ 12 chuyên khoa bệnh viện, và sinh 3 câu hỏi sâu sắc cho người bệnh.
      - *Pha 4 - pgvector Cosine Similarity Doctor Matching:* Sử dụng chuyên khoa và các chỉ số bất thường do AI xác nhận làm câu truy vấn ngữ nghĩa, tính toán độ tương đồng cosine toán học (`1 - (bio_embedding <=> query_vector)`) trên PostgreSQL pgvector. Bác sĩ đứng đầu danh sách được đề xuất minh bạch kèm tỷ lệ phần trăm tương thích (Tuyệt đối không chọn ngẫu nhiên).
      - *Chế Độ Ngoại Tuyến Minh Bạch (Transparent Offline Mode):* Khi thiếu `OPENROUTER_API_KEY` hoặc ngoại tuyến, hệ thống hiển thị rõ ràng nhãn cảnh báo Ngoại Tuyến (Offline Fallback), chuyển tuyến Nội Tổng Quát an toàn và không tự tiện suy đoán chẩn đoán bệnh.
-   - **Dự phòng Scanned PDF (Vision OCR):** Nếu PDF là bản scan thuần ảnh không có text layer ($< 30$ ký tự), hệ thống tự động gọi `PDFRenderer` và Vision OCR đa phương thức.
+    - **Dự phòng Scanned PDF (Vision OCR) & Bể Model Thị Giác Đa Tầng (Multi-Model Vision Pool):**
+      - Nếu PDF là bản scan thuần ảnh không có text layer ($< 30$ ký tự), hệ thống tự động render ảnh từng trang với độ phân giải cao **200 DPI** qua `PDFRenderer`.
+      - Xây dựng bể xoay vòng tự động 3 model Vision mạnh nhất trên OpenRouter: `inclusionai/ling-3.0-flash-vl:free` $\rightarrow$ `nex-agi/nex-n2.5-pro:free` $\rightarrow$ `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`. Tự động fallback nếu chạm rate-limit `HTTP 429`.
+    - **Rào Chắn An Toàn Y Tế & Triệt Tiêu Đề Xuất Ảo (Medical Safety Gating & Zero Fake Recommendation):**
+      - *Trường hợp phiếu trắng / ảnh mờ / không có số liệu:* Nếu tài liệu là phiếu chỉ định trắng chưa điền kết quả (cột kết quả để trống) hoặc ảnh chụp mờ không bóc tách được số liệu cận lâm sàng (`indicators.isEmpty()`):
+        + **Tuyệt đối không đoán mò chuyên khoa:** Để `recommendedSpecialtySlug = null`, `recommendedSpecialtyName = "Chưa xác định (Cần bổ sung kết quả)"`.
+        + **Tuyệt đối không đề xuất bác sĩ:** Khóa toàn bộ danh sách `matchedDoctors = []`, `recommendedDoctorId = null`, không gán cờ `aiRecommended`.
+        + **Giao diện cảnh báo an toàn y tế:** Hiển thị Banner màu hổ phách giải thích rõ ràng nguyên nhân, công bố nguyên tắc an toàn không phán đoán khi thiếu dữ liệu, và hướng dẫn người bệnh chụp lại ảnh rõ nét hoặc tải phiếu có kết quả đầy đủ.
 7. **Khấu trừ Hạn Ngạch:** Trừ 1 lượt quét đối với tài khoản FREE (`scanQuota = scanQuota - 1`). Giữ nguyên không giới hạn đối với hội viên MediPass VIP.
 8. **Phản hồi Giao Diện Tức Thì & Phân Định Trạng Thái AI:**
    - Hiển thị **Banner Thông Báo Thành Công Nổi Bật** phân định rõ: Huy hiệu Xanh Ngọc (*"AI Phân Tích Hoàn Tất"*) khi có LLM, hoặc Huy hiệu Vàng Hổ Phách (*"Chế Độ Ngoại Tuyến"*) khi chạy fallback an toàn.
    - Thẻ hiển thị động cơ phân tích minh bạch tên mô hình AI đã xử lý (`modelUsed`).
    - Màn hình tự động cuộn mượt mà (`scrollIntoView`) đến phần kết quả `#analysis-results`.
-   - Danh sách Bác sĩ chuyên khoa sâu được sắp xếp chuẩn xác theo điểm số tương đồng cosine từ PostgreSQL pgvector kèm nút *"Đặt Khám Ngay"*.
+   - Danh sách Bác sĩ chuyên khoa sâu được sắp xếp chuẩn xác theo điểm số tương đồng cosine từ PostgreSQL pgvector kèm nút *"Đặt Khám Ngay"*. (Nếu tài liệu không có kết quả, hiển thị Empty State hướng dẫn người bệnh).
 
 ---
 
