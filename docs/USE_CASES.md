@@ -178,7 +178,11 @@ graph TD
    - Kiểm tra độ dài văn bản trích xuất (tối thiểu 15 ký tự; nếu ngắn hơn -> lỗi mờ ảnh `UNREADABLE_DOCUMENT`).
    - Sàng lọc từ điển chỉ số lâm sàng (40+ thuật ngữ xét nghiệm sinh hóa/huyết học).
    - *Nếu phát hiện ảnh rác (hóa đơn siêu thị, meme, chó mèo, ảnh mờ):* Ném lỗi `HTTP 400 NON_MEDICAL_DOCUMENT` hoặc `UNREADABLE_DOCUMENT` và **KHÔNG trừ hạn ngạch** của bệnh nhân.
-5. **Lưu trữ Cloud EMR (Supabase Storage):** Tải nhị phân tệp lên bucket `medical-documents` của Supabase qua REST API. Nếu mất mạng hoặc thiếu API key, tự động chuyển vùng dự phòng sang Local EMR Disk không bao giờ sập backend.
+5. **Quy Trình Lazy Upload & Triệt Tiêu File Mồ Côi (Zero Orphan Files):**
+   - **Xử lý hoàn toàn trong RAM:** Trích xuất chỉ số sinh hóa và thực thi suy luận AI RAG trực tiếp trên mảng byte trong bộ nhớ tạm.
+   - **Lazy Upload Pattern:** Chỉ khi và chỉ khi toàn bộ pipeline phân tích AI hoàn tất 100% thành công, tệp nhị phân mới được tải lên Supabase Storage (`storageService.uploadDocument()`). Nếu AI lỗi hoặc file hỏng, luồng hủy ngay tại chỗ, **0 byte rác lọt lên Cloud**.
+   - **Compensating Rollback Hook:** Nếu quá trình ghi Database EMR gặp sự cố sau khi đã tải lên Cloud, hệ thống tự động gọi `storageService.deleteDocument()` để xóa file trên Supabase ngay lập tức, triệt tiêu 100% nguy cơ file mồ côi (Zero Orphan Files).
+   - **Upload Circuit Breaker:** Người dùng gửi liên tiếp 3 file không hợp lệ sẽ bị áp dụng án phạt Cooldown 10 phút.
 6. **Kiến Trúc AI-First Toàn Diện & Xử Lý Hồ Sơ Đa Trang (AI-First Clinical Reasoning & Multi-Page Windowing):**
    - **Xóa Bỏ 100% Ma Trận Hardcode & Bịa Bệnh (Zero Fake Diagnoses & Zero Keyword Maps):** Hệ thống không sử dụng các bảng tra cứu tĩnh hay chuỗi if-else chấm điểm từ khóa cố định. Toàn bộ suy luận y khoa được điều phối theo luồng AI-First:
      - *Pha 1 - Universal Tabular Line Parser:* Quét động mọi dòng cận lâm sàng dạng bảng `[Tên xét nghiệm]: [Kết quả] [Đơn vị] ([Khoảng tham chiếu])`, bóc tách dữ liệu số/định tính thô mà không áp đặt định kiến bệnh tật.

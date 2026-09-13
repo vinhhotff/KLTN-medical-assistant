@@ -93,4 +93,59 @@ public class SupabaseStorageService implements StorageService {
             return "/uploads/medical_documents/default_emr.pdf";
         }
     }
+
+    @Override
+    public boolean deleteDocument(String storageUrl) {
+        if (storageUrl == null || storageUrl.isBlank()) {
+            return false;
+        }
+
+        log.info("🗑️ Deleting storage document: {}", storageUrl);
+
+        // 1. Supabase Storage Object Deletion
+        if (storageUrl.contains("/storage/v1/object/public/") || storageUrl.contains(supabaseBucket)) {
+            try {
+                String objectPath = storageUrl;
+                String marker = "/" + supabaseBucket + "/";
+                int idx = storageUrl.indexOf(marker);
+                if (idx != -1) {
+                    objectPath = storageUrl.substring(idx + marker.length());
+                }
+
+                String targetUrl = String.format("%s/storage/v1/object/%s/%s", supabaseUrl, supabaseBucket, objectPath);
+                log.info("☁️ Sending DELETE to Supabase Storage: {}", targetUrl);
+
+                URL url = URI.create(targetUrl).toURL();
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("DELETE");
+                conn.setRequestProperty("Authorization", "Bearer " + supabaseKey);
+                conn.setRequestProperty("apikey", supabaseKey);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+
+                int responseCode = conn.getResponseCode();
+                log.info("Supabase DELETE response code: {}", responseCode);
+                return responseCode >= 200 && responseCode < 300;
+            } catch (Exception e) {
+                log.warn("⚠️ Failed to delete object from Supabase: {}", e.getMessage());
+                return false;
+            }
+        }
+
+        // 2. Local Storage File Deletion
+        if (storageUrl.startsWith("/uploads/")) {
+            try {
+                String relPath = storageUrl.startsWith("/") ? storageUrl.substring(1) : storageUrl;
+                Path localPath = Paths.get(relPath);
+                boolean deleted = Files.deleteIfExists(localPath);
+                log.info("💾 Local file deletion result for '{}': {}", localPath, deleted);
+                return deleted;
+            } catch (Exception e) {
+                log.warn("⚠️ Failed to delete local file '{}': {}", storageUrl, e.getMessage());
+                return false;
+            }
+        }
+
+        return false;
+    }
 }

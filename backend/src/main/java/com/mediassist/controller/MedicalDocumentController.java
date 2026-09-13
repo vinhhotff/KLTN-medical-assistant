@@ -63,8 +63,14 @@ public class MedicalDocumentController {
             throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE", "Vui lòng chọn tệp tài liệu y tế (PDF hoặc ảnh) để phân tích.");
         }
 
-        if (file.getSize() > 15 * 1024 * 1024) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE", "Dung lượng tệp tối đa cho phép là 15MB.");
+        if (rateLimiterService.isUploadPenalized(userEmail)) {
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "UPLOAD_COOLDOWN_ACTIVE",
+                    "Tài khoản tạm thời bị khóa tính năng tải tệp trong 10 phút do gửi nhiều tệp không hợp lệ liên tiếp. Vui lòng thử lại sau.");
+        }
+
+        if (file.getSize() > 10 * 1024 * 1024) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE",
+                    "Dung lượng tệp vượt quá giới hạn an toàn 10MB (Khuyến nghị 500KB - 5MB cho phiếu xét nghiệm).");
         }
 
         DocumentAnalysisResponse response = analysisService.analyzeDocument(file, userEmail);
@@ -80,8 +86,9 @@ public class MedicalDocumentController {
             throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE", "Vui lòng chọn tệp tài liệu y tế (PDF hoặc ảnh) để phân tích.");
         }
 
-        if (file.getSize() > 15 * 1024 * 1024) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE", "Dung lượng tệp tối đa cho phép là 15MB.");
+        if (file.getSize() > 10 * 1024 * 1024) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE",
+                    "Dung lượng tệp vượt quá giới hạn an toàn 10MB (Khuyến nghị 500KB - 5MB cho phiếu xét nghiệm).");
         }
 
         DocumentAnalysisResponse response = analysisService.analyzeDocumentPreview(file);

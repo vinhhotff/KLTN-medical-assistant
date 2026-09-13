@@ -199,6 +199,18 @@
     - Chuyển hướng an toàn sang chuyên khoa Nội Tổng Quát và dùng `pgvector` đề xuất các bác sĩ đa khoa có chứng chỉ hành nghề để người bệnh được thăm khám trực tiếp.
     - Giao diện người dùng hiển thị banner cảnh báo màu hổ phách thông báo rõ hệ thống đang ngoại tuyến, bảo vệ an toàn tối đa cho người bệnh."*
 
+
+---
+
+### Câu hỏi 11: Làm thế nào hệ thống kiểm soát dung lượng lưu trữ Cloud (Supabase Storage) và giải quyết bài toán "File mồ côi" (Orphan Files) khi phân tích AI gặp sự cố hoặc bị kẻ xấu spam phá hoại?
+* **Trả lời của sinh viên:**  
+  *"Thưa Thầy Cô, nhóm đã giải quyết trọn vẹn bài toán này bằng **Chiến lược Phòng thủ 5 Tầng (5-Pillar Storage Defense)**:
+  1. **Giới hạn dung lượng 10MB đa tầng:** Chặn ngay tại Client React, cấu hình Spring Boot `spring.servlet.multipart.max-file-size=10MB` và đặt chính sách `file_size_limit = 10MB` tại Supabase Bucket. Ngưỡng 10MB vừa vặn cho các phiếu xét nghiệm PDF (150KB - 800KB) hoặc ảnh chụp điện thoại (1.5MB - 3.5MB), đồng thời ngăn ngừa triệt để tấn công làm cạn kiệt dung lượng (Storage Exhaustion Attack) và bom nén bộ nhớ (PDF Decompression Bomb).
+  2. **Mẫu thiết kế Lazy Upload (Commit-After-Success):** Hệ thống TUYỆT ĐỐI KHÔNG upload file lên Supabase trước. Toàn bộ bước kiểm tra Gatekeeper và suy luận AI RAG diễn ra trực tiếp trong RAM. Chỉ khi AI phân tích thành công 100% thì file mới được tải lên Cloud. Nếu AI lỗi hoặc file hỏng, luồng xử lý bị hủy ngay tại chỗ, 0 byte dữ liệu lọt lên Cloud.
+  3. **Compensating Rollback Hook (`deleteDocument`):** Nếu việc ghi dữ liệu vào Database EMR gặp sự cố sau khi đã upload Cloud, khối `catch` của Spring Boot tự động kích hoạt hành động bù trừ: gửi request DELETE lên Supabase Storage để xóa file tức thì, đảm bảo nguyên tắc Zero Orphan Files.
+  4. **Upload Circuit Breaker:** Nếu 1 tài khoản cố tình spam 3 file lỗi liên tiếp trong 5 phút, hệ thống tự động khóa tính năng tải tệp trong 10 phút.
+  5. **Bảng băm SHA-256 Deduplication:** Bệnh nhân tra cứu lại phiếu xét nghiệm cũ được trả về kết quả tức thì mà không upload thêm file mới, giúp tiết kiệm 30% dung lượng Cloud lưu trữ."*
+
 ## 5. Bảng Tiêu Chí Đánh Giá Xuất Sắc Của Hội Đồng (Evaluation Rubric)
 
 | Tiêu Chí Đánh Giá | Trọng Số | Yêu Cầu Để Đạt Điểm Tối Đa (Grade A / 9.0 - 10.0) | Hiện Trạng Dự Án MediAssist-AI |

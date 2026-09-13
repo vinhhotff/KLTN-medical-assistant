@@ -228,6 +228,11 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
+      // 🛡️ Client-side 10MB File Size Restriction (Protects Network & Storage Egress)
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        setError('Dung lượng tệp vượt quá giới hạn an toàn 10MB (Khuyến nghị 500KB - 5MB cho phiếu xét nghiệm). Vui lòng chọn tệp nhỏ hơn để bảo vệ hệ thống.');
+        return;
+      }
       setFile(selectedFile);
       setError(null);
       setAnalysis(null);

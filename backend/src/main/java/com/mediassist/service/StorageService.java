@@ -13,4 +13,12 @@ public interface StorageService {
      * @return Public or accessible URL/path of the stored object
      */
     String uploadDocument(byte[] fileBytes, String fileName, String contentType, UUID userId);
+
+    /**
+     * Deletes medical document from storage (used in rollback compensating hooks to eliminate orphan files).
+     *
+     * @param storageUrl URL or path of the stored object
+     * @return true if successfully deleted or gracefully handled, false otherwise
+     */
+    boolean deleteDocument(String storageUrl);
 }
