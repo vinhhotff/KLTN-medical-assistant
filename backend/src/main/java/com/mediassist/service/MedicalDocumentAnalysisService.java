@@ -1019,16 +1019,45 @@ public class MedicalDocumentAnalysisService {
                     log.info("📄 PDF text layer is empty (< 30 chars). Invoking PDFRenderer + Vision OCR fallback for '{}' (up to {} pages)", fileName, maxPdfPages);
                     List<byte[]> pageImages = pdfExtractionService.renderPdfPagesToImages(fileBytes, Math.max(1, maxPdfPages));
                     if (!pageImages.isEmpty()) {
+                        int totalPages = pageImages.size();
+                        log.info("📄 Dispatching {} parallel Vision OCR tasks for '{}'...", totalPages, fileName);
+
+                        String[] ocrResults = new String[totalPages];
+                        List<java.util.concurrent.CompletableFuture<Void>> futures = new ArrayList<>();
+
+                        for (int i = 0; i < totalPages; i++) {
+                            final int pageIdx = i;
+                            final byte[] imgData = pageImages.get(i);
+                            futures.add(java.util.concurrent.CompletableFuture.runAsync(() -> {
+                                try {
+                                    String ocr = clinicalRagService.extractTextWithVision(imgData, "image/jpeg", fileName + " - Trang " + (pageIdx + 1));
+                                    ocrResults[pageIdx] = ocr;
+                                } catch (Exception ex) {
+                                    log.warn("Parallel OCR error on page {}: {}", pageIdx + 1, ex.getMessage());
+                                    ocrResults[pageIdx] = "";
+                                }
+                            }));
+                        }
+
+                        // Wait for all pages to finish OCR with resilient 25s timeout
+                        try {
+                            java.util.concurrent.CompletableFuture.allOf(futures.toArray(new java.util.concurrent.CompletableFuture[0]))
+                                    .get(25, java.util.concurrent.TimeUnit.SECONDS);
+                        } catch (Exception ex) {
+                            log.warn("Parallel OCR timed out or interrupted: {}. Assembling partial results...", ex.getMessage());
+                        }
+
                         StringBuilder sb = new StringBuilder();
-                        for (int i = 0; i < pageImages.size(); i++) {
-                            String ocr = clinicalRagService.extractTextWithVision(pageImages.get(i), "image/jpeg", fileName + " - Trang " + (i + 1));
-                            if (ocr != null && !ocr.isBlank()) {
-                                sb.append("--- TRANG ").append(i + 1).append(" ---\n").append(ocr).append("\n\n");
+                        for (int i = 0; i < totalPages; i++) {
+                            String pageText = ocrResults[i];
+                            if (pageText != null && !pageText.isBlank()) {
+                                sb.append("--- TRANG ").append(i + 1).append(" ---\n").append(pageText).append("\n\n");
                             }
                         }
+
                         if (!sb.isEmpty()) {
                             extractedText = sb.toString().trim();
-                            log.info("📄 Successfully extracted {} characters from scanned PDF via Vision OCR", extractedText.length());
+                            log.info("📄 Successfully extracted {} characters from scanned PDF via parallel Vision OCR", extractedText.length());
                         }
                     }
                 }

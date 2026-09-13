@@ -112,10 +112,11 @@ public class GeminiAiProvider implements AiProvider {
                     "temperature", 0.1
             ));
 
-            String url = String.format("%s/models/%s:generateContent?key=%s", baseUrl, targetModel, apiKey.trim());
+            String url = String.format("%s/models/%s:generateContent", baseUrl, targetModel);
 
             String responseJson = restClient.post()
                     .uri(url)
+                    .header("x-goog-api-key", apiKey.trim())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(requestBody)
                     .retrieve()
@@ -147,6 +148,10 @@ public class GeminiAiProvider implements AiProvider {
     }
 
     private ClinicalAiResult executeGeminiGeneration(String systemPrompt, String userPrompt, String modelId, boolean isTriage) {
+        if (!isAvailable()) {
+            throw new IllegalStateException("Google Gemini is not configured or disabled.");
+        }
+
         String targetModel = (modelId != null && !modelId.isBlank() && !modelId.contains("/")) ? modelId : defaultModel;
         if (targetModel == null || targetModel.isBlank()) {
             targetModel = "gemini-1.5-flash";
@@ -169,10 +174,11 @@ public class GeminiAiProvider implements AiProvider {
             genConfig.put("response_mime_type", "application/json");
             requestBody.put("generationConfig", genConfig);
 
-            String url = String.format("%s/models/%s:generateContent?key=%s", baseUrl, targetModel, apiKey.trim());
+            String url = String.format("%s/models/%s:generateContent", baseUrl, targetModel);
 
             String responseJson = restClient.post()
                     .uri(url)
+                    .header("x-goog-api-key", apiKey.trim())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(requestBody)
                     .retrieve()

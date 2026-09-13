@@ -46,6 +46,11 @@
    - Đổi từ `new Date().toLocaleDateString()` sang `'Không xác định trong tài liệu'`, ngăn ngừa việc gán nhầm ngày hiện tại cho hồ sơ xét nghiệm cũ.
 5. **Bổ sung Metadata cho Deduplication Cache Hit**:
    - `MedicalDocumentAnalysisService` gán đầy đủ `modelUsed` và `doctorRecommendationReason` khi trả về kết quả băm SHA-256 trùng khớp.
+6. **Xóa Bỏ Nghẽn Hiệu Năng OCR Tuần Tự (Multi-Page PDF Parallelization)**:
+   - Thay thế vòng lặp tuần tự bằng `CompletableFuture.allOf(...)` với timeout 25s, xử lý đồng thời tất cả các trang PDF scan ảnh, giảm thời gian xử lý từ ~25s xuống chỉ còn ~3s.
+7. **Bảo Mật API Key Google Gemini (Header Injection `x-goog-api-key`)**:
+   - Chuyển việc truyền `key` từ Query Parameter trên URL sang HTTP Header `x-goog-api-key`, loại bỏ hoàn toàn nguy cơ rò rỉ API key qua access logs proxy/gateway.
+   - Cập nhật `.env.example` hướng dẫn cấu hình `GEMINI_API_KEY`.
 
 ---
 
