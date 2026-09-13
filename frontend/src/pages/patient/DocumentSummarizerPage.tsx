@@ -404,18 +404,20 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 bg-emerald-600 text-white text-[10px] font-extrabold rounded-full uppercase tracking-wider shadow-xs">
-                  Phân Tích Hoàn Tất
+                <span className={`px-2.5 py-0.5 ${analysisSuccessNotification.modelUsed?.toLowerCase().includes('offline') || analysisSuccessNotification.modelUsed?.toLowerCase().includes('deterministic') ? 'bg-amber-600' : 'bg-emerald-600'} text-white text-[10px] font-extrabold rounded-full uppercase tracking-wider shadow-xs`}>
+                  {analysisSuccessNotification.modelUsed?.toLowerCase().includes('offline') || analysisSuccessNotification.modelUsed?.toLowerCase().includes('deterministic') ? 'Chế Độ Ngoại Tuyến' : 'AI Phân Tích Hoàn Tất'}
                 </span>
                 <h4 className="font-bold text-emerald-900 text-base">
-                  Đã Phân Tích & Số Hóa Tài Liệu Y Tế Thành Công!
+                  {analysisSuccessNotification.modelUsed?.toLowerCase().includes('offline') || analysisSuccessNotification.modelUsed?.toLowerCase().includes('deterministic')
+                    ? 'Đã Bóc Tách Chỉ Số & Khớp Nối Bác Sĩ (Ngoại Tuyến)!'
+                    : 'Đã Phân Tích & Số Hóa Tài Liệu Y Tế Thành Công!'}
                 </h4>
               </div>
               <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
                 Tệp <strong>{analysisSuccessNotification.fileName}</strong> đã được trích xuất{' '}
-                <strong>{analysisSuccessNotification.indicatorsCount} chỉ số lâm sàng</strong>, phân luồng chuyên khoa{' '}
+                <strong>{analysisSuccessNotification.indicatorsCount} chỉ số lâm sàng</strong>, định hướng chuyên khoa{' '}
                 <strong className="underline decoration-emerald-500">{analysisSuccessNotification.specialtyName}</strong>{' '}
-                và đề xuất thành công <strong>{analysisSuccessNotification.matchedDoctorsCount} Bác sĩ chuyên môn cao</strong> qua PostgreSQL pgvector.
+                và kết nối thành công <strong>{analysisSuccessNotification.matchedDoctorsCount} Bác sĩ chuyên khoa</strong> qua thuật toán tương đồng cosine PostgreSQL pgvector.
               </p>
             </div>
           </div>
@@ -630,29 +632,57 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
           </div>
 
           {/* 🤖 OpenRouter Model Attribution & Failover Status */}
-          {analysis.modelUsed && (
-            <div className="p-4 bg-gradient-to-r from-teal-50 via-cyan-50 to-sky-50 border border-teal-200 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-teal-600 text-white rounded-xl flex-shrink-0 shadow-xs">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-teal-950">Động cơ RAG Phân tích Lâm sàng:</span>
-                    <span className="font-mono font-semibold px-2 py-0.5 bg-teal-100 text-teal-800 rounded-md border border-teal-300">
-                      {analysis.modelUsed}
-                    </span>
+          {analysis.modelUsed && (() => {
+            const isOffline = analysis.modelUsed.toLowerCase().includes('offline') || analysis.modelUsed.toLowerCase().includes('deterministic');
+            return isOffline ? (
+              <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs animate-fadeIn">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-amber-500 text-white rounded-xl flex-shrink-0 shadow-xs">
+                    <AlertCircle className="w-4 h-4" />
                   </div>
-                  <p className="text-teal-700 text-[11px] mt-0.5">
-                    Hệ thống tích hợp OpenRouter AI Gateway với cơ chế tự động xoay tua đa mô hình (Gemini 2.0 Flash / Llama 3.3 / DeepSeek R1) & Fallback an toàn offline.
-                  </p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-amber-950">Trạng Thái Hệ Thống:</span>
+                      <span className="font-mono font-semibold px-2 py-0.5 bg-amber-100 text-amber-900 rounded-md border border-amber-300">
+                        {analysis.modelUsed}
+                      </span>
+                    </div>
+                    <p className="text-amber-800 text-[11px] mt-0.5">
+                      ⚠️ Hệ thống đang chạy ở <strong>Chế độ Ngoại tuyến (Offline Fallback)</strong> do chưa cấu hình OPENROUTER_API_KEY hoặc mất kết nối mạng. Chỉ số được bóc tách bằng bộ phân tích cú pháp thô, <strong>không tự ý bịa bệnh</strong>. Đề xuất bác sĩ được thực hiện qua thuật toán tương đồng cosine pgvector.
+                    </p>
+                  </div>
                 </div>
+                <span className="px-3 py-1 bg-white text-amber-800 font-semibold rounded-xl border border-amber-200 text-[11px] shadow-2xs whitespace-nowrap">
+                  ⚠️ Chế Độ Ngoại Tuyến
+                </span>
               </div>
-              <span className="px-3 py-1 bg-white text-teal-800 font-semibold rounded-xl border border-teal-200 text-[11px] shadow-2xs whitespace-nowrap">
-                ✨ Chi Phí 0đ • Sẵn Sàng 99.9%
-              </span>
-            </div>
-          )}
+            ) : (
+              <div className="p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-300 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs animate-fadeIn">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-600 text-white rounded-xl flex-shrink-0 shadow-xs">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-emerald-950">Động cơ RAG Phân tích Lâm sàng AI:</span>
+                      <span className="font-mono font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded-md border border-emerald-300">
+                        {analysis.modelUsed}
+                      </span>
+                      <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-full">
+                        AI Verified
+                      </span>
+                    </div>
+                    <p className="text-emerald-800 text-[11px] mt-0.5">
+                      ✅ Phân tích bởi Trí tuệ Nhân tạo thực thụ qua OpenRouter AI Gateway. Chẩn đoán phân luồng và lựa chọn Bác sĩ được xác nhận bằng suy luận y khoa kết hợp PostgreSQL pgvector.
+                    </p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 bg-white text-emerald-800 font-semibold rounded-xl border border-emerald-200 text-[11px] shadow-2xs whitespace-nowrap">
+                  ✨ AI Reasoning Chuẩn Xác
+                </span>
+              </div>
+            );
+          })()}
 
           {/* Scribe Summary & Patient Translation */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-6">

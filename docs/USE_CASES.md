@@ -176,26 +176,20 @@ graph TD
    - Sàng lọc từ điển chỉ số lâm sàng (40+ thuật ngữ xét nghiệm sinh hóa/huyết học).
    - *Nếu phát hiện ảnh rác (hóa đơn siêu thị, meme, chó mèo, ảnh mờ):* Ném lỗi `HTTP 400 NON_MEDICAL_DOCUMENT` hoặc `UNREADABLE_DOCUMENT` và **KHÔNG trừ hạn ngạch** của bệnh nhân.
 5. **Lưu trữ Cloud EMR (Supabase Storage):** Tải nhị phân tệp lên bucket `medical-documents` của Supabase qua REST API. Nếu mất mạng hoặc thiếu API key, tự động chuyển vùng dự phòng sang Local EMR Disk không bao giờ sập backend.
-6. **Bộ Bóc Tách Cận Lâm Sàng Vạn Năng & Xử Lý Hồ Sơ Đa Trang Rườm Rà (Universal Dynamic Lab Extractor & Multi-Page Windowing):**
-   - **Bóc tách 3 pha toàn diện (3-Phase Dynamic Clinical Extraction):** `MedicalDocumentAnalysisService` xóa bỏ hoàn toàn hardcode, xử lý mọi định dạng bảng xét nghiệm bệnh viện:
-     - *Pha 1 - Clinical Laboratory Ontology:* Hơn 100+ chỉ số chuẩn hóa thuộc 8 hệ lâm sàng: Nội tiết & Tuyến giáp (TSH, FT4, FT3, Glucose, HbA1c, Cortisol, Insulin), Thận - Tiết niệu (Creatinine, eGFR, BUN, Ure, Acid Uric, Protein niệu, Microalbumin), Tim mạch (Cholesterol, Triglyceride, LDL, HDL, Troponin T/I, BNP, CK-MB), Tiêu hóa - Gan mật (ALT, AST, GGT, ALP, Bilirubin, Amylase, Lipase), Huyết học (WBC, RBC, HGB, PLT, Neutrophil, Lymphocyte, INR, D-Dimer), Điện giải (Na+, K+, Cl-, Ca2+, Ferritin), Viêm & Nhiễm trùng (CRP, PCT, ESR), Dấu ấn khối u (PSA, CEA, AFP, CA 19-9, CA 125).
-     - *Pha 2 - Universal Tabular Line Parser:* Quét động mọi dòng cận lâm sàng dạng `[Tên xét nghiệm]: [Kết quả] [Đơn vị] ([Khoảng tham chiếu])`, tự động trích xuất ngưỡng và tính toán toán học trạng thái `ELEVATED` / `LOW` / `NORMAL` ngay cả khi chỉ số chưa từng có trong từ điển (Total Testosterone, Vitamin D3, Homocysteine...).
-     - *Pha 3 - Serology & Qualitative Findings:* Bóc tách chính xác các xét nghiệm định tính (Dương tính / Âm tính) như HBsAg, Anti-HCV, Dengue NS1/IgM/IgG, HIV, VDRL, Helicobacter pylori...
-   - **Phân luồng 12 Chuyên Khoa Bệnh Viện Tự Động (12-Department Dynamic Routing):** Chấm điểm ma trận trọng số đa chiều khớp chính xác 12 chuyên khoa trong cơ sở dữ liệu (`cardiology`, `neurology`, `gastroenterology`, `dermatology`, `pediatrics`, `general-internal-medicine`, `pulmonology`, `orthopedics`, `nephrology`, `obstetrics-gynecology`, `endocrinology`, `ent`) dựa trên các chỉ số bất thường và từ khóa lâm sàng toàn văn.
-   - **Bộ câu hỏi định hướng lâm sàng cá nhân hóa (Contextual Suggested Questions):** Tạo 3 câu hỏi chuyên môn nhắm thẳng vào bất thường phát hiện (TSH/FT4 -> siêu âm Doppler tuyến giáp, Creatinine/eGFR -> bảo tồn thận/thuốc NSAID, Glucose/HbA1c -> tiền tiểu đường/chế độ ăn tinh bột, Acid Uric -> purine/Gout, ALT/AST -> viêm gan/FibroScan, PSA -> u xơ/MRI vùng chậu).
-   - **Chắt lọc ngữ cảnh y khoa (Smart Clinical Windowing):** Nếu tài liệu vượt quá 4.500 ký tự (hồ sơ bệnh án dài 10–30 trang chứa nhiều điều khoản viện phí, nội quy phòng bệnh, quy định bảo hiểm), hệ thống tự động kích hoạt bộ chắt lọc ngữ cảnh `distillClinicalContext` (giới hạn an toàn $\le 5.500$ ký tự):
-     - Giữ nguyên phần định danh bệnh nhân, bệnh viện và ngày khám ở phần đầu.
-     - Tập trung toàn bộ danh sách các chỉ số cận lâm sàng bất thường (`ELEVATED` / `LOW`) kèm ngưỡng tham chiếu.
-     - Lọc bỏ các dòng rác hành chính (số tài khoản ngân hàng, thông báo wifi, hóa đơn VAT, điều khoản miễn trừ trách nhiệm).
-     - Giữ lại các dòng chẩn đoán ra viện, đề nghị điều trị và hẹn tái khám của bác sĩ.
-     - Ngăn ngừa hoàn toàn hiện tượng bùng nổ token, quá tải context window, và hiện tượng "Lost in the Middle" của LLM.
-   - **Truy vấn Bác sĩ Trọng tâm (Focused pgvector Query):** Thay vì gửi toàn văn 30.000 ký tự làm loãng vector cosine similarity, hệ thống xây dựng câu truy vấn chuyên biệt `buildFocusedDoctorQuery` dựa trên chuyên khoa định hướng và các chỉ số bất thường cốt lõi, giúp `pgvector` đạt độ tương thích $> 93\%$ với bác sĩ chuyên khoa sâu phù hợp nhất.
-   - **Dự phòng Scanned PDF (Scanned Fallback):** Nếu tài liệu PDF là bản scan thuần ảnh không có text layer ($< 30$ ký tự), hệ thống tự động kích hoạt `PDFRenderer` chuyển đổi các trang đầu thành ảnh JPEG 150 DPI và đưa qua Vision OCR (`extractTextWithVision`).
+6. **Kiến Trúc AI-First Toàn Diện & Xử Lý Hồ Sơ Đa Trang (AI-First Clinical Reasoning & Multi-Page Windowing):**
+   - **Xóa Bỏ 100% Ma Trận Hardcode & Bịa Bệnh (Zero Fake Diagnoses & Zero Keyword Maps):** Hệ thống không sử dụng các bảng tra cứu tĩnh hay chuỗi if-else chấm điểm từ khóa cố định. Toàn bộ suy luận y khoa được điều phối theo luồng AI-First:
+     - *Pha 1 - Universal Tabular Line Parser:* Quét động mọi dòng cận lâm sàng dạng bảng `[Tên xét nghiệm]: [Kết quả] [Đơn vị] ([Khoảng tham chiếu])`, bóc tách dữ liệu số/định tính thô mà không áp đặt định kiến bệnh tật.
+     - *Pha 2 - Smart Clinical Windowing:* Chắt lọc ngữ cảnh y khoa tập trung cho hồ sơ bệnh án đa trang ($\le 5.500$ ký tự), loại bỏ nhiễu hành chính/viện phí.
+     - *Pha 3 - AI Clinical Reasoning (OpenRouter Gateway):* Mô hình LLM đọc toàn bộ ngữ cảnh lâm sàng, tự suy luận bệnh cảnh, tổng hợp `clinicalSummary`, dịch nghĩa `plainLanguageExplanation`, xác định chuyên khoa phù hợp nhất từ 12 chuyên khoa bệnh viện, và sinh 3 câu hỏi sâu sắc cho người bệnh.
+     - *Pha 4 - pgvector Cosine Similarity Doctor Matching:* Sử dụng chuyên khoa và các chỉ số bất thường do AI xác nhận làm câu truy vấn ngữ nghĩa, tính toán độ tương đồng cosine toán học (`1 - (bio_embedding <=> query_vector)`) trên PostgreSQL pgvector. Bác sĩ đứng đầu danh sách được đề xuất minh bạch kèm tỷ lệ phần trăm tương thích (Tuyệt đối không chọn ngẫu nhiên).
+     - *Chế Độ Ngoại Tuyến Minh Bạch (Transparent Offline Mode):* Khi thiếu `OPENROUTER_API_KEY` hoặc ngoại tuyến, hệ thống hiển thị rõ ràng nhãn cảnh báo Ngoại Tuyến (Offline Fallback), chuyển tuyến Nội Tổng Quát an toàn và không tự tiện suy đoán chẩn đoán bệnh.
+   - **Dự phòng Scanned PDF (Vision OCR):** Nếu PDF là bản scan thuần ảnh không có text layer ($< 30$ ký tự), hệ thống tự động gọi `PDFRenderer` và Vision OCR đa phương thức.
 7. **Khấu trừ Hạn Ngạch:** Trừ 1 lượt quét đối với tài khoản FREE (`scanQuota = scanQuota - 1`). Giữ nguyên không giới hạn đối với hội viên MediPass VIP.
-8. **Phản hồi Giao Diện Tức Thì:**
-   - Hiển thị **Banner Thông Báo Thành Công Nổi Bật** màu xanh ngọc (Emerald Gradient) xác nhận số lượng chỉ số và chuyên khoa đã kết nối.
+8. **Phản hồi Giao Diện Tức Thì & Phân Định Trạng Thái AI:**
+   - Hiển thị **Banner Thông Báo Thành Công Nổi Bật** phân định rõ: Huy hiệu Xanh Ngọc (*"AI Phân Tích Hoàn Tất"*) khi có LLM, hoặc Huy hiệu Vàng Hổ Phách (*"Chế Độ Ngoại Tuyến"*) khi chạy fallback an toàn.
+   - Thẻ hiển thị động cơ phân tích minh bạch tên mô hình AI đã xử lý (`modelUsed`).
    - Màn hình tự động cuộn mượt mà (`scrollIntoView`) đến phần kết quả `#analysis-results`.
-   - Hiển thị bảng chỉ số xét nghiệm đối chiếu, huy hiệu SHA-256 Deduplication (nếu có hit), danh sách Bác sĩ chuyên khoa sâu được đề xuất nổi bật kèm giá khám và nút *"Đặt Khám Ngay"*.
+   - Danh sách Bác sĩ chuyên khoa sâu được sắp xếp chuẩn xác theo điểm số tương đồng cosine từ PostgreSQL pgvector kèm nút *"Đặt Khám Ngay"*.
 
 ---
 

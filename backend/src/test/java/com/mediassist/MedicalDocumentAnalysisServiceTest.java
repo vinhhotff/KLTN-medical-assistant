@@ -125,6 +125,13 @@ class MedicalDocumentAnalysisServiceTest {
         when(doctorSemanticSearchService.searchDoctors(anyString(), eq(4)))
                 .thenReturn(List.of(cardioDoctor));
 
+        com.mediassist.ai.ClinicalAiResult cardioAiResult = new com.mediassist.ai.ClinicalAiResult();
+        cardioAiResult.setModelUsed("google/gemini-2.0-flash-exp:free (OpenRouter)");
+        cardioAiResult.setRecommendedSpecialtySlug("cardiology");
+        cardioAiResult.setRecommendedSpecialtyName("Cardiology (Tim Mạch)");
+        cardioAiResult.setClinicalSummary("Rối loạn lipid máu hỗn hợp, nguy cơ xơ vữa mạch vành.");
+        when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any())).thenReturn(cardioAiResult);
+
         MockMultipartFile file = new MockMultipartFile(
                 "file", "Ket_Qua_Xet_Nghiem_Mo_Mau.pdf", "application/pdf", mockPdfContent.getBytes()
         );
@@ -161,6 +168,13 @@ class MedicalDocumentAnalysisServiceTest {
                 "file", "Xet_Nghiem_Men_Gan.pdf", "application/pdf", mockReport.getBytes()
         );
         when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(mockReport);
+
+        com.mediassist.ai.ClinicalAiResult liverAiResult = new com.mediassist.ai.ClinicalAiResult();
+        liverAiResult.setModelUsed("google/gemini-2.0-flash-exp:free (OpenRouter)");
+        liverAiResult.setRecommendedSpecialtySlug("gastroenterology");
+        liverAiResult.setRecommendedSpecialtyName("Gastroenterology (Tiêu Hóa - Gan Mật)");
+        liverAiResult.setClinicalSummary("Tăng men gan ALT/AST");
+        when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any())).thenReturn(liverAiResult);
 
         DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
 
@@ -276,6 +290,13 @@ class MedicalDocumentAnalysisServiceTest {
         when(doctorSemanticSearchService.searchDoctors(anyString(), eq(4)))
                 .thenReturn(List.of(gastroDoc));
 
+        com.mediassist.ai.ClinicalAiResult multiPageAiResult = new com.mediassist.ai.ClinicalAiResult();
+        multiPageAiResult.setModelUsed("google/gemini-2.0-flash-exp:free (OpenRouter)");
+        multiPageAiResult.setRecommendedSpecialtySlug("gastroenterology");
+        multiPageAiResult.setRecommendedSpecialtyName("Gastroenterology (Tiêu Hóa - Gan Mật)");
+        multiPageAiResult.setClinicalSummary("Viêm gan cấp tính kết hợp rối loạn đường huyết đói.");
+        when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any())).thenReturn(multiPageAiResult);
+
         MockMultipartFile file = new MockMultipartFile(
                 "file", "Ho_So_Benh_An_10_Trang.pdf", "application/pdf", fullDocumentText.getBytes()
         );
@@ -319,6 +340,13 @@ class MedicalDocumentAnalysisServiceTest {
 
         when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(mockThyroidReport);
 
+        com.mediassist.ai.ClinicalAiResult thyroidAiResult = new com.mediassist.ai.ClinicalAiResult();
+        thyroidAiResult.setModelUsed("google/gemini-2.0-flash-exp:free (OpenRouter)");
+        thyroidAiResult.setRecommendedSpecialtySlug("endocrinology");
+        thyroidAiResult.setRecommendedSpecialtyName("Endocrinology & Diabetes (Nội Tiết & Đái Tháo Đường)");
+        thyroidAiResult.setClinicalSummary("Theo dõi suy giáp nguyên phát");
+        when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any())).thenReturn(thyroidAiResult);
+
         MockMultipartFile file = new MockMultipartFile(
                 "file", "Xet_Nghiem_Tuyen_Giap.pdf", "application/pdf", mockThyroidReport.getBytes()
         );
@@ -352,6 +380,13 @@ class MedicalDocumentAnalysisServiceTest {
                 """;
 
         when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(mockRenalReport);
+
+        com.mediassist.ai.ClinicalAiResult renalAiResult = new com.mediassist.ai.ClinicalAiResult();
+        renalAiResult.setModelUsed("google/gemini-2.0-flash-exp:free (OpenRouter)");
+        renalAiResult.setRecommendedSpecialtySlug("nephrology");
+        renalAiResult.setRecommendedSpecialtyName("Nephrology & Urology (Thận - Tiết Niệu)");
+        renalAiResult.setClinicalSummary("Tổn thương thận mạn");
+        when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any())).thenReturn(renalAiResult);
 
         MockMultipartFile file = new MockMultipartFile(
                 "file", "Chuc_Nang_Than_Creatinine.pdf", "application/pdf", mockRenalReport.getBytes()
@@ -397,5 +432,30 @@ class MedicalDocumentAnalysisServiceTest {
         assertTrue(response.getIndicators().stream().anyMatch(i ->
                 i.getName().toLowerCase().contains("vitamin") && "LOW".equals(i.getStatus())
         ));
+    }
+
+    @Test
+    @DisplayName("Should transparently fall back to general internal medicine when AI is offline without fabricating diseases")
+    void testOfflineFallbackDefaultsToGeneralInternalMedicineWithoutFabricatingDiseases() {
+        com.mediassist.ai.ClinicalAiResult offlineResult = new com.mediassist.ai.ClinicalAiResult();
+        offlineResult.setModelUsed("local-deterministic-engine (Safe Offline Fallback)");
+        offlineResult.setProvider("LocalOfflineEngine");
+        offlineResult.setRecommendedSpecialtySlug("general-internal-medicine");
+        offlineResult.setRecommendedSpecialtyName("General Internal Medicine (Nội Tổng Quát - Tham Khảo Ngoại Tuyến)");
+        when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any())).thenReturn(offlineResult);
+
+        String mockReport = """
+                KẾT QUẢ XÉT NGHIỆM MÁU
+                Glucose: 7.2 mmol/L (Tham chiếu: 3.9 - 6.4)
+                """;
+        when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(mockReport);
+
+        MockMultipartFile file = new MockMultipartFile("file", "General.pdf", "application/pdf", mockReport.getBytes());
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertEquals("general-internal-medicine", response.getRecommendedSpecialtySlug());
+        assertTrue(response.getModelUsed().contains("Offline"));
+        assertFalse(response.getIndicators().isEmpty());
     }
 }

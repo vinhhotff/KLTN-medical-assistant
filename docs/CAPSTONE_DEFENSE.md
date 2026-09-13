@@ -169,12 +169,35 @@
 
 ---
 
-### Câu hỏi 9: Điều gì sẽ xảy ra nếu toàn bộ API AI bên ngoài bị ngắt kết nối internet hoặc toàn bộ các nhà cung cấp đều bị sự cố?
+### Câu hỏi 9: Tính năng bóc tách xét nghiệm PDF và phân luồng chuyên khoa có thật sự suy luận bằng AI hay chỉ là so khớp từ khóa (keyword matching) tự bịa bệnh? Cơ chế đề xuất Bác sĩ có phải ngẫu nhiên (random) không?
+* **Trả lời của sinh viên:**  
+  *"Thưa Thầy Cô, nhóm **nói KHÔNG với việc hardcode từ điển bệnh lý và tuyệt đối không tự bịa bệnh án**:
+  1. **Tư Duy AI-First Thay Thế Hoàn Toàn Hardcode:** Thay vì viết các bảng chấm điểm từ khóa tĩnh (như gán TSH sang nội tiết, ALT sang tiêu hóa bằng code if-else cứng), nhóm triển khai kiến trúc **AI-First Clinical Reasoning**:
+     - Bộ phân tích cú pháp biểu thức chính quy bảng (Universal Tabular Parser) chỉ đóng vai trò trích xuất chuỗi số liệu kỹ thuật thô (`Tên chỉ số : Giá trị Đo được [Đơn vị] (Khoảng tham chiếu)`).
+     - Toàn bộ nội dung và ngữ cảnh y khoa được chuyển giao cho **Mô hình Trí tuệ Nhân tạo thực thụ (LLM qua OpenRouter Gateway)** để suy luận chẩn đoán phân biệt, xác định cơ quan tổn thương, phân định 12 chuyên khoa chuẩn bệnh viện, tạo tóm tắt lâm sàng `clinicalSummary` và giải thích bình dân `plainLanguageExplanation`.
+  2. **Thuật Toán Khớp Nối Bác Sĩ Chuẩn Xác, Không Random:**
+     - Hệ thống **hoàn toàn không chọn ngẫu nhiên bác sĩ**.
+     - Dựa trên chuyên khoa và các bất thường cận lâm sàng do AI suy luận, hệ thống tạo vector nhúng và thực hiện truy vấn **Cosine Similarity** trên PostgreSQL `pgvector`:
+       ```sql
+       SELECT ..., 1 - (dp.bio_embedding <=> CAST(? AS vector)) AS similarity_score
+       FROM doctor_profiles dp
+       WHERE dp.is_verified = true AND dp.bio_embedding IS NOT NULL
+       ORDER BY dp.bio_embedding <=> CAST(? AS vector) ASC LIMIT 4;
+       ```
+     - Thuật toán toán học khoảng cách Cosine trên không gian 1536 chiều đảm bảo bác sĩ được đề xuất đứng đầu danh sách là người có hồ sơ chuyên môn và số năm kinh nghiệm sát nhất với bệnh cảnh.
+  3. **Chế Độ Ngoại Tuyến Minh Bạch (Transparent Offline Fallback):** Khi mất mạng hoặc chưa cấu hình API Key, hệ thống tự động gắn nhãn cảnh báo rõ ràng *'Chế độ Ngoại tuyến (Offline Fallback)'*, chỉ hiển thị chỉ số đo được và chuyển tuyến an toàn về Nội Tổng Quát, tuyệt đối không tự tiện suy đoán chẩn đoán bệnh tật."*
+
+---
+
+### Câu hỏi 10: Điều gì sẽ xảy ra nếu toàn bộ API AI bên ngoài bị ngắt kết nối internet hoặc toàn bộ các nhà cung cấp đều bị sự cố?
 * **Trả lời của sinh viên:**  
   *"Thưa Thầy Cô, trong y tế, nguyên tắc số một là **Hệ thống không bao giờ được phép sập (Graceful Degradation)**:
-  - Nhóm đã xây dựng một thành phần dự phòng chuyên biệt mang tên `DeterministicFallbackAiProvider` (Offline Safe Engine).
-  - Khi `AiModelRouter` phát hiện toàn bộ các mô hình bên ngoài đều quá tải hoặc mất mạng internet, hệ thống sẽ tự động chuyển sang phân tích bằng động cơ quy tắc lâm sàng cục bộ (Clinical Rule Engine). Động cơ này tự động bóc tách chỉ số sinh hóa, định hướng chuyên khoa, tạo bản tóm tắt lâm sàng chuẩn xác và chọn bác sĩ có điểm tương đồng vector cao nhất.
-  - Nhờ cơ chế này, hệ thống đạt độ khả dụng 99.9%, bảo vệ bệnh nhân an toàn tuyệt đối ngay cả trong điều kiện thảm họa mất kết nối mạng bên ngoài."*
+  - Nhóm đã xây dựng một thành phần dự phòng an toàn mang tên `DeterministicFallbackAiProvider` (Offline Safe Engine).
+  - Khi `AiModelRouter` phát hiện toàn bộ các mô hình bên ngoài đều quá tải (HTTP 429) hoặc mất kết nối mạng internet, hệ thống sẽ tự động chuyển sang chế độ Ngoại Tuyến:
+    - Bóc tách chỉ số thô và so sánh ngưỡng tham chiếu phòng xét nghiệm.
+    - Không tự ý bịa đặt bệnh cảnh hay chẩn đoán sai lệch.
+    - Chuyển hướng an toàn sang chuyên khoa Nội Tổng Quát và dùng `pgvector` đề xuất các bác sĩ đa khoa có chứng chỉ hành nghề để người bệnh được thăm khám trực tiếp.
+    - Giao diện người dùng hiển thị banner cảnh báo màu hổ phách thông báo rõ hệ thống đang ngoại tuyến, bảo vệ an toàn tối đa cho người bệnh."*
 
 ## 5. Bảng Tiêu Chí Đánh Giá Xuất Sắc Của Hội Đồng (Evaluation Rubric)
 

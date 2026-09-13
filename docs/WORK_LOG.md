@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#033** | 12/09/2026 | Chuyển Đổi Triệt Để Sang Cơ Chế Suy Luận AI Thực Thụ (True AI Clinical Reasoning Engine), Loại Bỏ Hoàn Toàn Danh Mục Cố Định (Zero Hardcoded Dictionaries) & Tự Động Nạp Cấu Hình Môi Trường (.env Loader) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#034** | 13/09/2026 | Toàn Diện Hóa Kiến Trúc AI-First: Xóa Bỏ 100% Ma Trận Điểm Keyword Scoring & Chuỗi If-Else Bịa Bệnh, Minh Bạch Hóa Chế Độ Ngoại Tuyến & Chuẩn Hóa Khớp Nối Bác Sĩ pgvector Cosine Similarity | AI Assistant | 🟢 Sẵn sàng Review |
+| **#033** | 12/09/2026 | Chuyển Đổi Triệt Để Sang Cơ Chế Suy Luận AI Thực Thụ (True AI Clinical Reasoning Engine), Loại Bỏ Hoàn Toàn Danh Mục Cố Định (Zero Hardcoded Dictionaries) & Tự Động Nạp Cấu Hình Môi Trường (.env Loader) | AI Assistant | 🟢 Đã Duyệt |
 | **#032** | 12/09/2026 | Bộ Bóc Tách Cận Lâm Sàng Vạn Năng (Universal Dynamic Lab Extractor), Mở Rộng 100+ Chỉ Số Đa Lĩnh Vực & Hệ Thống Định Tuyến 12 Chuyên Khoa Bệnh Viện Tự Động | AI Assistant | 🟢 Đã Duyệt |
 | **#031** | 12/09/2026 | Nâng Cấp Khả Năng Xử Lý Hồ Sơ Bệnh Án Đa Trang Rườm Rà (10–30 Trang), Smart Clinical Windowing Chống Tràn Token & Tối Ưu Hóa Truy Vấn pgvector Bác Sĩ Chuẩn Xác Cao | AI Assistant | 🟢 Đã Duyệt |
 | **#030** | 12/09/2026 | Khắc Phục Triệt Để Lỗi Tải PDF/Không Phản Hồi, Bổ Sung Banner/Modal Thông Báo Thành Công Tức Thì, Tự Động Cuộn Mượt Kết Quả, Xóa Bỏ Hoàn Toàn Chỉ Số Hardcode Bằng Bộ Bóc Tách Regex Lâm Sàng & Đề Xuất Bác Sĩ Từ pgvector | AI Assistant | 🟢 Đã Duyệt |
@@ -40,6 +41,54 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#034] Toàn Diện Hóa Kiến Trúc AI-First: Xóa Bỏ 100% Ma Trận Điểm Keyword Scoring & Chuỗi If-Else Bịa Bệnh, Minh Bạch Hóa Chế Độ Ngoại Tuyến & Chuẩn Hóa Khớp Nối Bác Sĩ pgvector Cosine Similarity
+* **Thời gian:** 2026-09-13 10:20:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-CLIN-03 (AI Clinical Reasoning & Multimodal Analysis), UC-CLIN-04 (pgvector Doctor Semantic Retrieval)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): cổng **5000** (44/44 Tests PASS)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (`npm run build` 0 TS errors)
+  - Database: PostgreSQL 16 + pgvector (cổng **5433**)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Vấn Đề Kỹ Thuật Đã Giải Quyết (Key Technical Implementations)
+1. **Kiểm duyệt toàn diện thuật toán khớp nối bác sĩ (Doctor Semantic Search Audit)**:
+   - Xác nhận: Hệ thống **HOÀN TOÀN KHÔNG DÙNG RANDOM** để gợi ý bác sĩ.
+   - Thuật toán thực thi: Sử dụng **PostgreSQL `pgvector` Cosine Similarity** (`1 - (dp.bio_embedding <=> CAST(? AS vector))`), sắp xếp theo `similarity_score DESC` và lọc theo chuyên khoa (`specialty_id = ?`).
+   - Embedding truy vấn được sinh từ chuỗi ngữ cảnh y khoa tổng hợp: Chuyên khoa suy luận bởi AI + Các chỉ số cận lâm sàng bất thường.
+2. **Xóa bỏ 100% Ma trận điểm Keyword Scoring & Chuỗi If-Else Bịa Bệnh**:
+   - Loại bỏ hoàn toàn hàm `determineSpecialtyFromFindings()` (120 dòng chấm điểm từ khóa thô sơ) trong `MedicalDocumentAnalysisService.java`.
+   - Loại bỏ hoàn toàn chuỗi if-else 60 dòng trong `DeterministicFallbackAiProvider.java` vốn tự gán bệnh tim mạch/tiểu đường mà không có AI.
+   - Tái cấu trúc pipeline theo chuẩn **AI-First**: Trích xuất chỉ số thô $\rightarrow$ Gửi trực tiếp lên LLM (OpenRouter / R1 / Llama) $\rightarrow$ Tiếp nhận kết quả suy luận y khoa thực thụ (Chuyên khoa, Tóm tắt lâm sàng, Giải thích cho người bệnh, Câu hỏi gợi ý cho bác sĩ).
+3. **Minh bạch hóa Chế độ Ngoại tuyến (Transparent Offline Graceful Degradation)**:
+   - Khi không có `OPENROUTER_API_KEY` hoặc mạng mất kết nối, hệ thống không bịa bệnh mà chuyển sang chế độ dự phòng an toàn:
+     - Mặc định về chuyên khoa Khám Nội Tổng Quát (`general-internal-medicine`) để bác sĩ kiểm tra lại.
+     - Hiển thị đầy đủ bảng chỉ số cận lâm sàng bóc tách được kèm cờ cảnh báo bất thường.
+     - Giao diện Frontend hiển thị badge phân biệt rõ ràng: **AI Verified (Emerald)** (khi có AI xác nhận) vs **Offline Fallback (Amber)** (khi chạy chế độ dự phòng ngoại tuyến).
+4. **Bảo toàn và Mở rộng Bộ Kiểm Thử Tự Động**:
+   - Bổ sung kiểm thử `testOfflineFallbackDefaultsToGeneralInternalMedicineWithoutFabricatingDiseases()` để chặn hồi quy việc bịa bệnh.
+   - Cập nhật các mock test cho luồng phân tích AI. Toàn bộ 44/44 unit test backend đều PASS tuyệt đối.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi (File Changes)
+* `[MOD]` `backend/src/main/java/com/mediassist/ai/DeterministicFallbackAiProvider.java`
+* `[MOD]` `backend/src/main/java/com/mediassist/service/ClinicalRagService.java`
+* `[MOD]` `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`
+* `[MOD]` `backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java`
+* `[MOD]` `frontend/src/pages/patient/DocumentSummarizerPage.tsx`
+* `[MOD]` `docs/CAPSTONE_DEFENSE.md`
+* `[MOD]` `docs/USE_CASES.md`
+* `[MOD]` `docs/WORK_LOG.md`
+
+#### 3. Bằng Chứng Kiểm Thử (Verification Evidence)
+* Backend: `mvn test` $\rightarrow$ **44/44 PASS** (0 failures, 0 errors, 0 skipped).
+* Frontend: `npm run build` $\rightarrow$ **0 TS errors**, clean Vite production bundle.
+
+#### 4. Điểm Nóng Tech Lead Cần Duyệt (Architectural Review Points)
+* **Khớp nối bác sĩ:** Xác nhận 100% dựa trên thuật toán Cosine Similarity trong không gian vector nhúng (`pgvector`), không tồn tại bất kỳ logic random nào.
+* **Suy luận y khoa:** AI LLM là đơn vị ra quyết định duy nhất cho chẩn đoán phân biệt và định tuyến chuyên khoa; mã nguồn không còn chứa ma trận từ khóa suy đoán bệnh.
+
+---
 
 ### [WORK-LOG-#033] Chuyển Đổi Triệt Để Sang Cơ Chế Suy Luận AI Thực Thụ (True AI Clinical Reasoning Engine), Loại Bỏ Hoàn Toàn Danh Mục Cố Định (Zero Hardcoded Dictionaries) & Tự Động Nạp Cấu Hình Môi Trường (.env Loader)
 * **Thời gian:** 2026-09-12 21:15:00 (GMT+7)

@@ -154,37 +154,49 @@ public class MedicalDocumentAnalysisService {
         // 5. Cloud Storage Upload (Supabase Storage with resilient local fallback)
         String storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
 
-        // 6. Comprehensive Lab Scanning across all pages
+        // 6. Comprehensive Lab Scanning across all pages (generic tabular parser - format only)
         List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName);
-        SpecialtyTarget preliminarySpecialty = determineSpecialtyFromFindings(extractedText, fileName, parsedIndicators);
 
-        // 7. Focused pgvector Doctor Retrieval (prevents multi-page noise from diluting cosine similarity)
-        String focusedDoctorQuery = buildFocusedDoctorQuery(preliminarySpecialty, parsedIndicators, fileName);
-        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+        // 7. Smart Clinical Windowing for Multi-Page Verbose Documents
+        String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
 
-        // 8. Smart Clinical Windowing for Multi-Page Verbose Documents
-        String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators, preliminarySpecialty);
+        // 8. AI-First Clinical Reasoning via OpenRouter (or Safe Deterministic Fallback if offline)
+        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, Collections.emptyList());
 
-        // 9. Clinical RAG Analysis (Retrieval-Augmented Generation with OpenRouter / Fallback Engine)
-        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, matchedDoctors);
+        // 9. Derive specialty and findings strictly from AI reasoning
+        String specialtySlug = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
+                ? ragResult.getRecommendedSpecialtySlug().toLowerCase().trim()
+                : "general-internal-medicine";
+        String specialtyName = (ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank())
+                ? ragResult.getRecommendedSpecialtyName()
+                : getSpecialtyDisplayName(specialtySlug);
 
-        // 10. Integrate structured indicators and clinical findings
         List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
                 ? ragResult.getIndicators()
                 : parsedIndicators;
 
-        SpecialtyTarget specialty = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
-                ? new SpecialtyTarget(ragResult.getRecommendedSpecialtySlug(), ragResult.getRecommendedSpecialtyName() != null ? ragResult.getRecommendedSpecialtyName() : preliminarySpecialty.name())
-                : preliminarySpecialty;
-
-        String specialtySlug = specialty.slug();
-        String specialtyName = specialty.name();
         String clinicalSummary = ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank()
-                ? ragResult.getClinicalSummary() : generateClinicalSummary(indicators, specialty);
+                ? ragResult.getClinicalSummary() : generateClinicalSummary(indicators, specialtyName);
         String plainExplanation = ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank()
-                ? ragResult.getPlainLanguageExplanation() : generatePlainLanguageExplanation(indicators, specialty);
+                ? ragResult.getPlainLanguageExplanation() : generatePlainLanguageExplanation(indicators, specialtyName);
         List<String> suggestedQuestions = (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty())
-                ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(specialty, indicators);
+                ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(indicators);
+
+        // 10. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
+        String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
+        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+
+        if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+            DoctorMatchDto top = matchedDoctors.get(0);
+            top.setAiRecommended(true);
+            String reason = (ragResult.getDoctorRecommendationReason() != null && !ragResult.getDoctorRecommendationReason().isBlank())
+                    ? ragResult.getDoctorRecommendationReason()
+                    : String.format("Bác sĩ chuyên khoa %s được đề xuất dựa trên thuật toán tương đồng ngữ nghĩa pgvector (độ tương thích %d%%).",
+                            specialtyName, Math.round(top.getSimilarityScore() * 100));
+            top.setAiRecommendationReason(reason);
+            ragResult.setRecommendedDoctorId(top.getDoctorId());
+            ragResult.setDoctorRecommendationReason(reason);
+        }
 
         // 10. Persist MedicalDocument & DocumentAnalysis
         MedicalDocument medDoc = new MedicalDocument();
@@ -202,8 +214,8 @@ public class MedicalDocumentAnalysisService {
         analysis.setDocument(medDoc);
         analysis.setClinicalSummary(clinicalSummary);
         analysis.setPlainLanguageExplanation(plainExplanation);
-        analysis.setRecommendedSpecialtySlug(specialty.slug());
-        analysis.setRecommendedSpecialtyName(specialty.name());
+        analysis.setRecommendedSpecialtySlug(specialtySlug);
+        analysis.setRecommendedSpecialtyName(specialtyName);
 
         try {
             analysis.setAbnormalIndicatorsJson(objectMapper.writeValueAsString(indicators));
@@ -230,8 +242,8 @@ public class MedicalDocumentAnalysisService {
         response.setClinicalSummary(clinicalSummary);
         response.setPlainLanguageExplanation(plainExplanation);
         response.setIndicators(indicators);
-        response.setRecommendedSpecialtySlug(specialty.slug());
-        response.setRecommendedSpecialtyName(specialty.name());
+        response.setRecommendedSpecialtySlug(specialtySlug);
+        response.setRecommendedSpecialtyName(specialtyName);
         response.setSuggestedQuestions(suggestedQuestions);
         response.setMatchedDoctors(matchedDoctors);
         response.setStorageUrl(storageUrl);
@@ -279,37 +291,49 @@ public class MedicalDocumentAnalysisService {
         // 2. Strict Gatekeeper Validation (Rejects non-medical / unreadable images without guessing!)
         medicalDocumentValidator.validateDocument(fileBytes, contentType, extractedText, fileName);
 
-        // 3. Comprehensive Lab Scanning across all pages
+        // 3. Comprehensive Lab Scanning across all pages (generic tabular parser - format only)
         List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName);
-        SpecialtyTarget preliminarySpecialty = determineSpecialtyFromFindings(extractedText, fileName, parsedIndicators);
 
-        // 4. Focused pgvector Doctor Retrieval (prevents multi-page noise from diluting cosine similarity)
-        String focusedDoctorQuery = buildFocusedDoctorQuery(preliminarySpecialty, parsedIndicators, fileName);
-        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+        // 4. Smart Clinical Windowing for Multi-Page Verbose Documents
+        String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
 
-        // 5. Smart Clinical Windowing for Multi-Page Verbose Documents
-        String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators, preliminarySpecialty);
+        // 5. AI-First Clinical Reasoning via OpenRouter (or Safe Deterministic Fallback if offline)
+        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, Collections.emptyList());
 
-        // 6. Clinical RAG Analysis (or Safe Deterministic Fallback)
-        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, matchedDoctors);
+        // 6. Derive specialty and findings strictly from AI reasoning
+        String specialtySlug = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
+                ? ragResult.getRecommendedSpecialtySlug().toLowerCase().trim()
+                : "general-internal-medicine";
+        String specialtyName = (ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank())
+                ? ragResult.getRecommendedSpecialtyName()
+                : getSpecialtyDisplayName(specialtySlug);
 
-        // 7. Structure abnormal indicators
         List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
                 ? ragResult.getIndicators()
                 : parsedIndicators;
 
-        SpecialtyTarget specialty = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
-                ? new SpecialtyTarget(ragResult.getRecommendedSpecialtySlug(), ragResult.getRecommendedSpecialtyName() != null ? ragResult.getRecommendedSpecialtyName() : preliminarySpecialty.name())
-                : preliminarySpecialty;
-
-        String specialtySlug = specialty.slug();
-        String specialtyName = specialty.name();
         String clinicalSummary = ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank()
-                ? ragResult.getClinicalSummary() : generateClinicalSummary(indicators, specialty);
+                ? ragResult.getClinicalSummary() : generateClinicalSummary(indicators, specialtyName);
         String plainExplanation = ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank()
-                ? ragResult.getPlainLanguageExplanation() : generatePlainLanguageExplanation(indicators, specialty);
+                ? ragResult.getPlainLanguageExplanation() : generatePlainLanguageExplanation(indicators, specialtyName);
         List<String> suggestedQuestions = (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty())
-                ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(specialty, indicators);
+                ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(indicators);
+
+        // 7. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
+        String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
+        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+
+        if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+            DoctorMatchDto top = matchedDoctors.get(0);
+            top.setAiRecommended(true);
+            String reason = (ragResult.getDoctorRecommendationReason() != null && !ragResult.getDoctorRecommendationReason().isBlank())
+                    ? ragResult.getDoctorRecommendationReason()
+                    : String.format("Bác sĩ chuyên khoa %s được đề xuất dựa trên thuật toán tương đồng ngữ nghĩa pgvector (độ tương thích %d%%).",
+                            specialtyName, Math.round(top.getSimilarityScore() * 100));
+            top.setAiRecommendationReason(reason);
+            ragResult.setRecommendedDoctorId(top.getDoctorId());
+            ragResult.setDoctorRecommendationReason(reason);
+        }
 
         DocumentAnalysisResponse response = new DocumentAnalysisResponse();
         response.setDocumentId(UUID.randomUUID());
@@ -565,252 +589,71 @@ public class MedicalDocumentAnalysisService {
         return "NORMAL";
     }
 
-    /**
-     * Dynamic Multi-Domain Specialty Classifier.
-     * Evaluates findings against all 12 hospital departments configured in the database:
-     * cardiology, neurology, gastroenterology, dermatology, pediatrics, general-internal-medicine,
-     * pulmonology, orthopedics, nephrology, obstetrics-gynecology, endocrinology, ent.
-     */
-    private SpecialtyTarget determineSpecialtyFromFindings(String text, String fileName, List<AbnormalIndicatorDto> indicators) {
-        String combined = stripAccents((text + " " + (fileName != null ? fileName : "")).toLowerCase());
+    private static final Map<String, String> SPECIALTY_NAMES = Map.ofEntries(
+            Map.entry("cardiology", "Cardiology (Tim Mạch)"),
+            Map.entry("neurology", "Neurology (Thần Kinh)"),
+            Map.entry("gastroenterology", "Gastroenterology (Tiêu Hóa - Gan Mật)"),
+            Map.entry("dermatology", "Dermatology (Da Liễu)"),
+            Map.entry("pediatrics", "Pediatrics (Nhi Khoa)"),
+            Map.entry("pulmonology", "Pulmonology (Hô Hấp & Phổi)"),
+            Map.entry("orthopedics", "Orthopedics (Cơ Xương Khớp & Chấn Thương Chỉnh Hình)"),
+            Map.entry("nephrology", "Nephrology & Urology (Thận - Tiết Niệu)"),
+            Map.entry("obstetrics-gynecology", "Obstetrics & Gynecology (Sản Phụ Khoa)"),
+            Map.entry("endocrinology", "Endocrinology & Diabetes (Nội Tiết & Đái Tháo Đường)"),
+            Map.entry("ent", "Otolaryngology (Tai Mũi Họng)"),
+            Map.entry("general-internal-medicine", "General Internal Medicine (Nội Tổng Quát)")
+    );
 
-        Map<String, Integer> scores = new HashMap<>();
-        scores.put("endocrinology", 0);
-        scores.put("nephrology", 0);
-        scores.put("cardiology", 0);
-        scores.put("gastroenterology", 0);
-        scores.put("pulmonology", 0);
-        scores.put("neurology", 0);
-        scores.put("orthopedics", 0);
-        scores.put("dermatology", 0);
-        scores.put("pediatrics", 0);
-        scores.put("obstetrics-gynecology", 0);
-        scores.put("ent", 0);
-        scores.put("general-internal-medicine", 0);
-
-        // 1. Evaluate Detected Clinical Indicators (Weight +8 for Abnormal, +3 for Normal match)
-        if (indicators != null) {
-            for (AbnormalIndicatorDto ind : indicators) {
-                String n = stripAccents(ind.getName()).toLowerCase();
-                boolean isAbnormal = "ELEVATED".equals(ind.getStatus()) || "LOW".equals(ind.getStatus());
-                int weight = isAbnormal ? 8 : 3;
-
-                // Endocrinology
-                if (n.contains("tsh") || n.contains("ft4") || n.contains("ft3") || n.contains("glucose") ||
-                    n.contains("hba1c") || n.contains("cortisol") || n.contains("insulin") || n.contains("peptide") ||
-                    n.contains("giap") || n.contains("duong")) {
-                    scores.merge("endocrinology", weight, Integer::sum);
-                }
-                // Nephrology & Urology
-                if (n.contains("creatinin") || n.contains("egfr") || n.contains("gfr") || n.contains("ure") ||
-                    n.contains("bun") || n.contains("dam nieu") || n.contains("protein nieu") || n.contains("microalbumin") ||
-                    n.contains("acr") || n.contains("psa")) {
-                    scores.merge("nephrology", weight, Integer::sum);
-                }
-                // Cardiology
-                if (n.contains("cholesterol") || n.contains("triglycerid") || n.contains("ldl") || n.contains("hdl") ||
-                    n.contains("troponin") || n.contains("probnp") || n.contains("bnp") || n.contains("ck-mb")) {
-                    scores.merge("cardiology", weight, Integer::sum);
-                }
-                // Gastroenterology & Hepatology
-                if (n.contains("alt") || n.contains("ast") || n.contains("got") || n.contains("gpt") ||
-                    n.contains("ggt") || n.contains("alp") || n.contains("bilirubin") || n.contains("amylase") ||
-                    n.contains("lipase") || n.contains("afp") || n.contains("ca 19-9") || n.contains("hbsag") ||
-                    n.contains("hcv") || n.contains("helicobacter") || n.contains("hp")) {
-                    scores.merge("gastroenterology", weight, Integer::sum);
-                }
-                // Orthopedics & Gout
-                if (n.contains("acid uric") || n.contains("uric acid")) {
-                    scores.merge("orthopedics", weight, Integer::sum);
-                }
-                // Obstetrics-Gynecology
-                if (n.contains("ca 125") || n.contains("hcg") || n.contains("estrogen") || n.contains("progesterone")) {
-                    scores.merge("obstetrics-gynecology", weight, Integer::sum);
-                }
-                // General Internal Medicine / Hematology
-                if (n.contains("wbc") || n.contains("rbc") || n.contains("hgb") || n.contains("plt") ||
-                    n.contains("bach cau") || n.contains("hong cau") || n.contains("tieu cau") ||
-                    n.contains("crp") || n.contains("pct") || n.contains("esr") || n.contains("natri") ||
-                    n.contains("kali") || n.contains("clo") || n.contains("canxi") || n.contains("ferritin")) {
-                    scores.merge("general-internal-medicine", isAbnormal ? 4 : 1, Integer::sum);
-                }
-            }
+    public static String getSpecialtyDisplayName(String slug) {
+        if (slug == null || slug.isBlank()) {
+            return "General Internal Medicine (Nội Tổng Quát)";
         }
-
-        // 2. Evaluate Clinical Terminology in Document Text & Filename (+4 per keyword hit)
-        Map<String, List<String>> keywordMap = Map.ofEntries(
-                Map.entry("endocrinology", List.of("noi tiet", "tuyen giap", "suy giap", "cuong giap", "buou co", "dai thao duong", "tieu duong", "ha duong huyet", "insulin", "cushing", "basedow")),
-                Map.entry("nephrology", List.of("than", "suy than", "tiet nieu", "cau than", "soi than", "tien liet tuyen", "tieu dem", "tieu buot", "tieu ra mau", "chay than", "loc mau", "bang quang")),
-                Map.entry("cardiology", List.of("tim mach", "nhoi mau", "tang huyet ap", "suy tim", "mach vanh", "xo vua", "ecg", "dien tam do", "sieu am tim", "ha huyet ap", "loan nhip")),
-                Map.entry("gastroenterology", List.of("tieu hoa", "gan mat", "men gan", "viem gan", "xo gan", "da day", "dai trang", "tuy", "viem tuy", "soi mat", "trao nguoc", "loet da day")),
-                Map.entry("pulmonology", List.of("ho hap", "phoi", "phe quan", "hen suyenh", "copd", "viem phoi", "x-quang phoi", "ct nguc", "spo2", "kho tho", "ho khan", "lao phoi")),
-                Map.entry("neurology", List.of("than kinh", "tien dinh", "chong mat", "dau dau", "dot quy", "tai bien", "eeg", "dien nao", "mri nao", "sa sut tri tue", "parkinson", "te bi")),
-                Map.entry("orthopedics", List.of("co xuong khop", "khop", "thoai hoa khop", "gay xuong", "loang xuong", "gout", "cot song", "thoat vi", "dia dem", "day chang", "chan thuong")),
-                Map.entry("dermatology", List.of("da lieu", "viem da", "di ung", "me day", "vay nen", "cham", "eczema", "mun", "nam da", "zona", "ngua ngap")),
-                Map.entry("pediatrics", List.of("nhi khoa", "tre em", "so sinh", "tiem chung", "dinh duong tre", "chieu cao", "can nang tre")),
-                Map.entry("obstetrics-gynecology", List.of("san phu khoa", "phu khoa", "thai ky", "sieu am thai", "tu cung", "buong trung", "kinh nguyet", "san khoa", "sinh no")),
-                Map.entry("ent", List.of("tai mui hong", "viem xoang", "viem hong", "viem tai", "amidan", "thanh quan", "polyp mui", "u tai", "nghet mui"))
-        );
-
-        for (Map.Entry<String, List<String>> entry : keywordMap.entrySet()) {
-            for (String kw : entry.getValue()) {
-                if (combined.contains(kw)) {
-                    scores.merge(entry.getKey(), 4, Integer::sum);
-                }
-            }
-        }
-
-        // 3. Find Specialty with highest score
-        String bestSlug = "general-internal-medicine";
-        int maxScore = 0;
-        for (Map.Entry<String, Integer> entry : scores.entrySet()) {
-            if (entry.getValue() > maxScore) {
-                maxScore = entry.getValue();
-                bestSlug = entry.getKey();
-            }
-        }
-
-        // If score is negligible, fall back to General Internal Medicine
-        if (maxScore < 3) {
-            bestSlug = "general-internal-medicine";
-        }
-
-        Map<String, String> names = Map.ofEntries(
-                Map.entry("cardiology", "Cardiology (Tim Mạch)"),
-                Map.entry("neurology", "Neurology (Thần Kinh)"),
-                Map.entry("gastroenterology", "Gastroenterology (Tiêu Hóa - Gan Mật)"),
-                Map.entry("dermatology", "Dermatology (Da Liễu)"),
-                Map.entry("pediatrics", "Pediatrics (Nhi Khoa)"),
-                Map.entry("pulmonology", "Pulmonology (Hô Hấp & Phổi)"),
-                Map.entry("orthopedics", "Orthopedics (Cơ Xương Khớp & Chấn Thương Chỉnh Hình)"),
-                Map.entry("nephrology", "Nephrology & Urology (Thận - Tiết Niệu)"),
-                Map.entry("obstetrics-gynecology", "Obstetrics & Gynecology (Sản Phụ Khoa)"),
-                Map.entry("endocrinology", "Endocrinology & Diabetes (Nội Tiết & Đái Tháo Đường)"),
-                Map.entry("ent", "Otolaryngology (Tai Mũi Họng)"),
-                Map.entry("general-internal-medicine", "General Internal Medicine (Nội Tổng Quát)")
-        );
-
-        return new SpecialtyTarget(bestSlug, names.getOrDefault(bestSlug, "General Internal Medicine (Nội Tổng Quát)"));
+        return SPECIALTY_NAMES.getOrDefault(slug.toLowerCase().trim(), "General Internal Medicine (Nội Tổng Quát)");
     }
 
-    private String generateClinicalSummary(List<AbnormalIndicatorDto> indicators, SpecialtyTarget specialty) {
-        long elevatedCount = indicators.stream().filter(i -> "ELEVATED".equals(i.getStatus())).count();
-        long lowCount = indicators.stream().filter(i -> "LOW".equals(i.getStatus())).count();
-
-        List<String> abnormalHighlights = indicators.stream()
+    private String generateClinicalSummary(List<AbnormalIndicatorDto> indicators, String specialtyName) {
+        long abnormalCount = indicators != null ? indicators.stream()
                 .filter(i -> "ELEVATED".equals(i.getStatus()) || "LOW".equals(i.getStatus()))
-                .map(i -> String.format("%s: %s %s (%s)", i.getName(), i.getValue(), i.getUnit(), i.getStatus()))
-                .limit(4)
-                .toList();
-
-        if (elevatedCount == 0 && lowCount == 0) {
-            return String.format(
-                    "Tất cả các chỉ số xét nghiệm cận lâm sàng bóc tách từ tài liệu đều nằm trong giới hạn tham chiếu an toàn. " +
-                    "Định hướng kiểm tra sức khỏe tổng quát thuộc chuyên khoa %s để duy trì chỉ số sinh học ổn định.",
-                    specialty.name()
-            );
-        }
-
-        String highlightStr = !abnormalHighlights.isEmpty()
-                ? " Chỉ số tiêu biểu ghi nhận bất thường: " + String.join(", ", abnormalHighlights) + "."
-                : "";
+                .count() : 0;
+        int totalCount = indicators != null ? indicators.size() : 0;
 
         return String.format(
-                "Kết quả phân tích tài liệu y tế ghi nhận %d chỉ số tăng cao bất thường và %d chỉ số dưới ngưỡng chuẩn.%s " +
-                "Tình trạng cận lâm sàng có tính chất khu trú ưu tiên thuộc chuyên khoa %s. Bệnh nhân cần được hội chẩn chuyên sâu để thiết lập phác đồ theo dõi và can thiệp kịp thời.",
-                elevatedCount, lowCount, highlightStr, specialty.name()
+                "Chế độ Ngoại tuyến: Hệ thống đã bóc tách %d chỉ số xét nghiệm từ tài liệu (ghi nhận %d chỉ số nằm ngoài khoảng tham chiếu chuẩn). " +
+                "Định hướng tham khảo chuyên khoa %s. Vui lòng tham vấn Bác sĩ chuyên môn để có chẩn đoán bệnh cảnh chính xác.",
+                totalCount, abnormalCount, specialtyName
         );
     }
 
-    private String generatePlainLanguageExplanation(List<AbnormalIndicatorDto> indicators, SpecialtyTarget specialty) {
+    private String generatePlainLanguageExplanation(List<AbnormalIndicatorDto> indicators, String specialtyName) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Chào bạn! Dưới đây là giải thích đơn giản và chi tiết về kết quả xét nghiệm của bạn:\n\n");
+        sb.append("⚠️ **Thông báo Chế độ Ngoại tuyến (Offline Mode)**:\n\n");
+        sb.append("Kết quả dưới đây được bóc tách kỹ thuật từ tài liệu của bạn và đối chiếu với khoảng tham chiếu tiêu chuẩn của phòng xét nghiệm. ");
+        sb.append("Do hệ thống chưa kết nối mô hình Trí tuệ Nhân tạo (LLM), bản giải thích chi tiết về nguyên nhân bệnh lý chưa được khởi tạo.\n\n");
 
-        List<AbnormalIndicatorDto> abnormalList = indicators.stream()
-                .filter(i -> "ELEVATED".equals(i.getStatus()) || "LOW".equals(i.getStatus()))
-                .toList();
-
-        if (abnormalList.isEmpty()) {
-            sb.append("🎉 Tin vui: Toàn bộ các chỉ số xét nghiệm ghi nhận trong tài liệu của bạn đều nằm trong khoảng bình thường an toàn. Bạn không có dấu hiệu bất thường cấp tính nào trên kết quả này.\n\n");
-        } else {
-            sb.append("⚠️ Các chỉ số cần bạn và Bác sĩ lưu ý đặc biệt:\n");
-            for (AbnormalIndicatorDto item : abnormalList) {
-                String direction = "ELEVATED".equals(item.getStatus()) ? "vượt ngưỡng tham chiếu an toàn" : "thấp hơn mức chuẩn thông thường";
-                sb.append(String.format("• **%s**: Đo được **%s %s** (Mức tham chiếu: %s - %s).\n  -> Ý nghĩa: %s\n",
-                        item.getName(), item.getValue(), item.getUnit(), item.getReferenceRange(), direction, item.getClinicalSignificance()));
+        if (indicators != null && !indicators.isEmpty()) {
+            List<AbnormalIndicatorDto> abnormalList = indicators.stream()
+                    .filter(i -> "ELEVATED".equals(i.getStatus()) || "LOW".equals(i.getStatus()))
+                    .toList();
+            if (!abnormalList.isEmpty()) {
+                sb.append("**Các chỉ số cần lưu ý (nằm ngoài khoảng tham chiếu)**:\n");
+                for (AbnormalIndicatorDto item : abnormalList) {
+                    sb.append(String.format("• **%s**: %s %s (Tham chiếu: %s, Đánh giá: %s)\n",
+                            item.getName(), item.getValue(), item.getUnit(), item.getReferenceRange(), item.getStatus()));
+                }
+                sb.append("\n");
             }
-            sb.append("\n");
         }
 
-        sb.append(String.format("👉 **Khuyến nghị từ MediAssist**: Bạn nên trao đổi trực tiếp với Bác sĩ chuyên khoa **%s** để được tư vấn phác đồ chuẩn y khoa, đánh giá nguyên nhân gốc rễ và xem xét chỉ định cận lâm sàng bổ sung nếu cần.", specialty.name()));
+        sb.append(String.format("👉 **Khuyến nghị**: Bạn vui lòng trao đổi trực tiếp với Bác sĩ chuyên khoa **%s** để được chẩn đoán chính xác và tư vấn phác đồ điều trị phù hợp.", specialtyName));
         return sb.toString();
     }
 
-    private List<String> generateSuggestedQuestions(SpecialtyTarget specialty, List<AbnormalIndicatorDto> indicators) {
-        Map<String, List<String>> specialtyQuestions = Map.ofEntries(
-                Map.entry("endocrinology", List.of(
-                        "Tôi có cần thực hiện thêm nghiệm pháp dung nạp glucose hoặc siêu âm tuyến giáp không?",
-                        "Những dấu hiệu lâm sàng nào cho thấy tôi đang bị rối loạn nội tiết tố nghiêm trọng?",
-                        "Chế độ dinh dưỡng và lối sống nào giúp ổn định hệ nội tiết của tôi lâu dài?"
-                )),
-                Map.entry("nephrology", List.of(
-                        "Chức năng lọc của thận hiện tại của tôi đang ở giai đoạn mấy?",
-                        "Tôi có cần làm thêm xét nghiệm nước tiểu 24 giờ hoặc siêu âm hệ tiết niệu không?",
-                        "Những loại thuốc thông thường nào (như giảm đau kháng viêm NSAID) tôi cần tuyệt đối tránh?"
-                )),
-                Map.entry("cardiology", List.of(
-                        "Chỉ số xét nghiệm này có làm tăng nguy cơ nhồi máu cơ tim hoặc đột quỵ của tôi không?",
-                        "Tôi có cần đo huyết áp liên tục 24h (Holter huyết áp) hoặc siêu âm tim không?",
-                        "Chế độ vận động thể thao nào là an toàn và tốt nhất cho tim mạch của tôi?"
-                )),
-                Map.entry("gastroenterology", List.of(
-                        "Tôi có cần thực hiện nội soi dạ dày - đại tràng để tìm ổ viêm loét hoặc vi khuẩn HP không?",
-                        "Chế độ ăn cho bệnh lý tiêu hóa gan mật của tôi cần chú ý những gì?",
-                        "Sau bao lâu thì tôi nên đi kiểm tra lại men gan và chức năng tiêu hóa?"
-                )),
-                Map.entry("pulmonology", List.of(
-                        "Hình ảnh hoặc chỉ số hô hấp này có gợi ý bệnh lý viêm phế quản hay hen suyễn không?",
-                        "Tôi có cần đo chức năng thông khí phổi (hô hấp ký) để đánh giá dung tích phổi không?",
-                        "Những biện pháp nào giúp bảo vệ phổi trước khói bụi và môi trường ô nhiễm?"
-                )),
-                Map.entry("neurology", List.of(
-                        "Triệu chứng chóng mặt và đau đầu này có liên quan đến thiểu năng tuần hoàn não không?",
-                        "Tôi có cần chụp MRI sọ não hoặc đo điện não đồ (EEG) để loại trừ tổn thương não không?",
-                        "Những bài tập nào giúp cải thiện sự tập trung và giảm tình trạng rối loạn tiền đình?"
-                )),
-                Map.entry("orthopedics", List.of(
-                        "Tình trạng đau khớp hiện tại của tôi có phải do thoái hóa hay do lắng đọng tinh thể acid uric?",
-                        "Tôi có cần chụp X-quang khớp hoặc đo mật độ xương (DEXA) không?",
-                        "Các bài tập phục hồi chức năng nào phù hợp cho khớp của tôi?"
-                )),
-                Map.entry("dermatology", List.of(
-                        "Tình trạng da của tôi có phải do dị ứng thời tiết, tiếp xúc hay viêm da cơ địa?",
-                        "Tôi có cần làm xét nghiệm dị nguyên để tìm tác nhân gây dị ứng không?",
-                        "Những loại mỹ phẩm hoặc hóa chất nào tôi cần tạm ngưng sử dụng?"
-                )),
-                Map.entry("pediatrics", List.of(
-                        "Các chỉ số phát triển của bé hiện tại có đạt chuẩn theo lứa tuổi không?",
-                        "Bé có cần bổ sung thêm vi chất dinh dưỡng (Canxi, Vitamin D, Sắt, Kẽm) nào không?",
-                        "Lịch tiêm phòng vắc xin sắp tới của bé cần được thực hiện như thế nào?"
-                )),
-                Map.entry("obstetrics-gynecology", List.of(
-                        "Kết quả này có ảnh hưởng gì đến sức khỏe sinh sản hoặc chu kỳ nội tiết phụ khoa không?",
-                        "Tôi có cần làm thêm siêu âm đầu dò phụ khoa hoặc xét nghiệm tầm soát ung thư cổ tử cung không?",
-                        "Bác sĩ có khuyến nghị tôi theo dõi chu kỳ hoặc xét nghiệm lại vào thời điểm nào?"
-                )),
-                Map.entry("ent", List.of(
-                        "Tình trạng viêm mũi họng này có nguy cơ chuyển thành viêm xoang mạn tính không?",
-                        "Tôi có cần nội soi tai mũi họng bằng ống mềm để kiểm tra sâu hơn không?",
-                        "Làm thế nào để vệ sinh mũi họng đúng cách hàng ngày mà không làm tổn thương niêm mạc?"
-                )),
-                Map.entry("general-internal-medicine", List.of(
-                        "Các chỉ số xét nghiệm này phản ánh sức khỏe tổng thể của tôi đang ở mức nào?",
-                        "Bác sĩ có khuyến nghị tôi làm thêm kiểm tra định kỳ nào sau 3 hoặc 6 tháng không?",
-                        "Tôi có cần điều chỉnh chế độ sinh hoạt, ngủ nghỉ để cải thiện các chỉ số này không?"
-                ))
+    private List<String> generateSuggestedQuestions(List<AbnormalIndicatorDto> indicators) {
+        return List.of(
+                "Bác sĩ có thể giải thích ý nghĩa các chỉ số nằm ngoài khoảng tham chiếu này không?",
+                "Với kết quả này, tôi có cần làm thêm xét nghiệm hoặc chẩn đoán hình ảnh bổ sung nào không?",
+                "Chế độ ăn uống, sinh hoạt hoặc dùng thuốc hiện tại của tôi cần điều chỉnh như thế nào?"
         );
-
-        return specialtyQuestions.getOrDefault(specialty.slug(), specialtyQuestions.get("general-internal-medicine"));
     }
 
     private String extractDocumentText(byte[] fileBytes, String contentType, String fileName) {
@@ -854,7 +697,7 @@ public class MedicalDocumentAnalysisService {
      * Retains patient metadata header, detected abnormal indicators, clinical findings, and diagnostic conclusions,
      * while discarding repetitive non-medical administrative boilerplate.
      */
-    private String distillClinicalContext(String fullText, String fileName, List<AbnormalIndicatorDto> indicators, SpecialtyTarget specialty) {
+    private String distillClinicalContext(String fullText, String fileName, List<AbnormalIndicatorDto> indicators) {
         if (fullText == null || fullText.isBlank() || fullText.length() <= 4500) {
             return fullText != null ? fullText : "";
         }
@@ -864,7 +707,7 @@ public class MedicalDocumentAnalysisService {
 
         StringBuilder distilled = new StringBuilder();
         distilled.append("=== TÓM TẮT HỒ SƠ Y TẾ TẬP TRUNG (DISTILLED CLINICAL CONTEXT) ===\n");
-        distilled.append(String.format("Tài liệu: %s | Chuyên khoa định hướng: %s\n\n", fileName, specialty.name()));
+        distilled.append(String.format("Tài liệu y tế: %s\n\n", fileName));
 
         // 1. Patient & Document Header (first 10-15 lines)
         String[] lines = fullText.split("\\r?\\n");
@@ -944,9 +787,9 @@ public class MedicalDocumentAnalysisService {
      * Builds a laser-focused query for pgvector doctor matching.
      * Prevents multi-page non-medical administrative noise from degrading cosine similarity.
      */
-    private String buildFocusedDoctorQuery(SpecialtyTarget specialty, List<AbnormalIndicatorDto> indicators, String fileName) {
+    private String buildFocusedDoctorQuery(String specialtySlug, String specialtyName, List<AbnormalIndicatorDto> indicators, String fileName) {
         StringBuilder query = new StringBuilder();
-        query.append("Bác sĩ chuyên khoa ").append(specialty.name()).append(". ");
+        query.append("Bác sĩ chuyên khoa ").append(specialtyName).append(". ");
 
         List<String> abnormalSummary = new ArrayList<>();
         if (indicators != null) {
@@ -963,7 +806,7 @@ public class MedicalDocumentAnalysisService {
                     .append(". ");
         }
 
-        query.append("Tư vấn chẩn đoán và điều trị bệnh lý chuyên khoa ").append(specialty.slug()).append(".");
+        query.append("Tư vấn chẩn đoán và điều trị bệnh lý chuyên khoa ").append(specialtySlug).append(".");
         return query.toString();
     }
 
@@ -972,6 +815,4 @@ public class MedicalDocumentAnalysisService {
         Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
         return pattern.matcher(n).replaceAll("").replace('đ', 'd').replace('Đ', 'D');
     }
-
-    private record SpecialtyTarget(String slug, String name) {}
 }

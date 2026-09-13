@@ -117,7 +117,7 @@ public class ClinicalRagService {
                 top.setAiRecommended(true);
                 String reason = (result.getDoctorRecommendationReason() != null && !result.getDoctorRecommendationReason().isBlank())
                         ? result.getDoctorRecommendationReason()
-                        : String.format("Bác sĩ chuyên khoa %s có độ tương thích cao nhất (%d%%) với các chỉ số trong tài liệu này theo phân tích pgvector.",
+                        : String.format("Bác sĩ chuyên khoa %s được đề xuất dựa trên thuật toán tương đồng ngữ nghĩa pgvector (độ tương thích %d%%).",
                                 (top.getSpecialties() != null && !top.getSpecialties().isEmpty()) ? top.getSpecialties().get(0) : "Chuyên khoa",
                                 Math.round(top.getSimilarityScore() * 100));
                 top.setAiRecommendationReason(reason);
