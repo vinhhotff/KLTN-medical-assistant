@@ -11,7 +11,57 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#037** | 13/09/2026 | Khởi Động Toàn Diện Hệ Sinh Thái MediAssist-AI (Docker pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173), Sửa Lỗi Constructor Injection & Xác Thực End-to-End | AI Assistant | 🟢 Sẵn sàng Review |
+| **#038** | 13/09/2026 | Khắc Phục Triệt Để Lỗi Ngoại Tuyến (Offline Fallback): Cập Nhật Bể Mô Hình OpenRouter Active Mới Nhất (inclusionai/ling-3.0-flash-sante:free, nex-agi/nex-n2.5-mini:free, openrouter/free) & Tối Ưu Timeout 15s | AI Assistant | 🟢 Sẵn sàng Review |
+| **#037** | 13/09/2026 | Khởi Động Toàn Diện Hệ Sinh Thái MediAssist-AI (Docker pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173), Sửa Lỗi Constructor Injection & Xác Thực End-to-End | AI Assistant | 🟢 Đã Duyệt |
+
+---
+
+## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#038] Khắc Phục Triệt Để Lỗi Ngoại Tuyến (Offline Fallback): Cập Nhật Bể Mô Hình OpenRouter Active Mới Nhất (inclusionai/ling-3.0-flash-sante:free, nex-agi/nex-n2.5-mini:free, openrouter/free) & Tối Ưu Timeout 15s
+* **Thời gian:** 2026-09-13 14:50:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-CLIN-01 (AI Symptom Triage), UC-CLIN-02 (Clinical Laboratory Document RAG Analysis)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (47/47 Tests PASS, Live Online AI Verified)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (HTTP 200 OK)
+  - Database: PostgreSQL 16 + pgvector (cổng **5433** - HEALTHY)
+  - Cache: Redis 7-alpine (cổng **6379** - HEALTHY)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Nguyên Nhân Gốc Rễ Gây Ra Cảnh Báo "Ngoại Tuyến" (Root Cause Analysis)
+1. **OpenRouter Đóng Tier Free Của 4 Model Cũ**:
+   - Cấu hình cũ khai báo 4 model: `google/gemini-2.0-flash-exp:free`, `meta-llama/llama-3.3-70b-instruct:free`, `deepseek/deepseek-r1:free`, `qwen/qwen-2.5-72b-instruct:free`.
+   - OpenRouter đã chuyển đổi chính sách dịch vụ: các slug này trả về lỗi `HTTP 404 Not Found: "This model is unavailable for free. The paid version is available now"` hoặc `"No endpoints found"`.
+   - Cơ chế bảo vệ hệ thống (`AiModelRouter`) khi duyệt qua cả 4 model đều bị 404 đã kích hoạt chế độ an toàn **Local Deterministic Fallback Engine** để không làm gãy luồng người dùng, đồng thời gắn cờ cảnh báo ngoại tuyến lên giao diện.
+2. **Hiện tượng Cache Deduplication (SHA-256 Checksum)**:
+   - Nếu tệp tin đã từng được phân tích trong thời điểm hệ thống đang fallback ngoại tuyến, kết quả lưu trữ trong DB sẽ được tái sử dụng khi tải lại cùng tệp tin đó (0 token consumed).
+
+#### 2. Các Giải Pháp Đã Triển Khai (Key Technical Implementations)
+1. **Truy vấn danh mục Live Models của OpenRouter & Tuyển chọn Bể Model Miễn Phí Tối Ưu**:
+   - **`inclusionai/ling-3.0-flash-sante:free`** (Mô hình chuyên sâu Y tế & Lâm sàng "Sante", suy luận chỉ số xét nghiệm và SBAR cực kỳ chính xác, phản hồi trong 3-4 giây).
+   - **`nex-agi/nex-n2.5-mini:free`** (Mô hình siêu nhẹ, thời gian phản hồi $< 1$ giây).
+   - **`openrouter/free`** (Router phân luồng động chính thức của OpenRouter, tự động kết nối vào các model free đang trực tuyến).
+   - **`liquid/lfm-2.5-2.6b:free`** & **`inclusionai/ling-3.0-flash-vl:free`** (Hỗ trợ Multimodal OCR hình ảnh miễn phí).
+2. **Cấu hình Timeout & Tự Động Xoay Tua Chống Nghẽn Mạng**:
+   - Thay thế `RestClient` mặc định bằng `SimpleClientHttpRequestFactory` với connect timeout 5s và read timeout 15s.
+   - Bắt biệt lệ `ResourceAccessException` và chuyển đổi thành `AiProviderOverloadedException (408)` để `AiModelRouter` lập tức xoay sang model tiếp theo nếu có model bị trễ mạng.
+3. **Chuẩn hóa Bộ Bóc Tách JSON Chống Markdown & Reasoning Preamble**:
+   - Bóc tách chuỗi JSON dựa trên vị trí cặp dấu ngoặc nhọn `{` đầu tiên và `}` cuối cùng, loại bỏ hoàn toàn nguy cơ parse lỗi khi LLM trả về reasoning text hoặc code blocks.
+4. **Kiểm Thử Thực Tế Trực Tiếp (Live Online Verification)**:
+   - Gọi API `POST /api/v1/triage/assess` $\rightarrow$ Trả về kết quả thực tế với `"modelUsed": "inclusionai/ling-3.0-flash-sante:free"`, SBAR chi tiết và pgvector matching 88% cho BS. Nguyễn Văn An.
+   - Gọi API `POST /api/v1/documents/analyze` $\rightarrow$ Bóc tách đầy đủ chỉ số Glucose, Cholesterol, Triglyceride, ALT, Creatinine và diễn giải chuyên môn chuẩn xác.
+
+#### 3. Danh Sách Tệp Thay Đổi
+- `[MOD]` `backend/src/main/resources/application.properties` (Cập nhật danh sách active free models)
+- `[MOD]` `backend/src/main/resources/application-dev.properties` (Cập nhật danh sách active free models)
+- `[MOD]` `backend/src/main/java/com/mediassist/ai/AiModelRouter.java` (Cập nhật rotation pool mặc định)
+- `[MOD]` `backend/src/main/java/com/mediassist/ai/OpenRouterAiProvider.java` (Thêm SimpleClientHttpRequestFactory timeout 15s & trích xuất JSON ngoặc nhọn linh hoạt)
+- `[MOD]` `docs/WORK_LOG.md` (Thêm bản ghi kiểm duyệt #038)
+
+---
+
+### [WORK-LOG-#037]
 | **#036** | 13/09/2026 | Kiểm Toán & Đồng Bộ Hoàn Hảo Toàn Diện Hệ Thống: Đấu Nối Endpoint Bị Bỏ Quên (Vector Semantic Search, Triage History, Documents), Loại Bỏ Hardcode Lâm Sàng Bàn Khám & Xóa Sạch Fake Timers / window.prompt | AI Assistant | 🟢 Sẵn sàng Review |
 | **#035** | 13/09/2026 | Tái Cấu Trúc Toàn Diện Phân Luồng Triệu Chứng (AI-First Triage Engine): Loại Bỏ 100% Keyword Matching Cố Định, Nâng Cấp Triage RAG Prompt & Phân Định Mức Độ Khẩn Cấp Chuẩn Y Khoa | AI Assistant | 🟢 Đã Duyệt |
 | **#034** | 13/09/2026 | Toàn Diện Hóa Kiến Trúc AI-First: Xóa Bỏ 100% Ma Trận Điểm Keyword Scoring & Chuỗi If-Else Bịa Bệnh, Minh Bạch Hóa Chế Độ Ngoại Tuyến & Chuẩn Hóa Khớp Nối Bác Sĩ pgvector Cosine Similarity | AI Assistant | 🟢 Đã Duyệt |

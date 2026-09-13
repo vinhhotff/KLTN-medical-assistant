@@ -15,7 +15,7 @@ public class AiModelRouter {
     private final OpenRouterAiProvider openRouterAiProvider;
     private final DeterministicFallbackAiProvider deterministicFallbackAiProvider;
 
-    @Value("${app.ai.openrouter.models:google/gemini-2.0-flash-exp:free,meta-llama/llama-3.3-70b-instruct:free,deepseek/deepseek-r1:free,qwen/qwen-2.5-72b-instruct:free}")
+    @Value("${app.ai.openrouter.models:inclusionai/ling-3.0-flash-sante:free,nex-agi/nex-n2.5-mini:free,openrouter/free,liquid/lfm-2.5-2.6b:free,inclusionai/ling-3.0-flash-vl:free}")
     private String configuredModels;
 
     public AiModelRouter(OpenRouterAiProvider openRouterAiProvider,
@@ -26,7 +26,7 @@ public class AiModelRouter {
 
     public List<String> getModelRotationPool() {
         if (configuredModels == null || configuredModels.isBlank()) {
-            return List.of("google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.3-70b-instruct:free");
+            return List.of("inclusionai/ling-3.0-flash-sante:free", "nex-agi/nex-n2.5-mini:free", "openrouter/free");
         }
         return Arrays.stream(configuredModels.split(","))
                 .map(String::trim)

@@ -34,7 +34,12 @@ public class OpenRouterAiProvider implements AiProvider {
 
     public OpenRouterAiProvider(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-        this.restClient = RestClient.builder().build();
+        var requestFactory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(java.time.Duration.ofSeconds(5));
+        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(15));
+        this.restClient = RestClient.builder()
+                .requestFactory(requestFactory)
+                .build();
     }
 
     @Override
@@ -66,7 +71,7 @@ public class OpenRouterAiProvider implements AiProvider {
             return "";
         }
 
-        String targetModel = "google/gemini-2.0-flash-exp:free";
+        String targetModel = "inclusionai/ling-3.0-flash-vl:free";
         String base64Image = Base64.getEncoder().encodeToString(imageBytes);
         String mime = (contentType != null && !contentType.isBlank()) ? contentType : "image/jpeg";
 
@@ -125,7 +130,7 @@ public class OpenRouterAiProvider implements AiProvider {
             throw new IllegalStateException("OpenRouter is not configured with an API key.");
         }
 
-        String targetModel = modelId != null && !modelId.isBlank() ? modelId : "google/gemini-2.0-flash-exp:free";
+        String targetModel = modelId != null && !modelId.isBlank() ? modelId : "openrouter/free";
         log.info("Invoking OpenRouter model: {}", targetModel);
 
         Map<String, Object> requestBody = new HashMap<>();
@@ -169,6 +174,9 @@ public class OpenRouterAiProvider implements AiProvider {
         } catch (HttpServerErrorException.ServiceUnavailable e) {
             log.warn("Model {} returned 503 Service Unavailable. Rotating model.", targetModel);
             throw new AiProviderOverloadedException("OpenRouter", targetModel, 503, e.getMessage());
+        } catch (org.springframework.web.client.ResourceAccessException e) {
+            log.warn("Model {} timed out after 15s. Rotating to next model in pool.", targetModel);
+            throw new AiProviderOverloadedException("OpenRouter", targetModel, 408, "Timeout: " + e.getMessage());
         } catch (HttpClientErrorException e) {
             int code = e.getStatusCode().value();
             if (code == 429) {
@@ -192,12 +200,10 @@ public class OpenRouterAiProvider implements AiProvider {
         result.setProvider("OpenRouter");
 
         String cleanJson = rawText.trim();
-        if (cleanJson.startsWith("```")) {
-            int firstBrace = cleanJson.indexOf("{");
-            int lastBrace = cleanJson.lastIndexOf("}");
-            if (firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace) {
-                cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
-            }
+        int firstBrace = cleanJson.indexOf("{");
+        int lastBrace = cleanJson.lastIndexOf("}");
+        if (firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace) {
+            cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
         }
 
         try {
