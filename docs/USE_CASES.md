@@ -487,3 +487,26 @@ graph TD
   4. **Tab 2 - Duyệt hồ sơ (Vetting):**
      - Giữ nguyên quy trình thẩm định CCHN với Bộ Y Tế, nút Phê duyệt (Approve) và nút Từ chối (Reject) kèm lý do giải trình.
 
+---
+
+### UC-16: Phân Trang Offset Toàn Diện & Tích Hợp Supabase Dual-Tier (Enterprise Offset Pagination & Dual-Tier Supabase Integration)
+
+* **Mã Use Case:** `UC-SYS-16`
+* **Tác nhân chính:** Patient, Doctor, System Administrator, Spring Boot API, Supabase Cloud Storage & PostgreSQL.
+* **Mục tiêu:** Triệt tiêu hoàn toàn hiện tượng nghẽn luồng DOM hoặc sập tab trình duyệt khi kết xuất các tập dữ liệu lớn thông qua cơ chế Phân trang Offset (Limit / Offset Pagination) chuẩn mực, đồng thời duy trì kiến trúc lưu trữ Cloud kép (Supabase Storage + Local Disk Fallback).
+* **REST Endpoints Liên Quan:**
+  - `GET /api/v1/admin/doctors/paged?page=0&size=10&search=...&specialty=...&status=...`: Trả về `PageResponse<DoctorDetailDto>` gồm `items`, `page`, `size`, `totalElements`, `totalPages`, `hasNext`, `hasPrevious`.
+  - `GET /api/v1/admin/doctors`: Duy trì tương thích ngược trả về danh sách đầy đủ.
+  - `GET /api/v1/appointments/my`: Lấy danh sách lịch hẹn và phân trang offset tại tầng giao diện.
+  - `GET /api/v1/documents/my`: Lấy danh mục hồ sơ xét nghiệm và phân trang offset tại tầng giao diện.
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. Người dùng mở bất kỳ màn hình danh sách nào (`DoctorManagementPage`, `UserManagementPage`, `SpecialtyManagementPage`, `PatientDashboard`, `DoctorDashboard`, `DoctorSearchPage`).
+  2. Bảng chỉ kết xuất đúng số lượng bản ghi theo kích thước trang (`pageSize`: 5, 10, 20, 50), tiết kiệm 80% bộ nhớ DOM.
+  3. Thanh điều hướng phân trang hiển thị rõ ràng:
+     - Số thứ tự bản ghi: *"Hiển thị X - Y trong tổng số Z kết quả"*.
+     - Ô chọn kích thước trang tùy biến.
+     - Các nút chuyển trang `<<`, `<`, `1 ... 4 5 6 ... 20`, `>`, `>>`.
+  4. Khi người dùng nhập từ khóa tìm kiếm hoặc đổi bộ lọc, hệ thống tự động đưa trang hiện tại về `page = 1`.
+  5. Tệp và ảnh xét nghiệm tải lên được đẩy trực tiếp lên bucket `medical-documents` trên Supabase Cloud Storage nếu được bật, hoặc lưu dự phòng vào đĩa nội bộ nếu mạng gián đoạn, bảo đảm 0% downtime.
+
+

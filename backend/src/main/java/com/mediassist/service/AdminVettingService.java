@@ -22,10 +22,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.mediassist.dto.PageResponse;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -65,6 +67,61 @@ public class AdminVettingService {
         return doctorProfileRepository.findAll().stream()
                 .map(DoctorDetailDto::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    public PageResponse<DoctorDetailDto> getDoctorsPaged(int page, int size, String search, String specialty, String status) {
+        int safePage = Math.max(0, page);
+        int safeSize = size > 0 ? Math.min(size, 100) : 10;
+
+        List<DoctorDetailDto> all = getAllDoctors();
+
+        // Filter
+        List<DoctorDetailDto> filtered = all.stream()
+                .filter(d -> {
+                    // Search
+                    if (search != null && !search.isBlank()) {
+                        String q = search.trim().toLowerCase();
+                        boolean match = (d.getFullName() != null && d.getFullName().toLowerCase().contains(q))
+                                || (d.getEmail() != null && d.getEmail().toLowerCase().contains(q))
+                                || (d.getLicenseNumber() != null && d.getLicenseNumber().toLowerCase().contains(q))
+                                || (d.getHospitalAffiliation() != null && d.getHospitalAffiliation().toLowerCase().contains(q))
+                                || (d.getDepartment() != null && d.getDepartment().toLowerCase().contains(q))
+                                || (d.getSpecialties() != null && d.getSpecialties().stream().anyMatch(s -> s.toLowerCase().contains(q)));
+                        if (!match) return false;
+                    }
+
+                    // Specialty
+                    if (specialty != null && !specialty.isBlank() && !"ALL".equalsIgnoreCase(specialty)) {
+                        boolean match = d.getSpecialties() != null && d.getSpecialties().stream()
+                                .anyMatch(s -> s.equalsIgnoreCase(specialty));
+                        if (!match) return false;
+                    }
+
+                    // Status
+                    if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
+                        if ("ACTIVE".equalsIgnoreCase(status)) {
+                            if (!d.isVerified() || "SUSPENDED".equalsIgnoreCase(d.getUserStatus())) return false;
+                        } else if ("PENDING".equalsIgnoreCase(status)) {
+                            if (d.isVerified()) return false;
+                        } else if ("SUSPENDED".equalsIgnoreCase(status)) {
+                            if (!"SUSPENDED".equalsIgnoreCase(d.getUserStatus())) return false;
+                        }
+                    }
+
+                    return true;
+                })
+                .collect(Collectors.toList());
+
+        long totalElements = filtered.size();
+        int fromIndex = safePage * safeSize;
+        if (fromIndex >= filtered.size()) {
+            return new PageResponse<>(Collections.emptyList(), safePage, safeSize, totalElements);
+        }
+
+        int toIndex = Math.min(fromIndex + safeSize, filtered.size());
+        List<DoctorDetailDto> pagedItems = filtered.subList(fromIndex, toIndex);
+
+        return new PageResponse<>(pagedItems, safePage, safeSize, totalElements);
     }
 
     public List<DoctorDetailDto> getPendingDoctors() {

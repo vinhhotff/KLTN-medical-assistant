@@ -33,6 +33,18 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success(adminVettingService.getAllDoctors()));
     }
 
+    @GetMapping("/doctors/paged")
+    @Operation(summary = "List doctor profiles with offset pagination", description = "Returns doctors matching filter criteria sliced by offset and limit.")
+    public ResponseEntity<ApiResponse<PageResponse<DoctorDetailDto>>> getDoctorsPaged(
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size,
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "specialty", required = false) String specialty,
+            @RequestParam(name = "status", required = false) String status) {
+        PageResponse<DoctorDetailDto> result = adminVettingService.getDoctorsPaged(page, size, search, specialty, status);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
     @PostMapping("/doctors")
     @Operation(summary = "Create new doctor account & profile", description = "Admin directly onboards a verified or pending doctor with initial vector embedding.")
     public ResponseEntity<ApiResponse<DoctorDetailDto>> createDoctor(

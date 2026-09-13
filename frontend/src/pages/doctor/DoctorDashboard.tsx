@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Calendar,
   Clock,
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
+import { Pagination } from '../../components/common/Pagination';
 
 interface DoctorAppointment {
   id: string;
@@ -276,8 +277,30 @@ export const DoctorDashboard: React.FC = () => {
     }
   };
 
-  const scheduledAppointments = appointments.filter((a) => a.status === 'SCHEDULED');
-  const pastAppointments = appointments.filter((a) => a.status !== 'SCHEDULED');
+  // Pagination states (Offset)
+  const [scheduledPage, setScheduledPage] = useState(1);
+  const [scheduledPageSize, setScheduledPageSize] = useState(5);
+
+  const [pastPage, setPastPage] = useState(1);
+  const [pastPageSize, setPastPageSize] = useState(5);
+
+  const scheduledAppointments = useMemo(() => {
+    return appointments.filter((a) => a.status === 'SCHEDULED');
+  }, [appointments]);
+
+  const pastAppointments = useMemo(() => {
+    return appointments.filter((a) => a.status !== 'SCHEDULED');
+  }, [appointments]);
+
+  const paginatedScheduled = useMemo(() => {
+    const start = (scheduledPage - 1) * scheduledPageSize;
+    return scheduledAppointments.slice(start, start + scheduledPageSize);
+  }, [scheduledAppointments, scheduledPage, scheduledPageSize]);
+
+  const paginatedPast = useMemo(() => {
+    const start = (pastPage - 1) * pastPageSize;
+    return pastAppointments.slice(start, start + pastPageSize);
+  }, [pastAppointments, pastPage, pastPageSize]);
 
   return (
     <div className="space-y-6">
@@ -333,7 +356,7 @@ export const DoctorDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {scheduledAppointments.map((apt) => (
+                {paginatedScheduled.map((apt) => (
                   <div
                     key={apt.id}
                     className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-teal-400 transition shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
@@ -401,6 +424,18 @@ export const DoctorDashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
+
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+                  <Pagination
+                    currentPage={scheduledPage}
+                    totalItems={scheduledAppointments.length}
+                    pageSize={scheduledPageSize}
+                    onPageChange={setScheduledPage}
+                    onPageSizeChange={setScheduledPageSize}
+                    pageSizeOptions={[3, 5, 10]}
+                    itemLabel="ca khám chờ"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -420,7 +455,7 @@ export const DoctorDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {pastAppointments.slice(0, 10).map((apt) => (
+                {paginatedPast.map((apt) => (
                   <div
                     key={apt.id}
                     className="p-3.5 rounded-xl border border-slate-100 bg-slate-50 text-xs space-y-1.5 hover:border-slate-200 transition"
@@ -453,6 +488,18 @@ export const DoctorDashboard: React.FC = () => {
                     )}
                   </div>
                 ))}
+
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs mt-3">
+                  <Pagination
+                    currentPage={pastPage}
+                    totalItems={pastAppointments.length}
+                    pageSize={pastPageSize}
+                    onPageChange={setPastPage}
+                    onPageSizeChange={setPastPageSize}
+                    pageSizeOptions={[5, 10, 15]}
+                    itemLabel="bệnh án"
+                  />
+                </div>
               </div>
             )}
           </div>

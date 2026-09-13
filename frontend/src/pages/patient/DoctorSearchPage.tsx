@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Calendar, Clock, MapPin, CheckCircle2, AlertCircle, X, Building2, Star, Filter, Sparkles, Loader2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { Pagination } from '../../components/common/Pagination';
 
 interface DoctorDetail {
   id: string;
@@ -220,25 +221,42 @@ export const DoctorSearchPage: React.FC = () => {
 
   const displaySource = semanticResults !== null ? semanticResults : doctors;
 
-  const filteredDoctors = displaySource.filter((d) => {
-    const matchesSpecialty =
-      selectedSpecialty === 'ALL' ||
-      d.specialties?.some((s) => s.toLowerCase().includes(selectedSpecialty.toLowerCase()));
+  // Pagination state (Offset)
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
 
-    if (semanticResults !== null) {
-      return matchesSpecialty;
-    }
+  const filteredDoctors = useMemo(() => {
+    return displaySource.filter((d) => {
+      const matchesSpecialty =
+        selectedSpecialty === 'ALL' ||
+        d.specialties?.some((s) => s.toLowerCase().includes(selectedSpecialty.toLowerCase()));
 
-    const term = searchTerm.toLowerCase();
-    const matchName = d.fullName?.toLowerCase().includes(term);
-    const matchBio = d.bio?.toLowerCase().includes(term);
-    const matchHosp = d.hospitalAffiliation?.toLowerCase().includes(term);
-    const matchDept = d.department?.toLowerCase().includes(term);
-    const matchSpec = d.specialties?.some((s) => s.toLowerCase().includes(term));
-    const matchesSearch = matchName || matchBio || matchHosp || matchDept || matchSpec;
+      if (semanticResults !== null) {
+        return matchesSpecialty;
+      }
 
-    return matchesSearch && matchesSpecialty;
-  });
+      const term = searchTerm.toLowerCase();
+      const matchName = d.fullName?.toLowerCase().includes(term);
+      const matchBio = d.bio?.toLowerCase().includes(term);
+      const matchHosp = d.hospitalAffiliation?.toLowerCase().includes(term);
+      const matchDept = d.department?.toLowerCase().includes(term);
+      const matchSpec = d.specialties?.some((s) => s.toLowerCase().includes(term));
+      const matchesSearch = matchName || matchBio || matchHosp || matchDept || matchSpec;
+
+      return matchesSearch && matchesSpecialty;
+    });
+  }, [displaySource, selectedSpecialty, semanticResults, searchTerm]);
+
+  // Reset to page 1 on filter/search change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedSpecialty, semanticResults]);
+
+  // Sliced paginated doctors
+  const paginatedDoctors = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredDoctors.slice(start, start + pageSize);
+  }, [filteredDoctors, page, pageSize]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -298,7 +316,7 @@ export const DoctorSearchPage: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredDoctors.map((doc) => (
+          {paginatedDoctors.map((doc) => (
             <div
               key={doc.id}
               className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs hover:border-teal-300 hover:shadow-md transition flex flex-col md:flex-row md:items-center justify-between gap-6"
@@ -385,6 +403,18 @@ export const DoctorSearchPage: React.FC = () => {
               </div>
             </div>
           ))}
+
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+            <Pagination
+              currentPage={page}
+              totalItems={filteredDoctors.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[4, 6, 12, 20]}
+              itemLabel="bác sĩ"
+            />
+          </div>
         </div>
       )}
 

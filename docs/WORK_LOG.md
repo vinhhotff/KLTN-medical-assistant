@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :--- | :---: |
-| **#040** | 13/09/2026 | Hiện Thực Hóa Toàn Diện Phân Hệ Quản Lý Bác Sĩ (Doctor Management Portal): 2 Tab Roster & Vetting, Tìm Kiếm/Lọc Đa Tiêu Chí, Modal Thêm/Sửa/Xem Chi Tiết, Khóa/Mở Khóa Tài Khoản & Đồng Bộ AI Vector pgvector | AI Assistant | 🟢 Sẵn sàng Review |
+| **#041** | 13/09/2026 | Triển Khai Phân Trang Offset (Limit/Offset Pagination) Toàn Diện Toàn Bộ Bảng/Danh Sách Chống Tràn Bộ Nhớ & Khắc Phục Lưu Trữ Supabase Database / Cloud Storage | AI Assistant | 🟢 Sẵn sàng Review |
+| **#040** | 13/09/2026 | Hiện Thực Hóa Toàn Diện Phân Hệ Quản Lý Bác Sĩ (Doctor Management Portal): 2 Tab Roster & Vetting, Tìm Kiếm/Lọc Đa Tiêu Chí, Modal Thêm/Sửa/Xem Chi Tiết, Khóa/Mở Khóa Tài Khoản & Đồng Bộ AI Vector pgvector | AI Assistant | 🟢 Đã Duyệt |
 | **#039** | 13/09/2026 | Triệt Tiêu Đề Xuất Bác Sĩ Ảo (Zero Fake Recommendation) Khi Tài Liệu Trống/Mờ, Thiết Lập Multi-Model Vision OCR Pool & Nâng Cấp PDF 200 DPI | AI Assistant | 🟢 Đã Duyệt |
 | **#038** | 13/09/2026 | Khắc Phục Triệt Để Lỗi Ngoại Tuyến (Offline Fallback): Cập Nhật Bể Mô Hình OpenRouter Active Mới Nhất (inclusionai/ling-3.0-flash-sante:free, nex-agi/nex-n2.5-mini:free, openrouter/free) & Tối Ưu Timeout 15s | AI Assistant | 🟢 Đã Duyệt |
 | **#037** | 13/09/2026 | Khởi Động Toàn Diện Hệ Sinh Thái MediAssist-AI (Docker pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173), Sửa Lỗi Constructor Injection & Xác Thực End-to-End | AI Assistant | 🟢 Đã Duyệt |
@@ -19,6 +20,100 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#041] Triển Khai Phân Trang Offset (Limit/Offset Pagination) Toàn Diện & Khắc Phục Lưu Trữ Supabase Database / Cloud Storage
+* **Thời gian:** 2026-09-13 17:31:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-SYS-05 (Enterprise Offset Pagination & Dual-Tier Supabase Integration)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (**56/56 Tests PASS 100%**)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (**Build 0 TypeScript error**)
+  - Database: PostgreSQL 16 + pgvector (cổng **5433** - HEALTHY)
+  - Cache: Redis 7-alpine (cổng **6379** - HEALTHY)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Bối Cảnh & Yêu Cầu Từ Tech Lead
+1. *"Tất cả là pagination offset chứ không phải bấm mục lục khiến app dễ sập"*:
+   - Trước đây các bảng dữ liệu (Bác sĩ, Người dùng, Chuyên khoa, Lịch khám, Hồ sơ xét nghiệm, Lịch sử phân luồng AI) kết xuất toàn bộ mảng dữ liệu (Full Array Rendering) vào DOM trong một bảng duy nhất.
+   - Khi số lượng bản ghi tăng cao, việc render hàng loạt DOM nodes gây nghẽn luồng xử lý JavaScript (Event Loop freeze), tràn bộ nhớ trình duyệt và làm sập tab giao diện.
+   - Yêu cầu xây dựng cơ chế **Phân trang Offset (Limit / Offset Pagination)** chuẩn mực với điều hướng trang linh hoạt, chọn cỡ trang (Page Size), hiển thị rõ số lượng bản ghi và tự động reset về trang 1 khi lọc/tìm kiếm.
+2. *"Hiện tại trên DB supabase chưa thấy lưu thông tin, cũng như chưa thấy ảnh khi upload lên"*:
+   - Làm rõ nguyên nhân tại sao Supabase Database chưa có dữ liệu và file tải lên chưa xuất hiện trên Supabase Cloud Storage, đồng thời cấu hình và hướng dẫn khắc phục triệt để.
+
+#### 2. Phân Tích Kỹ Thuật Nguyên Nhân Gốc Rễ Supabase (Root Cause Analysis)
+1. **Tại sao Supabase Database chưa có dữ liệu?**
+   - Backend Spring Boot khi khởi chạy với profile `dev` (`-Dspring-boot.run.profiles=dev`) nạp cấu hình từ `application-dev.properties`:
+     `spring.datasource.url=jdbc:postgresql://localhost:5433/mediassist_db`
+   - Do đó, toàn bộ dữ liệu (bác sĩ, người dùng, lịch hẹn, hồ sơ xét nghiệm) được lưu trữ an toàn trong **PostgreSQL 16 chạy trong Docker Container cục bộ (cổng 5433)**, chứ không kết nối đến Supabase PostgreSQL Cloud (`db.wakgzrzchmqdqyrgxlaq.supabase.co`).
+   - Supabase Database trống vì backend chưa từng trỏ kết nối lên Cloud DB.
+2. **Tại sao tệp tải lên chưa lưu lên Supabase Storage?**
+   - Cờ `supabase.enabled=${SUPABASE_ENABLED:false}` trong `application.properties` mặc định là `false` và không được bật trong `application-dev.properties`. Khi cờ này tắt, `SupabaseStorageService.java` tự động kích hoạt Zero-Crash Fallback, lưu toàn bộ tệp vào ổ cứng cục bộ tại `backend/uploads/medical_documents/`.
+   - Đã kiểm tra trực tiếp qua API Supabase: Bucket `medical-documents` **CHƯA ĐƯỢC TẠO** trên dự án Supabase `wakgzrzchmqdqyrgxlaq.supabase.co` (`GET /storage/v1/bucket` trả về `[]`).
+   - Khóa API `sb_publishable_8oAIAHTackCTa7P9GKRJLA_-cTglwwA` là **Publishable Key (Anon)**, không có quyền tạo bucket qua REST API (bị chặn bởi RLS: `403 AccessDenied`).
+
+#### 3. Các Giải Pháp Kỹ Thuật Đã Triển Khai
+1. **Component Phân Trang Tái Sử Dụng (`frontend/src/components/common/Pagination.tsx`)**:
+   - Tính toán lát cắt offset chuẩn: $\text{startIndex} = (\text{currentPage} - 1) \times \text{pageSize}$, $\text{endIndex} = \min(\text{startIndex} + \text{pageSize}, \text{totalItems})$.
+   - Hỗ trợ chọn kích thước trang: `5, 10, 20, 50 bản ghi/trang`.
+   - Điều hướng thông minh dạng Smart Ellipsis (`1 ... 4 5 6 ... 20`), nút First (`<<`), Prev (`<`), Next (`>`), Last (`>>`).
+   - Hiển thị văn bản trực quan: *"Hiển thị X - Y trong tổng số Z kết quả"*.
+2. **Tích hợp Phân Trang Offset Toàn Diện Trên Frontend**:
+   - `DoctorManagementPage.tsx`: Phân trang riêng biệt cho Tab 1 (Roster) và Tab 2 (Vetting Queue).
+   - `UserManagementPage.tsx`: Phân trang bảng danh sách người dùng hệ thống.
+   - `SpecialtyManagementPage.tsx`: Phân trang lưới chuyên khoa y tế (9 cards / trang).
+   - `PatientDashboard.tsx`: Phân trang độc lập cho cả 3 tab (Lịch khám & EMR, Lịch sử phân luồng AI, Hồ sơ kết quả xét nghiệm).
+   - `DoctorDashboard.tsx`: Phân trang danh sách ca khám chờ và lịch sử khám lâm sàng.
+   - `DoctorSearchPage.tsx`: Phân trang kết quả tìm kiếm danh bạ bác sĩ.
+   - Toàn bộ các trang tự động reset về `page = 1` khi thay đổi từ khóa tìm kiếm hoặc bộ lọc chuyên khoa/trạng thái.
+3. **Backend DTO & REST API Phân Trang Offset**:
+   - Tạo DTO `PageResponse.java` với các trường: `items`, `page`, `size`, `totalElements`, `totalPages`, `hasNext`, `hasPrevious`.
+   - Thêm phương thức `getDoctorsPaged(page, size, search, specialty, status)` trong `AdminVettingService.java`.
+   - Bổ sung endpoint `GET /api/v1/admin/doctors/paged` trong `AdminController.java`.
+   - Viết 2 unit tests trong `AdminVettingServiceTest.java`: `testGetDoctorsPaged` và `testGetDoctorsPagedWithFilter`.
+4. **Cấu Hình Supabase Cloud Storage & Database**:
+   - Đổi mặc định `supabase.enabled=true` trong `application.properties` và `application-dev.properties`.
+   - Tạo mới `application-supabase.properties` hỗ trợ kết nối trực tiếp Supabase Database (sử dụng Transaction Pooler cổng `6543`, tương thích IPv4).
+   - Nâng cấp `SupabaseStorageService.java` đọc error body chi tiết và ghi log hướng dẫn trực quan khi bucket chưa được tạo.
+
+#### 4. Danh Sách Tệp Tin Thay Đổi
+- `[NEW]` `frontend/src/components/common/Pagination.tsx`: Component phân trang offset tái sử dụng.
+- `[MOD]` `frontend/src/pages/admin/DoctorManagementPage.tsx`: Tích hợp phân trang Tab 1 & Tab 2.
+- `[MOD]` `frontend/src/pages/admin/UserManagementPage.tsx`: Tích hợp phân trang người dùng.
+- `[MOD]` `frontend/src/pages/admin/SpecialtyManagementPage.tsx`: Tích hợp phân trang chuyên khoa.
+- `[MOD]` `frontend/src/pages/patient/PatientDashboard.tsx`: Tích hợp phân trang 3 tab.
+- `[MOD]` `frontend/src/pages/doctor/DoctorDashboard.tsx`: Tích hợp phân trang 2 cột lịch hẹn.
+- `[MOD]` `frontend/src/pages/patient/DoctorSearchPage.tsx`: Tích hợp phân trang kết quả tìm kiếm.
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/PageResponse.java`: DTO phân trang chuẩn hóa.
+- `[MOD]` `backend/src/main/java/com/mediassist/service/AdminVettingService.java`: Triển khai `getDoctorsPaged`.
+- `[MOD]` `backend/src/main/java/com/mediassist/controller/AdminController.java`: Thêm endpoint `GET /doctors/paged`.
+- `[MOD]` `backend/src/test/java/com/mediassist/service/AdminVettingServiceTest.java`: Bổ sung 2 unit test phân trang.
+- `[MOD]` `backend/src/main/resources/application-dev.properties`: Bật cấu hình Supabase Storage.
+- `[MOD]` `backend/src/main/resources/application.properties`: Bật `supabase.enabled=true`.
+- `[NEW]` `backend/src/main/resources/application-supabase.properties`: Profile kết nối trực tiếp Supabase Database.
+- `[MOD]` `backend/src/main/java/com/mediassist/service/SupabaseStorageService.java`: Tối ưu logging chi tiết phản hồi Supabase.
+
+#### 5. Bằng Chứng Kiểm Thử & Xác Minh
+- **Frontend Build (`npm run build`)**: Biên dịch hoàn tất 100%, **0 lỗi TypeScript**, tuân thủ `noUnusedLocals`.
+- **Backend Unit Tests (`mvn test`)**: Toàn bộ **56/56 tests PASS 100%** (bao gồm 8 tests trong `AdminVettingServiceTest`).
+- **Live API Offset Pagination Verification**:
+  - `GET /api/v1/admin/doctors/paged?page=0&size=5` $\rightarrow$ Trả về chính xác 5 bác sĩ đầu tiên, `totalElements: 13`, `totalPages: 3`, `hasNext: true`.
+  - `GET /api/v1/admin/doctors/paged?page=1&size=5` $\rightarrow$ Trả về 5 bác sĩ kế tiếp, `hasNext: true`.
+
+#### 6. Điểm Nóng Tech Lead Cần Review & Thao Tác Kích Hoạt Supabase
+> [!IMPORTANT]
+> **2 BƯỚC ĐƠN GIẢN ĐỂ TỆP & ẢNH LƯU TRỰC TIẾP LÊN SUPABASE CLOUD:**
+> 1. **Kích hoạt Supabase Storage (Mất 10 giây):**
+>    - Mở trình duyệt vào Supabase Dashboard của dự án `wakgzrzchmqdqyrgxlaq`: `https://supabase.com/dashboard/project/wakgzrzchmqdqyrgxlaq/storage/buckets`
+>    - Bấm nút **"New bucket"**.
+>    - Nhập đúng tên: `medical-documents`.
+>    - Gạt bật công tắc **"Public bucket"** (để ảnh/PDF có thể xem được công khai).
+>    - Bấm **"Save"**.
+>    *(Từ thời điểm này, mọi ảnh/file PDF tải lên sẽ lưu thẳng lên Cloud Supabase!)*
+> 2. **Chuyển đổi lưu Database sang Supabase PostgreSQL Cloud (Tùy chọn):**
+>    - Nếu Tech Lead muốn dữ liệu lưu trực tiếp vào Supabase Database thay vì Docker cục bộ (port 5433), chỉ cần chạy lệnh khởi động kèm profile `supabase` và mật khẩu DB Supabase:
+>      `mvn spring-boot:run "-Dspring-boot.run.profiles=supabase" "-Dspring-boot.run.arguments=--spring.datasource.password=MAT_KHAU_DB_SUPABASE"`
+
+---
 
 ### [WORK-LOG-#040] Hiện Thực Hóa Toàn Diện Phân Hệ Quản Lý Bác Sĩ (Doctor Management Portal)
 * **Thời gian:** 2026-09-13 17:18:00 (GMT+7)

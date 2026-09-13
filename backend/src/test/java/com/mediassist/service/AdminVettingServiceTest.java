@@ -201,4 +201,45 @@ class AdminVettingServiceTest {
         verify(doctorSemanticSearchService).syncAllDoctorEmbeddings();
         verify(auditLogRepository).save(any(AuditLog.class));
     }
+
+    @Test
+    @DisplayName("Should return paged doctors correctly with limit and offset")
+    void testGetDoctorsPaged() {
+        when(doctorProfileRepository.findAll()).thenReturn(List.of(doctorProfile));
+
+        com.mediassist.dto.PageResponse<DoctorDetailDto> page0 = adminVettingService.getDoctorsPaged(0, 5, null, null, null);
+        assertNotNull(page0);
+        assertEquals(1, page0.getTotalElements());
+        assertEquals(1, page0.getItems().size());
+        assertEquals(1, page0.getTotalPages());
+        assertFalse(page0.isHasNext());
+        assertFalse(page0.isHasPrevious());
+
+        // Test page out of bounds
+        com.mediassist.dto.PageResponse<DoctorDetailDto> page1 = adminVettingService.getDoctorsPaged(1, 5, null, null, null);
+        assertNotNull(page1);
+        assertEquals(1, page1.getTotalElements());
+        assertTrue(page1.getItems().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should filter paged doctors by search keyword, specialty, and status")
+    void testGetDoctorsPagedWithFilter() {
+        Specialty cardio = new Specialty();
+        cardio.setName("Tim mạch");
+        cardio.setSlug("tim-mach");
+        doctorProfile.setSpecialties(Set.of(cardio));
+
+        when(doctorProfileRepository.findAll()).thenReturn(List.of(doctorProfile));
+
+        // Matching search
+        var resMatch = adminVettingService.getDoctorsPaged(0, 10, "Nguyễn Văn An", "Tim mạch", "ACTIVE");
+        assertEquals(1, resMatch.getTotalElements());
+        assertEquals(1, resMatch.getItems().size());
+
+        // Non-matching search
+        var resNoMatch = adminVettingService.getDoctorsPaged(0, 10, "NonExistentName", null, null);
+        assertEquals(0, resNoMatch.getTotalElements());
+        assertTrue(resNoMatch.getItems().isEmpty());
+    }
 }

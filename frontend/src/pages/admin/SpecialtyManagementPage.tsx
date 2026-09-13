@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Activity, Stethoscope, RefreshCw, Plus, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { api } from '../../services/api';
+import { Pagination } from '../../components/common/Pagination';
 
 interface SpecialtyItem {
   id: string;
@@ -79,12 +80,29 @@ export const SpecialtyManagementPage: React.FC = () => {
     }
   };
 
-  const filteredSpecialties = specialties.filter(
-    (s) =>
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Pagination state (Limit/Offset)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(9);
+
+  const filteredSpecialties = useMemo(() => {
+    return specialties.filter(
+      (s) =>
+        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [specialties, searchTerm]);
+
+  // Reset to page 1 on search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Paginated specialties slice
+  const paginatedSpecialties = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredSpecialties.slice(start, start + pageSize);
+  }, [filteredSpecialties, currentPage, pageSize]);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -152,30 +170,44 @@ export const SpecialtyManagementPage: React.FC = () => {
           Không tìm thấy chuyên khoa phù hợp.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredSpecialties.map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs hover:border-indigo-200 transition flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                    {item.slug.toUpperCase()}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                    <Activity className="w-3 h-3" /> Chuẩn Bộ Y Tế
-                  </span>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {paginatedSpecialties.map((item) => (
+              <div key={item.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs hover:border-indigo-200 transition flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                      {item.slug.toUpperCase()}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      <Activity className="w-3 h-3" /> Chuẩn Bộ Y Tế
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900 mb-1">{item.name}</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">{item.description}</p>
                 </div>
-                <h3 className="text-base font-bold text-slate-900 mb-1">{item.name}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">{item.description}</p>
-              </div>
 
-              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                <div className="flex items-center gap-1.5 font-medium text-slate-700">
-                  <Stethoscope className="w-4 h-4 text-indigo-600" />
-                  <span>Kích hoạt trên AI Triage</span>
+                <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                  <div className="flex items-center gap-1.5 font-medium text-slate-700">
+                    <Stethoscope className="w-4 h-4 text-indigo-600" />
+                    <span>Kích hoạt trên AI Triage</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredSpecialties.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[6, 9, 18, 30]}
+              itemLabel="chuyên khoa"
+            />
+          </div>
         </div>
       )}
 

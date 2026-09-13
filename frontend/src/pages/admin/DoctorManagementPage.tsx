@@ -20,6 +20,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { Pagination } from '../../components/common/Pagination';
 
 export interface Doctor {
   id: string; // User ID
@@ -62,6 +63,12 @@ export const DoctorManagementPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+
+  // Pagination states (Limit/Offset)
+  const [rosterPage, setRosterPage] = useState(1);
+  const [rosterPageSize, setRosterPageSize] = useState(10);
+  const [vettingPage, setVettingPage] = useState(1);
+  const [vettingPageSize, setVettingPageSize] = useState(6);
 
   // Action states
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -154,10 +161,27 @@ export const DoctorManagementPage: React.FC = () => {
     });
   }, [doctors, searchQuery, selectedSpecialty, selectedStatus]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setRosterPage(1);
+  }, [searchQuery, selectedSpecialty, selectedStatus]);
+
+  // Paginated Doctors (Tab 1)
+  const paginatedDoctors = useMemo(() => {
+    const start = (rosterPage - 1) * rosterPageSize;
+    return filteredDoctors.slice(start, start + rosterPageSize);
+  }, [filteredDoctors, rosterPage, rosterPageSize]);
+
   // Pending doctors for Tab 2 (Vetting)
   const pendingDoctors = useMemo(() => {
     return doctors.filter((d) => !d.isVerified);
   }, [doctors]);
+
+  // Paginated Pending Doctors (Tab 2)
+  const paginatedPending = useMemo(() => {
+    const start = (vettingPage - 1) * vettingPageSize;
+    return pendingDoctors.slice(start, start + vettingPageSize);
+  }, [pendingDoctors, vettingPage, vettingPageSize]);
 
   // Actions
   const handleToggleStatus = async (doctor: Doctor) => {
@@ -480,7 +504,7 @@ export const DoctorManagementPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredDoctors.map((doc) => (
+                    {paginatedDoctors.map((doc) => (
                       <tr key={doc.profileId} className="hover:bg-slate-50/70 transition">
                         {/* Doctor Name & Avatar */}
                         <td className="py-4 px-4">
@@ -634,6 +658,14 @@ export const DoctorManagementPage: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
+                <Pagination
+                  currentPage={rosterPage}
+                  totalItems={filteredDoctors.length}
+                  pageSize={rosterPageSize}
+                  onPageChange={setRosterPage}
+                  onPageSizeChange={setRosterPageSize}
+                  itemLabel="bác sĩ"
+                />
               </div>
             )}
           </div>
@@ -659,90 +691,103 @@ export const DoctorManagementPage: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {pendingDoctors.map((doc) => (
-                <div key={doc.profileId} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center justify-center text-base border border-amber-200">
-                          {doc.fullName?.charAt(0) || 'B'}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {paginatedPending.map((doc) => (
+                  <div key={doc.profileId} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center justify-center text-base border border-amber-200">
+                            {doc.fullName?.charAt(0) || 'B'}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              {doc.academicTitle && (
+                                <span className="text-xs px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100">
+                                  {doc.academicTitle}
+                                </span>
+                              )}
+                              <h4 className="font-bold text-slate-900 text-base">{doc.fullName}</h4>
+                            </div>
+                            <p className="text-xs text-slate-500">{doc.email} • {doc.phone || 'Chưa có SĐT'}</p>
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          Chờ thẩm định
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl">
+                        <div>
+                          <span className="text-slate-400 block">Số CCHN:</span>
+                          <span className="font-mono font-bold text-slate-800">{doc.licenseNumber}</span>
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5">
-                            {doc.academicTitle && (
-                              <span className="text-xs px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100">
-                                {doc.academicTitle}
-                              </span>
-                            )}
-                            <h4 className="font-bold text-slate-900 text-base">{doc.fullName}</h4>
-                          </div>
-                          <p className="text-xs text-slate-500">{doc.email} • {doc.phone || 'Chưa có SĐT'}</p>
+                          <span className="text-slate-400 block">Nơi cấp:</span>
+                          <span className="font-semibold text-slate-800">{doc.licenseIssuedBy || 'Bộ Y Tế'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block">Bệnh viện:</span>
+                          <span className="font-semibold text-slate-800">{doc.hospitalAffiliation || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block">Kinh nghiệm:</span>
+                          <span className="font-semibold text-slate-800">{doc.yearsOfExperience} năm</span>
                         </div>
                       </div>
-                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                        Chờ thẩm định
-                      </span>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl">
-                      <div>
-                        <span className="text-slate-400 block">Số CCHN:</span>
-                        <span className="font-mono font-bold text-slate-800">{doc.licenseNumber}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block">Nơi cấp:</span>
-                        <span className="font-semibold text-slate-800">{doc.licenseIssuedBy || 'Bộ Y Tế'}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block">Bệnh viện:</span>
-                        <span className="font-semibold text-slate-800">{doc.hospitalAffiliation || 'N/A'}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block">Kinh nghiệm:</span>
-                        <span className="font-semibold text-slate-800">{doc.yearsOfExperience} năm</span>
+                      {doc.bio && (
+                        <p className="text-xs text-slate-600 line-clamp-2 italic bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
+                          "{doc.bio}"
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap gap-1">
+                        {doc.specialties?.map((s, idx) => (
+                          <span key={idx} className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-100">
+                            {s}
+                          </span>
+                        ))}
                       </div>
                     </div>
 
-                    {doc.bio && (
-                      <p className="text-xs text-slate-600 line-clamp-2 italic bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                        "{doc.bio}"
-                      </p>
-                    )}
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setRejectingDoctor(doc);
+                          setRejectionReason('');
+                        }}
+                        disabled={actionLoading === doc.profileId}
+                        className="px-3.5 py-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold transition flex items-center gap-1.5"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        Từ Chối
+                      </button>
 
-                    <div className="flex flex-wrap gap-1">
-                      {doc.specialties?.map((s, idx) => (
-                        <span key={idx} className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-100">
-                          {s}
-                        </span>
-                      ))}
+                      <button
+                        onClick={() => handleApproveVetting(doc)}
+                        disabled={actionLoading === doc.profileId}
+                        className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Phê Duyệt & Tính Vector AI
+                      </button>
                     </div>
                   </div>
-
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => {
-                        setRejectingDoctor(doc);
-                        setRejectionReason('');
-                      }}
-                      disabled={actionLoading === doc.profileId}
-                      className="px-3.5 py-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold transition flex items-center gap-1.5"
-                    >
-                      <XCircle className="w-3.5 h-3.5" />
-                      Từ Chối
-                    </button>
-
-                    <button
-                      onClick={() => handleApproveVetting(doc)}
-                      disabled={actionLoading === doc.profileId}
-                      className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      Phê Duyệt & Tính Vector AI
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+                <Pagination
+                  currentPage={vettingPage}
+                  totalItems={pendingDoctors.length}
+                  pageSize={vettingPageSize}
+                  onPageChange={setVettingPage}
+                  onPageSizeChange={setVettingPageSize}
+                  pageSizeOptions={[4, 6, 12, 20]}
+                  itemLabel="hồ sơ chờ duyệt"
+                />
+              </div>
             </div>
           )}
         </div>

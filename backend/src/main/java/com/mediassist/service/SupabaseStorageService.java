@@ -64,7 +64,16 @@ public class SupabaseStorageService implements StorageService {
                     log.info("✅ Document successfully stored on Supabase Cloud: {}", publicUrl);
                     return publicUrl;
                 } else {
-                    log.warn("⚠️ Supabase Storage returned HTTP {}. Falling back to resilient local storage.", responseCode);
+                    String errorBody = "";
+                    try (java.io.InputStream es = conn.getErrorStream()) {
+                        if (es != null) {
+                            errorBody = new String(es.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                        }
+                    } catch (Exception ignored) {}
+                    log.warn("⚠️ Supabase Storage returned HTTP {}: {}. Falling back to resilient local storage.", responseCode, errorBody);
+                    if (responseCode == 400 || responseCode == 404) {
+                        log.warn("💡 HƯỚNG DẪN TECH LEAD: Hãy tạo bucket '{}' trên Supabase Dashboard (Menu Storage -> New bucket -> Tên: '{}' -> Bật Public bucket -> Save)!", supabaseBucket, supabaseBucket);
+                    }
                 }
             } catch (Exception e) {
                 log.warn("⚠️ Supabase upload encountered transient error ({}). Triggering zero-crash local storage fallback.", e.getMessage());

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   MessageSquare,
   UploadCloud,
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../../services/api';
+import { Pagination } from '../../components/common/Pagination';
 
 interface PatientProfileData {
   id: string;
@@ -120,6 +121,32 @@ export const PatientDashboard: React.FC = () => {
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [submittingCancel, setSubmittingCancel] = useState(false);
+
+  // Pagination states (Offset)
+  const [appointmentsPage, setAppointmentsPage] = useState(1);
+  const [appointmentsPageSize, setAppointmentsPageSize] = useState(5);
+
+  const [triagePage, setTriagePage] = useState(1);
+  const [triagePageSize, setTriagePageSize] = useState(5);
+
+  const [documentsPage, setDocumentsPage] = useState(1);
+  const [documentsPageSize, setDocumentsPageSize] = useState(5);
+
+  // Sliced paginated lists
+  const paginatedAppointments = useMemo(() => {
+    const start = (appointmentsPage - 1) * appointmentsPageSize;
+    return appointments.slice(start, start + appointmentsPageSize);
+  }, [appointments, appointmentsPage, appointmentsPageSize]);
+
+  const paginatedTriage = useMemo(() => {
+    const start = (triagePage - 1) * triagePageSize;
+    return triageHistory.slice(start, start + triagePageSize);
+  }, [triageHistory, triagePage, triagePageSize]);
+
+  const paginatedDocuments = useMemo(() => {
+    const start = (documentsPage - 1) * documentsPageSize;
+    return documents.slice(start, start + documentsPageSize);
+  }, [documents, documentsPage, documentsPageSize]);
 
   // Profile Edit Modal State
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -478,11 +505,10 @@ export const PatientDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {appointments.map((apt) => {
+                {paginatedAppointments.map((apt) => {
                   const isScheduled = apt.status === 'SCHEDULED';
                   const isCompleted = apt.status === 'COMPLETED';
                   const vitals = parseVitalSigns(apt.vitalSignsJson);
-                  const prescriptions = parsePrescriptions(apt.prescriptionJson);
 
                   return (
                     <div
@@ -524,69 +550,133 @@ export const PatientDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Doctor & Clinic Info */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
                         <div>
-                          <div className="text-xs text-slate-400 font-medium">Bác sĩ phụ trách:</div>
-                          <h4 className="font-bold text-base text-slate-900">{apt.doctorName}</h4>
-                          {apt.clinicRoom && (
-                            <div className="text-xs text-indigo-700 font-semibold mt-0.5">
-                              📍 {apt.clinicRoom}
-                            </div>
-                          )}
-                          {apt.chiefComplaint && (
-                            <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 mt-2">
-                              <strong className="text-slate-700">Lý do vào viện:</strong> {apt.chiefComplaint}
-                            </p>
-                          )}
+                          <span className="text-slate-400 block font-semibold">Bác sĩ phụ trách:</span>
+                          <span className="font-bold text-slate-800 text-sm">{apt.doctorName}</span>
+                          <span className="text-slate-400 block text-[11px]">{apt.doctorEmail}</span>
                         </div>
 
                         <div>
-                          {/* If Completed, show ICD-10 and Action to View Full EMR */}
-                          {isCompleted && (
-                            <div className="space-y-2">
-                              {apt.icd10Code && (
-                                <div className="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs space-y-0.5">
-                                  <span className="font-bold text-emerald-800">
-                                    Chẩn đoán ICD-10: <span className="font-mono underline">{apt.icd10Code}</span>
-                                  </span>
-                                  <div className="text-slate-700 font-medium">{apt.icd10Name}</div>
-                                </div>
+                          <span className="text-slate-400 block font-semibold">Phòng khám / Cơ sở:</span>
+                          <span className="font-semibold text-slate-700">{apt.clinicRoom || 'Phòng Khám Nội 102 - Tòa A'}</span>
+                          <span className="text-slate-400 block text-[11px]">Bệnh viện Đa khoa Trung ương</span>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-400 block font-semibold">Phí dịch vụ & Trạng thái:</span>
+                          <span className="font-bold text-indigo-600 text-sm">
+                            {Number(apt.feeAmount || 300000).toLocaleString('vi-VN')} đ
+                          </span>
+                          <span className="ml-2 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                            {apt.paymentStatus === 'PAID' ? 'Đã Thanh Toán' : 'Thanh Toán Tại Viện'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Chief Complaint if any */}
+                      {apt.chiefComplaint && (
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                          <span className="font-bold text-slate-600 block mb-0.5">Lý do khám bệnh:</span>
+                          <p className="text-slate-800 font-medium">{apt.chiefComplaint}</p>
+                        </div>
+                      )}
+
+                      {/* EMR Highlights if completed */}
+                      {isCompleted && (
+                        <div className="p-4 rounded-xl bg-indigo-50/60 border border-indigo-100/80 text-xs space-y-2">
+                          <div className="flex items-center justify-between text-indigo-900 font-bold">
+                            <span className="flex items-center gap-1">
+                              <Activity className="w-3.5 h-3.5 text-indigo-600" />
+                              Chẩn Đoán Lâm Sàng & Đơn Thuốc Đã Kê
+                            </span>
+                            {apt.icd10Code && (
+                              <span className="font-mono bg-white px-2 py-0.5 rounded-md border border-indigo-200 text-indigo-700">
+                                ICD-10: {apt.icd10Code}
+                              </span>
+                            )}
+                          </div>
+
+                          {apt.icd10Name && (
+                            <p className="font-semibold text-slate-800">
+                              Bệnh lý: <span className="text-indigo-900">{apt.icd10Name}</span>
+                            </p>
+                          )}
+
+                          {apt.consultationNotes && (
+                            <p className="text-slate-600 italic">
+                              "{apt.consultationNotes}"
+                            </p>
+                          )}
+
+                          {/* Mini Vitals */}
+                          {vitals && (
+                            <div className="flex flex-wrap gap-2 pt-1 border-t border-indigo-100/60 text-[11px]">
+                              {vitals.bloodPressure && (
+                                <span className="bg-white px-2 py-0.5 rounded border border-indigo-100">
+                                  Huyết áp: <strong>{vitals.bloodPressure}</strong> mmHg
+                                </span>
                               )}
-                              {vitals && (vitals.bloodPressure || vitals.heartRate) && (
-                                <div className="text-xs text-slate-500 font-mono">
-                                  🫀 Sinh hiệu: {vitals.bloodPressure && <span>HA: <strong>{vitals.bloodPressure}</strong> mmHg </span>}{vitals.heartRate && <span>| Mạch: <strong>{vitals.heartRate}</strong> bpm</span>}
-                                </div>
+                              {vitals.heartRate && (
+                                <span className="bg-white px-2 py-0.5 rounded border border-indigo-100">
+                                  Mạch: <strong>{vitals.heartRate}</strong> bpm
+                                </span>
                               )}
-                              {prescriptions.length > 0 && (
-                                <div className="text-xs text-slate-500">
-                                  💊 Đơn thuốc đã cấp: <strong>{prescriptions.length} loại thuốc</strong>
-                                </div>
+                              {vitals.spO2 && (
+                                <span className="bg-white px-2 py-0.5 rounded border border-indigo-100">
+                                  SpO2: <strong>{vitals.spO2}%</strong>
+                                </span>
                               )}
-                              <button
-                                onClick={() => setSelectedEmrAppointment(apt)}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer"
-                              >
-                                <FileText className="w-3.5 h-3.5" />
-                                Xem Bệnh Án Điện Tử & Toa Thuốc (EMR)
-                              </button>
                             </div>
                           )}
 
+                          {/* Action view full EMR */}
+                          <div className="pt-2 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedEmrAppointment(apt)}
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
+                            >
+                              <FileText className="w-3.5 h-3.5" /> Xem Chi Tiết Bệnh Án EMR
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action Bar */}
+                      <div className="flex items-center justify-between pt-2 text-xs">
+                        <span className="text-slate-400">
+                          {isScheduled ? 'Vui lòng có mặt trước 15 phút để làm thủ tục' : ''}
+                        </span>
+
+                        <div className="flex items-center gap-2">
                           {isScheduled && (
-                            <div className="flex items-center justify-end h-full">
-                              <button
-                                onClick={() => handleCancelAppointment(apt.id)}
-                                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition border border-rose-200 cursor-pointer"
-                              >
-                                <Ban className="w-3.5 h-3.5" /> Hủy Lịch Khám
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCancelAppointment(apt.id)}
+                              className="px-3 py-1.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl font-bold transition flex items-center gap-1"
+                            >
+                              <Ban className="w-3.5 h-3.5" /> Hủy Lịch Khám
+                            </button>
                           )}
                         </div>
                       </div>
                     </div>
                   );
                 })}
+
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+                  <Pagination
+                    currentPage={appointmentsPage}
+                    totalItems={appointments.length}
+                    pageSize={appointmentsPageSize}
+                    onPageChange={setAppointmentsPage}
+                    onPageSizeChange={setAppointmentsPageSize}
+                    pageSizeOptions={[5, 10, 20]}
+                    itemLabel="lịch khám"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -621,7 +711,7 @@ export const PatientDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {triageHistory.map((t) => (
+                {paginatedTriage.map((t) => (
                   <div key={t.id} className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-indigo-300 transition shadow-xs flex flex-col gap-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                       <div className="flex flex-wrap items-center gap-2">
@@ -688,6 +778,18 @@ export const PatientDashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
+
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+                  <Pagination
+                    currentPage={triagePage}
+                    totalItems={triageHistory.length}
+                    pageSize={triagePageSize}
+                    onPageChange={setTriagePage}
+                    onPageSizeChange={setTriagePageSize}
+                    pageSizeOptions={[5, 10, 20]}
+                    itemLabel="phiên sàng lọc AI"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -722,7 +824,7 @@ export const PatientDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {documents.map((doc) => (
+                {paginatedDocuments.map((doc) => (
                   <div key={doc.id} className="p-4 rounded-2xl border border-slate-200 bg-white hover:border-teal-300 transition shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center font-bold flex-shrink-0">
@@ -759,6 +861,18 @@ export const PatientDashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
+
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+                  <Pagination
+                    currentPage={documentsPage}
+                    totalItems={documents.length}
+                    pageSize={documentsPageSize}
+                    onPageChange={setDocumentsPage}
+                    onPageSizeChange={setDocumentsPageSize}
+                    pageSizeOptions={[5, 10, 20]}
+                    itemLabel="tài liệu xét nghiệm"
+                  />
+                </div>
               </div>
             )}
           </div>
