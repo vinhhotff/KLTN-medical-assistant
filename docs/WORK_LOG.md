@@ -11,6 +11,7 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
+| **#037** | 13/09/2026 | Khởi Động Toàn Diện Hệ Sinh Thái MediAssist-AI (Docker pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173), Sửa Lỗi Constructor Injection & Xác Thực End-to-End | AI Assistant | 🟢 Sẵn sàng Review |
 | **#036** | 13/09/2026 | Kiểm Toán & Đồng Bộ Hoàn Hảo Toàn Diện Hệ Thống: Đấu Nối Endpoint Bị Bỏ Quên (Vector Semantic Search, Triage History, Documents), Loại Bỏ Hardcode Lâm Sàng Bàn Khám & Xóa Sạch Fake Timers / window.prompt | AI Assistant | 🟢 Sẵn sàng Review |
 | **#035** | 13/09/2026 | Tái Cấu Trúc Toàn Diện Phân Luồng Triệu Chứng (AI-First Triage Engine): Loại Bỏ 100% Keyword Matching Cố Định, Nâng Cấp Triage RAG Prompt & Phân Định Mức Độ Khẩn Cấp Chuẩn Y Khoa | AI Assistant | 🟢 Đã Duyệt |
 | **#034** | 13/09/2026 | Toàn Diện Hóa Kiến Trúc AI-First: Xóa Bỏ 100% Ma Trận Điểm Keyword Scoring & Chuỗi If-Else Bịa Bệnh, Minh Bạch Hóa Chế Độ Ngoại Tuyến & Chuẩn Hóa Khớp Nối Bác Sĩ pgvector Cosine Similarity | AI Assistant | 🟢 Đã Duyệt |
@@ -43,6 +44,43 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#037] Khởi Động Toàn Diện Hệ Sinh Thái MediAssist-AI (Docker pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173), Sửa Lỗi Constructor Injection & Xác Thực End-to-End
+* **Thời gian:** 2026-09-13 14:23:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** Toàn bộ hệ sinh thái (Infrastructure, Auth, AI Clinical Triage, Document Summarizer, Doctor Semantic Search)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (47/47 Tests PASS, Actuator UP)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (HTTP 200 OK)
+  - Database: PostgreSQL 16 + pgvector (cổng **5433** container `mediassist_postgres` - HEALTHY)
+  - Cache: Redis 7-alpine (cổng **6379** container `mediassist_redis` - HEALTHY)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Vấn Đề Kỹ Thuật Đã Giải Quyết (Key Technical Implementations)
+1. **Khởi động Docker Infrastructure tự chủ hoàn toàn**:
+   - Khởi động service Docker Desktop engine và kích hoạt 2 container cốt lõi: `mediassist_postgres` (pgvector 16 trên cổng nội bộ `5433:5432`) và `mediassist_redis` (Redis 7 trên cổng `6379`).
+   - Kiểm tra `pg_isready` và `redis-cli ping` (PONG), xác thực cơ sở dữ liệu `mediassist_db` hoạt động trơn tru.
+2. **Khắc phục lỗi Spring Bean Constructor Instantiation**:
+   - Khi khởi động Spring Boot trên dev profile, `MedicalDocumentAnalysisService` có 2 public constructors gây lỗi `No default constructor found / NoSuchMethodException`.
+   - Bổ sung tường minh `@Autowired` vào constructor chính (10 dependencies) để Spring IoC Container giải quyết chuẩn xác dependency graph.
+3. **Cấu hình OpenRouter dự phòng trên `application-dev.properties`**:
+   - Cung cấp API key mặc định cho OpenRouter AI Gateway trong môi trường phát triển local dev, đảm bảo LLM RAG và Triage hoạt động thông suốt.
+4. **Kiểm thử & Xác thực Trực tiếp (Live E2E Verification)**:
+   - Toàn bộ 47 unit test backend PASS (`mvn test` clean trong 8.2s).
+   - Backend Actuator Health check `GET http://localhost:5000/actuator/health` trả về `status: UP` (db, redis, diskSpace, livenessState, readinessState đều active).
+   - Frontend Vite dev server khởi động tại `http://localhost:5173` trả về HTTP 200 OK.
+   - Kiểm tra đăng nhập end-to-end với 3 vai trò hệ thống:
+     - Admin: `admin@mediassist.local` / `Admin@SecurePass2026!` $\rightarrow$ HTTP 200 (JWT issued)
+     - Bác sĩ: `doctor@mediassist.local` / `Doctor@SecurePass2026!` $\rightarrow$ HTTP 200 (JWT issued)
+     - Bệnh nhân: `patient@mediassist.local` / `Patient@SecurePass2026!` $\rightarrow$ HTTP 200 (JWT issued)
+   - Kiểm tra danh sách bác sĩ `GET /api/v1/doctors` $\rightarrow$ Trả về dữ liệu bác sĩ tuyến trung ương đã đồng bộ vector embeddings 1536 chiều.
+
+#### 2. Danh Sách Tệp Thay Đổi
+- `[MOD]` `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java` (Thêm `@Autowired` cho primary constructor)
+- `[MOD]` `backend/src/main/resources/application-dev.properties` (Cấu hình OpenRouter default key)
+- `[MOD]` `docs/WORK_LOG.md` (Thêm bản ghi kiểm duyệt #037)
+
+---
 
 ### [WORK-LOG-#036] Kiểm Toán & Đồng Bộ Hoàn Hảo Toàn Diện Hệ Thống: Đấu Nối Endpoint Bị Bỏ Quên (Vector Semantic Search, Triage History, Documents), Loại Bỏ Hardcode Lâm Sàng Bàn Khám & Xóa Sạch Fake Timers / window.prompt
 * **Thời gian:** 2026-09-13 13:55:00 (GMT+7)

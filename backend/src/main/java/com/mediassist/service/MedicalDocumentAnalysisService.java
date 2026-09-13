@@ -15,6 +15,7 @@ import com.mediassist.repository.MedicalDocumentRepository;
 import com.mediassist.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,6 +42,7 @@ public class MedicalDocumentAnalysisService {
     private final ClinicalRagService clinicalRagService;
     private final SecurityRateLimiterService rateLimiterService;
 
+    @Autowired
     public MedicalDocumentAnalysisService(PdfExtractionService pdfExtractionService,
                                           DoctorSemanticSearchService doctorSemanticSearchService,
                                           MedicalDocumentRepository medicalDocumentRepository,
