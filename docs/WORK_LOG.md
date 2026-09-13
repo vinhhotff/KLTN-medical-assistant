@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :--- | :---: |
-| **#042** | 13/09/2026 | Cải Tổ Toàn Diện Pipeline Phân Tích Tài Liệu Y Khoa (6 Điểm Nghẽn): Tích Hợp Trực Tiếp Google Gemini Flash (Tier 1 AI), Trình Phân Tích Bảng Đa Mẫu (Multi-Pattern Table Parser), Dữ Liệu Lâm Sàng Động 100% (Bệnh Viện, Bác Sĩ, SID, Máy Xét Nghiệm), Khoảng Tham Chiếu Giới Tính & Nâng Hạn Mức PDF 10 Trang | AI Assistant | 🟢 Sẵn sàng Review |
+| **#043** | 13/09/2026 | Khắc Phục Lỗi Xung Đột JPA Nullable Phiếu Trắng, Chặn Path Traversal Storage, Chuẩn Hóa Status Chỉ Số & Ngày Tiếp Nhận Frontend | AI Assistant | 🟢 Sẵn sàng Review |
+| **#042** | 13/09/2026 | Cải Tổ Toàn Diện Pipeline Phân Tích Tài Liệu Y Khoa (6 Điểm Nghẽn): Tích Hợp Trực Tiếp Google Gemini Flash (Tier 1 AI), Trình Phân Tích Bảng Đa Mẫu (Multi-Pattern Table Parser), Dữ Liệu Lâm Sàng Động 100% (Bệnh Viện, Bác Sĩ, SID, Máy Xét Nghiệm), Khoảng Tham Chiếu Giới Tính & Nâng Hạn Mức PDF 10 Trang | AI Assistant | 🟢 Đã Duyệt |
 | **#041** | 13/09/2026 | Triển Khai Phân Trang Offset (Limit/Offset Pagination) Toàn Diện Toàn Bộ Bảng/Danh Sách Chống Tràn Bộ Nhớ & Khắc Phục Lưu Trữ Supabase Database / Cloud Storage | AI Assistant | 🟢 Đã Duyệt |
 | **#040** | 13/09/2026 | Hiện Thực Hóa Toàn Diện Phân Hệ Quản Lý Bác Sĩ (Doctor Management Portal): 2 Tab Roster & Vetting, Tìm Kiếm/Lọc Đa Tiêu Chí, Modal Thêm/Sửa/Xem Chi Tiết, Khóa/Mở Khóa Tài Khoản & Đồng Bộ AI Vector pgvector | AI Assistant | 🟢 Đã Duyệt |
 | **#039** | 13/09/2026 | Triệt Tiêu Đề Xuất Bác Sĩ Ảo (Zero Fake Recommendation) Khi Tài Liệu Trống/Mờ, Thiết Lập Multi-Model Vision OCR Pool & Nâng Cấp PDF 200 DPI | AI Assistant | 🟢 Đã Duyệt |
@@ -21,6 +22,32 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#043] Khắc Phục Lỗi Xung Đột JPA Nullable Phiếu Trắng, Chặn Path Traversal Storage, Chuẩn Hóa Status Chỉ Số & Ngày Tiếp Nhận Frontend
+* **Thời gian:** 2026-09-13 18:05:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-03 (Phân Tích Tài Liệu Y Khoa Multimodal & RAG Lâm Sàng Chuyên Sâu)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (**59/59 Tests PASS 100%**)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (**Build 0 TypeScript error, 1670 modules**)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Vấn Đề Được Khắc Phục Triệt Để:
+1. **Lỗi JPA Nullable Exception (HTTP 500)**:
+   - Khi người dùng tải lên phiếu xét nghiệm trắng (hoặc ảnh mờ), hệ thống kích hoạt Zero Fake Doctor và gán `specialtySlug = null`.
+   - Trước đó, entity `DocumentAnalysis.java` đặt `@Column(nullable = false)` khiến Hibernate ném `PropertyValueException` làm sập transaction.
+   - Đã sửa thành `@Column(name = "recommended_specialty_slug", nullable = true)`.
+2. **Lỗ hổng Path Traversal trong `SupabaseStorageService.deleteDocument`**:
+   - Thêm lớp phòng vệ kiểm tra đường dẫn tuyệt đối: `localPath.normalize().startsWith(baseUploadDir)` ngăn chặn việc truyền đường dẫn tương đối độc hại để xóa file hệ thống.
+3. **Chuẩn hóa Status Chỉ số Cận lâm sàng**:
+   - Backend (`GeminiAiProvider`, `OpenRouterAiProvider`) tự động chuẩn hóa `"HIGH"` $\rightarrow$ `"ELEVATED"`.
+   - Frontend (`DocumentSummarizerPage.tsx`) linh hoạt kiểm tra cả `ELEVATED` và `HIGH`, triệt tiêu tình trạng chỉ số vượt ngưỡng bị hiển thị nhầm thành badge "BÌNH THƯỜNG".
+4. **Sửa Fallback Thời Gian Tiếp Nhận Gây Hiểu Lầm Lâm Sàng**:
+   - Đổi từ `new Date().toLocaleDateString()` sang `'Không xác định trong tài liệu'`, ngăn ngừa việc gán nhầm ngày hiện tại cho hồ sơ xét nghiệm cũ.
+5. **Bổ sung Metadata cho Deduplication Cache Hit**:
+   - `MedicalDocumentAnalysisService` gán đầy đủ `modelUsed` và `doctorRecommendationReason` khi trả về kết quả băm SHA-256 trùng khớp.
+
+---
 
 ### [WORK-LOG-#042] Cải Tổ Toàn Diện Pipeline Phân Tích Tài Liệu Y Khoa (Khắc Phục 6 Điểm Nghẽn Kỹ Thuật)
 * **Thời gian:** 2026-09-13 17:45:00 (GMT+7)

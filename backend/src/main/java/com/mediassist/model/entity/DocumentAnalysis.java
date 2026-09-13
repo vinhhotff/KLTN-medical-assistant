@@ -30,7 +30,7 @@ public class DocumentAnalysis {
     @Column(columnDefinition = "TEXT")
     private String abnormalIndicatorsJson;
 
-    @Column(nullable = false)
+    @Column(name = "recommended_specialty_slug", nullable = true)
     private String recommendedSpecialtySlug;
 
     @Column(nullable = false)

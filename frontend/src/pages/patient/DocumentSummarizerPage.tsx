@@ -739,7 +739,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 <div className="p-2.5 bg-slate-800/80 rounded-xl">
                   <span className="text-slate-400 text-[10px] block">Thời Gian Tiếp Nhận:</span>
                   <span className="font-mono text-slate-200">
-                    {analysis.testDate || new Date().toLocaleDateString('vi-VN')}
+                    {analysis.testDate || 'Không xác định trong tài liệu'}
                   </span>
                 </div>
               </div>
@@ -860,13 +860,13 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                         <td className="py-3 px-4 text-slate-500">{ind.referenceRange}</td>
                         <td className="py-3 px-4">
                           <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                            ind.status === 'ELEVATED'
+                            ind.status === 'ELEVATED' || (ind.status as string) === 'HIGH'
                               ? 'bg-rose-50 text-rose-700 border border-rose-200'
                               : ind.status === 'LOW'
                               ? 'bg-amber-50 text-amber-700 border border-amber-200'
                               : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           }`}>
-                            {ind.status === 'ELEVATED' ? 'TĂNG CAO' : ind.status === 'LOW' ? 'HẠ THẤP' : 'BÌNH THƯỜNG'}
+                            {ind.status === 'ELEVATED' || (ind.status as string) === 'HIGH' ? 'TĂNG CAO' : ind.status === 'LOW' ? 'HẠ THẤP' : 'BÌNH THƯỜNG'}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-slate-600 text-[11px] leading-relaxed">

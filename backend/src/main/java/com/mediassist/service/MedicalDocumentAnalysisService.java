@@ -152,6 +152,10 @@ public class MedicalDocumentAnalysisService {
                 resp.setMatchedDoctors(matchedDoctors);
                 resp.setStorageUrl(existingDoc.getStorageUrl());
                 resp.setCachedResult(true);
+                resp.setModelUsed("SHA-256 Deduplication Cache (0 LLM Tokens)");
+                if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+                    resp.setDoctorRecommendationReason(matchedDoctors.get(0).getAiRecommendationReason());
+                }
 
                 if (existingAnalysis.getMetadataJson() != null && !existingAnalysis.getMetadataJson().isBlank()) {
                     try {
@@ -646,7 +650,6 @@ public class MedicalDocumentAnalysisService {
         }
     }
 
-    /**
     /**
      * Extracts administrative clinical metadata directly from the document header lines:
      * Hospital Name, Department, Ordering Doctor, Test Date, SID, Patient Name, Age, Gender, Device Model.

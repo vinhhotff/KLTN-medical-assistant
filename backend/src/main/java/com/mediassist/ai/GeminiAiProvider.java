@@ -294,6 +294,9 @@ public class GeminiAiProvider implements AiProvider {
                     } else if (indNode.has("flag") && !indNode.get("flag").asText().isBlank()) {
                         status = indNode.get("flag").asText().toUpperCase();
                     }
+                    if ("HIGH".equals(status)) {
+                        status = "ELEVATED";
+                    }
 
                     String sig = indNode.has("clinicalSignificance")
                             ? indNode.get("clinicalSignificance").asText()

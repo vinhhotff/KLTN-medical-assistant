@@ -244,6 +244,7 @@ class MedicalDocumentAnalysisServiceTest {
         assertTrue(response.isCachedResult(), "Response must be marked as cachedResult");
         assertEquals("https://supabase.co/storage/v1/object/public/medical-documents/cached.pdf", response.getStorageUrl());
         assertEquals("cardiology", response.getRecommendedSpecialtySlug());
+        assertTrue(response.getModelUsed().contains("Deduplication"));
 
         // Verify storage upload was NOT triggered and quota was NOT deducted
         verify(storageService, never()).uploadDocument(any(), any(), any(), any());

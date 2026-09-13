@@ -141,11 +141,18 @@ public class SupabaseStorageService implements StorageService {
             }
         }
 
-        // 2. Local Storage File Deletion
+        // 2. Local Storage File Deletion (Protected against Path Traversal)
         if (storageUrl.startsWith("/uploads/")) {
             try {
                 String relPath = storageUrl.startsWith("/") ? storageUrl.substring(1) : storageUrl;
-                Path localPath = Paths.get(relPath);
+                Path baseUploadDir = Paths.get("uploads").toAbsolutePath().normalize();
+                Path localPath = Paths.get(relPath).toAbsolutePath().normalize();
+
+                if (!localPath.startsWith(baseUploadDir)) {
+                    log.warn("🚨 [SECURITY - PATH TRAVERSAL DETECTED] Attempted deletion outside uploads directory: {}", storageUrl);
+                    return false;
+                }
+
                 boolean deleted = Files.deleteIfExists(localPath);
                 log.info("💾 Local file deletion result for '{}': {}", localPath, deleted);
                 return deleted;
