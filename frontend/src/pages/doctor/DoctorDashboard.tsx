@@ -65,35 +65,26 @@ export const DoctorDashboard: React.FC = () => {
   const [activeEncounterAppointment, setActiveEncounterAppointment] = useState<DoctorAppointment | null>(null);
   const [submittingEncounter, setSubmittingEncounter] = useState(false);
 
-  // Clinical Form Fields
-  const [bpSystolic, setBpSystolic] = useState('125');
-  const [bpDiastolic, setBpDiastolic] = useState('80');
-  const [heartRate, setHeartRate] = useState('76');
-  const [temperature, setTemperature] = useState('36.8');
-  const [respiratoryRate, setRespiratoryRate] = useState('18');
-  const [height, setHeight] = useState('170');
-  const [weight, setWeight] = useState('65');
-  const [spO2, setSpO2] = useState('98');
+  // Clinical Form Fields (Initialized empty for genuine doctor entry)
+  const [bpSystolic, setBpSystolic] = useState('');
+  const [bpDiastolic, setBpDiastolic] = useState('');
+  const [heartRate, setHeartRate] = useState('');
+  const [temperature, setTemperature] = useState('');
+  const [respiratoryRate, setRespiratoryRate] = useState('');
+  const [height, setHeight] = useState('');
+  const [weight, setWeight] = useState('');
+  const [spO2, setSpO2] = useState('');
 
   const [chiefComplaint, setChiefComplaint] = useState('');
-  const [icd10Code, setIcd10Code] = useState('I10');
-  const [icd10Name, setIcd10Name] = useState('Tăng huyết áp vô căn (nguyên phát)');
+  const [icd10Code, setIcd10Code] = useState('');
+  const [icd10Name, setIcd10Name] = useState('');
   const [consultationNotes, setConsultationNotes] = useState('');
   const [treatmentPlan, setTreatmentPlan] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
-  const [clinicRoom, setClinicRoom] = useState('Phòng Khám 204 - Khoa Chuyên Môn');
+  const [clinicRoom, setClinicRoom] = useState('');
 
-  // Multi-drug prescription items
-  const [prescriptionItems, setPrescriptionItems] = useState<PrescriptionItem[]>([
-    {
-      drugName: 'Amlodipine 5mg',
-      activeIngredient: 'Amlodipine besylate',
-      dosage: 'Uống 1 viên vào buổi sáng sau ăn no',
-      quantity: 30,
-      unit: 'viên',
-      days: 30
-    }
-  ]);
+  // Multi-drug prescription items (Empty by default)
+  const [prescriptionItems, setPrescriptionItems] = useState<PrescriptionItem[]>([]);
 
   // Selected EMR view modal for completed appointments
   const [selectedViewEmr, setSelectedViewEmr] = useState<DoctorAppointment | null>(null);
@@ -116,17 +107,25 @@ export const DoctorDashboard: React.FC = () => {
     }
   };
 
-  // Open Examination Modal
+  // Open Examination Modal - Reset form to clean clinical state
   const openEncounterModal = (apt: DoctorAppointment) => {
     setActiveEncounterAppointment(apt);
-    setChiefComplaint(apt.consultationNotes || 'Bệnh nhân đến khám tư vấn chuyên khoa định kỳ');
-    setClinicRoom(apt.clinicRoom || 'Phòng Khám 204 - Khoa Can Thiệp Tim Mạch');
-    setConsultationNotes('Bệnh nhân tỉnh táo, tiếp xúc tốt. Tim phổi bình thường, nhịp đều.');
-    setTreatmentPlan('Uống thuốc đúng giờ, hạn chế ăn mặn, tập thể dục nhẹ nhàng 30 phút mỗi ngày.');
-    // Set follow up 14 days later
-    const d = new Date();
-    d.setDate(d.getDate() + 14);
-    setFollowUpDate(d.toISOString().split('T')[0]);
+    setChiefComplaint(apt.consultationNotes || '');
+    setClinicRoom(apt.clinicRoom || '');
+    setConsultationNotes('');
+    setTreatmentPlan('');
+    setFollowUpDate('');
+    setBpSystolic('');
+    setBpDiastolic('');
+    setHeartRate('');
+    setTemperature('');
+    setRespiratoryRate('');
+    setHeight('');
+    setWeight('');
+    setSpO2('');
+    setIcd10Code('');
+    setIcd10Name('');
+    setPrescriptionItems([]);
   };
 
   // Quick select common ICD-10 templates

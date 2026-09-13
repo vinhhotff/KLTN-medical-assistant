@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Calendar, Clock, MapPin, CheckCircle2, AlertCircle, X, Building2, Star, Filter } from 'lucide-react';
+import { Search, Calendar, Clock, MapPin, CheckCircle2, AlertCircle, X, Building2, Star, Filter, Sparkles, Loader2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 
 interface DoctorDetail {
   id: string;
-  profileId: string;
+  profileId?: string;
   fullName: string;
-  email: string;
+  email?: string;
   phone?: string;
   avatarUrl?: string;
   bio: string;
@@ -16,13 +16,14 @@ interface DoctorDetail {
   consultationFee: number;
   yearsOfExperience: number;
   specialties: string[];
-  verified: boolean;
+  verified?: boolean;
   academicTitle?: string;
   hospitalAffiliation?: string;
   department?: string;
   licenseIssuedBy?: string;
   rating?: number;
   totalConsultations?: number;
+  similarityScore?: number;
 }
 
 interface DoctorSlot {
@@ -59,6 +60,8 @@ export const DoctorSearchPage: React.FC = () => {
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [semanticResults, setSemanticResults] = useState<DoctorDetail[] | null>(null);
+  const [searchingSemantic, setSearchingSemantic] = useState(false);
 
   // Booking Modal State
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorDetail | null>(null);
@@ -74,6 +77,41 @@ export const DoctorSearchPage: React.FC = () => {
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [confirmedAppointment, setConfirmedAppointment] = useState<AppointmentConfirmation | null>(null);
+
+  // Real pgvector HNSW Cosine Similarity search when query >= 3 chars and user authenticated
+  useEffect(() => {
+    const trimmed = searchTerm.trim();
+    if (trimmed.length < 3) {
+      setSemanticResults(null);
+      return;
+    }
+
+    if (!user) {
+      setSemanticResults(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        setSearchingSemantic(true);
+        const res = await api.get('/triage/search/semantic', {
+          params: { query: trimmed, limit: 12 }
+        });
+        if (res.data?.data && Array.isArray(res.data.data)) {
+          setSemanticResults(res.data.data);
+        } else {
+          setSemanticResults(null);
+        }
+      } catch (err) {
+        console.warn('Semantic search fallback to keyword filter:', err);
+        setSemanticResults(null);
+      } finally {
+        setSearchingSemantic(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, user]);
 
   useEffect(() => {
     fetchInitialData();
@@ -180,18 +218,24 @@ export const DoctorSearchPage: React.FC = () => {
     }
   };
 
-  const filteredDoctors = doctors.filter((d) => {
+  const displaySource = semanticResults !== null ? semanticResults : doctors;
+
+  const filteredDoctors = displaySource.filter((d) => {
+    const matchesSpecialty =
+      selectedSpecialty === 'ALL' ||
+      d.specialties?.some((s) => s.toLowerCase().includes(selectedSpecialty.toLowerCase()));
+
+    if (semanticResults !== null) {
+      return matchesSpecialty;
+    }
+
     const term = searchTerm.toLowerCase();
-    const matchName = d.fullName.toLowerCase().includes(term);
+    const matchName = d.fullName?.toLowerCase().includes(term);
     const matchBio = d.bio?.toLowerCase().includes(term);
     const matchHosp = d.hospitalAffiliation?.toLowerCase().includes(term);
     const matchDept = d.department?.toLowerCase().includes(term);
     const matchSpec = d.specialties?.some((s) => s.toLowerCase().includes(term));
     const matchesSearch = matchName || matchBio || matchHosp || matchDept || matchSpec;
-
-    const matchesSpecialty =
-      selectedSpecialty === 'ALL' ||
-      d.specialties?.some((s) => s.toLowerCase().includes(selectedSpecialty.toLowerCase()));
 
     return matchesSearch && matchesSpecialty;
   });
@@ -201,21 +245,32 @@ export const DoctorSearchPage: React.FC = () => {
       <div>
         <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Tìm Kiếm & Đặt Lịch Bác Sĩ Chuyên Khoa</h2>
         <p className="text-slate-500 text-sm mt-1">
-          Hệ thống danh bạ bác sĩ chính quy tại các Bệnh viện tuyến đầu, đã được thẩm định Chứng Chỉ Hành Nghề (CCHN).
+          Hệ thống danh bạ bác sĩ chính quy tại các Bệnh viện tuyến đầu, tích hợp công nghệ AI vector pgvector đối soát ngữ nghĩa triệu chứng.
         </p>
       </div>
 
       {/* Filter & Search Toolbar */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="md:col-span-2 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-          <Search className="w-5 h-5 text-slate-400 flex-shrink-0" />
+          {searchingSemantic ? (
+            <Loader2 className="w-5 h-5 text-indigo-600 animate-spin flex-shrink-0" />
+          ) : semanticResults !== null ? (
+            <Sparkles className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+          ) : (
+            <Search className="w-5 h-5 text-slate-400 flex-shrink-0" />
+          )}
           <input
             type="text"
-            placeholder="Tìm theo tên bác sĩ, bệnh viện (BV Chợ Rẫy, Bạch Mai, ĐH Y Dược...), chuyên khoa..."
+            placeholder="Tìm theo triệu chứng, chuyên khoa, tên bác sĩ, bệnh viện (VD: đau thắt ngực, BV Chợ Rẫy)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full text-sm bg-transparent outline-none placeholder:text-slate-400"
           />
+          {semanticResults !== null && (
+            <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap">
+              <Sparkles className="w-3 h-3" /> pgvector AI
+            </span>
+          )}
         </div>
 
         <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-2">
@@ -260,6 +315,12 @@ export const DoctorSearchPage: React.FC = () => {
                       </span>
                     )}
                     <h3 className="text-base font-bold text-slate-900">{doc.fullName}</h3>
+                    {doc.similarityScore != null && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-indigo-600" />
+                        pgvector: {(doc.similarityScore * 100).toFixed(0)}% tương đồng
+                      </span>
+                    )}
                     {doc.specialties?.map((spec) => (
                       <span
                         key={spec}

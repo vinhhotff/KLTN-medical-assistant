@@ -13,7 +13,8 @@ import {
   Edit3,
   CheckCircle2,
   X,
-  Phone
+  Phone,
+  Sparkles
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../../services/api';
@@ -83,11 +84,42 @@ interface PrescriptionItem {
   days: number;
 }
 
+interface TriageHistoryItem {
+  id: string;
+  patientName?: string;
+  symptomsText: string;
+  isEmergency: boolean;
+  urgencyLevel: 'EMERGENCY' | 'URGENT' | 'ROUTINE' | 'SELF_CARE';
+  primarySpecialty?: string;
+  sbarSummary?: string;
+  aiAdvice?: string;
+  createdAt: string;
+}
+
+interface PatientDocumentItem {
+  id: string;
+  fileName: string;
+  fileSizeBytes: number;
+  contentType: string;
+  status: string;
+  storageUrl?: string;
+  isValidMedical: boolean;
+  createdAt: string;
+}
+
 export const PatientDashboard: React.FC = () => {
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [profile, setProfile] = useState<PatientProfileData | null>(null);
+  const [triageHistory, setTriageHistory] = useState<TriageHistoryItem[]>([]);
+  const [documents, setDocuments] = useState<PatientDocumentItem[]>([]);
+  const [activeTab, setActiveTab] = useState<'appointments' | 'triage' | 'documents'>('appointments');
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Cancellation Modal State
+  const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [submittingCancel, setSubmittingCancel] = useState(false);
 
   // Profile Edit Modal State
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -105,9 +137,11 @@ export const PatientDashboard: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [appRes, profRes] = await Promise.all([
-        api.get('/appointments/my'),
-        api.get('/patient/profile').catch(() => null)
+      const [appRes, profRes, triageRes, docsRes] = await Promise.all([
+        api.get('/appointments/my').catch(() => ({ data: { data: [] } })),
+        api.get('/patient/profile').catch(() => null),
+        api.get('/triage/history').catch(() => ({ data: { data: [] } })),
+        api.get('/documents/my').catch(() => ({ data: { data: [] } })),
       ]);
 
       if (appRes.data?.data) {
@@ -117,6 +151,12 @@ export const PatientDashboard: React.FC = () => {
         setProfile(profRes.data.data);
         setEditForm(profRes.data.data);
       }
+      if (triageRes.data?.data && Array.isArray(triageRes.data.data)) {
+        setTriageHistory(triageRes.data.data);
+      }
+      if (docsRes.data?.data && Array.isArray(docsRes.data.data)) {
+        setDocuments(docsRes.data.data);
+      }
     } catch (err) {
       console.error('Failed to load patient dashboard data:', err);
     } finally {
@@ -124,20 +164,30 @@ export const PatientDashboard: React.FC = () => {
     }
   };
 
-  const handleCancelAppointment = async (appointmentId: string) => {
-    const reason = window.prompt('Vui lòng nhập lý do hủy lịch khám:');
-    if (!reason) return;
+  const handleCancelAppointment = (appointmentId: string) => {
+    setCancellingAppointmentId(appointmentId);
+    setCancelReason('');
+  };
+
+  const confirmCancelAppointment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cancellingAppointmentId || !cancelReason.trim()) return;
 
     try {
+      setSubmittingCancel(true);
       setActionError(null);
-      await api.patch(`/appointments/${appointmentId}/status`, {
+      await api.patch(`/appointments/${cancellingAppointmentId}/status`, {
         status: 'CANCELLED',
-        notes: reason,
+        notes: cancelReason.trim(),
       });
+      setCancellingAppointmentId(null);
+      setCancelReason('');
       loadData();
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
       setActionError(axiosError.response?.data?.error?.message || 'Không thể hủy lịch hẹn.');
+    } finally {
+      setSubmittingCancel(false);
     }
   };
 
@@ -345,138 +395,372 @@ export const PatientDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* APPOINTMENTS & EMR ENCOUNTERS MANAGEMENT */}
+      {/* SECTION TABS: APPOINTMENTS, AI TRIAGE HISTORY, LAB DOCUMENTS */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-indigo-600" />
-            <h2 className="text-xl font-bold text-slate-900">Lịch Khám & Bệnh Án Ngoại Trú (HIS/EMR)</h2>
-          </div>
-          <Link
-            to="/patient/doctors"
-            className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline"
+        {/* Navigation Tabs */}
+        <div className="flex border-b border-slate-200 mb-6 gap-2 sm:gap-6 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('appointments')}
+            className={`pb-3 text-xs sm:text-sm font-bold flex items-center gap-2 border-b-2 transition whitespace-nowrap cursor-pointer ${
+              activeTab === 'appointments'
+                ? 'border-indigo-600 text-indigo-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
           >
-            + Đặt Lịch Mới
-          </Link>
+            <Calendar className="w-4 h-4" />
+            Lịch Khám & EMR Ngoại Trú
+            <span className={`px-2 py-0.5 rounded-full text-[11px] ${
+              activeTab === 'appointments' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-600'
+            }`}>
+              {appointments.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('triage')}
+            className={`pb-3 text-xs sm:text-sm font-bold flex items-center gap-2 border-b-2 transition whitespace-nowrap cursor-pointer ${
+              activeTab === 'triage'
+                ? 'border-indigo-600 text-indigo-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4" />
+            Lịch Sử Phân Luồng AI
+            <span className={`px-2 py-0.5 rounded-full text-[11px] ${
+              activeTab === 'triage' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-600'
+            }`}>
+              {triageHistory.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('documents')}
+            className={`pb-3 text-xs sm:text-sm font-bold flex items-center gap-2 border-b-2 transition whitespace-nowrap cursor-pointer ${
+              activeTab === 'documents'
+                ? 'border-teal-600 text-teal-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            Hồ Sơ Xét Nghiệm Đã Quét
+            <span className={`px-2 py-0.5 rounded-full text-[11px] ${
+              activeTab === 'documents' ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-600'
+            }`}>
+              {documents.length}
+            </span>
+          </button>
         </div>
 
-        {loading ? (
-          <div className="py-12 text-center text-slate-400 text-sm">Đang tải lịch sử khám bệnh...</div>
-        ) : appointments.length === 0 ? (
-          <div className="py-12 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">
-            Bạn chưa có lịch hẹn khám nào. Hãy nhấn <strong>"Đặt Lịch Mới"</strong> để tìm bác sĩ chuyên khoa.
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {appointments.map((apt) => {
-              const isScheduled = apt.status === 'SCHEDULED';
-              const isCompleted = apt.status === 'COMPLETED';
-              const vitals = parseVitalSigns(apt.vitalSignsJson);
-              const prescriptions = parsePrescriptions(apt.prescriptionJson);
+        {/* TAB 1: APPOINTMENTS & EMR ENCOUNTERS */}
+        {activeTab === 'appointments' && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-indigo-600" />
+                <h2 className="text-xl font-bold text-slate-900">Lịch Khám & Bệnh Án Ngoại Trú (HIS/EMR)</h2>
+              </div>
+              <Link
+                to="/patient/doctors"
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline"
+              >
+                + Đặt Lịch Mới
+              </Link>
+            </div>
 
-              return (
-                <div
-                  key={apt.id}
-                  className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-indigo-300 transition shadow-xs flex flex-col gap-4"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
-                        {apt.appointmentCode}
-                      </span>
-                      {apt.queueNumber && (
-                        <span className="font-mono text-xs font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
-                          {apt.queueNumber}
+            {loading ? (
+              <div className="py-12 text-center text-slate-400 text-sm">Đang tải lịch sử khám bệnh...</div>
+            ) : appointments.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">
+                Bạn chưa có lịch hẹn khám nào. Hãy nhấn <strong>"Đặt Lịch Mới"</strong> để tìm bác sĩ chuyên khoa.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {appointments.map((apt) => {
+                  const isScheduled = apt.status === 'SCHEDULED';
+                  const isCompleted = apt.status === 'COMPLETED';
+                  const vitals = parseVitalSigns(apt.vitalSignsJson);
+                  const prescriptions = parsePrescriptions(apt.prescriptionJson);
+
+                  return (
+                    <div
+                      key={apt.id}
+                      className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-indigo-300 transition shadow-xs flex flex-col gap-4"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+                            {apt.appointmentCode}
+                          </span>
+                          {apt.queueNumber && (
+                            <span className="font-mono text-xs font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                              {apt.queueNumber}
+                            </span>
+                          )}
+                          <span
+                            className={`text-xs px-2.5 py-1 rounded-full font-bold ${
+                              isScheduled
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : isCompleted
+                                ? 'bg-sky-50 text-sky-700 border border-sky-200'
+                                : 'bg-rose-50 text-rose-700 border border-rose-200'
+                            }`}
+                          >
+                            {isScheduled ? '● Đã Tiếp Nhận Xếp Lịch' : isCompleted ? '✓ Đã Hoàn Tất Khám Lâm Sàng' : '✕ Đã Hủy'}
+                          </span>
+                        </div>
+
+                        <div className="text-xs text-slate-500 font-medium">
+                          {new Date(apt.scheduledStart).toLocaleString('vi-VN', {
+                            weekday: 'short',
+                            year: 'numeric',
+                            month: 'numeric',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-xs text-slate-400 font-medium">Bác sĩ phụ trách:</div>
+                          <h4 className="font-bold text-base text-slate-900">{apt.doctorName}</h4>
+                          {apt.clinicRoom && (
+                            <div className="text-xs text-indigo-700 font-semibold mt-0.5">
+                              📍 {apt.clinicRoom}
+                            </div>
+                          )}
+                          {apt.chiefComplaint && (
+                            <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 mt-2">
+                              <strong className="text-slate-700">Lý do vào viện:</strong> {apt.chiefComplaint}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          {/* If Completed, show ICD-10 and Action to View Full EMR */}
+                          {isCompleted && (
+                            <div className="space-y-2">
+                              {apt.icd10Code && (
+                                <div className="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs space-y-0.5">
+                                  <span className="font-bold text-emerald-800">
+                                    Chẩn đoán ICD-10: <span className="font-mono underline">{apt.icd10Code}</span>
+                                  </span>
+                                  <div className="text-slate-700 font-medium">{apt.icd10Name}</div>
+                                </div>
+                              )}
+                              {vitals && (vitals.bloodPressure || vitals.heartRate) && (
+                                <div className="text-xs text-slate-500 font-mono">
+                                  🫀 Sinh hiệu: {vitals.bloodPressure && <span>HA: <strong>{vitals.bloodPressure}</strong> mmHg </span>}{vitals.heartRate && <span>| Mạch: <strong>{vitals.heartRate}</strong> bpm</span>}
+                                </div>
+                              )}
+                              {prescriptions.length > 0 && (
+                                <div className="text-xs text-slate-500">
+                                  💊 Đơn thuốc đã cấp: <strong>{prescriptions.length} loại thuốc</strong>
+                                </div>
+                              )}
+                              <button
+                                onClick={() => setSelectedEmrAppointment(apt)}
+                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                Xem Bệnh Án Điện Tử & Toa Thuốc (EMR)
+                              </button>
+                            </div>
+                          )}
+
+                          {isScheduled && (
+                            <div className="flex items-center justify-end h-full">
+                              <button
+                                onClick={() => handleCancelAppointment(apt.id)}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition border border-rose-200 cursor-pointer"
+                              >
+                                <Ban className="w-3.5 h-3.5" /> Hủy Lịch Khám
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: AI TRIAGE HISTORY */}
+        {activeTab === 'triage' && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-indigo-600" />
+                  <h2 className="text-xl font-bold text-slate-900">Lịch Sử Khám Sàng Lọc & Phân Luồng AI</h2>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Nhật ký các lần trợ lý AI phân tích triệu chứng lâm sàng và định hướng chuyên khoa tiếp nhận.
+                </p>
+              </div>
+              <Link
+                to="/patient/triage"
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline inline-flex items-center gap-1"
+              >
+                <Sparkles className="w-3.5 h-3.5" /> + Khám Mới
+              </Link>
+            </div>
+
+            {loading ? (
+              <div className="py-12 text-center text-slate-400 text-sm">Đang tải lịch sử phân luồng...</div>
+            ) : triageHistory.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">
+                Chưa có phiên phân luồng AI nào. Hãy trải nghiệm <strong>"Khám Sàng Lọc AI"</strong> để được phân tầng mức độ khẩn cấp và định hướng chuyên khoa.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {triageHistory.map((t) => (
+                  <div key={t.id} className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-indigo-300 transition shadow-xs flex flex-col gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
+                          t.isEmergency || t.urgencyLevel === 'EMERGENCY'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                            : t.urgencyLevel === 'URGENT'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : t.urgencyLevel === 'ROUTINE'
+                            ? 'bg-sky-50 text-sky-700 border border-sky-200'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        }`}>
+                          {t.isEmergency || t.urgencyLevel === 'EMERGENCY'
+                            ? '🚨 CẤP CỨU KHẨN CẤP'
+                            : t.urgencyLevel === 'URGENT'
+                            ? '⚠️ KHẨN CẤP (Cần khám trong 24-48h)'
+                            : t.urgencyLevel === 'ROUTINE'
+                            ? '🩺 KHÁM TIÊU CHUẨN'
+                            : '🌱 TỰ CHĂM SÓC TẠI NHÀ'}
+                        </span>
+                        {t.primarySpecialty && (
+                          <span className="text-xs px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">
+                            Chuyên khoa: {t.primarySpecialty}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-slate-500 font-medium">
+                        {new Date(t.createdAt).toLocaleString('vi-VN')}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-xs font-bold text-slate-500 mb-1">Mô tả triệu chứng ban đầu:</div>
+                      <p className="text-xs text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed">
+                        {t.symptomsText}
+                      </p>
+                    </div>
+
+                    {t.sbarSummary && (
+                      <div>
+                        <div className="text-xs font-bold text-indigo-900 mb-1">Báo cáo tóm tắt chuẩn SBAR gửi bác sĩ:</div>
+                        <p className="text-xs text-slate-700 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 leading-relaxed">
+                          {t.sbarSummary}
+                        </p>
+                      </div>
+                    )}
+
+                    {t.aiAdvice && (
+                      <div>
+                        <div className="text-xs font-bold text-slate-700 mb-1">Khuyến nghị xử trí y tế từ AI:</div>
+                        <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed">
+                          {t.aiAdvice}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="pt-2 flex justify-end">
+                      <Link
+                        to="/patient/doctors"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+                      >
+                        <Calendar className="w-3.5 h-3.5" /> Đặt Lịch Khám Bác Sĩ
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: MEDICAL DOCUMENTS */}
+        {activeTab === 'documents' && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-teal-600" />
+                  <h2 className="text-xl font-bold text-slate-900">Hồ Sơ Xét Nghiệm & Chẩn Đoán Đã Quét</h2>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Danh mục tài liệu xét nghiệm máu, điện tim, siêu âm... đã được AI bóc tách và đối soát khoảng tham chiếu.
+                </p>
+              </div>
+              <Link
+                to="/patient/documents"
+                className="text-xs font-bold text-teal-700 hover:text-teal-800 hover:underline inline-flex items-center gap-1"
+              >
+                <UploadCloud className="w-3.5 h-3.5" /> + Quét Phiếu Mới
+              </Link>
+            </div>
+
+            {loading ? (
+              <div className="py-12 text-center text-slate-400 text-sm">Đang tải danh sách tài liệu...</div>
+            ) : documents.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">
+                Bạn chưa tải lên phiếu xét nghiệm nào. Nhấn <strong>"Quét Phiếu Mới"</strong> để AI bóc tách chỉ số sinh hóa tự động.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {documents.map((doc) => (
+                  <div key={doc.id} className="p-4 rounded-2xl border border-slate-200 bg-white hover:border-teal-300 transition shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center font-bold flex-shrink-0">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900">{doc.fileName}</h4>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-0.5">
+                          <span>{(doc.fileSizeBytes / 1024).toFixed(1)} KB</span>
+                          <span>•</span>
+                          <span>{new Date(doc.createdAt).toLocaleString('vi-VN')}</span>
+                          <span>•</span>
+                          <span className="font-mono text-slate-400 text-[11px]">{doc.contentType}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-center">
+                      {doc.isValidMedical ? (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Đã xác thực y tế
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                          Chờ xác thực
                         </span>
                       )}
-                      <span
-                        className={`text-xs px-2.5 py-1 rounded-full font-bold ${
-                          isScheduled
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : isCompleted
-                            ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                            : 'bg-rose-50 text-rose-700 border border-rose-200'
-                        }`}
+                      <Link
+                        to="/patient/documents"
+                        className="px-3.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl text-xs font-bold border border-teal-200 transition"
                       >
-                        {isScheduled ? '● Đã Tiếp Nhận Xếp Lịch' : isCompleted ? '✓ Đã Hoàn Tất Khám Lâm Sàng' : '✕ Đã Hủy'}
-                      </span>
-                    </div>
-
-                    <div className="text-xs text-slate-500 font-medium">
-                      {new Date(apt.scheduledStart).toLocaleString('vi-VN', {
-                        weekday: 'short',
-                        year: 'numeric',
-                        month: 'numeric',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                        Mở Phân Tích
+                      </Link>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <div className="text-xs text-slate-400 font-medium">Bác sĩ phụ trách:</div>
-                      <h4 className="font-bold text-base text-slate-900">{apt.doctorName}</h4>
-                      {apt.clinicRoom && (
-                        <div className="text-xs text-indigo-700 font-semibold mt-0.5">
-                          📍 {apt.clinicRoom}
-                        </div>
-                      )}
-                      {apt.chiefComplaint && (
-                        <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 mt-2">
-                          <strong className="text-slate-700">Lý do vào viện:</strong> {apt.chiefComplaint}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      {/* If Completed, show ICD-10 and Action to View Full EMR */}
-                      {isCompleted && (
-                        <div className="space-y-2">
-                          {apt.icd10Code && (
-                            <div className="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs space-y-0.5">
-                              <span className="font-bold text-emerald-800">
-                                Chẩn đoán ICD-10: <span className="font-mono underline">{apt.icd10Code}</span>
-                              </span>
-                              <div className="text-slate-700 font-medium">{apt.icd10Name}</div>
-                            </div>
-                          )}
-                          {vitals && (vitals.bloodPressure || vitals.heartRate) && (
-                            <div className="text-xs text-slate-500 font-mono">
-                              🫀 Sinh hiệu: {vitals.bloodPressure && <span>HA: <strong>{vitals.bloodPressure}</strong> mmHg </span>}{vitals.heartRate && <span>| Mạch: <strong>{vitals.heartRate}</strong> bpm</span>}
-                            </div>
-                          )}
-                          {prescriptions.length > 0 && (
-                            <div className="text-xs text-slate-500">
-                              💊 Đơn thuốc đã cấp: <strong>{prescriptions.length} loại thuốc</strong>
-                            </div>
-                          )}
-                          <button
-                            onClick={() => setSelectedEmrAppointment(apt)}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                            Xem Bệnh Án Điện Tử & Toa Thuốc (EMR)
-                          </button>
-                        </div>
-                      )}
-
-                      {isScheduled && (
-                        <div className="flex items-center justify-end h-full">
-                          <button
-                            onClick={() => handleCancelAppointment(apt.id)}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition border border-rose-200 cursor-pointer"
-                          >
-                            <Ban className="w-3.5 h-3.5" /> Hủy Lịch Khám
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -828,6 +1112,61 @@ export const PatientDashboard: React.FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CANCEL APPOINTMENT CONFIRMATION */}
+      {cancellingAppointmentId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl overflow-hidden p-6 space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-rose-600">
+                <Ban className="w-5 h-5" />
+                <h3 className="font-bold text-base text-slate-900">Xác Nhận Hủy Lịch Khám</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setCancellingAppointmentId(null);
+                  setCancelReason('');
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Vui lòng cho biết lý do bạn muốn hủy lịch hẹn khám này để hệ thống cập nhật và giải phóng khung giờ cho các bệnh nhân khác:
+            </p>
+            <form onSubmit={confirmCancelAppointment} className="space-y-4">
+              <textarea
+                required
+                rows={3}
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Ví dụ: Bận việc đột xuất, triệu chứng đã thuyên giảm, muốn đổi ngày khám khác..."
+                className="w-full p-3 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-rose-500 outline-none"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCancellingAppointmentId(null);
+                    setCancelReason('');
+                  }}
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Quay Lại
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingCancel || !cancelReason.trim()}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+                >
+                  {submittingCancel ? 'Đang hủy...' : 'Xác Nhận Hủy Lịch'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

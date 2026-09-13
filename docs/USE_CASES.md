@@ -297,24 +297,29 @@ graph TD
 
 ---
 
-### UC-07: Quản Lý Hộ Chiếu Y Tế & Bệnh Án Điện Tử (Patient EMR Medical Passport)
+### UC-07: Quản Lý Hộ Chiếu Y Tế & Cổng Thông Tin Bệnh Nhân Đa Năng (Patient EMR Medical Passport & Portal)
 
 * **Mã Use Case:** `UC-PAT-07`
 * **Tác nhân chính:** Patient, Doctor, Admin.
-* **Mục tiêu:** Quản lý toàn bộ thông tin hành chính y tế chuẩn bệnh viện (Mã BN bệnh viện `BN-YYYY-XXXXX`, 12 số CCCD, thẻ BHYT 15 ký tự, nhóm máu, tiền sử dị ứng thuốc và người liên hệ khẩn cấp). Cảnh báo đỏ dị ứng tức thời cho bác sĩ điều trị.
+* **Mục tiêu:** Quản lý toàn bộ thông tin hành chính y tế chuẩn bệnh viện (Mã BN bệnh viện `BN-YYYY-XXXXX`, 12 số CCCD, thẻ BHYT 15 ký tự, nhóm máu, tiền sử dị ứng thuốc và người liên hệ khẩn cấp). Cung cấp giao diện 3 tab tổng hợp: (1) Lịch khám & EMR ngoại trú, (2) Lịch sử phân luồng AI (Triage Sessions & SBAR), (3) Danh mục tài liệu xét nghiệm đã số hóa.
 * **REST Endpoints:**
   - `GET /api/v1/patient/profile`: Bệnh nhân tra cứu hồ sơ y tế cá nhân.
   - `PUT /api/v1/patient/profile`: Cập nhật thông tin CCCD, BHYT, nhóm máu, dị ứng, bệnh sử nền.
   - `GET /api/v1/patient/profile/by-user/{userId}`: Bác sĩ điều trị tra cứu hồ sơ bệnh nhân trước ca khám.
+  - `GET /api/v1/triage/history`: Bệnh nhân tra cứu toàn bộ lịch sử phân luồng AI và khuyến nghị SBAR.
+  - `GET /api/v1/documents/my`: Bệnh nhân tra cứu danh mục phiếu xét nghiệm đã lưu trữ và xác thực.
 
 #### Luồng sự kiện chính (Happy Path):
-1. Bệnh nhân đăng nhập vào hệ thống và truy cập thẻ `Hồ Sơ Y Tế Bệnh Nhân (EMR Medical Passport)` trên Bảng điều khiển.
+1. Bệnh nhân đăng nhập vào hệ thống và truy cập `PatientDashboard`.
 2. Hệ thống hiển thị Thẻ Y Tế Chuẩn Bệnh Viện:
    - Mã định danh bệnh viện: `BN-2026-08492`.
    - Thẻ CCCD 12 số, Thẻ BHYT 15 số có hạn mức thanh toán bảo hiểm y tế.
    - Nhóm máu (O+, A+, B+, AB+...).
    - Banner Cảnh Báo Đỏ Dị Ứng (Ví dụ: `DỊ ỨNG PENICILLIN (Kháng sinh Beta-lactam) - NGUY CƠ SỐC PHẢN VỆ`).
-3. Người bệnh có thể bấm *"Chỉnh Sửa Hồ Sơ Y Tế"* để cập nhật số CCCD, địa chỉ, người liên hệ khẩn cấp.
+3. Giao diện 3 tab tổng hợp giúp bệnh nhân quản lý sức khỏe toàn diện:
+   - **Tab 1: Lịch Khám & EMR Ngoại Trú:** Xem các lịch hẹn đã đặt, số thứ tự STT khám, phòng khám chỉ định, xem chi tiết EMR bệnh án và toa thuốc điện tử kèm nút In Toa Thuốc. Hủy lịch khám qua modal xác nhận lý do hủy rõ ràng.
+   - **Tab 2: Lịch Sử Phân Luồng AI:** Xem danh sách các ca sàng lọc triệu chứng, phân tầng mức độ khẩn cấp (Cấp cứu / Khẩn cấp / Tiêu chuẩn / Tự chăm sóc), xem tóm tắt lâm sàng SBAR và khuyến nghị AI, cùng nút đặt khám bác sĩ chuyên khoa tương ứng.
+   - **Tab 3: Hồ Sơ Xét Nghiệm Đã Quét:** Xem danh mục tệp PDF/ảnh kết quả xét nghiệm đã bóc tách, dung lượng tệp, trạng thái xác thực y tế và nút mở lại phân tích.
 4. Bác sĩ khi khám bệnh cho bệnh nhân này có thể xem toàn bộ lịch sử bệnh án và các cảnh báo dị ứng thuốc.
 
 ---

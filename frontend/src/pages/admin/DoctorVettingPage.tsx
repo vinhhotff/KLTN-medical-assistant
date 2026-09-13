@@ -28,6 +28,10 @@ export const DoctorVettingPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const [rejectingDoctor, setRejectingDoctor] = useState<PendingDoctor | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [submittingRejection, setSubmittingRejection] = useState(false);
+
   useEffect(() => {
     fetchPendingDoctors();
   }, []);
@@ -46,27 +50,18 @@ export const DoctorVettingPage: React.FC = () => {
     }
   };
 
-  const handleVet = async (doctor: PendingDoctor, approve: boolean) => {
-    let reason: string | null = null;
-    if (!approve) {
-      reason = window.prompt('Nhập lý do từ chối hồ sơ bác sĩ:');
-      if (reason === null) return;
-    }
-
+  const handleApprove = async (doctor: PendingDoctor) => {
     try {
       setActionLoading(doctor.profileId);
       setStatusMessage(null);
 
       await api.post(`/admin/doctors/${doctor.profileId}/vet`, {
-        approve,
-        rejectionReason: reason,
+        approve: true,
       });
 
       setStatusMessage({
         type: 'success',
-        text: approve
-          ? `Đã phê duyệt thành công hồ sơ bác sĩ ${doctor.fullName}. Bác sĩ đã được cấp quyền tiếp nhận bệnh nhân.`
-          : `Đã từ chối hồ sơ bác sĩ ${doctor.fullName}.`,
+        text: `Đã phê duyệt thành công hồ sơ bác sĩ ${doctor.fullName}. Bác sĩ đã được cấp quyền tiếp nhận bệnh nhân.`,
       });
 
       fetchPendingDoctors();
@@ -77,6 +72,45 @@ export const DoctorVettingPage: React.FC = () => {
         text: axiosError.response?.data?.error?.message || 'Thao tác phê duyệt thất bại.',
       });
     } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleOpenRejectModal = (doctor: PendingDoctor) => {
+    setRejectingDoctor(doctor);
+    setRejectionReason('');
+  };
+
+  const handleConfirmReject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejectingDoctor || !rejectionReason.trim()) return;
+
+    try {
+      setSubmittingRejection(true);
+      setActionLoading(rejectingDoctor.profileId);
+      setStatusMessage(null);
+
+      await api.post(`/admin/doctors/${rejectingDoctor.profileId}/vet`, {
+        approve: false,
+        rejectionReason: rejectionReason.trim(),
+      });
+
+      setStatusMessage({
+        type: 'success',
+        text: `Đã từ chối hồ sơ bác sĩ ${rejectingDoctor.fullName}.`,
+      });
+
+      setRejectingDoctor(null);
+      setRejectionReason('');
+      fetchPendingDoctors();
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
+      setStatusMessage({
+        type: 'error',
+        text: axiosError.response?.data?.error?.message || 'Thao tác từ chối hồ sơ thất bại.',
+      });
+    } finally {
+      setSubmittingRejection(false);
       setActionLoading(null);
     }
   };
@@ -191,14 +225,14 @@ export const DoctorVettingPage: React.FC = () => {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       disabled={actionLoading === doc.profileId}
-                      onClick={() => handleVet(doc, false)}
+                      onClick={() => handleOpenRejectModal(doc)}
                       className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition border border-rose-200 cursor-pointer disabled:opacity-50"
                     >
                       <X className="w-4 h-4" /> Từ Chối
                     </button>
                     <button
                       disabled={actionLoading === doc.profileId}
-                      onClick={() => handleVet(doc, true)}
+                      onClick={() => handleApprove(doc)}
                       className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
                     >
                       <Check className="w-4 h-4" />
@@ -217,6 +251,61 @@ export const DoctorVettingPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* REJECTION REASON MODAL */}
+      {rejectingDoctor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl overflow-hidden p-6 space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-rose-600">
+                <AlertCircle className="w-5 h-5" />
+                <h3 className="font-bold text-base text-slate-900">Từ Chối Hồ Sơ Bác Sĩ</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setRejectingDoctor(null);
+                  setRejectionReason('');
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Bạn đang từ chối cấp phép hành nghề cho <strong>{rejectingDoctor.fullName}</strong>. Vui lòng nêu rõ lý do để gửi phản hồi cho bác sĩ:
+            </p>
+            <form onSubmit={handleConfirmReject} className="space-y-4">
+              <textarea
+                required
+                rows={3}
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Ví dụ: Chứng chỉ hành nghề chưa rõ số hiệu hoặc ngày cấp, cần bổ sung văn bằng chuyên khoa 1..."
+                className="w-full p-3 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-rose-500 outline-none"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRejectingDoctor(null);
+                    setRejectionReason('');
+                  }}
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Hủy Bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingRejection || !rejectionReason.trim()}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+                >
+                  {submittingRejection ? 'Đang từ chối...' : 'Xác Nhận Từ Chối'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -107,7 +107,6 @@ export const DocumentSummarizerPage: React.FC = () => {
   const { user } = useAuthStore();
   const [file, setFile] = useState<File | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [progressStep, setProgressStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
 
@@ -252,10 +251,6 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
     setError(null);
     setAnalysis(null);
     setAnalysisSuccessNotification(null);
-    setProgressStep(1);
-
-    const stepTimer1 = setTimeout(() => setProgressStep(2), 600);
-    const stepTimer2 = setTimeout(() => setProgressStep(3), 1200);
 
     try {
       const formData = new FormData();
@@ -297,10 +292,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
       }
       setError(message || 'Không thể phân tích tài liệu y tế. Vui lòng kiểm tra định dạng tệp.');
     } finally {
-      clearTimeout(stepTimer1);
-      clearTimeout(stepTimer2);
       setAnalyzing(false);
-      setProgressStep(0);
     }
   };
 
@@ -585,16 +577,11 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
           <div className="space-y-1">
             <h3 className="font-bold text-slate-900 text-base">Hệ Thống Đang Xử Lý Tài Liệu Y Tế</h3>
             <p className="text-xs text-slate-500">
-              {progressStep === 1 && '1/3. Đang trích xuất nội dung và số hóa bảng kết quả từ PDF...'}
-              {progressStep === 2 && '2/3. Đang đối chiếu các chỉ số với khoảng tham chiếu lâm sàng...'}
-              {progressStep >= 3 && '3/3. Đang truy vấn PostgreSQL pgvector để tìm Bác sĩ chuyên khoa sâu phù hợp...'}
+              Đang phân tích OCR đa phương thức, trích xuất bảng kết quả sinh hóa và đối soát vector pgvector...
             </p>
           </div>
           <div className="w-64 h-2 bg-slate-100 rounded-full mx-auto overflow-hidden">
-            <div
-              className="h-full bg-teal-600 transition-all duration-500 rounded-full"
-              style={{ width: progressStep === 1 ? '33%' : progressStep === 2 ? '66%' : '95%' }}
-            />
+            <div className="h-full bg-teal-600 animate-pulse rounded-full w-full" />
           </div>
         </div>
       )}

@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#035** | 13/09/2026 | Tái Cấu Trúc Toàn Diện Phân Luồng Triệu Chứng (AI-First Triage Engine): Loại Bỏ 100% Keyword Matching Cố Định, Nâng Cấp Triage RAG Prompt & Phân Định Mức Độ Khẩn Cấp Chuẩn Y Khoa | AI Assistant | 🟢 Sẵn sàng Review |
+| **#036** | 13/09/2026 | Kiểm Toán & Đồng Bộ Hoàn Hảo Toàn Diện Hệ Thống: Đấu Nối Endpoint Bị Bỏ Quên (Vector Semantic Search, Triage History, Documents), Loại Bỏ Hardcode Lâm Sàng Bàn Khám & Xóa Sạch Fake Timers / window.prompt | AI Assistant | 🟢 Sẵn sàng Review |
+| **#035** | 13/09/2026 | Tái Cấu Trúc Toàn Diện Phân Luồng Triệu Chứng (AI-First Triage Engine): Loại Bỏ 100% Keyword Matching Cố Định, Nâng Cấp Triage RAG Prompt & Phân Định Mức Độ Khẩn Cấp Chuẩn Y Khoa | AI Assistant | 🟢 Đã Duyệt |
 | **#034** | 13/09/2026 | Toàn Diện Hóa Kiến Trúc AI-First: Xóa Bỏ 100% Ma Trận Điểm Keyword Scoring & Chuỗi If-Else Bịa Bệnh, Minh Bạch Hóa Chế Độ Ngoại Tuyến & Chuẩn Hóa Khớp Nối Bác Sĩ pgvector Cosine Similarity | AI Assistant | 🟢 Đã Duyệt |
 | **#033** | 12/09/2026 | Chuyển Đổi Triệt Để Sang Cơ Chế Suy Luận AI Thực Thụ (True AI Clinical Reasoning Engine), Loại Bỏ Hoàn Toàn Danh Mục Cố Định (Zero Hardcoded Dictionaries) & Tự Động Nạp Cấu Hình Môi Trường (.env Loader) | AI Assistant | 🟢 Đã Duyệt |
 | **#032** | 12/09/2026 | Bộ Bóc Tách Cận Lâm Sàng Vạn Năng (Universal Dynamic Lab Extractor), Mở Rộng 100+ Chỉ Số Đa Lĩnh Vực & Hệ Thống Định Tuyến 12 Chuyên Khoa Bệnh Viện Tự Động | AI Assistant | 🟢 Đã Duyệt |
@@ -42,6 +43,60 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#036] Kiểm Toán & Đồng Bộ Hoàn Hảo Toàn Diện Hệ Thống: Đấu Nối Endpoint Bị Bỏ Quên (Vector Semantic Search, Triage History, Documents), Loại Bỏ Hardcode Lâm Sàng Bàn Khám & Xóa Sạch Fake Timers / window.prompt
+* **Thời gian:** 2026-09-13 13:55:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-CLIN-04 (pgvector Doctor Semantic Retrieval), UC-PAT-07 (Patient EMR Medical Passport & Portal), UC-OPS-05 (Appointment Booking), UC-ADM-06 (Doctor Vetting), UC-DOC-08 (Clinical Encounter & EMR)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): cổng **5000** (45/45 Tests PASS)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (`npm run build` 0 TS errors, 1669 modules transformed)
+  - Database: PostgreSQL 16 + pgvector (cổng **5433**)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Vấn Đề Kỹ Thuật Đã Giải Quyết (Key Technical Implementations)
+1. **Đấu nối Vector Semantic Search thực thụ trên `DoctorSearchPage.tsx`**:
+   - Trước đây giao diện chỉ dùng `doctors.filter(...)` bằng từ khóa chuỗi cơ bản, trong khi backend đã có sẵn `GET /api/v1/triage/search/semantic?query=...` dùng PostgreSQL pgvector Cosine Similarity (`vector_cosine_ops`).
+   - Đã tích hợp gọi API tự động (debounced 350ms) khi từ khóa tìm kiếm $\ge 3$ ký tự, hiển thị biểu tượng Sparkles và nhãn độ tương đồng vector trực quan `pgvector: XX% tương đồng` trên thẻ bác sĩ. Fallback mượt mà về text filter khi chưa đăng nhập.
+2. **Xóa bỏ triệt để dữ liệu lâm sàng giả lập (hardcoded mock data) tại `DoctorDashboard.tsx`**:
+   - Loại bỏ các giá trị mặc định hardcode cho bệnh nhân mới (Huyết áp 125/80, Mạch 76, Thân nhiệt 36.8, SpO2 98, ICD-10 I10 Tăng huyết áp, Đơn thuốc Amlodipine 5mg).
+   - Khi bác sĩ bấm *"Khám Lâm Sàng (EMR)"*, toàn bộ trường sinh hiệu, mã ICD-10 và đơn thuốc được khởi tạo trạng thái sạch sẽ (`''` và `[]`), bảo đảm bác sĩ nhập thông tin khám thật sự mà không bị điền khống.
+3. **Đồng bộ hóa 2 Endpoint bị bỏ quên & Xây dựng Giao diện 3 Tab trên `PatientDashboard.tsx`**:
+   - Backend đã có sẵn `GET /api/v1/triage/history` và `GET /api/v1/documents/my` nhưng giao diện bệnh nhân chưa hề gọi và hiển thị.
+   - Xây dựng thanh Tab 3 phân hệ:
+     - **Tab 1 - Lịch Khám & EMR Ngoại Trú:** Theo dõi cuộc hẹn, số thứ tự STT khám, xem chi tiết EMR bệnh án và đơn thuốc điện tử kèm nút In Toa Thuốc.
+     - **Tab 2 - Lịch Sử Phân Luồng AI:** Hiển thị toàn bộ các phiên sàng lọc triệu chứng, phân tầng mức độ khẩn cấp (Cấp cứu / Khẩn cấp / Tiêu chuẩn / Tự chăm sóc), xem tóm tắt SBAR và khuyến nghị AI, cùng nút đặt lịch bác sĩ chuyên khoa tương ứng.
+     - **Tab 3 - Hồ Sơ Xét Nghiệm Đã Quét:** Xem danh mục tệp PDF/ảnh kết quả xét nghiệm đã bóc tách, dung lượng, trạng thái xác thực y tế và mở lại phân tích.
+   - Loại bỏ `window.prompt` thô sơ khi hủy lịch khám, thay bằng Modal xác nhận hủy lịch có nhập lý do hủy lịch.
+4. **Chuẩn hóa Giao diện Thẩm Định Bác Sĩ tại `DoctorVettingPage.tsx`**:
+   - Loại bỏ `window.prompt` khi từ chối hồ sơ bác sĩ, thay bằng Rejection Modal chỉn chu có trường nhập lý do từ chối gửi về backend `POST /api/v1/admin/doctors/{id}/vet` với `rejectionReason`.
+5. **Xóa bỏ Fake Timers tại `DocumentSummarizerPage.tsx` & `LandingPage.tsx`**:
+   - Loại bỏ các chuỗi `setTimeout` giả lập tiến trình (600ms, 1200ms trong DocumentSummarizerPage và 400ms, 850ms trong LandingPage).
+   - Thay thế bằng hiệu ứng xung nhịp `animate-pulse` chân thật gắn liền với vòng đời Promise mạng thực tế từ Spring Boot.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi (File Change Manifest)
+* `[MOD]` `frontend/src/pages/patient/DoctorSearchPage.tsx`: Tích hợp `GET /api/v1/triage/search/semantic`, hiển thị badge pgvector cosine similarity.
+* `[MOD]` `frontend/src/pages/doctor/DoctorDashboard.tsx`: Khởi tạo sạch sẽ bảng sinh hiệu, mã ICD-10 và đơn thuốc khi mở bàn khám.
+* `[MOD]` `frontend/src/pages/patient/PatientDashboard.tsx`: Kết nối `GET /triage/history` và `GET /documents/my`, bổ sung giao diện 3 tab và Modal hủy lịch khám.
+* `[MOD]` `frontend/src/pages/admin/DoctorVettingPage.tsx`: Thay thế `window.prompt` bằng Modal từ chối hồ sơ bác sĩ.
+* `[MOD]` `frontend/src/pages/patient/DocumentSummarizerPage.tsx`: Loại bỏ `stepTimer1`, `stepTimer2` và `progressStep`.
+* `[MOD]` `frontend/src/pages/LandingPage.tsx`: Loại bỏ `pTimer1`, `pTimer2` giả lập tiến trình scan.
+* `[MOD]` `docs/USE_CASES.md`: Cập nhật đặc tả UC-06 và UC-07 chuẩn hóa giao diện 3 tab và quy trình từ chối hồ sơ.
+* `[MOD]` `docs/WORK_LOG.md`: Ghi chép nhật ký kiểm toán và hoàn thiện hệ thống phiên #036.
+
+#### 3. Bằng Chứng Kiểm Thử & Kiểm Soát Chất Lượng (Quality Assurance Evidence)
+* **Frontend Build Check:**
+  - Lệnh: `npm run build` trong `frontend/`
+  - Kết quả: `tsc && vite build` thành công trong 4.86s, 1669 modules transformed, **0 TypeScript errors**.
+* **Backend Unit & Integration Tests:**
+  - Lệnh: `mvn test` trong `backend/`
+  - Kết quả: **Tests run: 45, Failures: 0, Errors: 0, Skipped: 0** (BUILD SUCCESS, 7.580s).
+
+#### 4. Điểm Nóng Tech Lead Cần Review (Tech Lead Review Hotspots)
+* **Khả năng tự hồi phục khi tra cứu Vector Semantic:** `DoctorSearchPage.tsx` tự động kiểm tra trạng thái đăng nhập của người dùng. Nếu người dùng là khách vãng lai hoặc kết nối vector tạm gián đoạn, hệ thống tự động fallback về text matching trên danh sách bác sĩ đã cache mà không hề làm gián đoạn trải nghiệm người dùng.
+* **Bàn khám EMR sạch sẽ:** Mọi trường lâm sàng đều được khởi tạo rỗng, yêu cầu bác sĩ nhập liệu hoặc tùy chọn bấm chọn template khi cần, xóa bỏ hoàn toàn nguy cơ sinh dữ liệu khám bệnh giả mạo.
+
+---
 
 ### [WORK-LOG-#035] Tái Cấu Trúc Toàn Diện Phân Luồng Triệu Chứng (AI-First Triage Engine): Loại Bỏ 100% Keyword Matching Cố Định, Nâng Cấp Triage RAG Prompt & Phân Định Mức Độ Khẩn Cấp Chuẩn Y Khoa
 * **Thời gian:** 2026-09-13 12:50:00 (GMT+7)

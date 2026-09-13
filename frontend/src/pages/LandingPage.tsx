@@ -232,21 +232,9 @@ export const LandingPage: React.FC = () => {
     setIsScanning(true);
     setUploadError(null);
     setRealAnalysis(null); // CRITICAL: Wipe out any previous diagnosis
-    setProgressWidth(25);
-    setScanPercent('25%');
-    setScanStatus(`Đang đọc tệp "${file.name}" và gửi đến Spring Boot Backend (cổng 5000)...`);
-
-    const pTimer1 = setTimeout(() => {
-      setProgressWidth(55);
-      setScanPercent('55%');
-      setScanStatus('Gatekeeper y tế đang kiểm tra thuật ngữ lâm sàng & bóc tách chỉ số sinh hóa...');
-    }, 400);
-
-    const pTimer2 = setTimeout(() => {
-      setProgressWidth(85);
-      setScanPercent('85%');
-      setScanStatus('Đang đối soát pgvector cosine similarity tìm kiếm bác sĩ chuyên khoa phù hợp...');
-    }, 850);
+    setProgressWidth(45);
+    setScanPercent('Đang xử lý...');
+    setScanStatus(`Đang đọc tệp "${file.name}" và gửi đến Spring Boot Backend phân tích...`);
 
     try {
       const formData = new FormData();
@@ -256,9 +244,6 @@ export const LandingPage: React.FC = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      clearTimeout(pTimer1);
-      clearTimeout(pTimer2);
-
       if (res.data?.data) {
         setRealAnalysis(res.data.data);
         setScanMode('real');
@@ -267,8 +252,6 @@ export const LandingPage: React.FC = () => {
         setScanStatus(`✅ Phân tích thành công bằng AI Thật: ${file.name}`);
       }
     } catch (err: unknown) {
-      clearTimeout(pTimer1);
-      clearTimeout(pTimer2);
       setProgressWidth(0);
       setScanPercent('0% (Từ chối)');
       setRealAnalysis(null); // CRITICAL: NEVER SHOW FAKE DIAGNOSIS ON ERROR!
