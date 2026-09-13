@@ -129,15 +129,72 @@ public class ClinicalRagService {
         return result;
     }
 
-    public ClinicalAiResult performTriageRagAnalysis(String symptoms, String urgencyLevel, List<DoctorMatchDto> candidateDoctors) {
-        String systemPrompt = "Ban la Tro Ly Triage Lam Sang MediAssist-AI. Tra ve JSON gom sbarSummary, aiAdvice, doctorRecommendationReason, recommendedDoctorId.";
+    public ClinicalAiResult performTriageRagAnalysis(String symptoms, List<DoctorMatchDto> candidateDoctors) {
+        return performTriageRagAnalysis(symptoms, null, candidateDoctors);
+    }
+
+    public ClinicalAiResult performTriageRagAnalysis(String symptoms, String urgencyHint, List<DoctorMatchDto> candidateDoctors) {
+        String systemPrompt = """
+                Bạn là Trợ Lý Phân Luồng & Triage Lâm Sàng Trực Tuyến MediAssist-AI (Senior Clinical Triage Specialist).
+                Nhiệm vụ của bạn là phân tích mô tả triệu chứng của người bệnh, suy luận lâm sàng để:
+                1. Đánh giá mức độ khẩn cấp (urgencyLevel).
+                2. Xác định chuyên khoa y tế mục tiêu phù hợp nhất (primarySpecialtySlug & primarySpecialtyName).
+                3. Biên soạn bản tóm tắt lâm sàng theo chuẩn y khoa SBAR (sbarSummary).
+                4. Cung cấp lời khuyên y tế chu đáo, an toàn cho người bệnh (aiAdvice).
+                5. Gợi ý 2-3 câu hỏi làm rõ triệu chứng để bác sĩ khai thác thêm (clarifyingQuestions).
+                6. Nếu có danh sách bác sĩ ứng viên, chọn bác sĩ phù hợp nhất và giải thích lý do chuyên môn.
+
+                QUY TẮC ĐÁNH GIÁ MỨC ĐỘ KHẨN CẤP (urgencyLevel):
+                - EMERGENCY: Dấu hiệu nguy kịch tức thời đe dọa tính mạng (đau ngực dữ dội, khó thở cấp, liệt mặt/chi đột ngột, sốc phản vệ, hôn mê, xuất huyết ồ ạt).
+                - URGENT: Triệu chứng cấp tính hoặc nặng cần bác sĩ thăm khám trong ngày (sốt cao liên tục, đau bụng cấp dữ dội, đau quặn dữ dội, co giật, hoa mắt chóng mặt nhiều).
+                - ROUTINE: Các triệu chứng thông thường, bán cấp, nhẹ hoặc tái phát có thể theo dõi và đặt lịch hẹn khám định kỳ bình thường.
+
+                DANH MỤC 12 CHUYÊN KHOA BỆNH VIỆN HỢP LỆ (BẮT BUỘC CHỌN 1 SLUG):
+                - cardiology: Cardiology (Tim Mạch)
+                - endocrinology: Endocrinology & Diabetes (Nội Tiết & Đái Tháo Đường)
+                - nephrology: Nephrology & Urology (Thận - Tiết Niệu)
+                - gastroenterology: Gastroenterology (Tiêu Hóa - Gan Mật)
+                - pulmonology: Pulmonology (Hô Hấp & Phổi)
+                - neurology: Neurology (Thần Kinh)
+                - orthopedics: Orthopedics (Cơ Xương Khớp & Chấn Thương Chỉnh Hình)
+                - dermatology: Dermatology (Da Liễu)
+                - pediatrics: Pediatrics (Nhi Khoa)
+                - obstetrics-gynecology: Obstetrics & Gynecology (Sản Phụ Khoa)
+                - ent: Otolaryngology (Tai Mũi Họng)
+                - general-internal-medicine: General Internal Medicine (Nội Tổng Quát)
+
+                YÊU CẦU ĐỊNH DẠNG: TRẢ VỀ DUY NHẤT MỘT JSON OBJECT HỢP LỆ (KHÔNG THÊM BẤT KỲ VĂN BẢN NÀO NGOÀI JSON):
+                {
+                  "primarySpecialtySlug": "slug của 1 trong 12 chuyên khoa",
+                  "primarySpecialtyName": "Tên chuyên khoa hiển thị tiếng Việt tương ứng",
+                  "urgencyLevel": "ROUTINE" | "URGENT" | "EMERGENCY",
+                  "sbarSummary": "• Situation (Tình huống): ...\\n• Background (Tiền sử): ...\\n• Assessment (Đánh giá): ...\\n• Recommendation (Khuyến nghị): ...",
+                  "aiAdvice": "Lời khuyên lâm sàng chi tiết, an toàn, dễ hiểu cho người bệnh...",
+                  "clarifyingQuestions": [
+                    "Câu hỏi làm rõ triệu chứng 1...",
+                    "Câu hỏi làm rõ triệu chứng 2..."
+                  ],
+                  "recommendedDoctorId": "UUID bác sĩ phù hợp nhất (nếu có ứng viên)",
+                  "doctorRecommendationReason": "Lý do chuyên môn đề xuất bác sĩ này"
+                }
+                """;
+
         StringBuilder docsContext = new StringBuilder();
-        if (candidateDoctors != null) {
+        if (candidateDoctors != null && !candidateDoctors.isEmpty()) {
             for (DoctorMatchDto d : candidateDoctors) {
                 docsContext.append(String.format("\n- ID: %s | BS: %s %s | BV: %s", d.getDoctorId(), d.getAcademicTitle(), d.getFullName(), d.getHospitalAffiliation()));
             }
         }
-        String userPrompt = String.format("Trieu chung: %s\nMuc do: %s\nBac si ung vien:\n%s", symptoms, urgencyLevel, docsContext.toString());
-        return aiModelRouter.routeTriageAnalysis(systemPrompt, userPrompt);
+
+        StringBuilder userPrompt = new StringBuilder();
+        userPrompt.append("Triệu chứng bệnh nhân mô tả: \"").append(symptoms).append("\"");
+        if (urgencyHint != null && !urgencyHint.isBlank()) {
+            userPrompt.append("\nGợi ý mức độ tham khảo ban đầu: ").append(urgencyHint);
+        }
+        if (docsContext.length() > 0) {
+            userPrompt.append("\n\nDanh sách Bác sĩ ứng viên khả dụng:").append(docsContext);
+        }
+
+        return aiModelRouter.routeTriageAnalysis(systemPrompt, userPrompt.toString());
     }
 }

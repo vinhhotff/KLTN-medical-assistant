@@ -54,8 +54,22 @@ public class DeterministicFallbackAiProvider implements AiProvider {
         ClinicalAiResult result = new ClinicalAiResult();
         result.setModelUsed("local-deterministic-engine (Safe Offline Fallback)");
         result.setProvider("LocalRuleEngine");
-        result.setSbarSummary("SBAR Triage Offline: Ghi nhận triệu chứng lâm sàng từ bệnh nhân. Hệ thống tự động phân luồng.");
-        result.setAiAdvice("Bạn nên nghỉ ngơi, theo dõi sát các diễn biến sinh hiệu và đặt lịch khám với Bác sĩ chuyên khoa sớm để được chẩn đoán chính xác.");
+
+        // Transparent offline fallback: Do NOT invent diseases, fake emergency levels, or guess specialties via keywords
+        result.setRecommendedSpecialtySlug("general-internal-medicine");
+        result.setRecommendedSpecialtyName("General Internal Medicine (Nội Tổng Quát - Tham Khảo Ngoại Tuyến)");
+        result.setUrgencyLevel("ROUTINE");
+        result.setSbarSummary("SBAR Triage (Chế độ Ngoại tuyến): Bệnh nhân ghi nhận các triệu chứng lâm sàng cần tham vấn. " +
+                "Do hệ thống đang hoạt động ngoại tuyến (chưa kết nối AI LLM), trường hợp được định tuyến an toàn về chuyên khoa Nội Tổng Quát để bác sĩ thăm khám và đánh giá trực tiếp.");
+        result.setAiAdvice("⚠️ Thông báo Chế độ Ngoại tuyến: Phân luồng triệu chứng hiện tại mang tính tham khảo kỹ thuật. " +
+                "Bạn nên nghỉ ngơi, theo dõi sinh hiệu và đặt lịch hẹn khám trực tiếp với bác sĩ để có kết luận y khoa chính xác.");
+        result.setClarifyingQuestions(List.of(
+                "Triệu chứng này bắt đầu xuất hiện từ bao giờ (mấy ngày qua)?",
+                "Bạn đã từng sử dụng thuốc gì hoặc có tiền sử bệnh nền mạn tính nào trước đây không?",
+                "Triệu chứng có tăng lên khi gắng sức, thay đổi tư thế hoặc theo thời điểm cụ thể trong ngày không?"
+        ));
+        result.setSuggestedQuestions(result.getClarifyingQuestions());
+        result.setDoctorRecommendationReason("Đề xuất kết nối bác sĩ chuyên khoa Nội Tổng Quát dựa trên thuật toán tương đồng ngữ nghĩa pgvector trong chế độ ngoại tuyến.");
         return result;
     }
 }

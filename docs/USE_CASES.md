@@ -134,12 +134,15 @@ graph TD
 1. Bệnh nhân nhập mô tả triệu chứng: *"Tôi hay bị hồi hộp, đánh trống ngực và choáng váng khi vận động mạnh"*.
 2. **Hard Rule Red-flag Check:** `RedFlagService` quét chuỗi triệu chứng bằng các mẫu regex tối cấp (Acute Coronary Syndrome, Stroke FAST, Anaphylaxis, Severe Hemorrhage).
 3. Triệu chứng KHÔNG thuộc cấp cứu tức thời:
-   - Hệ thống tiến hành phân loại mức độ khẩn cấp (`ROUTINE`).
-   - Định hướng chuyên khoa mục tiêu (`Cardiology (Tim Mạch)`).
-   - Tạo báo cáo lâm sàng chuẩn SBAR (Situation, Background, Assessment, Recommendation).
-   - Tự động gọi `DoctorSemanticSearchService` sử dụng khoảng cách Cosine trên PostgreSQL `pgvector` để tìm top Bác sĩ chuyên khoa tim mạch đã qua thẩm định (`similarity_score > 0.90`).
+   - Hệ thống kích hoạt **Mô hình Trí tuệ Nhân tạo thực thụ (LLM via OpenRouter Gateway)** để suy luận lâm sàng (AI-First Clinical Reasoning):
+     - Suy luận chuyên khoa mục tiêu phù hợp nhất trong 12 chuyên khoa bệnh viện (loại bỏ hoàn toàn các chuỗi if-else từ khóa cứng).
+     - Đánh giá mức độ khẩn cấp lâm sàng (`ROUTINE`, `URGENT`, `EMERGENCY`).
+     - Tạo bản tóm tắt lâm sàng theo chuẩn y khoa **SBAR** (Situation - Background - Assessment - Recommendation).
+     - Cung cấp lời khuyên y tế chi tiết, an toàn (AI Advice) và gợi ý 2-3 câu hỏi làm rõ triệu chứng (Clarifying Questions).
+   - Tự động gọi `DoctorSemanticSearchService` sử dụng khoảng cách Cosine trên PostgreSQL `pgvector` để tìm top Bác sĩ chuyên khoa tương thích cao nhất (`similarity_score > 0.90`) dựa trên embedding kết hợp giữa triệu chứng và chuyên khoa do AI suy luận.
+   - Khi ngoại tuyến hoặc chưa nạp API key: Hệ thống chuyển sang **Transparent Offline Fallback**, an toàn định tuyến về Khám Nội Tổng Quát (`general-internal-medicine`), tuyệt đối không tự bịa đặt mức độ nguy kịch hay chẩn đoán mò.
 4. Lưu thông tin phiên vào bảng `triage_sessions`.
-5. Giao diện hiển thị thẻ kết quả Triage, lời khuyên của AI, câu hỏi gợi ý và danh thiếp Bác sĩ đề xuất kèm nút *"Đặt Khám Ngay"*.
+5. Giao diện hiển thị thẻ kết quả Triage, nhãn mức độ ưu tiên, lời khuyên của AI, câu hỏi làm rõ và danh thiếp Bác sĩ đề xuất qua pgvector kèm nút *"Đặt Khám Ngay"*.
 
 #### Luồng cấp cứu (Red-Flag Emergency Flow):
 * **2a. Phát hiện dấu hiệu đột quỵ / nhồi máu cơ tim / sốc phản vệ:**

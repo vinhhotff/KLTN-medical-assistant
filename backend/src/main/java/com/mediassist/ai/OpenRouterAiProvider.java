@@ -206,8 +206,23 @@ public class OpenRouterAiProvider implements AiProvider {
             if (node.has("plainLanguageExplanation")) result.setPlainLanguageExplanation(node.get("plainLanguageExplanation").asText());
             if (node.has("sbarSummary")) result.setSbarSummary(node.get("sbarSummary").asText());
             if (node.has("aiAdvice")) result.setAiAdvice(node.get("aiAdvice").asText());
-            if (node.has("recommendedSpecialtySlug")) result.setRecommendedSpecialtySlug(node.get("recommendedSpecialtySlug").asText());
-            if (node.has("recommendedSpecialtyName")) result.setRecommendedSpecialtyName(node.get("recommendedSpecialtyName").asText());
+
+            if (node.has("primarySpecialtySlug") && !node.get("primarySpecialtySlug").asText().isBlank()) {
+                result.setRecommendedSpecialtySlug(node.get("primarySpecialtySlug").asText().trim());
+            } else if (node.has("recommendedSpecialtySlug") && !node.get("recommendedSpecialtySlug").asText().isBlank()) {
+                result.setRecommendedSpecialtySlug(node.get("recommendedSpecialtySlug").asText().trim());
+            }
+
+            if (node.has("primarySpecialtyName") && !node.get("primarySpecialtyName").asText().isBlank()) {
+                result.setRecommendedSpecialtyName(node.get("primarySpecialtyName").asText().trim());
+            } else if (node.has("recommendedSpecialtyName") && !node.get("recommendedSpecialtyName").asText().isBlank()) {
+                result.setRecommendedSpecialtyName(node.get("recommendedSpecialtyName").asText().trim());
+            }
+
+            if (node.has("urgencyLevel") && !node.get("urgencyLevel").asText().isBlank()) {
+                result.setUrgencyLevel(node.get("urgencyLevel").asText().trim());
+            }
+
             if (node.has("doctorRecommendationReason")) result.setDoctorRecommendationReason(node.get("doctorRecommendationReason").asText());
 
             if (node.has("recommendedDoctorId")) {
@@ -242,11 +257,23 @@ public class OpenRouterAiProvider implements AiProvider {
                 result.setIndicators(indicators);
             }
 
-            if (node.has("suggestedQuestions") && node.get("suggestedQuestions").isArray()) {
-                List<String> questions = new ArrayList<>();
-                for (JsonNode qNode : node.get("suggestedQuestions")) {
+            List<String> questions = new ArrayList<>();
+            if (node.has("clarifyingQuestions") && node.get("clarifyingQuestions").isArray()) {
+                for (JsonNode qNode : node.get("clarifyingQuestions")) {
                     questions.add(qNode.asText());
                 }
+                result.setClarifyingQuestions(questions);
+            }
+            if (node.has("suggestedQuestions") && node.get("suggestedQuestions").isArray()) {
+                List<String> suggested = new ArrayList<>();
+                for (JsonNode qNode : node.get("suggestedQuestions")) {
+                    suggested.add(qNode.asText());
+                }
+                result.setSuggestedQuestions(suggested);
+                if (questions.isEmpty()) {
+                    result.setClarifyingQuestions(suggested);
+                }
+            } else if (!questions.isEmpty() && result.getSuggestedQuestions().isEmpty()) {
                 result.setSuggestedQuestions(questions);
             }
 

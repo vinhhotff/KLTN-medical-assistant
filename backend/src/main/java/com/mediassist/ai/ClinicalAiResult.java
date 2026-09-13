@@ -20,6 +20,8 @@ public class ClinicalAiResult {
     private List<String> suggestedQuestions = new ArrayList<>();
     private String sbarSummary;
     private String aiAdvice;
+    private String urgencyLevel;
+    private List<String> clarifyingQuestions = new ArrayList<>();
 
     public ClinicalAiResult() {}
 
@@ -58,4 +60,10 @@ public class ClinicalAiResult {
 
     public String getAiAdvice() { return aiAdvice; }
     public void setAiAdvice(String aiAdvice) { this.aiAdvice = aiAdvice; }
+
+    public String getUrgencyLevel() { return urgencyLevel; }
+    public void setUrgencyLevel(String urgencyLevel) { this.urgencyLevel = urgencyLevel; }
+
+    public List<String> getClarifyingQuestions() { return clarifyingQuestions; }
+    public void setClarifyingQuestions(List<String> clarifyingQuestions) { this.clarifyingQuestions = clarifyingQuestions != null ? clarifyingQuestions : new ArrayList<>(); }
 }

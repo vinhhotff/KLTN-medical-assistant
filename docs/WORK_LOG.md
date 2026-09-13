@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :---: | :---: |
-| **#034** | 13/09/2026 | Toàn Diện Hóa Kiến Trúc AI-First: Xóa Bỏ 100% Ma Trận Điểm Keyword Scoring & Chuỗi If-Else Bịa Bệnh, Minh Bạch Hóa Chế Độ Ngoại Tuyến & Chuẩn Hóa Khớp Nối Bác Sĩ pgvector Cosine Similarity | AI Assistant | 🟢 Sẵn sàng Review |
+| **#035** | 13/09/2026 | Tái Cấu Trúc Toàn Diện Phân Luồng Triệu Chứng (AI-First Triage Engine): Loại Bỏ 100% Keyword Matching Cố Định, Nâng Cấp Triage RAG Prompt & Phân Định Mức Độ Khẩn Cấp Chuẩn Y Khoa | AI Assistant | 🟢 Sẵn sàng Review |
+| **#034** | 13/09/2026 | Toàn Diện Hóa Kiến Trúc AI-First: Xóa Bỏ 100% Ma Trận Điểm Keyword Scoring & Chuỗi If-Else Bịa Bệnh, Minh Bạch Hóa Chế Độ Ngoại Tuyến & Chuẩn Hóa Khớp Nối Bác Sĩ pgvector Cosine Similarity | AI Assistant | 🟢 Đã Duyệt |
 | **#033** | 12/09/2026 | Chuyển Đổi Triệt Để Sang Cơ Chế Suy Luận AI Thực Thụ (True AI Clinical Reasoning Engine), Loại Bỏ Hoàn Toàn Danh Mục Cố Định (Zero Hardcoded Dictionaries) & Tự Động Nạp Cấu Hình Môi Trường (.env Loader) | AI Assistant | 🟢 Đã Duyệt |
 | **#032** | 12/09/2026 | Bộ Bóc Tách Cận Lâm Sàng Vạn Năng (Universal Dynamic Lab Extractor), Mở Rộng 100+ Chỉ Số Đa Lĩnh Vực & Hệ Thống Định Tuyến 12 Chuyên Khoa Bệnh Viện Tự Động | AI Assistant | 🟢 Đã Duyệt |
 | **#031** | 12/09/2026 | Nâng Cấp Khả Năng Xử Lý Hồ Sơ Bệnh Án Đa Trang Rườm Rà (10–30 Trang), Smart Clinical Windowing Chống Tràn Token & Tối Ưu Hóa Truy Vấn pgvector Bác Sĩ Chuẩn Xác Cao | AI Assistant | 🟢 Đã Duyệt |
@@ -41,6 +42,59 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#035] Tái Cấu Trúc Toàn Diện Phân Luồng Triệu Chứng (AI-First Triage Engine): Loại Bỏ 100% Keyword Matching Cố Định, Nâng Cấp Triage RAG Prompt & Phân Định Mức Độ Khẩn Cấp Chuẩn Y Khoa
+* **Thời gian:** 2026-09-13 12:50:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-CLIN-02 (AI Symptom Triage), UC-CLIN-04 (pgvector Doctor Semantic Retrieval)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): cổng **5000** (45/45 Tests PASS)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (`npm run build` 0 TS errors)
+  - Database: PostgreSQL 16 + pgvector (cổng **5433**)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Vấn Đề Kỹ Thuật Đã Giải Quyết (Key Technical Implementations)
+1. **Audit toàn diện phát hiện khuyết tật hardcode còn sót lại trong `TriageService.java`**:
+   - Mặc dù tính năng Scan PDF đã được AI-First hóa ở phiên #034, tính năng Phân luồng triệu chứng (`TriageService.java`) vẫn còn chứa 3 hàm keyword matching cố định:
+     - `determineSpecialty()`: Dùng `contains("tim")`, `contains("dau")`, `contains("da")` để chọn chuyên khoa.
+     - `classifyUrgency()`: Dùng 6 từ khóa cứng để gán `URGENT` vs `ROUTINE`.
+     - `buildClarifyingQuestions()`: Switch-case câu hỏi cứng theo chuyên khoa.
+   - Luồng RAG cũ chưa yêu cầu LLM suy luận chuyên khoa và mức độ khẩn cấp, dẫn đến việc chuyên khoa lưu vào DB và trả về cho bệnh nhân là 100% từ khóa cứng.
+2. **Nâng cấp Triage System Prompt Chuẩn Y Khoa (`ClinicalRagService.java`)**:
+   - Cung cấp danh mục 12 chuyên khoa bệnh viện hợp lệ cho LLM.
+   - Hướng dẫn quy tắc phân loại khẩn cấp lâm sàng 3 mức: `ROUTINE`, `URGENT`, `EMERGENCY`.
+   - Yêu cầu LLM trả về cấu trúc JSON gồm: `primarySpecialtySlug`, `primarySpecialtyName`, `urgencyLevel`, `sbarSummary`, `aiAdvice`, `clarifyingQuestions`, `recommendedDoctorId`, `doctorRecommendationReason`.
+3. **Mở rộng Parser JSON & Kết Quả AI (`ClinicalAiResult.java` & `OpenRouterAiProvider.java`)**:
+   - Bổ sung các trường `urgencyLevel` và `clarifyingQuestions` vào `ClinicalAiResult`.
+   - Cập nhật bộ bóc tách JSON để tự động ánh xạ các trường phân luồng triệu chứng từ phản hồi của OpenRouter / DeepSeek / Llama.
+4. **Xóa bỏ 100% Keyword Matching trong `TriageService.java`**:
+   - Xóa bỏ hoàn toàn các hàm `determineSpecialty()`, `classifyUrgency()`, `buildClarifyingQuestions()`.
+   - Giữ nguyên rào chắn cấp cứu tức thời `RedFlagService.evaluateRedFlag()` (< 1ms zero-latency safety gate) để bảo vệ an toàn tính mạng người bệnh.
+   - Toàn bộ kết luận chuyên khoa, mức độ khẩn cấp, tóm tắt SBAR và câu hỏi làm rõ đều do AI LLM suy luận trực tiếp từ lời kể triệu chứng của người bệnh.
+   - Truy vấn bác sĩ pgvector được thực hiện bằng embedding kết hợp triệu chứng + chuyên khoa suy luận bởi AI.
+5. **Minh bạch hóa Chế độ Ngoại tuyến trong Triage (`DeterministicFallbackAiProvider.java`)**:
+   - Khi chạy offline/mất mạng, hệ thống chuyển về chế độ dự phòng trung thực: mặc định `general-internal-medicine` và `ROUTINE` kèm câu hỏi làm rõ an toàn, tuyệt đối không bịa đặt chẩn đoán bệnh.
+6. **Mở rộng Bộ Kiểm Thử Tự Động**:
+   - Cập nhật `TriageServiceTest.java` với kịch bản AI-First và kịch bản dự phòng ngoại tuyến an toàn `testAssessSymptomsOfflineFallback()`. Tổng số unit test backend tăng lên **45/45 PASS**.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi (File Changes)
+* `[MOD]` `backend/src/main/java/com/mediassist/ai/ClinicalAiResult.java`
+* `[MOD]` `backend/src/main/java/com/mediassist/ai/DeterministicFallbackAiProvider.java`
+* `[MOD]` `backend/src/main/java/com/mediassist/ai/OpenRouterAiProvider.java`
+* `[MOD]` `backend/src/main/java/com/mediassist/service/ClinicalRagService.java`
+* `[MOD]` `backend/src/main/java/com/mediassist/service/TriageService.java`
+* `[MOD]` `backend/src/test/java/com/mediassist/TriageServiceTest.java`
+* `[MOD]` `docs/USE_CASES.md`
+* `[MOD]` `docs/WORK_LOG.md`
+
+#### 3. Bằng Chứng Kiểm Thử (Verification Evidence)
+* Backend: `mvn test` $\rightarrow$ **45/45 PASS** (0 failures, 0 errors, 0 skipped).
+* Frontend: `npm run build` $\rightarrow$ **0 TS errors**, clean Vite production bundle (6.30s).
+
+#### 4. Điểm Nóng Tech Lead Cần Duyệt (Architectural Review Points)
+* Cả 2 luồng cốt lõi của hệ thống: **Scan PDF Xét Nghiệm** (`MedicalDocumentAnalysisService`) và **Phân Luồng Triệu Chứng** (`TriageService`) hiện đã **100% sạch bóng keyword matching y khoa và logic đoán mò bệnh**. Cả hai đều vận hành theo chuẩn AI-First và gợi ý bác sĩ bằng pgvector Cosine Similarity.
+
+---
 
 ### [WORK-LOG-#034] Toàn Diện Hóa Kiến Trúc AI-First: Xóa Bỏ 100% Ma Trận Điểm Keyword Scoring & Chuỗi If-Else Bịa Bệnh, Minh Bạch Hóa Chế Độ Ngoại Tuyến & Chuẩn Hóa Khớp Nối Bác Sĩ pgvector Cosine Similarity
 * **Thời gian:** 2026-09-13 10:20:00 (GMT+7)

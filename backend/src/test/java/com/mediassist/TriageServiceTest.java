@@ -57,9 +57,15 @@ class TriageServiceTest {
     void setUp() {
         com.mediassist.ai.ClinicalAiResult mockResult = new com.mediassist.ai.ClinicalAiResult();
         mockResult.setModelUsed("google/gemini-2.0-flash-exp:free (OpenRouter)");
+        mockResult.setRecommendedSpecialtySlug("cardiology");
+        mockResult.setRecommendedSpecialtyName("Cardiology (Tim Mạch)");
+        mockResult.setUrgencyLevel("ROUTINE");
         mockResult.setSbarSummary("SBAR RAG summary");
         mockResult.setAiAdvice("Clinical advice from AI");
-        lenient().when(clinicalRagService.performTriageRagAnalysis(any(), any(), any())).thenReturn(mockResult);
+        mockResult.setClarifyingQuestions(List.of("Cơn hồi hộp xuất hiện lúc gắng sức hay nghỉ ngơi?"));
+
+        lenient().when(clinicalRagService.performTriageRagAnalysis(anyString(), anyList())).thenReturn(mockResult);
+        lenient().when(clinicalRagService.performTriageRagAnalysis(anyString(), any(), anyList())).thenReturn(mockResult);
 
         when(triageSessionRepository.save(any(TriageSession.class)))
                 .thenAnswer(inv -> {
@@ -86,7 +92,7 @@ class TriageServiceTest {
     }
 
     @Test
-    @DisplayName("Should perform clinical triage and match doctors for routine symptoms")
+    @DisplayName("Should perform AI-first clinical triage and match doctors via pgvector")
     void testAssessSymptomsRoutine() {
         when(redFlagService.evaluateRedFlag(anyString())).thenReturn(Optional.empty());
 
@@ -104,9 +110,36 @@ class TriageServiceTest {
         assertFalse(response.isEmergency());
         assertEquals(TriageUrgencyLevel.ROUTINE, response.getUrgencyLevel());
         assertEquals("cardiology", response.getPrimarySpecialtySlug());
+        assertEquals("Cardiology (Tim Mạch)", response.getPrimarySpecialtyName());
         assertNotNull(response.getSbarSummary());
         assertFalse(response.getMatchedDoctors().isEmpty());
         assertEquals("TS. BS. Nguyễn Văn An", response.getMatchedDoctors().get(0).getFullName());
         assertEquals(0.92, response.getMatchedDoctors().get(0).getSimilarityScore(), 0.001);
+        assertFalse(response.getClarifyingQuestions().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should safely fallback to General Internal Medicine when AI returns empty specialty without hardcoding")
+    void testAssessSymptomsOfflineFallback() {
+        when(redFlagService.evaluateRedFlag(anyString())).thenReturn(Optional.empty());
+
+        com.mediassist.ai.ClinicalAiResult offlineResult = new com.mediassist.ai.ClinicalAiResult();
+        offlineResult.setModelUsed("local-deterministic-engine (Safe Offline Fallback)");
+        offlineResult.setRecommendedSpecialtySlug(null);
+        offlineResult.setUrgencyLevel("ROUTINE");
+        offlineResult.setSbarSummary("SBAR Offline Fallback");
+        offlineResult.setAiAdvice("Offline advice");
+
+        when(clinicalRagService.performTriageRagAnalysis(anyString(), anyList())).thenReturn(offlineResult);
+        when(doctorSemanticSearchService.searchDoctors(anyString(), eq(4))).thenReturn(Collections.emptyList());
+
+        TriageRequest request = new TriageRequest("Tôi bị mệt mỏi và chán ăn kéo dài", null);
+        TriageResponse response = triageService.assessSymptoms(request, null);
+
+        assertFalse(response.isEmergency());
+        assertEquals("general-internal-medicine", response.getPrimarySpecialtySlug());
+        assertEquals("General Internal Medicine (Nội Tổng Quát)", response.getPrimarySpecialtyName());
+        assertEquals(TriageUrgencyLevel.ROUTINE, response.getUrgencyLevel());
+        assertNotNull(response.getClarifyingQuestions());
     }
 }
