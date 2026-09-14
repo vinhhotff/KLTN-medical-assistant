@@ -11,6 +11,7 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :--- | :---: |
+| **#049** | 14/09/2026 | Khắc Phục Toàn Diện 9 Điểm Lỗi & Lỗ Hổng Bảo Mật (Audit Hardening): Rate Limiting IP Cho Sinh PDF Meddies, Bịt Lỗi Control Chars WinAnsi/PDFBox Crash, Trì Hoãn revokeObjectURL Tránh File 0-Byte Firefox/Safari & Tách Biệt Error State | AI Assistant | 🟢 Sẵn sàng Review |
 | **#048** | 14/09/2026 | Tích Hợp Động Cơ Sinh Tệp PDF Ca Bệnh Thực Tế Từ Dataset Meddies (150.000 Hồ Sơ Bệnh Nhân Hugging Face), Tải Trực Tiếp Xuống Thiết Bị Phục Vụ Kiểm Thử Kéo-Thả Quét Bệnh Án | AI Assistant | 🟢 Sẵn sàng Review |
 | **#047** | 14/09/2026 | Triển Khai Giai Đoạn 3: Hiện Thực Hóa Động Cơ Khử Định Danh Dữ Liệu Y Tế Nhạy Cảm (Medical PII De-identification) Tuân Thủ Nghị Định 13/2023/NĐ-CP & HIPAA Safe Harbor, Tương Thích Chuẩn Dataset Meddies-PII (Hugging Face) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#046** | 14/09/2026 | Triển Khai Giai Đoạn 2: Tối Ưu Hóa Concurrency & Race Condition Cho Scan Pipeline & Đặt Lịch Khám, Bổ Sung Flyway V7 (Slot Collision Partial Unique Index & Dedup Unique Index), Concurrency Semaphore Điều Tiết Vision OCR | AI Assistant | 🟢 Đã Duyệt |
@@ -29,6 +30,64 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#049] Khắc Phục Toàn Diện 9 Điểm Lỗi & Lỗ Hổng Bảo Mật (Audit Hardening): Rate Limiting IP Cho Sinh PDF Meddies, Bịt Lỗi Control Chars WinAnsi/PDFBox Crash, Trì Hoãn revokeObjectURL Tránh File 0-Byte Firefox/Safari & Tách Biệt Error State
+* **Thời gian:** 2026-09-14 14:55:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-03 (Multimodal Document Summarization), UC-SEC-08 (Security & Rate Limiting)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (**74/74 Tests PASS 100%**)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (**Build 0 TypeScript error, 1671 modules**)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Hạng Mục Đã Khắc Phục:
+1. **Khắc phục Lỗ hổng DoS Resource Exhaustion (C1)**:
+   - Thêm phương thức `allowSamplePdfDownload(clientIp)` (10 requests/phút/IP) trong `SecurityRateLimiterService`.
+   - Bảo vệ endpoint `GET /api/v1/documents/sample-random-pdf` trong `MedicalDocumentController`: Bắt IP client qua header proxy/real IP, chặn đứng nguy cơ spam script làm cạn kiệt luồng Tomcat và nghẽn CPU PDF rendering.
+2. **Khắc phục Lỗi Ký Tự Điều Khiển & Font Encoding PDFBox Crash (C2 & C4)**:
+   - Cải tiến `stripAccents()` trong `MeddiesPdfGeneratorService`: Thay thế mọi ký tự điều khiển (`\n`, `\r`, `\t`) và các ký tự không thuộc bảng mã printable ASCII `[\x20-\x7E]` bằng khoảng trắng, gộp khoảng trắng thừa và trim.
+   - Nâng cấp `drawText()` tự động gọi `stripAccents()` cho mọi văn bản in lên PDF (kể cả chỉ số sinh hóa, đơn vị, khoảng tham chiếu và chữ ký bác sĩ), triệt tiêu 100% nguy cơ ném `IllegalArgumentException`.
+   - Bổ sung kiểm tra an toàn `p.indicators != null` và giới hạn tối đa 10 dòng chỉ số tránh tràn trang giấy.
+   - Mở rộng catch block bắt cả `IOException | IllegalArgumentException` và `Exception` tổng quát, tránh rò rỉ stacktrace ra ngoài.
+3. **Khắc phục Lỗi Tải File 0-Byte Trên Firefox & Safari (C3)**:
+   - Thay thế việc gọi `window.URL.revokeObjectURL(url)` đồng bộ ngay sau `click()` bằng cơ chế trì hoãn `setTimeout(() => window.URL.revokeObjectURL(url), 1500)`. Đảm bảo download manager của các trình duyệt non-Chromium kịp đọc blob stream đầy đủ.
+4. **Tách Biệt Trạng Thái Lỗi Frontend & Tránh Xung Đột Phân Tích (C5)**:
+   - Tạo mới state `downloadPdfError` riêng biệt trong `DocumentSummarizerPage.tsx`. Lỗi tải PDF mẫu không còn làm ô nhiễm state `error` của phần phân tích hồ sơ, triệt tiêu tình trạng hiển thị nút "Thử Lại" hoặc quảng cáo gói VIP không đúng ngữ cảnh.
+   - Hiển thị banner lỗi inline màu hồng nhạt đi kèm nút đóng `X` ngay dưới thẻ tải PDF.
+5. **Khôi Phục Cờ Ngắt Luồng Khi Bị Interrupted (M1)**:
+   - Trong `fetchRandomPersonaFromHuggingFace`: Bắt riêng `InterruptedException`, gọi `Thread.currentThread().interrupt()` bảo toàn cơ chế hủy tác vụ chuẩn của JVM.
+6. **Kiểm Tra Tính Toàn Vẹn Của Blob & Chặn Double-Click (M2 & M3)**:
+   - Kiểm tra `blob.size >= 100` bytes trước khi kích hoạt download.
+   - Thêm guard `if (downloadingPdf) return;` ở đầu handler `handleDownloadRandomMeddiesPdf`.
+7. **Quản Lý Bộ Đếm Thời Gian Toast An Toàn (M4)**:
+   - Sử dụng `downloadToastTimerRef` (`useRef`) và `useEffect` cleanup hook khi component unmount, chống rò rỉ timer và warning unmounted state update.
+   - Bổ sung nút bấm `X` cho phép người dùng chủ động đóng thông báo tải tệp thành công.
+8. **Hoàn Thiện Trải Nghiệm & Cải Tiến Giao Diện (L1, L2, L3)**:
+   - Làm giàu dữ liệu bệnh sử với `medHistory.chronic_conditions`.
+   - Thêm class `disabled:cursor-not-allowed` và vô hiệu hóa nút tải PDF khi đang phân tích tài liệu (`downloadingPdf || analyzing`).
+   - Bổ sung unit test `testMultipleRandomInvocations_AllProduceValidPdf` trong `MeddiesPdfGeneratorServiceTest.java`.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi:
+- `[MOD]` `backend/src/main/java/com/mediassist/service/SecurityRateLimiterService.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/controller/MedicalDocumentController.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/service/MeddiesPdfGeneratorService.java`
+- `[MOD]` `backend/src/test/java/com/mediassist/MeddiesPdfGeneratorServiceTest.java`
+- `[MOD]` `frontend/src/pages/patient/DocumentSummarizerPage.tsx`
+- `[MOD]` `docs/WORK_LOG.md`
+
+#### 3. Bằng Chứng Kiểm Thử:
+- Backend:
+  ```text
+  [INFO] Tests run: 74, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS
+  ```
+- Frontend:
+  ```text
+  ✓ 1671 modules transformed.
+  ✓ built in 1.48s (0 TypeScript errors)
+  ```
+
+---
 
 ### [WORK-LOG-#048] Tích Hợp Động Cơ Sinh Tệp PDF Ca Bệnh Thực Tế Từ Dataset Meddies (150.000 Hồ Sơ Bệnh Nhân Hugging Face), Tải Trực Tiếp Xuống Thiết Bị Phục Vụ Kiểm Thử Kéo-Thả Quét Bệnh Án
 * **Thời gian:** 2026-09-14 14:25:00 (GMT+7)

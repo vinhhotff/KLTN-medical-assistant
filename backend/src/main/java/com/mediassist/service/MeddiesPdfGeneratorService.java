@@ -154,6 +154,9 @@ public class MeddiesPdfGeneratorService {
                     return p;
                 }
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Meddies API request interrupted (falling back to resilient persona pool): {}", e.getMessage());
         } catch (Exception e) {
             log.warn("Could not query HuggingFace Meddies API (falling back to resilient persona pool): {}", e.getMessage());
         }
@@ -161,6 +164,12 @@ public class MeddiesPdfGeneratorService {
     }
 
     private void populateClinicalMetadata(PatientModel p, JsonNode medHistory) {
+        if (medHistory != null && (p.history == null || p.history.isBlank())) {
+            JsonNode chronic = medHistory.path("chronic_conditions");
+            if (chronic.isArray() && !chronic.isEmpty()) {
+                p.history = "Tien su benh: " + chronic.get(0).asText("");
+            }
+        }
         p.cccd = String.format("0%02d%09d",
                 ThreadLocalRandom.current().nextInt(1, 99),
                 ThreadLocalRandom.current().nextInt(100000000, 999999999));
@@ -411,19 +420,24 @@ public class MeddiesPdfGeneratorService {
                 cs.stroke();
 
                 // Table Rows
-                for (IndicatorRow row : p.indicators) {
-                    y -= 16;
-                    drawText(cs, fontRegular, 9, margin, y, stripAccents(row.name));
-                    drawText(cs, fontBold, 9, margin + 170, y, row.value);
-                    drawText(cs, fontRegular, 9, margin + 250, y, row.unit);
-                    drawText(cs, fontRegular, 9, margin + 330, y, row.refRange);
+                if (p.indicators != null) {
+                    int maxRows = Math.min(p.indicators.size(), 10);
+                    for (int i = 0; i < maxRows; i++) {
+                        IndicatorRow row = p.indicators.get(i);
+                        if (row == null) continue;
+                        y -= 16;
+                        drawText(cs, fontRegular, 9, margin, y, row.name);
+                        drawText(cs, fontBold, 9, margin + 170, y, row.value);
+                        drawText(cs, fontRegular, 9, margin + 250, y, row.unit);
+                        drawText(cs, fontRegular, 9, margin + 330, y, row.refRange);
 
-                    if ("TANG".equals(row.status) || "TANG CAO".equals(row.status)) {
-                        drawText(cs, fontBold, 9, margin + 430, y, "[!] " + row.status);
-                    } else if ("GIAM".equals(row.status) || "GIAM NANG".equals(row.status)) {
-                        drawText(cs, fontBold, 9, margin + 430, y, "[v] " + row.status);
-                    } else {
-                        drawText(cs, fontRegular, 9, margin + 430, y, row.status);
+                        if ("TANG".equals(row.status) || "TANG CAO".equals(row.status)) {
+                            drawText(cs, fontBold, 9, margin + 430, y, "[!] " + row.status);
+                        } else if ("GIAM".equals(row.status) || "GIAM NANG".equals(row.status)) {
+                            drawText(cs, fontBold, 9, margin + 430, y, "[v] " + row.status);
+                        } else {
+                            drawText(cs, fontRegular, 9, margin + 430, y, row.status);
+                        }
                     }
                 }
 
@@ -448,23 +462,27 @@ public class MeddiesPdfGeneratorService {
                 y -= 12;
                 drawText(cs, fontBold, 9, margin + 355, y, "TRUONG KHOA XET NGHIEM");
                 y -= 35;
-                drawText(cs, fontBold, 9, margin + 365, y, stripAccents(p.doctorName));
+                drawText(cs, fontBold, 9, margin + 365, y, p.doctorName);
             }
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             document.save(baos);
             return baos.toByteArray();
-        } catch (IOException e) {
+        } catch (IOException | IllegalArgumentException e) {
             log.error("Failed to render PDF using PDFBox: {}", e.getMessage(), e);
+            throw new RuntimeException("Lỗi sinh tệp PDF: " + e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("Unexpected error during PDF generation: {}", e.getMessage(), e);
             throw new RuntimeException("Lỗi sinh tệp PDF: " + e.getMessage(), e);
         }
     }
 
     private void drawText(PDPageContentStream cs, PDType1Font font, float fontSize, float x, float y, String text) throws IOException {
+        String safeText = stripAccents(text);
         cs.beginText();
         cs.setFont(font, fontSize);
         cs.newLineAtOffset(x, y);
-        cs.showText(text);
+        cs.showText(safeText);
         cs.endText();
     }
 
@@ -474,6 +492,8 @@ public class MeddiesPdfGeneratorService {
         return normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
                 .replace('Đ', 'D')
                 .replace('đ', 'd')
-                .replaceAll("[^\\x00-\\x7F]", "");
+                .replaceAll("[^\\x20-\\x7E]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 }
