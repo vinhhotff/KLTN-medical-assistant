@@ -54,7 +54,7 @@ Lưu trữ định danh toàn bộ chủ thể truy cập (Admin, Bác sĩ, Bệ
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255),                   -- Nullable cho tài khoản đăng ký qua Google OAuth2
     full_name VARCHAR(150) NOT NULL,
     phone_number VARCHAR(20) UNIQUE,
     avatar_url TEXT,

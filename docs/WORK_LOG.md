@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :---: |
+| **#046** | 14/09/2026 | Khắc Phục Lỗi DataIntegrityViolationException Cột password_hash NOT NULL: Thêm Migration V6 Cho Phép Nullable password_hash & Mở Rộng avatar_url TEXT, Đồng Bộ Entity User & DATABASE_DESIGN.md | AI Assistant | 🟢 Sẵn sàng Review |
 | **#045** | 14/09/2026 | Khắc Phục Lỗi ClassCastException DefaultOidcUser Khi Đăng Nhập Google: Bổ Sung CustomOidcUserService, Mở Rộng OAuth2UserPrincipal Hỗ Trợ OidcUser & Fallback Upsert An Toàn | AI Assistant | 🟢 Sẵn sàng Review |
 | **#044** | 14/09/2026 | Triển Khai Hoàn Chỉnh Google OAuth2 Login/Register: HttpOnly JWT Cookie (SameSite=Lax), CustomOAuth2UserService Upsert Pattern, OAuth2UserPrincipal Bridge Class, SuccessHandler/FailureHandler, SecurityConfig OAuth2 Block, GoogleLoginButton Frontend, OAuth2CallbackPage Role-Based Redirect | AI Assistant | 🟢 Sẵn sàng Review |
 | **#043** | 13/09/2026 | Khởi Tạo & Đẩy Lên Toàn Bộ 3 Tệp Cấu Hình Môi Trường (.env & .env.example) Cho Cả 3 Phân Hệ (Root, Backend, Frontend) Kèm Tích Hợp Vite Environment Variable | AI Assistant | 🟢 Sẵn sàng Review |
@@ -24,6 +25,36 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#046] Khắc Phục Lỗi DataIntegrityViolationException (password_hash NOT NULL) Cho Tài Khoản Google OAuth2
+* **Thời gian:** 2026-09-14 14:31:00 → 14:34:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Nhánh phát triển:** `feature/Google-oauth2`
+* **Git Commit:** `fix(db): allow nullable password_hash and text avatar_url for OAuth2 users (Flyway V6)`
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21): **59/59 Tests PASS 100%**
+  - Frontend (Vite 6.4.3 React): **Build 0 TypeScript error, 1672 modules**
+  - Trạng thái DB: `ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`, `ALTER COLUMN avatar_url TYPE TEXT` đã kích hoạt thành công.
+  - Trạng thái HTTP: **Actuator /health 200 UP**.
+
+#### 1. Nguyên Nhân Sự Cố
+- Khi tài khoản Google mới lần đầu đăng nhập (`khuongpchqe180164@fpt.edu.vn`), `CustomOAuth2UserService` khởi tạo User mới với vai trò `PATIENT`.
+- Vì người dùng đăng nhập qua SSO Google nên không có mật khẩu khởi tạo (`password_hash = null`).
+- Tuy nhiên bảng `users` trong PostgreSQL ban đầu (từ `V1__initial_schema.sql`) có ràng buộc cứng `password_hash VARCHAR(255) NOT NULL`, dẫn đến lỗi `org.postgresql.util.PSQLException: ERROR: null value in column "password_hash" of relation "users" violates not-null constraint` (SQLState 23502).
+- Giao dịch bị rollback khiến xác thực OAuth2 thất bại và trình duyệt hiển thị phản hồi 401 UNAUTHORIZED khi gọi API yêu cầu xác thực.
+
+#### 2. Giải Pháp Kỹ Thuật Đã Triển Khai
+1. **[NEW]** `backend/src/main/resources/db/migration/V6__allow_null_password_hash_for_oauth.sql`:
+   - Gỡ bỏ ràng buộc NOT NULL trên cột `password_hash`: `ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;`.
+   - Nâng cấp cột `avatar_url` sang kiểu `TEXT` để lưu trữ đầy đủ URL ảnh đại diện dài của Google / mạng xã hội.
+   - Bổ sung chỉ mục unique có điều kiện cho `google_id`: `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL;`.
+2. **[MOD]** `backend/src/main/java/com/mediassist/model/entity/User.java`:
+   - Xác nhận `@Column(nullable = true) private String passwordHash;`.
+   - Bổ sung `@Column(columnDefinition = "TEXT") private String avatarUrl;`.
+3. **[MOD]** `docs/DATABASE_DESIGN.md`: Đồng bộ tài liệu kiến trúc CSDL với định nghĩa `password_hash VARCHAR(255)` (Nullable cho OAuth2).
+4. **Trực tiếp cập nhật CSDL PostgreSQL production/dev container**: Chạy lệnh ALTER TABLE trực tiếp đảm bảo tính sẵn sàng tức thì.
+
+---
 
 ### [WORK-LOG-#045] Khắc Phục Lỗi OIDC ClassCastException & Tối Ưu Hóa Xác Thực Google OAuth2
 * **Thời gian:** 2026-09-14 14:27:00 → 14:31:00 (GMT+7)
@@ -47,9 +78,12 @@
 4. **[MOD]** `OAuth2AuthenticationSuccessHandler.java`: Bổ sung cơ chế phòng vệ 2 lớp (Defense in Depth) kiểm tra `instanceof` an toàn kèm fallback tự động upsert khi nhận bất kỳ `OAuth2User` nào.
 
 #### 3. Bằng Chứng Kiểm Thử
-- Backend unit tests: `mvn test` $ightarrow$ **59/59 Tests PASS (0 Failures, 0 Errors)**
-- Frontend compile: `npm run build` $ightarrow$ **0 TS errors**
-- Kiểm tra Endpoint: `curl http://localhost:5000/oauth2/authorization/google` $ightarrow$ HTTP 302 Redirect sang `accounts.google.com` thành công.
+- Backend unit tests: `mvn test` $
+ightarrow$ **59/59 Tests PASS (0 Failures, 0 Errors)**
+- Frontend compile: `npm run build` $
+ightarrow$ **0 TS errors**
+- Kiểm tra Endpoint: `curl http://localhost:5000/oauth2/authorization/google` $
+ightarrow$ HTTP 302 Redirect sang `accounts.google.com` thành công.
 
 ---
 

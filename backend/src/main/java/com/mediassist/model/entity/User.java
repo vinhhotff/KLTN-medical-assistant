@@ -30,7 +30,7 @@ public class User {
     @Column
     private String phone;
 
-    @Column
+    @Column(columnDefinition = "TEXT")
     private String avatarUrl;
 
     @Enumerated(EnumType.STRING)
