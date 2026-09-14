@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
+import { OAuth2CallbackPage } from './pages/OAuth2CallbackPage';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { AdminLayout } from './layouts/AdminLayout';
 import { DoctorLayout } from './layouts/DoctorLayout';
@@ -24,6 +25,9 @@ export function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/landing" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+
+        {/* OAuth2 Callback — Backend redirect ve day sau khi Google xac thuc thanh cong */}
+        <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
 
         {/* Admin Protected Routes */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
