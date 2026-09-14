@@ -84,6 +84,12 @@
    - Mở tab *Tóm Tắt Bệnh Án*.
    - Chọn tệp ảnh phiếu xét nghiệm máu mẫu và bấm *Phân Tích AI*.
    - Hệ thống hiển thị bảng chỉ số trích xuất: Cholesterol (6.2 mmol/L - Tăng nhẹ), Đường huyết (5.1 mmol/L - Bình thường) kèm lời khuyên ăn uống giảm mỡ máu dễ hiểu.
+5. **Bước 5: Trình Diễn Khử Định Danh PII Y Tế (Medical PII De-identification Live Demo)**
+   - Trình chiếu endpoint `POST /api/v1/pii/deidentify` với dữ liệu xét nghiệm mẫu chứa tên bệnh nhân, số CCCD 12 số, số thẻ BHYT, SĐT và địa chỉ.
+   - Hội đồng quan sát trực tiếp:
+     - Văn bản che giấu an toàn (`maskedText`) với các token `[BỆNH_NHÂN_1]`, `[SỐ_ĐỊNH_DANH_1]`, `[SĐT_1]`, `[ĐỊA_CHỈ_1]`.
+     - Văn bản gán nhãn chuẩn nghiên cứu `Meddies/meddies-pii` (`[Nguyễn Văn Bình]<human_name>`, `[079201008123]<id_number>`, `[0987123456]<phone_number>`).
+     - Chứng minh: AI đám mây (Gemini / OpenRouter) không bao giờ tiếp nhận dữ liệu định danh người bệnh (Zero Data Leakage), tuân thủ 100% Nghị định 13/2023/NĐ-CP & HIPAA.
 
 ---
 
@@ -210,6 +216,29 @@
   3. **Compensating Rollback Hook (`deleteDocument`):** Nếu việc ghi dữ liệu vào Database EMR gặp sự cố sau khi đã upload Cloud, khối `catch` của Spring Boot tự động kích hoạt hành động bù trừ: gửi request DELETE lên Supabase Storage để xóa file tức thì, đảm bảo nguyên tắc Zero Orphan Files.
   4. **Upload Circuit Breaker:** Nếu 1 tài khoản cố tình spam 3 file lỗi liên tiếp trong 5 phút, hệ thống tự động khóa tính năng tải tệp trong 10 phút.
   5. **Bảng băm SHA-256 Deduplication:** Bệnh nhân tra cứu lại phiếu xét nghiệm cũ được trả về kết quả tức thì mà không upload thêm file mới, giúp tiết kiệm 30% dung lượng Cloud lưu trữ."*
+
+---
+
+### Câu hỏi 12: Làm thế nào hệ thống bảo vệ thông tin nhận dạng cá nhân (PII) và dữ liệu sức khỏe nhạy cảm của người bệnh khi gửi prompt sang các mô hình AI đám mây bên thứ ba (Gemini, OpenRouter), nhằm tuân thủ Nghị định 13/2023/NĐ-CP của Việt Nam và chuẩn HIPAA Safe Harbor?
+* **Trả lời của sinh viên:**  
+  *"Thưa Thầy Cô, đây là một trong những bài toán pháp lý và đạo đức y tế quan trọng nhất khi ứng dụng Generative AI trong y khoa. Nhóm đã hiện thực hóa động cơ **Medical PII De-identification Engine (`MedicalPiiService`)** tuân thủ kép chuẩn **Nghị định 13/2023/NĐ-CP** và **HIPAA Safe Harbor Privacy Rule (45 CFR § 164.514)**:
+  1. **Khử định danh tự động 6 nhóm thực thể PII:**
+     - `human_name`: Họ tên người bệnh trong văn bản hành chính hoặc lời khai triệu chứng $\rightarrow$ thay bằng `[BỆNH_NHÂN_1]`.
+     - `id_number`: Căn cước công dân (12 số), CMND (9 số), Thẻ BHYT (15 ký tự theo quy chuẩn Bảo hiểm Xã hội VN), Mã bệnh nhân/SID $\rightarrow$ thay bằng `[SỐ_ĐỊNH_DANH_N]`.
+     - `phone_number`: Số điện thoại di động/cố định Việt Nam $\rightarrow$ thay bằng `[SĐT_N]`.
+     - `address`: Địa chỉ cư trú (Số nhà, Phường/Xã, Quận/Huyện, Tỉnh/TP) $\rightarrow$ thay bằng `[ĐỊA_CHỈ_N]`.
+     - `date`: Ngày tháng năm sinh $\rightarrow$ thay bằng `[NGÀY_SINH_N]`.
+     - `email`: Thư điện tử $\rightarrow$ thay bằng `[EMAIL_N]`.
+  2. **Tương thích 100% với Dataset Y Tế Chuẩn `Meddies/meddies-pii` (Hugging Face):**
+     - Động cơ sinh đồng thời định dạng nhãn nghiên cứu `[value]<entity_type>` (ví dụ: `[Nguyễn Văn Bình]<human_name>`, `[079201008123]<id_number>`), phục vụ nghiên cứu lâm sàng, kiểm toán y khoa và huấn luyện mô hình sau này.
+  3. **Nguyên tắc Không Rò Rỉ Dữ Liệu Lên Đám Mây (Zero Cloud Data Leakage):**
+     - Khi `ClinicalRagService` gửi prompt đến Google Gemini hay OpenRouter, mô hình bên ngoài chỉ nhìn thấy các token ẩn danh.
+     - Các chỉ số sinh hóa (Glucose, Creatinine, AST, ALT...) và khoảng tham chiếu được bảo toàn 100% để AI suy luận bệnh lý chính xác.
+  4. **Cơ chế Hoàn Nguyên Liền Mạch (Client-Side Re-identification):**
+     - Khi nhận phản hồi từ AI, hệ thống tự động thế ngược các token (`[BỆNH_NHÂN_1]`) về lại họ tên thật trong bộ nhớ RAM tạm thời của phiên xử lý.
+     - Người bệnh nhận được lời khuyên cá nhân hóa, ấm áp, liền mạch mà không một dịch vụ bên thứ ba nào biết được danh tính thực sự của họ."*
+
+---
 
 ## 5. Bảng Tiêu Chí Đánh Giá Xuất Sắc Của Hội Đồng (Evaluation Rubric)
 

@@ -32,7 +32,21 @@ public class DocumentAnalysisResponse {
     private String patientGender;
     private String deviceModel;
 
+    // PII Privacy Safeguard Metadata (Decree 13/2023/ND-CP & HIPAA)
+    private boolean piiProtected;
+    private int piiEntitiesCount;
+    private List<String> piiMaskedTypes;
+
     public DocumentAnalysisResponse() {}
+
+    public boolean isPiiProtected() { return piiProtected; }
+    public void setPiiProtected(boolean piiProtected) { this.piiProtected = piiProtected; }
+
+    public int getPiiEntitiesCount() { return piiEntitiesCount; }
+    public void setPiiEntitiesCount(int piiEntitiesCount) { this.piiEntitiesCount = piiEntitiesCount; }
+
+    public List<String> getPiiMaskedTypes() { return piiMaskedTypes; }
+    public void setPiiMaskedTypes(List<String> piiMaskedTypes) { this.piiMaskedTypes = piiMaskedTypes; }
 
     public UUID getDocumentId() { return documentId; }
     public void setDocumentId(UUID documentId) { this.documentId = documentId; }

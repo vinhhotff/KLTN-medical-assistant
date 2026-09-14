@@ -134,9 +134,15 @@ graph TD
   - `GET /api/v1/triage/history`: Lấy danh sách lịch sử phân luồng của người dùng hiện tại.
 
 #### Luồng sự kiện chính (Happy Path):
-1. Bệnh nhân nhập mô tả triệu chứng: *"Tôi hay bị hồi hộp, đánh trống ngực và choáng váng khi vận động mạnh"*.
+1. Bệnh nhân nhập mô tả triệu chứng: *"Tôi là Trần Thị Mai, số điện thoại 0903123456, ở 45 Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM. Bác sĩ ơi tôi hay bị hồi hộp, đánh trống ngực và choáng váng khi vận động mạnh"*.
 2. **Hard Rule Red-flag Check:** `RedFlagService` quét chuỗi triệu chứng bằng các mẫu regex tối cấp (Acute Coronary Syndrome, Stroke FAST, Anaphylaxis, Severe Hemorrhage).
-3. Triệu chứng KHÔNG thuộc cấp cứu tức thời:
+3. **Khử Định Danh Dữ Liệu Y Tế Nhạy Cảm (Medical PII De-identification - Nghị định 13/2023/NĐ-CP & HIPAA Safe Harbor):**
+   - Trước khi gửi nội dung triệu chứng đến LLM bên ngoài, `MedicalPiiService` tự động quét và che giấu toàn bộ thông tin nhạy cảm:
+     - Họ tên bệnh nhân $\rightarrow$ `[BỆNH_NHÂN_1]` (Định dạng Meddies: `[Trần Thị Mai]<human_name>`).
+     - Số điện thoại $\rightarrow$ `[SĐT_1]` (Định dạng Meddies: `[0903123456]<phone_number>`).
+     - Địa chỉ cư trú $\rightarrow$ `[ĐỊA_CHỈ_1]` (Định dạng Meddies: `[45 Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM]<address>`).
+   - LLM bên ngoài (Gemini / OpenRouter) **hoàn toàn không thấy danh tính thực** của người bệnh (Zero Data Leakage).
+4. Triệu chứng KHÔNG thuộc cấp cứu tức thời:
    - Hệ thống kích hoạt **Mô hình Trí tuệ Nhân tạo thực thụ (LLM via OpenRouter Gateway)** để suy luận lâm sàng (AI-First Clinical Reasoning):
      - Suy luận chuyên khoa mục tiêu phù hợp nhất trong 12 chuyên khoa bệnh viện (loại bỏ hoàn toàn các chuỗi if-else từ khóa cứng).
      - Đánh giá mức độ khẩn cấp lâm sàng (`ROUTINE`, `URGENT`, `EMERGENCY`).
@@ -144,8 +150,10 @@ graph TD
      - Cung cấp lời khuyên y tế chi tiết, an toàn (AI Advice) và gợi ý 2-3 câu hỏi làm rõ triệu chứng (Clarifying Questions).
    - Tự động gọi `DoctorSemanticSearchService` sử dụng khoảng cách Cosine trên PostgreSQL `pgvector` để tìm top Bác sĩ chuyên khoa tương thích cao nhất (`similarity_score > 0.90`) dựa trên embedding kết hợp giữa triệu chứng và chuyên khoa do AI suy luận.
    - Khi ngoại tuyến hoặc chưa nạp API key: Hệ thống chuyển sang **Transparent Offline Fallback**, an toàn định tuyến về Khám Nội Tổng Quát (`general-internal-medicine`), tuyệt đối không tự bịa đặt mức độ nguy kịch hay chẩn đoán mò.
-4. Lưu thông tin phiên vào bảng `triage_sessions`.
-5. Giao diện hiển thị thẻ kết quả Triage, nhãn mức độ ưu tiên, lời khuyên của AI, câu hỏi làm rõ và danh thiếp Bác sĩ đề xuất qua pgvector kèm nút *"Đặt Khám Ngay"*.
+5. **Hoàn Nguyên Dữ Liệu Sau Khi Nhận Phản Hồi Từ AI (PII Re-identification):**
+   - Các token ẩn danh như `[BỆNH_NHÂN_1]`, `[SĐT_1]` trong lời khuyên y tế của LLM được `MedicalPiiService.unmaskPii()` thế ngược lại bằng tên thật của người bệnh để hiển thị thân thiện, liền mạch trên giao diện cá nhân.
+6. Lưu thông tin phiên vào bảng `triage_sessions`.
+7. Giao diện hiển thị thẻ kết quả Triage kèm nhãn bảo vệ PII (`piiProtected = true`, `piiEntitiesCount`), lời khuyên của AI đã hoàn nguyên danh tính, câu hỏi làm rõ và danh thiếp Bác sĩ đề xuất qua pgvector kèm nút *"Đặt Khám Ngay"*.
 
 #### Luồng cấp cứu (Red-Flag Emergency Flow):
 * **2a. Phát hiện dấu hiệu đột quỵ / nhồi máu cơ tim / sốc phản vệ:**
@@ -202,6 +210,11 @@ graph TD
        + **Priority 1**: Google Gemini 1.5 Flash (Direct REST API) hỗ trợ JSON có cấu trúc và Vision OCR đa phương thức siêu nhanh.
        + **Priority 2**: Bể xoay vòng OpenRouter Free Models (`inclusionai/ling-3.0-flash-sante:free`, `nex-agi/nex-n2.5-mini:free`, `openrouter/free`) với cơ chế tự động xoay chuyển khi chạm `HTTP 429`.
        + **Priority 3**: Safe Local Deterministic Fallback Engine (0đ chi phí, chuyển tuyến an toàn).
+     - *Pha 5b - Khử Định Danh PII Y Tế Chuẩn Nghị Định 13/2023/NĐ-CP & HIPAA (Meddies-PII Engine):* 
+       + Trước khi đưa văn bản trích xuất từ PDF/ảnh vào prompt gửi sang LLM đám mây, `ClinicalRagService` gọi `MedicalPiiService.maskPii()`.
+       + Tự động che giấu: Tên bệnh nhân $\rightarrow$ `[BỆNH_NHÂN_1]`, CCCD/CMND/BHYT/Mã BN $\rightarrow$ `[SỐ_ĐỊNH_DANH_N]`, Số điện thoại $\rightarrow$ `[SĐT_N]`, Địa chỉ $\rightarrow$ `[ĐỊA_CHỈ_N]`, Ngày sinh $\rightarrow$ `[NGÀY_SINH_N]`.
+       + Các chỉ số y khoa và khoảng tham chiếu phòng xét nghiệm được bảo toàn 100%.
+       + Khi nhận kết quả JSON từ LLM, các trường tóm tắt (`clinicalSummary`, `plainLanguageExplanation`, `lifestyleRecommendations`) được tự động hoàn nguyên danh tính (`unmaskPii`) để hiển thị mượt mà cho người bệnh.
      - *Pha 6 - pgvector Cosine Similarity Doctor Matching & Clinically Justified Reasons:* Sử dụng chuyên khoa và các chỉ số bất thường do AI xác nhận để truy vấn vector cosine (`1 - (bio_embedding <=> query_vector)`). Đề xuất bác sĩ đi kèm lý do lâm sàng cá nhân hóa, trích dẫn trực tiếp tên và giá trị của các chỉ số xét nghiệm bất thường (ví dụ: *"Đề xuất PGS.TS Vũ Đình Hùng vì tài liệu xét nghiệm ghi nhận Glucose (9.2 mmol/L), Creatinine (115 umol/L)..."*).
     - **Dự phòng Scanned PDF (Vision OCR) & Bể Model Thị Giác Đa Tầng (Multi-Model Vision Pool):**
       - Nếu PDF là bản scan thuần ảnh không có text layer ($< 30$ ký tự), hệ thống tự động render ảnh từng trang với độ phân giải cao **200 DPI** qua `PDFRenderer`.
@@ -241,6 +254,27 @@ graph TD
   3. **Platform Owner:**
      - Nhận 15% hoa hồng đặt khám và doanh thu gói quét.
      - Bảo vệ 100% token LLM trước nạn bot/spam ảnh rác nhờ Gatekeeper Sieve Validation.
+
+### UC-12: Khử Định Danh Dữ Liệu Y Tế Nhạy Cảm (Medical PII De-identification & Safe Harbor Privacy Compliance)
+
+* **Mã Use Case:** `UC-SEC-12`
+* **Tác nhân chính:** Patient, MedicalPiiService, External LLMs (Google Gemini / OpenRouter).
+* **Mục tiêu:** Tự động phát hiện và che giấu toàn bộ thông tin nhận dạng cá nhân (PII) trong lời khai triệu chứng và tài liệu cận lâm sàng trước khi truyền qua mạng Internet đến các mô hình AI đám mây, tuân thủ nghiêm ngặt **Nghị định 13/2023/NĐ-CP** về bảo vệ dữ liệu cá nhân tại Việt Nam và quy chuẩn **HIPAA Safe Harbor Privacy Rule** (45 CFR § 164.514). Đồng thời tương thích 100% với cấu trúc gán nhãn của tập dữ liệu nghiên cứu y khoa tiếng Việt nổi tiếng `Meddies/meddies-pii` trên Hugging Face.
+* **REST Endpoints:**
+  - `POST /api/v1/pii/deidentify`: Endpoint công khai / nghiên cứu cho phép kiểm tra, demo trực tiếp cơ chế khử định danh văn bản y tế. Nhận request `{ "text": "..." }` và trả về kết quả gồm `maskedText`, `meddiesTaggedText`, danh sách thực thể `entities` và thống kê số lượng.
+* **Danh mục Thực thể PII Nhận diện:**
+  1. **`human_name` (Họ và tên người bệnh):** Nhận diện qua nhãn hành chính (`Họ và tên:`, `Bệnh nhân:`, `Tên BN:`, `Người bệnh:`) và văn cảnh xưng hô tự nhiên (`Tôi là ...`, `Tên em là ...`) với bộ lọc Unicode tiếng Việt nghiêm ngặt, chặn tràn qua dấu xuống dòng. Thay thế bằng token `[BỆNH_NHÂN_N]` (Định dạng Meddies: `[Tên]<human_name>`).
+  2. **`id_number` (Mã định danh cá nhân & Thẻ y tế):** Nhận diện CCCD 12 chữ số (`0\d{11}`), CMND 9 chữ số, Thẻ BHYT 15 ký tự (tiền tố đối tượng 2 chữ cái như `DN`, `GD`, `CH`, `TE`... + mã quyền lợi 1-5 + 12 chữ số), Mã hồ sơ bệnh án (SID, Mã BN, Mã tiếp nhận). Thay thế bằng token `[SỐ_ĐỊNH_DANH_N]` (Định dạng Meddies: `[ID]<id_number>`).
+  3. **`phone_number` (Số điện thoại liên lạc):** Nhận diện số di động và cố định Việt Nam (đầu số `+84` hoặc `0` kèm các dải mạng `03x`, `05x`, `07x`, `08x`, `09x`) qua nhãn (`SĐT:`, `Số điện thoại:`) và mẫu số 10 chữ số. Thay thế bằng token `[SĐT_N]` (Định dạng Meddies: `[SĐT]<phone_number>`).
+  4. **`address` (Địa chỉ thường trú & Nơi ở):** Nhận diện địa chỉ hành chính có cấu trúc (Số nhà, Tên đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành phố) qua nhãn (`Địa chỉ:`, `Thường trú:`, `HKTT:`) hoặc câu xưng hô tự nhiên (`ở ...`). Thay thế bằng token `[ĐỊA_CHỈ_N]` (Định dạng Meddies: `[Địa chỉ]<address>`).
+  5. **`date` (Ngày sinh / Tuổi tác cá nhân):** Nhận diện ngày tháng năm sinh qua nhãn (`Ngày sinh:`, `Sinh ngày:`, `DOB:`). Thay thế bằng token `[NGÀY_SINH_N]` (Định dạng Meddies: `[Ngày]<date>`).
+  6. **`email` (Thư điện tử):** Nhận diện RFC 5322 email. Thay thế bằng token `[EMAIL_N]` (Định dạng Meddies: `[Email]<email>`).
+* **Luồng tích hợp tự động (Automated Pipeline Flow):**
+  1. *Tiền xử lý (Pre-processing):* Khi người bệnh gửi triệu chứng hoặc quét phiếu xét nghiệm, `ClinicalRagService` gọi `MedicalPiiService.maskPii()`.
+  2. *Bảo vệ trên đường truyền (In-Transit Privacy):* Toàn bộ prompt gửi đến Google Gemini / OpenRouter chỉ chứa các token ẩn danh. LLM hoàn toàn không biết người bệnh là ai, ở đâu, số điện thoại nào.
+  3. *Hậu xử lý (Post-processing):* Khi LLM sinh phản hồi tư vấn y tế chứa các token ẩn danh, hệ thống tự động hoàn nguyên (`unmaskPii()`) để hiển thị thông tin thân mật, chính xác cho riêng bệnh nhân trên giao diện cá nhân.
+
+---
 
 ### UC-04: Tìm Kiếm Bác Sĩ Bằng Vector Similarity Search (Semantic Doctor Discovery)
 

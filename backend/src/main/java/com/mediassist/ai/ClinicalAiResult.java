@@ -34,7 +34,21 @@ public class ClinicalAiResult {
     private String patientGender;
     private String deviceModel;
 
+    // PII Privacy Safeguard Metadata (Decree 13/2023/ND-CP & HIPAA)
+    private boolean piiProtected;
+    private int piiEntitiesCount;
+    private List<String> piiMaskedTypes = new ArrayList<>();
+
     public ClinicalAiResult() {}
+
+    public boolean isPiiProtected() { return piiProtected; }
+    public void setPiiProtected(boolean piiProtected) { this.piiProtected = piiProtected; }
+
+    public int getPiiEntitiesCount() { return piiEntitiesCount; }
+    public void setPiiEntitiesCount(int piiEntitiesCount) { this.piiEntitiesCount = piiEntitiesCount; }
+
+    public List<String> getPiiMaskedTypes() { return piiMaskedTypes; }
+    public void setPiiMaskedTypes(List<String> piiMaskedTypes) { this.piiMaskedTypes = piiMaskedTypes != null ? piiMaskedTypes : new ArrayList<>(); }
 
     public String getModelUsed() { return modelUsed; }
     public void setModelUsed(String modelUsed) { this.modelUsed = modelUsed; }

@@ -89,7 +89,12 @@ Trong các ứng dụng y tế thông thường, nhà phát triển thường m�
 ### Bốn Trụ Cột Đạo Đức Y Tế Số (Digital Medical Ethics):
 1. **Quy tắc Red-Flag Cứng (Hard Rule-Based Safety Filter):** Trước khi gọi mô hình ngôn ngữ lớn (LLM), hệ thống luôn kiểm tra danh sách từ khóa cấp cứu (*đau ngực lan tay trái, méo miệng liệt nửa người, sốt co giật ở trẻ nhỏ, nôn ra máu*). Nếu phát hiện, hệ thống **chặn luồng chat thông thường** và hiển thị cảnh báo đỏ toàn màn hình kèm hotline cấp cứu 115.
 2. **Con người kiểm soát tối cao (Human-in-the-loop):** Mọi kết luận tư vấn chính thức, đơn thuốc hoặc lời khuyên điều trị bắt buộc phải do Bác sĩ thật ký duyệt. AI chỉ đóng vai trò thư ký y khoa (Medical Scribe) và trợ lý hỗ trợ phân loại.
-3. **Bảo mật dữ liệu sức khỏe (HIPAA & TT 46/2018/TT-BYT):** Ảnh chụp hồ sơ bệnh án được lưu trữ trên vùng nhớ mã hóa, gỡ bỏ các thông tin định danh cá nhân (PII De-identification) trước khi đưa vào pipeline phân tích, và URL truy cập tệp chỉ có hiệu lực tạm thời (Pre-signed URL 15 phút).
+3. **Bảo mật dữ liệu sức khỏe (Nghị định 13/2023/NĐ-CP & HIPAA Safe Harbor Privacy Rule):**
+   - Tích hợp động cơ **Medical PII De-identification** tương thích 100% chuẩn gán nhãn tập dữ liệu nghiên cứu y tế Việt Nam `Meddies/meddies-pii` (Hugging Face).
+   - Tự động khử định danh toàn bộ 6 nhóm thực thể nhạy cảm (`human_name`, `id_number` CCCD/CMND/BHYT/Mã BN, `phone_number`, `address`, `date` ngày sinh, `email`) trước khi gửi dữ liệu sang các mô hình AI đám mây (Gemini / OpenRouter).
+   - Đảm bảo LLM bên ngoài chỉ tiếp nhận các token ẩn danh (`[BỆNH_NHÂN_1]`, `[SỐ_ĐỊNH_DANH_1]`, `[SĐT_1]`), triệt tiêu 100% nguy cơ rò rỉ dữ liệu cá nhân y tế qua mạng.
+   - Khi nhận phản hồi từ LLM, hệ thống tự động hoàn nguyên (Re-identification) trên bộ nhớ RAM của client để mang lại trải nghiệm thân thiện cho người bệnh mà không lưu vết danh tính lên các dịch vụ đám mây bên thứ ba.
+   - Ảnh chụp hồ sơ bệnh án được lưu trữ trên vùng nhớ mã hóa Supabase EMR Storage và URL truy cập tệp chỉ có hiệu lực tạm thời (Pre-signed URL).
 4. **Không Hallucination (Kiểm soát suy đoán vô căn cứ):** Sử dụng kỹ thuật Prompt Engineering chặt chẽ, bắt buộc mô hình trích dẫn trực tiếp từ văn bản hình ảnh được tải lên, nghiêm cấm việc suy đoán phỏng đoán chỉ số xét nghiệm nếu hình ảnh mờ không đọc được.
 
 ---

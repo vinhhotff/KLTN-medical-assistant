@@ -128,6 +128,9 @@ public class TriageService {
         response.setMatchedDoctors(matchedDoctors);
         response.setModelUsed(ragResult.getModelUsed());
         response.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
+        response.setPiiProtected(ragResult.isPiiProtected());
+        response.setPiiEntitiesCount(ragResult.getPiiEntitiesCount());
+        response.setPiiMaskedTypes(ragResult.getPiiMaskedTypes());
 
         return response;
     }

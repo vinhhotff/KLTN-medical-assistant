@@ -11,7 +11,8 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :--- | :---: |
-| **#046** | 14/09/2026 | Triển Khai Giai Đoạn 2: Tối Ưu Hóa Concurrency & Race Condition Cho Scan Pipeline & Đặt Lịch Khám, Bổ Sung Flyway V7 (Slot Collision Partial Unique Index & Dedup Unique Index), Concurrency Semaphore Điều Tiết Vision OCR | AI Assistant | 🟢 Sẵn sàng Review |
+| **#047** | 14/09/2026 | Triển Khai Giai Đoạn 3: Hiện Thực Hóa Động Cơ Khử Định Danh Dữ Liệu Y Tế Nhạy Cảm (Medical PII De-identification) Tuân Thủ Nghị Định 13/2023/NĐ-CP & HIPAA Safe Harbor, Tương Thích Chuẩn Dataset Meddies-PII (Hugging Face) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#046** | 14/09/2026 | Triển Khai Giai Đoạn 2: Tối Ưu Hóa Concurrency & Race Condition Cho Scan Pipeline & Đặt Lịch Khám, Bổ Sung Flyway V7 (Slot Collision Partial Unique Index & Dedup Unique Index), Concurrency Semaphore Điều Tiết Vision OCR | AI Assistant | 🟢 Đã Duyệt |
 | **#045** | 14/09/2026 | Triển Khai Giai Đoạn 1: Vá Lỗ Hổng CSRF/Cookie SameSite, Chặn Suspended User Trong JWT Filter, Rate Limit Đăng Ký, Đồng Bộ Schema Flyway V6 (@Version & audit_logs) & React ErrorBoundary | AI Assistant | 🟢 Đã Duyệt |
 | **#044** | 14/09/2026 | Production-Readiness Audit & Hardening Document Scan: Khắc Phục Nghẽn HikariCP (@Transactional Anti-Pattern), Quota Atomic Reservation & Rollback, ThreadPool OCR Riêng, Rate Limiting Preview & Caffeine Cache | AI Assistant | 🟢 Đã Duyệt |
 | **#043** | 13/09/2026 | Khắc Phục Lỗi Xung Đột JPA Nullable Phiếu Trắng, Chặn Path Traversal Storage, Chuẩn Hóa Status Chỉ Số & Ngày Tiếp Nhận Frontend | AI Assistant | 🟢 Đã Duyệt |
@@ -19,6 +20,67 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#047] Triển Khai Giai Đoạn 3: Hiện Thực Hóa Động Cơ Khử Định Danh Dữ Liệu Y Tế Nhạy Cảm (Medical PII De-identification) Tuân Thủ Nghị Định 13/2023/NĐ-CP & HIPAA Safe Harbor, Tương Thích Chuẩn Dataset Meddies-PII (Hugging Face)
+* **Thời gian:** 2026-09-14 13:50:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-02 (AI Symptom Triage), UC-03 (Multimodal Document Summarization), UC-12 (Medical PII De-identification)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (**72/72 Tests PASS 100%**)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (**Build 0 TypeScript error, 1671 modules**)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Hạng Mục Đã Thực Hiện:
+1. **Xây Dựng Động Cơ Khử Định Danh `MedicalPiiService` (Nghị Định 13/2023/NĐ-CP & HIPAA Safe Harbor)**:
+   - Phát hiện và che giấu 6 nhóm thực thể PII nhạy cảm: `HUMAN_NAME`, `ID_NUMBER` (CCCD 12 số, CMND 9 số, BHYT 15 ký tự, Mã BN, SID), `PHONE_NUMBER` (SĐT VN), `ADDRESS` (Địa chỉ hành chính thường trú & nơi ở), `DATE_OF_BIRTH` (Ngày sinh), `EMAIL`.
+   - Cơ chế thay thế token bảo vệ: `[BỆNH_NHÂN_N]`, `[SỐ_ĐỊNH_DANH_N]`, `[SĐT_N]`, `[ĐỊA_CHỈ_N]`, `[NGÀY_SINH_N]`, `[EMAIL_N]`.
+   - Sinh đồng thời định dạng gán nhãn nghiên cứu y khoa tương thích 100% với Hugging Face dataset `Meddies/meddies-pii` (`[original_value]<entity_type>`).
+   - Xử lý triệt để bài toán tràn dòng (Line Spanning): sử dụng horizontal whitespace `[ \t]+` kết hợp Unicode properties (`\p{Lu}`, `\p{Ll}`) và scoping cờ `(?iu:...)` để tên bệnh nhân không nuốt dòng kế tiếp.
+   - Xử lý địa chỉ đàm thoại Triage (`TRIAGE_ADDRESS_PATTERN`) với nhận diện đơn vị hành chính chuẩn xác, không tạo false-positive với các câu thông thường như *"Tôi ở nhà một mình"*.
+2. **Tích Hợp Tự Động Trong Clinical RAG Pipeline (`ClinicalRagService`)**:
+   - `performTriageRagAnalysis`: Tự động khử định danh lời khai triệu chứng trước khi tạo prompt gửi LLM; tự động thế ngược (Re-identification) token về tên thật trong lời khuyên của AI trước khi trả về cho bệnh nhân.
+   - `performDocumentRagAnalysis`: Tự động che giấu thông tin hành chính của bệnh nhân trong tệp xét nghiệm trước khi gửi LLM; bảo toàn 100% chỉ số cận lâm sàng và khoảng tham chiếu phòng xét nghiệm.
+   - Bổ sung trường kiểm toán an toàn trong `TriageResponse`, `DocumentAnalysisResponse`, `ClinicalAiResult`: `piiProtected`, `piiEntitiesCount`, `piiMaskedTypes`.
+3. **Bổ Sung REST API & Cấu Hình Bảo Mật**:
+   - `MedicalPiiController`: Endpoint `POST /api/v1/pii/deidentify` phục vụ demo trực tiếp, kiểm toán và nghiên cứu khoa học.
+   - `SecurityConfig`: Mở công khai `/api/v1/pii/**` cho phép kiểm thử và trình diễn trước Hội đồng bảo vệ.
+4. **Kiểm Thử Toàn Diện & Đồng Bộ Tài Liệu**:
+   - `MedicalPiiServiceTest`: 4 bài test chuyên sâu (Phiếu xét nghiệm tổng quát bệnh viện Bạch Mai, Lời khai triệu chứng triage, Tái định danh phản hồi AI, Kiểm tra chống false positive với tên bệnh viện & bác sĩ).
+   - Backend `mvn test`: **72/72 tests PASS 100%**.
+   - Frontend `npm run build`: **0 lỗi TypeScript**.
+   - Đồng bộ đầy đủ `docs/USE_CASES.md`, `docs/STORYTELLING.md`, `docs/CAPSTONE_DEFENSE.md`, `docs/WORK_LOG.md`.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi:
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/PiiType.java`
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/PiiEntityDto.java`
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/DeidentificationResult.java`
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/DeidentifyTextRequest.java`
+- `[NEW]` `backend/src/main/java/com/mediassist/service/MedicalPiiService.java`
+- `[NEW]` `backend/src/main/java/com/mediassist/controller/MedicalPiiController.java`
+- `[NEW]` `backend/src/test/java/com/mediassist/MedicalPiiServiceTest.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/ai/ClinicalAiResult.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/config/SecurityConfig.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/dto/DocumentAnalysisResponse.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/dto/TriageResponse.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/service/ClinicalRagService.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/service/TriageService.java`
+- `[MOD]` `docs/USE_CASES.md`
+- `[MOD]` `docs/STORYTELLING.md`
+- `[MOD]` `docs/CAPSTONE_DEFENSE.md`
+- `[MOD]` `docs/WORK_LOG.md`
+
+#### 3. Bằng Chứng Kiểm Thử:
+- `mvn test`: 72/72 passed, 0 failures, 0 errors.
+- `npm run build`: 1671 modules transformed, 0 errors.
+- Git branch: `develop`.
+
+#### 4. Điểm Nóng Tech Lead Cần Review:
+- Thuật toán Regex trong `MedicalPiiService` sử dụng horizontal whitespace `[ \t]+` và Scoped Flags `(?iu:...)` để tách biệt phần tiền tố không phân biệt chữ hoa/thường với phần tên riêng có phân biệt chữ hoa/thường, giải quyết triệt để lỗi nuốt dòng sang nhãn tiếp theo.
+- Lớp `RawMatch` tính toán lại `start` và `end` sau khi `trim()`, đảm bảo chỉ số vị trí khớp tuyệt đối với độ dài chuỗi nguyên bản, không làm lệch ký tự khi thay thế token.
+- Luồng `unmaskPii` chạy hoàn toàn trong bộ nhớ RAM của phiên xử lý, không lưu bản ánh xạ token vào Database hay log ngoài, đảm bảo tuân thủ nguyên tắc Privacy-by-Design.
+
+---
 
 ### [WORK-LOG-#046] Triển Khai Giai Đoạn 2: Tối Ưu Hóa Concurrency & Race Condition Cho Scan Pipeline & Đặt Lịch Khám, Bổ Sung Flyway V7 (Slot Collision Partial Unique Index & Dedup Unique Index), Concurrency Semaphore Điều Tiết Vision OCR
 * **Thời gian:** 2026-09-14 13:40:00 (GMT+7)

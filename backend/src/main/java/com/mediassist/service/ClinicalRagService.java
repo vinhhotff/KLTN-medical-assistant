@@ -12,9 +12,15 @@ import java.util.UUID;
 public class ClinicalRagService {
     private static final Logger log = LoggerFactory.getLogger(ClinicalRagService.class);
     private final AiModelRouter aiModelRouter;
+    private final MedicalPiiService medicalPiiService;
+
+    public ClinicalRagService(AiModelRouter aiModelRouter, MedicalPiiService medicalPiiService) {
+        this.aiModelRouter = aiModelRouter;
+        this.medicalPiiService = medicalPiiService;
+    }
 
     public ClinicalRagService(AiModelRouter aiModelRouter) {
-        this.aiModelRouter = aiModelRouter;
+        this(aiModelRouter, new MedicalPiiService());
     }
 
     public boolean canProcessVision() {
@@ -127,10 +133,27 @@ public class ClinicalRagService {
             docsContext.append("\n(Khong co ung vien bac si)");
         }
 
-        String userPrompt = String.format("[TAI LIEU]: %s\n\n[NOI DUNG XET NGHIEM]:\n%s\n\n[BAC SI UNG VIEN PGVECTOR]:%s\n\nHay phan tich va tra ve JSON.",
-                fileName, (extractedText != null && !extractedText.isBlank()) ? extractedText : "(Chua co noi dung)", docsContext.toString());
+        // Medical PII De-identification (Decree 13/2023/ND-CP & HIPAA Privacy Shield)
+        com.mediassist.dto.DeidentificationResult piiResult = medicalPiiService.maskPii(extractedText);
+        String safeExtractedText = piiResult.getMaskedText();
+        if (piiResult.isPiiProtected()) {
+            log.info("🛡️ [PII SAFEGUARD] De-identified {} sensitive entities ({}) in '{}' prior to external LLM routing",
+                    piiResult.getPiiEntitiesCount(), piiResult.getMaskedTypes(), fileName);
+        }
+
+        String userPrompt = String.format("[TAI LIEU]: %s\n\n[NOI DUNG XET NGHIEM (DA KHU DINH DANH PII)]:\n%s\n\n[BAC SI UNG VIEN PGVECTOR]:%s\n\nHay phan tich va tra ve JSON.",
+                fileName, (safeExtractedText != null && !safeExtractedText.isBlank()) ? safeExtractedText : "(Chua co noi dung)", docsContext.toString());
 
         ClinicalAiResult result = aiModelRouter.routeClinicalAnalysis(systemPrompt, userPrompt);
+
+        // Populate PII Protection stats and unmask tokens if present in summary/explanation
+        result.setPiiProtected(piiResult.isPiiProtected());
+        result.setPiiEntitiesCount(piiResult.getPiiEntitiesCount());
+        result.setPiiMaskedTypes(piiResult.getMaskedTypes());
+        if (piiResult.isPiiProtected()) {
+            result.setClinicalSummary(piiResult.reidentify(result.getClinicalSummary()));
+            result.setPlainLanguageExplanation(piiResult.reidentify(result.getPlainLanguageExplanation()));
+        }
 
         boolean hasExplicitDoctor = result.getRecommendedDoctorId() != null;
         boolean hasIndicators = result.getIndicators() != null && !result.getIndicators().isEmpty();
@@ -228,8 +251,16 @@ public class ClinicalRagService {
             }
         }
 
+        // Medical PII De-identification (Decree 13/2023/ND-CP & HIPAA Privacy Shield)
+        com.mediassist.dto.DeidentificationResult piiResult = medicalPiiService.maskPii(symptoms);
+        String safeSymptoms = piiResult.getMaskedText();
+        if (piiResult.isPiiProtected()) {
+            log.info("🛡️ [PII SAFEGUARD] De-identified {} sensitive entities ({}) in triage description prior to LLM routing",
+                    piiResult.getPiiEntitiesCount(), piiResult.getMaskedTypes());
+        }
+
         StringBuilder userPrompt = new StringBuilder();
-        userPrompt.append("Triệu chứng bệnh nhân mô tả: \"").append(symptoms).append("\"");
+        userPrompt.append("Triệu chứng bệnh nhân mô tả (đã khử định danh PII): \"").append(safeSymptoms).append("\"");
         if (urgencyHint != null && !urgencyHint.isBlank()) {
             userPrompt.append("\nGợi ý mức độ tham khảo ban đầu: ").append(urgencyHint);
         }
@@ -237,7 +268,18 @@ public class ClinicalRagService {
             userPrompt.append("\n\nDanh sách Bác sĩ ứng viên khả dụng:").append(docsContext);
         }
 
-        return aiModelRouter.routeTriageAnalysis(systemPrompt, userPrompt.toString());
+        ClinicalAiResult result = aiModelRouter.routeTriageAnalysis(systemPrompt, userPrompt.toString());
+
+        // Populate PII Protection stats and unmask tokens if present in advice/sbar
+        result.setPiiProtected(piiResult.isPiiProtected());
+        result.setPiiEntitiesCount(piiResult.getPiiEntitiesCount());
+        result.setPiiMaskedTypes(piiResult.getMaskedTypes());
+        if (piiResult.isPiiProtected()) {
+            result.setSbarSummary(piiResult.reidentify(result.getSbarSummary()));
+            result.setAiAdvice(piiResult.reidentify(result.getAiAdvice()));
+        }
+
+        return result;
     }
 
     private String buildClinicalRecommendationReason(DoctorMatchDto doctor, List<com.mediassist.dto.AbnormalIndicatorDto> indicators) {

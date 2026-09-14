@@ -73,6 +73,8 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/doctors/{id}").permitAll()
                         // Public Instant Document Validation Preview (Landing Page Real Testing)
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/documents/analyze-preview").permitAll()
+                        // Public Medical PII De-identification Testing (Decree 13/2023/ND-CP & HIPAA)
+                        .requestMatchers("/api/v1/pii/**").permitAll()
 
                         // ZERO-TRUST MANDATE: AI Triage, pgvector semantic search & OCR Lab PDF analysis strictly require authentication
                         .requestMatchers("/api/v1/triage/**").authenticated()

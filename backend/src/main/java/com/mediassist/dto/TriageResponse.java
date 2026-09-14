@@ -20,7 +20,21 @@ public class TriageResponse {
     private String modelUsed;
     private String doctorRecommendationReason;
 
+    // PII Privacy Safeguard Metadata (Decree 13/2023/ND-CP & HIPAA)
+    private boolean piiProtected;
+    private int piiEntitiesCount;
+    private List<String> piiMaskedTypes;
+
     public TriageResponse() {}
+
+    public boolean isPiiProtected() { return piiProtected; }
+    public void setPiiProtected(boolean piiProtected) { this.piiProtected = piiProtected; }
+
+    public int getPiiEntitiesCount() { return piiEntitiesCount; }
+    public void setPiiEntitiesCount(int piiEntitiesCount) { this.piiEntitiesCount = piiEntitiesCount; }
+
+    public List<String> getPiiMaskedTypes() { return piiMaskedTypes; }
+    public void setPiiMaskedTypes(List<String> piiMaskedTypes) { this.piiMaskedTypes = piiMaskedTypes; }
 
     public UUID getSessionId() { return sessionId; }
     public void setSessionId(UUID sessionId) { this.sessionId = sessionId; }

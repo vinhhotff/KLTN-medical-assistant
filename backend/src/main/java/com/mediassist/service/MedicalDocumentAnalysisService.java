@@ -422,6 +422,9 @@ public class MedicalDocumentAnalysisService {
             response.setPatientAge(finalAge);
             response.setPatientGender(finalGender);
             response.setDeviceModel(finalDev);
+            response.setPiiProtected(ragResult.isPiiProtected());
+            response.setPiiEntitiesCount(ragResult.getPiiEntitiesCount());
+            response.setPiiMaskedTypes(ragResult.getPiiMaskedTypes());
 
             return response;
 
@@ -604,6 +607,9 @@ public class MedicalDocumentAnalysisService {
         response.setPatientAge(finalAge);
         response.setPatientGender(finalGender);
         response.setDeviceModel(finalDev);
+        response.setPiiProtected(ragResult.isPiiProtected());
+        response.setPiiEntitiesCount(ragResult.getPiiEntitiesCount());
+        response.setPiiMaskedTypes(ragResult.getPiiMaskedTypes());
 
         return response;
     }
