@@ -1,6 +1,7 @@
 package com.mediassist.config;
 
 import com.mediassist.security.CustomOAuth2UserService;
+import com.mediassist.security.CustomOidcUserService;
 import com.mediassist.security.JwtAuthenticationFilter;
 import com.mediassist.security.OAuth2AuthenticationFailureHandler;
 import com.mediassist.security.OAuth2AuthenticationSuccessHandler;
@@ -33,6 +34,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomOAuth2UserService customOAuth2UserService;
+    private final CustomOidcUserService customOidcUserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler;
     private final OAuth2AuthenticationFailureHandler oAuth2FailureHandler;
 
@@ -41,32 +43,28 @@ public class SecurityConfig {
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
                           CustomOAuth2UserService customOAuth2UserService,
+                          CustomOidcUserService customOidcUserService,
                           OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler,
                           OAuth2AuthenticationFailureHandler oAuth2FailureHandler) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.customOAuth2UserService = customOAuth2UserService;
+        this.customOidcUserService = customOidcUserService;
         this.oAuth2SuccessHandler = oAuth2SuccessHandler;
         this.oAuth2FailureHandler = oAuth2FailureHandler;
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                // OAuth2 flow can session de luu PKCE state parameter
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                )
-                .headers(headers -> headers
-                        .frameOptions(frame -> frame.deny())
-                        .contentTypeOptions(Customizer.withDefaults())
-                        .xssProtection(Customizer.withDefaults())
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
@@ -103,11 +101,14 @@ public class SecurityConfig {
                             response.getWriter().write("{\"success\":false,\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Vui long dang nhap de su dung tinh nang nay.\"}}");
                         })
                 )
-                // OAuth2 Login Configuration
+                // OAuth2 Login Configuration (Ho tro ca standard OAuth2 va OpenID Connect OIDC)
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(auth -> auth.baseUri("/oauth2/authorization"))
                         .redirectionEndpoint(redirect -> redirect.baseUri("/login/oauth2/code/*"))
-                        .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                                .oidcUserService(customOidcUserService)
+                        )
                         .successHandler(oAuth2SuccessHandler)
                         .failureHandler(oAuth2FailureHandler)
                 )

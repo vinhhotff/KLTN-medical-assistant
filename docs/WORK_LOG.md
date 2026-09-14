@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :---: |
+| **#045** | 14/09/2026 | Khắc Phục Lỗi ClassCastException DefaultOidcUser Khi Đăng Nhập Google: Bổ Sung CustomOidcUserService, Mở Rộng OAuth2UserPrincipal Hỗ Trợ OidcUser & Fallback Upsert An Toàn | AI Assistant | 🟢 Sẵn sàng Review |
 | **#044** | 14/09/2026 | Triển Khai Hoàn Chỉnh Google OAuth2 Login/Register: HttpOnly JWT Cookie (SameSite=Lax), CustomOAuth2UserService Upsert Pattern, OAuth2UserPrincipal Bridge Class, SuccessHandler/FailureHandler, SecurityConfig OAuth2 Block, GoogleLoginButton Frontend, OAuth2CallbackPage Role-Based Redirect | AI Assistant | 🟢 Sẵn sàng Review |
 | **#043** | 13/09/2026 | Khởi Tạo & Đẩy Lên Toàn Bộ 3 Tệp Cấu Hình Môi Trường (.env & .env.example) Cho Cả 3 Phân Hệ (Root, Backend, Frontend) Kèm Tích Hợp Vite Environment Variable | AI Assistant | 🟢 Sẵn sàng Review |
 | **#042** | 13/09/2026 | Cải Tổ Toàn Diện Pipeline Phân Tích Tài Liệu Y Khoa (6 Điểm Nghẽn): Tích Hợp Trực Tiếp Google Gemini Flash (Tier 1 AI), Trình Phân Tích Bảng Đa Mẫu (Multi-Pattern Table Parser), Dữ Liệu Lâm Sàng Động 100% (Bệnh Viện, Bác Sĩ, SID, Máy Xét Nghiệm), Khoảng Tham Chiếu Giới Tính & Nâng Hạn Mức PDF 10 Trang | AI Assistant | 🟢 Sẵn sàng Review |
@@ -23,6 +24,34 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#045] Khắc Phục Lỗi OIDC ClassCastException & Tối Ưu Hóa Xác Thực Google OAuth2
+* **Thời gian:** 2026-09-14 14:27:00 → 14:31:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Nhánh phát triển:** `feature/Google-oauth2`
+* **Git Commit:** `fix(auth): support OpenID Connect (OIDC) flow and resolve DefaultOidcUser ClassCastException`
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21): **59/59 Tests PASS 100%**
+  - Frontend (Vite 6.4.3 React): **Build 0 TypeScript error, 1672 modules**
+  - Trạng thái HTTP: **Actuator /health 200 UP**, OAuth2 redirect **302 Redirect verified**
+
+#### 1. Nguyên Nhân Sự Cố
+- Khi Google OAuth2 client gửi scope chứa `openid`, Spring Security 6 kích hoạt luồng **OpenID Connect 1.0 (OIDC)** thay vì OAuth2 thuần túy.
+- Spring Security mặc định điều hướng tới `OidcUserService` thay vì `customOAuth2UserService`, trả về `DefaultOidcUser`.
+- `OAuth2AuthenticationSuccessHandler` ép kiểu cứng sang `OAuth2UserPrincipal`, dẫn đến ngoại lệ runtime `java.lang.ClassCastException: DefaultOidcUser cannot be cast to OAuth2UserPrincipal` (HTTP 500 Whitelabel Error Page).
+
+#### 2. Giải Pháp Kỹ Thuật Đã Triển Khai
+1. **[NEW]** `CustomOidcUserService.java`: Kế thừa `OidcUserService`, tái sử dụng logic `findOrCreateUser` từ `CustomOAuth2UserService` để tự động upsert User trong PostgreSQL DB và trả về `OAuth2UserPrincipal` chứa đầy đủ OidcIdToken và OidcUserInfo.
+2. **[MOD]** `OAuth2UserPrincipal.java`: Hiện thực hóa giao diện `OidcUser` (cùng với `OAuth2User` và `UserDetails`), bổ sung các phương thức `getClaims()`, `getUserInfo()`, `getIdToken()`.
+3. **[MOD]** `SecurityConfig.java`: Đăng ký `.userInfoEndpoint(userInfo -> userInfo.userService(...).oidcUserService(...))`.
+4. **[MOD]** `OAuth2AuthenticationSuccessHandler.java`: Bổ sung cơ chế phòng vệ 2 lớp (Defense in Depth) kiểm tra `instanceof` an toàn kèm fallback tự động upsert khi nhận bất kỳ `OAuth2User` nào.
+
+#### 3. Bằng Chứng Kiểm Thử
+- Backend unit tests: `mvn test` $ightarrow$ **59/59 Tests PASS (0 Failures, 0 Errors)**
+- Frontend compile: `npm run build` $ightarrow$ **0 TS errors**
+- Kiểm tra Endpoint: `curl http://localhost:5000/oauth2/authorization/google` $ightarrow$ HTTP 302 Redirect sang `accounts.google.com` thành công.
+
+---
 
 ### [WORK-LOG-#044] Google OAuth2 Login/Register — HttpOnly JWT Cookie + Upsert User Pattern
 * **Thời gian:** 2026-09-14 13:40:00 → 13:48:00 (GMT+7)

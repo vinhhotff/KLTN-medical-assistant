@@ -58,7 +58,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return OAuth2UserPrincipal.create(user, attributes);
     }
 
-    private User findOrCreateUser(String googleId, String email, String name, String picture) {
+    public User findOrCreateUser(String googleId, String email, String name, String picture) {
         // Case 1: Da login bang Google truoc do
         Optional<User> byGoogleId = userRepository.findByGoogleId(googleId);
         if (byGoogleId.isPresent()) {
