@@ -99,6 +99,19 @@ public class MedicalDocumentAnalysisService {
         }
         DocumentAnalysis existingAnalysis = existingAnalysisOpt.get();
 
+        // 🚨 STALE OFFLINE CACHE INVALIDATION: If previously processed in Safe Offline mode, do NOT serve stale cache
+        String summary = existingAnalysis.getClinicalSummary();
+        boolean isStaleOffline = summary != null && (
+                summary.contains("Chế độ Ngoại tuyến") ||
+                summary.contains("Ngoại tuyến") ||
+                summary.contains("chưa kết nối API Key") ||
+                summary.contains("chưa có kết nối mô hình")
+        );
+        if (isStaleOffline) {
+            log.info("🔄 [STALE OFFLINE CACHE INVALIDATED] Existing analysis for document '{}' was generated in Safe Offline Fallback mode. Invalidating cache to trigger live Online AI analysis.", existingDoc.getFileName());
+            return null;
+        }
+
         List<AbnormalIndicatorDto> cachedIndicators = new ArrayList<>();
         List<String> cachedQuestions = new ArrayList<>();
         try {
@@ -184,18 +197,26 @@ public class MedicalDocumentAnalysisService {
         // If document was previously analyzed, return cached result immediately with 0 tokens and 0 quota cost
         String fileHash = calculateSha256(fileBytes);
         Optional<MedicalDocument> existingDocOpt = medicalDocumentRepository.findFirstByUserIdAndFileHashOrderByCreatedAtDesc(user.getId(), fileHash);
+        MedicalDocument existingDoc = null;
+        boolean isReanalyzingStaleOffline = false;
+
         if (existingDocOpt.isPresent()) {
             DocumentAnalysisResponse cachedResponse = buildCachedResponse(existingDocOpt.get(), fileName);
             if (cachedResponse != null) {
                 log.info("⚡ [CACHE HIT - DEDUPLICATION] Document '{}' (hash: {}) previously analyzed for user {}. Returning cached result. 0 LLM tokens consumed.", fileName, fileHash, userEmail);
                 return cachedResponse;
             }
+            // If cachedResponse is null, it means the document was previously analyzed in Safe Offline Fallback mode.
+            // In this case, we allow re-analysis with online AI without charging the user's scan quota again.
+            existingDoc = existingDocOpt.get();
+            isReanalyzingStaleOffline = true;
+            log.info("🔄 [RE-ANALYZING STALE OFFLINE] Existing document '{}' found for user {}, but cached analysis was offline fallback. Re-analyzing with live online AI without charging additional quota.", fileName, userEmail);
         }
 
         // 3. Atomic Quota Pre-check & Reservation (Anti-Abuse & Race Condition Shield)
         boolean isVip = user.isVipActive();
         boolean quotaDeducted = false;
-        if (!isVip) {
+        if (!isVip && !isReanalyzingStaleOffline) {
             int rowsUpdated = userRepository.deductScanQuota(user.getId());
             if (rowsUpdated == 0) {
                 log.warn("🚫 [QUOTA EXCEEDED] User {} has 0 scan quota and is not an active VIP subscriber.", userEmail);
@@ -319,62 +340,78 @@ public class MedicalDocumentAnalysisService {
 
             // 11. LAZY CLOUD UPLOAD & PERSISTENCE
             // Architecture Rule: ONLY upload to Supabase Cloud when AI analysis has 100% SUCCEEDED!
-            storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
+            if (isReanalyzingStaleOffline && existingDoc != null) {
+                medDoc = existingDoc;
+                if (medDoc.getStorageUrl() == null || medDoc.getStorageUrl().isBlank()) {
+                    storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
+                    medDoc.setStorageUrl(storageUrl);
+                    medDoc = medicalDocumentRepository.save(medDoc);
+                } else {
+                    storageUrl = medDoc.getStorageUrl();
+                }
+            } else {
+                storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
 
-            medDoc = new MedicalDocument();
-            medDoc.setUser(user);
-            medDoc.setFileName(fileName);
-            medDoc.setFileSizeBytes(size);
-            medDoc.setContentType(contentType);
-            medDoc.setFileHash(fileHash);
-            medDoc.setStorageUrl(storageUrl);
-            medDoc.setValidMedical(true);
-            medDoc.setStatus("PROCESSED");
-            try {
-                medDoc = medicalDocumentRepository.saveAndFlush(medDoc);
-            } catch (org.springframework.dao.DataIntegrityViolationException dive) {
-                log.warn("⚡ [RACE CONDITION RECOVERY] Concurrent duplicate upload detected for user {} with file hash {}. Rolling back duplicate and serving winner cached record.", userEmail, fileHash);
-                // 1. Compensating action: Restore scan quota that was deducted for this request
-                if (quotaDeducted) {
-                    try {
-                        userRepository.restoreScanQuota(user.getId());
-                        quotaDeducted = false;
-                        log.info("💳 [RACE RECOVERY] Restored deducted quota for duplicate upload of user {}", userEmail);
-                    } catch (Exception restoreEx) {
-                        log.error("Failed to restore quota during deduplication collision recovery: {}", restoreEx.getMessage());
-                    }
-                }
-                // 2. Compensating action: Clean up redundant cloud storage upload
-                if (storageUrl != null) {
-                    try {
-                        storageService.deleteDocument(storageUrl);
-                        storageUrl = null;
-                    } catch (Exception delEx) {
-                        log.error("Failed to delete duplicate storage file: {}", delEx.getMessage());
-                    }
-                }
-                // 3. Gracefully retrieve the winning document and return its cached analysis
-                for (int attempt = 0; attempt < 5; attempt++) {
-                    Optional<MedicalDocument> winnerDoc = medicalDocumentRepository.findFirstByUserIdAndFileHashOrderByCreatedAtDesc(user.getId(), fileHash);
-                    if (winnerDoc.isPresent()) {
-                        DocumentAnalysisResponse cached = buildCachedResponse(winnerDoc.get(), fileName);
-                        if (cached != null) {
-                            log.info("⚡ [RACE RECOVERY SUCCESS] Successfully returned concurrent winner analysis for user {}", userEmail);
-                            return cached;
+                medDoc = new MedicalDocument();
+                medDoc.setUser(user);
+                medDoc.setFileName(fileName);
+                medDoc.setFileSizeBytes(size);
+                medDoc.setContentType(contentType);
+                medDoc.setFileHash(fileHash);
+                medDoc.setStorageUrl(storageUrl);
+                medDoc.setValidMedical(true);
+                medDoc.setStatus("PROCESSED");
+                try {
+                    medDoc = medicalDocumentRepository.saveAndFlush(medDoc);
+                } catch (org.springframework.dao.DataIntegrityViolationException dive) {
+                    log.warn("⚡ [RACE CONDITION RECOVERY] Concurrent duplicate upload detected for user {} with file hash {}. Rolling back duplicate and serving winner cached record.", userEmail, fileHash);
+                    // 1. Compensating action: Restore scan quota that was deducted for this request
+                    if (quotaDeducted) {
+                        try {
+                            userRepository.restoreScanQuota(user.getId());
+                            quotaDeducted = false;
+                            log.info("💳 [RACE RECOVERY] Restored deducted quota for duplicate upload of user {}", userEmail);
+                        } catch (Exception restoreEx) {
+                            log.error("Failed to restore quota during deduplication collision recovery: {}", restoreEx.getMessage());
                         }
                     }
-                    try {
-                        Thread.sleep(150);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        break;
+                    // 2. Compensating action: Clean up redundant cloud storage upload
+                    if (storageUrl != null) {
+                        try {
+                            storageService.deleteDocument(storageUrl);
+                            storageUrl = null;
+                        } catch (Exception delEx) {
+                            log.error("Failed to delete duplicate storage file: {}", delEx.getMessage());
+                        }
                     }
+                    // 3. Gracefully retrieve the winning document and return its cached analysis
+                    for (int attempt = 0; attempt < 5; attempt++) {
+                        Optional<MedicalDocument> winnerDoc = medicalDocumentRepository.findFirstByUserIdAndFileHashOrderByCreatedAtDesc(user.getId(), fileHash);
+                        if (winnerDoc.isPresent()) {
+                            DocumentAnalysisResponse cached = buildCachedResponse(winnerDoc.get(), fileName);
+                            if (cached != null) {
+                                log.info("⚡ [RACE RECOVERY SUCCESS] Successfully returned concurrent winner analysis for user {}", userEmail);
+                                return cached;
+                            }
+                        }
+                        try {
+                            Thread.sleep(150);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                    throw dive;
                 }
-                throw dive;
             }
 
-            DocumentAnalysis analysis = new DocumentAnalysis();
-            analysis.setDocument(medDoc);
+            final MedicalDocument targetDoc = medDoc;
+            Optional<DocumentAnalysis> existingAnalysisOpt = documentAnalysisRepository.findByDocumentId(targetDoc.getId());
+            DocumentAnalysis analysis = existingAnalysisOpt.orElseGet(() -> {
+                DocumentAnalysis da = new DocumentAnalysis();
+                da.setDocument(targetDoc);
+                return da;
+            });
             analysis.setClinicalSummary(clinicalSummary);
             analysis.setPlainLanguageExplanation(plainExplanation);
             analysis.setRecommendedSpecialtySlug(specialtySlug);
@@ -796,7 +833,14 @@ public class MedicalDocumentAnalysisService {
         String[] lines = text.split("\\r?\\n");
         Set<String> detected = new HashSet<>();
 
-        // Regex Pattern 1: Delimiter-based (Name : Value Unit RefRange or Name = Value, or Name - Value preceded by letter)
+        // Pattern 1: Space-separated Table Row (Name Value Unit RefRange Remainder/Status)
+        // Highly resilient for single-space PDFBox extraction: "Glucose huyet doi 9.6 mmol/L 3.9 - 6.4 [!] TANG CAO"
+        Pattern tableRowPattern = Pattern.compile(
+                "^\\s*(?:[0-9]+[.)-]|[-*•])?\\s*([\\p{L}\\p{M}0-9_\\-\\s()/+]{2,35}?)\\s+([0-9]+[.,]?[0-9]*)(?:\\s+([a-zA-Zµ/%]+(?:/[a-zA-Z0-9.]+)?))?\\s+([0-9]+[.,]?[0-9]*\\s*-\\s*[0-9]+[.,]?[0-9]*|[><=]\\s*[0-9]+[.,]?[0-9]*)(?:\\s+(.*))?$",
+                Pattern.CASE_INSENSITIVE
+        );
+
+        // Pattern 2: Delimiter-based (Name : Value Unit RefRange or Name = Value, or Name - Value preceded by letter)
         Pattern genericPattern = Pattern.compile(
                 "^\\s*(?:[0-9]+[.)-]|[-*•])?\\s*([\\p{L}\\p{M}0-9_\\-\\s()/+]{2,45}?)(?:\\s*[:=]\\s*|(?<=[\\p{L}\\)])\\s*[-–]\\s*)([0-9]+[.,]?[0-9]*)\\s*([a-zA-Zµ/%]+(?:/[a-zA-Z0-9.]+)?)*(.*)$",
                 Pattern.CASE_INSENSITIVE
@@ -811,8 +855,17 @@ public class MedicalDocumentAnalysisService {
             String unit = "";
             String remainder = "";
 
+            Matcher mTableRow = tableRowPattern.matcher(line);
             Matcher mGeneric = genericPattern.matcher(line);
-            if (mGeneric.find()) {
+
+            if (mTableRow.find()) {
+                candidateName = mTableRow.group(1).trim();
+                valStr = mTableRow.group(2).replace(',', '.');
+                unit = mTableRow.group(3) != null ? mTableRow.group(3).trim() : "";
+                String directRef = mTableRow.group(4) != null ? mTableRow.group(4).trim() : "";
+                String rest = mTableRow.group(5) != null ? mTableRow.group(5).trim() : "";
+                remainder = (directRef + " " + rest).trim();
+            } else if (mGeneric.find()) {
                 candidateName = mGeneric.group(1).trim();
                 valStr = mGeneric.group(2).replace(',', '.');
                 unit = mGeneric.group(3) != null ? mGeneric.group(3).trim() : "";
@@ -851,13 +904,20 @@ public class MedicalDocumentAnalysisService {
             }
 
             if (candidateName != null && valStr != null) {
-                // Filter out non-test administrative lines
-                String cleanName = stripAccents(candidateName).toLowerCase();
-                if (cleanName.contains("ngay") || cleanName.contains("thang") || cleanName.contains("nam") ||
+                // Filter out non-test administrative lines, long identity numbers (CCCD/CMND/BHYT/Phone), and table headers
+                String cleanName = stripAccents(candidateName).toLowerCase().trim();
+                if (valStr.length() > 8 ||
+                    cleanName.contains("ngay") || cleanName.contains("thang") || cleanName.contains("nam") ||
                     cleanName.contains("gio") || cleanName.contains("tuoi") || cleanName.contains("trang") ||
-                    cleanName.contains("khoa") || cleanName.contains("dien thoai") || cleanName.contains("stt") ||
-                    cleanName.contains("ma bn") || cleanName.contains("dia chi") || cleanName.contains("bac si") ||
-                    cleanName.contains("benh vien") || cleanName.contains("phong kham")) {
+                    cleanName.contains("khoa") || cleanName.contains("dien thoai") || cleanName.contains("sdt") ||
+                    cleanName.contains("stt") || cleanName.contains("ma bn") || cleanName.contains("ma hs") ||
+                    cleanName.contains("dia chi") || cleanName.contains("bac si") || cleanName.contains("benh vien") ||
+                    cleanName.contains("phong kham") || cleanName.contains("cccd") || cleanName.contains("cmnd") ||
+                    cleanName.contains("bhyt") || cleanName.contains("the bhyt") || cleanName.contains("so the") ||
+                    cleanName.contains("sid") || cleanName.contains("gioi tinh") || cleanName.contains("ho ten") ||
+                    cleanName.contains("ho va ten") || cleanName.contains("ten chi so") || cleanName.contains("ket qua") ||
+                    cleanName.contains("don vi") || cleanName.contains("tham chieu") || cleanName.contains("danh gia") ||
+                    cleanName.contains("ghi chu")) {
                     continue;
                 }
 

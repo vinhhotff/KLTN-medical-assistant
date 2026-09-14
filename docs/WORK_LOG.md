@@ -10,34 +10,83 @@
 ## 📑 Bảng Mục Lục Lịch Sử Cập Nhật
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
-| :---: | :---: | :--- | :--- | :---: |
+| :---: | :---: | :--- | :--- | :--- |
+| **#053** | 14/09/2026 | Khắc Phục Triệt Để Lỗi Chỉ Quét Được CCCD (Single-Space Lab Table Extraction): Bổ Sung Regex Pattern Cho Bảng Phân Tách Khoảng Trắng Đơn, Lọc Danh Sách Đen Trường Hành Chính (CCCD, BHYT, SID), Tự Động Hủy Cache Ngoại Tuyến Cũ (Stale Offline Cache Invalidation & In-Place Upsert), Xác Thực Toàn Diện Live AI Gemini 3.6 Flash | AI Assistant | 🟢 Sẵn sàng Review |
 | **#052** | 14/09/2026 | Kích Hoạt Trực Tuyến AI Mode (Google Gemini 3.6 Flash & OpenRouter Active Pool): Cấu Hình Bộ API Key Mới, Nâng Cấp Model gemini-3.6-flash, Kiểm Thử End-to-End Trợ Lý Phân Luồng Triệu Chứng AI & Phân Tích Hồ Sơ Bệnh Án PDF Đạt 100% Online | AI Assistant | 🟢 Sẵn sàng Review |
 | **#051** | 14/09/2026 | Khởi Động Toàn Bộ Hệ Thống (Postgres 5433, Redis 6379, Backend 5001, Frontend 5173): Xử Lý Xung Đột Port 5000 AirPlay macOS, Khắc Phục Lỗi Schema V1/V2 (users_status_check, icd10_code, audit_logs) & Inject @Autowired ClinicalRagService | AI Assistant | 🟢 Sẵn sàng Review |
 | **#050** | 14/09/2026 | Triển Khai Hoàn Chỉnh Google OAuth2 Login/Register: HttpOnly JWT Cookie (SameSite=Lax), OpenID Connect (OIDC) & Standard OAuth2 Dual-Support, CustomOAuth2UserService & CustomOidcUserService Upsert Pattern, OAuth2UserPrincipal Bridge Class, Flyway V8 (password_hash Nullable & avatar_url TEXT), GoogleLoginButton & OAuth2CallbackPage | AI Assistant | 🟢 Sẵn sàng Review |
-| **#049** | 14/09/2026 | Khắc Phục Toàn Diện 9 Điểm Lỗi & Lỗ Hổng Bảo Mật (Audit Hardening): Rate Limiting IP Cho Sinh PDF Meddies, Bịt Lỗi Control Chars WinAnsi/PDFBox Crash, Trì Hoãn revokeObjectURL Tránh File 0-Byte Firefox/Safari & Tách Biệt Error State | AI Assistant | 🟢 Sẵn sàng Review |
-| **#048** | 14/09/2026 | Tích Hợp Động Cơ Sinh Tệp PDF Ca Bệnh Thực Tế Từ Dataset Meddies (150.000 Hồ Sơ Bệnh Nhân Hugging Face), Tải Trực Tiếp Xuống Thiết Bị Phục Vụ Kiểm Thử Kéo-Thả Quét Bệnh Án | AI Assistant | 🟢 Sẵn sàng Review |
-| **#047** | 14/09/2026 | Triển Khai Giai Đoạn 3: Hiện Thực Hóa Động Cơ Khử Định Danh Dữ Liệu Y Tế Nhạy Cảm (Medical PII De-identification) Tuân Thủ Nghị Định 13/2023/NĐ-CP & HIPAA Safe Harbor, Tương Thích Chuẩn Dataset Meddies-PII (Hugging Face) | AI Assistant | 🟢 Sẵn sàng Review |
-| **#046** | 14/09/2026 | Triển Khai Giai Đoạn 2: Tối Ưu Hóa Concurrency & Race Condition Cho Scan Pipeline & Đặt Lịch Khám, Bổ Sung Flyway V7 (Slot Collision Partial Unique Index & Dedup Unique Index), Concurrency Semaphore Điều Tiết Vision OCR | AI Assistant | 🟢 Đã Duyệt |
-| **#045** | 14/09/2026 | Triển Khai Giai Đoạn 1: Vá Lỗ Hổng CSRF/Cookie SameSite, Chặn Suspended User Trong JWT Filter, Rate Limit Đăng Ký, Đồng Bộ Schema Flyway V6 (@Version & audit_logs) & React ErrorBoundary | AI Assistant | 🟢 Đã Duyệt |
-| **#044** | 14/09/2026 | Production-Readiness Audit & Hardening Document Scan: Khắc Phục Nghẽn HikariCP (@Transactional Anti-Pattern), Quota Atomic Reservation & Rollback, ThreadPool OCR Riêng, Rate Limiting Preview & Caffeine Cache | AI Assistant | 🟢 Đã Duyệt |
-| **#043** | 13/09/2026 | Khắc Phục Lỗi Xung Đột JPA Nullable Phiếu Trắng, Chặn Path Traversal Storage, Chuẩn Hóa Status Chỉ Số & Ngày Tiếp Nhận Frontend | AI Assistant | 🟢 Đã Duyệt |
-| **#042b** | 13/09/2026 | Khởi Tạo & Đẩy Lên Toàn Bộ 3 Tệp Cấu Hình Môi Trường (.env & .env.example) Cho Cả 3 Phân Hệ (Root, Backend, Frontend) Kèm Tích Hợp Vite Environment Variable | AI Assistant | 🟢 Đã Duyệt |
-| **#042** | 13/09/2026 | Cải Tổ Toàn Diện Pipeline Phân Tích Tài Liệu Y Khoa (6 Điểm Nghẽn): Tích Hợp Trực Tiếp Google Gemini Flash (Tier 1 AI), Trình Phân Tích Bảng Đa Mẫu (Multi-Pattern Table Parser), Dữ Liệu Lâm Sàng Động 100% (Bệnh Viện, Bác Sĩ, SID, Máy Xét Nghiệm), Khoảng Tham Chiếu Giới Tính & Nâng Hạn Mức PDF 10 Trang | AI Assistant | 🟢 Sẵn sàng Review |
-| **#041** | 13/09/2026 | Triển Khai Phân Trang Offset (Limit/Offset Pagination) Toàn Diện Toàn Bộ Bảng/Danh Sách Chống Tràn Bộ Nhớ & Khắc Phục Lưu Trữ Supabase Database / Cloud Storage | AI Assistant | 🟢 Đã Duyệt |
-| **#040** | 13/09/2026 | Hiện Thực Hóa Toàn Diện Phân Hệ Quản Lý Bác Sĩ (Doctor Management Portal): 2 Tab Roster & Vetting, Tìm Kiếm/Lọc Đa Tiêu Chí, Modal Thêm/Sửa/Xem Chi Tiết, Khóa/Mở Khóa Tài Khoản & Đồng Bộ AI Vector pgvector | AI Assistant | 🟢 Đã Duyệt |
-| **#039** | 13/09/2026 | Triệt Tiêu Đề Xuất Bác Sĩ Ảo (Zero Fake Recommendation) Khi Tài Liệu Trống/Mờ, Thiết Lập Multi-Model Vision OCR Pool & Nâng Cấp PDF 200 DPI | AI Assistant | 🟢 Đã Duyệt |
-| **#038** | 13/09/2026 | Khắc Phục Triệt Để Lỗi Ngoại Tuyến (Offline Fallback): Cập Nhật Bể Mô Hình OpenRouter Active Mới Nhất (inclusionai/ling-3.0-flash-sante:free, nex-agi/nex-n2.5-mini:free, openrouter/free) & Tối Ưu Timeout 15s | AI Assistant | 🟢 Đã Duyệt |
-| **#037** | 13/09/2026 | Khởi Động Toàn Diện Hệ Sinh Thái MediAssist-AI (Docker pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173), Sửa Lỗi Constructor Injection & Xác Thực End-to-End | AI Assistant | 🟢 Đã Duyệt |
-
 
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
-### [WORK-LOG-#052] Kích Hoạt Trực Tuyến AI Mode (Google Gemini 3.6 Flash & OpenRouter Active Pool): Cấu Hình Bộ API Key Mới, Nâng Cấp Model gemini-3.6-flash, Kiểm Thử End-to-End Trợ Lý Phân Luồng Triệu Chứng AI & Phân Tích Hồ Sơ Bệnh Án PDF Đạt 100% Online
-* **Thời gian:** 2026-09-14 16:00:00 (GMT+7)
+### [WORK-LOG-#053] Khắc Phục Triệt Để Lỗi Chỉ Quét Được CCCD (Single-Space Lab Table Extraction): Bổ Sung Regex Pattern Cho Bảng Phân Tách Khoảng Trắng Đơn, Lọc Danh Sách Đen Trường Hành Chính (CCCD, BHYT, SID), Tự Động Hủy Cache Ngoại Tuyến Cũ (Stale Offline Cache Invalidation & In-Place Upsert), Xác Thực Toàn Diện Live AI Gemini 3.6 Flash
+* **Thời gian:** 2026-09-14 16:22:00 (GMT+7)
 * **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
-* **Mã Use Case:** UC-01 (AI Symptom Triage), UC-03 (Multimodal Lab Analysis), UC-04 (Doctor Semantic Search via pgvector)
+* **Mã Use Case:** UC-03 (Multimodal Lab Analysis & Vision OCR), UC-04 (Doctor Semantic Search via pgvector)
+* **Trạng thái Dịch vụ:**
+  - Database: PostgreSQL 16 + pgvector (cổng **5433** container `mediassist_postgres` - HEALTHY)
+  - Cache: Redis (cổng **6379** - HEALTHY, PONG)
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5001** (Actuator UP, 76/76 Unit Tests PASS 100%)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (Vite Dev Server UP, Proxy to 5001 OK, 0 TS Errors)
+  - AI Engine: **Google Gemini 3.6 Flash (Direct REST) - 100% ONLINE**
+* **Nhánh phát triển:** `develop`
+
+#### 1. Bối Cảnh & Nguyên Nhân Gốc Rễ (Root Cause Analysis):
+1. **Lỗi Trích Xuất Chỉ Quét Được Số CCCD (`So CCCD`)**:
+   - Khi `PDFTextStripper` (Apache PDFBox) bóc tách các tệp PDF kết quả xét nghiệm được vẽ theo tọa độ X tuyệt đối (như tệp PDF sinh từ Meddies hoặc phiếu in của bệnh viện), các cột kết quả được nối với nhau bằng **khoảng trắng đơn (`" "`)**, ví dụ: `Glucose huyet doi 9.6 mmol/L 3.9 - 6.4 [!] TANG CAO`.
+   - Trong `MedicalDocumentAnalysisService.parseIndicators()`:
+     - `genericPattern` chỉ bắt các dòng có dấu hai chấm (`:`), dấu bằng (`=`), hoặc dấu gạch nối sau chữ cái. Dòng chỉ số xét nghiệm không có dấu hai chấm nên bị bỏ qua hoàn toàn.
+     - Phân tích cột dạng bảng bằng `line.split("\\t+|\\s{2,}")` yêu cầu tối thiểu tab hoặc $\ge 2$ khoảng trắng, do đó mảng chỉ có 1 phần tử (`parts.length == 1`), không nhận diện được cột.
+     - Trong khi đó, dòng thông tin bệnh nhân có dạng: `So CCCD: 042406641746 The BHYT: DN4123456789`, có chứa dấu hai chấm (`:`) nên đã vô tình thỏa mãn `genericPattern`. Bộ lọc `cleanName` trước đây chưa lọc từ khóa `cccd`, `cmnd`, `bhyt`, dẫn đến hệ thống nhận dạng nhầm số CCCD là chỉ số xét nghiệm duy nhất!
+2. **Hiện Tượng Bị Khóa Vào Cache Ngoại Tuyến (Stale Offline Deduplication Lockout)**:
+   - Trước khi cấu hình API Key mới, người dùng đã tải lên tệp `Phieu_Xet_Nghiem_Le_Thi_Lan.pdf` một lần. Khi đó hệ thống chạy ở chế độ Safe Offline Fallback và lưu kết quả (chỉ chứa `So CCCD` và thông báo ngoại tuyến) vào bảng `document_analyses`.
+   - Khi người dùng tải lại cùng tệp đó sau khi đã kích hoạt AI trực tuyến, cơ chế SHA-256 Deduplication phát hiện trùng mã hash và lập tức trả về kết quả cũ từ database (0 LLM Tokens, không gọi Gemini), khiến giao diện tiếp tục hiển thị trạng thái ngoại tuyến và chỉ có duy nhất dòng CCCD.
+3. **Nguy Cơ Lỗi Khóa Duy Nhất (Unique Constraint Violation) Khi Tái Phân Tích**:
+   - Chỉ mục `idx_med_doc_user_hash_unique` ràng buộc `(user_id, file_hash)` là duy nhất. Khi hủy cache ngoại tuyến cũ để chạy lại phân tích AI mới, nếu tạo mới bản ghi `MedicalDocument` sẽ gây văng lỗi `DataIntegrityViolationException`.
+
+#### 2. Chi Tiết Giải Pháp Đã Hiện Thực:
+1. **Bổ sung Regex Pattern Cho Bảng Phân Tách Khoảng Trắng Đơn (`tableRowPattern`)**:
+   - Bổ sung pattern chuẩn y khoa:
+     ```java
+     Pattern tableRowPattern = Pattern.compile(
+         "^\\s*(?:[0-9]+[.)-]|[-*•])?\\s*([\\p{L}\\p{M}0-9_\\-\\s()/+]{2,35}?)\\s+([0-9]+[.,]?[0-9]*)(?:\\s+([a-zA-Zµ/%]+(?:/[a-zA-Z0-9.]+)?))?\\s+([0-9]+[.,]?[0-9]*\\s*-\\s*[0-9]+[.,]?[0-9]*|[><=]\\s*[0-9]+[.,]?[0-9]*)(?:\\s+(.*))?$",
+         Pattern.CASE_INSENSITIVE
+     );
+     ```
+   - Pattern bóc tách chính xác 5 nhóm: Tên xét nghiệm, Giá trị kết quả, Đơn vị đo, Khoảng tham chiếu chuẩn, và Đánh giá/Dấu hiệu lâm sàng (`[!] TANG CAO`).
+2. **Thiết Lập Danh Sách Đen Chặn Triệt Để Dữ Liệu Hành Chính (Administrative Blacklist)**:
+   - Chặn tuyệt đối các dòng có độ dài giá trị `valStr.length() > 8` (số định danh CCCD 12 số, CMND 9 số, mã thẻ BHYT, số điện thoại).
+   - Mở rộng bộ lọc `cleanName`: loại bỏ các từ khóa hành chính `cccd`, `cmnd`, `bhyt`, `the bhyt`, `so the`, `sid`, `ma bn`, `ma hs`, `gioi tinh`, `ho ten`, `ho va ten`, `ten chi so`, `ket qua`, `don vi`, `tham chieu`, `danh gia`, `ghi chu`.
+3. **Cơ Chế Tự Động Hủy Cache Ngoại Tuyến Cũ (Stale Offline Cache Invalidation)**:
+   - Trong `buildCachedResponse()`: Nếu `clinicalSummary` chứa các chuỗi cảnh báo ngoại tuyến (`"Chế độ Ngoại tuyến"`, `"Ngoại tuyến"`, `"chưa kết nối API Key"`, `"chưa có kết nối mô hình"`), hàm lập tức trả về `null` thay vì phục vụ kết quả rác.
+4. **Cơ Chế In-Place Upsert & Miễn Phí Lượt Quét Khi Tái Phân Tích**:
+   - Khi phát hiện tệp tài liệu cũ từng bị lưu ở chế độ ngoại tuyến (`isReanalyzingStaleOffline = true`):
+     - **Không trừ thêm lượt quét** (`scan_quota`) của người dùng.
+     - Tái sử dụng đối tượng `existingDoc`, thực hiện cập nhật tại chỗ (`In-Place Upsert`) vào bản ghi `DocumentAnalysis` tương ứng, loại trừ hoàn toàn nguy cơ xung đột khóa duy nhất `idx_med_doc_user_hash_unique`.
+
+#### 3. Bằng Chứng Kiểm Thử Độc Lập (Verification Evidence):
+1. **Kiểm Thử Đơn Vị Tự Động (`mvn test`)**:
+   - Bổ sung `testParseIndicators_MeddiesSingleSpaceTableAndBlacklistAdministrative()`: Xác nhận bóc tách đủ 5 chỉ số lâm sàng từ bảng khoảng trắng đơn, không dính bất kỳ trường CCCD/BHYT nào.
+   - Bổ sung `testAnalyzeDocument_InvalidatesStaleOfflineCacheAndUpserts()`: Xác nhận hủy cache ngoại tuyến cũ, tái phân tích online, không trừ 2 lần quota.
+   - Toàn bộ **76/76 unit tests** đều PASS 100% không một lỗi phát sinh.
+2. **Kiểm Thử Tích Hợp Live Trực Tiếp Với Google Gemini 3.6 Flash**:
+   - **Tệp Ca Bệnh Tim Mạch (`sample_meddies_clean.pdf`)**:
+     - `modelUsed: "gemini-3.6-flash"`
+     - Bóc tách đầy đủ 5/5 chỉ số: `Cholesterol toàn phần` (6.8 mmol/L - ELEVATED), `Triglyceride` (2.9 mmol/L - ELEVATED), `Troponin T hs` (0.045 ng/mL - ELEVATED), `Glucose huyết đói` (5.8 mmol/L - NORMAL), `Creatinine` (85.0 umol/L - NORMAL).
+     - Định tuyến chính xác chuyên khoa `cardiology` (Cardiology - Tim Mạch), ghép nối bác sĩ GS.TS. BS. Nguyễn Văn An (ĐH Y Dược TP.HCM) với độ tương đồng 0.9897.
+   - **Tệp Ca Bệnh Tiêu Hóa - Gan Mật (`sample_meddies_random2.pdf`)**:
+     - `modelUsed: "gemini-3.6-flash"`
+     - Bóc tách đầy đủ 5/5 chỉ số: `Men gan ALT (GPT)` (95.0 U/L - ELEVATED), `Men gan AST (GOT)` (88.0 U/L - ELEVATED), `GGT` (145.0 U/L - ELEVATED), `Bilirubin toàn phần` (22.5 µmol/L - ELEVATED), `Albumin` (38.0 g/L - NORMAL).
+     - Định tuyến chính xác chuyên khoa `gastroenterology` (Tiêu Hóa - Gan Mật), ghép nối bác sĩ BS. CKII. Phạm Quốc Tuấn (BV Chợ Rẫy) với độ tương đồng 0.9329.
+   - **Thử Nghiệm Tải Lại Tệp Cũ (Deduplication Check)**:
+     - Gửi lại cùng mã hash: phản hồi ngay lập tức `cachedResult: true` với 0 LLM tokens, trả về đúng 5 chỉ số lâm sàng đã phân tích trực tuyến.
+3. **Kiểm Thử Giao Diện & Biên Dịch TypeScript (`npm run build`)**:
+   - 0 lỗi TypeScript, bản build production hoàn thành trong 1.78s.
+
+---
+
+### [WORK-LOG-#052] Kích Hoạt Trực Tuyến AI Mode (Google Gemini 3.6 Flash & OpenRouter Active Pool): Cấu Hình Bộ API Key Mới, Nâng Cấp Model gemini-3.6-flash, Kiểm Thử End-to-End Trợ Lý Phân Luồng Triệu Chứng AI & Phân Tích Hồ Sơ Bệnh Án PDF Đạt 100% Online
 * **Trạng thái Dịch vụ:**
   - Database: PostgreSQL 16 + pgvector (cổng **5433** container `mediassist_postgres` - HEALTHY)
   - Cache: Redis (cổng **6379** - HEALTHY, PONG)

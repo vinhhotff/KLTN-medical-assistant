@@ -685,4 +685,102 @@ class MedicalDocumentAnalysisServiceTest {
         verify(userRepository, times(1)).restoreScanQuota(eq(testUser.getId()));
         verify(storageService, times(1)).deleteDocument(anyString());
     }
+
+    @Test
+    @DisplayName("Should extract all 5 lab indicators from single-space table and ignore CCCD / administrative fields")
+    void testParseIndicators_MeddiesSingleSpaceTableAndBlacklistAdministrative() {
+        String meddiesDocText = """
+                BENH VIEN BACH MAI
+                Khoa Noi Tiet - Dai Thao Duong
+                So CCCD: 042406641746 The BHYT: DN4123456789
+                Ma BN: BN2612345 Bac si: TS.BS Nguyen Van An
+                TEN CHI SO KET QUA DON VI THAM CHIEU DANH GIA
+                Glucose huyet doi 9.6 mmol/L 3.9 - 6.4 [!] TANG CAO
+                HbA1c 8.7 % 4.0 - 6.0 [!] TANG CAO
+                Ure 7.4 mmol/L 2.5 - 7.5 BINH THUONG
+                Creatinine 82.0 umol/L 44.0 - 88.0 BINH THUONG
+                Acid Uric 340.0 umol/L 200.0 - 420.0 BINH THUONG
+                GHI CHU LAM SANG:
+                Cac chi so bat thuong can duoc doi chieu voi trieu chung lam sang.
+                """;
+
+        List<com.mediassist.dto.AbnormalIndicatorDto> indicators =
+                analysisService.parseIndicators(meddiesDocText, "Phieu_Xet_Nghiem_Le_Thi_Lan.pdf");
+
+        assertNotNull(indicators);
+        assertEquals(5, indicators.size(), "Must extract exactly 5 clinical indicators, ignoring administrative CCCD/BHYT");
+
+        // Verify none of the administrative fields were captured
+        assertTrue(indicators.stream().noneMatch(i -> i.getName().toLowerCase().contains("cccd")));
+        assertTrue(indicators.stream().noneMatch(i -> i.getName().toLowerCase().contains("bhyt")));
+        assertTrue(indicators.stream().noneMatch(i -> i.getName().toLowerCase().contains("ma bn")));
+        assertTrue(indicators.stream().noneMatch(i -> i.getName().toLowerCase().contains("chi so")));
+
+        // Verify Glucose
+        com.mediassist.dto.AbnormalIndicatorDto glucose = indicators.stream()
+                .filter(i -> i.getName().equalsIgnoreCase("Glucose huyet doi"))
+                .findFirst().orElse(null);
+        assertNotNull(glucose);
+        assertEquals("9.6", glucose.getValue());
+        assertEquals("mmol/L", glucose.getUnit());
+        assertEquals("3.9 - 6.4", glucose.getReferenceRange());
+        assertEquals("ELEVATED", glucose.getStatus());
+
+        // Verify HbA1c
+        com.mediassist.dto.AbnormalIndicatorDto hba1c = indicators.stream()
+                .filter(i -> i.getName().equalsIgnoreCase("HbA1c"))
+                .findFirst().orElse(null);
+        assertNotNull(hba1c);
+        assertEquals("8.7", hba1c.getValue());
+        assertEquals("%", hba1c.getUnit());
+        assertEquals("ELEVATED", hba1c.getStatus());
+
+        // Verify Creatinine normal
+        com.mediassist.dto.AbnormalIndicatorDto creatinine = indicators.stream()
+                .filter(i -> i.getName().equalsIgnoreCase("Creatinine"))
+                .findFirst().orElse(null);
+        assertNotNull(creatinine);
+        assertEquals("82.0", creatinine.getValue());
+        assertEquals("NORMAL", creatinine.getStatus());
+    }
+
+    @Test
+    @DisplayName("Should invalidate stale offline cache, trigger live AI analysis, and not double-charge quota")
+    void testAnalyzeDocument_InvalidatesStaleOfflineCacheAndUpserts() {
+        testUser.setScanQuota(1);
+        testUser.setSubscriptionTier("FREE");
+
+        String docText = """
+                BENH VIEN BACH MAI
+                Glucose huyet doi 9.6 mmol/L 3.9 - 6.4 [!] TANG CAO
+                HbA1c 8.7 % 4.0 - 6.0 [!] TANG CAO
+                """;
+        MockMultipartFile file = new MockMultipartFile("file", "Phieu_Xet_Nghiem_Le_Thi_Lan.pdf", "application/pdf", docText.getBytes());
+
+        UUID existingDocId = UUID.randomUUID();
+        MedicalDocument staleDoc = new MedicalDocument();
+        staleDoc.setId(existingDocId);
+        staleDoc.setUser(testUser);
+        staleDoc.setFileName("Phieu_Xet_Nghiem_Le_Thi_Lan.pdf");
+        staleDoc.setStorageUrl("https://supabase.co/storage/v1/object/public/medical-documents/stale.pdf");
+
+        DocumentAnalysis staleAnalysis = new DocumentAnalysis();
+        staleAnalysis.setId(UUID.randomUUID());
+        staleAnalysis.setDocument(staleDoc);
+        staleAnalysis.setClinicalSummary("Chế độ Ngoại tuyến: Hệ thống đã bóc tách các chỉ số xét nghiệm thô từ tài liệu. Chưa có suy luận chẩn đoán bệnh lý do chưa kết nối API Key.");
+        staleAnalysis.setAbnormalIndicatorsJson("[]");
+
+        when(medicalDocumentRepository.findFirstByUserIdAndFileHashOrderByCreatedAtDesc(eq(testUser.getId()), anyString()))
+                .thenReturn(Optional.of(staleDoc));
+        when(documentAnalysisRepository.findByDocumentId(existingDocId))
+                .thenReturn(Optional.of(staleAnalysis));
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertFalse(response.isCachedResult(), "Stale offline cache must be invalidated and re-analyzed with live AI");
+        // Quota should NOT be deducted when re-analyzing stale offline
+        assertEquals(1, testUser.getScanQuota(), "Quota should not be deducted again for stale offline re-analysis");
+        verify(documentAnalysisRepository, times(1)).save(any(DocumentAnalysis.class));
+    }
 }
