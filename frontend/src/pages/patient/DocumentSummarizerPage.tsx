@@ -152,17 +152,33 @@ export const DocumentSummarizerPage: React.FC = () => {
   // Random Meddies PDF Download State
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadSuccessToast, setDownloadSuccessToast] = useState<string | null>(null);
+  const [downloadPdfError, setDownloadPdfError] = useState<string | null>(null);
+  const downloadToastTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (downloadToastTimerRef.current) {
+        clearTimeout(downloadToastTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleDownloadRandomMeddiesPdf = async () => {
+    if (downloadingPdf) return;
     setDownloadingPdf(true);
-    setError(null);
+    setDownloadPdfError(null);
     try {
       const response = await api.get('/documents/sample-random-pdf', {
         responseType: 'blob',
       });
 
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      if (blob.size < 100) {
+        throw new Error('Tệp PDF nhận được không hợp lệ hoặc rỗng.');
+      }
+
       let fileName = 'Phieu_Xet_Nghiem_Meddies_Sample.pdf';
-      const disposition = response.headers['content-disposition'];
+      const disposition = response.headers?.['content-disposition'];
       if (disposition && disposition.indexOf('filename=') !== -1) {
         const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
         if (matches != null && matches[1]) {
@@ -170,7 +186,6 @@ export const DocumentSummarizerPage: React.FC = () => {
         }
       }
 
-      const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -178,12 +193,28 @@ export const DocumentSummarizerPage: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1500);
 
+      if (downloadToastTimerRef.current) {
+        clearTimeout(downloadToastTimerRef.current);
+      }
       setDownloadSuccessToast(`Đã tải về tệp "${fileName}"! Bạn hãy kéo thả tệp này vào khung bên trên để quét.`);
-      setTimeout(() => setDownloadSuccessToast(null), 8000);
-    } catch {
-      setError('Không thể tải file PDF ngẫu nhiên từ Meddies. Vui lòng thử lại.');
+      downloadToastTimerRef.current = setTimeout(() => setDownloadSuccessToast(null), 8000);
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: Blob } };
+      if (errObj.response?.data instanceof Blob) {
+        try {
+          const errText = await errObj.response.data.text();
+          const parsed = JSON.parse(errText);
+          setDownloadPdfError(parsed?.error?.message || 'Không thể tải file PDF ngẫu nhiên từ Meddies. Vui lòng thử lại.');
+        } catch {
+          setDownloadPdfError('Không thể tải file PDF ngẫu nhiên từ Meddies. Vui lòng thử lại sau giây lát.');
+        }
+      } else {
+        setDownloadPdfError('Không thể tải file PDF ngẫu nhiên từ Meddies. Vui lòng thử lại sau giây lát.');
+      }
     } finally {
       setDownloadingPdf(false);
     }
@@ -601,8 +632,8 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             <button
               type="button"
               onClick={handleDownloadRandomMeddiesPdf}
-              disabled={downloadingPdf}
-              className="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer"
+              disabled={downloadingPdf || analyzing}
+              className="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer"
             >
               {downloadingPdf ? (
                 <>
@@ -617,9 +648,36 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
           </div>
 
           {downloadSuccessToast && (
-            <div className="mt-2.5 p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-medium flex items-center gap-2 animate-fadeIn">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              <span>{downloadSuccessToast}</span>
+            <div className="mt-2.5 p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-medium flex items-center justify-between gap-2 animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>{downloadSuccessToast}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDownloadSuccessToast(null)}
+                className="text-emerald-700 hover:text-emerald-900 p-0.5 rounded cursor-pointer transition"
+                title="Đóng thông báo"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {downloadPdfError && (
+            <div className="mt-2.5 p-3 bg-rose-50 border border-rose-300 text-rose-900 rounded-xl text-xs font-medium flex items-center justify-between gap-2 animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                <span>{downloadPdfError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDownloadPdfError(null)}
+                className="text-rose-700 hover:text-rose-900 p-0.5 rounded cursor-pointer transition"
+                title="Đóng thông báo"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
         </div>

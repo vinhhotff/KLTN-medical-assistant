@@ -46,4 +46,17 @@ class MeddiesPdfGeneratorServiceTest {
         assertTrue(extractedText.contains("THONG TIN BENH NHAN"), "Extracted text should contain patient section");
         assertTrue(extractedText.contains("BANG CHI SO CAN LAM SANG"), "Extracted text should contain lab indicators table");
     }
+
+    @Test
+    @DisplayName("Should generate valid PDF resiliently across multiple invocations")
+    void testMultipleRandomInvocations_AllProduceValidPdf() {
+        for (int i = 0; i < 3; i++) {
+            MeddiesPdfGeneratorService.GeneratedPdfResult result = generatorService.generateRandomMeddiesPdf();
+            assertNotNull(result);
+            assertNotNull(result.getPdfBytes());
+            assertTrue(result.getPdfBytes().length > 1000, "PDF size must be > 1KB");
+            String header = new String(result.getPdfBytes(), 0, 5, java.nio.charset.StandardCharsets.ISO_8859_1);
+            assertEquals("%PDF-", header);
+        }
+    }
 }

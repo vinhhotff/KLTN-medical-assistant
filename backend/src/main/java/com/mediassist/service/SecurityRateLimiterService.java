@@ -88,6 +88,14 @@ public class SecurityRateLimiterService {
         return checkLimit("register:" + ipAddress, 5, 10);
     }
 
+    /**
+     * Rate limiter for sample PDF generation from Hugging Face / Meddies dataset
+     * Limit: 10 requests per minute per IP address (Anti-DoS & CPU/Network protection)
+     */
+    public boolean allowSamplePdfDownload(String ipAddress) {
+        return checkLimit("sample_pdf:" + ipAddress, 10, 1);
+    }
+
     private boolean checkLimit(String key, int maxRequests, int windowMinutes) {
         String redisKey = "ratelimit:" + key;
         try {

@@ -158,7 +158,13 @@ public class MedicalDocumentController {
 
     @GetMapping(value = "/sample-random-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     @Operation(summary = "Lấy và tải về tệp PDF phiếu xét nghiệm ngẫu nhiên từ kho 150.000 hồ sơ Meddies Persona VIE")
-    public ResponseEntity<byte[]> downloadSampleRandomPdf() {
+    public ResponseEntity<byte[]> downloadSampleRandomPdf(jakarta.servlet.http.HttpServletRequest request) {
+        String clientIp = extractClientIp(request);
+        if (rateLimiterService != null && !rateLimiterService.allowSamplePdfDownload(clientIp)) {
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
+                    "Bạn đã yêu cầu tạo quá nhiều tệp PDF mẫu trong thời gian ngắn. Vui lòng chờ 1 phút trước khi tải lại.");
+        }
+
         MeddiesPdfGeneratorService.GeneratedPdfResult result = meddiesPdfGeneratorService.generateRandomMeddiesPdf();
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
