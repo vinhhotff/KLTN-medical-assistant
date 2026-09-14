@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
+import { OAuth2CallbackPage } from './pages/OAuth2CallbackPage';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { AdminLayout } from './layouts/AdminLayout';
 import { DoctorLayout } from './layouts/DoctorLayout';
@@ -13,8 +14,8 @@ import { SpecialtyManagementPage } from './pages/admin/SpecialtyManagementPage';
 import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
 import { DoctorProfilePage } from './pages/doctor/DoctorProfilePage';
 import { PatientDashboard } from './pages/patient/PatientDashboard';
-import { DocumentSummarizerPage } from './pages/patient/DocumentSummarizerPage';
 import { DoctorSearchPage } from './pages/patient/DoctorSearchPage';
+import { DocumentSummarizerPage } from './pages/patient/DocumentSummarizerPage';
 import { SymptomTriagePage } from './pages/patient/SymptomTriagePage';
 
 export function App() {
@@ -26,6 +27,9 @@ export function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+
+          {/* OAuth2 Callback — Backend redirect ve day sau khi Google xac thuc thanh cong */}
+          <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
 
           {/* Admin Protected Routes */}
           <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>

@@ -54,10 +54,11 @@ Lưu trữ định danh toàn bộ chủ thể truy cập (Admin, Bác sĩ, Bệ
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255),                   -- Nullable cho tài khoản đăng ký qua Google OAuth2
     full_name VARCHAR(150) NOT NULL,
     phone_number VARCHAR(20) UNIQUE,
     avatar_url TEXT,
+    google_id VARCHAR(255) UNIQUE,               -- Định danh Google Account phục vụ Social Login (OAuth2)
     role VARCHAR(30) NOT NULL CHECK (role IN ('ADMIN', 'DOCTOR', 'PATIENT')),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     is_email_verified BOOLEAN NOT NULL DEFAULT FALSE,

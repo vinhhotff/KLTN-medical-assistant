@@ -103,7 +103,7 @@ graph TD
    - Trình duyệt gửi `POST /api/v1/auth/register`.
    - Rate Limiter phân tán kiểm tra tần suất IP (tối đa 5 lượt đăng ký / 10 phút / IP) để ngăn chặn bot spam và bảo vệ tài nguyên tính toán BCrypt-12.
    - Backend `AuthService.register()` kiểm tra tính duy nhất của email, băm mật khẩu bằng BCrypt (work factor 12), tự động sinh mã hồ sơ bệnh án điện tử EMR `patient_code` dạng `BN-2026-XXXXX`, trả về `HTTP 201 Created` kèm token và set `ResponseCookie` chuẩn `SameSite=Lax; HttpOnly`.
-2. **Trường hợp Đăng nhập:**
+2. **Trường hợp Đăng nhập truyền thống (Email/Password):**
    - Người dùng nhập Email + Mật khẩu.
    - Rate Limiter phân tán trên Redis kiểm tra tần suất IP (`< 5 requests / phút`).
    - Trình duyệt gửi `POST /api/v1/auth/login`.
@@ -113,6 +113,20 @@ graph TD
      - `ADMIN` $\rightarrow$ `/admin`
      - `DOCTOR` $\rightarrow$ `/doctor`
      - `PATIENT` $\rightarrow$ `/patient`
+3. **Trường hợp Đăng nhập / Đăng ký bằng Google OAuth 2.0 (Social Single Sign-On):**
+   - Người dùng nhấp nút *"Tiếp tục với Google"* trên giao diện `/login`.
+   - Frontend điều hướng trình duyệt tới `GET /oauth2/authorization/google`.
+   - Spring Security OAuth2 Client chuyển hướng sang màn hình cấp quyền Google (`accounts.google.com`) với scope `openid profile email`.
+   - Người dùng đăng nhập tài khoản Google và xác nhận cấp quyền.
+   - Google chuyển hướng về backend callback: `GET /login/oauth2/code/google?code=...&state=...`.
+   - `CustomOAuth2UserService` nhận profile từ Google (Google ID `sub`, `email`, `name`, `picture`).
+   - Thực hiện cơ chế **Upsert User**:
+     - Tra cứu theo `google_id` $\rightarrow$ nếu tồn tại: nạp thông tin User.
+     - Nếu chưa có `google_id`, tra cứu theo `email` $\rightarrow$ nếu tồn tại: liên kết `google_id` và cập nhật `avatar_url`.
+     - Nếu là người dùng hoàn toàn mới $\rightarrow$ tự động khởi tạo User mới với vai trò `PATIENT`, khởi tạo hồ sơ `PatientProfile`, tự động sinh mã định danh bệnh nhân `patient_code` dạng `BN-2026-XXXXX`.
+   - `OAuth2AuthenticationSuccessHandler` phát sinh JWT Access Token (TTL 15 phút), gán vào header phản hồi dưới dạng `Set-Cookie: access_token=...; HttpOnly; SameSite=Lax; Path=/`.
+   - Backend chuyển hướng trình duyệt về `http://localhost:5173/oauth2/callback`.
+   - Trang `OAuth2CallbackPage` gọi `GET /api/v1/auth/me` để lấy thông tin phiên làm việc, lưu vào Zustand Auth Store, hiển thị thông báo chào mừng và điều hướng vào `/patient`.
 
 #### Luồng phụ & Ngoại lệ (Alternative / Exception Flows):
 * **2a. Quá tải tần suất đăng nhập từ 1 IP (Anti-DDoS / Rate Limit):** Khi 1 IP gửi quá 5 request login trong 1 phút, hệ thống từ chối với `HTTP 429 Too Many Requests`.
@@ -120,6 +134,7 @@ graph TD
 * **2c. Đăng ký email đã tồn tại:** Trả về `HTTP 409 Conflict` với thông báo thân thiện bằng tiếng Việt.
 * **2d. Quá tải tần suất đăng ký từ 1 IP (Anti-Spam Bot):** Khi 1 IP gửi quá 5 lượt đăng ký trong 10 phút, hệ thống từ chối với `HTTP 429 Too Many Requests`.
 * **2e. Tài khoản bị đình chỉ (Suspended User Rejection):** Khi tài khoản mang trạng thái `SUSPENDED` (do Admin khóa), `JwtAuthenticationFilter` chặn ngay lập tức với `HTTP 403 Forbidden` (`ACCOUNT_SUSPENDED`), vô hiệu hóa tức thời quyền truy cập kể cả khi token JWT của phiên trước vẫn còn hiệu lực.
+* **2f. Người dùng hủy bỏ xác thực Google hoặc lỗi Token:** Google hoặc backend chuyển hướng về `/login?error=oauth2_failed`, Frontend hiển thị thông báo lỗi thân thiện.
 
 ---
 

@@ -1,6 +1,10 @@
 package com.mediassist.config;
 
+import com.mediassist.security.CustomOAuth2UserService;
+import com.mediassist.security.CustomOidcUserService;
 import com.mediassist.security.JwtAuthenticationFilter;
+import com.mediassist.security.OAuth2AuthenticationFailureHandler;
+import com.mediassist.security.OAuth2AuthenticationSuccessHandler;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -29,49 +33,51 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final CustomOidcUserService customOidcUserService;
+    private final OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler;
+    private final OAuth2AuthenticationFailureHandler oAuth2FailureHandler;
 
     @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                          CustomOAuth2UserService customOAuth2UserService,
+                          CustomOidcUserService customOidcUserService,
+                          OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler,
+                          OAuth2AuthenticationFailureHandler oAuth2FailureHandler) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.customOAuth2UserService = customOAuth2UserService;
+        this.customOidcUserService = customOidcUserService;
+        this.oAuth2SuccessHandler = oAuth2SuccessHandler;
+        this.oAuth2FailureHandler = oAuth2FailureHandler;
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Hardening HTTP Security Headers (Anti-Clickjacking, Anti-XSS, Anti-MIME sniffing)
-                .headers(headers -> headers
-                        .frameOptions(frame -> frame.deny())
-                        .contentTypeOptions(Customizer.withDefaults())
-                        .xssProtection(Customizer.withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // Public Endpoints
                         .requestMatchers(
-                                "/api/v1/health/**",
-                                "/health/**",
-                                "/actuator/**",
-                                "/api/v1/auth/login",
-                                "/api/v1/auth/register",
+                                "/api/v1/health/**", "/health/**", "/actuator/**",
+                                "/api/v1/auth/login", "/api/v1/auth/register",
                                 "/api/v1/auth/google/**",
-                                "/api/docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/api/docs/**", "/swagger-ui/**", "/swagger-ui.html"
                         ).permitAll()
-                        // Public Catalog Preview (Specialties & Doctor directory overview)
+                        // OAuth2 endpoints: phai permit all de Spring Security xu ly duoc
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/specialties/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/doctors").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/doctors/{id}").permitAll()
-                        // Public Instant Document Validation Preview (Landing Page Real Testing)
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/documents/analyze-preview").permitAll()
                         // Public Sample Random PDF Generator (Meddies Dataset)
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/documents/sample-random-pdf").permitAll()
@@ -81,31 +87,36 @@ public class SecurityConfig {
                         // ZERO-TRUST MANDATE: AI Triage, pgvector semantic search & OCR Lab PDF analysis strictly require authentication
                         .requestMatchers("/api/v1/triage/**").authenticated()
                         .requestMatchers("/api/v1/documents/**").authenticated()
-
-                        // Appointments (Booking & History)
                         .requestMatchers("/api/v1/appointments/**").authenticated()
-
-                        // Admin Protected
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-
-                        // Doctor Protected
                         .requestMatchers("/api/v1/doctors/me/**").hasRole("DOCTOR")
                         .requestMatchers("/api/v1/doctor/**").hasRole("DOCTOR")
-
-                        // Patient & Clinical EMR Access
                         .requestMatchers("/api/v1/patient/**").hasAnyRole("PATIENT", "DOCTOR", "ADMIN")
-
-                        // Any other request must be authenticated
                         .anyRequest().authenticated()
                 )
-                // Return clean JSON 401 on unauthorized access
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
+                            String path = request.getRequestURI();
+                            if (path.startsWith("/oauth2") || path.startsWith("/login/oauth2")) {
+                                response.sendRedirect("/login");
+                                return;
+                            }
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding("UTF-8");
-                            response.getWriter().write("{\"success\":false,\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Vui lòng đăng nhập tài khoản để sử dụng tính năng này.\"}}");
+                            response.getWriter().write("{\"success\":false,\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Vui long dang nhap de su dung tinh nang nay.\"}}");
                         })
+                )
+                // OAuth2 Login Configuration (Ho tro ca standard OAuth2 va OpenID Connect OIDC)
+                .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(auth -> auth.baseUri("/oauth2/authorization"))
+                        .redirectionEndpoint(redirect -> redirect.baseUri("/login/oauth2/code/*"))
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                                .oidcUserService(customOidcUserService)
+                        )
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler)
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

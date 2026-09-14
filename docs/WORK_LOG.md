@@ -9,8 +9,9 @@
 
 ## 📑 Bảng Mục Lục Lịch Sử Cập Nhật
 
-| Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
+| **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :---: |
+| **#049** | 14/09/2026 | Triển Khai Hoàn Chỉnh Google OAuth2 Login/Register: HttpOnly JWT Cookie (SameSite=Lax), OpenID Connect (OIDC) & Standard OAuth2 Dual-Support, CustomOAuth2UserService & CustomOidcUserService Upsert Pattern, OAuth2UserPrincipal Bridge Class, Flyway V8 (password_hash Nullable & avatar_url TEXT), GoogleLoginButton & OAuth2CallbackPage | AI Assistant | 🟢 Sẵn sàng Review |
 | **#048** | 14/09/2026 | Tích Hợp Động Cơ Sinh Tệp PDF Ca Bệnh Thực Tế Từ Dataset Meddies (150.000 Hồ Sơ Bệnh Nhân Hugging Face), Tải Trực Tiếp Xuống Thiết Bị Phục Vụ Kiểm Thử Kéo-Thả Quét Bệnh Án | AI Assistant | 🟢 Sẵn sàng Review |
 | **#047** | 14/09/2026 | Triển Khai Giai Đoạn 3: Hiện Thực Hóa Động Cơ Khử Định Danh Dữ Liệu Y Tế Nhạy Cảm (Medical PII De-identification) Tuân Thủ Nghị Định 13/2023/NĐ-CP & HIPAA Safe Harbor, Tương Thích Chuẩn Dataset Meddies-PII (Hugging Face) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#046** | 14/09/2026 | Triển Khai Giai Đoạn 2: Tối Ưu Hóa Concurrency & Race Condition Cho Scan Pipeline & Đặt Lịch Khám, Bổ Sung Flyway V7 (Slot Collision Partial Unique Index & Dedup Unique Index), Concurrency Semaphore Điều Tiết Vision OCR | AI Assistant | 🟢 Đã Duyệt |
@@ -29,6 +30,40 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#049] Triển Khai Hoàn Chỉnh Google OAuth2 Login/Register (HttpOnly JWT Cookie & OIDC Support)
+* **Thời gian:** 2026-09-14 13:40:00 → 14:50:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Nhánh phát triển:** `feature/Google-oauth2` -> merged into `develop`
+* **Mã Use Case:** UC-SEC-01 (Two-Factor / Dual Transport Authentication & Google SSO)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **59/59 Tests PASS 100%**
+  - Frontend (Vite 6.4.3 React): **Build 0 TypeScript error, 1672 modules**
+  - Trạng thái HTTP: **Actuator /health 200 UP**, OAuth2 redirect **302 Redirect verified**
+
+#### 1. Các Hạng Mục Đã Thực Hiện
+1. **Kiến Trúc Đăng Nhập & Bảo Mật Chuẩn Doanh Nghiệp (Google OAuth 2.0 & OpenID Connect 1.0)**:
+   - Tích hợp `spring-boot-starter-oauth2-client`.
+   - `CustomOAuth2UserService` & `CustomOidcUserService`: Tự động trích xuất thông tin Google profile (`sub`, `email`, `name`, `picture`), thực hiện cơ chế **Upsert Pattern**:
+     - Tra cứu theo `google_id` -> Nếu có: cập nhật avatar và đăng nhập.
+     - Nếu chưa có `google_id`, tra cứu theo `email` -> Nếu có: liên kết `google_id` và cập nhật avatar.
+     - Nếu là người dùng hoàn toàn mới -> Tự động khởi tạo tài khoản User với vai trò `PATIENT`, khởi tạo hồ sơ `PatientProfile`, tự động sinh mã định danh bệnh nhân `patient_code` dạng `BN-2026-XXXXX`.
+   - `OAuth2UserPrincipal`: Bridge class hiện thực hóa cả `UserDetails`, `OAuth2User` và `OidcUser`, tích hợp liền mạch với hệ thống cấp phát JWT token hiện có.
+   - `OAuth2AuthenticationSuccessHandler`: Phát sinh JWT Access Token (TTL 15 phút), gán vào header HTTP response dưới dạng `Set-Cookie: access_token=...; HttpOnly; SameSite=Lax; Path=/; Max-Age=900` (chống triệt để tấn công XSS, không trả token trực tiếp qua JSON body), chuyển hướng an toàn về Frontend.
+   - `OAuth2AuthenticationFailureHandler`: Bắt lỗi và chuyển hướng về `/login?error=oauth2_failed&message=...`.
+2. **Cơ Sở Dữ Liệu & Schema Migration (Flyway V8)**:
+   - Thêm tệp migration `V8__allow_null_password_hash_for_oauth.sql`:
+     - Gỡ bỏ ràng buộc NOT NULL trên `password_hash` (`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;`).
+     - Mở rộng cột `avatar_url` sang kiểu `TEXT` để lưu trữ đầy đủ URL ảnh đại diện dài của Google.
+     - Tạo unique index có điều kiện cho `google_id`.
+   - Đồng bộ thực thể `User.java` (`@Column(nullable = true) passwordHash`, `@Column(columnDefinition = "TEXT") avatarUrl`).
+   - Cập nhật tài liệu `docs/DATABASE_DESIGN.md` và `docs/USE_CASES.md`.
+3. **Giao Diện Người Dùng (Frontend React / Vite)**:
+   - Tạo component `GoogleLoginButton.tsx` với giao diện thiết kế chuyên nghiệp, chuyển hướng trình duyệt trực tiếp tới `/oauth2/authorization/google`.
+   - Tạo trang `OAuth2CallbackPage.tsx`: Nhận redirect từ backend, gọi `fetchCurrentUser()`, cập nhật trạng thái Zustand Auth Store và điều hướng tự động vào dashboard (`/patient`).
+   - Tích hợp route `/oauth2/callback` vào `App.tsx`.
+
+---
 
 ### [WORK-LOG-#048] Tích Hợp Động Cơ Sinh Tệp PDF Ca Bệnh Thực Tế Từ Dataset Meddies (150.000 Hồ Sơ Bệnh Nhân Hugging Face), Tải Trực Tiếp Xuống Thiết Bị Phục Vụ Kiểm Thử Kéo-Thả Quét Bệnh Án
 * **Thời gian:** 2026-09-14 14:25:00 (GMT+7)
