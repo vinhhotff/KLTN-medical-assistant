@@ -24,7 +24,8 @@ import {
   Wallet,
   BadgeCheck,
   AlertTriangle,
-  FileQuestion
+  FileQuestion,
+  Download
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -147,6 +148,46 @@ export const DocumentSummarizerPage: React.FC = () => {
     matchedDoctorsCount: number;
     modelUsed?: string;
   } | null>(null);
+
+  // Random Meddies PDF Download State
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadSuccessToast, setDownloadSuccessToast] = useState<string | null>(null);
+
+  const handleDownloadRandomMeddiesPdf = async () => {
+    setDownloadingPdf(true);
+    setError(null);
+    try {
+      const response = await api.get('/documents/sample-random-pdf', {
+        responseType: 'blob',
+      });
+
+      let fileName = 'Phieu_Xet_Nghiem_Meddies_Sample.pdf';
+      const disposition = response.headers['content-disposition'];
+      if (disposition && disposition.indexOf('filename=') !== -1) {
+        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+        if (matches != null && matches[1]) {
+          fileName = matches[1].replace(/['"]/g, '');
+        }
+      }
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      setDownloadSuccessToast(`Đã tải về tệp "${fileName}"! Bạn hãy kéo thả tệp này vào khung bên trên để quét.`);
+      setTimeout(() => setDownloadSuccessToast(null), 8000);
+    } catch {
+      setError('Không thể tải file PDF ngẫu nhiên từ Meddies. Vui lòng thử lại.');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   const handleConfirmPayment = async () => {
     if (!selectedPaymentPackage) return;
@@ -539,6 +580,49 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             </button>
           </div>
         )}
+
+        {/* Random Meddies Patient PDF Generator Card */}
+        <div className="pt-4 border-t border-slate-100 text-left">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-teal-50 via-emerald-50 to-cyan-50 border border-teal-200 rounded-2xl shadow-2xs">
+            <div className="flex items-center gap-2.5 min-w-[240px]">
+              <div className="p-2 bg-teal-600 text-white rounded-xl shadow-xs flex-shrink-0">
+                <Download className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
+                  <span>Lấy Ngẫu Nhiên Ca Bệnh Từ Meddies (150.000 Hồ Sơ)</span>
+                  <span className="px-1.5 py-0.5 bg-teal-100 text-teal-800 rounded-md text-[10px] font-semibold">Hugging Face</span>
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Tự động sinh tệp PDF xét nghiệm bệnh viện chuẩn và tải về máy để bạn kéo-thả kiểm thử.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleDownloadRandomMeddiesPdf}
+              disabled={downloadingPdf}
+              className="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer"
+            >
+              {downloadingPdf ? (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 animate-spin" /> Đang Tạo PDF...
+                </>
+              ) : (
+                <>
+                  <Download className="w-3.5 h-3.5" /> Tải PDF Ngẫu Nhiên
+                </>
+              )}
+            </button>
+          </div>
+
+          {downloadSuccessToast && (
+            <div className="mt-2.5 p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-medium flex items-center gap-2 animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>{downloadSuccessToast}</span>
+            </div>
+          )}
+        </div>
 
         {/* Quick Sample Presets */}
         <div className="pt-4 border-t border-slate-100 text-left">

@@ -90,6 +90,11 @@
      - Văn bản che giấu an toàn (`maskedText`) với các token `[BỆNH_NHÂN_1]`, `[SỐ_ĐỊNH_DANH_1]`, `[SĐT_1]`, `[ĐỊA_CHỈ_1]`.
      - Văn bản gán nhãn chuẩn nghiên cứu `Meddies/meddies-pii` (`[Nguyễn Văn Bình]<human_name>`, `[079201008123]<id_number>`, `[0987123456]<phone_number>`).
      - Chứng minh: AI đám mây (Gemini / OpenRouter) không bao giờ tiếp nhận dữ liệu định danh người bệnh (Zero Data Leakage), tuân thủ 100% Nghị định 13/2023/NĐ-CP & HIPAA.
+6. **Bước 6: Trực Quan Hóa Tự Động Sinh PDF Ca Bệnh Thực Tế Từ Dataset Meddies (Meddies Random Patient PDF Generator)**
+   - Tại giao diện *Tóm Tắt Bệnh Án*, bấm nút *"Tải PDF Ngẫu Nhiên"* từ thẻ kết nối Hugging Face `Meddies/meddies-persona-vie` (150.000 hồ sơ bệnh nhân Việt Nam).
+   - Hệ thống tự động truy vấn ngẫu nhiên ca bệnh thực tế từ Hugging Face Server API, format thành tệp PDF phiếu xét nghiệm bệnh viện chuẩn (đầy đủ logo/tiêu đề bệnh viện, CCCD, BHYT, địa chỉ, bảng chỉ số cận lâm sàng tương ứng bệnh cảnh lâm sàng, chữ ký bác sĩ) và tải ngay về máy.
+   - Kéo-thả trực tiếp tệp PDF vừa tải vào ô quét: Hệ thống tự động phân tích chỉ số sinh hóa, khử định danh PII an toàn và đề xuất bác sĩ chuyên khoa phù hợp tức thì.
+   - Chứng minh: Khả năng thích ứng mạnh mẽ của AI Scanner trên dữ liệu ngẫu nhiên phong phú, có Fallback Pool nội bộ 5 ca bệnh đa khoa đảm bảo 100% không trục trặc kể cả khi mạng hội đồng chập chờn.
 
 ---
 
@@ -237,6 +242,23 @@
   4. **Cơ chế Hoàn Nguyên Liền Mạch (Client-Side Re-identification):**
      - Khi nhận phản hồi từ AI, hệ thống tự động thế ngược các token (`[BỆNH_NHÂN_1]`) về lại họ tên thật trong bộ nhớ RAM tạm thời của phiên xử lý.
      - Người bệnh nhận được lời khuyên cá nhân hóa, ấm áp, liền mạch mà không một dịch vụ bên thứ ba nào biết được danh tính thực sự của họ."*
+
+---
+
+### Câu hỏi 13: Làm thế nào hệ thống kiểm thử tính năng Phân Tích Hồ Sơ (AI Document Scan) trong các tình huống ca bệnh thực tế bất ngờ, và tại sao nhóm tích hợp kho dữ liệu 150.000 hồ sơ bệnh nhân Meddies Persona Vie (Hugging Face)?
+* **Trả lời của sinh viên:**  
+  *"Thưa Thầy Cô, một hạn chế lớn của các đề tài ứng dụng AI y tế khi demo là chỉ dùng 1-2 tệp dữ liệu mẫu cố định (Dummy Mock Data), dẫn đến nghi ngại hệ thống bị 'học vẹt' (Overfitting) hoặc hardcode kịch bản.  
+  Để khắc phục triệt để vấn đề này và chứng minh tính tổng quát hóa (Generalization) của AI Scanner, nhóm đã tích hợp trực tiếp kho dữ liệu **`Meddies/meddies-persona-vie`** (kho dữ liệu 150.000 hồ sơ bệnh nhân tổng hợp đa bệnh cảnh tại Việt Nam):
+  1. **Truy vấn ngẫu nhiên ca bệnh thực tế từ Hugging Face Server API:**
+     - Endpoint `GET /api/v1/documents/sample-random-pdf` sinh ngẫu nhiên chỉ mục `offset` trong tập 150.000 bệnh nhân.
+     - Lấy đầy đủ thông tin: Nhân khẩu học (Tên, CCCD, BHYT, Địa chỉ thường trú tại các tỉnh thành Việt Nam), triệu chứng khai báo và tiền sử bệnh lý.
+  2. **Động cơ Sinh Tệp PDF Bệnh Viện Động Chuẩn Mực (`MeddiesPdfGeneratorService`):**
+     - Dựa trên bệnh cảnh thực tế của bệnh nhân (Tiểu đường, Rối loạn lipid máu, Viêm gan, Suy thận, Tim mạch thiếu máu cục bộ...), dịch vụ tự động tạo bảng kết quả xét nghiệm sinh hóa tương ứng với các chỉ số bệnh lý bất thường (ví dụ: Glucose, HbA1c, AST, ALT, Creatinine, Troponin T) kèm khoảng tham chiếu sinh lý chuẩn.
+     - Sử dụng thư viện nhị phân Apache PDFBox để kết xuất tệp PDF phiếu xét nghiệm định dạng bệnh viện chuẩn (Hospital Lab Report) với WinAnsi-safe encoding, mã vạch SID, thông tin hành chính và con dấu/chữ ký bác sĩ chỉ định.
+  3. **Tải trực tiếp về máy tính người dùng:**
+     - Tệp PDF được trả về qua browser stream download để Hội đồng hoặc người dùng có thể tải về và trực tiếp kéo-thả vào khung quét AI, kiểm nghiệm khả năng trích xuất chỉ số sinh hóa, khử định danh PII và khớp nối chuyên khoa bác sĩ một cách khách quan nhất.
+  4. **Thiết kế Dự Phòng Ngoại Tuyến (Offline Resilient Persona Pool):**
+     - Nếu mạng tại phòng bảo vệ gặp sự cố hoặc Hugging Face phản hồi chậm (> 3 giây), hệ thống tự động kích hoạt Bể Hồ Sơ Dự Phòng Nội Bộ gồm 5 ca bệnh đa khoa phức tạp, đảm bảo buổi demo trước Hội đồng luôn thông suốt 100% không bao giờ gặp lỗi gián đoạn."*
 
 ---
 

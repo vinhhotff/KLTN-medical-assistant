@@ -73,6 +73,8 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/doctors/{id}").permitAll()
                         // Public Instant Document Validation Preview (Landing Page Real Testing)
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/documents/analyze-preview").permitAll()
+                        // Public Sample Random PDF Generator (Meddies Dataset)
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/documents/sample-random-pdf").permitAll()
                         // Public Medical PII De-identification Testing (Decree 13/2023/ND-CP & HIPAA)
                         .requestMatchers("/api/v1/pii/**").permitAll()
 

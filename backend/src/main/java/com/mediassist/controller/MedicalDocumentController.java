@@ -11,12 +11,14 @@ import com.mediassist.service.MedicalDocumentAnalysisService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.mediassist.service.MeddiesPdfGeneratorService;
 
 import java.util.Collections;
 import java.util.List;
@@ -30,15 +32,18 @@ public class MedicalDocumentController {
     private final MedicalDocumentRepository medicalDocumentRepository;
     private final UserRepository userRepository;
     private final com.mediassist.service.SecurityRateLimiterService rateLimiterService;
+    private final MeddiesPdfGeneratorService meddiesPdfGeneratorService;
 
     public MedicalDocumentController(MedicalDocumentAnalysisService analysisService,
                                      MedicalDocumentRepository medicalDocumentRepository,
                                      UserRepository userRepository,
-                                     com.mediassist.service.SecurityRateLimiterService rateLimiterService) {
+                                     com.mediassist.service.SecurityRateLimiterService rateLimiterService,
+                                     MeddiesPdfGeneratorService meddiesPdfGeneratorService) {
         this.analysisService = analysisService;
         this.medicalDocumentRepository = medicalDocumentRepository;
         this.userRepository = userRepository;
         this.rateLimiterService = rateLimiterService;
+        this.meddiesPdfGeneratorService = meddiesPdfGeneratorService;
     }
 
     @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -149,5 +154,16 @@ public class MedicalDocumentController {
         }
         com.mediassist.dto.UserQuotaDto quotaDto = analysisService.purchaseQuota(authentication.getName(), request);
         return ResponseEntity.ok(ApiResponse.success(quotaDto));
+    }
+
+    @GetMapping(value = "/sample-random-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @Operation(summary = "Lấy và tải về tệp PDF phiếu xét nghiệm ngẫu nhiên từ kho 150.000 hồ sơ Meddies Persona VIE")
+    public ResponseEntity<byte[]> downloadSampleRandomPdf() {
+        MeddiesPdfGeneratorService.GeneratedPdfResult result = meddiesPdfGeneratorService.generateRandomMeddiesPdf();
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + result.getFileName() + "\"")
+                .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+                .body(result.getPdfBytes());
     }
 }

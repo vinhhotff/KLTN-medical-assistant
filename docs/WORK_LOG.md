@@ -11,6 +11,7 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :--- | :---: |
+| **#048** | 14/09/2026 | Tích Hợp Động Cơ Sinh Tệp PDF Ca Bệnh Thực Tế Từ Dataset Meddies (150.000 Hồ Sơ Bệnh Nhân Hugging Face), Tải Trực Tiếp Xuống Thiết Bị Phục Vụ Kiểm Thử Kéo-Thả Quét Bệnh Án | AI Assistant | 🟢 Sẵn sàng Review |
 | **#047** | 14/09/2026 | Triển Khai Giai Đoạn 3: Hiện Thực Hóa Động Cơ Khử Định Danh Dữ Liệu Y Tế Nhạy Cảm (Medical PII De-identification) Tuân Thủ Nghị Định 13/2023/NĐ-CP & HIPAA Safe Harbor, Tương Thích Chuẩn Dataset Meddies-PII (Hugging Face) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#046** | 14/09/2026 | Triển Khai Giai Đoạn 2: Tối Ưu Hóa Concurrency & Race Condition Cho Scan Pipeline & Đặt Lịch Khám, Bổ Sung Flyway V7 (Slot Collision Partial Unique Index & Dedup Unique Index), Concurrency Semaphore Điều Tiết Vision OCR | AI Assistant | 🟢 Đã Duyệt |
 | **#045** | 14/09/2026 | Triển Khai Giai Đoạn 1: Vá Lỗ Hổng CSRF/Cookie SameSite, Chặn Suspended User Trong JWT Filter, Rate Limit Đăng Ký, Đồng Bộ Schema Flyway V6 (@Version & audit_logs) & React ErrorBoundary | AI Assistant | 🟢 Đã Duyệt |
@@ -20,6 +21,64 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#048] Tích Hợp Động Cơ Sinh Tệp PDF Ca Bệnh Thực Tế Từ Dataset Meddies (150.000 Hồ Sơ Bệnh Nhân Hugging Face), Tải Trực Tiếp Xuống Thiết Bị Phục Vụ Kiểm Thử Kéo-Thả Quét Bệnh Án
+* **Thời gian:** 2026-09-14 14:25:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-03 (Multimodal Document Summarization), UC-12 (Medical PII De-identification)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (**73/73 Tests PASS 100%**)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (**Build 0 TypeScript error, 1671 modules**)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Hạng Mục Đã Thực Hiện:
+1. **Xây Dựng Động Cơ Tạo PDF Ca Bệnh Y Khoa Động (`MeddiesPdfGeneratorService`)**:
+   - Tích hợp trực tiếp với Hugging Face Datasets Server API: `https://datasets-server.huggingface.co/rows?dataset=Meddies%2Fmeddies-persona-vie&config=default&split=train&limit=1&offset={random}` để truy vấn ngẫu nhiên ca bệnh trong kho 150.000 hồ sơ bệnh nhân Việt Nam.
+   - Trích xuất tự động thông tin nhân khẩu học (Tên bệnh nhân, CCCD 12 số, Thẻ BHYT 15 số, Mã BN, Địa chỉ thường trú tại các tỉnh thành Việt Nam), triệu chứng khai báo và bệnh sử.
+   - Sinh động bảng chỉ số sinh hóa lâm sàng theo bệnh cảnh (Tim mạch, Gan mật, Tiểu đường, Thận, Nhiễm trùng) với giá trị bất thường và khoảng tham chiếu sinh lý chuẩn.
+   - Kết xuất tệp PDF phiếu xét nghiệm định dạng bệnh viện chuẩn (Hospital Lab Report) bằng Apache PDFBox 3.0.4 với WinAnsi-safe normalized text, căn chỉnh toạ độ chính xác, phân cách kẻ bảng và chữ ký số bác sĩ chỉ định.
+   - **Cơ chế Bể Hồ Sơ Dự Phòng Nội Bộ (Offline Resilient Persona Pool):** Cấu hình timeout 3 giây; nếu Hugging Face API bị chậm hoặc mất mạng Internet, hệ thống tự động kích hoạt 1 trong 5 ca bệnh đa khoa nội bộ chuẩn mực, đảm bảo buổi bảo vệ luận văn hoạt động 100% không trục trặc.
+2. **REST API & Cấu Hình Bảo Mật Spring Security**:
+   - Bổ sung endpoint `GET /api/v1/documents/sample-random-pdf` trong `MedicalDocumentController` trả về `MediaType.APPLICATION_PDF` kèm header `Content-Disposition: attachment; filename="phieu_xet_nghiem_...pdf"`.
+   - Cấu hình `SecurityConfig`: Mở quyền truy cập công khai endpoint này phục vụ kiểm thử và trải nghiệm người dùng nhanh chóng.
+3. **Giao Diện Người Dùng (Frontend UX React / Vite)**:
+   - Cập nhật `DocumentSummarizerPage.tsx`: Bổ sung thẻ *Lấy Ngẫu Nhiên Ca Bệnh Từ Meddies (150.000 Hồ Sơ)* với nút *Tải PDF Ngẫu Nhiên* nổi bật trên vùng tải tệp.
+   - Bắt sự kiện tải tệp nhị phân `blob`, tự động đặt tên tệp theo mã bệnh án và kích hoạt tải về máy người dùng.
+   - Hiển thị Toast hướng dẫn người dùng kéo-thả tệp vừa tải vào khung phân tích.
+4. **Kiểm Thử & Đồng Bộ Tài Liệu**:
+   - Thêm bài kiểm thử tự động `MeddiesPdfGeneratorServiceTest`: Kiểm tra kết xuất PDF nhị phân (`%PDF-`), kiểm tra tích hợp trích xuất văn bản với `PdfExtractionService`.
+   - Chạy toàn bộ kiểm thử hệ thống: `mvn test` đạt **73/73 tests PASS 100%**.
+   - Biên dịch Frontend: `npm run build` đạt **0 lỗi TypeScript**.
+   - Cập nhật tài liệu: `docs/USE_CASES.md`, `docs/CAPSTONE_DEFENSE.md` (Checklist Bước 6 & Câu hỏi phản biện số 13), `docs/WORK_LOG.md`.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi:
+- `[NEW]` `backend/src/main/java/com/mediassist/service/MeddiesPdfGeneratorService.java`
+- `[NEW]` `backend/src/test/java/com/mediassist/MeddiesPdfGeneratorServiceTest.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/controller/MedicalDocumentController.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/config/SecurityConfig.java`
+- `[MOD]` `frontend/src/pages/patient/DocumentSummarizerPage.tsx`
+- `[MOD]` `docs/USE_CASES.md`
+- `[MOD]` `docs/CAPSTONE_DEFENSE.md`
+- `[MOD]` `docs/WORK_LOG.md`
+
+#### 3. Bằng Chứng Kiểm Thử (Verification Proof):
+- Backend:
+  ```text
+  [INFO] Tests run: 73, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS
+  [INFO] Total time: 6.282 s
+  ```
+- Frontend:
+  ```text
+  ✓ 1671 modules transformed.
+  ✓ built in 1.54s
+  ```
+
+#### 4. Điểm Nóng Tech Lead Cần Lưu Ý (Architectural Review):
+1. **Khắc phục triệt để bẫy Font Encoding của PDFBox**: Font chuẩn `Standard14Fonts.HELVETICA` chỉ hỗ trợ `WinAnsiEncoding`. Nếu đưa ký tự có dấu tiếng Việt trực tiếp vào PDFBox sẽ văng ngoại lệ `IllegalArgumentException`. Hàm `cleanText()` kết hợp chuẩn hóa Unicode NFC/NFD và loại bỏ dấu tiếng Việt cho PDF hiển thị sắc nét, tương thích 100% mọi trình đọc PDF mà không cần đóng gói file font TTF cồng kềnh.
+2. **Đảm bảo tính độc lập & Dự phòng khi bảo vệ luận văn**: Việc gọi API bên thứ ba (Hugging Face Datasets Server) luôn tiềm ẩn rủi ro mạng. Nhờ có `PERSONA_POOL` 5 ca bệnh chất lượng cao được mã hóa sẵn, kể cả khi hội đồng ngắt kết nối mạng ngoài, việc bấm nút sinh PDF vẫn diễn ra mượt mà trong dưới 100ms.
+
+---
 
 ### [WORK-LOG-#047] Triển Khai Giai Đoạn 3: Hiện Thực Hóa Động Cơ Khử Định Danh Dữ Liệu Y Tế Nhạy Cảm (Medical PII De-identification) Tuân Thủ Nghị Định 13/2023/NĐ-CP & HIPAA Safe Harbor, Tương Thích Chuẩn Dataset Meddies-PII (Hugging Face)
 * **Thời gian:** 2026-09-14 13:50:00 (GMT+7)
