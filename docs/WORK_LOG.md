@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :---: |
+| **#051** | 14/09/2026 | Khởi Động Toàn Bộ Hệ Thống (Postgres 5433, Redis 6379, Backend 5001, Frontend 5173): Xử Lý Xung Đột Port 5000 AirPlay macOS, Khắc Phục Lỗi Schema V1/V2 (users_status_check, icd10_code, audit_logs) & Inject @Autowired ClinicalRagService | AI Assistant | 🟢 Sẵn sàng Review |
 | **#050** | 14/09/2026 | Triển Khai Hoàn Chỉnh Google OAuth2 Login/Register: HttpOnly JWT Cookie (SameSite=Lax), OpenID Connect (OIDC) & Standard OAuth2 Dual-Support, CustomOAuth2UserService & CustomOidcUserService Upsert Pattern, OAuth2UserPrincipal Bridge Class, Flyway V8 (password_hash Nullable & avatar_url TEXT), GoogleLoginButton & OAuth2CallbackPage | AI Assistant | 🟢 Sẵn sàng Review |
 | **#049** | 14/09/2026 | Khắc Phục Toàn Diện 9 Điểm Lỗi & Lỗ Hổng Bảo Mật (Audit Hardening): Rate Limiting IP Cho Sinh PDF Meddies, Bịt Lỗi Control Chars WinAnsi/PDFBox Crash, Trì Hoãn revokeObjectURL Tránh File 0-Byte Firefox/Safari & Tách Biệt Error State | AI Assistant | 🟢 Sẵn sàng Review |
 | **#048** | 14/09/2026 | Tích Hợp Động Cơ Sinh Tệp PDF Ca Bệnh Thực Tế Từ Dataset Meddies (150.000 Hồ Sơ Bệnh Nhân Hugging Face), Tải Trực Tiếp Xuống Thiết Bị Phục Vụ Kiểm Thử Kéo-Thả Quét Bệnh Án | AI Assistant | 🟢 Sẵn sàng Review |
@@ -31,6 +32,43 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#051] Khởi Động Toàn Bộ Hệ Thống (Postgres 5433, Redis 6379, Backend 5001, Frontend 5173): Xử Lý Xung Đột Port 5000 AirPlay macOS, Khắc Phục Lỗi Schema V1/V2 (users_status_check, icd10_code, audit_logs) & Inject @Autowired ClinicalRagService
+* **Thời gian:** 2026-09-14 15:50:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** Toàn bộ hệ sinh thái (Infrastructure, Auth, Document Summarizer, Doctor Semantic Search)
+* **Trạng thái Dịch vụ:**
+  - Database: PostgreSQL 16 + pgvector (cổng **5433** container `mediassist_postgres` - HEALTHY)
+  - Cache: Redis (cổng **6379** - HEALTHY, PONG)
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5001** (Actuator UP, 74/74 Tests PASS)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (Vite Dev Server UP, Proxy to 5001 OK)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Hạng Mục Đã Khắc Phục Để Khởi Chạy Toàn Hệ Thống:
+1. **Khởi động Docker Infrastructure**:
+   - Khởi động container `mediassist_postgres` (`pgvector/pgvector:pg16`) trên cổng `5433:5432`.
+   - Kết nối thành công Redis L2 Cache trên cổng `6379`.
+2. **Khắc phục Lỗi Flyway Migration V1 & V2**:
+   - `V1__initial_schema.sql`: Bổ sung `PENDING_VERIFICATION` vào check constraint `users_status_check`; bổ sung các cột `user_id`, `user_agent`, `metadata` và cho phép `actor` nullable trong `audit_logs` để tương thích với dữ liệu seed trong V2.
+   - `V2__seed_rich_hospital_data.sql`: Sửa lỗi sai tên cột `icd10code` / `icd10name` thành `icd10_code` / `icd10_name` khớp với schema bảng `appointments` và JPA entity mapping.
+   - Chạy lại toàn bộ 7 Flyway migrations thành công 100%.
+3. **Khắc phục Lỗi Spring IoC Constructor Injection**:
+   - Bổ sung `@Autowired` vào primary constructor của `ClinicalRagService.java` khi có 2 constructors quá tải.
+4. **Khắc phục Xung Đột Cổng 5000 Do macOS AirPlay Receiver**:
+   - Trên macOS, service `ControlCenter` (AirPlay Receiver) chiếm dụng cổng 5000.
+   - Chuyển cổng backend sang `5001` trong `application-dev.properties`, `application.properties`, `.env`, `backend/.env`.
+   - Cập nhật proxy Vite dev server trong `frontend/vite.config.ts` và `frontend/.env` sang `http://localhost:5001`.
+5. **Dọn Dẹp Process Chiếm Dụng Cổng 5173**:
+   - Giải phóng cổng 5173 bị tiến trình cũ chiếm dụng và khởi động Vite dev server cho MediAssist-AI.
+6. **Xác Thực Trực Tiếp End-to-End**:
+   - Actuator Health: `http://localhost:5001/actuator/health` $\rightarrow$ `{"status":"UP"}` (db, redis, diskSpace, livenessState, readinessState).
+   - Tải tệp PDF mẫu Meddies: `GET http://localhost:5173/api/v1/documents/sample-random-pdf` $\rightarrow$ `%PDF-1.6` HTTP 200 OK.
+   - Đăng nhập 3 vai trò:
+     - Bệnh nhân: `patient@mediassist.local` / `Patient@SecurePass2026!` $\rightarrow$ HTTP 200 (JWT OK).
+     - Bác sĩ: `doctor@mediassist.local` / `Doctor@SecurePass2026!` $\rightarrow$ HTTP 200 (JWT OK).
+     - Admin: `admin@mediassist.local` / `Admin@SecurePass2026!` $\rightarrow$ HTTP 200 (JWT OK).
+
+---
 
 ### [WORK-LOG-#050] Triển Khai Hoàn Chỉnh Google OAuth2 Login/Register (HttpOnly JWT Cookie & OIDC Support)
 * **Thời gian:** 2026-09-14 13:40:00 → 14:50:00 (GMT+7)

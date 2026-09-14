@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone VARCHAR(20) UNIQUE,
     avatar_url TEXT,
     role VARCHAR(30) NOT NULL CHECK (role IN ('ADMIN', 'DOCTOR', 'PATIENT')),
-    status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'PENDING', 'SUSPENDED')),
+    status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'PENDING', 'PENDING_VERIFICATION', 'SUSPENDED')),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     is_email_verified BOOLEAN NOT NULL DEFAULT FALSE,
     failed_login_attempts INT NOT NULL DEFAULT 0,
@@ -210,15 +210,19 @@ CREATE INDEX IF NOT EXISTS idx_doc_analysis_doc ON document_analyses(document_id
 CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     action VARCHAR(100) NOT NULL,
-    actor VARCHAR(100) NOT NULL,
+    actor VARCHAR(100),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     resource VARCHAR(255) NOT NULL,
     details TEXT,
+    metadata TEXT,
     ip_address VARCHAR(50),
+    user_agent VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit_logs(user_id);
 
 -- 12. AI Token Usage Table (FinOps Monitoring)
 CREATE TABLE IF NOT EXISTS ai_token_usage (

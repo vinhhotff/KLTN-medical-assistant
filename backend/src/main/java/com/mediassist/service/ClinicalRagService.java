@@ -4,6 +4,7 @@ import com.mediassist.ai.ClinicalAiResult;
 import com.mediassist.dto.DoctorMatchDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.UUID;
@@ -14,6 +15,7 @@ public class ClinicalRagService {
     private final AiModelRouter aiModelRouter;
     private final MedicalPiiService medicalPiiService;
 
+    @Autowired
     public ClinicalRagService(AiModelRouter aiModelRouter, MedicalPiiService medicalPiiService) {
         this.aiModelRouter = aiModelRouter;
         this.medicalPiiService = medicalPiiService;

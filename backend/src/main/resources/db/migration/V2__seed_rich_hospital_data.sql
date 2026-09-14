@@ -205,7 +205,7 @@ INSERT INTO appointments (
     id, appointment_code, patient_id, doctor_id,
     scheduled_start, scheduled_end, status, payment_status, fee_amount,
     queue_number, clinic_room, chief_complaint, vital_signs_json,
-    icd10code, icd10name, prescription_json, treatment_plan,
+    icd10_code, icd10_name, prescription_json, treatment_plan,
     follow_up_date, consultation_notes, created_at, updated_at, version
 ) VALUES
     -- Ca 1: Bệnh nhân Bình khám Tim mạch GS An (ĐÃ HOÀN TẤT)
