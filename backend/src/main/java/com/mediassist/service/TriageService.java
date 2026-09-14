@@ -55,10 +55,16 @@ public class TriageService {
             return handleEmergency(symptoms, redFlag.get(), patientUser);
         }
 
-        // 2. AI-First Clinical Reasoning via LLM (or Safe Deterministic Fallback if offline)
-        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performTriageRagAnalysis(symptoms, Collections.emptyList());
+        // 2. Pre-RAG Semantic Retrieval: Fetch doctor candidates from pgvector BEFORE calling LLM
+        //    so that Gemini receives real doctor profiles and can make a personalized recommendation.
+        List<DoctorMatchDto> preRagCandidates = doctorSemanticSearchService.searchDoctors(symptoms, 4);
+        log.info("🧠 [PRE-RAG] Found {} doctor candidates from pgvector for symptom-based broad search", preRagCandidates != null ? preRagCandidates.size() : 0);
 
-        // 3. Derive specialty and urgency strictly from AI reasoning
+        // 3. AI-First Clinical Reasoning via LLM with real doctor candidates injected
+        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performTriageRagAnalysis(
+                symptoms, preRagCandidates != null ? preRagCandidates : Collections.emptyList());
+
+        // 4. Derive specialty and urgency strictly from AI reasoning
         String specialtySlug = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
                 ? ragResult.getRecommendedSpecialtySlug().toLowerCase().trim()
                 : "general-internal-medicine";
@@ -82,22 +88,35 @@ public class TriageService {
                         ? ragResult.getSuggestedQuestions()
                         : defaultClarifyingQuestions());
 
-        // 4. Semantic Doctor Matching via pgvector based on AI-reasoned specialty & symptoms
-        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(
-                symptoms + " " + specialtySlug + " " + specialtyName,
-                4
-        );
+        // 5. Focused pgvector Doctor Retrieval based on AI-reasoned specialty (clean query, no noise)
+        String focusedDoctorQuery = buildFocusedTriageDoctorQuery(specialtySlug, specialtyName, symptoms);
+        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+
+        // Fallback to pre-RAG candidates if focused search yields nothing
+        if ((matchedDoctors == null || matchedDoctors.isEmpty()) && preRagCandidates != null && !preRagCandidates.isEmpty()) {
+            matchedDoctors = preRagCandidates;
+        }
 
         if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
             DoctorMatchDto top = matchedDoctors.get(0);
             top.setAiRecommended(true);
-            String reason = (ragResult.getDoctorRecommendationReason() != null && !ragResult.getDoctorRecommendationReason().isBlank())
-                    ? ragResult.getDoctorRecommendationReason()
-                    : String.format("Bác sĩ chuyên khoa %s được đề xuất dựa trên thuật toán tương đồng ngữ nghĩa pgvector (độ tương thích %d%%).",
-                            specialtyName, Math.round(top.getSimilarityScore() * 100));
-            top.setAiRecommendationReason(reason);
+
+            String aiReason = ragResult.getDoctorRecommendationReason();
+            // Sanitize meta-complaints: filter out LLM technical complaints about missing candidates
+            boolean isMetaComplaint = aiReason == null || aiReason.isBlank() ||
+                    aiReason.toLowerCase().contains("không có ứng viên") ||
+                    aiReason.toLowerCase().contains("chưa có danh sách") ||
+                    aiReason.toLowerCase().contains("không thể đề xuất bác sĩ cụ thể") ||
+                    aiReason.toLowerCase().contains("chưa có ứng viên") ||
+                    aiReason.toLowerCase().contains("thuật toán tương đồng ngữ nghĩa pgvector");
+
+            String finalReason = isMetaComplaint
+                    ? buildClinicalTriageRecommendationReason(top, specialtyName, symptoms)
+                    : aiReason;
+
+            top.setAiRecommendationReason(finalReason);
             ragResult.setRecommendedDoctorId(top.getDoctorId());
-            ragResult.setDoctorRecommendationReason(reason);
+            ragResult.setDoctorRecommendationReason(finalReason);
         }
 
         // 5. Persist Triage Session
@@ -194,5 +213,47 @@ public class TriageService {
                 "Bạn đã từng sử dụng thuốc gì hoặc có tiền sử bệnh nền mạn tính nào trước đây không?",
                 "Triệu chứng có tăng lên khi gắng sức, thay đổi tư thế hoặc theo thời điểm cụ thể trong ngày không?"
         );
+    }
+
+    /**
+     * Builds a clean, focused query for pgvector doctor search in triage context.
+     * Avoids polluting the embedding with long free-text symptom descriptions
+     * which would create noise across the 1536-d vector space.
+     */
+    private String buildFocusedTriageDoctorQuery(String specialtySlug, String specialtyName, String symptoms) {
+        StringBuilder query = new StringBuilder();
+        query.append("Bác sĩ chuyên khoa ").append(specialtyName).append(". ");
+        query.append(specialtySlug).append(". ");
+
+        // Extract only the first 80 chars of symptoms to provide minimal context
+        // without overwhelming the domain-specific semantic boost
+        if (symptoms != null && !symptoms.isBlank()) {
+            String briefSymptoms = symptoms.length() > 80 ? symptoms.substring(0, 80) : symptoms;
+            query.append("Triệu chứng: ").append(briefSymptoms).append(". ");
+        }
+
+        query.append("Tư vấn chẩn đoán và điều trị chuyên khoa ").append(specialtySlug).append(".");
+        return query.toString();
+    }
+
+    /**
+     * Builds a professional clinical recommendation reason for the top matched doctor
+     * in triage context, tied to the patient's specialty and symptoms.
+     */
+    private String buildClinicalTriageRecommendationReason(DoctorMatchDto doctor, String specialtyName, String symptoms) {
+        String titleAndName = String.format("%s %s",
+                doctor.getAcademicTitle() != null ? doctor.getAcademicTitle() : "BS.",
+                doctor.getFullName());
+        String hospital = doctor.getHospitalAffiliation() != null ? " (" + doctor.getHospitalAffiliation() + ")" : "";
+
+        // Extract brief symptom essence (max 60 chars for reason text)
+        String briefSymptom = "";
+        if (symptoms != null && !symptoms.isBlank()) {
+            briefSymptom = symptoms.length() > 60 ? symptoms.substring(0, 60) + "..." : symptoms;
+        }
+
+        return String.format(
+                "Đề xuất %s%s thuộc chuyên khoa %s vì bệnh nhân mô tả triệu chứng \"%s\", phù hợp với lĩnh vực chuyên sâu và kinh nghiệm %d năm của bác sĩ.",
+                titleAndName, hospital, specialtyName, briefSymptom, doctor.getYearsOfExperience());
     }
 }

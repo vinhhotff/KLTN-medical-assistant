@@ -119,9 +119,15 @@ public class MedicalDocumentAnalysisService {
             cachedQuestions = objectMapper.readValue(existingAnalysis.getSuggestedQuestionsJson(), new TypeReference<List<String>>() {});
         } catch (Exception ignored) {}
 
-        String queryForDoctorMatch = String.format("%s. Chuyên khoa %s. %s",
-                existingAnalysis.getClinicalSummary(), existingAnalysis.getRecommendedSpecialtyName(), existingAnalysis.getRecommendedSpecialtySlug());
-        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(queryForDoctorMatch, 4);
+        // Use focused query (specialty-centric) instead of full clinical summary to avoid noise
+        String specialtySlug = existingAnalysis.getRecommendedSpecialtySlug();
+        String specialtyName = existingAnalysis.getRecommendedSpecialtyName();
+        String focusedQuery = buildFocusedDoctorQuery(
+                specialtySlug != null ? specialtySlug : "general-internal-medicine",
+                specialtyName != null ? specialtyName : "Nội Tổng Quát",
+                cachedIndicators,
+                existingDoc.getFileName());
+        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedQuery, 4);
 
         DocumentAnalysisResponse resp = new DocumentAnalysisResponse();
         resp.setDocumentId(existingDoc.getId());
@@ -131,15 +137,21 @@ public class MedicalDocumentAnalysisService {
         resp.setClinicalSummary(existingAnalysis.getClinicalSummary());
         resp.setPlainLanguageExplanation(existingAnalysis.getPlainLanguageExplanation());
         resp.setIndicators(cachedIndicators);
-        resp.setRecommendedSpecialtySlug(existingAnalysis.getRecommendedSpecialtySlug());
-        resp.setRecommendedSpecialtyName(existingAnalysis.getRecommendedSpecialtyName());
+        resp.setRecommendedSpecialtySlug(specialtySlug);
+        resp.setRecommendedSpecialtyName(specialtyName);
         resp.setSuggestedQuestions(cachedQuestions);
         resp.setMatchedDoctors(matchedDoctors);
         resp.setStorageUrl(existingDoc.getStorageUrl());
         resp.setCachedResult(true);
         resp.setModelUsed("SHA-256 Deduplication Cache (0 LLM Tokens)");
-        if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
-            resp.setDoctorRecommendationReason(matchedDoctors.get(0).getAiRecommendationReason());
+
+        // Rebuild clinical recommendation for cached responses: mark top doctor and generate proper reason
+        if (matchedDoctors != null && !matchedDoctors.isEmpty() && cachedIndicators != null && !cachedIndicators.isEmpty()) {
+            DoctorMatchDto top = matchedDoctors.get(0);
+            top.setAiRecommended(true);
+            String reason = buildClinicalDoctorRecommendationReason(top, specialtyName != null ? specialtyName : "Chuyên khoa", cachedIndicators);
+            top.setAiRecommendationReason(reason);
+            resp.setDoctorRecommendationReason(reason);
         }
 
         if (existingAnalysis.getMetadataJson() != null && !existingAnalysis.getMetadataJson().isBlank()) {
