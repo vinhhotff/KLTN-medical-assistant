@@ -17,6 +17,14 @@
 | **#045** | 14/09/2026 | Triển Khai Giai Đoạn 1: Vá Lỗ Hổng CSRF/Cookie SameSite, Chặn Suspended User Trong JWT Filter, Rate Limit Đăng Ký, Đồng Bộ Schema Flyway V6 (@Version & audit_logs) & React ErrorBoundary | AI Assistant | 🟢 Đã Duyệt |
 | **#044** | 14/09/2026 | Production-Readiness Audit & Hardening Document Scan: Khắc Phục Nghẽn HikariCP (@Transactional Anti-Pattern), Quota Atomic Reservation & Rollback, ThreadPool OCR Riêng, Rate Limiting Preview & Caffeine Cache | AI Assistant | 🟢 Đã Duyệt |
 | **#043** | 13/09/2026 | Khắc Phục Lỗi Xung Đột JPA Nullable Phiếu Trắng, Chặn Path Traversal Storage, Chuẩn Hóa Status Chỉ Số & Ngày Tiếp Nhận Frontend | AI Assistant | 🟢 Đã Duyệt |
+| **#042b** | 13/09/2026 | Khởi Tạo & Đẩy Lên Toàn Bộ 3 Tệp Cấu Hình Môi Trường (.env & .env.example) Cho Cả 3 Phân Hệ (Root, Backend, Frontend) Kèm Tích Hợp Vite Environment Variable | AI Assistant | 🟢 Đã Duyệt |
+| **#042** | 13/09/2026 | Cải Tổ Toàn Diện Pipeline Phân Tích Tài Liệu Y Khoa (6 Điểm Nghẽn): Tích Hợp Trực Tiếp Google Gemini Flash (Tier 1 AI), Trình Phân Tích Bảng Đa Mẫu (Multi-Pattern Table Parser), Dữ Liệu Lâm Sàng Động 100% (Bệnh Viện, Bác Sĩ, SID, Máy Xét Nghiệm), Khoảng Tham Chiếu Giới Tính & Nâng Hạn Mức PDF 10 Trang | AI Assistant | 🟢 Sẵn sàng Review |
+| **#041** | 13/09/2026 | Triển Khai Phân Trang Offset (Limit/Offset Pagination) Toàn Diện Toàn Bộ Bảng/Danh Sách Chống Tràn Bộ Nhớ & Khắc Phục Lưu Trữ Supabase Database / Cloud Storage | AI Assistant | 🟢 Đã Duyệt |
+| **#040** | 13/09/2026 | Hiện Thực Hóa Toàn Diện Phân Hệ Quản Lý Bác Sĩ (Doctor Management Portal): 2 Tab Roster & Vetting, Tìm Kiếm/Lọc Đa Tiêu Chí, Modal Thêm/Sửa/Xem Chi Tiết, Khóa/Mở Khóa Tài Khoản & Đồng Bộ AI Vector pgvector | AI Assistant | 🟢 Đã Duyệt |
+| **#039** | 13/09/2026 | Triệt Tiêu Đề Xuất Bác Sĩ Ảo (Zero Fake Recommendation) Khi Tài Liệu Trống/Mờ, Thiết Lập Multi-Model Vision OCR Pool & Nâng Cấp PDF 200 DPI | AI Assistant | 🟢 Đã Duyệt |
+| **#038** | 13/09/2026 | Khắc Phục Triệt Để Lỗi Ngoại Tuyến (Offline Fallback): Cập Nhật Bể Mô Hình OpenRouter Active Mới Nhất (inclusionai/ling-3.0-flash-sante:free, nex-agi/nex-n2.5-mini:free, openrouter/free) & Tối Ưu Timeout 15s | AI Assistant | 🟢 Đã Duyệt |
+| **#037** | 13/09/2026 | Khởi Động Toàn Diện Hệ Sinh Thái MediAssist-AI (Docker pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173), Sửa Lỗi Constructor Injection & Xác Thực End-to-End | AI Assistant | 🟢 Đã Duyệt |
+
 
 ---
 
@@ -291,15 +299,8 @@
 9. **Kiểm thử Toàn diện**:
    - Bổ sung 3 unit tests mới: `testExpiredVipUserHasQuotaDeducted`, `testActiveVipUserNeverHasQuotaDeducted`, và `testQuotaRestoredWhenValidationFails`.
    - Toàn bộ **62/62 Unit Tests PASS 100%**. Frontend biên dịch sạch sẽ 0 lỗi.
-| **#041** | 13/09/2026 | Triển Khai Phân Trang Offset (Limit/Offset Pagination) Toàn Diện Toàn Bộ Bảng/Danh Sách Chống Tràn Bộ Nhớ & Khắc Phục Lưu Trữ Supabase Database / Cloud Storage | AI Assistant | 🟢 Đã Duyệt |
-| **#040** | 13/09/2026 | Hiện Thực Hóa Toàn Diện Phân Hệ Quản Lý Bác Sĩ (Doctor Management Portal): 2 Tab Roster & Vetting, Tìm Kiếm/Lọc Đa Tiêu Chí, Modal Thêm/Sửa/Xem Chi Tiết, Khóa/Mở Khóa Tài Khoản & Đồng Bộ AI Vector pgvector | AI Assistant | 🟢 Đã Duyệt |
-| **#039** | 13/09/2026 | Triệt Tiêu Đề Xuất Bác Sĩ Ảo (Zero Fake Recommendation) Khi Tài Liệu Trống/Mờ, Thiết Lập Multi-Model Vision OCR Pool & Nâng Cấp PDF 200 DPI | AI Assistant | 🟢 Đã Duyệt |
-| **#038** | 13/09/2026 | Khắc Phục Triệt Để Lỗi Ngoại Tuyến (Offline Fallback): Cập Nhật Bể Mô Hình OpenRouter Active Mới Nhất (inclusionai/ling-3.0-flash-sante:free, nex-agi/nex-n2.5-mini:free, openrouter/free) & Tối Ưu Timeout 15s | AI Assistant | 🟢 Đã Duyệt |
-| **#037** | 13/09/2026 | Khởi Động Toàn Diện Hệ Sinh Thái MediAssist-AI (Docker pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173), Sửa Lỗi Constructor Injection & Xác Thực End-to-End | AI Assistant | 🟢 Đã Duyệt |
 
 ---
-
-## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
 ### [WORK-LOG-#043] Khắc Phục Lỗi Xung Đột JPA Nullable Phiếu Trắng, Chặn Path Traversal Storage, Chuẩn Hóa Status Chỉ Số & Ngày Tiếp Nhận Frontend
 * **Thời gian:** 2026-09-13 18:05:00 (GMT+7)
@@ -329,6 +330,57 @@
 7. **Bảo Mật API Key Google Gemini (Header Injection `x-goog-api-key`)**:
    - Chuyển việc truyền `key` từ Query Parameter trên URL sang HTTP Header `x-goog-api-key`, loại bỏ hoàn toàn nguy cơ rò rỉ API key qua access logs proxy/gateway.
    - Cập nhật `.env.example` hướng dẫn cấu hình `GEMINI_API_KEY`.
+
+---
+
+### [WORK-LOG-#042b] Khởi Tạo & Đẩy Lên 3 Tệp Cấu Hình Môi Trường (.env & .env.example) Cho Root, Backend và Frontend
+* **Thời gian:** 2026-09-13 19:10:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-SYS-06 (Multi-Tier Environment Variable Lifecycle & Zero-Setup Developer Experience)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (**59/59 Tests PASS 100%**)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (**Build 0 TypeScript error, 1670 modules**)
+  - Database: PostgreSQL 16 + pgvector (cổng **5433** - HEALTHY)
+  - Cache: Redis 7-alpine (cổng **6379** - HEALTHY)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Bối Cảnh & Yêu Cầu Từ Tech Lead
+- Yêu cầu từ Tech Lead: *"push len 3 file env cho toi luon di"*
+- Trước đây, `.gitignore` loại trừ toàn bộ các tệp `.env`, dẫn đến việc các thành viên trong nhóm hoặc môi trường CI/CD khi clone/pull nhánh `develop` về máy bị thiếu cấu hình môi trường khởi chạy, phải gõ tay hoặc hỏi lại cấu hình kết nối.
+- Cần cung cấp bộ 3 tệp môi trường chuẩn hóa cho 3 tầng phân hệ:
+  1. **Root `.env`**: Cấu hình chung toàn dự án (Docker Compose, cổng nội bộ PostgreSQL 5433, Redis 6379, OpenRouter/Gemini AI Gateway, Supabase Cloud Storage EMR).
+  2. **Backend `backend/.env`**: Cấu hình Spring Boot Java 25 (được nạp tự động qua `MediAssistApplication.loadDotEnv()`).
+  3. **Frontend `frontend/.env`**: Cấu hình Vite React (`VITE_API_BASE_URL=/api/v1`, `VITE_BACKEND_URL=http://localhost:5000`).
+
+#### 2. Các Giải Pháp Kỹ Thuật Đã Triển Khai
+1. **Khởi tạo Bộ 3 Tệp `.env` Baseline**:
+   - `.env` (Thư mục gốc): Đồng bộ với `docker-compose.yml` và cấu hình tổng thể hệ thống.
+   - `backend/.env`: Đầy đủ cấu hình kết nối JDBC PostgreSQL, Redis cache, JWT secret và các AI provider.
+   - `frontend/.env`: Cấu hình endpoint API gateway và metadata ứng dụng.
+2. **Khởi tạo Bộ 3 Tệp Mẫu `.env.example`**:
+   - Cập nhật `.env.example` ở thư mục gốc.
+   - Tạo mới `backend/.env.example` và `frontend/.env.example` phục vụ tài liệu hóa cho thành viên mới.
+3. **Cập nhật `.gitignore`**:
+   - Chuyển quy tắc loại trừ sang `.env.local` và `.env.*.local` để bảo vệ các secret cá nhân của từng máy phát triển, đồng thời cho phép Git theo dõi 3 tệp `.env` baseline phục vụ Tech Lead và toàn bộ dự án.
+4. **Tích hợp Vite Environment Variable**:
+   - Cập nhật `frontend/src/services/api.ts`: `baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1'`.
+
+#### 3. Danh Sách Tệp Tin Thay Đổi
+| Tệp Tin | Trạng Thái | Mô Tả Thay Đổi |
+| :--- | :---: | :--- |
+| `.env` | `[NEW]` | Cấu hình môi trường gốc (Docker, DB, Redis, AI Gateway, Supabase) |
+| `backend/.env` | `[NEW]` | Cấu hình môi trường Backend Spring Boot |
+| `frontend/.env` | `[NEW]` | Cấu hình môi trường Frontend Vite React |
+| `backend/.env.example` | `[NEW]` | Tệp mẫu môi trường cho Backend |
+| `frontend/.env.example` | `[NEW]` | Tệp mẫu môi trường cho Frontend |
+| `.env.example` | `[MOD]` | Cập nhật tệp mẫu môi trường gốc |
+| `.gitignore` | `[MOD]` | Cho phép theo dõi baseline .env, loại trừ .env.*.local |
+| `frontend/src/services/api.ts` | `[MOD]` | Nạp baseURL từ `import.meta.env.VITE_API_BASE_URL` |
+| `docs/WORK_LOG.md` | `[MOD]` | Ghi nhận nhật ký kỹ thuật phiên #043 |
+
+#### 4. Bằng Chứng Kiểm Thử & Biên Dịch
+- `npm run build` trong `frontend/`: **0 TypeScript error**, built trong 3.04s.
+- `mvn test` trong `backend/`: **59/59 Tests PASS (100%)**, thời gian 5.13s.
 
 ---
 
@@ -1779,7 +1831,6 @@
 1. **Kiến trúc OpenRouter Strategy & Fallback:** `AiModelRouter` đọc chuỗi mô hình ưu tiên từ cấu hình `app.ai.openrouter.models`. Khi chạy local không cần cấu hình API key đắt tiền, hệ thống tự động nhận diện và fallback sang mô hình quy tắc offline hoặc gọi qua API free của OpenRouter mà không gây gián đoạn dịch vụ.
 2. **Clinical RAG Flow:** Dữ liệu bác sĩ từ pgvector được nhúng vào context prompt kèm học vị, số năm kinh nghiệm, bệnh viện công tác để LLM phân tích và chọn ra bác sĩ phù hợp nhất thay vì chọn ngẫu nhiên.
 3. **Chi Phí Vận Hành 0đ:** Hoàn toàn không tốn ngân sách của chủ sở hữu (Owner) khi kiểm thử và demo đồ án.
-=======
 ### [WORK-LOG-#018] Hoàn Tất Milestone 8: Tối Ưu Hóa Supabase Storage: Cơ Chế Lazy Upload, Rollback Compensating Hook Chống File Mồ Côi, Giới Hạn Tệp 10MB & Circuit Breaker Phạt Spam
 * **Thời gian:** 2026-09-13 14:15:00 (GMT+7)
 * **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
@@ -1856,7 +1907,6 @@
 #### 3. Bằng Chứng Kiểm Thử
 - `npm run build` PASS trong 2.76s với 0 lỗi TS.
 - Giao diện đạt độ thoáng đãng cao, tỷ lệ khoảng trắng cân đối chuẩn Apple Health / Doctolib.
->>>>>>> feature/redesign-medical-white-blue-home
 
 ---
 
