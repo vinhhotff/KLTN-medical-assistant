@@ -10,9 +10,9 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "patient_profiles", indexes = {
-        @Index(name = "idx_patient_code", columnList = "patientCode", unique = true),
-        @Index(name = "idx_patient_citizen_id", columnList = "citizenId"),
-        @Index(name = "idx_patient_insurance", columnList = "healthInsuranceNumber"),
+        @Index(name = "idx_patient_code", columnList = "patient_code", unique = true),
+        @Index(name = "idx_patient_citizen_id", columnList = "citizen_id"),
+        @Index(name = "idx_patient_insurance", columnList = "health_insurance_number"),
         @Index(name = "idx_patient_user_id", columnList = "user_id", unique = true)
 })
 public class PatientProfile {

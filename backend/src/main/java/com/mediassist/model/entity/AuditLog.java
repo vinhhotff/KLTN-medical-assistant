@@ -8,9 +8,9 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "audit_logs", indexes = {
-        @Index(name = "idx_audit_user_id", columnList = "userId"),
+        @Index(name = "idx_audit_user_id", columnList = "user_id"),
         @Index(name = "idx_audit_action", columnList = "action"),
-        @Index(name = "idx_audit_created_at", columnList = "createdAt")
+        @Index(name = "idx_audit_created_at", columnList = "created_at")
 })
 public class AuditLog {
 

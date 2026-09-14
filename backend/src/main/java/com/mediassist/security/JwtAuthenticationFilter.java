@@ -42,6 +42,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 User user = userRepository.findById(userId).orElse(null);
                 if (user != null) {
+                    if (user.getStatus() == com.mediassist.model.entity.UserStatus.SUSPENDED) {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"success\":false,\"error\":{\"code\":\"ACCOUNT_SUSPENDED\",\"message\":\"Tài khoản của bạn đã bị đình chỉ hoạt động. Vui lòng liên hệ quản trị viên.\"}}");
+                        return;
+                    }
+                    if (!user.isAccountNonLocked()) {
+                        response.setStatus(423);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"success\":false,\"error\":{\"code\":\"ACCOUNT_LOCKED\",\"message\":\"Tài khoản của bạn tạm thời bị khóa do nhiều lần đăng nhập không thành công.\"}}");
+                        return;
+                    }
+
                     UserPrincipal userPrincipal = UserPrincipal.create(user);
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(userPrincipal, null, userPrincipal.getAuthorities());

@@ -11,8 +11,76 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :--- | :---: |
-| **#044** | 14/09/2026 | Production-Readiness Audit & Hardening Document Scan: Khắc Phục Nghẽn HikariCP (@Transactional Anti-Pattern), Quota Atomic Reservation & Rollback, ThreadPool OCR Riêng, Rate Limiting Preview & Caffeine Cache | AI Assistant | 🟢 Sẵn sàng Review |
+| **#045** | 14/09/2026 | Triển Khai Giai Đoạn 1: Vá Lỗ Hổng CSRF/Cookie SameSite, Chặn Suspended User Trong JWT Filter, Rate Limit Đăng Ký, Đồng Bộ Schema Flyway V6 (@Version & audit_logs) & React ErrorBoundary | AI Assistant | 🟢 Sẵn sàng Review |
+| **#044** | 14/09/2026 | Production-Readiness Audit & Hardening Document Scan: Khắc Phục Nghẽn HikariCP (@Transactional Anti-Pattern), Quota Atomic Reservation & Rollback, ThreadPool OCR Riêng, Rate Limiting Preview & Caffeine Cache | AI Assistant | 🟢 Đã Duyệt |
 | **#043** | 13/09/2026 | Khắc Phục Lỗi Xung Đột JPA Nullable Phiếu Trắng, Chặn Path Traversal Storage, Chuẩn Hóa Status Chỉ Số & Ngày Tiếp Nhận Frontend | AI Assistant | 🟢 Đã Duyệt |
+
+---
+
+## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#045] Triển Khai Giai Đoạn 1: Vá Lỗ Hổng CSRF/Cookie SameSite, Chặn Suspended User Trong JWT Filter, Rate Limit Đăng Ký, Đồng Bộ Schema Flyway V6 (@Version & audit_logs) & React ErrorBoundary
+* **Thời gian:** 2026-09-14 13:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-01 (Xác Thực Kép & An Ninh Hệ Thống), UC-02 (Triage Triệu Chứng), UC-05 (Đặt Lịch Khám)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (**66/66 Tests PASS 100%**)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (**Build 0 TypeScript error, 1671 modules**)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Hạng Mục Đã Thực Hiện:
+1. **Nâng cấp Cookie Bảo Mật Dual-Transport & Phòng Thủ CSRF**:
+   - Chuyển đổi toàn bộ việc tạo cookie trong `AuthController` (`login`, `register`, `logout`) sang `ResponseCookie` chuẩn hiện đại với thuộc tính `SameSite=Lax`, `HttpOnly=true`, `Path="/"`.
+   - Cấu hình cờ `secure` linh hoạt thông qua thuộc tính `@Value("${app.security.cookie-secure:false}")`.
+2. **Khắc phục Lỗ hổng Suspended User Bypass trong `JwtAuthenticationFilter`**:
+   - Kiểm tra `user.getStatus() == UserStatus.SUSPENDED`: từ chối ngay lập tức với HTTP 403 Forbidden (`ACCOUNT_SUSPENDED`), vô hiệu hóa tức thời các token cũ khi tài khoản bị Admin đình chỉ.
+   - Kiểm tra `!user.isAccountNonLocked()`: từ chối với HTTP 423 Locked (`ACCOUNT_LOCKED`) nếu tài khoản đang trong thời gian bị khóa do đăng nhập sai nhiều lần.
+3. **Phòng chống Bot Spam & DoS BCrypt-12 trên Endpoint Đăng ký (`/auth/register`)**:
+   - Tích hợp phương thức `allowRegistrationAttempt(clientIp)` trong `SecurityRateLimiterService` với giới hạn tối đa 5 lượt đăng ký / 10 phút / IP.
+4. **Giải phóng Connection Pool HikariCP trong `TriageService`**:
+   - Gỡ bỏ `@Transactional` trên `assessSymptoms`, tách các tác vụ I/O ngoại vi (gọi LLM Gemini/OpenRouter 3-15s và vector search) ra ngoài database transaction.
+5. **Đồng bộ Cơ sở Dữ liệu & Flyway Migration V6 (`V6__fix_user_status_and_audit_logs.sql`)**:
+   - Cập nhật ràng buộc `users_status_check` chấp nhận giá trị enum `PENDING_VERIFICATION`.
+   - Bổ sung cột `version BIGINT NOT NULL DEFAULT 0` vào bảng `users` và thêm `@Version private Long version = 0L;` vào entity `User.java` (Optimistic Locking).
+   - Chuẩn hóa bảng `audit_logs`: thêm các cột `user_id UUID`, `user_agent VARCHAR(255)`, `metadata TEXT`, gỡ ràng buộc `NOT NULL` trên cột `actor`.
+   - Thêm chỉ mục `idx_appointment_schedule` trên `appointments(doctor_id, scheduled_start)`.
+   - Chuẩn hóa toàn bộ tên cột `columnList` trong `@Index` ở tất cả Entity (`AuditLog`, `User`, `Appointment`, `DoctorProfile`, `PatientProfile`, `DoctorScheduleSlot`, `MedicalDocument`, `TriageSession`) sang chuẩn snake_case PostgreSQL.
+6. **Frontend Error Boundary & Cải thiện UX Tải Slots Khám**:
+   - Tạo mới `src/components/common/ErrorBoundary.tsx` và bọc toàn bộ `<Routes>` trong `App.tsx` (loại bỏ hoàn toàn nguy cơ sập trắng màn hình do lỗi render).
+   - Thêm `slotsError` state vào `DocumentSummarizerPage.tsx` và `SymptomTriagePage.tsx` để hiển thị cảnh báo lỗi mạng rõ ràng khi tải slots thất bại.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi:
+- `[NEW]` `backend/src/main/resources/db/migration/V6__fix_user_status_and_audit_logs.sql`
+- `[NEW]` `frontend/src/components/common/ErrorBoundary.tsx`
+- `[MOD]` `backend/src/main/java/com/mediassist/security/JwtAuthenticationFilter.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/controller/AuthController.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/service/SecurityRateLimiterService.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/service/TriageService.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/model/entity/User.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/model/entity/AuditLog.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/model/entity/Appointment.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/model/entity/DoctorProfile.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/model/entity/PatientProfile.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/model/entity/DoctorScheduleSlot.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/model/entity/MedicalDocument.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/model/entity/TriageSession.java`
+- `[MOD]` `backend/src/test/java/com/mediassist/SecurityHardeningTest.java`
+- `[MOD]` `frontend/src/App.tsx`
+- `[MOD]` `frontend/src/pages/patient/DocumentSummarizerPage.tsx`
+- `[MOD]` `frontend/src/pages/patient/SymptomTriagePage.tsx`
+
+#### 3. Tài Liệu Đã Đồng Bộ:
+- `docs/DATABASE_DESIGN.md`: Bổ sung chi tiết bản di trú V6, cập nhật lược đồ `users` và `audit_logs`.
+- `docs/USE_CASES.md`: Cập nhật UC-01 với cơ chế SameSite=Lax cookie, Rate Limit đăng ký, Suspended User blocking.
+- `docs/WORK_LOG.md`: Thêm bản ghi phiên làm việc #045.
+
+#### 4. Bằng Chứng Kiểm Thử:
+- Backend: `mvn test` $\rightarrow$ **66/66 tests PASS** (4 test mới xác minh: suspended block, locked block, active pass, registration rate limit).
+- Frontend: `npm run build` $\rightarrow$ **0 TypeScript error**, bundle sạch 1671 modules.
+
+#### 5. Điểm Nóng Tech Lead Cần Review:
+- **`ResponseCookie` vs `Cookie`**: Sử dụng `ResponseCookie` là cách chuẩn của Spring Web để chèn thuộc tính `SameSite=Lax` vốn không được hỗ trợ bởi servlet API cũ.
+- **Optimistic Locking**: Đã có cột `version` trong Flyway V6 và `@Version` trong `User.java`, bảo vệ toàn vẹn dữ liệu khi concurrent writes xảy ra.
 
 ---
 

@@ -11,11 +11,11 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "appointments", indexes = {
-        @Index(name = "idx_appointment_code", columnList = "appointmentCode", unique = true),
+        @Index(name = "idx_appointment_code", columnList = "appointment_code", unique = true),
         @Index(name = "idx_appointment_patient", columnList = "patient_id"),
         @Index(name = "idx_appointment_doctor", columnList = "doctor_id"),
         @Index(name = "idx_appointment_status", columnList = "status"),
-        @Index(name = "idx_appointment_schedule", columnList = "doctor_id, scheduledStart")
+        @Index(name = "idx_appointment_schedule", columnList = "doctor_id, scheduled_start")
 })
 public class Appointment {
 

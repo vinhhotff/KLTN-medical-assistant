@@ -80,6 +80,14 @@ public class SecurityRateLimiterService {
         return checkLimit("preview:" + ipAddress, 3, 10);
     }
 
+    /**
+     * Rate limiter for new patient account registration (Anti-Bot Spam / BCrypt DoS)
+     * Limit: 5 registrations per 10 minutes per IP address
+     */
+    public boolean allowRegistrationAttempt(String ipAddress) {
+        return checkLimit("register:" + ipAddress, 5, 10);
+    }
+
     private boolean checkLimit(String key, int maxRequests, int windowMinutes) {
         String redisKey = "ratelimit:" + key;
         try {

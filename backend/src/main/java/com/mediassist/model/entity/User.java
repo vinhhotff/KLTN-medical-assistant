@@ -59,6 +59,9 @@ public class User {
     @Column(name = "vip_valid_until")
     private LocalDateTime vipValidUntil;
 
+    @Version
+    private Long version = 0L;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -144,6 +147,9 @@ public class User {
         }
         return scanQuota > 0;
     }
+
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

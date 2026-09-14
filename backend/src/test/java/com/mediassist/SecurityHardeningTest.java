@@ -185,4 +185,114 @@ class SecurityHardeningTest {
         // 6th attempt blocked!
         assertFalse(rateLimiter.allowLoginAttempt("192.168.1.100"));
     }
+
+    @Test
+    @DisplayName("Should enforce IP rate limiting on registration attempts (Anti-Spam / BCrypt DoS)")
+    void testSecurityRateLimiter_RegistrationLimit() {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> valueOps = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+
+        when(valueOps.increment(startsWith("ratelimit:register:"))).thenReturn(1L, 2L, 3L, 4L, 5L, 6L);
+
+        SecurityRateLimiterService rateLimiter = new SecurityRateLimiterService(redisTemplate);
+
+        assertTrue(rateLimiter.allowRegistrationAttempt("10.0.0.1"));
+        assertTrue(rateLimiter.allowRegistrationAttempt("10.0.0.1"));
+        assertTrue(rateLimiter.allowRegistrationAttempt("10.0.0.1"));
+        assertTrue(rateLimiter.allowRegistrationAttempt("10.0.0.1"));
+        assertTrue(rateLimiter.allowRegistrationAttempt("10.0.0.1"));
+        // 6th attempt blocked!
+        assertFalse(rateLimiter.allowRegistrationAttempt("10.0.0.1"));
+    }
+
+    @Test
+    @DisplayName("JwtAuthenticationFilter should block SUSPENDED user with HTTP 403")
+    void testJwtFilter_BlocksSuspendedUser() throws Exception {
+        com.mediassist.security.JwtAuthenticationFilter filter =
+                new com.mediassist.security.JwtAuthenticationFilter(tokenProvider, userRepository);
+
+        org.springframework.mock.web.MockHttpServletRequest request = new org.springframework.mock.web.MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer valid_suspended_token");
+        org.springframework.mock.web.MockHttpServletResponse response = new org.springframework.mock.web.MockHttpServletResponse();
+        jakarta.servlet.FilterChain chain = mock(jakarta.servlet.FilterChain.class);
+
+        UUID userId = UUID.randomUUID();
+        when(tokenProvider.validateToken("valid_suspended_token")).thenReturn(true);
+        when(tokenProvider.getUserIdFromToken("valid_suspended_token")).thenReturn(userId);
+
+        User suspendedUser = new User();
+        suspendedUser.setId(userId);
+        suspendedUser.setEmail("suspended@mediassist.local");
+        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        suspendedUser.setRole(Role.PATIENT);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(suspendedUser));
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(403, response.getStatus());
+        assertTrue(response.getContentAsString().contains("ACCOUNT_SUSPENDED"));
+        verify(chain, never()).doFilter(any(), any());
+    }
+
+    @Test
+    @DisplayName("JwtAuthenticationFilter should block LOCKED user with HTTP 423")
+    void testJwtFilter_BlocksLockedUser() throws Exception {
+        com.mediassist.security.JwtAuthenticationFilter filter =
+                new com.mediassist.security.JwtAuthenticationFilter(tokenProvider, userRepository);
+
+        org.springframework.mock.web.MockHttpServletRequest request = new org.springframework.mock.web.MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer valid_locked_token");
+        org.springframework.mock.web.MockHttpServletResponse response = new org.springframework.mock.web.MockHttpServletResponse();
+        jakarta.servlet.FilterChain chain = mock(jakarta.servlet.FilterChain.class);
+
+        UUID userId = UUID.randomUUID();
+        when(tokenProvider.validateToken("valid_locked_token")).thenReturn(true);
+        when(tokenProvider.getUserIdFromToken("valid_locked_token")).thenReturn(userId);
+
+        User lockedUser = new User();
+        lockedUser.setId(userId);
+        lockedUser.setEmail("locked@mediassist.local");
+        lockedUser.setStatus(UserStatus.ACTIVE);
+        lockedUser.setRole(Role.PATIENT);
+        lockedUser.setLockedUntil(LocalDateTime.now().plusMinutes(10));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(lockedUser));
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(423, response.getStatus());
+        assertTrue(response.getContentAsString().contains("ACCOUNT_LOCKED"));
+        verify(chain, never()).doFilter(any(), any());
+    }
+
+    @Test
+    @DisplayName("JwtAuthenticationFilter should authenticate ACTIVE user and call filterChain")
+    void testJwtFilter_PassesActiveUser() throws Exception {
+        com.mediassist.security.JwtAuthenticationFilter filter =
+                new com.mediassist.security.JwtAuthenticationFilter(tokenProvider, userRepository);
+
+        org.springframework.mock.web.MockHttpServletRequest request = new org.springframework.mock.web.MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer valid_active_token");
+        org.springframework.mock.web.MockHttpServletResponse response = new org.springframework.mock.web.MockHttpServletResponse();
+        jakarta.servlet.FilterChain chain = mock(jakarta.servlet.FilterChain.class);
+
+        UUID userId = UUID.randomUUID();
+        when(tokenProvider.validateToken("valid_active_token")).thenReturn(true);
+        when(tokenProvider.getUserIdFromToken("valid_active_token")).thenReturn(userId);
+
+        User activeUser = new User();
+        activeUser.setId(userId);
+        activeUser.setEmail("active@mediassist.local");
+        activeUser.setStatus(UserStatus.ACTIVE);
+        activeUser.setRole(Role.PATIENT);
+        activeUser.setFullName("Bệnh nhân An");
+        when(userRepository.findById(userId)).thenReturn(Optional.of(activeUser));
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(200, response.getStatus());
+        verify(chain, times(1)).doFilter(request, response);
+        assertNotNull(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication());
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
 }

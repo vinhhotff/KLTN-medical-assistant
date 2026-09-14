@@ -101,13 +101,14 @@ graph TD
    - Bệnh nhân chọn tab *"Đăng Ký Bệnh Nhân Mới"* trên `/login`.
    - Điền: Họ tên, Email, Mật khẩu, Số điện thoại, Giới tính, Ngày sinh, Địa chỉ.
    - Trình duyệt gửi `POST /api/v1/auth/register`.
-   - Backend `AuthService.register()` kiểm tra tính duy nhất của email, băm mật khẩu bằng BCrypt, tự động sinh mã hồ sơ bệnh án điện tử EMR `patient_code` dạng `BN-2026-XXXXX`, trả về `HTTP 201 Created` kèm token và set `HttpOnly` cookie.
+   - Rate Limiter phân tán kiểm tra tần suất IP (tối đa 5 lượt đăng ký / 10 phút / IP) để ngăn chặn bot spam và bảo vệ tài nguyên tính toán BCrypt-12.
+   - Backend `AuthService.register()` kiểm tra tính duy nhất của email, băm mật khẩu bằng BCrypt (work factor 12), tự động sinh mã hồ sơ bệnh án điện tử EMR `patient_code` dạng `BN-2026-XXXXX`, trả về `HTTP 201 Created` kèm token và set `ResponseCookie` chuẩn `SameSite=Lax; HttpOnly`.
 2. **Trường hợp Đăng nhập:**
    - Người dùng nhập Email + Mật khẩu.
    - Rate Limiter phân tán trên Redis kiểm tra tần suất IP (`< 5 requests / phút`).
    - Trình duyệt gửi `POST /api/v1/auth/login`.
    - `AuthService` kiểm tra khóa tài khoản (`locked_until`). Nếu tài khoản đang bị khóa, trả về ngay `HTTP 423 Locked`.
-   - `PasswordEncoder` kiểm tra mật khẩu. Nếu khớp, đặt lại `failed_login_attempts = 0`, cấp token JWT và `HttpOnly` cookie.
+   - `PasswordEncoder` kiểm tra mật khẩu. Nếu khớp, đặt lại `failed_login_attempts = 0`, cấp token JWT và thiết lập `ResponseCookie` chuẩn `SameSite=Lax; HttpOnly; Path=/; Max-Age=900`.
    - Frontend lưu trữ thông tin vào Zustand Auth Store và chuyển hướng người dùng theo role:
      - `ADMIN` $\rightarrow$ `/admin`
      - `DOCTOR` $\rightarrow$ `/doctor`
@@ -117,6 +118,8 @@ graph TD
 * **2a. Quá tải tần suất đăng nhập từ 1 IP (Anti-DDoS / Rate Limit):** Khi 1 IP gửi quá 5 request login trong 1 phút, hệ thống từ chối với `HTTP 429 Too Many Requests`.
 * **2b. Sai mật khẩu liên tiếp (Anti-Brute Force Account Lockout):** Mỗi lần sai, `failed_login_attempts` tăng 1. Sau đúng 5 lần sai, tài khoản tự động bị khóa trong 15 phút, trả về `HTTP 423 Locked` kèm cảnh báo thời gian còn lại.
 * **2c. Đăng ký email đã tồn tại:** Trả về `HTTP 409 Conflict` với thông báo thân thiện bằng tiếng Việt.
+* **2d. Quá tải tần suất đăng ký từ 1 IP (Anti-Spam Bot):** Khi 1 IP gửi quá 5 lượt đăng ký trong 10 phút, hệ thống từ chối với `HTTP 429 Too Many Requests`.
+* **2e. Tài khoản bị đình chỉ (Suspended User Rejection):** Khi tài khoản mang trạng thái `SUSPENDED` (do Admin khóa), `JwtAuthenticationFilter` chặn ngay lập tức với `HTTP 403 Forbidden` (`ACCOUNT_SUSPENDED`), vô hiệu hóa tức thời quyền truy cập kể cả khi token JWT của phiên trước vẫn còn hiệu lực.
 
 ---
 

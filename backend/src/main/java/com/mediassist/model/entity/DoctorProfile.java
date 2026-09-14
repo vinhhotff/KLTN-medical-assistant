@@ -12,7 +12,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "doctor_profiles", indexes = {
-        @Index(name = "idx_doctor_verified", columnList = "isVerified")
+        @Index(name = "idx_doctor_verified", columnList = "is_verified")
 })
 public class DoctorProfile {
 

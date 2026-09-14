@@ -39,7 +39,8 @@ interface AbnormalIndicator {
 }
 
 interface DoctorMatch {
-  doctorId: string;
+  doctorId?: string;
+  id?: string;
   fullName: string;
   bio: string;
   licenseNumber: string;
@@ -197,6 +198,7 @@ export const DocumentSummarizerPage: React.FC = () => {
   });
   const [slots, setSlots] = useState<DoctorSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<DoctorSlot | null>(null);
   const [bookingNotes, setBookingNotes] = useState('');
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
@@ -327,13 +329,15 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
   const loadSlots = async (doctorId: string, date: string) => {
     try {
       setSlotsLoading(true);
+      setSlotsError(null);
       setSelectedSlot(null);
       const res = await api.get(`/doctors/${doctorId}/slots?date=${date}`);
       if (res.data?.data) {
         setSlots(res.data.data);
       }
-    } catch (err) {
-      console.error('Failed to load slots:', err);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
+      setSlotsError(axiosErr.response?.data?.error?.message || 'Không thể tải lịch khám của bác sĩ. Vui lòng kiểm tra lại kết nối mạng.');
     } finally {
       setSlotsLoading(false);
     }
@@ -1104,6 +1108,10 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   </label>
                   {slotsLoading ? (
                     <div className="py-6 text-center text-slate-400">Đang tải lịch trống...</div>
+                  ) : slotsError ? (
+                    <div className="p-3 bg-red-50 text-red-600 rounded-xl text-center text-sm border border-red-200">
+                      {slotsError}
+                    </div>
                   ) : slots.length === 0 ? (
                     <div className="p-3 bg-slate-50 text-slate-500 rounded-xl text-center">
                       Bác sĩ không có lịch trống trong ngày này. Vui lòng chọn ngày khác.

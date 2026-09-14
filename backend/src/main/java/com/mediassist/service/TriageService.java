@@ -40,7 +40,6 @@ public class TriageService {
         this.clinicalRagService = clinicalRagService;
     }
 
-    @Transactional
     public TriageResponse assessSymptoms(TriageRequest request, String userEmail) {
         String symptoms = request.getSymptoms().trim();
         log.info("🩺 Performing AI symptom triage for: '{}'", symptoms);

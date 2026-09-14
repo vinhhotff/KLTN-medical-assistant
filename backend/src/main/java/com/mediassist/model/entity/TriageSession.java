@@ -9,8 +9,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "triage_sessions", indexes = {
         @Index(name = "idx_triage_user", columnList = "user_id"),
-        @Index(name = "idx_triage_urgency", columnList = "urgencyLevel"),
-        @Index(name = "idx_triage_created_at", columnList = "createdAt")
+        @Index(name = "idx_triage_urgency", columnList = "urgency_level"),
+        @Index(name = "idx_triage_created_at", columnList = "created_at")
 })
 public class TriageSession {
 

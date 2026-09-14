@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "doctor_schedule_slots", indexes = {
-        @Index(name = "idx_doctor_schedule_lookup", columnList = "doctor_profile_id, dayOfWeek, isActive")
+        @Index(name = "idx_doctor_schedule_lookup", columnList = "doctor_profile_id, day_of_week, is_active")
 })
 public class DoctorScheduleSlot {
 
