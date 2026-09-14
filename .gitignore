@@ -42,3 +42,4 @@ postgres_data/
 redis_data/
 uploads/
 backend/uploads/
+.claude/

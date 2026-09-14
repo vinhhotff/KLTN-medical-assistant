@@ -9,7 +9,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "medical_documents", indexes = {
         @Index(name = "idx_med_doc_user", columnList = "user_id"),
-        @Index(name = "idx_med_doc_created", columnList = "createdAt")
+        @Index(name = "idx_med_doc_created", columnList = "createdAt"),
+        @Index(name = "idx_med_doc_hash", columnList = "user_id, file_hash")
 })
 public class MedicalDocument {
 

@@ -25,7 +25,7 @@ public class MedicalDocumentValidator {
             "am tinh", "duong tinh", "positive", "negative", "binh thuong", "bat thuong",
             // Common units
             "mg/dl", "mmol/l", "u/l", "g/l", "g/dl", "ui/l", "iu/l", "ng/ml", "pg/ml",
-            "fl", "pg", "µmol/l", "umol/l", "ml/min", "%", "g/24h", "mg/24h", "g/l",
+            "fl", "pg", "µmol/l", "umol/l", "ml/min", "g/24h", "mg/24h",
             // Biochemistry & Metabolic
             "glucose", "duong huyet", "duong mau", "hba1c", "cholesterol", "triglyceride",
             "hdl", "ldl", "vldl", "lipid", "ast", "got", "alt", "gpt", "ggt", "sgot", "sgpt",
@@ -134,10 +134,8 @@ public class MedicalDocumentValidator {
             return true;
         }
 
-        // Text files or documents with text/plain or valid clinical text mime type
-        if (contentType != null && (contentType.contains("text/") || contentType.contains("application/pdf") || contentType.contains("image/"))) {
-            return true;
-        }
+        // Never rely blindly on client Content-Type headers for PDF or image formats;
+        // only genuine magic bytes (checked above) or verified UTF-8 plain text documents are permitted.
 
         // Resilient check for printable UTF-8 text documents
         try {

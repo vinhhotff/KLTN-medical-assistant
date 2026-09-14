@@ -159,27 +159,29 @@ graph TD
 * **Mục tiêu:** Chuyển đổi kết quả xét nghiệm máu/sinh hóa/nước tiểu từ tài liệu PDF phức tạp thành bảng chỉ số đối chiếu dễ hiểu cho người bệnh, cảnh báo bất thường, đề xuất bác sĩ chuyên khoa phù hợp tức thì; đồng thời bảo vệ 100% token AI và lưu trữ an toàn trên Cloud EMR.
 * **Tiền điều kiện:** 
   - Người dùng **ĐÃ ĐĂNG NHẬP** (Zero-Trust Login-First, từ chối khách vãng lai với `HTTP 401 Unauthorized`).
-  - Người dùng có hạn ngạch quét (`scanQuota > 0`) hoặc là hội viên `MediPass VIP` (nếu hết lượt, chuyển sang ngoại lệ `HTTP 402 Payment Required`).
-  - Tuân thủ Rate Limiter (tối đa 5 lượt tải lên/phút) và giới hạn kích thước tệp tối đa 15MB.
+  - Người dùng có hạn ngạch quét (`scanQuota > 0`) hoặc là hội viên `MediPass VIP` còn hiệu lực (`isVipActive()`). Nếu hết lượt, chuyển sang ngoại lệ `HTTP 402 Payment Required`.
+  - Tuân thủ Rate Limiter (tối đa 5 lượt tải lên/phút cho user đăng nhập, tối đa 3 lượt/10 phút theo IP cho preview khách vãng lai) và giới hạn kích thước tệp tối đa 10MB.
 * **REST Endpoints:**
-  - `POST /api/v1/documents/analyze`: Tiếp nhận tệp PDF xét nghiệm qua `multipart/form-data` (tham số `file`), kiểm tra SHA-256 deduplication, sàng lọc gatekeeper, bóc tách chỉ số sinh hóa, upload Supabase Storage, trừ hạn ngạch và tìm kiếm bác sĩ qua pgvector. (Yêu cầu đăng nhập).
-  - `POST /api/v1/documents/analyze-preview`: Quét thử nghiệm tài liệu xét nghiệm trực tiếp từ Landing Page không cần đăng nhập. Sàng lọc Gatekeeper nghiêm ngặt chống ảnh rác/ảnh mờ/ảnh ngoài ngành y, bóc tách chỉ số thật 100% từ PDF/Vision (không suy đoán, không dùng mock), truy vấn danh mục bác sĩ pgvector tương thích nhưng không lưu Cloud EMR và không trừ quota.
+  - `POST /api/v1/documents/analyze`: Tiếp nhận tệp PDF xét nghiệm qua `multipart/form-data` (tham số `file`), kiểm tra SHA-256 deduplication, trừ hạn ngạch atomic SQL (với rollback compensating hook), sàng lọc gatekeeper, bóc tách chỉ số sinh hóa song song qua thread pool riêng `medicalOcrExecutor`, upload Supabase Storage và tìm kiếm bác sĩ qua pgvector. Không giữ kết nối DB qua các lệnh gọi ngoại vi (Non-blocking I/O). (Yêu cầu đăng nhập).
+  - `POST /api/v1/documents/analyze-preview`: Quét thử nghiệm tài liệu xét nghiệm trực tiếp từ Landing Page không cần đăng nhập, áp dụng Rate Limiting theo IP (tối đa 3 lượt/10 phút chống cạn kiệt token). Sàng lọc Gatekeeper nghiêm ngặt chống ảnh rác/ảnh mờ/ảnh ngoài ngành y, bóc tách chỉ số thật 100% từ PDF/Vision (không suy đoán, không dùng mock), truy vấn danh mục bác sĩ pgvector tương thích nhưng không lưu Cloud EMR và không trừ quota.
   - `GET /api/v1/documents/quota`: Kiểm tra số lượt quét khả dụng, hạn hội viên VIP và trạng thái gói cước của người bệnh.
   - `GET /api/v1/documents/my`: Truy vấn lịch sử các tài liệu y tế đã phân tích của người bệnh đăng nhập (yêu cầu Bearer Token).
 
 #### Luồng sự kiện chính (Happy Path):
-1. **Chọn Tệp & Kích Hoạt Tức Thì (Instant Upload UX):** Bệnh nhân kéo thả hoặc chọn tệp kết quả xét nghiệm (`.pdf`, `.txt`, `.jpg`, `.png`, dung lượng $\le 15\text{MB}$) hoặc chọn dữ liệu mẫu chuẩn (Mỡ máu / Men gan / Điện não). Hệ thống **tự động kích hoạt ngay tiến trình phân tích AI** mà không cần qua nút bấm trung gian.
+1. **Chọn Tệp & Kích Hoạt Tức Thì (Instant Upload UX):** Bệnh nhân kéo thả hoặc chọn tệp kết quả xét nghiệm (`.pdf`, `.txt`, `.jpg`, `.png`, dung lượng $\le 10\text{MB}$) hoặc chọn dữ liệu mẫu chuẩn (Mỡ máu / Men gan / Điện não). Hệ thống **tự động kích hoạt ngay tiến trình phân tích AI** mà không cần qua nút bấm trung gian.
 2. **Kiểm tra Deduplication (SHA-256 Checksum):** Hệ thống tính toán hash SHA-256 của tệp. Nếu tài liệu đã từng được phân tích trong hồ sơ EMR của bệnh nhân này:
    - Trả về ngay kết quả đã lưu trong DB (`cachedResult = true`).
    - Tiêu tốn **0 token AI**, độ trễ $< 5\text{ms}$ và **TUYỆT ĐỐI KHÔNG trừ lượt quét**.
-3. **Kiểm tra Hạn Ngạch (Quota Guard):** Nếu tài liệu mới, kiểm tra `user.hasScanQuota()`. Nếu hết lượt và chưa là VIP, trả về `HTTP 402 Payment Required` kèm modal báo giá gói quét và thanh toán tức thì qua VietQR.
+3. **Trừ Hạn Ngạch Đảm Bảo Tính Nguyên Tử (Atomic Quota Reservation & Compensating Rollback):** Nếu tài liệu mới, hệ thống thực thi câu lệnh SQL nguyên tử `UPDATE users SET scan_quota = scan_quota - 1 WHERE id = :id AND scan_quota > 0` (hoặc bỏ qua nếu là hội viên VIP còn hạn `isVipActive()`).
+   - Nếu số hàng cập nhật = 0 (hết lượt), trả về `HTTP 402 Payment Required` kèm modal báo giá gói quét.
+   - Nếu xảy ra lỗi bất kỳ ở các bước sau (validation fail, AI timeout, lỗi ghi DB), hệ thống tự động kích hoạt **Compensating Rollback Hook** gọi `userRepository.restoreScanQuota()` để hoàn trả 100% quota cho người bệnh.
 4. **Cơ chế Lọc Rác Tiền Thẩm Định (Gatekeeper Sieve Validation):**
-   - Kiểm tra magic bytes nhị phân (chấp nhận PDF, JPEG, PNG và luồng văn bản y khoa hợp lệ).
+   - Kiểm tra magic bytes nhị phân thực thụ (chấp nhận PDF, JPEG, PNG chữ ký chuẩn và luồng văn bản y khoa UTF-8 hợp lệ; không tin cậy header client).
    - Kiểm tra độ dài văn bản trích xuất (tối thiểu 15 ký tự; nếu ngắn hơn -> lỗi mờ ảnh `UNREADABLE_DOCUMENT`).
-   - Sàng lọc từ điển chỉ số lâm sàng (40+ thuật ngữ xét nghiệm sinh hóa/huyết học).
-   - *Nếu phát hiện ảnh rác (hóa đơn siêu thị, meme, chó mèo, ảnh mờ):* Ném lỗi `HTTP 400 NON_MEDICAL_DOCUMENT` hoặc `UNREADABLE_DOCUMENT` và **KHÔNG trừ hạn ngạch** của bệnh nhân.
+   - Sàng lọc từ điển chỉ số lâm sàng (loại bỏ ký tự đơn lẻ như `%` để tránh hóa đơn thương mại lọt qua).
+   - *Nếu phát hiện ảnh rác (hóa đơn siêu thị, meme, chó mèo, ảnh mờ):* Ném lỗi `HTTP 400 NON_MEDICAL_DOCUMENT` hoặc `UNREADABLE_DOCUMENT` và tự động hoàn trả hạn ngạch của bệnh nhân.
 5. **Quy Trình Lazy Upload & Triệt Tiêu File Mồ Côi (Zero Orphan Files):**
-   - **Xử lý hoàn toàn trong RAM:** Trích xuất chỉ số sinh hóa và thực thi suy luận AI RAG trực tiếp trên mảng byte trong bộ nhớ tạm.
+   - **Xử lý hoàn toàn trong RAM & Không Giữ Kết Nối DB:** Trích xuất chỉ số sinh hóa và thực thi suy luận AI RAG trực tiếp trên mảng byte trong bộ nhớ tạm mà không mở transaction DB dài, triệt tiêu nguy cơ cạn kiệt Connection Pool HikariCP.
    - **Lazy Upload Pattern:** Chỉ khi và chỉ khi toàn bộ pipeline phân tích AI hoàn tất 100% thành công, tệp nhị phân mới được tải lên Supabase Storage (`storageService.uploadDocument()`). Nếu AI lỗi hoặc file hỏng, luồng hủy ngay tại chỗ, **0 byte rác lọt lên Cloud**.
    - **Compensating Rollback Hook:** Nếu quá trình ghi Database EMR gặp sự cố sau khi đã tải lên Cloud, hệ thống tự động gọi `storageService.deleteDocument()` để xóa file trên Supabase ngay lập tức, triệt tiêu 100% nguy cơ file mồ côi (Zero Orphan Files).
    - **Upload Circuit Breaker:** Người dùng gửi liên tiếp 3 file không hợp lệ sẽ bị áp dụng án phạt Cooldown 10 phút.

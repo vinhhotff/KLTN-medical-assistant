@@ -54,18 +54,18 @@ public class MedicalDocumentController {
 
         String userEmail = authentication.getName();
 
-        if (!rateLimiterService.allowDocumentUpload(userEmail)) {
-            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
-                    "Bạn đã gửi quá nhiều yêu cầu phân tích hồ sơ trong thời gian ngắn. Vui lòng chờ 1 phút trước khi tải tệp tiếp theo.");
-        }
-
         if (file == null || file.isEmpty()) {
             throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE", "Vui lòng chọn tệp tài liệu y tế (PDF hoặc ảnh) để phân tích.");
         }
 
-        if (rateLimiterService.isUploadPenalized(userEmail)) {
+        if (rateLimiterService != null && rateLimiterService.isUploadPenalized(userEmail)) {
             throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "UPLOAD_COOLDOWN_ACTIVE",
                     "Tài khoản tạm thời bị khóa tính năng tải tệp trong 10 phút do gửi nhiều tệp không hợp lệ liên tiếp. Vui lòng thử lại sau.");
+        }
+
+        if (rateLimiterService != null && !rateLimiterService.allowDocumentUpload(userEmail)) {
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
+                    "Bạn đã gửi quá nhiều yêu cầu phân tích hồ sơ trong thời gian ngắn. Vui lòng chờ 1 phút trước khi tải tệp tiếp theo.");
         }
 
         if (file.getSize() > 10 * 1024 * 1024) {
@@ -80,7 +80,14 @@ public class MedicalDocumentController {
     @PostMapping(value = "/analyze-preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Kiểm thử và bóc tách tức thì hồ sơ y tế không cần đăng nhập (Preview cho Trang chủ & Thử nghiệm)")
     public ResponseEntity<ApiResponse<DocumentAnalysisResponse>> analyzeDocumentPreview(
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file,
+            jakarta.servlet.http.HttpServletRequest request) {
+
+        String clientIp = extractClientIp(request);
+        if (rateLimiterService != null && !rateLimiterService.allowPreviewUpload(clientIp)) {
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "PREVIEW_RATE_LIMIT_EXCEEDED",
+                    "Bạn đã đạt giới hạn 3 lần phân tích xem trước miễn phí trong 10 phút. Vui lòng đăng nhập hoặc tạo tài khoản để tiếp tục sử dụng.");
+        }
 
         if (file == null || file.isEmpty()) {
             throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE", "Vui lòng chọn tệp tài liệu y tế (PDF hoặc ảnh) để phân tích.");
@@ -93,6 +100,19 @@ public class MedicalDocumentController {
 
         DocumentAnalysisResponse response = analysisService.analyzeDocumentPreview(file);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    private String extractClientIp(jakarta.servlet.http.HttpServletRequest request) {
+        if (request == null) return "unknown";
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isBlank()) {
+            return xRealIp.trim();
+        }
+        return request.getRemoteAddr() != null ? request.getRemoteAddr() : "unknown";
     }
 
     @GetMapping("/my")

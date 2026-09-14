@@ -89,6 +89,17 @@ class MedicalDocumentAnalysisServiceTest {
         testUser.setSubscriptionTier("FREE");
 
         lenient().when(userRepository.findByEmail(anyString())).thenReturn(java.util.Optional.of(testUser));
+        lenient().when(userRepository.deductScanQuota(any())).thenAnswer(inv -> {
+            if (testUser.getScanQuota() > 0) {
+                testUser.setScanQuota(testUser.getScanQuota() - 1);
+                return 1;
+            }
+            return 0;
+        });
+        lenient().when(userRepository.restoreScanQuota(any())).thenAnswer(inv -> {
+            testUser.setScanQuota(testUser.getScanQuota() + 1);
+            return 1;
+        });
         lenient().when(storageService.uploadDocument(any(), any(), any(), any()))
                 .thenReturn("https://supabase.co/storage/v1/object/public/medical-documents/test.pdf");
 
@@ -559,5 +570,64 @@ class MedicalDocumentAnalysisServiceTest {
         // Clinical reason should mention the abnormal indicators
         assertNotNull(response.getDoctorRecommendationReason());
         assertTrue(response.getDoctorRecommendationReason().contains("Glucose") || response.getDoctorRecommendationReason().contains("chỉ số bất thường"));
+    }
+
+    @Test
+    @DisplayName("Should deduct quota when VIP subscription has expired even if tier string contains VIP")
+    void testExpiredVipUserHasQuotaDeducted() {
+        testUser.setSubscriptionTier("VIP_MONTHLY");
+        testUser.setVipValidUntil(java.time.LocalDateTime.now().minusDays(2)); // Expired 2 days ago
+        testUser.setScanQuota(3);
+
+        String mockDoc = "BỆNH VIỆN BẠCH MAI\nKHOA XÉT NGHIỆM\nGlucose: 8.5 mmol/L (3.9 - 6.4)\nKết luận: Đái tháo đường.";
+        MockMultipartFile file = new MockMultipartFile("file", "expired_vip.pdf", "application/pdf", mockDoc.getBytes());
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+        assertNotNull(response);
+
+        // Expired VIP must have their quota atomically deducted
+        assertEquals(2, testUser.getScanQuota(), "Expired VIP quota must be decremented from 3 to 2");
+        verify(userRepository, atLeastOnce()).deductScanQuota(eq(testUser.getId()));
+    }
+
+    @Test
+    @DisplayName("Should NOT deduct quota for active VIP subscribers")
+    void testActiveVipUserNeverHasQuotaDeducted() {
+        testUser.setSubscriptionTier("VIP_MONTHLY");
+        testUser.setVipValidUntil(java.time.LocalDateTime.now().plusDays(28)); // Active VIP for 28 days
+        testUser.setScanQuota(5);
+
+        String mockDoc = "BỆNH VIỆN CHỢ RẪY\nKHOA SINH HÓA\nCholesterol: 7.2 mmol/L (3.9 - 5.2)\nKết luận: Tăng mỡ máu.";
+        MockMultipartFile file = new MockMultipartFile("file", "active_vip.pdf", "application/pdf", mockDoc.getBytes());
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+        assertNotNull(response);
+
+        // Active VIP quota must NEVER be touched
+        assertEquals(5, testUser.getScanQuota(), "Active VIP scan quota must remain 5");
+        verify(userRepository, never()).deductScanQuota(any());
+    }
+
+    @Test
+    @DisplayName("Should trigger compensating action to restore quota if document validation fails")
+    void testQuotaRestoredWhenValidationFails() {
+        testUser.setScanQuota(2);
+        testUser.setSubscriptionTier("FREE");
+
+        doThrow(new AppException(HttpStatus.BAD_REQUEST, "NON_MEDICAL_DOCUMENT", "Tài liệu phi y tế"))
+                .when(medicalDocumentValidator).validateDocument(any(), any(), any(), any());
+
+        String receiptText = "HÓA ĐƠN TIỀN ĐIỆN VÀ NƯỚC THÁNG 9 NĂM 2026";
+        MockMultipartFile file = new MockMultipartFile("file", "receipt.pdf", "application/pdf", receiptText.getBytes());
+
+        AppException ex = assertThrows(AppException.class, () ->
+                analysisService.analyzeDocument(file, "patient@mediassist.local")
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+
+        // Quota was deducted then restored by compensating rollback hook
+        assertEquals(2, testUser.getScanQuota(), "User quota must be restored back to 2 after validation failure");
+        verify(userRepository, times(1)).restoreScanQuota(eq(testUser.getId()));
+        verify(rateLimiterService, times(1)).recordFailedUpload("patient@mediassist.local");
     }
 }

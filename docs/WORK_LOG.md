@@ -11,8 +11,50 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :--- | :---: |
-| **#043** | 13/09/2026 | Khắc Phục Lỗi Xung Đột JPA Nullable Phiếu Trắng, Chặn Path Traversal Storage, Chuẩn Hóa Status Chỉ Số & Ngày Tiếp Nhận Frontend | AI Assistant | 🟢 Sẵn sàng Review |
-| **#042** | 13/09/2026 | Cải Tổ Toàn Diện Pipeline Phân Tích Tài Liệu Y Khoa (6 Điểm Nghẽn): Tích Hợp Trực Tiếp Google Gemini Flash (Tier 1 AI), Trình Phân Tích Bảng Đa Mẫu (Multi-Pattern Table Parser), Dữ Liệu Lâm Sàng Động 100% (Bệnh Viện, Bác Sĩ, SID, Máy Xét Nghiệm), Khoảng Tham Chiếu Giới Tính & Nâng Hạn Mức PDF 10 Trang | AI Assistant | 🟢 Đã Duyệt |
+| **#044** | 14/09/2026 | Production-Readiness Audit & Hardening Document Scan: Khắc Phục Nghẽn HikariCP (@Transactional Anti-Pattern), Quota Atomic Reservation & Rollback, ThreadPool OCR Riêng, Rate Limiting Preview & Caffeine Cache | AI Assistant | 🟢 Sẵn sàng Review |
+| **#043** | 13/09/2026 | Khắc Phục Lỗi Xung Đột JPA Nullable Phiếu Trắng, Chặn Path Traversal Storage, Chuẩn Hóa Status Chỉ Số & Ngày Tiếp Nhận Frontend | AI Assistant | 🟢 Đã Duyệt |
+
+---
+
+## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#044] Production-Readiness Audit & Hardening Document Scan: Khắc Phục Nghẽn HikariCP (@Transactional Anti-Pattern), Quota Atomic Reservation & Rollback, ThreadPool OCR Riêng, Rate Limiting Preview & Caffeine Cache
+* **Thời gian:** 2026-09-14 11:20:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-03 (Phân Tích Tài Liệu Y Khoa Multimodal & RAG Lâm Sàng Chuyên Sâu)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (**62/62 Tests PASS 100%**)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (**Build 0 TypeScript error, 1670 modules**)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Hạng Mục Đã Khắc Phục Triệt Để:
+1. **Khắc phục @Transactional Anti-Pattern giải phóng Connection Pool HikariCP**:
+   - Gỡ bỏ `@Transactional` trên phương thức `analyzeDocument` và `@Transactional(readOnly = true)` trên `analyzeDocumentPreview`.
+   - Các tác vụ I/O tốn thời gian (OCR Vision 5-20s, LLM Gemini/OpenRouter 3-15s, Supabase upload 1-3s) hoàn toàn không giữ kết nối database. Hệ thống không còn bị nghẽn cạn kiệt HikariCP (10 connections) khi nhiều bệnh nhân cùng quét tài liệu đồng thời.
+2. **Khắc phục Race Condition Hạn Ngạch Quét (Atomic Quota Reservation & Compensating Rollback)**:
+   - Triển khai câu lệnh atomic SQL `@Modifying @Query("UPDATE User u SET u.scanQuota = u.scanQuota - 1 WHERE u.id = :id AND u.scanQuota > 0")` và `restoreScanQuota` trong `UserRepository`.
+   - Trừ hạn ngạch ngay từ đầu trước khi chạy pipeline; nếu tài liệu không hợp lệ hoặc bất kỳ bước phân tích/lưu trữ nào gặp lỗi ngoại lệ, kích hoạt Compensating Rollback hoàn lại 100% quota cho người dùng. Ngăn chặn tuyệt đối hành vi spam đa luồng để scan vượt hạn ngạch.
+3. **Sửa Lỗi Tài Khoản VIP Hết Hạn Vẫn Được Quét Miễn Phí Vĩnh Viễn**:
+   - Thêm phương thức `user.isVipActive()` kiểm tra cả `subscriptionTier` và `vipValidUntil`.
+   - Khi VIP đã quá hạn, hệ thống tự động nhận diện và trừ quota bình thường, đồng thời phản hồi cờ `isVip = false` trên các DTO hạn ngạch.
+4. **Bảo Vệ Endpoint Preview `/analyze-preview` Chống Tấn Công DDoS & Token Draining**:
+   - Bổ sung kiểm tra rate limit theo địa chỉ IP của khách vãng lai (`allowPreviewUpload(clientIp)`, tối đa 3 lượt/10 phút).
+   - Tối ưu thứ tự kiểm tra bảo mật: kiểm tra cooldown penalty trước khi kiểm tra rate limit window.
+5. **Cấp Riêng ThreadPool Cho Song Song Hóa OCR (`medicalOcrExecutor`)**:
+   - Tạo mới `AsyncConfig.java` cấu hình `ThreadPoolTaskExecutor` (core=4, max=8, queue=50, CallerRunsPolicy).
+   - Không còn phụ thuộc vào `ForkJoinPool.commonPool()` cho các network I/O call, bảo vệ hiệu năng toàn cục của JVM.
+6. **Harden Rate Limiter Với Redis Lua Script & Caffeine Cache Chống Rò Rỉ Bộ Nhớ**:
+   - Sử dụng script Lua atomic cho Redis `INCR` + `EXPIRE`, ngăn ngừa nguy cơ người dùng bị khóa tài khoản vĩnh viễn khi mạng ngắt quãng.
+   - Thay thế toàn bộ `ConcurrentHashMap` bằng Caffeine Cache có giới hạn kích thước tối đa (10,000 mục) và thời gian tự hủy (TTL), triệt tiêu nguy cơ tràn bộ nhớ RAM (OOM).
+7. **Bịt Lỗ Hổng Bypass Magic Bytes & Keyword Sieve**:
+   - Xóa bỏ việc kiểm tra lỏng lẻo qua header `Content-Type` do client gửi lên trong `hasValidMagicBytes`.
+   - Xóa bỏ ký tự `"%"` khỏi từ điển y tế `MEDICAL_DICTIONARY`, ngăn chặn việc hóa đơn thông thường lọt qua cổng kiểm duyệt.
+8. **Đồng Bộ Giới Hạn Dung Lượng Frontend & Entity Index**:
+   - Sửa dòng thông báo ở `DocumentSummarizerPage.tsx` từ 15MB thành 10MB cho khớp hoàn toàn với Backend.
+   - Thêm `@Index(name = "idx_med_doc_hash", columnList = "user_id, file_hash")` vào thực thể `MedicalDocument`.
+9. **Kiểm thử Toàn diện**:
+   - Bổ sung 3 unit tests mới: `testExpiredVipUserHasQuotaDeducted`, `testActiveVipUserNeverHasQuotaDeducted`, và `testQuotaRestoredWhenValidationFails`.
+   - Toàn bộ **62/62 Unit Tests PASS 100%**. Frontend biên dịch sạch sẽ 0 lỗi.
 | **#041** | 13/09/2026 | Triển Khai Phân Trang Offset (Limit/Offset Pagination) Toàn Diện Toàn Bộ Bảng/Danh Sách Chống Tràn Bộ Nhớ & Khắc Phục Lưu Trữ Supabase Database / Cloud Storage | AI Assistant | 🟢 Đã Duyệt |
 | **#040** | 13/09/2026 | Hiện Thực Hóa Toàn Diện Phân Hệ Quản Lý Bác Sĩ (Doctor Management Portal): 2 Tab Roster & Vetting, Tìm Kiếm/Lọc Đa Tiêu Chí, Modal Thêm/Sửa/Xem Chi Tiết, Khóa/Mở Khóa Tài Khoản & Đồng Bộ AI Vector pgvector | AI Assistant | 🟢 Đã Duyệt |
 | **#039** | 13/09/2026 | Triệt Tiêu Đề Xuất Bác Sĩ Ảo (Zero Fake Recommendation) Khi Tài Liệu Trống/Mờ, Thiết Lập Multi-Model Vision OCR Pool & Nâng Cấp PDF 200 DPI | AI Assistant | 🟢 Đã Duyệt |

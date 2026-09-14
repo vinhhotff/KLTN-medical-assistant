@@ -498,7 +498,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             Kéo thả tệp PDF phiếu xét nghiệm vào đây hoặc bấm để chọn tệp
           </p>
           <p className="text-xs text-slate-400 mt-1">
-            Hỗ trợ định dạng PDF, JPG, PNG dung lượng tối đa 15MB. Dữ liệu được mã hóa an toàn.
+            Hỗ trợ định dạng PDF, JPG, PNG dung lượng tối đa 10MB (Khuyến nghị 500KB - 5MB). Dữ liệu được mã hóa an toàn.
           </p>
         </div>
 

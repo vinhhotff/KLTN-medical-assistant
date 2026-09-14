@@ -82,7 +82,14 @@ public class MedicalDocumentAnalysisService {
              storageService, clinicalRagService, null);
     }
 
-    @Transactional
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.beans.factory.annotation.Qualifier("medicalOcrExecutor")
+    private java.util.concurrent.Executor medicalOcrExecutor;
+
+    public void setMedicalOcrExecutor(java.util.concurrent.Executor medicalOcrExecutor) {
+        this.medicalOcrExecutor = medicalOcrExecutor;
+    }
+
     public DocumentAnalysisResponse analyzeDocument(MultipartFile file, String userEmail) {
         String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document.pdf";
         String contentType = file.getContentType() != null ? file.getContentType() : "application/pdf";
@@ -176,142 +183,133 @@ public class MedicalDocumentAnalysisService {
             }
         }
 
-        // 3. Quota Pre-check for NEW analysis (Anti-Abuse)
-        if (!user.hasScanQuota()) {
-            log.warn("🚫 [QUOTA EXCEEDED] User {} has 0 scan quota and is not a VIP subscriber.", userEmail);
-            throw new com.mediassist.common.AppException(
-                    org.springframework.http.HttpStatus.PAYMENT_REQUIRED,
-                    "QUOTA_EXCEEDED",
-                    "Bạn đã sử dụng hết lượt phân tích tài liệu miễn phí. Vui lòng mua gói quét lẻ (29.000đ) hoặc nâng cấp MediPass VIP (149.000đ/tháng) để tiếp tục."
-            );
-        }
-
-        // 3. Extract content from PDF, text or image stream (with scanned PDF fallback)
-        String extractedText = extractDocumentText(fileBytes, contentType, fileName);
-
-        // 4. Gatekeeper Validation (Invalid / Blurry / Non-medical filter)
-        // If validation fails, throws AppException(400) -> User quota is NOT deducted & 0 bytes stored!
-        try {
-            medicalDocumentValidator.validateDocument(fileBytes, contentType, extractedText, fileName);
-        } catch (com.mediassist.common.AppException ex) {
-            if (rateLimiterService != null) {
-                rateLimiterService.recordFailedUpload(userEmail);
+        // 3. Atomic Quota Pre-check & Reservation (Anti-Abuse & Race Condition Shield)
+        boolean isVip = user.isVipActive();
+        boolean quotaDeducted = false;
+        if (!isVip) {
+            int rowsUpdated = userRepository.deductScanQuota(user.getId());
+            if (rowsUpdated == 0) {
+                log.warn("🚫 [QUOTA EXCEEDED] User {} has 0 scan quota and is not an active VIP subscriber.", userEmail);
+                throw new com.mediassist.common.AppException(
+                        org.springframework.http.HttpStatus.PAYMENT_REQUIRED,
+                        "QUOTA_EXCEEDED",
+                        "Bạn đã sử dụng hết lượt phân tích tài liệu miễn phí. Vui lòng mua gói quét lẻ (29.000đ) hoặc nâng cấp MediPass VIP (149.000đ/tháng) để tiếp tục."
+                );
             }
-            throw ex;
+            quotaDeducted = true;
+            log.info("💳 Atomically deducted 1 scan quota for user {}. Starting analysis pipeline.", userEmail);
         }
 
-        // 5. Dynamic Metadata Extraction from raw text
-        Map<String, String> rawMeta = extractDocumentMetadata(extractedText);
-        String patientGender = rawMeta.get("patientGender");
-
-        // 6. Comprehensive Lab Scanning across all pages (columnar, delimiter & tab parsers)
-        List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName, patientGender);
-
-        // 7. Smart Clinical Windowing for Multi-Page Verbose Documents
-        String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
-
-        // 8. AI-First Clinical Reasoning via Gemini / OpenRouter (or Safe Deterministic Fallback if offline)
-        // NOTICE: AI processing happens completely in-memory on byte[] BEFORE any cloud upload!
-        com.mediassist.ai.ClinicalAiResult ragResult;
-        try {
-            ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, Collections.emptyList());
-        } catch (Exception ex) {
-            if (rateLimiterService != null) {
-                rateLimiterService.recordFailedUpload(userEmail);
-            }
-            throw ex;
-        }
-
-        // 9. Derive specialty and findings strictly from AI reasoning with clinical safety gating
-        List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
-                ? ragResult.getIndicators()
-                : parsedIndicators;
-
-        boolean hasClinicalIndicators = indicators != null && !indicators.isEmpty();
-
-        String specialtySlug;
-        String specialtyName;
-        List<DoctorMatchDto> matchedDoctors;
-
-        if (hasClinicalIndicators) {
-            specialtySlug = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
-                    ? ragResult.getRecommendedSpecialtySlug().toLowerCase().trim()
-                    : "general-internal-medicine";
-            specialtyName = (ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank())
-                    ? ragResult.getRecommendedSpecialtyName()
-                    : getSpecialtyDisplayName(specialtySlug);
-
-            // 10. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
-            String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
-            matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
-
-            if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
-                DoctorMatchDto top = matchedDoctors.get(0);
-                top.setAiRecommended(true);
-                String reason = (ragResult.getDoctorRecommendationReason() != null && !ragResult.getDoctorRecommendationReason().isBlank())
-                        ? ragResult.getDoctorRecommendationReason()
-                        : buildClinicalDoctorRecommendationReason(top, specialtyName, indicators);
-                top.setAiRecommendationReason(reason);
-                ragResult.setRecommendedDoctorId(top.getDoctorId());
-                ragResult.setDoctorRecommendationReason(reason);
-            }
-        } else {
-            // CRITICAL MEDICAL INTEGRITY RULE: Zero Fake Recommendations on blank / blurry documents
-            specialtySlug = null;
-            specialtyName = "Chưa xác định (Cần bổ sung kết quả)";
-            matchedDoctors = Collections.emptyList();
-            ragResult.setRecommendedDoctorId(null);
-            ragResult.setDoctorRecommendationReason("Không đủ cơ sở lâm sàng để đề xuất bác sĩ do tài liệu chưa có chỉ số kết quả xét nghiệm cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu.");
-        }
-
-        String clinicalSummary = (ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank())
-                ? ragResult.getClinicalSummary()
-                : (hasClinicalIndicators ? generateClinicalSummary(indicators, specialtyName) : "Tài liệu y tế chưa ghi nhận kết quả đo lường cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu. Hệ thống không chỉ định chuyên khoa và bác sĩ khi thiếu dữ liệu lâm sàng.");
-
-        String plainExplanation = (ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank())
-                ? ragResult.getPlainLanguageExplanation()
-                : (hasClinicalIndicators ? generatePlainLanguageExplanation(indicators, specialtyName) : "⚠️ Thông báo an toàn y tế: Phiếu xét nghiệm của bạn chưa có kết quả đo lường (phiếu chỉ định trắng hoặc hình ảnh mờ không đọc được số liệu). Để bảo đảm an toàn và không chẩn đoán sai lệch, hệ thống chưa đề xuất chuyên khoa và bác sĩ. Vui lòng chụp lại ảnh rõ nét hoặc tải phiếu có kết quả đầy đủ từ bệnh viện.");
-
-        List<String> suggestedQuestions = (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty())
-                ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(indicators);
-
-        // Dynamic Metadata Consolidation
-        String finalHospital = (ragResult.getHospitalName() != null && !ragResult.getHospitalName().isBlank())
-                ? ragResult.getHospitalName() : rawMeta.get("hospitalName");
-        String finalDept = (ragResult.getDepartmentName() != null && !ragResult.getDepartmentName().isBlank())
-                ? ragResult.getDepartmentName() : rawMeta.get("departmentName");
-        String finalDoc = (ragResult.getOrderingDoctor() != null && !ragResult.getOrderingDoctor().isBlank())
-                ? ragResult.getOrderingDoctor() : rawMeta.get("orderingDoctor");
-        String finalDate = (ragResult.getTestDate() != null && !ragResult.getTestDate().isBlank())
-                ? ragResult.getTestDate() : rawMeta.get("testDate");
-        String finalSid = (ragResult.getSidCode() != null && !ragResult.getSidCode().isBlank())
-                ? ragResult.getSidCode() : rawMeta.get("sidCode");
-        String finalPat = (ragResult.getPatientName() != null && !ragResult.getPatientName().isBlank())
-                ? ragResult.getPatientName() : rawMeta.get("patientName");
-        String finalAge = (ragResult.getPatientAge() != null && !ragResult.getPatientAge().isBlank())
-                ? ragResult.getPatientAge() : rawMeta.get("patientAge");
-        String finalGender = (ragResult.getPatientGender() != null && !ragResult.getPatientGender().isBlank())
-                ? ragResult.getPatientGender() : rawMeta.get("patientGender");
-        String finalDev = (ragResult.getDeviceModel() != null && !ragResult.getDeviceModel().isBlank())
-                ? ragResult.getDeviceModel() : rawMeta.get("deviceModel");
-
-        Map<String, String> metadataMap = new HashMap<>();
-        if (finalHospital != null) metadataMap.put("hospitalName", finalHospital);
-        if (finalDept != null) metadataMap.put("departmentName", finalDept);
-        if (finalDoc != null) metadataMap.put("orderingDoctor", finalDoc);
-        if (finalDate != null) metadataMap.put("testDate", finalDate);
-        if (finalSid != null) metadataMap.put("sidCode", finalSid);
-        if (finalPat != null) metadataMap.put("patientName", finalPat);
-        if (finalAge != null) metadataMap.put("patientAge", finalAge);
-        if (finalGender != null) metadataMap.put("patientGender", finalGender);
-        if (finalDev != null) metadataMap.put("deviceModel", finalDev);
-
-        // 10. LAZY CLOUD UPLOAD & PERSISTENCE WITH ROLLBACK COMPENSATING HOOK
-        // Architecture Rule: ONLY upload to Supabase Cloud when AI analysis has 100% SUCCEEDED!
-        // If DB persistence fails, immediately invoke deleteDocument hook to eliminate orphan files.
         String storageUrl = null;
-        MedicalDocument medDoc;
+        MedicalDocument medDoc = null;
         try {
+            // 4. Extract content from PDF, text or image stream (with scanned PDF fallback)
+            String extractedText = extractDocumentText(fileBytes, contentType, fileName);
+
+            // 5. Gatekeeper Validation (Invalid / Blurry / Non-medical filter)
+            // If validation fails, throws AppException(400) -> Compensating action restores quota!
+            medicalDocumentValidator.validateDocument(fileBytes, contentType, extractedText, fileName);
+
+            // 6. Dynamic Metadata Extraction from raw text
+            Map<String, String> rawMeta = extractDocumentMetadata(extractedText);
+            String patientGender = rawMeta.get("patientGender");
+
+            // 7. Comprehensive Lab Scanning across all pages (columnar, delimiter & tab parsers)
+            List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName, patientGender);
+
+            // 8. Smart Clinical Windowing for Multi-Page Verbose Documents
+            String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
+
+            // 9. AI-First Clinical Reasoning via Gemini / OpenRouter (or Safe Deterministic Fallback if offline)
+            // NOTICE: AI processing happens completely in-memory on byte[] BEFORE any cloud upload!
+            com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, Collections.emptyList());
+
+            // 10. Derive specialty and findings strictly from AI reasoning with clinical safety gating
+            List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
+                    ? ragResult.getIndicators()
+                    : parsedIndicators;
+
+            boolean hasClinicalIndicators = indicators != null && !indicators.isEmpty();
+
+            String specialtySlug;
+            String specialtyName;
+            List<DoctorMatchDto> matchedDoctors;
+
+            if (hasClinicalIndicators) {
+                specialtySlug = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
+                        ? ragResult.getRecommendedSpecialtySlug().toLowerCase().trim()
+                        : "general-internal-medicine";
+                specialtyName = (ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank())
+                        ? ragResult.getRecommendedSpecialtyName()
+                        : getSpecialtyDisplayName(specialtySlug);
+
+                // Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
+                String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
+                matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+
+                if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+                    DoctorMatchDto top = matchedDoctors.get(0);
+                    top.setAiRecommended(true);
+                    top.setAiRecommendationReason(
+                            ragResult.getDoctorRecommendationReason() != null && !ragResult.getDoctorRecommendationReason().isBlank()
+                                    ? ragResult.getDoctorRecommendationReason()
+                                    : "Bác sĩ có chuyên môn sâu về " + specialtyName + ", kinh nghiệm điều trị các ca lâm sàng có chỉ số bất thường tương tự."
+                    );
+                    ragResult.setDoctorRecommendationReason(top.getAiRecommendationReason());
+                }
+            } else {
+                // CRITICAL MEDICAL INTEGRITY RULE: Zero Fake Recommendations on blank / blurry documents
+                specialtySlug = null;
+                specialtyName = "Chưa xác định (Cần bổ sung kết quả)";
+                matchedDoctors = Collections.emptyList();
+                ragResult.setRecommendedDoctorId(null);
+                ragResult.setDoctorRecommendationReason("Không đủ cơ sở lâm sàng để đề xuất bác sĩ do tài liệu chưa có chỉ số kết quả xét nghiệm cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu.");
+            }
+
+            String clinicalSummary = (ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank())
+                    ? ragResult.getClinicalSummary()
+                    : (hasClinicalIndicators ? generateClinicalSummary(indicators, specialtyName) : "Tài liệu y tế chưa ghi nhận kết quả đo lường cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu. Hệ thống không chỉ định chuyên khoa và bác sĩ khi thiếu dữ liệu lâm sàng.");
+
+            String plainExplanation = (ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank())
+                    ? ragResult.getPlainLanguageExplanation()
+                    : (hasClinicalIndicators ? generatePlainLanguageExplanation(indicators, specialtyName) : "⚠️ Thông báo an toàn y tế: Phiếu xét nghiệm của bạn chưa có kết quả đo lường (phiếu chỉ định trắng hoặc hình ảnh mờ không đọc được số liệu). Để bảo đảm an toàn và không chẩn đoán sai lệch, hệ thống chưa đề xuất chuyên khoa và bác sĩ. Vui lòng chụp lại ảnh rõ nét hoặc tải phiếu có kết quả đầy đủ từ bệnh viện.");
+
+            List<String> suggestedQuestions = (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty())
+                    ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(indicators);
+
+            // Dynamic Metadata Consolidation
+            String finalHospital = (ragResult.getHospitalName() != null && !ragResult.getHospitalName().isBlank())
+                    ? ragResult.getHospitalName() : rawMeta.get("hospitalName");
+            String finalDept = (ragResult.getDepartmentName() != null && !ragResult.getDepartmentName().isBlank())
+                    ? ragResult.getDepartmentName() : rawMeta.get("departmentName");
+            String finalDoc = (ragResult.getOrderingDoctor() != null && !ragResult.getOrderingDoctor().isBlank())
+                    ? ragResult.getOrderingDoctor() : rawMeta.get("orderingDoctor");
+            String finalDate = (ragResult.getTestDate() != null && !ragResult.getTestDate().isBlank())
+                    ? ragResult.getTestDate() : rawMeta.get("testDate");
+            String finalSid = (ragResult.getSidCode() != null && !ragResult.getSidCode().isBlank())
+                    ? ragResult.getSidCode() : rawMeta.get("sidCode");
+            String finalPat = (ragResult.getPatientName() != null && !ragResult.getPatientName().isBlank())
+                    ? ragResult.getPatientName() : rawMeta.get("patientName");
+            String finalAge = (ragResult.getPatientAge() != null && !ragResult.getPatientAge().isBlank())
+                    ? ragResult.getPatientAge() : rawMeta.get("patientAge");
+            String finalGender = (ragResult.getPatientGender() != null && !ragResult.getPatientGender().isBlank())
+                    ? ragResult.getPatientGender() : rawMeta.get("patientGender");
+            String finalDev = (ragResult.getDeviceModel() != null && !ragResult.getDeviceModel().isBlank())
+                    ? ragResult.getDeviceModel() : rawMeta.get("deviceModel");
+
+            Map<String, String> metadataMap = new HashMap<>();
+            if (finalHospital != null) metadataMap.put("hospitalName", finalHospital);
+            if (finalDept != null) metadataMap.put("departmentName", finalDept);
+            if (finalDoc != null) metadataMap.put("orderingDoctor", finalDoc);
+            if (finalDate != null) metadataMap.put("testDate", finalDate);
+            if (finalSid != null) metadataMap.put("sidCode", finalSid);
+            if (finalPat != null) metadataMap.put("patientName", finalPat);
+            if (finalAge != null) metadataMap.put("patientAge", finalAge);
+            if (finalGender != null) metadataMap.put("patientGender", finalGender);
+            if (finalDev != null) metadataMap.put("deviceModel", finalDev);
+
+            // 11. LAZY CLOUD UPLOAD & PERSISTENCE
+            // Architecture Rule: ONLY upload to Supabase Cloud when AI analysis has 100% SUCCEEDED!
             storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
 
             medDoc = new MedicalDocument();
@@ -345,13 +343,60 @@ public class MedicalDocumentAnalysisService {
             if (rateLimiterService != null) {
                 rateLimiterService.recordSuccessfulUpload(userEmail);
             }
+
+            // 12. Assemble Response DTO
+            DocumentAnalysisResponse response = new DocumentAnalysisResponse();
+            response.setDocumentId(medDoc.getId());
+            response.setFileName(fileName);
+            response.setFileSizeBytes(size);
+            response.setContentType(contentType);
+            response.setClinicalSummary(clinicalSummary);
+            response.setPlainLanguageExplanation(plainExplanation);
+            response.setIndicators(indicators);
+            response.setRecommendedSpecialtySlug(specialtySlug);
+            response.setRecommendedSpecialtyName(specialtyName);
+            response.setSuggestedQuestions(suggestedQuestions);
+            response.setMatchedDoctors(matchedDoctors);
+            response.setStorageUrl(storageUrl);
+            response.setCachedResult(false);
+            response.setModelUsed(ragResult.getModelUsed());
+            response.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
+
+            // Dynamic Clinical Metadata
+            response.setHospitalName(finalHospital);
+            response.setDepartmentName(finalDept);
+            response.setOrderingDoctor(finalDoc);
+            response.setTestDate(finalDate);
+            response.setSidCode(finalSid);
+            response.setPatientName(finalPat);
+            response.setPatientAge(finalAge);
+            response.setPatientGender(finalGender);
+            response.setDeviceModel(finalDev);
+
+            return response;
+
         } catch (Exception e) {
+            if (quotaDeducted) {
+                try {
+                    userRepository.restoreScanQuota(user.getId());
+                    log.info("💳 [COMPENSATING ACTION] Restored 1 scan quota for user {} due to pipeline failure: {}", userEmail, e.getMessage());
+                } catch (Exception restoreEx) {
+                    log.error("Failed to restore scan quota for user {}: {}", userEmail, restoreEx.getMessage());
+                }
+            }
             if (storageUrl != null) {
-                log.warn("🚨 [ROLLBACK COMPENSATING ACTION] Transaction failure after cloud upload. Deleting orphan file: {}", storageUrl);
+                log.warn("🚨 [ROLLBACK COMPENSATING ACTION] Pipeline failure after cloud upload. Deleting orphan file: {}", storageUrl);
                 try {
                     storageService.deleteDocument(storageUrl);
                 } catch (Exception deleteEx) {
                     log.error("Failed to delete orphan file: {}", deleteEx.getMessage());
+                }
+            }
+            if (medDoc != null && medDoc.getId() != null) {
+                try {
+                    medicalDocumentRepository.delete(medDoc);
+                } catch (Exception deleteDocEx) {
+                    log.error("Failed to rollback saved medical document: {}", deleteDocEx.getMessage());
                 }
             }
             if (rateLimiterService != null) {
@@ -359,51 +404,12 @@ public class MedicalDocumentAnalysisService {
             }
             throw e;
         }
-
-        // 11. Deduct Quota (If not VIP)
-        if (user.getSubscriptionTier() == null || !user.getSubscriptionTier().toUpperCase().contains("VIP")) {
-            user.setScanQuota(Math.max(0, user.getScanQuota() - 1));
-            userRepository.save(user);
-            log.info("💳 Deducted 1 scan quota for user {}. Remaining quota: {}", userEmail, user.getScanQuota());
-        }
-
-        // 12. Assemble Response DTO
-        DocumentAnalysisResponse response = new DocumentAnalysisResponse();
-        response.setDocumentId(medDoc.getId());
-        response.setFileName(fileName);
-        response.setFileSizeBytes(size);
-        response.setContentType(contentType);
-        response.setClinicalSummary(clinicalSummary);
-        response.setPlainLanguageExplanation(plainExplanation);
-        response.setIndicators(indicators);
-        response.setRecommendedSpecialtySlug(specialtySlug);
-        response.setRecommendedSpecialtyName(specialtyName);
-        response.setSuggestedQuestions(suggestedQuestions);
-        response.setMatchedDoctors(matchedDoctors);
-        response.setStorageUrl(storageUrl);
-        response.setCachedResult(false);
-        response.setModelUsed(ragResult.getModelUsed());
-        response.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
-
-        // Dynamic Clinical Metadata
-        response.setHospitalName(finalHospital);
-        response.setDepartmentName(finalDept);
-        response.setOrderingDoctor(finalDoc);
-        response.setTestDate(finalDate);
-        response.setSidCode(finalSid);
-        response.setPatientName(finalPat);
-        response.setPatientAge(finalAge);
-        response.setPatientGender(finalGender);
-        response.setDeviceModel(finalDev);
-
-        return response;
     }
 
     /**
      * Instant document analysis preview for testing & Landing Page without requiring patient login or quota deduction.
      * Enforces strict medical validation, real PDF/OCR extraction, and real pgvector doctor matching.
      */
-    @Transactional(readOnly = true)
     public DocumentAnalysisResponse analyzeDocumentPreview(MultipartFile file) {
         String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document.pdf";
         String contentType = file.getContentType() != null ? file.getContentType() : "application/pdf";
@@ -568,7 +574,7 @@ public class MedicalDocumentAnalysisService {
                         "Người dùng không tồn tại trên hệ thống."
                 ));
 
-        boolean isVip = user.getSubscriptionTier() != null && user.getSubscriptionTier().toUpperCase().contains("VIP");
+        boolean isVip = user.isVipActive();
         return new com.mediassist.dto.UserQuotaDto(
                 user.getScanQuota(),
                 user.getSubscriptionTier(),
@@ -624,7 +630,7 @@ public class MedicalDocumentAnalysisService {
         }
 
         User updated = userRepository.save(user);
-        boolean isVip = updated.getSubscriptionTier() != null && updated.getSubscriptionTier().toUpperCase().contains("VIP");
+        boolean isVip = updated.isVipActive();
         return new UserQuotaDto(
                 updated.getScanQuota(),
                 updated.getSubscriptionTier(),
@@ -1024,6 +1030,9 @@ public class MedicalDocumentAnalysisService {
 
                         String[] ocrResults = new String[totalPages];
                         List<java.util.concurrent.CompletableFuture<Void>> futures = new ArrayList<>();
+                        java.util.concurrent.Executor executor = medicalOcrExecutor != null
+                                ? medicalOcrExecutor
+                                : java.util.concurrent.ForkJoinPool.commonPool();
 
                         for (int i = 0; i < totalPages; i++) {
                             final int pageIdx = i;
@@ -1036,7 +1045,7 @@ public class MedicalDocumentAnalysisService {
                                     log.warn("Parallel OCR error on page {}: {}", pageIdx + 1, ex.getMessage());
                                     ocrResults[pageIdx] = "";
                                 }
-                            }));
+                            }, executor));
                         }
 
                         // Wait for all pages to finish OCR with resilient 25s timeout

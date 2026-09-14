@@ -131,11 +131,16 @@ public class User {
     public LocalDateTime getVipValidUntil() { return vipValidUntil; }
     public void setVipValidUntil(LocalDateTime vipValidUntil) { this.vipValidUntil = vipValidUntil; }
 
-    public boolean hasScanQuota() {
+    public boolean isVipActive() {
         if (subscriptionTier != null && subscriptionTier.toUpperCase().contains("VIP")) {
-            if (vipValidUntil == null || LocalDateTime.now().isBefore(vipValidUntil)) {
-                return true;
-            }
+            return vipValidUntil == null || LocalDateTime.now().isBefore(vipValidUntil);
+        }
+        return false;
+    }
+
+    public boolean hasScanQuota() {
+        if (isVipActive()) {
+            return true;
         }
         return scanQuota > 0;
     }
