@@ -335,8 +335,9 @@ class MedicalDocumentAnalysisServiceTest {
 
         // Verify doctor search query was focused, containing specialty and abnormal findings, NOT raw boilerplate
         org.mockito.ArgumentCaptor<String> queryCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(doctorSemanticSearchService).searchDoctors(queryCaptor.capture(), eq(4));
-        String capturedQuery = queryCaptor.getValue();
+        verify(doctorSemanticSearchService, atLeastOnce()).searchDoctors(queryCaptor.capture(), eq(4));
+        List<String> capturedQueries = queryCaptor.getAllValues();
+        String capturedQuery = capturedQueries.get(capturedQueries.size() - 1);
         assertTrue(capturedQuery.contains("Gastroenterology"), "Query should specify target specialty");
         assertTrue(capturedQuery.contains("ALT") || capturedQuery.contains("AST"), "Query should mention abnormal findings");
         assertFalse(capturedQuery.contains("bvquocte2026"), "Query should not contain wifi or administrative boilerplate");

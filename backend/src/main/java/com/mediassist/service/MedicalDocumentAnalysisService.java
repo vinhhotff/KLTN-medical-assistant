@@ -250,9 +250,13 @@ public class MedicalDocumentAnalysisService {
             // 8. Smart Clinical Windowing for Multi-Page Verbose Documents
             String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
 
+            // 8b. Pre-RAG Semantic Retrieval: Query pgvector with initial clinical indicators & context
+            String preRagQuery = buildInitialDoctorQuery(parsedIndicators, clinicalContext);
+            List<DoctorMatchDto> preRagCandidates = doctorSemanticSearchService.searchDoctors(preRagQuery, 4);
+
             // 9. AI-First Clinical Reasoning via Gemini / OpenRouter (or Safe Deterministic Fallback if offline)
-            // NOTICE: AI processing happens completely in-memory on byte[] BEFORE any cloud upload!
-            com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, Collections.emptyList());
+            // NOTICE: Real candidate doctors from pgvector are provided directly to LLM for personalized selection!
+            com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, preRagCandidates);
 
             // 10. Derive specialty and findings strictly from AI reasoning with clinical safety gating
             List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
@@ -276,16 +280,27 @@ public class MedicalDocumentAnalysisService {
                 // Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
                 String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
                 matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+                if ((matchedDoctors == null || matchedDoctors.isEmpty()) && preRagCandidates != null && !preRagCandidates.isEmpty()) {
+                    matchedDoctors = preRagCandidates;
+                }
 
                 if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
                     DoctorMatchDto top = matchedDoctors.get(0);
                     top.setAiRecommended(true);
-                    top.setAiRecommendationReason(
-                            ragResult.getDoctorRecommendationReason() != null && !ragResult.getDoctorRecommendationReason().isBlank()
-                                    ? ragResult.getDoctorRecommendationReason()
-                                    : "Bác sĩ có chuyên môn sâu về " + specialtyName + ", kinh nghiệm điều trị các ca lâm sàng có chỉ số bất thường tương tự."
-                    );
-                    ragResult.setDoctorRecommendationReason(top.getAiRecommendationReason());
+
+                    String aiReason = ragResult.getDoctorRecommendationReason();
+                    boolean isMetaComplaint = aiReason == null || aiReason.isBlank() ||
+                            aiReason.toLowerCase().contains("không có ứng viên") ||
+                            aiReason.toLowerCase().contains("chưa có danh sách") ||
+                            aiReason.toLowerCase().contains("không thể đề xuất bác sĩ cụ thể") ||
+                            aiReason.toLowerCase().contains("chưa có ứng viên");
+
+                    String finalReason = isMetaComplaint
+                            ? buildClinicalDoctorRecommendationReason(top, specialtyName, indicators)
+                            : aiReason;
+
+                    top.setAiRecommendationReason(finalReason);
+                    ragResult.setDoctorRecommendationReason(finalReason);
                 }
             } else {
                 // CRITICAL MEDICAL INTEGRITY RULE: Zero Fake Recommendations on blank / blurry documents
@@ -542,8 +557,12 @@ public class MedicalDocumentAnalysisService {
         // 5. Smart Clinical Windowing for Multi-Page Verbose Documents
         String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
 
+        // 5b. Pre-RAG Semantic Retrieval: Query pgvector with initial clinical indicators & context
+        String preRagQuery = buildInitialDoctorQuery(parsedIndicators, clinicalContext);
+        List<DoctorMatchDto> preRagCandidates = doctorSemanticSearchService.searchDoctors(preRagQuery, 4);
+
         // 6. AI-First Clinical Reasoning via Gemini / OpenRouter (or Safe Deterministic Fallback if offline)
-        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, Collections.emptyList());
+        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, preRagCandidates);
 
         // 7. Derive specialty and findings strictly from AI reasoning with clinical safety gating
         List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
@@ -567,16 +586,28 @@ public class MedicalDocumentAnalysisService {
             // 8. Focused pgvector Doctor Retrieval based on AI-reasoned specialty & abnormal indicators
             String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
             matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+            if ((matchedDoctors == null || matchedDoctors.isEmpty()) && preRagCandidates != null && !preRagCandidates.isEmpty()) {
+                matchedDoctors = preRagCandidates;
+            }
 
             if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
                 DoctorMatchDto top = matchedDoctors.get(0);
                 top.setAiRecommended(true);
-                String reason = (ragResult.getDoctorRecommendationReason() != null && !ragResult.getDoctorRecommendationReason().isBlank())
-                        ? ragResult.getDoctorRecommendationReason()
-                        : buildClinicalDoctorRecommendationReason(top, specialtyName, indicators);
-                top.setAiRecommendationReason(reason);
+
+                String aiReason = ragResult.getDoctorRecommendationReason();
+                boolean isMetaComplaint = aiReason == null || aiReason.isBlank() ||
+                        aiReason.toLowerCase().contains("không có ứng viên") ||
+                        aiReason.toLowerCase().contains("chưa có danh sách") ||
+                        aiReason.toLowerCase().contains("không thể đề xuất bác sĩ cụ thể") ||
+                        aiReason.toLowerCase().contains("chưa có ứng viên");
+
+                String finalReason = isMetaComplaint
+                        ? buildClinicalDoctorRecommendationReason(top, specialtyName, indicators)
+                        : aiReason;
+
+                top.setAiRecommendationReason(finalReason);
                 ragResult.setRecommendedDoctorId(top.getDoctorId());
-                ragResult.setDoctorRecommendationReason(reason);
+                ragResult.setDoctorRecommendationReason(finalReason);
             }
         } else {
             // CRITICAL MEDICAL INTEGRITY RULE: Zero Fake Recommendations on blank / blurry documents
@@ -1321,6 +1352,24 @@ public class MedicalDocumentAnalysisService {
         }
 
         return distilled.toString();
+    }
+
+    /**
+     * Builds an initial broad clinical query from parsed indicators and distilled clinical context
+     * to fetch pre-RAG doctor candidates from pgvector before calling the LLM.
+     */
+    private String buildInitialDoctorQuery(List<AbnormalIndicatorDto> indicators, String clinicalContext) {
+        StringBuilder sb = new StringBuilder();
+        if (indicators != null && !indicators.isEmpty()) {
+            for (AbnormalIndicatorDto ind : indicators) {
+                sb.append(ind.getName()).append(" ");
+            }
+        }
+        if (clinicalContext != null && !clinicalContext.isBlank()) {
+            String cleanContext = clinicalContext.length() > 250 ? clinicalContext.substring(0, 250) : clinicalContext;
+            sb.append(cleanContext);
+        }
+        return sb.toString().trim();
     }
 
     /**

@@ -23,23 +23,35 @@ public class EmbeddingService {
     @Value("${app.ai.gemini.api-key:}")
     private String geminiApiKey;
 
-    // Semantic anchor offsets for medical domains within the 1536-d space
-    private static final Map<String, Integer> DOMAIN_BASES = Map.of(
-            "cardio", 0,
-            "neuro", 256,
-            "derma", 512,
-            "gastro", 768,
-            "pediatric", 1024,
-            "general", 1280
+    // Semantic anchor offsets for all 12 hospital medical specialties within 1536-d space (128 dims per domain)
+    private static final Map<String, Integer> DOMAIN_BASES = Map.ofEntries(
+            Map.entry("cardiology", 0),
+            Map.entry("endocrinology", 128),
+            Map.entry("nephrology", 256),
+            Map.entry("gastroenterology", 384),
+            Map.entry("pulmonology", 512),
+            Map.entry("neurology", 640),
+            Map.entry("dermatology", 768),
+            Map.entry("orthopedics", 896),
+            Map.entry("pediatrics", 1024),
+            Map.entry("obstetrics-gynecology", 1152),
+            Map.entry("ent", 1280),
+            Map.entry("general-internal-medicine", 1408)
     );
 
-    private static final Map<String, List<String>> DOMAIN_KEYWORDS = Map.of(
-            "cardio", List.of("tim", "mach", "huyet ap", "hoi hop", "trong nguc", "mach vanh", "nhip tim", "suy tim", "tam quat tim", "cardiology"),
-            "neuro", List.of("dau", "nao", "tien dinh", "chong mat", "than kinh", "mat ngu", "te bi", "dong kinh", "dau dau", "neurology"),
-            "derma", List.of("da", "ngua", "man", "di ung", "mun", "viem da", "phat ban", "vay nen", "toc", "mong", "dermatology"),
-            "gastro", List.of("da day", "ruot", "tieu hoa", "gan", "mat", "trao nguoc", "dau bung", "dai trang", "viem loet", "gastroenterology"),
-            "pediatric", List.of("tre", "em be", "so sinh", "bieng an", "tiem chung", "nhi", "pediatrics"),
-            "general", List.of("kham", "suc khoe", "tong quat", "sot", "met moi", "sut can", "dinh ky", "internal")
+    private static final Map<String, List<String>> DOMAIN_KEYWORDS = Map.ofEntries(
+            Map.entry("cardiology", List.of("tim", "mach", "huyet ap", "hoi hop", "trong nguc", "mach vanh", "nhip tim", "suy tim", "troponin", "cholesterol", "triglyceride", "cardiology")),
+            Map.entry("endocrinology", List.of("noi tiet", "tieu duong", "dai thao duong", "glucose", "hba1c", "duong huyet", "tuyen giap", "tsh", "ft4", "insulin", "buou co", "endocrinology", "diabetes")),
+            Map.entry("nephrology", List.of("than", "tiet nieu", "creatinine", "ure", "acid uric", "egfr", "loc mau", "chay than", "soi than", "phu", "nephrology", "urology")),
+            Map.entry("gastroenterology", List.of("da day", "ruot", "tieu hoa", "gan", "mat", "trao nguoc", "dau bung", "dai trang", "viem loet", "alt", "ast", "ggt", "bilirubin", "men gan", "gastroenterology", "hepatology")),
+            Map.entry("pulmonology", List.of("phoi", "ho hap", "ho", "kho tho", "copd", "hen", "phe quan", "viem phoi", "tuc nguc", "tho rit", "pulmonology", "respiratory")),
+            Map.entry("neurology", List.of("dau", "nao", "tien dinh", "chong mat", "than kinh", "mat ngu", "te bi", "dong kinh", "dau dau", "dot quy", "tai bien", "neurology")),
+            Map.entry("dermatology", List.of("da", "ngua", "man", "di ung", "mun", "viem da", "phat ban", "vay nen", "toc", "mong", "dermatology")),
+            Map.entry("orthopedics", List.of("khop", "xuong", "cot song", "thoai hoa", "co xuong khop", "chan thuong", "day chang", "gay xuong", "dau lung", "orthopedics")),
+            Map.entry("pediatrics", List.of("tre", "em be", "so sinh", "bieng an", "tiem chung", "nhi", "phat trien", "pediatrics")),
+            Map.entry("obstetrics-gynecology", List.of("san", "phu khoa", "thai", "mang thai", "u xo", "buong trung", "tu cung", "kinh nguyet", "sinh san", "obstetrics", "gynecology")),
+            Map.entry("ent", List.of("tai", "mui", "hong", "viem xoang", "amidan", "thinh luc", "un tai", "nghet mui", "khan tieng", "ent", "otolaryngology")),
+            Map.entry("general-internal-medicine", List.of("kham", "suc khoe", "tong quat", "sot", "met moi", "sut can", "dinh ky", "noi tong quat", "kiem tra", "internal"))
     );
 
     /**
@@ -84,7 +96,7 @@ public class EmbeddingService {
 
             if (matchCount > 0) {
                 float weight = (float) Math.log1p(matchCount) * 4.5f;
-                for (int i = 0; i < 180; i++) {
+                for (int i = 0; i < 120; i++) {
                     int targetIdx = (baseIdx + i) % EMBEDDING_DIM;
                     vector[targetIdx] += weight * (float) Math.cos(i * 0.1);
                 }

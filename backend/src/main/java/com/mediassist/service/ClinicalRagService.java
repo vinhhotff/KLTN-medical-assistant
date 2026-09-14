@@ -75,8 +75,9 @@ public class ClinicalRagService {
                    - obstetrics-gynecology: Obstetrics & Gynecology (Sản Phụ Khoa)
                    - ent: Otolaryngology (Tai Mũi Họng)
                    - general-internal-medicine: General Internal Medicine (Nội Tổng Quát)
-                5. Chọn 1 Bác sĩ phù hợp nhất từ danh sách ứng viên pgvector được cung cấp và nêu lý do chuyên môn (recommendedDoctorId, doctorRecommendationReason).
-                   LÝ DO ĐỀ XUẤT BÁC SĨ BẮT BUỘC PHẢI GẮN VỚI CHỈ SỐ BẤT THƯỜNG CỤ THỂ CỦA BỆNH NHÂN (ví dụ: "Đề xuất BS Nguyễn Văn An vì bệnh nhân có LDL-C 4.5 mmol/L và Triglyceride 3.2 mmol/L vượt ngưỡng, cần chuyên khoa Tim mạch theo dõi xơ vữa"). TUYỆT ĐỐI KHÔNG DÙNG CÂU VĂN MẪU PHẦN TRĂM PGVECTOR VÔ NGHĨA.
+                5. Nếu có danh sách ứng viên Bác sĩ pgvector được cung cấp, hãy chọn 1 Bác sĩ phù hợp nhất và nêu lý do chuyên môn (recommendedDoctorId, doctorRecommendationReason).
+                   LÝ DO ĐỀ XUẤT BÁC SĨ BẮT BUỘC PHẢI GẮN VỚI CHỈ SỐ BẤT THƯỜNG CỤ THỂ CỦA BỆNH NHÂN (ví dụ: "Đề xuất BS Nguyễn Văn An vì bệnh nhân có LDL-C 4.5 mmol/L và Triglyceride 3.2 mmol/L vượt ngưỡng, cần chuyên khoa Tim mạch theo dõi xơ vữa").
+                   Nếu chưa có danh sách ứng viên, hãy nêu định hướng chuyên khoa lâm sàng (ví dụ: "Bệnh nhân cần được thăm khám bởi Bác sĩ chuyên khoa Tim Mạch do Troponin T hs tăng cao"). TUYỆT ĐỐI KHÔNG DÙNG CÂU VĂN BÁO LỖI KỸ THUẬT ("không có ứng viên", "chưa có danh sách").
                 6. Gợi ý 3 câu hỏi sâu sắc (suggestedQuestions) mà người bệnh nên hỏi Bác sĩ trong buổi khám.
                 7. NGUYÊN TẮC AN TOÀN Y TẾ & PHÒNG CHỐNG BỊA ĐẶT (CRITICAL MEDICAL INTEGRITY):
                    - Nếu tài liệu KHÔNG có kết quả xét nghiệm cụ thể (phiếu chỉ định trắng chưa điền kết quả, ảnh mờ không đọc được số liệu, hoặc không có chỉ số lâm sàng nào):
@@ -131,8 +132,6 @@ public class ClinicalRagService {
                         (i + 1), d.getDoctorId(), d.getAcademicTitle(), d.getFullName(), specs,
                         d.getHospitalAffiliation(), d.getLicenseNumber(), d.getYearsOfExperience(), d.getConsultationFee()));
             }
-        } else {
-            docsContext.append("\n(Khong co ung vien bac si)");
         }
 
         // Medical PII De-identification (Decree 13/2023/ND-CP & HIPAA Privacy Shield)
@@ -143,8 +142,11 @@ public class ClinicalRagService {
                     piiResult.getPiiEntitiesCount(), piiResult.getMaskedTypes(), fileName);
         }
 
-        String userPrompt = String.format("[TAI LIEU]: %s\n\n[NOI DUNG XET NGHIEM (DA KHU DINH DANH PII)]:\n%s\n\n[BAC SI UNG VIEN PGVECTOR]:%s\n\nHay phan tich va tra ve JSON.",
-                fileName, (safeExtractedText != null && !safeExtractedText.isBlank()) ? safeExtractedText : "(Chua co noi dung)", docsContext.toString());
+        String docsSection = docsContext.length() > 0
+                ? String.format("\n\n[BAC SI UNG VIEN PGVECTOR]:%s", docsContext.toString())
+                : "";
+        String userPrompt = String.format("[TAI LIEU]: %s\n\n[NOI DUNG XET NGHIEM (DA KHU DINH DANH PII)]:\n%s%s\n\nHay phan tich va tra ve JSON.",
+                fileName, (safeExtractedText != null && !safeExtractedText.isBlank()) ? safeExtractedText : "(Chua co noi dung)", docsSection);
 
         ClinicalAiResult result = aiModelRouter.routeClinicalAnalysis(systemPrompt, userPrompt);
 

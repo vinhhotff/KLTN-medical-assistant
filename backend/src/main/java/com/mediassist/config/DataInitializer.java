@@ -131,7 +131,7 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         String pendingDocEmail = "doctor.pending@mediassist.local";
-        if (!userRepository.existsByEmail(pendingDocEmail)) {
+        if (!userRepository.existsByEmail(pendingDocEmail) && !userRepository.existsByPhone("0934567890")) {
             User pendingDocUser = User.builder()
                     .email(pendingDocEmail)
                     .fullName("BS. CKI Lê Hoàng Long")

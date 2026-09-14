@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#054** | 14/09/2026 | Khắc Phục Triệt Để Hiện Tượng "PGVector Không Có Ứng Viên": Đồng Bộ Toàn Diện 12 Chuyên Khoa Trong EmbeddingService, Kiến Trúc Pre-RAG Candidate Retrieval, Sanitization AI Meta-Complaints, Kích Hoạt Toàn Bộ 12 Bác Sĩ Qua Flyway V9 & Khởi Tạo Bác Sĩ Chờ Duyệt Admin Vetting Mới | AI Assistant | 🟢 Sẵn sàng Review |
 | **#053** | 14/09/2026 | Khắc Phục Triệt Để Lỗi Chỉ Quét Được CCCD (Single-Space Lab Table Extraction): Bổ Sung Regex Pattern Cho Bảng Phân Tách Khoảng Trắng Đơn, Lọc Danh Sách Đen Trường Hành Chính (CCCD, BHYT, SID), Tự Động Hủy Cache Ngoại Tuyến Cũ (Stale Offline Cache Invalidation & In-Place Upsert), Xác Thực Toàn Diện Live AI Gemini 3.6 Flash | AI Assistant | 🟢 Sẵn sàng Review |
 | **#052** | 14/09/2026 | Kích Hoạt Trực Tuyến AI Mode (Google Gemini 3.6 Flash & OpenRouter Active Pool): Cấu Hình Bộ API Key Mới, Nâng Cấp Model gemini-3.6-flash, Kiểm Thử End-to-End Trợ Lý Phân Luồng Triệu Chứng AI & Phân Tích Hồ Sơ Bệnh Án PDF Đạt 100% Online | AI Assistant | 🟢 Sẵn sàng Review |
 | **#051** | 14/09/2026 | Khởi Động Toàn Bộ Hệ Thống (Postgres 5433, Redis 6379, Backend 5001, Frontend 5173): Xử Lý Xung Đột Port 5000 AirPlay macOS, Khắc Phục Lỗi Schema V1/V2 (users_status_check, icd10_code, audit_logs) & Inject @Autowired ClinicalRagService | AI Assistant | 🟢 Sẵn sàng Review |
@@ -20,7 +21,99 @@
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
-### [WORK-LOG-#053] Khắc Phục Triệt Để Lỗi Chỉ Quét Được CCCD (Single-Space Lab Table Extraction): Bổ Sung Regex Pattern Cho Bảng Phân Tách Khoảng Trắng Đơn, Lọc Danh Sách Đen Trường Hành Chính (CCCD, BHYT, SID), Tự Động Hủy Cache Ngoại Tuyến Cũ (Stale Offline Cache Invalidation & In-Place Upsert), Xác Thực Toàn Diện Live AI Gemini 3.6 Flash
+### [WORK-LOG-#054] Khắc Phục Triệt Để Hiện Tượng "PGVector Không Có Ứng Viên": Đồng Bộ Toàn Diện 12 Chuyên Khoa Trong EmbeddingService, Kiến Trúc Pre-RAG Candidate Retrieval, Sanitization AI Meta-Complaints, Kích Hoạt Toàn Bộ 12 Bác Sĩ Qua Flyway V9 & Khởi Tạo Bác Sĩ Chờ Duyệt Admin Vetting Mới
+* **Thời gian:** 2026-09-14 16:40:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-03 (Multimodal Lab Analysis & Vision OCR), UC-04 (Doctor Semantic Search via pgvector HNSW)
+* **Trạng thái Dịch vụ:**
+  - Database: PostgreSQL 16 + pgvector (cổng **5433** container `mediassist_postgres` - HEALTHY, Flyway V9 Migrated)
+  - Cache: Redis (cổng **6379** - HEALTHY, PONG)
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5001** (Actuator UP, 76/76 Unit Tests PASS 100%)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (Vite Dev Server UP, Proxy to 5001 OK, 0 TS Errors)
+  - AI Engine: **Google Gemini 3.6 Flash (Direct REST) - 100% ONLINE**
+* **Nhánh phát triển:** `develop`
+
+#### 1. Bối Cảnh & Nguyên Nhân Gốc Rễ (Root Cause Analysis):
+Tech Lead đặt câu hỏi phản biện:
+> *"Danh sách bác sĩ PGVector không có ứng viên nào được cung cấp, không thể đề xuất bác sĩ cụ thể. Bệnh nhân cần bác sĩ chuyên khoa Nội Tiết & Đái tháo đường để quản lý đường huyết HbA1c 8.7% và Glucose 9.6 mmol/L... lí do gì PGVector đang không hoạt động hay như nào"*
+
+Sau khi tổng rà soát toàn diện từ Database, Embedding Generator, Prompt Pipeline đến Matching Flow, phát hiện **4 tầng nguyên nhân** kết hợp gây ra hiện tượng này:
+1. **Tầng 1 (Prompt Pipeline Inversion):**
+   - Trong `MedicalDocumentAnalysisService`, hàm `clinicalRagService.performDocumentRagAnalysis` ban đầu được truyền `Collections.emptyList()` cho tham số `candidateDoctors`.
+   - `ClinicalRagService` gắn thẻ `[BAC SI UNG VIEN PGVECTOR]:\n(Khong co ung vien bac si)` vào user prompt và yêu cầu Gemini: *"Nếu có danh sách ứng viên Bác sĩ pgvector, hãy chọn 1 Bác sĩ... nêu lý do chuyên môn"*.
+   - Gemini xử lý logic hoàn toàn đúng: Do không nhận được ứng viên nào từ hệ thống, nó giải thích trong trường JSON `doctorRecommendationReason`: *"Danh sách bác sĩ PGVector không có ứng viên nào được cung cấp, không thể đề xuất bác sĩ cụ thể..."*.
+   - Sau đó, backend mới thực hiện tìm kiếm pgvector và gán trường `aiRecommendationReason` bằng chính câu giải thích "than phiền" của Gemini lên thẻ bác sĩ được tìm thấy!
+2. **Tầng 2 (Database Seeding & Verification Gap - Quan Trọng Nhất):**
+   - Trong `V2__seed_rich_hospital_data.sql`, bác sĩ chuyên khoa Nội Tiết & Đái tháo đường (`TS. BS. Đỗ Phương Lan`), Thần kinh (`BS. CKII. Lê Hoàng Long`), và Tai Mũi Họng (`ThS. BS. Nguyễn Tuấn Khang`) được gán cờ `is_verified = FALSE` (trạng thái `PENDING_VERIFICATION` phục vụ kịch bản demo tính năng duyệt hồ sơ của Admin).
+   - Tuy nhiên, câu truy vấn ngữ nghĩa trong `DoctorSemanticSearchService`:
+     ```sql
+     SELECT ... FROM doctor_profiles dp JOIN users u ON dp.user_id = u.id
+     WHERE dp.is_verified = true AND dp.bio_embedding IS NOT NULL
+     ORDER BY dp.bio_embedding <=> CAST(? AS vector) ASC LIMIT ?
+     ```
+     đã **lọc bỏ hoàn toàn các bác sĩ có `is_verified = false`**. Dẫn đến trong cơ sở dữ liệu hoàn toàn không có bác sĩ Nội Tiết nào đủ điều kiện được đề xuất!
+3. **Tầng 3 (Embedding Generator Domain Deficiency):**
+   - Trong `EmbeddingService.java`, không gian vector 1536 chiều trước đây chỉ định nghĩa 6 nhóm chuyên khoa (`cardio`, `neuro`, `derma`, `gastro`, `pediatric`, `general`).
+   - 6 chuyên khoa lớn còn lại của bệnh viện (trong đó có `endocrinology` - Nội tiết & Đái tháo đường, `pulmonology`, `nephrology`, `orthopedics`, `obstetrics-gynecology`, `ent`) hoàn toàn không có subspace riêng và không có từ khóa chuyên khoa (`dai thao duong`, `glucose`, `hba1c`, `tuyen giap`, `insulin`). Khi tìm kiếm các thuật ngữ tiểu đường, độ tương đồng cosine bị phân rã và không định vị được bác sĩ Nội Tiết.
+
+#### 2. Chi Tiết Giải Pháp Đã Hiện Thực:
+1. **Kiến Trúc Pre-RAG Semantic Candidate Retrieval (`MedicalDocumentAnalysisService.java`)**:
+   - Trước khi gọi LLM, hệ thống bóc tách các chỉ số xét nghiệm cận lâm sàng ban đầu (`parsedIndicators`) và xây dựng truy vấn chuyên môn sơ bộ qua hàm `buildInitialDoctorQuery(parsedIndicators, clinicalContext)`.
+   - Tìm kiếm trước các ứng viên bác sĩ tiềm năng từ pgvector (`preRagCandidates`) và chuyển trực tiếp vào `clinicalRagService.performDocumentRagAnalysis`.
+   - Gemini nhận được danh sách bác sĩ thực tế kèm tên, học hàm, bệnh viện, chuyên khoa và CCHN để đưa ra quyết định đề xuất chính xác.
+2. **Sanitization Lọc Bỏ Triệt Để Prompt Leakage & Meta-Complaints**:
+   - Trong cả `analyzeDocument` và `analyzeDocumentPreview`, bổ sung bộ kiểm tra `isMetaComplaint`:
+     ```java
+     boolean isMetaComplaint = aiReason == null || aiReason.isBlank() ||
+             aiReason.toLowerCase().contains("không có ứng viên") ||
+             aiReason.toLowerCase().contains("chưa có danh sách") ||
+             aiReason.toLowerCase().contains("không thể đề xuất bác sĩ cụ thể") ||
+             aiReason.toLowerCase().contains("chưa có ứng viên");
+
+     String finalReason = isMetaComplaint
+             ? buildClinicalDoctorRecommendationReason(top, specialtyName, indicators)
+             : aiReason;
+     ```
+   - Nếu LLM sinh ra câu than phiền kỹ thuật, hệ thống tự động thay thế bằng lý do lâm sàng chuẩn y tế gắn với chỉ số bất thường của bệnh nhân.
+3. **Mở Rộng Toàn Bộ 12 Chuyên Khoa Trong `EmbeddingService.java`**:
+   - Phân bổ đều không gian vector 1536 chiều thành 12 cluster chuyên khoa (128 dimensions / domain).
+   - Bổ sung bộ từ khóa lâm sàng chuyên sâu cho tất cả 12 chuyên khoa, đặc biệt là `endocrinology` (`noi tiet`, `dai thao duong`, `glucose`, `hba1c`, `duong huyet`, `tuyen giap`, `insulin`, v.v.).
+4. **Flyway Migration V9 (`V9__verify_all_specialties_and_seed_pending_doctors.sql`)**:
+   - Xác thực và kích hoạt (`is_verified = TRUE`, `status = 'ACTIVE'`) cho 3 bác sĩ chuyên khoa: TS. BS. Đỗ Phương Lan (Nội tiết), BS. CKII. Lê Hoàng Long (Thần kinh), ThS. BS. Nguyễn Tuấn Khang (Tai Mũi Họng).
+   - Tạo lịch khám định kỳ Thứ 2 - Thứ 6 (840 slots) cho 12 bác sĩ chính thức.
+   - Khởi tạo 2 tài khoản bác sĩ chờ duyệt chuyên biệt mới (`dr.nam.pending@mediassist.local`, `dr.thao.pending@mediassist.local`) đảm bảo chức năng Admin Vetting vẫn hoạt động trọn vẹn.
+   - Tự động re-sync toàn bộ 14 vector embedding bác sĩ khi hệ thống khởi động.
+
+#### 3. Danh Sách Tệp Tin Thay Đổi:
+* `[NEW]` `backend/src/main/resources/db/migration/V9__verify_all_specialties_and_seed_pending_doctors.sql`: Di trú V9 kích hoạt 12 bác sĩ chuyên khoa và tạo 2 bác sĩ chờ duyệt.
+* `[MOD]` `backend/src/main/java/com/mediassist/service/EmbeddingService.java`: Mở rộng 12 chuyên khoa, bổ sung từ khóa Nội tiết & Đái tháo đường.
+* `[MOD]` `backend/src/main/java/com/mediassist/service/ClinicalRagService.java`: Nâng cấp prompt loại bỏ báo lỗi kỹ thuật, tích hợp Pre-RAG doctor candidates.
+* `[MOD]` `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`: Triển khai Pre-RAG doctor retrieval, hàm `buildInitialDoctorQuery`, sanitization `isMetaComplaint`.
+* `[MOD]` `backend/src/main/java/com/mediassist/config/DataInitializer.java`: Sửa lỗi kiểm tra trùng số điện thoại `existsByPhone` khi khởi tạo dữ liệu mẫu.
+* `[MOD]` `backend/src/main/java/com/mediassist/repository/UserRepository.java`: Bổ sung phương thức `boolean existsByPhone(String phone)`.
+* `[MOD]` `backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java`: Cập nhật Mockito verification cho luồng tìm kiếm bác sĩ 2 lần (Pre-RAG & Focused Post-RAG).
+* `[MOD]` `docs/DATABASE_DESIGN.md`: Bổ sung Migration V8, V9 và cập nhật bảng dữ liệu 14 bác sĩ mẫu.
+* `[MOD]` `docs/WORK_LOG.md`: Ghi nhật ký chi tiết #054.
+
+#### 4. Bằng Chứng Kiểm Thử Đạt Chuẩn (Verification Evidence):
+1. **Backend Unit Tests:**
+   - Lệnh: `mvn test` trong thư mục `backend/`.
+   - Kết quả: **Tests run: 76, Failures: 0, Errors: 0, Skipped: 0** - **BUILD SUCCESS** (100% PASS).
+2. **Frontend Build:**
+   - Lệnh: `npm run build` trong thư mục `frontend/`.
+   - Kết quả: **✓ built in 1.62s, 0 TypeScript errors**.
+3. **Kiểm Thử pgvector Cosine Semantic Search Thực Tế:**
+   - Lệnh: `GET /api/v1/triage/search/semantic?query=Endocrinology+Noi+Tiet+Dai+thao+duong+glucose+hba1c`
+   - Kết quả: Bác sĩ `TS. BS. Đỗ Phương Lan` (Bệnh viện Nội Tiết Trung Ương) xếp hạng **#1** với độ tương đồng đạt **84.65%** (`similarityScore: 0.8465`).
+4. **Kiểm Thử Phân Tích Tài Liệu Live AI Bằng Tệp Tiểu Đường (Glucose 9.6 mmol/L, HbA1c 8.7%):**
+   - Lệnh: `POST /api/v1/documents/analyze`
+   - Model sử dụng: `gemini-3.6-flash` (Google AI).
+   - Chuyên khoa đề xuất: `Endocrinology & Diabetes (Nội Tiết & Đái Tháo Đường)`.
+   - Bác sĩ đề xuất: `TS. BS. Đỗ Phương Lan` (BV Nội Tiết Trung Ương, similarity: 79.97%).
+   - Lý do đề xuất: *"Đề xuất TS. BS. Đỗ Phương Lan thuộc chuyên khoa Nội tiết & Đái tháo đường vì bệnh nhân có chỉ số Glucose máu đói 9.6 mmol/L và HbA1c 8.7% tăng cao vượt ngưỡng, phù hợp với chẩn đoán Đái tháo đường typ 2 cần bác sĩ chuyên khoa thiết lập phác đồ điều trị và kiểm soát đường huyết."*
+   - Không còn bất kỳ câu báo lỗi kỹ thuật "không có ứng viên" nào!
+
+---
 * **Thời gian:** 2026-09-14 16:22:00 (GMT+7)
 * **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
 * **Mã Use Case:** UC-03 (Multimodal Lab Analysis & Vision OCR), UC-04 (Doctor Semantic Search via pgvector)
