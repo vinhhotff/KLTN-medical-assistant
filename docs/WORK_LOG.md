@@ -9,8 +9,9 @@
 
 ## 📑 Bảng Mục Lục Lịch Sử Cập Nhật
 
-| Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
+| **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :---: |
+| **#044** | 14/09/2026 | Triển Khai Hoàn Chỉnh Google OAuth2 Login/Register: HttpOnly JWT Cookie (SameSite=Lax), CustomOAuth2UserService Upsert Pattern, OAuth2UserPrincipal Bridge Class, SuccessHandler/FailureHandler, SecurityConfig OAuth2 Block, GoogleLoginButton Frontend, OAuth2CallbackPage Role-Based Redirect | AI Assistant | 🟢 Sẵn sàng Review |
 | **#043** | 13/09/2026 | Khởi Tạo & Đẩy Lên Toàn Bộ 3 Tệp Cấu Hình Môi Trường (.env & .env.example) Cho Cả 3 Phân Hệ (Root, Backend, Frontend) Kèm Tích Hợp Vite Environment Variable | AI Assistant | 🟢 Sẵn sàng Review |
 | **#042** | 13/09/2026 | Cải Tổ Toàn Diện Pipeline Phân Tích Tài Liệu Y Khoa (6 Điểm Nghẽn): Tích Hợp Trực Tiếp Google Gemini Flash (Tier 1 AI), Trình Phân Tích Bảng Đa Mẫu (Multi-Pattern Table Parser), Dữ Liệu Lâm Sàng Động 100% (Bệnh Viện, Bác Sĩ, SID, Máy Xét Nghiệm), Khoảng Tham Chiếu Giới Tính & Nâng Hạn Mức PDF 10 Trang | AI Assistant | 🟢 Sẵn sàng Review |
 | **#041** | 13/09/2026 | Triển Khai Phân Trang Offset (Limit/Offset Pagination) Toàn Diện Toàn Bộ Bảng/Danh Sách Chống Tràn Bộ Nhớ & Khắc Phục Lưu Trữ Supabase Database / Cloud Storage | AI Assistant | 🟢 Đã Duyệt |
@@ -22,6 +23,84 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#044] Google OAuth2 Login/Register — HttpOnly JWT Cookie + Upsert User Pattern
+* **Thời gian:** 2026-09-14 13:40:00 → 13:48:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Nhánh phát triển:** `feature/Google-oauth2`
+* **Git Commit:** `feat(auth): implement Google OAuth2 login/register with HttpOnly JWT Cookie`
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21): **59/59 Tests PASS 100%**
+  - Frontend (Vite 6.4.3 React): **Build 0 TypeScript error, 1672 modules**
+
+#### 1. Tệp Tin Đã Thay Đổi
+
+**[NEW]** `backend/src/main/java/com/mediassist/security/CustomOAuth2UserService.java`
+  - Extends `DefaultOAuth2UserService` — xử lý callback từ Google
+  - Upsert pattern 3 case: findByGoogleId → findByEmail → createNew(PATIENT)
+  - Tự động tạo `PatientProfile` cho user mới đăng ký qua Google
+
+**[NEW]** `backend/src/main/java/com/mediassist/security/OAuth2UserPrincipal.java`
+  - Bridge class: implements cả `UserDetails` + `OAuth2User`
+  - Cho phép `JwtTokenProvider.generateAccessToken()` hoạt động với OAuth2 principal
+
+**[NEW]** `backend/src/main/java/com/mediassist/security/OAuth2AuthenticationSuccessHandler.java`
+  - Sinh JWT, set HttpOnly Cookie `accessToken` (SameSite=Lax, MaxAge=900s)
+  - Redirect về `http://localhost:5173/oauth2/callback`
+
+**[NEW]** `backend/src/main/java/com/mediassist/security/OAuth2AuthenticationFailureHandler.java`
+  - Redirect về `/login?error=oauth2_failed&message=<encoded>`
+
+**[MOD]** `backend/src/main/java/com/mediassist/config/SecurityConfig.java`
+  - Thêm `.oauth2Login()` block với các handler mới
+  - Whitelist `/oauth2/**`, `/login/oauth2/**`
+  - Đổi session policy sang `IF_REQUIRED` (cần cho PKCE state)
+
+**[MOD]** `backend/src/main/resources/application-dev.properties`
+  - Thêm `spring.security.oauth2.client.registration.google.*`
+  - Thêm `app.oauth2.success-redirect-uri` và `app.oauth2.failure-redirect-uri`
+
+**[MOD]** `backend/pom.xml`
+  - Thêm dependency `spring-boot-starter-oauth2-client`
+
+**[MOD]** `.env`
+  - Thêm `GOOGLE_CLIENT_ID=` và `GOOGLE_CLIENT_SECRET=` (cần điền)
+
+**[NEW]** `frontend/src/components/common/GoogleLoginButton.tsx`
+  - Redirect TRỰC TIẾP `window.location.href` đến `/oauth2/authorization/google`
+  - KHÔNG dùng Axios (OAuth2 Authorization Code Flow yêu cầu browser redirect thực sự)
+
+**[NEW]** `frontend/src/pages/OAuth2CallbackPage.tsx`
+  - Nhận redirect từ Backend sau OAuth2 thành công
+  - Gọi `fetchCurrentUser()` → tự động gửi HttpOnly cookie (`withCredentials=true`)
+  - Redirect theo role: ADMIN → /admin, DOCTOR → /doctor, PATIENT → /patient
+
+**[MOD]** `frontend/src/App.tsx`
+  - Thêm route `/oauth2/callback` → `<OAuth2CallbackPage />`
+
+**[MOD]** `frontend/src/pages/LoginPage.tsx`
+  - Import `GoogleLoginButton`
+  - Thay thế placeholder SSO button bằng `<GoogleLoginButton />`
+
+#### 2. Quyết Định Kỹ Thuật Quan Trọng (Tech Lead Review)
+
+| Quyết Định | Lý Do |
+|---|---|
+| `SameSite=Lax` thay vì `Strict` | `Strict` block cookie sau redirect từ Google → OAuth2 sẽ không hoạt động |
+| `SessionCreationPolicy.IF_REQUIRED` | OAuth2 cần session để lưu PKCE state, JWT endpoints vẫn stateless |
+| `window.location.href` (không phải Axios) | OAuth2 Authorization Code Flow cần browser redirect thực sự để nhận cookie từ domain backend |
+| Upsert by googleId trước, email sau | Tránh duplicate user khi cùng 1 người có cả email/password và Google account |
+| `Set-Cookie` header trực tiếp | Jakarta Cookie API không hỗ trợ `SameSite` attribute |
+
+#### 3. Bằng Chứng Kiểm Thử
+- `mvn test`: **59/59 PASS** (0 failures, 0 errors)
+- `npm run build`: **0 TypeScript errors**, 1672 modules transformed
+
+#### 4. Tech Lead Action Required
+> **BẮT BUỘC:** Điền `GOOGLE_CLIENT_ID` và `GOOGLE_CLIENT_SECRET` vào [`.env`](file:///c:/Users/hoang/OneDrive/Desktop/Project_2026/.env) trước khi test OAuth2 flow.
+> Tạo tại: https://console.cloud.google.com/ → APIs & Services → Credentials
+> Authorized redirect URI: `http://localhost:5000/login/oauth2/code/google`
+
 
 ### [WORK-LOG-#043] Khởi Tạo & Đẩy Lên 3 Tệp Cấu Hình Môi Trường (.env & .env.example) Cho Root, Backend và Frontend
 * **Thời gian:** 2026-09-13 19:10:00 (GMT+7)
