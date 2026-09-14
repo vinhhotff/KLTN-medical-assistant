@@ -98,7 +98,13 @@ public class AppointmentService {
         appointment.setClinicRoom("Phòng Khám 204 - Khoa Chuyên Môn");
         appointment.setChiefComplaint(request.getNotes() != null && !request.getNotes().isBlank() ? request.getNotes() : "Đăng ký khám tư vấn chuyên khoa");
 
-        Appointment saved = appointmentRepository.save(appointment);
+        Appointment saved;
+        try {
+            saved = appointmentRepository.saveAndFlush(appointment);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            log.warn("🚨 [CONCURRENCY RACE DETECTED] Doctor {} slot at {} was concurrently claimed: {}", doctor.getId(), scheduledStart, ex.getMessage());
+            throw new AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", "Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác.");
+        }
 
         // Record Audit Log
         AuditLog audit = new AuditLog();

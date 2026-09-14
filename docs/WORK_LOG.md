@@ -11,13 +11,60 @@
 
 | Phiên Làm Việc | Thời Gian | Nội Dung Trọng Tâm | Tác Giả | Trạng Thái Tech Lead |
 | :---: | :---: | :--- | :--- | :---: |
-| **#045** | 14/09/2026 | Triển Khai Giai Đoạn 1: Vá Lỗ Hổng CSRF/Cookie SameSite, Chặn Suspended User Trong JWT Filter, Rate Limit Đăng Ký, Đồng Bộ Schema Flyway V6 (@Version & audit_logs) & React ErrorBoundary | AI Assistant | 🟢 Sẵn sàng Review |
+| **#046** | 14/09/2026 | Triển Khai Giai Đoạn 2: Tối Ưu Hóa Concurrency & Race Condition Cho Scan Pipeline & Đặt Lịch Khám, Bổ Sung Flyway V7 (Slot Collision Partial Unique Index & Dedup Unique Index), Concurrency Semaphore Điều Tiết Vision OCR | AI Assistant | 🟢 Sẵn sàng Review |
+| **#045** | 14/09/2026 | Triển Khai Giai Đoạn 1: Vá Lỗ Hổng CSRF/Cookie SameSite, Chặn Suspended User Trong JWT Filter, Rate Limit Đăng Ký, Đồng Bộ Schema Flyway V6 (@Version & audit_logs) & React ErrorBoundary | AI Assistant | 🟢 Đã Duyệt |
 | **#044** | 14/09/2026 | Production-Readiness Audit & Hardening Document Scan: Khắc Phục Nghẽn HikariCP (@Transactional Anti-Pattern), Quota Atomic Reservation & Rollback, ThreadPool OCR Riêng, Rate Limiting Preview & Caffeine Cache | AI Assistant | 🟢 Đã Duyệt |
 | **#043** | 13/09/2026 | Khắc Phục Lỗi Xung Đột JPA Nullable Phiếu Trắng, Chặn Path Traversal Storage, Chuẩn Hóa Status Chỉ Số & Ngày Tiếp Nhận Frontend | AI Assistant | 🟢 Đã Duyệt |
 
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#046] Triển Khai Giai Đoạn 2: Tối Ưu Hóa Concurrency & Race Condition Cho Scan Pipeline & Đặt Lịch Khám, Bổ Sung Flyway V7 (Slot Collision Partial Unique Index & Dedup Unique Index), Concurrency Semaphore Điều Tiết Vision OCR
+* **Thời gian:** 2026-09-14 13:40:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-03 (Tóm Tắt & Giải Nghĩa Phiếu Xét Nghiệm), UC-05 (Đặt Lịch Khám Từ Xa & Chống Trùng Slot)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5000** (**68/68 Tests PASS 100%**)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (**Build 0 TypeScript error, 1671 modules**)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Các Hạng Mục Đã Thực Hiện:
+1. **Triệt tiêu Slot Double-Booking Race Condition trong `AppointmentService`**:
+   - Thêm Flyway V7 tạo Partial Unique Index: `idx_appointment_unique_active_slot` trên `appointments(doctor_id, scheduled_start) WHERE status != 'CANCELLED'`.
+   - Chuyển đổi lệnh lưu từ `save()` sang `saveAndFlush()` bọc trong try-catch `DataIntegrityViolationException`, ném ra `AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", "Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác.")`.
+2. **Giải quyết TOCTOU Deduplication Race Condition trong `MedicalDocumentAnalysisService`**:
+   - Thêm Unique Index: `idx_med_doc_user_hash_unique` trên `medical_documents(user_id, file_hash) WHERE file_hash IS NOT NULL`.
+   - Chuyển đổi lưu `MedicalDocument` sang `saveAndFlush()`. Khi phát hiện xung đột ghi trùng đồng thời từ nhiều request, hệ thống tự động:
+     - Hoàn trả lại hạn ngạch quét bị trừ oan (`restoreScanQuota`).
+     - Xóa tệp tải lên dư thừa trên Supabase Storage.
+     - Truy xuất bản ghi đã lưu từ luồng thắng cuộc và trả về kết quả mượt mà (`buildCachedResponse`), người dùng không phải nhận lỗi 500 hay DB error.
+3. **Điều tiết Tải Nặng Vision OCR bằng Concurrency Semaphore**:
+   - Khởi tạo `ocrSemaphore = new Semaphore(5, true)` (FIFO công bằng).
+   - Bọc các tác vụ gọi `extractTextWithVision` cả trong pool song song từng trang của Scanned PDF (`medicalOcrExecutor`) và luồng tải trực tiếp ảnh cận lâm sàng với thời gian chờ an toàn (25s - 30s), ngăn chặn nghẽn RAM và cạn kiệt rate-limit external LLM.
+4. **Bổ sung Unit & Concurrency Test Cases**:
+   - `AppointmentServiceTest.testBookAppointment_ConcurrentSlotCollision_DataIntegrityViolation_ThrowsSlotConflict`: Kiểm thử va chạm đồng thời khi đặt lịch khám.
+   - `MedicalDocumentAnalysisServiceTest.testConcurrentDeduplicationRaceCondition_RecoversAndRestoresQuota`: Kiểm thử va chạm tải lên song song, hoàn trả quota và phục hồi kết quả phân tích.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi:
+- `[NEW]` `backend/src/main/resources/db/migration/V7__slot_collision_guard_and_dedup_constraints.sql`
+- `[MOD]` `backend/src/main/java/com/mediassist/service/AppointmentService.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`
+- `[MOD]` `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`
+- `[MOD]` `backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java`
+- `[MOD]` `docs/DATABASE_DESIGN.md`
+- `[MOD]` `docs/USE_CASES.md`
+- `[MOD]` `docs/WORK_LOG.md`
+
+#### 3. Bằng Chứng Kiểm Thử:
+- `mvn test`: 68/68 passed, 0 failures, 0 errors.
+- `npm run build`: 0 TS errors, 1671 modules transformed cleanly.
+
+#### 4. Điểm Nóng Tech Lead Cần Review:
+- Partial Unique Index `idx_appointment_unique_active_slot` chỉ áp dụng cho slot có `status != 'CANCELLED'`, cho phép bác sĩ tiếp tục mở lại khung giờ nếu ca khám trước đó bị hủy.
+- Deduplication recovery trong `MedicalDocumentAnalysisService` sử dụng vòng lặp kiểm tra ngắn (tối đa 5 lần x 150ms) đảm bảo luồng thua luôn lấy được phân tích hoàn chỉnh từ luồng thắng mà không bao giờ báo lỗi ra ngoài giao diện người dùng.
+
+---
 
 ### [WORK-LOG-#045] Triển Khai Giai Đoạn 1: Vá Lỗ Hổng CSRF/Cookie SameSite, Chặn Suspended User Trong JWT Filter, Rate Limit Đăng Ký, Đồng Bộ Schema Flyway V6 (@Version & audit_logs) & React ErrorBoundary
 * **Thời gian:** 2026-09-14 13:30:00 (GMT+7)

@@ -94,7 +94,7 @@ class AppointmentServiceTest {
         when(appointmentRepository.existsConflict(doctorId, futureTime)).thenReturn(false);
         when(doctorProfileRepository.findByUserId(doctorId)).thenReturn(Optional.of(doctorProfile));
 
-        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> {
+        when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(invocation -> {
             Appointment saved = invocation.getArgument(0);
             saved.setId(UUID.randomUUID());
             return saved;
@@ -123,7 +123,27 @@ class AppointmentServiceTest {
         AppException ex = assertThrows(AppException.class, () -> appointmentService.bookAppointment(patientId, request));
         assertEquals(HttpStatus.CONFLICT, ex.getStatus());
         assertEquals("SLOT_CONFLICT", ex.getCode());
-        verify(appointmentRepository, never()).save(any());
+        verify(appointmentRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void testBookAppointment_ConcurrentSlotCollision_DataIntegrityViolation_ThrowsSlotConflict() {
+        LocalDateTime futureTime = LocalDateTime.now().plusDays(1).withHour(14).withMinute(0);
+        CreateAppointmentRequest request = new CreateAppointmentRequest(doctorId, futureTime, "Khám chuyên khoa");
+
+        when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
+        when(userRepository.findById(doctorId)).thenReturn(Optional.of(doctorUser));
+        when(appointmentRepository.existsConflict(doctorId, futureTime)).thenReturn(false);
+        when(doctorProfileRepository.findByUserId(doctorId)).thenReturn(Optional.of(doctorProfile));
+
+        // Simulate concurrent transaction committing first and triggering DB unique index violation
+        when(appointmentRepository.saveAndFlush(any(Appointment.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate key value violates unique constraint idx_appointment_unique_active_slot"));
+
+        AppException ex = assertThrows(AppException.class, () -> appointmentService.bookAppointment(patientId, request));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+        assertEquals("SLOT_CONFLICT", ex.getCode());
+        assertTrue(ex.getMessage().contains("Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước"));
     }
 
     @Test

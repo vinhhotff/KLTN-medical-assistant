@@ -172,12 +172,16 @@ graph TD
 
 #### Luồng sự kiện chính (Happy Path):
 1. **Chọn Tệp & Kích Hoạt Tức Thì (Instant Upload UX):** Bệnh nhân kéo thả hoặc chọn tệp kết quả xét nghiệm (`.pdf`, `.txt`, `.jpg`, `.png`, dung lượng $\le 10\text{MB}$) hoặc chọn dữ liệu mẫu chuẩn (Mỡ máu / Men gan / Điện não). Hệ thống **tự động kích hoạt ngay tiến trình phân tích AI** mà không cần qua nút bấm trung gian.
-2. **Kiểm tra Deduplication (SHA-256 Checksum):** Hệ thống tính toán hash SHA-256 của tệp. Nếu tài liệu đã từng được phân tích trong hồ sơ EMR của bệnh nhân này:
-   - Trả về ngay kết quả đã lưu trong DB (`cachedResult = true`).
-   - Tiêu tốn **0 token AI**, độ trễ $< 5\text{ms}$ và **TUYỆT ĐỐI KHÔNG trừ lượt quét**.
+2. **Kiểm tra Deduplication (SHA-256 Checksum & TOCTOU Race Condition Recovery):** Hệ thống tính toán hash SHA-256 của tệp.
+   - Nếu tài liệu đã từng được phân tích trong hồ sơ EMR của bệnh nhân này: Trả về ngay kết quả đã lưu trong DB (`cachedResult = true`). Tiêu tốn **0 token AI**, độ trễ $< 5\text{ms}$ và **TUYỆT ĐỐI KHÔNG trừ lượt quét**.
+   - **Xử lý Xung Đột Tải Lên Song Song (Concurrent Upload TOCTOU Recovery):** Nếu hai luồng gửi cùng lúc một tài liệu cho cùng một người dùng, database unique index `idx_med_doc_user_hash_unique` trên `medical_documents(user_id, file_hash)` sẽ chặn bản ghi thứ hai thông qua `saveAndFlush()`. Khối bắt `DataIntegrityViolationException` tự động:
+     - Hoàn trả ngay hạn mức quét (`restoreScanQuota`) để người bệnh không bị trừ oan lượt.
+     - Dọn dẹp tệp tải lên dư thừa trên Supabase Storage để triệt tiêu file mồ côi.
+     - Truy xuất bản ghi phân tích đã hoàn tất từ luồng thắng cuộc và trả về kết quả mượt mà cho người dùng (Zero Error Experience).
 3. **Trừ Hạn Ngạch Đảm Bảo Tính Nguyên Tử (Atomic Quota Reservation & Compensating Rollback):** Nếu tài liệu mới, hệ thống thực thi câu lệnh SQL nguyên tử `UPDATE users SET scan_quota = scan_quota - 1 WHERE id = :id AND scan_quota > 0` (hoặc bỏ qua nếu là hội viên VIP còn hạn `isVipActive()`).
    - Nếu số hàng cập nhật = 0 (hết lượt), trả về `HTTP 402 Payment Required` kèm modal báo giá gói quét.
    - Nếu xảy ra lỗi bất kỳ ở các bước sau (validation fail, AI timeout, lỗi ghi DB), hệ thống tự động kích hoạt **Compensating Rollback Hook** gọi `userRepository.restoreScanQuota()` để hoàn trả 100% quota cho người bệnh.
+   - **Kiểm Soát Tải Nặng Vision OCR (OCR Concurrency Limiter):** Quá trình gọi Gemini Vision / OpenRouter Vision được điều tiết bằng `Semaphore(5, true)` công bằng (FIFO), giới hạn tối đa 5 tác vụ thị giác chạy đồng thời trên toàn hệ thống để chống cạn kiệt RAM và tránh nghẽn ngưỡng gọi API ngoài. Quá thời gian chờ (25s - 30s) sẽ phản hồi an toàn `HTTP 429 OCR_BUSY`.
 4. **Cơ chế Lọc Rác Tiền Thẩm Định (Gatekeeper Sieve Validation):**
    - Kiểm tra magic bytes nhị phân thực thụ (chấp nhận PDF, JPEG, PNG chữ ký chuẩn và luồng văn bản y khoa UTF-8 hợp lệ; không tin cậy header client).
    - Kiểm tra độ dài văn bản trích xuất (tối thiểu 15 ký tự; nếu ngắn hơn -> lỗi mờ ảnh `UNREADABLE_DOCUMENT`).
@@ -281,16 +285,18 @@ graph TD
      ```sql
      SELECT COUNT(a) > 0 FROM Appointment a 
      WHERE a.doctor.id = :doctorId AND a.scheduledStart = :scheduledStart 
-       AND a.status NOT IN (AppointmentStatus.CANCELLED)
+       AND a.status != com.mediassist.model.entity.AppointmentStatus.CANCELLED
      ```
    - Sinh mã định danh giao dịch chuẩn: `AP-YYYYMMDD-XXXXXX`.
    - Tạo bản ghi mới vào bảng `appointments` với `version = 0`.
+   - Lưu và flush tức thì xuống DB: `appointmentRepository.saveAndFlush(appointment)`.
    - Ghi nhật ký kiểm toán vào `audit_logs` với action `APPOINTMENT_BOOKED`.
 5. Backend trả về HTTP 201 Created cùng `AppointmentDto`.
 6. Cuộc hẹn xuất hiện trên bảng điều khiển của cả Bác sĩ (`DoctorDashboard`) và Bệnh nhân (`PatientDashboard`).
 
 #### Luồng xung đột (Conflict Exception Flow):
-* **3a. Người khác đã đặt slot trước đó:** `existsConflict` phát hiện trùng giờ $\rightarrow$ Ném ngoại lệ `AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", ...)`. Backend trả về HTTP 409: *"Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác."*
+* **3a. Người khác đã đặt slot trước đó (Pre-check):** `existsConflict` phát hiện trùng giờ $\rightarrow$ Ném ngoại lệ `AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", ...)`. Backend trả về HTTP 409: *"Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác."*
+* **3b. Xung đột đặt lịch song song (Concurrent Race Condition Shield):** Trường hợp hai bệnh nhân cùng bấm xác nhận tại cùng một microsecond và cùng vượt qua bước `existsConflict()`, Database Partial Unique Index `idx_appointment_unique_active_slot` trên `appointments(doctor_id, scheduled_start) WHERE status != 'CANCELLED'` sẽ chặn transaction thứ hai. Lệnh `saveAndFlush()` kích hoạt `DataIntegrityViolationException`, được bắt và chuyển đổi thành HTTP 409 `SLOT_CONFLICT` an toàn, loại bỏ 100% rủi ro Double-booking.
 
 ---
 

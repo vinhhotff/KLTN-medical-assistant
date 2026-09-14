@@ -109,6 +109,12 @@ class MedicalDocumentAnalysisServiceTest {
                     doc.setId(UUID.randomUUID());
                     return doc;
                 });
+        lenient().when(medicalDocumentRepository.saveAndFlush(any(MedicalDocument.class)))
+                .thenAnswer(inv -> {
+                    MedicalDocument doc = inv.getArgument(0);
+                    doc.setId(UUID.randomUUID());
+                    return doc;
+                });
         lenient().when(documentAnalysisRepository.save(any(DocumentAnalysis.class)))
                 .thenAnswer(inv -> {
                     DocumentAnalysis da = inv.getArgument(0);
@@ -503,7 +509,7 @@ class MedicalDocumentAnalysisServiceTest {
 
         String uploadedUrl = "https://supabase.co/storage/v1/object/public/medical-documents/test.pdf";
         when(storageService.uploadDocument(any(), any(), any(), any())).thenReturn(uploadedUrl);
-        when(medicalDocumentRepository.save(any())).thenThrow(new RuntimeException("DB Disk Full / Constraint Violation"));
+        when(medicalDocumentRepository.saveAndFlush(any())).thenThrow(new RuntimeException("DB Disk Full / Connection Lost"));
 
         assertThrows(RuntimeException.class, () ->
                 analysisService.analyzeDocument(file, "patient@mediassist.local")
@@ -629,5 +635,54 @@ class MedicalDocumentAnalysisServiceTest {
         assertEquals(2, testUser.getScanQuota(), "User quota must be restored back to 2 after validation failure");
         verify(userRepository, times(1)).restoreScanQuota(eq(testUser.getId()));
         verify(rateLimiterService, times(1)).recordFailedUpload("patient@mediassist.local");
+    }
+
+    @Test
+    @DisplayName("Should recover gracefully from concurrent deduplication race condition, restore extra quota, and return winning analysis")
+    void testConcurrentDeduplicationRaceCondition_RecoversAndRestoresQuota() {
+        testUser.setScanQuota(1);
+        testUser.setSubscriptionTier("FREE");
+
+        String mockDoc = "BỆNH VIỆN BẠCH MAI\nKHOA HUYẾT HỌC\nWBC: 12.5 G/L (4.0 - 10.0)\nBạch cầu tăng nhẹ.";
+        MockMultipartFile file = new MockMultipartFile("file", "blood_race.pdf", "application/pdf", mockDoc.getBytes());
+
+        UUID winnerDocId = UUID.randomUUID();
+        MedicalDocument winnerDoc = new MedicalDocument();
+        winnerDoc.setId(winnerDocId);
+        winnerDoc.setUser(testUser);
+        winnerDoc.setFileName("blood_race.pdf");
+        winnerDoc.setFileSizeBytes(mockDoc.length());
+        winnerDoc.setContentType("application/pdf");
+        winnerDoc.setStorageUrl("https://supabase.co/storage/v1/object/public/medical-documents/winner.pdf");
+
+        DocumentAnalysis winnerAnalysis = new DocumentAnalysis();
+        winnerAnalysis.setId(UUID.randomUUID());
+        winnerAnalysis.setDocument(winnerDoc);
+        winnerAnalysis.setClinicalSummary("Chỉ số bạch cầu tăng nhẹ cảnh báo phản ứng viêm nhiễm.");
+        winnerAnalysis.setPlainLanguageExplanation("Số lượng bạch cầu trong máu của bạn cao hơn bình thường.");
+        winnerAnalysis.setRecommendedSpecialtySlug("infectious-diseases");
+        winnerAnalysis.setRecommendedSpecialtyName("Truyền nhiễm - Huyết học");
+        winnerAnalysis.setAbnormalIndicatorsJson("[]");
+        winnerAnalysis.setSuggestedQuestionsJson("[]");
+
+        // Simulate saveAndFlush throwing DataIntegrityViolationException due to concurrent duplicate
+        when(medicalDocumentRepository.saveAndFlush(any(MedicalDocument.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate key violates idx_med_doc_user_hash_unique"));
+
+        when(medicalDocumentRepository.findFirstByUserIdAndFileHashOrderByCreatedAtDesc(eq(testUser.getId()), anyString()))
+                .thenReturn(Optional.empty()) // first check at beginning
+                .thenReturn(Optional.of(winnerDoc)); // during race recovery
+
+        when(documentAnalysisRepository.findByDocumentId(winnerDocId)).thenReturn(Optional.of(winnerAnalysis));
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertTrue(response.isCachedResult());
+        assertEquals("Truyền nhiễm - Huyết học", response.getRecommendedSpecialtyName());
+        // Quota was restored back to 1
+        assertEquals(1, testUser.getScanQuota());
+        verify(userRepository, times(1)).restoreScanQuota(eq(testUser.getId()));
+        verify(storageService, times(1)).deleteDocument(anyString());
     }
 }

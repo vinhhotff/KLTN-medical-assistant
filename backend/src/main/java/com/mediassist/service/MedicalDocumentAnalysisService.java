@@ -82,12 +82,69 @@ public class MedicalDocumentAnalysisService {
              storageService, clinicalRagService, null);
     }
 
+    private final java.util.concurrent.Semaphore ocrSemaphore = new java.util.concurrent.Semaphore(5, true);
+
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     @org.springframework.beans.factory.annotation.Qualifier("medicalOcrExecutor")
     private java.util.concurrent.Executor medicalOcrExecutor;
 
     public void setMedicalOcrExecutor(java.util.concurrent.Executor medicalOcrExecutor) {
         this.medicalOcrExecutor = medicalOcrExecutor;
+    }
+
+    private DocumentAnalysisResponse buildCachedResponse(MedicalDocument existingDoc, String fallbackFileName) {
+        Optional<DocumentAnalysis> existingAnalysisOpt = documentAnalysisRepository.findByDocumentId(existingDoc.getId());
+        if (existingAnalysisOpt.isEmpty()) {
+            return null;
+        }
+        DocumentAnalysis existingAnalysis = existingAnalysisOpt.get();
+
+        List<AbnormalIndicatorDto> cachedIndicators = new ArrayList<>();
+        List<String> cachedQuestions = new ArrayList<>();
+        try {
+            cachedIndicators = objectMapper.readValue(existingAnalysis.getAbnormalIndicatorsJson(), new TypeReference<List<AbnormalIndicatorDto>>() {});
+            cachedQuestions = objectMapper.readValue(existingAnalysis.getSuggestedQuestionsJson(), new TypeReference<List<String>>() {});
+        } catch (Exception ignored) {}
+
+        String queryForDoctorMatch = String.format("%s. Chuyên khoa %s. %s",
+                existingAnalysis.getClinicalSummary(), existingAnalysis.getRecommendedSpecialtyName(), existingAnalysis.getRecommendedSpecialtySlug());
+        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(queryForDoctorMatch, 4);
+
+        DocumentAnalysisResponse resp = new DocumentAnalysisResponse();
+        resp.setDocumentId(existingDoc.getId());
+        resp.setFileName(existingDoc.getFileName() != null ? existingDoc.getFileName() : fallbackFileName);
+        resp.setFileSizeBytes(existingDoc.getFileSizeBytes());
+        resp.setContentType(existingDoc.getContentType());
+        resp.setClinicalSummary(existingAnalysis.getClinicalSummary());
+        resp.setPlainLanguageExplanation(existingAnalysis.getPlainLanguageExplanation());
+        resp.setIndicators(cachedIndicators);
+        resp.setRecommendedSpecialtySlug(existingAnalysis.getRecommendedSpecialtySlug());
+        resp.setRecommendedSpecialtyName(existingAnalysis.getRecommendedSpecialtyName());
+        resp.setSuggestedQuestions(cachedQuestions);
+        resp.setMatchedDoctors(matchedDoctors);
+        resp.setStorageUrl(existingDoc.getStorageUrl());
+        resp.setCachedResult(true);
+        resp.setModelUsed("SHA-256 Deduplication Cache (0 LLM Tokens)");
+        if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+            resp.setDoctorRecommendationReason(matchedDoctors.get(0).getAiRecommendationReason());
+        }
+
+        if (existingAnalysis.getMetadataJson() != null && !existingAnalysis.getMetadataJson().isBlank()) {
+            try {
+                com.fasterxml.jackson.databind.JsonNode metaNode = objectMapper.readTree(existingAnalysis.getMetadataJson());
+                if (metaNode.has("hospitalName") && !metaNode.get("hospitalName").isNull()) resp.setHospitalName(metaNode.get("hospitalName").asText());
+                if (metaNode.has("departmentName") && !metaNode.get("departmentName").isNull()) resp.setDepartmentName(metaNode.get("departmentName").asText());
+                if (metaNode.has("orderingDoctor") && !metaNode.get("orderingDoctor").isNull()) resp.setOrderingDoctor(metaNode.get("orderingDoctor").asText());
+                if (metaNode.has("testDate") && !metaNode.get("testDate").isNull()) resp.setTestDate(metaNode.get("testDate").asText());
+                if (metaNode.has("sidCode") && !metaNode.get("sidCode").isNull()) resp.setSidCode(metaNode.get("sidCode").asText());
+                if (metaNode.has("patientName") && !metaNode.get("patientName").isNull()) resp.setPatientName(metaNode.get("patientName").asText());
+                if (metaNode.has("patientAge") && !metaNode.get("patientAge").isNull()) resp.setPatientAge(metaNode.get("patientAge").asText());
+                if (metaNode.has("patientGender") && !metaNode.get("patientGender").isNull()) resp.setPatientGender(metaNode.get("patientGender").asText());
+                if (metaNode.has("deviceModel") && !metaNode.get("deviceModel").isNull()) resp.setDeviceModel(metaNode.get("deviceModel").asText());
+            } catch (Exception ignored) {}
+        }
+
+        return resp;
     }
 
     public DocumentAnalysisResponse analyzeDocument(MultipartFile file, String userEmail) {
@@ -128,58 +185,10 @@ public class MedicalDocumentAnalysisService {
         String fileHash = calculateSha256(fileBytes);
         Optional<MedicalDocument> existingDocOpt = medicalDocumentRepository.findFirstByUserIdAndFileHashOrderByCreatedAtDesc(user.getId(), fileHash);
         if (existingDocOpt.isPresent()) {
-            MedicalDocument existingDoc = existingDocOpt.get();
-            Optional<DocumentAnalysis> existingAnalysisOpt = documentAnalysisRepository.findByDocumentId(existingDoc.getId());
-            if (existingAnalysisOpt.isPresent()) {
-                DocumentAnalysis existingAnalysis = existingAnalysisOpt.get();
+            DocumentAnalysisResponse cachedResponse = buildCachedResponse(existingDocOpt.get(), fileName);
+            if (cachedResponse != null) {
                 log.info("⚡ [CACHE HIT - DEDUPLICATION] Document '{}' (hash: {}) previously analyzed for user {}. Returning cached result. 0 LLM tokens consumed.", fileName, fileHash, userEmail);
-
-                List<AbnormalIndicatorDto> cachedIndicators = new ArrayList<>();
-                List<String> cachedQuestions = new ArrayList<>();
-                try {
-                    cachedIndicators = objectMapper.readValue(existingAnalysis.getAbnormalIndicatorsJson(), new TypeReference<List<AbnormalIndicatorDto>>() {});
-                    cachedQuestions = objectMapper.readValue(existingAnalysis.getSuggestedQuestionsJson(), new TypeReference<List<String>>() {});
-                } catch (Exception ignored) {}
-
-                String queryForDoctorMatch = String.format("%s. Chuyên khoa %s. %s",
-                        existingAnalysis.getClinicalSummary(), existingAnalysis.getRecommendedSpecialtyName(), existingAnalysis.getRecommendedSpecialtySlug());
-                List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(queryForDoctorMatch, 4);
-
-                DocumentAnalysisResponse resp = new DocumentAnalysisResponse();
-                resp.setDocumentId(existingDoc.getId());
-                resp.setFileName(existingDoc.getFileName());
-                resp.setFileSizeBytes(existingDoc.getFileSizeBytes());
-                resp.setContentType(existingDoc.getContentType());
-                resp.setClinicalSummary(existingAnalysis.getClinicalSummary());
-                resp.setPlainLanguageExplanation(existingAnalysis.getPlainLanguageExplanation());
-                resp.setIndicators(cachedIndicators);
-                resp.setRecommendedSpecialtySlug(existingAnalysis.getRecommendedSpecialtySlug());
-                resp.setRecommendedSpecialtyName(existingAnalysis.getRecommendedSpecialtyName());
-                resp.setSuggestedQuestions(cachedQuestions);
-                resp.setMatchedDoctors(matchedDoctors);
-                resp.setStorageUrl(existingDoc.getStorageUrl());
-                resp.setCachedResult(true);
-                resp.setModelUsed("SHA-256 Deduplication Cache (0 LLM Tokens)");
-                if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
-                    resp.setDoctorRecommendationReason(matchedDoctors.get(0).getAiRecommendationReason());
-                }
-
-                if (existingAnalysis.getMetadataJson() != null && !existingAnalysis.getMetadataJson().isBlank()) {
-                    try {
-                        com.fasterxml.jackson.databind.JsonNode metaNode = objectMapper.readTree(existingAnalysis.getMetadataJson());
-                        if (metaNode.has("hospitalName") && !metaNode.get("hospitalName").isNull()) resp.setHospitalName(metaNode.get("hospitalName").asText());
-                        if (metaNode.has("departmentName") && !metaNode.get("departmentName").isNull()) resp.setDepartmentName(metaNode.get("departmentName").asText());
-                        if (metaNode.has("orderingDoctor") && !metaNode.get("orderingDoctor").isNull()) resp.setOrderingDoctor(metaNode.get("orderingDoctor").asText());
-                        if (metaNode.has("testDate") && !metaNode.get("testDate").isNull()) resp.setTestDate(metaNode.get("testDate").asText());
-                        if (metaNode.has("sidCode") && !metaNode.get("sidCode").isNull()) resp.setSidCode(metaNode.get("sidCode").asText());
-                        if (metaNode.has("patientName") && !metaNode.get("patientName").isNull()) resp.setPatientName(metaNode.get("patientName").asText());
-                        if (metaNode.has("patientAge") && !metaNode.get("patientAge").isNull()) resp.setPatientAge(metaNode.get("patientAge").asText());
-                        if (metaNode.has("patientGender") && !metaNode.get("patientGender").isNull()) resp.setPatientGender(metaNode.get("patientGender").asText());
-                        if (metaNode.has("deviceModel") && !metaNode.get("deviceModel").isNull()) resp.setDeviceModel(metaNode.get("deviceModel").asText());
-                    } catch (Exception ignored) {}
-                }
-
-                return resp;
+                return cachedResponse;
             }
         }
 
@@ -321,7 +330,48 @@ public class MedicalDocumentAnalysisService {
             medDoc.setStorageUrl(storageUrl);
             medDoc.setValidMedical(true);
             medDoc.setStatus("PROCESSED");
-            medDoc = medicalDocumentRepository.save(medDoc);
+            try {
+                medDoc = medicalDocumentRepository.saveAndFlush(medDoc);
+            } catch (org.springframework.dao.DataIntegrityViolationException dive) {
+                log.warn("⚡ [RACE CONDITION RECOVERY] Concurrent duplicate upload detected for user {} with file hash {}. Rolling back duplicate and serving winner cached record.", userEmail, fileHash);
+                // 1. Compensating action: Restore scan quota that was deducted for this request
+                if (quotaDeducted) {
+                    try {
+                        userRepository.restoreScanQuota(user.getId());
+                        quotaDeducted = false;
+                        log.info("💳 [RACE RECOVERY] Restored deducted quota for duplicate upload of user {}", userEmail);
+                    } catch (Exception restoreEx) {
+                        log.error("Failed to restore quota during deduplication collision recovery: {}", restoreEx.getMessage());
+                    }
+                }
+                // 2. Compensating action: Clean up redundant cloud storage upload
+                if (storageUrl != null) {
+                    try {
+                        storageService.deleteDocument(storageUrl);
+                        storageUrl = null;
+                    } catch (Exception delEx) {
+                        log.error("Failed to delete duplicate storage file: {}", delEx.getMessage());
+                    }
+                }
+                // 3. Gracefully retrieve the winning document and return its cached analysis
+                for (int attempt = 0; attempt < 5; attempt++) {
+                    Optional<MedicalDocument> winnerDoc = medicalDocumentRepository.findFirstByUserIdAndFileHashOrderByCreatedAtDesc(user.getId(), fileHash);
+                    if (winnerDoc.isPresent()) {
+                        DocumentAnalysisResponse cached = buildCachedResponse(winnerDoc.get(), fileName);
+                        if (cached != null) {
+                            log.info("⚡ [RACE RECOVERY SUCCESS] Successfully returned concurrent winner analysis for user {}", userEmail);
+                            return cached;
+                        }
+                    }
+                    try {
+                        Thread.sleep(150);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+                throw dive;
+            }
 
             DocumentAnalysis analysis = new DocumentAnalysis();
             analysis.setDocument(medDoc);
@@ -1038,12 +1088,23 @@ public class MedicalDocumentAnalysisService {
                             final int pageIdx = i;
                             final byte[] imgData = pageImages.get(i);
                             futures.add(java.util.concurrent.CompletableFuture.runAsync(() -> {
+                                boolean permitAcquired = false;
                                 try {
-                                    String ocr = clinicalRagService.extractTextWithVision(imgData, "image/jpeg", fileName + " - Trang " + (pageIdx + 1));
-                                    ocrResults[pageIdx] = ocr;
+                                    permitAcquired = ocrSemaphore.tryAcquire(25, java.util.concurrent.TimeUnit.SECONDS);
+                                    if (permitAcquired) {
+                                        String ocr = clinicalRagService.extractTextWithVision(imgData, "image/jpeg", fileName + " - Trang " + (pageIdx + 1));
+                                        ocrResults[pageIdx] = ocr;
+                                    } else {
+                                        log.warn("OCR concurrency permit wait timed out for page {} of '{}'", pageIdx + 1, fileName);
+                                        ocrResults[pageIdx] = "";
+                                    }
                                 } catch (Exception ex) {
                                     log.warn("Parallel OCR error on page {}: {}", pageIdx + 1, ex.getMessage());
                                     ocrResults[pageIdx] = "";
+                                } finally {
+                                    if (permitAcquired) {
+                                        ocrSemaphore.release();
+                                    }
                                 }
                             }, executor));
                         }
@@ -1074,9 +1135,31 @@ public class MedicalDocumentAnalysisService {
                 extractedText = new String(fileBytes, java.nio.charset.StandardCharsets.UTF_8);
             } else if (contentType.toLowerCase().contains("image/")) {
                 if (clinicalRagService.canProcessVision()) {
-                    extractedText = clinicalRagService.extractTextWithVision(fileBytes, contentType, fileName);
+                    boolean permitAcquired = false;
+                    try {
+                        permitAcquired = ocrSemaphore.tryAcquire(30, java.util.concurrent.TimeUnit.SECONDS);
+                        if (permitAcquired) {
+                            extractedText = clinicalRagService.extractTextWithVision(fileBytes, contentType, fileName);
+                        } else {
+                            log.warn("OCR concurrency throttle reached for image '{}'", fileName);
+                            throw new com.mediassist.common.AppException(
+                                    org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
+                                    "OCR_BUSY",
+                                    "Hệ thống đang tiếp nhận nhiều lượt phân tích ảnh cùng lúc. Vui lòng thử lại sau giây lát."
+                            );
+                        }
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Interrupted while waiting for OCR permit: {}", ie.getMessage());
+                    } finally {
+                        if (permitAcquired) {
+                            ocrSemaphore.release();
+                        }
+                    }
                 }
             }
+        } catch (com.mediassist.common.AppException appEx) {
+            throw appEx;
         } catch (Exception e) {
             log.warn("Could not extract text from file '{}': {}", fileName, e.getMessage());
         }
