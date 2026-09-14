@@ -26,7 +26,7 @@ public class GeminiAiProvider implements AiProvider {
     @Value("${app.ai.gemini.api-key:${GEMINI_API_KEY:}}")
     private String apiKey;
 
-    @Value("${app.ai.gemini.model:gemini-1.5-flash}")
+    @Value("${app.ai.gemini.model:gemini-3.6-flash}")
     private String defaultModel;
 
     @Value("${app.ai.gemini.enabled:true}")
@@ -70,7 +70,7 @@ public class GeminiAiProvider implements AiProvider {
             return "";
         }
 
-        String targetModel = (defaultModel != null && !defaultModel.isBlank()) ? defaultModel : "gemini-1.5-flash";
+        String targetModel = (defaultModel != null && !defaultModel.isBlank()) ? defaultModel : "gemini-3.6-flash";
         log.info("🔍 [GEMINI VISION OCR] Invoking model '{}' for file '{}' ({} bytes)...", targetModel, fileName, imageBytes.length);
 
         String base64Image = Base64.getEncoder().encodeToString(imageBytes);
@@ -154,7 +154,7 @@ public class GeminiAiProvider implements AiProvider {
 
         String targetModel = (modelId != null && !modelId.isBlank() && !modelId.contains("/")) ? modelId : defaultModel;
         if (targetModel == null || targetModel.isBlank()) {
-            targetModel = "gemini-1.5-flash";
+            targetModel = "gemini-3.6-flash";
         }
 
         try {

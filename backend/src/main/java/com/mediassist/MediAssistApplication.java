@@ -25,7 +25,10 @@ public class MediAssistApplication {
         List<Path> candidatePaths = List.of(
                 Path.of(".env"),
                 Path.of("../.env"),
-                Path.of("backend/.env")
+                Path.of("backend/.env"),
+                Path.of(".env.local"),
+                Path.of("../.env.local"),
+                Path.of("backend/.env.local")
         );
 
         for (Path p : candidatePaths) {
@@ -42,13 +45,12 @@ public class MediAssistApplication {
                             if (val.startsWith("\"") && val.endsWith("\"") && val.length() >= 2) {
                                 val = val.substring(1, val.length() - 1);
                             }
-                            if (System.getProperty(key) == null && System.getenv(key) == null) {
+                            if (!val.isBlank()) {
                                 System.setProperty(key, val);
                             }
                         }
                     }
-                    log.info("🌱 [ENV] Automatically loaded environment variables from: {}", p.toAbsolutePath().normalize());
-                    break;
+                    log.info("🌱 [ENV] Loaded environment variables from: {}", p.toAbsolutePath().normalize());
                 } catch (Exception e) {
                     log.warn("Could not read .env at {}: {}", p, e.getMessage());
                 }

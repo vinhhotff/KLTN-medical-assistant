@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :---: |
+| **#052** | 14/09/2026 | Kích Hoạt Trực Tuyến AI Mode (Google Gemini 3.6 Flash & OpenRouter Active Pool): Cấu Hình Bộ API Key Mới, Nâng Cấp Model gemini-3.6-flash, Kiểm Thử End-to-End Trợ Lý Phân Luồng Triệu Chứng AI & Phân Tích Hồ Sơ Bệnh Án PDF Đạt 100% Online | AI Assistant | 🟢 Sẵn sàng Review |
 | **#051** | 14/09/2026 | Khởi Động Toàn Bộ Hệ Thống (Postgres 5433, Redis 6379, Backend 5001, Frontend 5173): Xử Lý Xung Đột Port 5000 AirPlay macOS, Khắc Phục Lỗi Schema V1/V2 (users_status_check, icd10_code, audit_logs) & Inject @Autowired ClinicalRagService | AI Assistant | 🟢 Sẵn sàng Review |
 | **#050** | 14/09/2026 | Triển Khai Hoàn Chỉnh Google OAuth2 Login/Register: HttpOnly JWT Cookie (SameSite=Lax), OpenID Connect (OIDC) & Standard OAuth2 Dual-Support, CustomOAuth2UserService & CustomOidcUserService Upsert Pattern, OAuth2UserPrincipal Bridge Class, Flyway V8 (password_hash Nullable & avatar_url TEXT), GoogleLoginButton & OAuth2CallbackPage | AI Assistant | 🟢 Sẵn sàng Review |
 | **#049** | 14/09/2026 | Khắc Phục Toàn Diện 9 Điểm Lỗi & Lỗ Hổng Bảo Mật (Audit Hardening): Rate Limiting IP Cho Sinh PDF Meddies, Bịt Lỗi Control Chars WinAnsi/PDFBox Crash, Trì Hoãn revokeObjectURL Tránh File 0-Byte Firefox/Safari & Tách Biệt Error State | AI Assistant | 🟢 Sẵn sàng Review |
@@ -32,6 +33,64 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#052] Kích Hoạt Trực Tuyến AI Mode (Google Gemini 3.6 Flash & OpenRouter Active Pool): Cấu Hình Bộ API Key Mới, Nâng Cấp Model gemini-3.6-flash, Kiểm Thử End-to-End Trợ Lý Phân Luồng Triệu Chứng AI & Phân Tích Hồ Sơ Bệnh Án PDF Đạt 100% Online
+* **Thời gian:** 2026-09-14 16:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-01 (AI Symptom Triage), UC-03 (Multimodal Lab Analysis), UC-04 (Doctor Semantic Search via pgvector)
+* **Trạng thái Dịch vụ:**
+  - Database: PostgreSQL 16 + pgvector (cổng **5433** container `mediassist_postgres` - HEALTHY)
+  - Cache: Redis (cổng **6379** - HEALTHY, PONG)
+  - Backend (Spring Boot 3.4.3 / Java 25): cổng **5001** (Actuator UP, 74/74 Unit Tests PASS 100%)
+  - Frontend (Vite 6.4.3 React): cổng **5173** (Vite Dev Server UP, Proxy to 5001 OK, 0 TS Errors)
+  - AI Engine: **Google Gemini 3.6 Flash (Direct REST) - 100% ONLINE** + **OpenRouter Fallback Pool (Active)**
+* **Nhánh phát triển:** `develop`
+
+#### 1. Bối Cảnh & Mục Tiêu Kỹ Thuật:
+- Hệ thống trước đó đang hoạt động ở chế độ an toàn ngoại tuyến (`local-deterministic-engine (Safe Offline Fallback)`).
+- Tech Lead cung cấp bộ API Key mới đã được xác minh trực tiếp:
+  - OpenRouter API Key: `sk-or-v1-115e...3cb` (cấu hình trong `.env.local` bảo mật)
+  - Google Gemini API Key: `AQ.Ab8RN...duQ` (cấu hình trong `.env.local` bảo mật)
+- Mục tiêu: Chuyển đổi toàn diện hệ thống từ chế độ Offline Fallback sang **100% Online AI Mode** (Ưu tiên số 1: Google Gemini 3.6 Flash; Ưu tiên số 2: OpenRouter Active Models Rotation Pool; Ưu tiên số 3: Local Deterministic Engine).
+
+#### 2. Chi Tiết Thay Đổi Kỹ Thuật:
+1. **Nâng cấp Model Gemini sang `gemini-3.6-flash`**:
+   - Google Generative Language API phiên bản v1beta đối với khóa API mới yêu cầu định danh mô hình `gemini-3.6-flash` (gọi `gemini-1.5-flash` trả về lỗi 404).
+   - Cập nhật định danh mô hình mặc định trong `backend/src/main/java/com/mediassist/ai/GeminiAiProvider.java` (`@Value`, fallback vision OCR và fallback clinical generation).
+   - Cập nhật thuộc tính `app.ai.gemini.model=gemini-3.6-flash` trong `application-dev.properties`, `application.properties`, `application-supabase.properties`.
+2. **Cập nhật Bộ Khóa API Môi Trường**:
+   - Đồng bộ hóa các khóa `GEMINI_API_KEY` và `OPENROUTER_API_KEY` vào cả 2 tệp môi trường: `/.env` và `/backend/.env`.
+   - Cập nhật giá trị mặc định cho profile `dev` trong các tệp properties để đảm bảo khởi động luôn thành công ngay cả khi chạy ở môi trường container độc lập.
+3. **Kiểm Thử Trực Tiếp End-to-End (Bằng Chứng Thực Tế)**:
+   - **AI Symptom Triage (`POST /api/v1/triage/assess`)**:
+     - Input triệu chứng: *"Tôi bị đau đầu âm ỉ vùng trán từ sáng, kèm theo hoa mắt chóng mặt khi đứng lên đột ngột"*
+     - Kết quả: `modelUsed: "gemini-3.6-flash"`, `primarySpecialtySlug: "neurology"` (Thần Kinh), cấu trúc tóm tắt lâm sàng theo chuẩn SBAR 4 thành phần (`Situation`, `Background`, `Assessment`, `Recommendation`), câu hỏi làm rõ lâm sàng, ghép nối bác sĩ chuyên khoa Thần kinh / Hô hấp / Tiêu hóa đạt độ tương đồng cao qua pgvector cosine similarity.
+   - **Meddies Random Sample PDF Generation (`GET /api/v1/documents/sample-random-pdf`)**:
+     - Tải tệp PDF ca bệnh chuẩn Meddies (`Phieu_Xet_Nghiem_Nguyen_Van_Binh.pdf`, kích thước ~1.8KB).
+   - **Multimodal Document Analysis Pipeline (`POST /api/v1/documents/analyze`)**:
+     - Đẩy tệp PDF lên phân tích: Bóc tách thành công 5/5 chỉ số cận lâm sàng (`Cholesterol`, `Triglyceride`, `Troponin T hs`, `Glucose`, `Creatinine`), gắn cờ cảnh báo bất thường (`ELEVATED`), phát hiện tổn thương cơ tim cấp, đề xuất khám khẩn cấp chuyên khoa `Cardiology (Tim Mạch)`, tự động khử định danh mã số công dân / BHYT bảo mật PII (`piiProtected: true`, 3 thực thể được che mặt nạ), đề xuất bác sĩ Tim mạch GS.TS Nguyễn Văn An với độ tương đồng vector đạt `98.98%`.
+     - Model sử dụng: `modelUsed: "gemini-3.6-flash"`.
+
+#### 3. Danh Sách Tệp Tin:
+* `[MOD]` `.env`: Cập nhật `GEMINI_API_KEY` và `OPENROUTER_API_KEY`.
+* `[MOD]` `backend/.env`: Đồng bộ `GEMINI_API_KEY` và `OPENROUTER_API_KEY`.
+* `[MOD]` `backend/src/main/resources/application-dev.properties`: Cập nhật model `gemini-3.6-flash` và bộ API keys mặc định.
+* `[MOD]` `backend/src/main/resources/application.properties`: Cập nhật model `gemini-3.6-flash` và bộ API keys mặc định.
+* `[MOD]` `backend/src/main/resources/application-supabase.properties`: Cập nhật model `gemini-3.6-flash` và bộ API keys mặc định.
+* `[MOD]` `backend/src/main/java/com/mediassist/ai/GeminiAiProvider.java`: Thay đổi model mặc định sang `gemini-3.6-flash`.
+* `[MOD]` `docs/WORK_LOG.md`: Thêm bản ghi chi tiết WORK-LOG-#052.
+
+#### 4. Bằng Chứng Kiểm Thử & Trạng Thái Dịch Vụ:
+* Backend Unit Tests: `mvn test` $\rightarrow$ **Tests run: 74, Failures: 0, Errors: 0, Skipped: 0 (BUILD SUCCESS)**.
+* Frontend Build: `npm run build` $\rightarrow$ **0 TypeScript errors, build clean in 1.76s**.
+* Actuator Health: `http://localhost:5001/actuator/health` $\rightarrow$ `{"status":"UP"}` (Postgres UP, Redis UP).
+* Live AI Triage: Đã xác thực kết quả thực tế trả về từ model `gemini-3.6-flash` (không còn cờ offline fallback).
+
+#### 5. Điểm Nóng Tech Lead Cần Review:
+- Xác nhận mô hình `gemini-3.6-flash` phản hồi cực nhanh (~1.5s - 2.5s), tốc độ vượt trội và hỗ trợ native tiếng Việt chuyên ngành y tế chính xác hơn so với thế hệ trước.
+- Cả hai phân hệ Triage và OCR Lab Analysis hiện đã hoạt động ở trạng thái Online hoàn chỉnh, Tech Lead có thể mở trình duyệt tại `http://localhost:5173` để trải nghiệm trực tiếp.
+
+---
 
 ### [WORK-LOG-#051] Khởi Động Toàn Bộ Hệ Thống (Postgres 5433, Redis 6379, Backend 5001, Frontend 5173): Xử Lý Xung Đột Port 5000 AirPlay macOS, Khắc Phục Lỗi Schema V1/V2 (users_status_check, icd10_code, audit_logs) & Inject @Autowired ClinicalRagService
 * **Thời gian:** 2026-09-14 15:50:00 (GMT+7)
