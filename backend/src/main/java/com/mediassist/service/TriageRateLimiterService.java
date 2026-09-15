@@ -1,13 +1,14 @@
 package com.mediassist.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
@@ -17,8 +18,11 @@ public class TriageRateLimiterService {
     private static final int MAX_REQUESTS_PER_MINUTE = 15;
 
     private final StringRedisTemplate redisTemplate;
-    // In-memory fallback
-    private final Map<String, WindowCounter> fallbackMap = new ConcurrentHashMap<>();
+    // Bounded In-memory fallback with auto-eviction (Memory-Leak Free)
+    private final Cache<String, WindowCounter> fallbackCache = Caffeine.newBuilder()
+            .expireAfterWrite(5, TimeUnit.MINUTES)
+            .maximumSize(10_000)
+            .build();
 
     public TriageRateLimiterService(StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
@@ -40,14 +44,14 @@ public class TriageRateLimiterService {
 
     private boolean allowInMemory(String clientIdentifier) {
         long currentMinute = System.currentTimeMillis() / 60000;
-        WindowCounter counter = fallbackMap.compute(clientIdentifier, (k, existing) -> {
+        WindowCounter counter = fallbackCache.asMap().compute(clientIdentifier, (k, existing) -> {
             if (existing == null || existing.minute != currentMinute) {
                 return new WindowCounter(currentMinute, new AtomicInteger(1));
             }
             existing.counter.incrementAndGet();
             return existing;
         });
-        return counter.counter.get() <= MAX_REQUESTS_PER_MINUTE;
+        return counter != null && counter.counter.get() <= MAX_REQUESTS_PER_MINUTE;
     }
 
     private record WindowCounter(long minute, AtomicInteger counter) {}

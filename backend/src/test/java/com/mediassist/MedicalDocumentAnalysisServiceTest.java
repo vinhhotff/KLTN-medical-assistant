@@ -784,4 +784,120 @@ class MedicalDocumentAnalysisServiceTest {
         assertEquals(1, testUser.getScanQuota(), "Quota should not be deducted again for stale offline re-analysis");
         verify(documentAnalysisRepository, times(1)).save(any(DocumentAnalysis.class));
     }
+
+    @Test
+    @DisplayName("Should return 0 doctors and clinical warning on cached blank/unreadable document")
+    void testBuildCachedResponseOnBlankDocument_ZeroFakeRecommendations() {
+        MockMultipartFile file = new MockMultipartFile("file", "blank.pdf", "application/pdf", "blank test content".getBytes());
+
+        UUID existingDocId = UUID.randomUUID();
+        MedicalDocument blankDoc = new MedicalDocument();
+        blankDoc.setId(existingDocId);
+        blankDoc.setUser(testUser);
+        blankDoc.setFileName("blank.pdf");
+        blankDoc.setStorageUrl("https://supabase.co/storage/v1/object/public/medical-documents/blank.pdf");
+
+        DocumentAnalysis blankAnalysis = new DocumentAnalysis();
+        blankAnalysis.setId(UUID.randomUUID());
+        blankAnalysis.setDocument(blankDoc);
+        blankAnalysis.setClinicalSummary("Tài liệu y tế chưa ghi nhận kết quả đo lường cụ thể.");
+        blankAnalysis.setPlainLanguageExplanation("Phiếu xét nghiệm của bạn chưa có kết quả đo lường.");
+        blankAnalysis.setRecommendedSpecialtySlug(null); // null specialty!
+        blankAnalysis.setRecommendedSpecialtyName("Chưa xác định (Cần bổ sung kết quả)");
+        blankAnalysis.setAbnormalIndicatorsJson("[]");
+        blankAnalysis.setSuggestedQuestionsJson("[]");
+
+        when(medicalDocumentRepository.findFirstByUserIdAndFileHashOrderByCreatedAtDesc(eq(testUser.getId()), anyString()))
+                .thenReturn(Optional.of(blankDoc));
+        when(documentAnalysisRepository.findByDocumentId(existingDocId))
+                .thenReturn(Optional.of(blankAnalysis));
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertTrue(response.isCachedResult());
+        assertNull(response.getRecommendedSpecialtySlug());
+        // Verify ZERO fake doctor recommendations on cached blank document!
+        assertNotNull(response.getMatchedDoctors());
+        assertTrue(response.getMatchedDoctors().isEmpty(), "Matched doctors must be empty on cached blank document");
+        assertNotNull(response.getDoctorRecommendationReason());
+        assertTrue(response.getDoctorRecommendationReason().contains("Không đủ cơ sở lâm sàng"),
+                "Doctor recommendation reason must explain insufficient clinical evidence");
+    }
+
+    @Test
+    @DisplayName("Should preserve clinical fungal tests, wet mounts, and 24-hour urine/glucose indicators")
+    void testParseIndicators_PreservesFungalTestsAndWetMountAnd24HourTests() {
+        String labText = """
+                BỆNH VIỆN BẠCH MAI - KHOA VI SINH & SINH HÓA
+                Họ và tên: Nguyễn Văn E - Tuổi: 35 - Giới tính: Nam
+                Ngày lấy mẫu: 15/09/2026 - Giờ: 08:30
+                
+                Soi tươi tìm nấm: 2.0 CFU/ml (Tham chiếu: 0.0 - 0.0) -> TĂNG
+                Nấm men: 10.5 CFU/ml (Tham chiếu: 0.0 - 0.0) -> TĂNG CAO
+                Protein niệu 24 giờ: 0.85 g/24h (Tham chiếu: 0.0 - 0.15) -> TĂNG CAO
+                Glucose 2 giờ: 11.2 mmol/L (Tham chiếu: 3.9 - 7.8) -> TĂNG CAO
+                """;
+
+        List<com.mediassist.dto.AbnormalIndicatorDto> indicators = analysisService.parseIndicators(labText, "test_microbiology.pdf");
+
+        assertNotNull(indicators);
+        assertFalse(indicators.isEmpty(), "Indicators must not be empty");
+
+        boolean hasSoiTuoi = indicators.stream().anyMatch(i -> i.getName().toLowerCase().contains("soi") || i.getName().toLowerCase().contains("tươi"));
+        boolean hasNamMen = indicators.stream().anyMatch(i -> i.getName().toLowerCase().contains("nấm") || i.getName().toLowerCase().contains("nam"));
+        boolean hasProtein24h = indicators.stream().anyMatch(i -> i.getName().toLowerCase().contains("protein") || i.getName().toLowerCase().contains("24"));
+        boolean hasGlucose2h = indicators.stream().anyMatch(i -> i.getName().toLowerCase().contains("glucose"));
+
+        assertTrue(hasSoiTuoi, "Wet mount / fungal indicator must be preserved");
+        assertTrue(hasNamMen, "Fungal indicator (Nấm men) must not be suppressed by 'nam' blacklist");
+        assertTrue(hasProtein24h, "24-hour urine protein test must not be suppressed by 'gio' blacklist");
+        assertTrue(hasGlucose2h, "2-hour glucose test must not be suppressed by 'gio' blacklist");
+    }
+
+    @Test
+    @DisplayName("Should re-order matchedDoctors in analyzeDocument when AI explicitly selects specific candidate")
+    void testAnalyzeDocument_ReordersMatchedDoctorsWhenAiSelectsSpecificCandidate() {
+        String docText = """
+                BỆNH VIỆN BẠCH MAI
+                Glucose huyet doi: 9.6 mmol/L (Tham chiếu: 3.9 - 6.4) -> TĂNG CAO
+                HbA1c: 8.7 % (Tham chiếu: 4.0 - 6.0) -> TĂNG CAO
+                """;
+        MockMultipartFile file = new MockMultipartFile("file", "xet_nghiem.pdf", "application/pdf", docText.getBytes());
+
+        UUID docAId = UUID.randomUUID();
+        DoctorMatchDto docA = new DoctorMatchDto(
+                docAId, "BS. A", "Nội tiết", "CCHN-01", 10, new BigDecimal("300000"), 0.95, List.of("Endocrinology")
+        );
+
+        UUID docBId = UUID.randomUUID();
+        DoctorMatchDto docB = new DoctorMatchDto(
+                docBId, "TS. BS. B", "Đái tháo đường", "CCHN-02", 18, new BigDecimal("450000"), 0.90, List.of("Endocrinology")
+        );
+
+        com.mediassist.ai.ClinicalAiResult mockResult = new com.mediassist.ai.ClinicalAiResult();
+        mockResult.setModelUsed("google/gemini-2.0-flash-exp:free (OpenRouter)");
+        mockResult.setRecommendedSpecialtySlug("endocrinology");
+        mockResult.setRecommendedSpecialtyName("Endocrinology & Diabetes");
+        mockResult.setClinicalSummary("Bệnh nhân có tăng đường huyết mạn tính.");
+        mockResult.setPlainLanguageExplanation("Đường huyết của bạn cao.");
+        // AI explicitly recommends Doctor B
+        mockResult.setRecommendedDoctorId(docBId);
+        mockResult.setDoctorRecommendationReason("Bác sĩ B chuyên sâu về đái tháo đường type 2");
+
+        when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(docText);
+        when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any())).thenReturn(mockResult);
+        when(doctorSemanticSearchService.searchDoctors(anyString(), eq(4))).thenReturn(new java.util.ArrayList<>(List.of(docA, docB)));
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertNotNull(response.getMatchedDoctors());
+        assertEquals(2, response.getMatchedDoctors().size());
+        // Verify Doc B was promoted to index 0!
+        assertEquals(docBId, response.getMatchedDoctors().get(0).getDoctorId());
+        assertTrue(response.getMatchedDoctors().get(0).isAiRecommended());
+        assertEquals(docAId, response.getMatchedDoctors().get(1).getDoctorId());
+        assertFalse(response.getMatchedDoctors().get(1).isAiRecommended());
+    }
 }

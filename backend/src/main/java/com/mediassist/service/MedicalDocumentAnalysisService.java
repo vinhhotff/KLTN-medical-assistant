@@ -122,12 +122,33 @@ public class MedicalDocumentAnalysisService {
         // Use focused query (specialty-centric) instead of full clinical summary to avoid noise
         String specialtySlug = existingAnalysis.getRecommendedSpecialtySlug();
         String specialtyName = existingAnalysis.getRecommendedSpecialtyName();
-        String focusedQuery = buildFocusedDoctorQuery(
-                specialtySlug != null ? specialtySlug : "general-internal-medicine",
-                specialtyName != null ? specialtyName : "Nội Tổng Quát",
-                cachedIndicators,
-                existingDoc.getFileName());
-        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedQuery, 4);
+        List<DoctorMatchDto> matchedDoctors;
+        String doctorRecommendationReason;
+
+        if (specialtySlug != null && !specialtySlug.isBlank()) {
+            String focusedQuery = buildFocusedDoctorQuery(
+                    specialtySlug,
+                    specialtyName != null ? specialtyName : "Nội Tổng Quát",
+                    cachedIndicators,
+                    existingDoc.getFileName());
+            matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedQuery, 4);
+
+            if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+                DoctorMatchDto top = matchedDoctors.get(0);
+                top.setAiRecommended(true);
+                doctorRecommendationReason = buildClinicalDoctorRecommendationReason(
+                        top,
+                        specialtyName != null ? specialtyName : "Chuyên khoa",
+                        cachedIndicators);
+                top.setAiRecommendationReason(doctorRecommendationReason);
+            } else {
+                doctorRecommendationReason = null;
+            }
+        } else {
+            // CRITICAL MEDICAL INTEGRITY RULE: Zero Fake Recommendations on blank / unreadable cached documents
+            matchedDoctors = Collections.emptyList();
+            doctorRecommendationReason = "Không đủ cơ sở lâm sàng để đề xuất bác sĩ do tài liệu chưa có chỉ số kết quả xét nghiệm cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu.";
+        }
 
         DocumentAnalysisResponse resp = new DocumentAnalysisResponse();
         resp.setDocumentId(existingDoc.getId());
@@ -144,15 +165,7 @@ public class MedicalDocumentAnalysisService {
         resp.setStorageUrl(existingDoc.getStorageUrl());
         resp.setCachedResult(true);
         resp.setModelUsed("SHA-256 Deduplication Cache (0 LLM Tokens)");
-
-        // Rebuild clinical recommendation for cached responses: mark top doctor and generate proper reason
-        if (matchedDoctors != null && !matchedDoctors.isEmpty() && cachedIndicators != null && !cachedIndicators.isEmpty()) {
-            DoctorMatchDto top = matchedDoctors.get(0);
-            top.setAiRecommended(true);
-            String reason = buildClinicalDoctorRecommendationReason(top, specialtyName != null ? specialtyName : "Chuyên khoa", cachedIndicators);
-            top.setAiRecommendationReason(reason);
-            resp.setDoctorRecommendationReason(reason);
-        }
+        resp.setDoctorRecommendationReason(doctorRecommendationReason);
 
         if (existingAnalysis.getMetadataJson() != null && !existingAnalysis.getMetadataJson().isBlank()) {
             try {
@@ -297,21 +310,35 @@ public class MedicalDocumentAnalysisService {
                 }
 
                 if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+                    matchedDoctors = new ArrayList<>(matchedDoctors);
+                    // If AI explicitly recommended a doctor from pre-RAG candidates, align display order so that doctor is index 0
+                    if (ragResult.getRecommendedDoctorId() != null) {
+                        UUID recId = ragResult.getRecommendedDoctorId();
+                        int recIdx = -1;
+                        for (int i = 0; i < matchedDoctors.size(); i++) {
+                            if (recId.equals(matchedDoctors.get(i).getDoctorId())) {
+                                recIdx = i;
+                                break;
+                            }
+                        }
+                        if (recIdx > 0) {
+                            DoctorMatchDto recDoc = matchedDoctors.remove(recIdx);
+                            matchedDoctors.add(0, recDoc);
+                        }
+                    }
+
                     DoctorMatchDto top = matchedDoctors.get(0);
                     top.setAiRecommended(true);
 
                     String aiReason = ragResult.getDoctorRecommendationReason();
-                    boolean isMetaComplaint = aiReason == null || aiReason.isBlank() ||
-                            aiReason.toLowerCase().contains("không có ứng viên") ||
-                            aiReason.toLowerCase().contains("chưa có danh sách") ||
-                            aiReason.toLowerCase().contains("không thể đề xuất bác sĩ cụ thể") ||
-                            aiReason.toLowerCase().contains("chưa có ứng viên");
+                    boolean isMeta = isMetaComplaint(aiReason);
 
-                    String finalReason = isMetaComplaint
+                    String finalReason = isMeta
                             ? buildClinicalDoctorRecommendationReason(top, specialtyName, indicators)
                             : aiReason;
 
                     top.setAiRecommendationReason(finalReason);
+                    ragResult.setRecommendedDoctorId(top.getDoctorId());
                     ragResult.setDoctorRecommendationReason(finalReason);
                 }
             } else {
@@ -603,17 +630,30 @@ public class MedicalDocumentAnalysisService {
             }
 
             if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+                matchedDoctors = new ArrayList<>(matchedDoctors);
+                // If AI explicitly recommended a doctor from pre-RAG candidates, align display order so that doctor is index 0
+                if (ragResult.getRecommendedDoctorId() != null) {
+                    UUID recId = ragResult.getRecommendedDoctorId();
+                    int recIdx = -1;
+                    for (int i = 0; i < matchedDoctors.size(); i++) {
+                        if (recId.equals(matchedDoctors.get(i).getDoctorId())) {
+                            recIdx = i;
+                            break;
+                        }
+                    }
+                    if (recIdx > 0) {
+                        DoctorMatchDto recDoc = matchedDoctors.remove(recIdx);
+                        matchedDoctors.add(0, recDoc);
+                    }
+                }
+
                 DoctorMatchDto top = matchedDoctors.get(0);
                 top.setAiRecommended(true);
 
                 String aiReason = ragResult.getDoctorRecommendationReason();
-                boolean isMetaComplaint = aiReason == null || aiReason.isBlank() ||
-                        aiReason.toLowerCase().contains("không có ứng viên") ||
-                        aiReason.toLowerCase().contains("chưa có danh sách") ||
-                        aiReason.toLowerCase().contains("không thể đề xuất bác sĩ cụ thể") ||
-                        aiReason.toLowerCase().contains("chưa có ứng viên");
+                boolean isMeta = isMetaComplaint(aiReason);
 
-                String finalReason = isMetaComplaint
+                String finalReason = isMeta
                         ? buildClinicalDoctorRecommendationReason(top, specialtyName, indicators)
                         : aiReason;
 
@@ -949,10 +989,26 @@ public class MedicalDocumentAnalysisService {
             if (candidateName != null && valStr != null) {
                 // Filter out non-test administrative lines, long identity numbers (CCCD/CMND/BHYT/Phone), and table headers
                 String cleanName = stripAccents(candidateName).toLowerCase().trim();
+                boolean isTuoiFilter = cleanName.contains("tuoi") && !cleanName.contains("soi tuoi");
+                boolean isGioFilter = cleanName.contains("gio")
+                        && !cleanName.contains("24 gio")
+                        && !cleanName.contains("2 gio")
+                        && !cleanName.contains("protein")
+                        && !cleanName.contains("glucose")
+                        && !cleanName.contains("duong huyet");
+                boolean isNamFilter = cleanName.contains("nam")
+                        && !cleanName.contains("soi nam")
+                        && !cleanName.contains("cay nam")
+                        && !cleanName.contains("nam men")
+                        && !cleanName.contains("nam soi")
+                        && !cleanName.contains("nam candida")
+                        && !cleanName.contains("nam da")
+                        && (cleanName.equals("nam") || cleanName.contains("nam sinh") || cleanName.contains("gioi tinh") || cleanName.startsWith("nam 19") || cleanName.startsWith("nam 20") || cleanName.contains("nam:"));
+
                 if (valStr.length() > 8 ||
-                    cleanName.contains("ngay") || cleanName.contains("thang") || cleanName.contains("nam") ||
-                    cleanName.contains("gio") || cleanName.contains("tuoi") || cleanName.contains("trang") ||
-                    cleanName.contains("khoa") || cleanName.contains("dien thoai") || cleanName.contains("sdt") ||
+                    cleanName.contains("ngay") || cleanName.contains("thang") ||
+                    isNamFilter || isGioFilter || isTuoiFilter ||
+                    cleanName.contains("trang") || cleanName.contains("khoa") || cleanName.contains("dien thoai") || cleanName.contains("sdt") ||
                     cleanName.contains("stt") || cleanName.contains("ma bn") || cleanName.contains("ma hs") ||
                     cleanName.contains("dia chi") || cleanName.contains("bac si") || cleanName.contains("benh vien") ||
                     cleanName.contains("phong kham") || cleanName.contains("cccd") || cleanName.contains("cmnd") ||
@@ -1085,6 +1141,18 @@ public class MedicalDocumentAnalysisService {
             return "LOW";
         }
         return "NORMAL";
+    }
+
+    public static boolean isMetaComplaint(String aiReason) {
+        if (aiReason == null || aiReason.isBlank()) return true;
+        String lower = aiReason.toLowerCase();
+        return lower.contains("không có ứng viên") ||
+                lower.contains("chưa có danh sách") ||
+                lower.contains("không thể đề xuất bác sĩ cụ thể") ||
+                lower.contains("chưa có ứng viên") ||
+                lower.contains("thuật toán tương đồng") ||
+                lower.contains("pgvector") ||
+                lower.contains("danh sách bác sĩ pgvector");
     }
 
     private String buildClinicalDoctorRecommendationReason(DoctorMatchDto doctor, String specialtyName, List<AbnormalIndicatorDto> indicators) {

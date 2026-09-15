@@ -1,5 +1,6 @@
 package com.mediassist.service;
 
+import com.mediassist.common.AppException;
 import com.mediassist.dto.DoctorMatchDto;
 import com.mediassist.dto.TriageRequest;
 import com.mediassist.dto.TriageResponse;
@@ -9,6 +10,7 @@ import com.mediassist.repository.TriageSessionRepository;
 import com.mediassist.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +43,9 @@ public class TriageService {
     }
 
     public TriageResponse assessSymptoms(TriageRequest request, String userEmail) {
+        if (request == null || request.getSymptoms() == null || request.getSymptoms().isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_INPUT", "Mô tả triệu chứng không được để trống");
+        }
         String symptoms = request.getSymptoms().trim();
         log.info("🩺 Performing AI symptom triage for: '{}'", symptoms);
 
@@ -98,19 +103,30 @@ public class TriageService {
         }
 
         if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+            matchedDoctors = new ArrayList<>(matchedDoctors);
+            // If AI explicitly recommended a doctor from pre-RAG candidates, align display order so that doctor is index 0
+            if (ragResult.getRecommendedDoctorId() != null) {
+                UUID recId = ragResult.getRecommendedDoctorId();
+                int recIdx = -1;
+                for (int i = 0; i < matchedDoctors.size(); i++) {
+                    if (recId.equals(matchedDoctors.get(i).getDoctorId())) {
+                        recIdx = i;
+                        break;
+                    }
+                }
+                if (recIdx > 0) {
+                    DoctorMatchDto recDoc = matchedDoctors.remove(recIdx);
+                    matchedDoctors.add(0, recDoc);
+                }
+            }
+
             DoctorMatchDto top = matchedDoctors.get(0);
             top.setAiRecommended(true);
 
             String aiReason = ragResult.getDoctorRecommendationReason();
-            // Sanitize meta-complaints: filter out LLM technical complaints about missing candidates
-            boolean isMetaComplaint = aiReason == null || aiReason.isBlank() ||
-                    aiReason.toLowerCase().contains("không có ứng viên") ||
-                    aiReason.toLowerCase().contains("chưa có danh sách") ||
-                    aiReason.toLowerCase().contains("không thể đề xuất bác sĩ cụ thể") ||
-                    aiReason.toLowerCase().contains("chưa có ứng viên") ||
-                    aiReason.toLowerCase().contains("thuật toán tương đồng ngữ nghĩa pgvector");
+            boolean isMeta = MedicalDocumentAnalysisService.isMetaComplaint(aiReason);
 
-            String finalReason = isMetaComplaint
+            String finalReason = isMeta
                     ? buildClinicalTriageRecommendationReason(top, specialtyName, symptoms)
                     : aiReason;
 

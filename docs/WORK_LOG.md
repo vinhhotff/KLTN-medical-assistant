@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#056** | 15/09/2026 | Kiểm Toán & Khắc Phục Triệt Để 6 Điểm Nóng / Lỗi Tiềm Ẩn Hệ Thống (Latent Bugs & Edge Cases): (1) Bảo Toàn An Toàn Y Tế Trên Cache Tài Liệu Trắng/Mờ, (2) Đồng Bộ Thứ Tự Hiển Thị Bác Sĩ Do Gemini Đề Xuất, (3) Defensive Null Guard TriageRequest, (4) Bảo Lưu Xét Nghiệm Nấm (Candida), Soi Tươi & Đạm Niệu 24h Trong Lab Scanner, (5) Đồng Bộ Khử Thuật Ngữ Kỹ Thuật (isMetaComplaint), (6) Caffeine Bounded Cache Chống Tràn Bộ Nhớ TriageRateLimiterService | AI Assistant | 🟢 Sẵn sàng Review |
 | **#055** | 14/09/2026 | Kiểm Toán & Khắc Phục 3 Điểm Nghẽn Kiến Trúc Pipeline Đề Xuất Bác Sĩ pgvector: (1) Pre-RAG Doctor Candidates Trong TriageService — Gemini Nhận Diện Bác Sĩ Thực Trước Khi Suy Luận, (2) Focused Query Builder — Loại Bỏ Nhiễu Mô Tả Triệu Chứng Dài, (3) Cached Response Doctor Rebuild — Tái Tạo Lý Do Lâm Sàng Cho Kết Quả Cache | AI Assistant | 🟢 Sẵn sàng Review |
 | **#054** | 14/09/2026 | Khắc Phục Triệt Để Hiện Tượng "PGVector Không Có Ứng Viên": Đồng Bộ Toàn Diện 12 Chuyên Khoa Trong EmbeddingService, Kiến Trúc Pre-RAG Candidate Retrieval, Sanitization AI Meta-Complaints, Kích Hoạt Toàn Bộ 12 Bác Sĩ Qua Flyway V9 & Khởi Tạo Bác Sĩ Chờ Duyệt Admin Vetting Mới | AI Assistant | 🟢 Sẵn sàng Review |
 | **#053** | 14/09/2026 | Khắc Phục Triệt Để Lỗi Chỉ Quét Được CCCD (Single-Space Lab Table Extraction): Bổ Sung Regex Pattern Cho Bảng Phân Tách Khoảng Trắng Đơn, Lọc Danh Sách Đen Trường Hành Chính (CCCD, BHYT, SID), Tự Động Hủy Cache Ngoại Tuyến Cũ (Stale Offline Cache Invalidation & In-Place Upsert), Xác Thực Toàn Diện Live AI Gemini 3.6 Flash | AI Assistant | 🟢 Sẵn sàng Review |
@@ -21,6 +22,49 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#056] Kiểm Toán Toàn Diện Mã Nguồn & Khắc Phục Triệt Để 6 Điểm Nóng / Lỗi Tiềm Ẩn Hệ Thống (Latent Bugs & Edge Cases)
+* **Thời gian:** 2026-09-15 09:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-02 (AI Symptom Triage), UC-03 (Multimodal Lab Analysis), UC-04 (Doctor Semantic Search via pgvector HNSW)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 25): **81/81 Unit Tests PASS 100%** (bổ sung 5 unit tests mới)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1673 modules transformed**
+  - Trạng thái Run Daemon: Backend port `5001` (UP, 10s uptime), Frontend port `5173` (Active)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Danh Sách Tệp Tin Thay Đổi:
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java):
+  - Khắc phục lỗi bất nhất cache trên phiếu rỗng/mờ: trả về 0 bác sĩ và thông báo an toàn thay vì gọi pgvector tìm bác sĩ Nội Tổng Quát bừa bãi.
+  - Khắc phục lỗi lệch đồng bộ UI: hoán đổi vị trí đưa bác sĩ được AI chọn (`ragResult.getRecommendedDoctorId()`) lên vị trí `[0]` trong cả `analyzeDocument` và `analyzeDocumentPreview`.
+  - Tinh chỉnh bộ lọc hành chính `parseIndicators`: giữ lại xét nghiệm Nấm vi sinh (`"soi nam"`, `"nam men"`, `"nam candida"`), Soi tươi (`"soi tuoi"`), và Đạm niệu/Glucose 24 giờ (`"24 gio"`, `"2 gio"`).
+  - Khai báo phương thức dùng chung `public static boolean isMetaComplaint(String aiReason)` lọc sạch mọi câu than phiền kỹ thuật và từ khóa pgvector.
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/TriageService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/TriageService.java):
+  - Bổ sung defensive guard ném `AppException(HttpStatus.BAD_REQUEST, "INVALID_INPUT", ...)` khi `request` hoặc `symptoms` là null/trống.
+  - Đồng bộ logic hoán đổi vị trí bác sĩ AI khuyến nghị lên vị trí `[0]` của danh sách `matchedDoctors`.
+  - Áp dụng bộ lọc `MedicalDocumentAnalysisService.isMetaComplaint`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/TriageRateLimiterService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/TriageRateLimiterService.java):
+  - Thay thế `ConcurrentHashMap` vô hạn kích thước bằng Caffeine Cache bounded size 10,000 entries và TTL 5 phút, triệt tiêu nguy cơ rò rỉ bộ nhớ Heap khi Redis ngoại tuyến.
+* `[MOD]` [`backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java):
+  - Bổ sung 3 unit tests: (1) `testBuildCachedResponseOnBlankDocument_ZeroFakeRecommendations`, (2) `testParseIndicators_PreservesFungalTestsAndWetMountAnd24HourTests`, (3) `testAnalyzeDocument_ReordersMatchedDoctorsWhenAiSelectsSpecificCandidate`.
+* `[MOD]` [`backend/src/test/java/com/mediassist/TriageServiceTest.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/test/java/com/mediassist/TriageServiceTest.java):
+  - Bổ sung 2 unit tests: (1) `testAssessSymptomsThrowsOnNullOrBlankRequest`, (2) `testAssessSymptomsReordersMatchedDoctorsWhenAiSelectsSpecificDoctor`. Thiết lập `lenient().when(triageSessionRepository.save(...))` chống lỗi Mockito strict mode.
+* `[MOD]` [`docs/WORK_LOG.md`](file:///Users/thanvinh/Desktop/KLTN/docs/WORK_LOG.md): Cập nhật bản ghi nhật ký kiểm toán và khắc phục lỗi #056.
+
+#### 2. Chi Tiết 6 Điểm Nóng & Lỗi Tiềm Ẩn Đã Triệt Tiêu:
+1. **Lỗi Bất Nhất Cache Y Tế (Medical Integrity Violation):** Trước đây khi đọc lại từ SHA-256 cache một phiếu xét nghiệm rỗng, hàm `buildCachedResponse` tự ý fallback sang `"general-internal-medicine"` và tìm 4 bác sĩ, trong khi luồng quét mới trả về 0 bác sĩ. Sau khi sửa, cả 2 luồng đều thống nhất tuân thủ nghiêm ngặt quy tắc: "Zero Fake Recommendations on blank / blurry documents".
+2. **Lỗi Lệch Đồng Bộ Thứ Tự Bác Sĩ (UI Display Desync):** Đưa bác sĩ mà Gemini chọn lên vị trí đầu tiên của `matchedDoctors`, đảm bảo UI hiển thị huy hiệu *"Được AI Lựa Chọn Ưu Tiên"* chính xác vào đúng hồ sơ bác sĩ được phân tích.
+3. **Lỗi NPE Khi Request Rỗng:** Ngăn chặn hoàn toàn lỗi 500 do `request.getSymptoms().trim()` khi không có dữ liệu đầu vào.
+4. **Lỗi Nuốt Xét Nghiệm Vi Sinh & Chức Năng Thận/Tiểu Đường:** Giải cứu các chỉ số xét nghiệm cực kỳ phổ biến tại Việt Nam (Nấm men, Soi tươi dịch tiết, Đạm niệu 24h, Glucose 2h) khỏi việc bị regex nhận nhầm là ngày/tháng/năm/tuổi/giờ hành chính.
+5. **Lỗi Rò Rỉ Thuật Ngữ Kỹ Thuật (Meta-complaint Leak):** Triệt tiêu hoàn toàn các trường hợp LLM trả về chuỗi "thuật toán tương đồng ngữ nghĩa pgvector" hoặc "danh sách bác sĩ pgvector".
+6. **Lỗi Rò Rỉ Bộ Nhớ L1 Fallback Rate Limiter:** Khóa chặt giới hạn bộ nhớ đệm In-Memory ở mức tối đa 10,000 bản ghi với cơ chế tự động giải phóng Caffeine.
+
+#### 3. Bằng Chứng Kiểm Thử Tự Động (Evidence):
+* Toàn bộ 81/81 test cases trong `backend/src/test/` đều PASS 100%.
+* Frontend biên dịch thành công `npm run build` với 1673 modules và 0 lỗi TypeScript.
+* Endpoint tải PDF mẫu Meddies `/sample-random-pdf` hoạt động trơn tru với HTTP 200 attachment.
+
+---
 
 ### [WORK-LOG-#055] Kiểm Toán & Khắc Phục 3 Điểm Nghẽn Kiến Trúc Pipeline Đề Xuất Bác Sĩ pgvector: Pre-RAG Triage, Focused Query Builder & Cached Response Doctor Rebuild
 * **Thời gian:** 2026-09-14 21:36:00 (GMT+7)

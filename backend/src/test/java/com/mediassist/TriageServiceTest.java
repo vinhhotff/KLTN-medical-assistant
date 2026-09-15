@@ -67,7 +67,7 @@ class TriageServiceTest {
         lenient().when(clinicalRagService.performTriageRagAnalysis(anyString(), anyList())).thenReturn(mockResult);
         lenient().when(clinicalRagService.performTriageRagAnalysis(anyString(), any(), anyList())).thenReturn(mockResult);
 
-        when(triageSessionRepository.save(any(TriageSession.class)))
+        lenient().when(triageSessionRepository.save(any(TriageSession.class)))
                 .thenAnswer(inv -> {
                     TriageSession s = inv.getArgument(0);
                     s.setId(UUID.randomUUID());
@@ -141,5 +141,56 @@ class TriageServiceTest {
         assertEquals("General Internal Medicine (Nội Tổng Quát)", response.getPrimarySpecialtyName());
         assertEquals(TriageUrgencyLevel.ROUTINE, response.getUrgencyLevel());
         assertNotNull(response.getClarifyingQuestions());
+    }
+
+    @Test
+    @DisplayName("Should throw BAD_REQUEST AppException when request or symptoms are null or blank")
+    void testAssessSymptomsThrowsOnNullOrBlankRequest() {
+        assertThrows(com.mediassist.common.AppException.class, () -> triageService.assessSymptoms(null, null));
+        assertThrows(com.mediassist.common.AppException.class, () -> triageService.assessSymptoms(new TriageRequest(null, null), null));
+        assertThrows(com.mediassist.common.AppException.class, () -> triageService.assessSymptoms(new TriageRequest("   ", null), null));
+    }
+
+    @Test
+    @DisplayName("Should re-order matchedDoctors so that doctor recommended by AI is placed at index 0")
+    void testAssessSymptomsReordersMatchedDoctorsWhenAiSelectsSpecificDoctor() {
+        when(redFlagService.evaluateRedFlag(anyString())).thenReturn(Optional.empty());
+
+        UUID docAId = UUID.randomUUID();
+        DoctorMatchDto docA = new DoctorMatchDto(
+                docAId, "BS. CKII Lê Văn A", "Tim mạch", "CCHN-01", 10, new BigDecimal("300000"), 0.95, List.of("Cardiology")
+        );
+
+        UUID docBId = UUID.randomUUID();
+        DoctorMatchDto docB = new DoctorMatchDto(
+                docBId, "TS. BS. Nguyễn Văn B", "Tim mạch chuyên sâu", "CCHN-02", 18, new BigDecimal("450000"), 0.90, List.of("Cardiology")
+        );
+
+        // AI explicitly recommends Doctor B
+        com.mediassist.ai.ClinicalAiResult mockResult = new com.mediassist.ai.ClinicalAiResult();
+        mockResult.setRecommendedSpecialtySlug("cardiology");
+        mockResult.setRecommendedSpecialtyName("Cardiology (Tim Mạch)");
+        mockResult.setUrgencyLevel("ROUTINE");
+        mockResult.setSbarSummary("SBAR RAG summary");
+        mockResult.setAiAdvice("Clinical advice from AI");
+        mockResult.setRecommendedDoctorId(docBId);
+        mockResult.setDoctorRecommendationReason("Bác sĩ B có chuyên môn sâu về rối loạn nhịp tim");
+
+        when(clinicalRagService.performTriageRagAnalysis(anyString(), anyList())).thenReturn(mockResult);
+        // pgvector broad search and focused search returns docA at index 0, docB at index 1
+        when(doctorSemanticSearchService.searchDoctors(anyString(), eq(4))).thenReturn(new java.util.ArrayList<>(List.of(docA, docB)));
+
+        TriageRequest request = new TriageRequest("Tôi hay bị đánh trống ngực hồi hộp", null);
+        TriageResponse response = triageService.assessSymptoms(request, null);
+
+        assertNotNull(response);
+        assertEquals(2, response.getMatchedDoctors().size());
+        // Verify Doc B was moved to index 0!
+        assertEquals(docBId, response.getMatchedDoctors().get(0).getDoctorId());
+        assertTrue(response.getMatchedDoctors().get(0).isAiRecommended());
+        assertEquals("Bác sĩ B có chuyên môn sâu về rối loạn nhịp tim", response.getMatchedDoctors().get(0).getAiRecommendationReason());
+        // Verify Doc A is at index 1 and not marked as top
+        assertEquals(docAId, response.getMatchedDoctors().get(1).getDoctorId());
+        assertFalse(response.getMatchedDoctors().get(1).isAiRecommended());
     }
 }
