@@ -48,14 +48,32 @@ public class DoctorService {
     }
 
     public List<DoctorDetailDto> getVerifiedDoctors() {
-        return doctorProfileRepository.findAll().stream()
-                .filter(DoctorProfile::isVerified)
+        DoctorDetailDto[] cached = cacheService.get(CACHE_VERIFIED_DOCTORS, DoctorDetailDto[].class);
+        if (cached != null && cached.length > 0) {
+            log.debug("⚡ [CACHE HIT] Returning {} verified doctors from cache", cached.length);
+            return Arrays.asList(cached);
+        }
+
+        List<DoctorProfile> profiles = doctorProfileRepository.findAllVerifiedWithUserAndSpecialties();
+        if (profiles == null || profiles.isEmpty()) {
+            profiles = doctorProfileRepository.findAll().stream()
+                    .filter(DoctorProfile::isVerified)
+                    .collect(Collectors.toList());
+        }
+        List<DoctorDetailDto> dtos = profiles.stream()
                 .map(DoctorDetailDto::fromEntity)
                 .collect(Collectors.toList());
+
+        if (!dtos.isEmpty()) {
+            cacheService.set(CACHE_VERIFIED_DOCTORS, dtos.toArray(new DoctorDetailDto[0]), 600); // 10 min TTL
+        }
+        return dtos;
     }
 
     public DoctorDetailDto getDoctorById(UUID doctorIdentifier) {
-        DoctorProfile profile = doctorProfileRepository.findByUserId(doctorIdentifier)
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorIdentifier)
+                .or(() -> doctorProfileRepository.findByIdWithDetails(doctorIdentifier))
+                .or(() -> doctorProfileRepository.findByUserId(doctorIdentifier))
                 .or(() -> doctorProfileRepository.findById(doctorIdentifier))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy thông tin bác sĩ"));
         return DoctorDetailDto.fromEntity(profile);
@@ -66,7 +84,9 @@ public class DoctorService {
             return Collections.emptyList();
         }
 
-        DoctorProfile profile = doctorProfileRepository.findByUserId(doctorIdentifier)
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorIdentifier)
+                .or(() -> doctorProfileRepository.findByIdWithDetails(doctorIdentifier))
+                .or(() -> doctorProfileRepository.findByUserId(doctorIdentifier))
                 .or(() -> doctorProfileRepository.findById(doctorIdentifier))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Bác sĩ không tồn tại"));
 

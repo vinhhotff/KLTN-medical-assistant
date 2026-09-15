@@ -69,7 +69,7 @@ public class DoctorSemanticSearchService {
      */
     @Transactional
     public void syncAllDoctorEmbeddings() {
-        List<DoctorProfile> profiles = doctorProfileRepository.findAll();
+        List<DoctorProfile> profiles = doctorProfileRepository.findAllWithUserAndSpecialties();
         for (DoctorProfile dp : profiles) {
             String specialtyNames = dp.getSpecialties().stream()
                     .map(Specialty::getName)

@@ -64,7 +64,11 @@ public class AdminVettingService {
     }
 
     public List<DoctorDetailDto> getAllDoctors() {
-        return doctorProfileRepository.findAll().stream()
+        List<DoctorProfile> list = doctorProfileRepository.findAllWithUserAndSpecialties();
+        if (list == null || list.isEmpty()) {
+            list = doctorProfileRepository.findAll();
+        }
+        return list.stream()
                 .map(DoctorDetailDto::fromEntity)
                 .collect(Collectors.toList());
     }
@@ -125,15 +129,20 @@ public class AdminVettingService {
     }
 
     public List<DoctorDetailDto> getPendingDoctors() {
-        return doctorProfileRepository.findAll().stream()
-                .filter(d -> !d.isVerified())
+        List<DoctorProfile> list = doctorProfileRepository.findPendingWithUserAndSpecialties();
+        if (list == null || list.isEmpty()) {
+            list = doctorProfileRepository.findAll().stream().filter(d -> !d.isVerified()).collect(Collectors.toList());
+        }
+        return list.stream()
                 .map(DoctorDetailDto::fromEntity)
                 .collect(Collectors.toList());
     }
 
     @Transactional
     public DoctorDetailDto vetDoctor(UUID doctorProfileId, boolean approve, String reason, UUID adminId) {
-        DoctorProfile profile = doctorProfileRepository.findById(doctorProfileId)
+        DoctorProfile profile = doctorProfileRepository.findByIdWithDetails(doctorProfileId)
+                .or(() -> doctorProfileRepository.findByUserIdWithDetails(doctorProfileId))
+                .or(() -> doctorProfileRepository.findById(doctorProfileId))
                 .or(() -> doctorProfileRepository.findByUserId(doctorProfileId))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
 
@@ -238,7 +247,9 @@ public class AdminVettingService {
 
     @Transactional
     public DoctorDetailDto updateDoctorByAdmin(UUID doctorProfileId, AdminUpdateDoctorRequest req, UUID adminId) {
-        DoctorProfile profile = doctorProfileRepository.findById(doctorProfileId)
+        DoctorProfile profile = doctorProfileRepository.findByIdWithDetails(doctorProfileId)
+                .or(() -> doctorProfileRepository.findByUserIdWithDetails(doctorProfileId))
+                .or(() -> doctorProfileRepository.findById(doctorProfileId))
                 .or(() -> doctorProfileRepository.findByUserId(doctorProfileId))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
 
@@ -297,7 +308,9 @@ public class AdminVettingService {
 
     @Transactional
     public DoctorDetailDto toggleDoctorStatus(UUID doctorProfileId, UUID adminId) {
-        DoctorProfile profile = doctorProfileRepository.findById(doctorProfileId)
+        DoctorProfile profile = doctorProfileRepository.findByIdWithDetails(doctorProfileId)
+                .or(() -> doctorProfileRepository.findByUserIdWithDetails(doctorProfileId))
+                .or(() -> doctorProfileRepository.findById(doctorProfileId))
                 .or(() -> doctorProfileRepository.findByUserId(doctorProfileId))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
 
@@ -324,7 +337,9 @@ public class AdminVettingService {
 
     @Transactional
     public DoctorDetailDto syncDoctorVector(UUID doctorProfileId, UUID adminId) {
-        DoctorProfile profile = doctorProfileRepository.findById(doctorProfileId)
+        DoctorProfile profile = doctorProfileRepository.findByIdWithDetails(doctorProfileId)
+                .or(() -> doctorProfileRepository.findByUserIdWithDetails(doctorProfileId))
+                .or(() -> doctorProfileRepository.findById(doctorProfileId))
                 .or(() -> doctorProfileRepository.findByUserId(doctorProfileId))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
 

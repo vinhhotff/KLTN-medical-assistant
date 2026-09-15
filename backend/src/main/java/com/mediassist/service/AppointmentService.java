@@ -121,16 +121,17 @@ public class AppointmentService {
     public List<AppointmentDto> getMyAppointments(UUID userId, Role role) {
         List<Appointment> list;
         if (role == Role.DOCTOR) {
-            list = appointmentRepository.findByDoctorIdOrderByScheduledStartDesc(userId);
+            list = appointmentRepository.findByDoctorIdWithUsersOrderByScheduledStartDesc(userId);
         } else {
-            list = appointmentRepository.findByPatientIdOrderByScheduledStartDesc(userId);
+            list = appointmentRepository.findByPatientIdWithUsersOrderByScheduledStartDesc(userId);
         }
         return list.stream().map(AppointmentDto::fromEntity).collect(Collectors.toList());
     }
 
     @Transactional
     public AppointmentDto updateAppointmentStatus(UUID appointmentId, UUID userId, Role role, AppointmentStatus newStatus, String notes) {
-        Appointment appointment = appointmentRepository.findById(appointmentId)
+        Appointment appointment = appointmentRepository.findByIdWithUsers(appointmentId)
+                .or(() -> appointmentRepository.findById(appointmentId))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy thông tin cuộc hẹn"));
 
         // Authorization check
@@ -167,7 +168,8 @@ public class AppointmentService {
 
     @Transactional
     public AppointmentDto completeClinicalEncounter(UUID appointmentId, UUID doctorUserId, ClinicalEncounterRequest req) {
-        Appointment appointment = appointmentRepository.findById(appointmentId)
+        Appointment appointment = appointmentRepository.findByIdWithUsers(appointmentId)
+                .or(() -> appointmentRepository.findById(appointmentId))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy thông tin cuộc hẹn"));
 
         if (!appointment.getDoctor().getId().equals(doctorUserId)) {

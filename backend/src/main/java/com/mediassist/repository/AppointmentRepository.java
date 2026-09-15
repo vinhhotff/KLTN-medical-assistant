@@ -18,6 +18,15 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     Optional<Appointment> findByAppointmentCode(String appointmentCode);
     boolean existsByAppointmentCode(String appointmentCode);
 
+    @Query("SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor WHERE a.patient.id = :patientId ORDER BY a.scheduledStart DESC")
+    List<Appointment> findByPatientIdWithUsersOrderByScheduledStartDesc(@Param("patientId") UUID patientId);
+
+    @Query("SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor WHERE a.doctor.id = :doctorId ORDER BY a.scheduledStart DESC")
+    List<Appointment> findByDoctorIdWithUsersOrderByScheduledStartDesc(@Param("doctorId") UUID doctorId);
+
+    @Query("SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor WHERE a.id = :id")
+    Optional<Appointment> findByIdWithUsers(@Param("id") UUID id);
+
     List<Appointment> findByPatientIdOrderByScheduledStartDesc(UUID patientId);
 
     List<Appointment> findByDoctorIdOrderByScheduledStartDesc(UUID doctorId);
