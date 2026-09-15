@@ -231,6 +231,11 @@ public class GeminiAiProvider implements AiProvider {
 
         try {
             JsonNode node = objectMapper.readTree(cleanJson);
+            if (node.has("isMedicalRelated")) {
+                result.setMedicalRelated(node.get("isMedicalRelated").asBoolean(true));
+            } else if (node.has("medicalRelated")) {
+                result.setMedicalRelated(node.get("medicalRelated").asBoolean(true));
+            }
             if (node.has("clinicalSummary")) result.setClinicalSummary(node.get("clinicalSummary").asText());
             if (node.has("plainLanguageExplanation")) result.setPlainLanguageExplanation(node.get("plainLanguageExplanation").asText());
             if (node.has("sbarSummary")) result.setSbarSummary(node.get("sbarSummary").asText());

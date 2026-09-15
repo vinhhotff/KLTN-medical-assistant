@@ -11,7 +11,50 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#060** | 15/09/2026 | Triển Khai Rào Chắn Chống Câu Hỏi Lệch Chủ Đề (Triage Off-Topic & Non-Medical Guard): Ngăn Chặn Suy Đoán Chuyên Khoa Bừa Bãi, Triệt Tiêu 100% Hiện Tượng Ghép Bác Sĩ pgvector Cho Câu Hỏi Ngoài Y Tế, Giao Diện Hướng Dẫn Thân Thiện & Đạt 93/93 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#059** | 15/09/2026 | Kiểm Toán Chuyên Sâu Toàn Diện & Khắc Phục 5 Điểm Nghẽn / Lỗi Tiềm Ẩn Hệ Thống: (1) Mở Quyền Tra Cứu Lịch Khám Công Khai Cho Bệnh Nhân Chưa Đăng Nhập (Fix 401 Slots Discovery), (2) Đồng Bộ Tự Động Vector Embedding & Invalidate Cache Khi Bác Sĩ Tự Cập Nhật Hồ Sơ Chuyên Môn, (3) Tích Hợp Two-Layer Cache (L1 Caffeine + L2 Redis) 1h TTL Cho Danh Mục Chuyên Khoa (/specialties < 1ms), (4) Dùng Dedicated Thread Pool medicalOcrExecutor Cho Upload Supabase Tránh Nghẽn ForkJoinPool, (5) JOIN FETCH Eager Loading Cho PatientProfile & Bổ Sung DoctorServiceTest Đạt 92/92 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
+
+---
+
+## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#060] Triển Khai Rào Chắn Chống Câu Hỏi Lệch Chủ Đề (Triage Off-Topic & Non-Medical Guard)
+* **Thời gian:** 2026-09-15 14:05:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-02 (AI Symptom Triage & Red-Flag Emergency Guardrail)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **93/93 Unit Tests PASS 100%** (Bổ sung test case `testAssessSymptomsOffTopicNonMedical` trong `TriageServiceTest`)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1673 modules transformed**
+  - Trạng thái Run Daemon: Backend port `5001` (UP), Frontend port `5173` (UP)
+  - Xác thực thực tế Live API: Truy vấn câu hỏi thời tiết `"Thời tiết hôm nay thế nào, trời có mưa không?"` trả về `medicalRelated = false`, `matchedDoctors = []`, `primarySpecialtySlug = null`, `primarySpecialtyName = "Không thuộc phạm vi y tế"`, không sinh bất kỳ liên kết bác sĩ giả mạo nào.
+* **Nhánh phát triển:** `develop`
+
+#### 1. Danh Sách Tệp Tin Thay Đổi:
+* `[MOD]` [`backend/src/main/java/com/mediassist/ai/ClinicalAiResult.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/ai/ClinicalAiResult.java):
+  - Bổ sung trường `private boolean medicalRelated = true;` kèm getter `isMedicalRelated()` và setter `setMedicalRelated(boolean)`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/dto/TriageResponse.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/dto/TriageResponse.java):
+  - Bổ sung trường `private boolean medicalRelated = true;` kèm getter/setter đồng bộ sang tầng DTO trả về cho Client.
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/ClinicalRagService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/ClinicalRagService.java):
+  - Cập nhật System Prompt và cấu trúc JSON trả về của `performTriageRagAnalysis`:
+    - **Bước 1 (Xác định phạm vi y tế):** Hướng dẫn mô hình phân biệt rạch ròi triệu chứng lâm sàng thể chất/tinh thần với các câu hỏi ngoài ngành (chào hỏi xã giao, thời tiết, toán học, lập trình, văn bản rác).
+    - **Bước 2 (Xử lý ngoài phạm vi):** Ép buộc trả về `"isMedicalRelated": false`, `"primarySpecialtySlug": null`, `"primarySpecialtyName": "Không thuộc phạm vi y tế"`, `"recommendedDoctorId": null`, kèm lời khuyên ân cần hướng dẫn người dùng cung cấp triệu chứng lâm sàng.
+* `[MOD]` [`backend/src/main/java/com/mediassist/ai/GeminiAiProvider.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/ai/GeminiAiProvider.java) & [`backend/src/main/java/com/mediassist/ai/OpenRouterAiProvider.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/ai/OpenRouterAiProvider.java):
+  - Bổ sung logic trích xuất `isMedicalRelated` / `medicalRelated` từ JSON response của LLM vào `ClinicalAiResult`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/TriageService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/TriageService.java):
+  - Thêm nhánh bảo vệ y tế: Khi `!ragResult.isMedicalRelated()`, lập tức triệt tiêu việc gọi pgvector tìm bác sĩ theo chuyên khoa, đặt `matchedDoctors = Collections.emptyList()`, `primarySpecialtySlug = null`, `primarySpecialtyName = "Không thuộc phạm vi y tế"`, `urgency = ROUTINE`, xóa sạch `recommendedDoctorId` và `doctorRecommendationReason`.
+* `[MOD]` [`backend/src/test/java/com/mediassist/TriageServiceTest.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/test/java/com/mediassist/TriageServiceTest.java):
+  - Thêm bài kiểm thử `testAssessSymptomsOffTopicNonMedical`: kiểm tra tự động xác nhận câu hỏi ngoài lề nhận `medicalRelated = false`, `matchedDoctors.isEmpty() == true`, không gán nhãn bác sĩ sai lệch.
+* `[MOD]` [`frontend/src/pages/patient/SymptomTriagePage.tsx`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/pages/patient/SymptomTriagePage.tsx):
+  - Bổ sung `medicalRelated?: boolean;` vào interface `TriageResponseData`.
+  - Thiết kế thẻ hiển thị chuyên biệt màu hổ phách (*Thông Tin Ngoài Phạm Vi Y Tế*): trình bày lời khuyên nhã nhặn từ AI Scribe, danh sách gợi ý đặt câu hỏi chuẩn y khoa, và ẩn hoàn toàn khối danh thiếp Bác sĩ đề xuất.
+* `[MOD]` [`docs/USE_CASES.md`](file:///docs/USE_CASES.md):
+  - Bổ sung đặc tả luồng ngoại lệ *4a. Luồng xử lý yêu cầu ngoài phạm vi y tế (Off-Topic & Non-Medical Guard Flow)* trong UC-02.
+* `[MOD]` [`docs/CAPSTONE_DEFENSE.md`](file:///docs/CAPSTONE_DEFENSE.md):
+  - Cập nhật Câu hỏi phản biện số 3 (Phòng ngừa ảo giác AI và câu hỏi ngoài ngành).
+
+#### 2. Điểm Nóng Tech Lead Cần Review:
+* **Vấn đề cốt lõi đã giải quyết:** Trước đây, pgvector broad search luôn tìm ra 4 bác sĩ có cosine similarity gần nhất trong không gian vector (dù là câu hỏi về thời tiết), và `TriageService` mặc định lấy bác sĩ đầu tiên gán cờ `aiRecommended = true`. Rào chắn mới đã chặn đứng hoàn toàn hiện tượng này, bảo toàn tính nghiêm ngặt và đạo đức y tế của sản phẩm.
+* **Độ tương thích ngược:** Các truy vấn triệu chứng y tế hợp lệ tiếp tục vận hành bình thường 100%, tự động nhận diện đúng chuyên khoa (Tim mạch, Tiêu hóa, Da liễu...), gán mức độ khẩn cấp (`ROUTINE`/`URGENT`/`EMERGENCY`) và ghép nối bác sĩ chính xác.
 | **#058** | 15/09/2026 | Kiểm Toán & Triệt Tiêu Toàn Diện Các Điểm Nghẽn Hiệu Năng & Lỗi N+1 Query: Triệt Tiêu 29-101 Queries N+1 Bác Sĩ & Lịch Khám, Kích Hoạt Two-Layer Cache (L1 Caffeine + L2 Redis) 10m TTL Cho Danh Sách Bác Sĩ (< 2ms), Chặn N+1 Lazy Query Qua @JsonIgnore (User, MedicalDocument, TriageSession), Bổ Sung Flyway V11 Composite Performance Indexes & Tối Ưu HikariCP Pool 20 Connections | AI Assistant | 🟢 Sẵn sàng Review |
 | **#057** | 15/09/2026 | Tối Ưu Hóa Toàn Diện Kiến Trúc Vector Search (pgvector) & Multimodal OCR Scan: Triệt Tiêu N+1 Query, Caffeine L1 Cache, Java 21 Virtual Threads, Pipelined Async Storage Upload, UX Multi-Stage Stepper & Flyway V10 HNSW Partial Index | AI Assistant | 🟢 Sẵn sàng Review |
 | **#056** | 15/09/2026 | Kiểm Toán & Khắc Phục Triệt Để 6 Điểm Nóng / Lỗi Tiềm Ẩn Hệ Thống (Latent Bugs & Edge Cases): (1) Bảo Toàn An Toàn Y Tế Trên Cache Tài Liệu Trắng/Mờ, (2) Đồng Bộ Thứ Tự Hiển Thị Bác Sĩ Do Gemini Đề Xuất, (3) Defensive Null Guard TriageRequest, (4) Bảo Lưu Xét Nghiệm Nấm (Candida), Soi Tươi & Đạm Niệu 24h Trong Lab Scanner, (5) Đồng Bộ Khử Thuật Ngữ Kỹ Thuật (isMetaComplaint), (6) Caffeine Bounded Cache Chống Tràn Bộ Nhớ TriageRateLimiterService | AI Assistant | 🟢 Sẵn sàng Review |

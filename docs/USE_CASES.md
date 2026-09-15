@@ -176,6 +176,13 @@ graph TD
   - Trả về `isEmergency = true`, mức độ `EMERGENCY`.
   - Màn hình chuyển sang trạng thái cảnh báo đỏ nguy cấp với nút bấm gọi nhanh 115 và hướng dẫn xử trí tại chỗ.
 
+#### Luồng xử lý yêu cầu ngoài phạm vi y tế (Off-Topic & Non-Medical Guard Flow):
+* **4a. Người dùng nhập nội dung phi y tế (chào hỏi thuần túy, hỏi thời tiết, toán học, lập trình, văn bản ngẫu nhiên):**
+  - Hệ thống LLM nhận diện `isMedicalRelated = false`.
+  - Triệt tiêu 100% liên kết bác sĩ giả định: `matchedDoctors = []`, `primarySpecialtySlug = null`, `primarySpecialtyName = "Không thuộc phạm vi y tế"`, `doctorRecommendationReason = null`.
+  - Thiết lập mức độ `ROUTINE`, phản hồi lời nhắn ân cần định hướng người dùng nhập triệu chứng lâm sàng thể chất hoặc câu hỏi y tế cụ thể.
+  - Giao diện Frontend hiển thị thẻ hướng dẫn thân thiện màu hổ phách (*Yêu Cầu Ngoài Phạm Vi Y Tế*), ẩn hoàn toàn khu vực thẻ bác sĩ pgvector nhằm bảo toàn độ chính xác và tính nghiêm túc y khoa.
+
 ---
 
 ### UC-03: Tóm Tắt & Giải Nghĩa Phiếu Xét Nghiệm Bằng AI Đa Phương Thức (Multimodal Document Summarization & Token Protection)

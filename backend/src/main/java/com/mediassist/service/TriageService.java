@@ -69,73 +69,103 @@ public class TriageService {
         com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performTriageRagAnalysis(
                 symptoms, preRagCandidates != null ? preRagCandidates : Collections.emptyList());
 
-        // 4. Derive specialty and urgency strictly from AI reasoning
-        String specialtySlug = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
-                ? ragResult.getRecommendedSpecialtySlug().toLowerCase().trim()
-                : "general-internal-medicine";
-        String specialtyName = (ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank())
-                ? ragResult.getRecommendedSpecialtyName()
-                : MedicalDocumentAnalysisService.getSpecialtyDisplayName(specialtySlug);
+        boolean isMedical = ragResult.isMedicalRelated();
 
-        TriageUrgencyLevel urgency = parseUrgencyLevel(ragResult.getUrgencyLevel());
+        String specialtySlug;
+        String specialtyName;
+        TriageUrgencyLevel urgency;
+        String sbar;
+        String aiAdvice;
+        List<String> clarifyingQuestions;
+        List<DoctorMatchDto> matchedDoctors;
 
-        String sbar = (ragResult.getSbarSummary() != null && !ragResult.getSbarSummary().isBlank())
-                ? ragResult.getSbarSummary()
-                : buildFallbackSbarSummary(symptoms, urgency, specialtyName);
+        if (!isMedical) {
+            log.info("ℹ️ [OFF-TOPIC GUARD] Query '{}' identified as non-medical / off-topic. Suppressing doctor matching.", symptoms);
+            specialtySlug = null;
+            specialtyName = "Không thuộc phạm vi y tế";
+            urgency = TriageUrgencyLevel.ROUTINE;
+            sbar = (ragResult.getSbarSummary() != null && !ragResult.getSbarSummary().isBlank())
+                    ? ragResult.getSbarSummary()
+                    : "• Situation: Yêu cầu không thuộc phạm vi triệu chứng y khoa lâm sàng.\n• Assessment: Chưa ghi nhận triệu chứng bệnh lý bất thường.\n• Recommendation: Vui lòng cung cấp mô tả về các dấu hiệu sức khỏe để hệ thống phân luồng.";
+            aiAdvice = (ragResult.getAiAdvice() != null && !ragResult.getAiAdvice().isBlank())
+                    ? ragResult.getAiAdvice()
+                    : "Chào bạn! Tôi là Trợ lý Phân luồng Lâm sàng MediAssist-AI. Câu hỏi hoặc nội dung bạn vừa nhập không liên quan đến triệu chứng sức khỏe hay vấn đề y tế. Xin vui lòng mô tả các biểu hiện sức khỏe bạn đang gặp phải (ví dụ: sốt, đau ngực, đau đầu, mệt mỏi...) để tôi có thể hỗ trợ phân loại mức độ khẩn cấp và kết nối bạn với Bác sĩ chuyên khoa phù hợp.";
+            clarifyingQuestions = (ragResult.getClarifyingQuestions() != null && !ragResult.getClarifyingQuestions().isEmpty())
+                    ? ragResult.getClarifyingQuestions()
+                    : List.of("Bạn có đang gặp bất kỳ biểu hiện khó chịu hoặc triệu chứng sức khỏe nào không?",
+                              "Bạn cần được tư vấn về vấn đề y tế hoặc chuyên khoa cụ thể nào?");
+            matchedDoctors = Collections.emptyList();
+            ragResult.setRecommendedDoctorId(null);
+            ragResult.setDoctorRecommendationReason(null);
+        } else {
+            // 4. Derive specialty and urgency strictly from AI reasoning
+            specialtySlug = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
+                    ? ragResult.getRecommendedSpecialtySlug().toLowerCase().trim()
+                    : "general-internal-medicine";
+            specialtyName = (ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank())
+                    ? ragResult.getRecommendedSpecialtyName()
+                    : MedicalDocumentAnalysisService.getSpecialtyDisplayName(specialtySlug);
 
-        String aiAdvice = (ragResult.getAiAdvice() != null && !ragResult.getAiAdvice().isBlank())
-                ? ragResult.getAiAdvice()
-                : buildFallbackClinicalAdvice(urgency, specialtyName);
+            urgency = parseUrgencyLevel(ragResult.getUrgencyLevel());
 
-        List<String> clarifyingQuestions = (ragResult.getClarifyingQuestions() != null && !ragResult.getClarifyingQuestions().isEmpty())
-                ? ragResult.getClarifyingQuestions()
-                : (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty()
-                        ? ragResult.getSuggestedQuestions()
-                        : defaultClarifyingQuestions());
+            sbar = (ragResult.getSbarSummary() != null && !ragResult.getSbarSummary().isBlank())
+                    ? ragResult.getSbarSummary()
+                    : buildFallbackSbarSummary(symptoms, urgency, specialtyName);
 
-        // 5. Focused pgvector Doctor Retrieval based on AI-reasoned specialty (clean query, no noise)
-        String focusedDoctorQuery = buildFocusedTriageDoctorQuery(specialtySlug, specialtyName, symptoms);
-        List<DoctorMatchDto> matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+            aiAdvice = (ragResult.getAiAdvice() != null && !ragResult.getAiAdvice().isBlank())
+                    ? ragResult.getAiAdvice()
+                    : buildFallbackClinicalAdvice(urgency, specialtyName);
 
-        // Fallback to pre-RAG candidates if focused search yields nothing
-        if ((matchedDoctors == null || matchedDoctors.isEmpty()) && preRagCandidates != null && !preRagCandidates.isEmpty()) {
-            matchedDoctors = preRagCandidates;
-        }
+            clarifyingQuestions = (ragResult.getClarifyingQuestions() != null && !ragResult.getClarifyingQuestions().isEmpty())
+                    ? ragResult.getClarifyingQuestions()
+                    : (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty()
+                            ? ragResult.getSuggestedQuestions()
+                            : defaultClarifyingQuestions());
 
-        if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
-            matchedDoctors = new ArrayList<>(matchedDoctors);
-            // If AI explicitly recommended a doctor from pre-RAG candidates, align display order so that doctor is index 0
-            if (ragResult.getRecommendedDoctorId() != null) {
-                UUID recId = ragResult.getRecommendedDoctorId();
-                int recIdx = -1;
-                for (int i = 0; i < matchedDoctors.size(); i++) {
-                    if (recId.equals(matchedDoctors.get(i).getDoctorId())) {
-                        recIdx = i;
-                        break;
-                    }
-                }
-                if (recIdx > 0) {
-                    DoctorMatchDto recDoc = matchedDoctors.remove(recIdx);
-                    matchedDoctors.add(0, recDoc);
-                }
+            // 5. Focused pgvector Doctor Retrieval based on AI-reasoned specialty (clean query, no noise)
+            String focusedDoctorQuery = buildFocusedTriageDoctorQuery(specialtySlug, specialtyName, symptoms);
+            matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+
+            // Fallback to pre-RAG candidates if focused search yields nothing
+            if ((matchedDoctors == null || matchedDoctors.isEmpty()) && preRagCandidates != null && !preRagCandidates.isEmpty()) {
+                matchedDoctors = preRagCandidates;
             }
 
-            DoctorMatchDto top = matchedDoctors.get(0);
-            top.setAiRecommended(true);
+            if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+                matchedDoctors = new ArrayList<>(matchedDoctors);
+                // If AI explicitly recommended a doctor from pre-RAG candidates, align display order so that doctor is index 0
+                if (ragResult.getRecommendedDoctorId() != null) {
+                    UUID recId = ragResult.getRecommendedDoctorId();
+                    int recIdx = -1;
+                    for (int i = 0; i < matchedDoctors.size(); i++) {
+                        if (recId.equals(matchedDoctors.get(i).getDoctorId())) {
+                            recIdx = i;
+                            break;
+                        }
+                    }
+                    if (recIdx > 0) {
+                        DoctorMatchDto recDoc = matchedDoctors.remove(recIdx);
+                        matchedDoctors.add(0, recDoc);
+                    }
+                }
 
-            String aiReason = ragResult.getDoctorRecommendationReason();
-            boolean isMeta = MedicalDocumentAnalysisService.isMetaComplaint(aiReason);
+                DoctorMatchDto top = matchedDoctors.get(0);
+                top.setAiRecommended(true);
 
-            String finalReason = isMeta
-                    ? buildClinicalTriageRecommendationReason(top, specialtyName, symptoms)
-                    : aiReason;
+                String aiReason = ragResult.getDoctorRecommendationReason();
+                boolean isMeta = MedicalDocumentAnalysisService.isMetaComplaint(aiReason);
 
-            top.setAiRecommendationReason(finalReason);
-            ragResult.setRecommendedDoctorId(top.getDoctorId());
-            ragResult.setDoctorRecommendationReason(finalReason);
+                String finalReason = isMeta
+                        ? buildClinicalTriageRecommendationReason(top, specialtyName, symptoms)
+                        : aiReason;
+
+                top.setAiRecommendationReason(finalReason);
+                ragResult.setRecommendedDoctorId(top.getDoctorId());
+                ragResult.setDoctorRecommendationReason(finalReason);
+            }
         }
 
-        // 5. Persist Triage Session
+        // 6. Persist Triage Session
         TriageSession session = new TriageSession();
         session.setUser(patientUser);
         if (patientUser != null) {
@@ -149,11 +179,12 @@ public class TriageService {
         session.setAiAdvice(aiAdvice);
         session = triageSessionRepository.save(session);
 
-        // 6. Build Response DTO
+        // 7. Build Response DTO
         TriageResponse response = new TriageResponse();
         response.setSessionId(session.getId());
         response.setEmergency(false);
         response.setEmergencyAlert(null);
+        response.setMedicalRelated(isMedical);
         response.setUrgencyLevel(urgency);
         response.setPrimarySpecialtySlug(specialtySlug);
         response.setPrimarySpecialtyName(specialtyName);

@@ -11,7 +11,9 @@ import {
   UserCheck,
   ShieldCheck,
   Stethoscope,
-  X
+  X,
+  HelpCircle,
+  Info
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -35,6 +37,7 @@ interface TriageResponseData {
   sessionId: string;
   emergency: boolean;
   emergencyAlert: string | null;
+  medicalRelated?: boolean;
   urgencyLevel: 'ROUTINE' | 'URGENT' | 'EMERGENCY';
   primarySpecialtySlug: string;
   primarySpecialtyName: string;
@@ -313,8 +316,63 @@ export const SymptomTriagePage: React.FC = () => {
         </div>
       )}
 
+      {/* ℹ️ Non-Medical / Off-Topic Notice Card */}
+      {result && !result.emergency && result.medicalRelated === false && (
+        <div className="bg-amber-50/70 border border-amber-200 rounded-3xl p-6 md:p-8 space-y-6 animate-fadeIn shadow-xs">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-amber-500 text-white rounded-2xl flex-shrink-0">
+              <HelpCircle className="w-7 h-7" />
+            </div>
+            <div className="space-y-2 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold uppercase tracking-wider rounded-full border border-amber-300">
+                  Yêu Cầu Ngoài Phạm Vi Y Tế
+                </span>
+                <span className="text-xs text-slate-500">Mã phiên Triage: {result.sessionId.slice(0, 8)}</span>
+              </div>
+              <h2 className="text-lg md:text-xl font-bold text-amber-950">
+                Hệ Thống Phân Luồng Lâm Sàng MediAssist-AI
+              </h2>
+              <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-line">
+                {result.aiAdvice}
+              </p>
+            </div>
+          </div>
+
+          {/* AI Model Badge */}
+          {result.modelUsed && (
+            <div className="p-3 bg-white/80 border border-amber-200 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-600" />
+                <span className="font-semibold text-amber-900">Mô hình phân tích: </span>
+                <span className="font-mono px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">
+                  {result.modelUsed}
+                </span>
+              </div>
+              <span className="text-amber-700 text-[11px] font-medium">
+                🛡️ Rào chắn an toàn y tế: Không tạo liên kết bác sĩ giả định cho câu hỏi ngoài ngành
+              </span>
+            </div>
+          )}
+
+          {/* Guiding Questions */}
+          {result.clarifyingQuestions && result.clarifyingQuestions.length > 0 && (
+            <div className="bg-white/80 border border-amber-200 rounded-2xl p-4 space-y-2">
+              <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 text-amber-600" /> Hướng Dẫn Để Nhận Phân Luồng Y Tế Chính Xác
+              </h4>
+              <ul className="space-y-1.5 text-xs text-amber-900 list-disc list-inside">
+                {result.clarifyingQuestions.map((q, idx) => (
+                  <li key={idx}>{q}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 🟢 Routine / Urgent Triage Assessment Card */}
-      {result && !result.emergency && (
+      {result && !result.emergency && result.medicalRelated !== false && (
         <div className="space-y-6 animate-fadeIn">
           {/* SBAR & Clinical Evaluation Card */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-6">

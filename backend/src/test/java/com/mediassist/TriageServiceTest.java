@@ -193,4 +193,36 @@ class TriageServiceTest {
         assertEquals(docAId, response.getMatchedDoctors().get(1).getDoctorId());
         assertFalse(response.getMatchedDoctors().get(1).isAiRecommended());
     }
+
+    @Test
+    @DisplayName("Should detect non-medical / off-topic input, set medicalRelated=false, and suppress doctor matching")
+    void testAssessSymptomsOffTopicNonMedical() {
+        when(redFlagService.evaluateRedFlag(anyString())).thenReturn(Optional.empty());
+
+        com.mediassist.ai.ClinicalAiResult offTopicResult = new com.mediassist.ai.ClinicalAiResult();
+        offTopicResult.setModelUsed("google/gemini-2.5-flash");
+        offTopicResult.setMedicalRelated(false);
+        offTopicResult.setRecommendedSpecialtySlug(null);
+        offTopicResult.setRecommendedSpecialtyName("Không thuộc phạm vi y tế");
+        offTopicResult.setUrgencyLevel("ROUTINE");
+        offTopicResult.setSbarSummary("• Situation: Yêu cầu không thuộc phạm vi triệu chứng lâm sàng.");
+        offTopicResult.setAiAdvice("Chào bạn! Tôi là Trợ lý Phân luồng Lâm sàng MediAssist-AI. Câu hỏi của bạn không liên quan đến y tế.");
+
+        when(clinicalRagService.performTriageRagAnalysis(anyString(), anyList())).thenReturn(offTopicResult);
+
+        TriageRequest request = new TriageRequest("Thời tiết hôm nay thế nào, trời có mưa không?", null);
+        TriageResponse response = triageService.assessSymptoms(request, null);
+
+        assertNotNull(response);
+        assertFalse(response.isEmergency());
+        assertFalse(response.isMedicalRelated());
+        assertNull(response.getPrimarySpecialtySlug());
+        assertEquals("Không thuộc phạm vi y tế", response.getPrimarySpecialtyName());
+        assertEquals(TriageUrgencyLevel.ROUTINE, response.getUrgencyLevel());
+        assertNotNull(response.getMatchedDoctors());
+        assertTrue(response.getMatchedDoctors().isEmpty(), "Matched doctors must be empty for off-topic query");
+        assertNull(response.getDoctorRecommendationReason(), "Doctor recommendation reason must be null for off-topic query");
+        assertNotNull(response.getAiAdvice());
+        assertNotNull(response.getClarifyingQuestions());
+    }
 }

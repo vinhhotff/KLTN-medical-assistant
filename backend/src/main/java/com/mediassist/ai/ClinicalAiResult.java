@@ -39,7 +39,13 @@ public class ClinicalAiResult {
     private int piiEntitiesCount;
     private List<String> piiMaskedTypes = new ArrayList<>();
 
+    // Clinical Scope / Relevance Guard
+    private boolean medicalRelated = true;
+
     public ClinicalAiResult() {}
+
+    public boolean isMedicalRelated() { return medicalRelated; }
+    public void setMedicalRelated(boolean medicalRelated) { this.medicalRelated = medicalRelated; }
 
     public boolean isPiiProtected() { return piiProtected; }
     public void setPiiProtected(boolean piiProtected) { this.piiProtected = piiProtected; }

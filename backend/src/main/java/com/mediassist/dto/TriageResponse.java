@@ -25,7 +25,13 @@ public class TriageResponse {
     private int piiEntitiesCount;
     private List<String> piiMaskedTypes;
 
+    // Clinical Scope / Relevance Guard
+    private boolean medicalRelated = true;
+
     public TriageResponse() {}
+
+    public boolean isMedicalRelated() { return medicalRelated; }
+    public void setMedicalRelated(boolean medicalRelated) { this.medicalRelated = medicalRelated; }
 
     public boolean isPiiProtected() { return piiProtected; }
     public void setPiiProtected(boolean piiProtected) { this.piiProtected = piiProtected; }

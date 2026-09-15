@@ -120,7 +120,7 @@
 * **Trả lời của sinh viên:**  
   *"Thưa Thầy Cô, đây là vấn đề sống còn trong ứng dụng AI Y tế. Nhóm thiết lập cơ chế **Phòng Thủ 4 Lớp (Defense-in-Depth)**:
   1. **Rào chắn Quy tắc cứng (Rule-based Red-flag Filter):** Đứng trước LLM, dùng regex để bắt ngay lập tức các tình huống cấp cứu và chuyển hướng sang 115, không cho LLM cơ hội sinh phản hồi.
-  2. **Prompt Guardrail & Grounding:** Ép buộc mô hình chỉ được giải nghĩa dựa trên văn bản trích xuất từ tài liệu, nghiêm cấm suy đoán ngoài ngữ cảnh được cung cấp.
+  2. **Prompt Guardrail, Off-Topic Relevance Guard & Grounding:** Ép buộc mô hình chỉ được giải nghĩa dựa trên ngữ cảnh y tế, tự động phân loại `isMedicalRelated` để từ chối các câu hỏi ngoài ngành (thời tiết, toán học, tán gẫu) và triệt tiêu 100% hiện tượng tự bịa ghép nối bác sĩ sai lệch; nghiêm cấm suy đoán ngoài ngữ cảnh được cung cấp.
   3. **Tuyên bố pháp lý thường trực:** Mọi màn hình đều có disclaimer nhấn mạnh AI chỉ mang tính định hướng thông tin sơ bộ.
   4. **Quy tắc Human-in-the-loop:** AI không có quyền kê đơn hay đưa ra kết luận chẩn đoán cuối cùng; mọi quyết định y khoa bắt buộc phải do Bác sĩ thật có CCHN ký duyệt."*
 
