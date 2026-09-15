@@ -161,6 +161,10 @@ CREATE INDEX idx_doctor_bio_hnsw ON doctor_profiles
 USING hnsw (bio_embedding vector_cosine_ops);
 
 CREATE INDEX idx_doctor_verified ON doctor_profiles(is_verified);
+
+-- [V10 Migration] Tối ưu hóa truy vấn pgvector với Partial Indexes:
+CREATE INDEX idx_doctor_verified_has_embedding ON doctor_profiles(is_verified) WHERE bio_embedding IS NOT NULL;
+CREATE INDEX idx_doctor_bio_hnsw_verified ON doctor_profiles USING hnsw (bio_embedding vector_cosine_ops) WHERE is_verified = TRUE AND bio_embedding IS NOT NULL;
 ```
 
 #### Bảng trung gian `doctor_specialties`
@@ -427,6 +431,7 @@ spring.flyway.table=flyway_schema_history
 | **8** | `7` | `V7__slot_collision_guard_and_dedup_constraints.sql` | SQL | Chốt chặn xung đột đặt lịch đồng thời (Race Condition Shield): Partial Unique Index `idx_appointment_unique_active_slot` trên `appointments(doctor_id, scheduled_start) WHERE status != 'CANCELLED'`; và Unique Index chống gian lận/trùng lặp file song song `idx_med_doc_user_hash_unique` trên `medical_documents(user_id, file_hash) WHERE file_hash IS NOT NULL`. | **SUCCESS** |
 | **9** | `8` | `V8__allow_null_password_hash_for_oauth.sql` | SQL | Cho phép `password_hash` nhận giá trị `NULL` trên bảng `users` nhằm hỗ trợ tài khoản đăng nhập bên thứ ba (Google OAuth2 Social Sign-In). | **SUCCESS** |
 | **10** | `9` | `V9__verify_all_specialties_and_seed_pending_doctors.sql` | SQL | Kích hoạt và xác thực toàn bộ 12 bác sĩ chuyên khoa (bao gồm Thần kinh, Tai Mũi Họng, Nội tiết & Đái tháo đường - TS.BS Đỗ Phương Lan) với lịch khám định kỳ T2-T6, nạp vector 1536 chiều cho toàn bộ 12 chuyên khoa vào pgvector; đồng thời khởi tạo 2 bác sĩ chờ duyệt chuyên biệt (`dr.nam.pending`, `dr.thao.pending`) phục vụ quy trình Admin Vetting. | **SUCCESS** |
+| **11** | `10` | `V10__optimize_doctor_hnsw_index.sql` | SQL | Tối ưu hóa truy vấn pgvector: Bổ sung B-tree index `idx_doctor_verified_has_embedding` trên `doctor_profiles(is_verified) WHERE bio_embedding IS NOT NULL` và Partial HNSW vector index `idx_doctor_bio_hnsw_verified` giúp triệt tiêu độ trễ lọc sau (post-filter) khi tìm kiếm bác sĩ đã xác minh. | **SUCCESS** |
 
 ### 6.3. Chi Tiết Tập Dữ Liệu Bệnh Viện Mẫu (Enterprise Hospital Seed Data)
 1. **12 Chuyên Khoa Toàn Diện:** Tim mạch, Thần kinh, Tiêu hóa - Gan mật, Da liễu, Nhi khoa, Nội tổng quát, Hô hấp & Phổi, Cơ Xương Khớp, Thận & Tiết niệu, Sản Phụ Khoa, Nội tiết & Đái tháo đường, Tai Mũi Họng.

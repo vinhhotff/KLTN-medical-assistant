@@ -122,6 +122,25 @@ export const DocumentSummarizerPage: React.FC = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [analysisStage, setAnalysisStage] = useState(0);
+
+  // Progressive Visual Pipeline Stepper Timer
+  useEffect(() => {
+    if (!analyzing) {
+      setAnalysisStage(0);
+      return;
+    }
+    const t1 = setTimeout(() => setAnalysisStage(1), 900);
+    const t2 = setTimeout(() => setAnalysisStage(2), 2400);
+    const t3 = setTimeout(() => setAnalysisStage(3), 4400);
+    const t4 = setTimeout(() => setAnalysisStage(4), 6800);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
+  }, [analyzing]);
 
   // Quota & Commercial Monetization State
   const [quota, setQuota] = useState<UserQuota | null>(null);
@@ -732,18 +751,147 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
         </div>
       )}
 
-      {/* Progress Animation State */}
+      {/* 🚀 Multi-Stage Progressive Visual Stepper State */}
       {analyzing && (
-        <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center space-y-4 shadow-xs animate-fadeIn">
-          <Sparkles className="w-10 h-10 text-teal-600 animate-spin mx-auto" />
-          <div className="space-y-1">
-            <h3 className="font-bold text-slate-900 text-base">Hệ Thống Đang Xử Lý Tài Liệu Y Tế</h3>
-            <p className="text-xs text-slate-500">
-              Đang phân tích OCR đa phương thức, trích xuất bảng kết quả sinh hóa và đối soát vector pgvector...
-            </p>
+        <div className="bg-white rounded-3xl border border-teal-200/80 p-6 sm:p-8 space-y-6 shadow-sm animate-fadeIn">
+          {/* Top Progress Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-teal-50 text-teal-600 rounded-2xl border border-teal-200">
+                <Sparkles className="w-6 h-6 animate-spin text-teal-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <span>Hệ Thống Đang Xử Lý Tài Liệu Y Tế</span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-teal-100 text-teal-800 animate-pulse">
+                    Giai đoạn {analysisStage + 1}/5
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Đang phân tích tệp: <strong className="text-slate-700">{file?.name || 'Tài liệu cận lâm sàng'}</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* Percentage Badge */}
+            <div className="flex items-center gap-3 self-end sm:self-auto">
+              <div className="text-right">
+                <span className="text-xs text-slate-400 font-medium">Tiến độ ước tính</span>
+                <p className="text-lg font-black text-teal-700 leading-none">
+                  {Math.min(95, (analysisStage + 1) * 20)}%
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="w-64 h-2 bg-slate-100 rounded-full mx-auto overflow-hidden">
-            <div className="h-full bg-teal-600 animate-pulse rounded-full w-full" />
+
+          {/* Smooth Progress Bar */}
+          <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-teal-500 via-emerald-500 to-teal-600 rounded-full transition-all duration-700 ease-out"
+              style={{ width: `${Math.min(95, (analysisStage + 1) * 20)}%` }}
+            />
+          </div>
+
+          {/* 5-Stage Stepper Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 pt-1">
+            {[
+              {
+                step: 0,
+                title: 'Khử Danh Tính & Bảo Mật',
+                desc: 'Masking PII & kiểm tra SHA-256',
+                icon: ShieldCheck
+              },
+              {
+                step: 1,
+                title: 'Trích Xuất OCR Đa Tầng',
+                desc: 'Nhận diện ma trận bảng sinh hóa',
+                icon: FileText
+              },
+              {
+                step: 2,
+                title: 'Đối Soát Chỉ Số Bất Thường',
+                desc: 'So chuẩn khoảng tham chiếu',
+                icon: AlertTriangle
+              },
+              {
+                step: 3,
+                title: 'Đối Soát Vector pgvector',
+                desc: 'HNSW Cosine khớp Bác sĩ',
+                icon: Stethoscope
+              },
+              {
+                step: 4,
+                title: 'Hội Chẩn AI Clinical RAG',
+                desc: 'Gemini tổng hợp khuyến nghị',
+                icon: Sparkles
+              }
+            ].map((item) => {
+              const Icon = item.icon;
+              const isDone = analysisStage > item.step;
+              const isCurrent = analysisStage === item.step;
+
+              return (
+                <div
+                  key={item.step}
+                  className={`p-3.5 rounded-2xl border transition-all text-left flex flex-col justify-between ${
+                    isDone
+                      ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900 shadow-2xs'
+                      : isCurrent
+                      ? 'bg-gradient-to-br from-teal-50 to-emerald-50 border-teal-300 ring-2 ring-teal-500/20 shadow-xs'
+                      : 'bg-slate-50/60 border-slate-200 text-slate-400 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div
+                      className={`p-1.5 rounded-xl ${
+                        isDone
+                          ? 'bg-emerald-600 text-white'
+                          : isCurrent
+                          ? 'bg-teal-600 text-white animate-pulse'
+                          : 'bg-slate-200 text-slate-500'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    {isDone ? (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Xong
+                      </span>
+                    ) : isCurrent ? (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-md animate-pulse">
+                        Đang chạy
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-medium text-slate-400">Chờ</span>
+                    )}
+                  </div>
+                  <div>
+                    <p
+                      className={`text-xs font-bold leading-tight ${
+                        isDone
+                          ? 'text-emerald-950'
+                          : isCurrent
+                          ? 'text-teal-950 font-extrabold'
+                          : 'text-slate-600'
+                      }`}
+                    >
+                      {item.title}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
+                      {item.desc}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Medical Privacy & Trust Assurance */}
+          <div className="pt-2 flex items-center justify-center gap-2 text-xs text-slate-400">
+            <ShieldCheck className="w-4 h-4 text-teal-600 flex-shrink-0" />
+            <span>
+              Mọi dữ liệu danh tính cá nhân (CCCD, Họ tên, SĐT) đều được khử định danh tự động theo chuẩn HIPAA trước khi gửi đến mô hình AI.
+            </span>
           </div>
         </div>
       )}

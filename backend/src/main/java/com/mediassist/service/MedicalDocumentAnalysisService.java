@@ -257,6 +257,7 @@ public class MedicalDocumentAnalysisService {
 
         String storageUrl = null;
         MedicalDocument medDoc = null;
+        java.util.concurrent.CompletableFuture<String> asyncStorageUploadFuture = null;
         try {
             // 4. Extract content from PDF, text or image stream (with scanned PDF fallback)
             String extractedText = extractDocumentText(fileBytes, contentType, fileName);
@@ -282,6 +283,24 @@ public class MedicalDocumentAnalysisService {
             // 9. AI-First Clinical Reasoning via Gemini / OpenRouter (or Safe Deterministic Fallback if offline)
             // NOTICE: Real candidate doctors from pgvector are provided directly to LLM for personalized selection!
             com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, preRagCandidates);
+
+            // 9b. Pipelined Asynchronous Cloud Storage Upload
+            // Since AI Clinical reasoning has SUCCEEDED (satisfies Lazy Upload Invariant),
+            // start background upload to Supabase Storage concurrently with Step 10 (pgvector doctor matching, re-ordering, metadata preparation)
+            final byte[] uploadBytes = fileBytes;
+            final String uploadName = fileName;
+            final String uploadType = contentType;
+            final UUID uploadUserId = user.getId();
+            if (!isReanalyzingStaleOffline || existingDoc == null || existingDoc.getStorageUrl() == null || existingDoc.getStorageUrl().isBlank()) {
+                asyncStorageUploadFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return storageService.uploadDocument(uploadBytes, uploadName, uploadType, uploadUserId);
+                    } catch (Exception uploadEx) {
+                        log.warn("Non-fatal error in asynchronous cloud storage upload: {}. Will fallback synchronously.", uploadEx.getMessage());
+                        return null;
+                    }
+                });
+            }
 
             // 10. Derive specialty and findings strictly from AI reasoning with clinical safety gating
             List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
@@ -393,18 +412,25 @@ public class MedicalDocumentAnalysisService {
             if (finalDev != null) metadataMap.put("deviceModel", finalDev);
 
             // 11. LAZY CLOUD UPLOAD & PERSISTENCE
-            // Architecture Rule: ONLY upload to Supabase Cloud when AI analysis has 100% SUCCEEDED!
+            // Architecture Rule: ONLY persist to Cloud/EMR when analysis has succeeded!
+            // Harvest async storage upload result (or fallback synchronously if null)
             if (isReanalyzingStaleOffline && existingDoc != null) {
                 medDoc = existingDoc;
                 if (medDoc.getStorageUrl() == null || medDoc.getStorageUrl().isBlank()) {
-                    storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
+                    storageUrl = (asyncStorageUploadFuture != null) ? asyncStorageUploadFuture.join() : null;
+                    if (storageUrl == null) {
+                        storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
+                    }
                     medDoc.setStorageUrl(storageUrl);
                     medDoc = medicalDocumentRepository.save(medDoc);
                 } else {
                     storageUrl = medDoc.getStorageUrl();
                 }
             } else {
-                storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
+                storageUrl = (asyncStorageUploadFuture != null) ? asyncStorageUploadFuture.join() : null;
+                if (storageUrl == null) {
+                    storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
+                }
 
                 medDoc = new MedicalDocument();
                 medDoc.setUser(user);
@@ -527,6 +553,11 @@ public class MedicalDocumentAnalysisService {
                 } catch (Exception restoreEx) {
                     log.error("Failed to restore scan quota for user {}: {}", userEmail, restoreEx.getMessage());
                 }
+            }
+            if (storageUrl == null && asyncStorageUploadFuture != null) {
+                try {
+                    storageUrl = asyncStorageUploadFuture.getNow(null);
+                } catch (Exception ignored) {}
             }
             if (storageUrl != null) {
                 log.warn("🚨 [ROLLBACK COMPENSATING ACTION] Pipeline failure after cloud upload. Deleting orphan file: {}", storageUrl);
