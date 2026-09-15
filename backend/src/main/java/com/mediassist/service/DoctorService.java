@@ -34,17 +34,20 @@ public class DoctorService {
     private final SpecialtyRepository specialtyRepository;
     private final AppointmentRepository appointmentRepository;
     private final TwoLayerCacheService cacheService;
+    private final DoctorSemanticSearchService doctorSemanticSearchService;
 
     public DoctorService(DoctorProfileRepository doctorProfileRepository,
                          UserRepository userRepository,
                          SpecialtyRepository specialtyRepository,
                          AppointmentRepository appointmentRepository,
-                         TwoLayerCacheService cacheService) {
+                         TwoLayerCacheService cacheService,
+                         DoctorSemanticSearchService doctorSemanticSearchService) {
         this.doctorProfileRepository = doctorProfileRepository;
         this.userRepository = userRepository;
         this.specialtyRepository = specialtyRepository;
         this.appointmentRepository = appointmentRepository;
         this.cacheService = cacheService;
+        this.doctorSemanticSearchService = doctorSemanticSearchService;
     }
 
     public List<DoctorDetailDto> getVerifiedDoctors() {
@@ -134,7 +137,8 @@ public class DoctorService {
 
     @Transactional
     public DoctorDetailDto updateDoctorProfile(UUID doctorUserId, UpdateDoctorProfileRequest req) {
-        DoctorProfile profile = doctorProfileRepository.findByUserId(doctorUserId)
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
                 .orElseGet(() -> {
                     var user = userRepository.findById(doctorUserId)
                             .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Người dùng không tồn tại"));
@@ -162,6 +166,32 @@ public class DoctorService {
 
         DoctorProfile saved = doctorProfileRepository.save(profile);
         cacheService.evict(CACHE_VERIFIED_DOCTORS);
+
+        if (saved.isVerified()) {
+            syncDoctorVectorInternal(saved);
+        }
+
         return DoctorDetailDto.fromEntity(saved);
+    }
+
+    private void syncDoctorVectorInternal(DoctorProfile profile) {
+        try {
+            String specNames = profile.getSpecialties() != null
+                    ? profile.getSpecialties().stream()
+                            .map(Specialty::getName)
+                            .collect(Collectors.joining(", "))
+                    : "";
+            String docText = String.format("%s %s. %s - %s. %s. Chuyên khoa: %s. Kinh nghiệm: %d năm.",
+                    profile.getAcademicTitle() != null ? profile.getAcademicTitle() : "",
+                    profile.getUser() != null ? profile.getUser().getFullName() : "",
+                    profile.getHospitalAffiliation() != null ? profile.getHospitalAffiliation() : "",
+                    profile.getDepartment() != null ? profile.getDepartment() : "",
+                    profile.getBio() != null ? profile.getBio() : "",
+                    specNames,
+                    profile.getYearsOfExperience());
+            doctorSemanticSearchService.updateDoctorEmbedding(profile.getId(), docText);
+        } catch (Exception e) {
+            log.warn("Failed to sync vector embedding for doctor profile {}: {}", profile.getId(), e.getMessage());
+        }
     }
 }

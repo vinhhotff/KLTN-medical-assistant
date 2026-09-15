@@ -426,6 +426,7 @@ public class AdminVettingService {
         specialty.setSlug(slug);
         specialty.setDescription(request.getDescription() != null ? request.getDescription().trim() : "");
         Specialty saved = specialtyRepository.save(specialty);
+        cacheService.evict("specialties:all");
 
         AuditLog audit = new AuditLog();
         audit.setUserId(adminId);

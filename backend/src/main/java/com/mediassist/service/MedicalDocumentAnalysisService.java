@@ -292,14 +292,17 @@ public class MedicalDocumentAnalysisService {
             final String uploadType = contentType;
             final UUID uploadUserId = user.getId();
             if (!isReanalyzingStaleOffline || existingDoc == null || existingDoc.getStorageUrl() == null || existingDoc.getStorageUrl().isBlank()) {
-                asyncStorageUploadFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                java.util.function.Supplier<String> uploadSupplier = () -> {
                     try {
                         return storageService.uploadDocument(uploadBytes, uploadName, uploadType, uploadUserId);
                     } catch (Exception uploadEx) {
                         log.warn("Non-fatal error in asynchronous cloud storage upload: {}. Will fallback synchronously.", uploadEx.getMessage());
                         return null;
                     }
-                });
+                };
+                asyncStorageUploadFuture = (medicalOcrExecutor != null)
+                        ? java.util.concurrent.CompletableFuture.supplyAsync(uploadSupplier, medicalOcrExecutor)
+                        : java.util.concurrent.CompletableFuture.supplyAsync(uploadSupplier);
             }
 
             // 10. Derive specialty and findings strictly from AI reasoning with clinical safety gating

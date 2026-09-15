@@ -15,4 +15,10 @@ public interface PatientProfileRepository extends JpaRepository<PatientProfile, 
     Optional<PatientProfile> findByPatientCode(String patientCode);
     Optional<PatientProfile> findByCitizenId(String citizenId);
     boolean existsByPatientCode(String patientCode);
+
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM PatientProfile p JOIN FETCH p.user WHERE p.user = :user")
+    Optional<PatientProfile> findByUserWithUser(@org.springframework.data.repository.query.Param("user") User user);
+
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM PatientProfile p JOIN FETCH p.user WHERE p.user.id = :userId")
+    Optional<PatientProfile> findByUserIdWithUser(@org.springframework.data.repository.query.Param("userId") UUID userId);
 }

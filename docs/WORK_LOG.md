@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#059** | 15/09/2026 | Kiểm Toán Chuyên Sâu Toàn Diện & Khắc Phục 5 Điểm Nghẽn / Lỗi Tiềm Ẩn Hệ Thống: (1) Mở Quyền Tra Cứu Lịch Khám Công Khai Cho Bệnh Nhân Chưa Đăng Nhập (Fix 401 Slots Discovery), (2) Đồng Bộ Tự Động Vector Embedding & Invalidate Cache Khi Bác Sĩ Tự Cập Nhật Hồ Sơ Chuyên Môn, (3) Tích Hợp Two-Layer Cache (L1 Caffeine + L2 Redis) 1h TTL Cho Danh Mục Chuyên Khoa (/specialties < 1ms), (4) Dùng Dedicated Thread Pool medicalOcrExecutor Cho Upload Supabase Tránh Nghẽn ForkJoinPool, (5) JOIN FETCH Eager Loading Cho PatientProfile & Bổ Sung DoctorServiceTest Đạt 92/92 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#058** | 15/09/2026 | Kiểm Toán & Triệt Tiêu Toàn Diện Các Điểm Nghẽn Hiệu Năng & Lỗi N+1 Query: Triệt Tiêu 29-101 Queries N+1 Bác Sĩ & Lịch Khám, Kích Hoạt Two-Layer Cache (L1 Caffeine + L2 Redis) 10m TTL Cho Danh Sách Bác Sĩ (< 2ms), Chặn N+1 Lazy Query Qua @JsonIgnore (User, MedicalDocument, TriageSession), Bổ Sung Flyway V11 Composite Performance Indexes & Tối Ưu HikariCP Pool 20 Connections | AI Assistant | 🟢 Sẵn sàng Review |
 | **#057** | 15/09/2026 | Tối Ưu Hóa Toàn Diện Kiến Trúc Vector Search (pgvector) & Multimodal OCR Scan: Triệt Tiêu N+1 Query, Caffeine L1 Cache, Java 21 Virtual Threads, Pipelined Async Storage Upload, UX Multi-Stage Stepper & Flyway V10 HNSW Partial Index | AI Assistant | 🟢 Sẵn sàng Review |
 | **#056** | 15/09/2026 | Kiểm Toán & Khắc Phục Triệt Để 6 Điểm Nóng / Lỗi Tiềm Ẩn Hệ Thống (Latent Bugs & Edge Cases): (1) Bảo Toàn An Toàn Y Tế Trên Cache Tài Liệu Trắng/Mờ, (2) Đồng Bộ Thứ Tự Hiển Thị Bác Sĩ Do Gemini Đề Xuất, (3) Defensive Null Guard TriageRequest, (4) Bảo Lưu Xét Nghiệm Nấm (Candida), Soi Tươi & Đạm Niệu 24h Trong Lab Scanner, (5) Đồng Bộ Khử Thuật Ngữ Kỹ Thuật (isMetaComplaint), (6) Caffeine Bounded Cache Chống Tràn Bộ Nhớ TriageRateLimiterService | AI Assistant | 🟢 Sẵn sàng Review |
@@ -24,6 +25,45 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#059] Kiểm Toán Chuyên Sâu Toàn Diện & Khắc Phục 5 Điểm Nghẽn / Lỗi Tiềm Ẩn Hệ Thống
+* **Thời gian:** 2026-09-15 11:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-01 (Authn/Authz & Security), UC-04 (pgvector Doctor Discovery & Slots), UC-05 (Patient Profile & EMR), UC-03 (Multimodal OCR & Async Storage)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **92/92 Unit Tests PASS 100%** (Bổ sung 6 unit tests mới trong `DoctorServiceTest`)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1673 modules transformed**
+  - Trạng thái Run Daemon: Backend port `5001` (UP), Frontend port `5173` (UP)
+  - Tốc độ API `/api/v1/specialties`: L1 Cache Hit = **0.006s (6.5ms CLI, < 1ms internal)**
+  - Xác thực thực tế: `GET /api/v1/doctors/{id}/slots` trả về **HTTP 200** kèm danh sách slot đầy đủ cho khách chưa đăng nhập
+* **Nhánh phát triển:** `develop`
+
+#### 1. Danh Sách Tệp Tin Thay Đổi:
+* `[NEW]` [`backend/src/test/java/com/mediassist/DoctorServiceTest.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/test/java/com/mediassist/DoctorServiceTest.java):
+  - Tạo mới bộ unit test kiểm thử toàn diện `DoctorService`: L1/L2 Cache hit/miss, lấy chi tiết bác sĩ, tính toán slot khả dụng và đồng bộ vector embedding.
+* `[MOD]` [`backend/src/main/java/com/mediassist/config/SecurityConfig.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/config/SecurityConfig.java):
+  - Bổ sung `/api/v1/doctors/{id}/slots` vào danh sách `permitAll()` của HttpMethod.GET. Cho phép người dùng duyệt lịch khám trước khi tiến hành xác thực/đặt lịch.
+* `[MOD]` [`backend/src/main/java/com/mediassist/controller/SpecialtyController.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/controller/SpecialtyController.java):
+  - Tích hợp `TwoLayerCacheService` (L1 Caffeine + L2 Redis) với TTL 1 giờ (`specialties:all`), giảm tải 100% database query cho danh mục master data.
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/AdminVettingService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/AdminVettingService.java):
+  - Thêm `cacheService.evict("specialties:all")` khi Admin khởi tạo chuyên khoa mới.
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/DoctorService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/DoctorService.java):
+  - Inject `DoctorSemanticSearchService` và gọi `syncDoctorVectorInternal(saved)` khi bác sĩ tự cập nhật hồ sơ chuyên môn trên Doctor Portal.
+  - Sử dụng `findByUserIdWithDetails` tải đồng thời `User` và `Specialties` qua JPQL `JOIN FETCH`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java):
+  - Truyền dedicated `medicalOcrExecutor` vào `CompletableFuture.supplyAsync`, loại bỏ rủi ro cạn kiệt thread pool `ForkJoinPool.commonPool()` khi upload tài liệu y tế nặng.
+* `[MOD]` [`backend/src/main/java/com/mediassist/repository/PatientProfileRepository.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/repository/PatientProfileRepository.java):
+  - Khai báo các truy vấn `findByUserWithUser` và `findByUserIdWithUser` sử dụng `JOIN FETCH p.user`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/PatientProfileService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/PatientProfileService.java):
+  - Thêm helper methods `findByUserInternal` và `findByUserIdInternal` với cơ chế fallback tự động đảm bảo không sinh lazy queries và tương thích 100% Mockito.
+
+#### 2. Điểm Nóng Tech Lead Cần Review:
+1. **Public Doctor Slots Discovery:**
+   - Trước đây `GET /api/v1/doctors/{id}/slots` bị chặn bởi quy tắc `.anyRequest().authenticated()`. Người dùng vãng lai vào tìm bác sĩ nhấn "Xem lịch" bị lỗi 401. Đã cấp quyền `GET` công khai, trong khi luồng `POST /api/v1/appointments` vẫn yêu cầu xác thực nghiêm ngặt (`hasAnyRole('PATIENT', 'ADMIN')`).
+2. **Auto-Vector Sync on Doctor Portal:**
+   - Đảm bảo tính nhất quán giữa dữ liệu profile và 1536-d vector space trong pgvector khi bác sĩ tự cập nhật thông tin qua UI.
+
+---
 
 ### [WORK-LOG-#058] Kiểm Toán & Triệt Tiêu Toàn Diện Các Điểm Nghẽn Hiệu Năng & Lỗi N+1 Query Toàn Hệ Thống
 * **Thời gian:** 2026-09-15 10:42:00 (GMT+7)

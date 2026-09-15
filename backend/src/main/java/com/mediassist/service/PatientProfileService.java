@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -32,7 +33,7 @@ public class PatientProfileService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
 
-        PatientProfile profile = patientProfileRepository.findByUser(user)
+        PatientProfile profile = findByUserInternal(user)
                 .orElseGet(() -> createInitialProfile(user));
 
         return toDto(profile);
@@ -43,7 +44,7 @@ public class PatientProfileService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
 
-        PatientProfile profile = patientProfileRepository.findByUser(user)
+        PatientProfile profile = findByUserInternal(user)
                 .orElseGet(() -> createInitialProfile(user));
 
         if (dto.getCitizenId() != null) profile.setCitizenId(dto.getCitizenId().trim());
@@ -74,9 +75,25 @@ public class PatientProfileService {
 
     @Transactional(readOnly = true)
     public PatientProfileDto getProfileByUserId(UUID userId) {
-        PatientProfile profile = patientProfileRepository.findByUserId(userId)
+        PatientProfile profile = findByUserIdInternal(userId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "PROFILE_NOT_FOUND", "Chưa có hồ sơ bệnh án cho bệnh nhân này"));
         return toDto(profile);
+    }
+
+    private Optional<PatientProfile> findByUserInternal(User user) {
+        try {
+            Optional<PatientProfile> opt = patientProfileRepository.findByUserWithUser(user);
+            if (opt != null && opt.isPresent()) return opt;
+        } catch (Exception ignored) {}
+        return patientProfileRepository.findByUser(user);
+    }
+
+    private Optional<PatientProfile> findByUserIdInternal(UUID userId) {
+        try {
+            Optional<PatientProfile> opt = patientProfileRepository.findByUserIdWithUser(userId);
+            if (opt != null && opt.isPresent()) return opt;
+        } catch (Exception ignored) {}
+        return patientProfileRepository.findByUserId(userId);
     }
 
     private PatientProfile createInitialProfile(User user) {

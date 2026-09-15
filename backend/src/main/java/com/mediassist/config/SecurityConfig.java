@@ -76,8 +76,7 @@ public class SecurityConfig {
                         // OAuth2 endpoints: phai permit all de Spring Security xu ly duoc
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/specialties/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/doctors").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/doctors/{id}").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/doctors", "/api/v1/doctors/{id}", "/api/v1/doctors/{id}/slots").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/documents/analyze-preview").permitAll()
                         // Public Sample Random PDF Generator (Meddies Dataset)
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/documents/sample-random-pdf").permitAll()
