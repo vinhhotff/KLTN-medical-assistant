@@ -116,7 +116,24 @@ public class MedicalDocumentValidator {
         log.info("✅ Medical document passed gatekeeper validation: '{}'", fileName);
     }
 
-    private boolean hasValidMagicBytes(byte[] bytes, String contentType) {
+    public void validateFileHeader(byte[] fileBytes, String contentType, String fileName) {
+        if (fileBytes == null || fileBytes.length < 10) {
+            throw new AppException(
+                    HttpStatus.BAD_REQUEST,
+                    "UNREADABLE_DOCUMENT",
+                    "Tệp '" + fileName + "' rỗng hoặc bị lỗi truyền tải. Vui lòng kiểm tra lại tệp tin."
+            );
+        }
+        if (!hasValidMagicBytes(fileBytes, contentType)) {
+            throw new AppException(
+                    HttpStatus.BAD_REQUEST,
+                    "UNSUPPORTED_FORMAT",
+                    "Tệp '" + fileName + "' không đúng định dạng hỗ trợ. Hệ thống chỉ tiếp nhận tài liệu chuẩn PDF, JPEG hoặc PNG."
+            );
+        }
+    }
+
+    public boolean hasValidMagicBytes(byte[] bytes, String contentType) {
         if (bytes.length < 4) return false;
 
         // PDF: %PDF (0x25 0x50 0x44 0x46)

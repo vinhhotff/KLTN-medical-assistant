@@ -11,12 +11,55 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#061** | 15/09/2026 | Hỗ Trợ Nhập Đồng Thời Nhiều Tệp (Mixed Multi-File Ingestion: PDF + Hình Ảnh PNG/JPG Cùng Lúc) Cho Tính Năng Phân Tích Cận Lâm Sàng: Trích Xuất Song Song (Parallel OCR & PDFBox via medicalOcrExecutor), Khấu Trừ Atomic 1 Quota Cho Cả Đợt Quét, Hàng Đợi Multi-File Queue Card Trực Quan & Đạt 94/94 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#060** | 15/09/2026 | Triển Khai Rào Chắn Chống Câu Hỏi Lệch Chủ Đề (Triage Off-Topic & Non-Medical Guard): Ngăn Chặn Suy Đoán Chuyên Khoa Bừa Bãi, Triệt Tiêu 100% Hiện Tượng Ghép Bác Sĩ pgvector Cho Câu Hỏi Ngoài Y Tế, Giao Diện Hướng Dẫn Thân Thiện & Đạt 93/93 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#059** | 15/09/2026 | Kiểm Toán Chuyên Sâu Toàn Diện & Khắc Phục 5 Điểm Nghẽn / Lỗi Tiềm Ẩn Hệ Thống: (1) Mở Quyền Tra Cứu Lịch Khám Công Khai Cho Bệnh Nhân Chưa Đăng Nhập (Fix 401 Slots Discovery), (2) Đồng Bộ Tự Động Vector Embedding & Invalidate Cache Khi Bác Sĩ Tự Cập Nhật Hồ Sơ Chuyên Môn, (3) Tích Hợp Two-Layer Cache (L1 Caffeine + L2 Redis) 1h TTL Cho Danh Mục Chuyên Khoa (/specialties < 1ms), (4) Dùng Dedicated Thread Pool medicalOcrExecutor Cho Upload Supabase Tránh Nghẽn ForkJoinPool, (5) JOIN FETCH Eager Loading Cho PatientProfile & Bổ Sung DoctorServiceTest Đạt 92/92 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#061] Hỗ Trợ Nhập Đồng Thời Nhiều Tệp (Mixed Multi-File Ingestion: PDF + Hình Ảnh Đồng Thời)
+* **Thời gian:** 2026-09-15 14:45:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-03 (Multimodal Document Summarization & Token Protection)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **94/94 Unit Tests PASS 100%** (Bổ sung test case `testAnalyzeDocuments_MultiFileBatchSimultaneousUpload` trong `MedicalDocumentAnalysisServiceTest`)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1673 modules transformed**
+  - Trạng thái Run Daemon: Backend port `5001` (UP), Frontend port `5173` (UP)
+  - Xác thực thực tế Live API: Tải lên đồng thời 2 tệp cận lâm sàng khác nhau (`xet_nghiem_mau.pdf` + `chuc_nang_than.pdf`) tới endpoint `POST /api/v1/documents/analyze-preview`. Kết quả trả về `filesCount = 2`, `fileNames = ["xet_nghiem_mau.pdf", "chuc_nang_than.pdf"]`, bóc tách thành công 10 chỉ số bất thường kết hợp từ cả 2 tài liệu và ghép nối chính xác chuyên khoa `Nephrology & Urology (Thận - Tiết Niệu)`.
+* **Nhánh phát triển:** `develop`
+
+#### 1. Danh Sách Tệp Tin Thay Đổi:
+* `[MOD]` [`backend/src/main/java/com/mediassist/dto/DocumentAnalysisResponse.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/dto/DocumentAnalysisResponse.java):
+  - Bổ sung trường `private int filesCount = 1;` và `private List<String> fileNames = new ArrayList<>();` kèm getter/setter đồng bộ sang response DTO cho Frontend.
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/MedicalDocumentValidator.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/MedicalDocumentValidator.java):
+  - Mở quyền public cho `hasValidMagicBytes` và bổ sung phương thức `validateFileHeader(byte[] fileBytes, String contentType, String fileName)` giúp thẩm định độc lập từng tệp trong đợt tải lên đa tệp.
+* `[MOD]` [`backend/src/main/java/com/mediassist/controller/MedicalDocumentController.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/controller/MedicalDocumentController.java):
+  - Cập nhật cả 2 endpoints `/analyze` và `/analyze-preview` tiếp nhận đồng thời danh sách `@RequestParam(value = "files", required = false) List<MultipartFile> files` và `@RequestParam(value = "file", required = false) MultipartFile file`.
+  - Cung cấp cơ chế phân giải tệp linh hoạt `resolveFiles()` bảo đảm **100% tương thích ngược**.
+  - Thiết lập rào chắn kiểm duyệt giới hạn đa tệp `validateBatchConstraints`: tối đa 5 tệp/đợt, mỗi tệp $\le 10\text{MB}$, tổng dung lượng cả đợt $\le 25\text{MB}$.
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java):
+  - Hiện thực hóa phương thức `analyzeDocuments(List<MultipartFile> files, String userEmail)` và `analyzeDocumentsPreview(List<MultipartFile> files)`:
+    - **Trích xuất song song (Parallel Extraction):** Sử dụng `CompletableFuture.supplyAsync` trên thread pool riêng `medicalOcrExecutor`, trích xuất đồng thời toàn bộ tệp PDF (qua Apache PDFBox) và ảnh JPG/PNG (qua Gemini Vision OCR).
+    - **Khấu trừ 1 Quota duy nhất (Atomic Single Quota per Batch):** Khấu trừ đúng 1 lượt quét cho toàn bộ đợt tài liệu của cùng một ca khám; tự động kích hoạt Compensating Rollback Hook hoàn trả nếu xảy ra sự cố.
+    - **Composite SHA-256 Checksum:** Tính toán hash đại diện cho cả bộ tài liệu bằng `SHA-256(hash_1:hash_2:...:hash_n)` phục vụ chống trùng lặp token AI.
+    - **Hợp nhất ngữ cảnh lâm sàng (Unified Clinical Context):** Tự động gom cấu trúc các tài liệu trích xuất thành định dạng chuẩn `[HỒ SƠ Y TẾ TỔNG HỢP: N TÀI LIỆU ĐÍNH KÈM]`, bóc tách chỉ số sinh hóa và đối chiếu chéo trong một bệnh án duy nhất.
+* `[MOD]` [`backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java):
+  - Bổ sung test case `testAnalyzeDocuments_MultiFileBatchSimultaneousUpload` kiểm thử tải lên đồng thời 1 PDF + 1 Ảnh JPEG. Đảm bảo toàn bộ 22/22 unit tests của service và 94/94 tests toàn dự án PASS 100%.
+* `[MOD]` [`frontend/src/pages/patient/DocumentSummarizerPage.tsx`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/pages/patient/DocumentSummarizerPage.tsx):
+  - Chuyển đổi trạng thái quản lý tệp đơn sang danh sách hàng đợi `selectedFiles: File[]`.
+  - Hỗ trợ chọn đồng thời nhiều tệp qua `<input type="file" multiple ... />` và hỗ trợ kéo thả trực tiếp trên toàn bộ vùng Dropzone (`onDragOver`, `onDrop`).
+  - Thiết kế thẻ **Hàng Đợi Tệp Đã Chọn (Multi-File Queue Card)**: hiển thị chi tiết từng tệp với huy hiệu loại tệp (`[PDF]` / `[ẢNH]`), dung lượng, nút xóa từng tệp (`X`), nút xóa toàn bộ và nút bấm chính *"Phân Tích N Tệp Hồ Sơ (Đồng Thời PDF & Ảnh)"*.
+  - Bổ sung Banner **Hồ Sơ Y Tế Đa Tệp** trong kết quả phân tích để minh bạch hóa cho người bệnh về việc AI đã trích xuất song song và đối soát chéo các chỉ số giữa các tài liệu.
+* `[MOD]` [`docs/USE_CASES.md`](file:///docs/USE_CASES.md):
+  - Cập nhật đặc tả chi tiết cho UC-03 với luồng Mixed Multi-File Ingestion.
+
+#### 2. Điểm Nóng Tech Lead Cần Review:
+* **Chính sách Hạn ngạch (Quota Fairness):** Dù người bệnh đính kèm 2 hay 5 tài liệu cho một ca bệnh (ví dụ: 1 phiếu xét nghiệm máu PDF + 1 ảnh chụp que thử nước tiểu), hệ thống **chỉ trừ đúng 1 lượt quét** thay vì nhân theo số lượng tệp, tối ưu trải nghiệm và bảo vệ quyền lợi người dùng.
+* **Hiệu năng & Khả năng mở rộng:** Nhờ phân phối song song qua `medicalOcrExecutor` và giới hạn `Semaphore(5, true)` cho OCR Vision, thời gian xử lý nhiều tệp diễn ra đồng thời mà không làm nghẽn CPU hoặc cạn kiệt RAM hệ thống.
+
+---
 
 ### [WORK-LOG-#060] Triển Khai Rào Chắn Chống Câu Hỏi Lệch Chủ Đề (Triage Off-Topic & Non-Medical Guard)
 * **Thời gian:** 2026-09-15 14:05:00 (GMT+7)

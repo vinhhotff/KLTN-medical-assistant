@@ -186,11 +186,24 @@ public class MedicalDocumentAnalysisService {
     }
 
     public DocumentAnalysisResponse analyzeDocument(MultipartFile file, String userEmail) {
-        String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document.pdf";
-        String contentType = file.getContentType() != null ? file.getContentType() : "application/pdf";
-        long size = file.getSize();
+        if (file == null || file.isEmpty()) {
+            throw new com.mediassist.common.AppException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "INVALID_FILE",
+                    "Vui lòng chọn tệp tài liệu y tế (PDF hoặc ảnh) để phân tích."
+            );
+        }
+        return analyzeDocuments(java.util.Collections.singletonList(file), userEmail);
+    }
 
-        log.info("🩺 Ingesting medical document: '{}' ({}, {} bytes) for user: {}", fileName, contentType, size, userEmail);
+    public DocumentAnalysisResponse analyzeDocuments(List<MultipartFile> files, String userEmail) {
+        if (files == null || files.isEmpty()) {
+            throw new com.mediassist.common.AppException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "INVALID_FILE",
+                    "Vui lòng chọn ít nhất một tệp tài liệu y tế (PDF hoặc ảnh) để phân tích."
+            );
+        }
 
         // 1. User & Quota Verification (Anti-Abuse)
         if (userEmail == null || userEmail.isBlank()) {
@@ -207,20 +220,51 @@ public class MedicalDocumentAnalysisService {
                         "Người dùng không tồn tại trên hệ thống."
                 ));
 
-        byte[] fileBytes;
-        try {
-            fileBytes = file.getBytes();
-        } catch (Exception e) {
-            throw new com.mediassist.common.AppException(
-                    org.springframework.http.HttpStatus.BAD_REQUEST,
-                    "FILE_READ_ERROR",
-                    "Không thể đọc dữ liệu tệp tin tải lên: " + e.getMessage()
-            );
+        List<String> fileNames = new ArrayList<>();
+        List<byte[]> filesBytesList = new ArrayList<>();
+        List<String> contentTypes = new ArrayList<>();
+        long totalSize = 0;
+        StringBuilder hashJoiner = new StringBuilder();
+
+        for (int i = 0; i < files.size(); i++) {
+            MultipartFile f = files.get(i);
+            String fn = f.getOriginalFilename() != null ? f.getOriginalFilename() : ("document_" + (i + 1));
+            fileNames.add(fn);
+            byte[] b;
+            try {
+                b = f.getBytes();
+            } catch (Exception e) {
+                throw new com.mediassist.common.AppException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "FILE_READ_ERROR",
+                        "Không thể đọc dữ liệu tệp " + fn + ": " + e.getMessage()
+                );
+            }
+            filesBytesList.add(b);
+            String ct = f.getContentType() != null ? f.getContentType() : (fn.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg");
+            contentTypes.add(ct);
+            totalSize += f.getSize();
+
+            String singleHash = calculateSha256(b);
+            if (i > 0) hashJoiner.append(":");
+            hashJoiner.append(singleHash);
         }
 
+        String fileHash = (files.size() == 1)
+                ? hashJoiner.toString()
+                : calculateSha256(hashJoiner.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        String fileName = (files.size() == 1)
+                ? fileNames.get(0)
+                : String.format("Bộ hồ sơ (%d tệp): %s", files.size(), String.join(", ", fileNames));
+        String contentType = (files.size() == 1)
+                ? contentTypes.get(0)
+                : "multipart/mixed";
+        long size = totalSize;
+
+        log.info("🩺 Ingesting {} medical document(s): '{}' ({} bytes, hash: {}) for user: {}",
+                files.size(), fileName, size, fileHash, userEmail);
+
         // 2. SHA-256 Checksum & Deduplication Lookup (Token Protection)
-        // If document was previously analyzed, return cached result immediately with 0 tokens and 0 quota cost
-        String fileHash = calculateSha256(fileBytes);
         Optional<MedicalDocument> existingDocOpt = medicalDocumentRepository.findFirstByUserIdAndFileHashOrderByCreatedAtDesc(user.getId(), fileHash);
         MedicalDocument existingDoc = null;
         boolean isReanalyzingStaleOffline = false;
@@ -228,11 +272,11 @@ public class MedicalDocumentAnalysisService {
         if (existingDocOpt.isPresent()) {
             DocumentAnalysisResponse cachedResponse = buildCachedResponse(existingDocOpt.get(), fileName);
             if (cachedResponse != null) {
-                log.info("⚡ [CACHE HIT - DEDUPLICATION] Document '{}' (hash: {}) previously analyzed for user {}. Returning cached result. 0 LLM tokens consumed.", fileName, fileHash, userEmail);
+                log.info("⚡ [CACHE HIT - DEDUPLICATION] Document(s) '{}' (hash: {}) previously analyzed for user {}. Returning cached result. 0 LLM tokens consumed.", fileName, fileHash, userEmail);
+                cachedResponse.setFilesCount(files.size());
+                cachedResponse.setFileNames(fileNames);
                 return cachedResponse;
             }
-            // If cachedResponse is null, it means the document was previously analyzed in Safe Offline Fallback mode.
-            // In this case, we allow re-analysis with online AI without charging the user's scan quota again.
             existingDoc = existingDocOpt.get();
             isReanalyzingStaleOffline = true;
             log.info("🔄 [RE-ANALYZING STALE OFFLINE] Existing document '{}' found for user {}, but cached analysis was offline fallback. Re-analyzing with live online AI without charging additional quota.", fileName, userEmail);
@@ -252,44 +296,80 @@ public class MedicalDocumentAnalysisService {
                 );
             }
             quotaDeducted = true;
-            log.info("💳 Atomically deducted 1 scan quota for user {}. Starting analysis pipeline.", userEmail);
+            log.info("💳 Atomically deducted 1 scan quota for user {}. Starting analysis pipeline for batch of {} file(s).", userEmail, files.size());
         }
 
         String storageUrl = null;
         MedicalDocument medDoc = null;
         java.util.concurrent.CompletableFuture<String> asyncStorageUploadFuture = null;
         try {
-            // 4. Extract content from PDF, text or image stream (with scanned PDF fallback)
-            String extractedText = extractDocumentText(fileBytes, contentType, fileName);
+            // 4. File Format & Magic Bytes Inspection for each file
+            for (int i = 0; i < files.size(); i++) {
+                medicalDocumentValidator.validateFileHeader(filesBytesList.get(i), contentTypes.get(i), fileNames.get(i));
+            }
 
-            // 5. Gatekeeper Validation (Invalid / Blurry / Non-medical filter)
-            // If validation fails, throws AppException(400) -> Compensating action restores quota!
-            medicalDocumentValidator.validateDocument(fileBytes, contentType, extractedText, fileName);
+            // 4b. Dispatch parallel extraction across files
+            List<java.util.concurrent.CompletableFuture<String>> extractionFutures = new ArrayList<>();
+            java.util.concurrent.Executor executor = (medicalOcrExecutor != null)
+                    ? medicalOcrExecutor
+                    : java.util.concurrent.ForkJoinPool.commonPool();
+
+            for (int i = 0; i < files.size(); i++) {
+                final int idx = i;
+                final byte[] b = filesBytesList.get(idx);
+                final String ct = contentTypes.get(idx);
+                final String fn = fileNames.get(idx);
+                extractionFutures.add(java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                    return extractDocumentText(b, ct, fn);
+                }, executor));
+            }
+
+            try {
+                java.util.concurrent.CompletableFuture.allOf(extractionFutures.toArray(new java.util.concurrent.CompletableFuture[0]))
+                        .get(45, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception ex) {
+                log.warn("Multi-file text extraction timeout or error: {}. Assembling available extracted texts.", ex.getMessage());
+            }
+
+            String extractedText;
+            if (files.size() == 1) {
+                extractedText = extractionFutures.get(0).getNow("");
+            } else {
+                StringBuilder sb = new StringBuilder();
+                sb.append(String.format("[HỒ SƠ Y TẾ TỔNG HỢP: %d TÀI LIỆU ĐÍNH KÈM]\n\n", files.size()));
+                for (int i = 0; i < files.size(); i++) {
+                    String t = extractionFutures.get(i).getNow("");
+                    sb.append(String.format("=== TÀI LIỆU %d/%d: %s (%s) ===\n%s\n\n",
+                            (i + 1), files.size(), fileNames.get(i), contentTypes.get(i),
+                            (t != null && !t.isBlank() ? t : "(Không trích xuất được nội dung)")));
+                }
+                extractedText = sb.toString().trim();
+            }
+
+            // 5. Gatekeeper Validation (Readability + Clinical Sieve on combined text)
+            medicalDocumentValidator.validateDocument(filesBytesList.get(0), contentTypes.get(0), extractedText, fileName);
 
             // 6. Dynamic Metadata Extraction from raw text
             Map<String, String> rawMeta = extractDocumentMetadata(extractedText);
             String patientGender = rawMeta.get("patientGender");
 
-            // 7. Comprehensive Lab Scanning across all pages (columnar, delimiter & tab parsers)
+            // 7. Comprehensive Lab Scanning across all files
             List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName, patientGender);
 
-            // 8. Smart Clinical Windowing for Multi-Page Verbose Documents
+            // 8. Smart Clinical Windowing for Verbose Documents
             String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
 
-            // 8b. Pre-RAG Semantic Retrieval: Query pgvector with initial clinical indicators & context
+            // 8b. Pre-RAG Semantic Retrieval
             String preRagQuery = buildInitialDoctorQuery(parsedIndicators, clinicalContext);
             List<DoctorMatchDto> preRagCandidates = doctorSemanticSearchService.searchDoctors(preRagQuery, 4);
 
-            // 9. AI-First Clinical Reasoning via Gemini / OpenRouter (or Safe Deterministic Fallback if offline)
-            // NOTICE: Real candidate doctors from pgvector are provided directly to LLM for personalized selection!
+            // 9. AI-First Clinical Reasoning via Gemini / OpenRouter
             com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, preRagCandidates);
 
             // 9b. Pipelined Asynchronous Cloud Storage Upload
-            // Since AI Clinical reasoning has SUCCEEDED (satisfies Lazy Upload Invariant),
-            // start background upload to Supabase Storage concurrently with Step 10 (pgvector doctor matching, re-ordering, metadata preparation)
-            final byte[] uploadBytes = fileBytes;
-            final String uploadName = fileName;
-            final String uploadType = contentType;
+            final byte[] uploadBytes = filesBytesList.get(0);
+            final String uploadName = fileNames.get(0);
+            final String uploadType = contentTypes.get(0);
             final UUID uploadUserId = user.getId();
             if (!isReanalyzingStaleOffline || existingDoc == null || existingDoc.getStorageUrl() == null || existingDoc.getStorageUrl().isBlank()) {
                 java.util.function.Supplier<String> uploadSupplier = () -> {
@@ -403,49 +483,45 @@ public class MedicalDocumentAnalysisService {
             String finalDev = (ragResult.getDeviceModel() != null && !ragResult.getDeviceModel().isBlank())
                     ? ragResult.getDeviceModel() : rawMeta.get("deviceModel");
 
-            Map<String, String> metadataMap = new HashMap<>();
-            if (finalHospital != null) metadataMap.put("hospitalName", finalHospital);
-            if (finalDept != null) metadataMap.put("departmentName", finalDept);
-            if (finalDoc != null) metadataMap.put("orderingDoctor", finalDoc);
-            if (finalDate != null) metadataMap.put("testDate", finalDate);
-            if (finalSid != null) metadataMap.put("sidCode", finalSid);
-            if (finalPat != null) metadataMap.put("patientName", finalPat);
-            if (finalAge != null) metadataMap.put("patientAge", finalAge);
-            if (finalGender != null) metadataMap.put("patientGender", finalGender);
-            if (finalDev != null) metadataMap.put("deviceModel", finalDev);
+            // Await async cloud storage upload
+            if (asyncStorageUploadFuture != null) {
+                try {
+                    storageUrl = asyncStorageUploadFuture.get(10, java.util.concurrent.TimeUnit.SECONDS);
+                } catch (Exception ex) {
+                    log.warn("Async storage upload exceeded timeout: {}. Attempting synchronous fallback.", ex.getMessage());
+                    try {
+                        storageUrl = storageService.uploadDocument(uploadBytes, uploadName, uploadType, uploadUserId);
+                    } catch (Exception syncEx) {
+                        log.warn("Synchronous storage fallback also failed: {}. Continuing without permanent storage URL.", syncEx.getMessage());
+                    }
+                }
+            } else if (isReanalyzingStaleOffline && existingDoc != null) {
+                storageUrl = existingDoc.getStorageUrl();
+            }
 
             // 11. LAZY CLOUD UPLOAD & PERSISTENCE
             // Architecture Rule: ONLY persist to Cloud/EMR when analysis has succeeded!
-            // Harvest async storage upload result (or fallback synchronously if null)
             if (isReanalyzingStaleOffline && existingDoc != null) {
                 medDoc = existingDoc;
-                if (medDoc.getStorageUrl() == null || medDoc.getStorageUrl().isBlank()) {
-                    storageUrl = (asyncStorageUploadFuture != null) ? asyncStorageUploadFuture.join() : null;
-                    if (storageUrl == null) {
-                        storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
-                    }
-                    medDoc.setStorageUrl(storageUrl);
-                    medDoc = medicalDocumentRepository.save(medDoc);
-                } else {
-                    storageUrl = medDoc.getStorageUrl();
-                }
-            } else {
-                storageUrl = (asyncStorageUploadFuture != null) ? asyncStorageUploadFuture.join() : null;
-                if (storageUrl == null) {
-                    storageUrl = storageService.uploadDocument(fileBytes, fileName, contentType, user.getId());
-                }
-
-                medDoc = new MedicalDocument();
-                medDoc.setUser(user);
                 medDoc.setFileName(fileName);
                 medDoc.setFileSizeBytes(size);
                 medDoc.setContentType(contentType);
-                medDoc.setFileHash(fileHash);
+                medDoc.setStatus("PROCESSED");
                 medDoc.setStorageUrl(storageUrl);
                 medDoc.setValidMedical(true);
-                medDoc.setStatus("PROCESSED");
+                medicalDocumentRepository.save(medDoc);
+            } else {
                 try {
-                    medDoc = medicalDocumentRepository.saveAndFlush(medDoc);
+                    medDoc = new MedicalDocument();
+                    medDoc.setUser(user);
+                    medDoc.setFileName(fileName);
+                    medDoc.setFileSizeBytes(size);
+                    medDoc.setContentType(contentType);
+                    medDoc.setStatus("PROCESSED");
+                    medDoc.setStorageUrl(storageUrl);
+                    medDoc.setFileHash(fileHash);
+                    medDoc.setValidMedical(true);
+                    medDoc = medicalDocumentRepository.save(medDoc);
                 } catch (org.springframework.dao.DataIntegrityViolationException dive) {
                     log.warn("⚡ [RACE CONDITION RECOVERY] Concurrent duplicate upload detected for user {} with file hash {}. Rolling back duplicate and serving winner cached record.", userEmail, fileHash);
                     // 1. Compensating action: Restore scan quota that was deducted for this request
@@ -474,6 +550,8 @@ public class MedicalDocumentAnalysisService {
                             DocumentAnalysisResponse cached = buildCachedResponse(winnerDoc.get(), fileName);
                             if (cached != null) {
                                 log.info("⚡ [RACE RECOVERY SUCCESS] Successfully returned concurrent winner analysis for user {}", userEmail);
+                                cached.setFilesCount(files.size());
+                                cached.setFileNames(fileNames);
                                 return cached;
                             }
                         }
@@ -487,6 +565,17 @@ public class MedicalDocumentAnalysisService {
                     throw dive;
                 }
             }
+
+            Map<String, String> metadataMap = new LinkedHashMap<>();
+            metadataMap.put("hospitalName", finalHospital);
+            metadataMap.put("departmentName", finalDept);
+            metadataMap.put("orderingDoctor", finalDoc);
+            metadataMap.put("testDate", finalDate);
+            metadataMap.put("sidCode", finalSid);
+            metadataMap.put("patientName", finalPat);
+            metadataMap.put("patientAge", finalAge);
+            metadataMap.put("patientGender", finalGender);
+            metadataMap.put("deviceModel", finalDev);
 
             final MedicalDocument targetDoc = medDoc;
             Optional<DocumentAnalysis> existingAnalysisOpt = documentAnalysisRepository.findByDocumentId(targetDoc.getId());
@@ -531,6 +620,8 @@ public class MedicalDocumentAnalysisService {
             response.setCachedResult(false);
             response.setModelUsed(ragResult.getModelUsed());
             response.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
+            response.setFilesCount(files.size());
+            response.setFileNames(fileNames);
 
             // Dynamic Clinical Metadata
             response.setHospitalName(finalHospital);
@@ -589,13 +680,18 @@ public class MedicalDocumentAnalysisService {
      * Enforces strict medical validation, real PDF/OCR extraction, and real pgvector doctor matching.
      */
     public DocumentAnalysisResponse analyzeDocumentPreview(MultipartFile file) {
-        String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document.pdf";
-        String contentType = file.getContentType() != null ? file.getContentType() : "application/pdf";
-        long size = file.getSize();
+        if (file == null || file.isEmpty()) {
+            throw new com.mediassist.common.AppException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "EMPTY_FILE",
+                    "Tệp tin rỗng hoặc không có dữ liệu."
+            );
+        }
+        return analyzeDocumentsPreview(java.util.Collections.singletonList(file));
+    }
 
-        log.info("🩺 [PREVIEW REAL SCAN] Ingesting document: '{}' ({}, {} bytes)", fileName, contentType, size);
-
-        if (file.isEmpty() || size < 10) {
+    public DocumentAnalysisResponse analyzeDocumentsPreview(List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) {
             throw new com.mediassist.common.AppException(
                     org.springframework.http.HttpStatus.BAD_REQUEST,
                     "EMPTY_FILE",
@@ -603,41 +699,105 @@ public class MedicalDocumentAnalysisService {
             );
         }
 
-        byte[] fileBytes;
-        try {
-            fileBytes = file.getBytes();
-        } catch (Exception e) {
-            throw new com.mediassist.common.AppException(
-                    org.springframework.http.HttpStatus.BAD_REQUEST,
-                    "FILE_READ_ERROR",
-                    "Không thể đọc dữ liệu tệp tin: " + e.getMessage()
-            );
+        List<String> fileNames = new ArrayList<>();
+        List<byte[]> filesBytesList = new ArrayList<>();
+        List<String> contentTypes = new ArrayList<>();
+        long totalSize = 0;
+
+        for (int i = 0; i < files.size(); i++) {
+            MultipartFile f = files.get(i);
+            String fn = f.getOriginalFilename() != null ? f.getOriginalFilename() : ("document_" + (i + 1));
+            fileNames.add(fn);
+            byte[] b;
+            try {
+                b = f.getBytes();
+            } catch (Exception e) {
+                throw new com.mediassist.common.AppException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "FILE_READ_ERROR",
+                        "Không thể đọc dữ liệu tệp " + fn + ": " + e.getMessage()
+                );
+            }
+            filesBytesList.add(b);
+            String ct = f.getContentType() != null ? f.getContentType() : (fn.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg");
+            contentTypes.add(ct);
+            totalSize += f.getSize();
         }
 
-        // 1. Extract content from PDF, text or image stream (with scanned PDF fallback)
-        String extractedText = extractDocumentText(fileBytes, contentType, fileName);
+        String fileName = (files.size() == 1)
+                ? fileNames.get(0)
+                : String.format("Bộ hồ sơ (%d tệp): %s", files.size(), String.join(", ", fileNames));
+        String contentType = (files.size() == 1)
+                ? contentTypes.get(0)
+                : "multipart/mixed";
+        long size = totalSize;
 
-        // 2. Strict Gatekeeper Validation (Rejects non-medical / unreadable images without guessing!)
-        medicalDocumentValidator.validateDocument(fileBytes, contentType, extractedText, fileName);
+        log.info("🩺 [PREVIEW REAL SCAN] Ingesting {} document(s): '{}' ({} bytes)", files.size(), fileName, size);
 
-        // 3. Dynamic Metadata Extraction from raw text
+        // 1. File Format & Magic Bytes Inspection
+        for (int i = 0; i < files.size(); i++) {
+            medicalDocumentValidator.validateFileHeader(filesBytesList.get(i), contentTypes.get(i), fileNames.get(i));
+        }
+
+        // 2. Parallel Extraction across files
+        List<java.util.concurrent.CompletableFuture<String>> extractionFutures = new ArrayList<>();
+        java.util.concurrent.Executor executor = (medicalOcrExecutor != null)
+                ? medicalOcrExecutor
+                : java.util.concurrent.ForkJoinPool.commonPool();
+
+        for (int i = 0; i < files.size(); i++) {
+            final int idx = i;
+            final byte[] b = filesBytesList.get(idx);
+            final String ct = contentTypes.get(idx);
+            final String fn = fileNames.get(idx);
+            extractionFutures.add(java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                return extractDocumentText(b, ct, fn);
+            }, executor));
+        }
+
+        try {
+            java.util.concurrent.CompletableFuture.allOf(extractionFutures.toArray(new java.util.concurrent.CompletableFuture[0]))
+                    .get(45, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (Exception ex) {
+            log.warn("Multi-file preview extraction timeout or error: {}", ex.getMessage());
+        }
+
+        String extractedText;
+        if (files.size() == 1) {
+            extractedText = extractionFutures.get(0).getNow("");
+        } else {
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.format("[HỒ SƠ Y TẾ TỔNG HỢP: %d TÀI LIỆU ĐÍNH KÈM]\n\n", files.size()));
+            for (int i = 0; i < files.size(); i++) {
+                String t = extractionFutures.get(i).getNow("");
+                sb.append(String.format("=== TÀI LIỆU %d/%d: %s (%s) ===\n%s\n\n",
+                        (i + 1), files.size(), fileNames.get(i), contentTypes.get(i),
+                        (t != null && !t.isBlank() ? t : "(Không trích xuất được nội dung)")));
+            }
+            extractedText = sb.toString().trim();
+        }
+
+        // 3. Strict Gatekeeper Validation
+        medicalDocumentValidator.validateDocument(filesBytesList.get(0), contentTypes.get(0), extractedText, fileName);
+
+        // 4. Dynamic Metadata Extraction
         Map<String, String> rawMeta = extractDocumentMetadata(extractedText);
         String patientGender = rawMeta.get("patientGender");
 
-        // 4. Comprehensive Lab Scanning across all pages (columnar, delimiter & tab parsers)
+        // 5. Comprehensive Lab Scanning across all files
         List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName, patientGender);
 
-        // 5. Smart Clinical Windowing for Multi-Page Verbose Documents
+        // 6. Smart Clinical Windowing
         String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
 
-        // 5b. Pre-RAG Semantic Retrieval: Query pgvector with initial clinical indicators & context
+        // 7. Pre-RAG Semantic Retrieval
         String preRagQuery = buildInitialDoctorQuery(parsedIndicators, clinicalContext);
         List<DoctorMatchDto> preRagCandidates = doctorSemanticSearchService.searchDoctors(preRagQuery, 4);
 
-        // 6. AI-First Clinical Reasoning via Gemini / OpenRouter (or Safe Deterministic Fallback if offline)
+        // 8. AI-First Clinical Reasoning
         com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, preRagCandidates);
 
-        // 7. Derive specialty and findings strictly from AI reasoning with clinical safety gating
+        // 9. Derive specialty and findings
         List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
                 ? ragResult.getIndicators()
                 : parsedIndicators;
@@ -750,6 +910,8 @@ public class MedicalDocumentAnalysisService {
         response.setCachedResult(false);
         response.setModelUsed(ragResult.getModelUsed());
         response.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
+        response.setFilesCount(files.size());
+        response.setFileNames(fileNames);
 
         // Dynamic Clinical Metadata
         response.setHospitalName(finalHospital);

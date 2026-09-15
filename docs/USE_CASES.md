@@ -195,25 +195,32 @@ graph TD
   - Người dùng có hạn ngạch quét (`scanQuota > 0`) hoặc là hội viên `MediPass VIP` còn hiệu lực (`isVipActive()`). Nếu hết lượt, chuyển sang ngoại lệ `HTTP 402 Payment Required`.
   - Tuân thủ Rate Limiter (tối đa 5 lượt tải lên/phút cho user đăng nhập, tối đa 3 lượt/10 phút theo IP cho preview khách vãng lai) và giới hạn kích thước tệp tối đa 10MB.
 * **REST Endpoints:**
-  - `POST /api/v1/documents/analyze`: Tiếp nhận tệp PDF xét nghiệm qua `multipart/form-data` (tham số `file`), kiểm tra SHA-256 deduplication, trừ hạn ngạch atomic SQL (với rollback compensating hook), sàng lọc gatekeeper, bóc tách chỉ số sinh hóa song song qua thread pool riêng `medicalOcrExecutor`, upload Supabase Storage và tìm kiếm bác sĩ qua pgvector. Không giữ kết nối DB qua các lệnh gọi ngoại vi (Non-blocking I/O). (Yêu cầu đăng nhập).
-  - `POST /api/v1/documents/analyze-preview`: Quét thử nghiệm tài liệu xét nghiệm trực tiếp từ Landing Page không cần đăng nhập, áp dụng Rate Limiting theo IP (tối đa 3 lượt/10 phút chống cạn kiệt token). Sàng lọc Gatekeeper nghiêm ngặt chống ảnh rác/ảnh mờ/ảnh ngoài ngành y, bóc tách chỉ số thật 100% từ PDF/Vision (không suy đoán, không dùng mock), truy vấn danh mục bác sĩ pgvector tương thích nhưng không lưu Cloud EMR và không trừ quota.
+  - `POST /api/v1/documents/analyze`: Tiếp nhận hồ sơ xét nghiệm qua `multipart/form-data` hỗ trợ đồng thời nhiều tệp qua tham số `files` (`List<MultipartFile>`, tối đa 5 tệp, tổng dung lượng $\le 25\text{MB}$, hỗ trợ kết hợp PDF và hình ảnh PNG/JPEG đồng thời) cùng khả năng tương thích ngược hoàn toàn với tham số đơn `file`. Thực thi kiểm tra Composite SHA-256 deduplication, trừ 1 hạn ngạch atomic SQL cho toàn bộ lượt quét (với compensating rollback hook), sàng lọc gatekeeper, bóc tách song song qua `medicalOcrExecutor` (PDFBox cho PDF, Gemini Vision OCR cho hình ảnh), chắt lọc ngữ cảnh lâm sàng tổng hợp, lưu trữ EMR Supabase Storage và tìm kiếm bác sĩ qua pgvector. Không giữ kết nối DB qua các lệnh gọi ngoại vi (Non-blocking I/O). (Yêu cầu đăng nhập).
+  - `POST /api/v1/documents/analyze-preview`: Quét thử nghiệm tài liệu xét nghiệm trực tiếp từ Landing Page không cần đăng nhập, hỗ trợ đầy đủ nhận nhiều tệp hỗn hợp PDF & hình ảnh cùng lúc (`files` / `file`), áp dụng Rate Limiting theo IP (tối đa 3 lượt/10 phút chống cạn kiệt token). Sàng lọc Gatekeeper nghiêm ngặt chống ảnh rác/ảnh mờ/ảnh ngoài ngành y, bóc tách chỉ số thật 100% từ PDF/Vision song song (không suy đoán, không dùng mock), truy vấn danh mục bác sĩ pgvector tương thích nhưng không lưu Cloud EMR và không trừ quota.
   - `GET /api/v1/documents/sample-random-pdf`: Truy vấn ngẫu nhiên ca bệnh lâm sàng từ kho dữ liệu Hugging Face `Meddies/meddies-persona-vie` (150.000 hồ sơ bệnh nhân Việt Nam), tự động chuyển hóa và kết xuất tệp PDF phiếu xét nghiệm bệnh viện chuẩn trực tiếp để người dùng tải về máy thử nghiệm kéo-thả kiểm thử. Tích hợp sẵn cơ chế Fallback Pool nội bộ 5 ca bệnh đa dạng (Tim mạch, Gan mật, Tiểu đường, Thận, Nhiễm trùng) đảm bảo tính sẵn sàng 100% khi demo ngoại tuyến.
   - `GET /api/v1/documents/quota`: Kiểm tra số lượt quét khả dụng, hạn hội viên VIP và trạng thái gói cước của người bệnh.
   - `GET /api/v1/documents/my`: Truy vấn lịch sử các tài liệu y tế đã phân tích của người bệnh đăng nhập (yêu cầu Bearer Token).
 
 #### Luồng sự kiện chính (Happy Path):
-1. **Chọn Tệp & Kích Hoạt Tức Thì (Instant Upload UX):** Bệnh nhân kéo thả hoặc chọn tệp kết quả xét nghiệm (`.pdf`, `.txt`, `.jpg`, `.png`, dung lượng $\le 10\text{MB}$) hoặc chọn dữ liệu mẫu chuẩn (Mỡ máu / Men gan / Điện não). Hệ thống **tự động kích hoạt ngay tiến trình phân tích AI** mà không cần qua nút bấm trung gian.
-2. **Kiểm tra Deduplication (SHA-256 Checksum & TOCTOU Race Condition Recovery):** Hệ thống tính toán hash SHA-256 của tệp.
-   - Nếu tài liệu đã từng được phân tích trong hồ sơ EMR của bệnh nhân này: Trả về ngay kết quả đã lưu trong DB (`cachedResult = true`). Tiêu tốn **0 token AI**, độ trễ $< 5\text{ms}$ và **TUYỆT ĐỐI KHÔNG trừ lượt quét**.
-   - **Xử lý Xung Đột Tải Lên Song Song (Concurrent Upload TOCTOU Recovery):** Nếu hai luồng gửi cùng lúc một tài liệu cho cùng một người dùng, database unique index `idx_med_doc_user_hash_unique` trên `medical_documents(user_id, file_hash)` sẽ chặn bản ghi thứ hai thông qua `saveAndFlush()`. Khối bắt `DataIntegrityViolationException` tự động:
-     - Hoàn trả ngay hạn mức quét (`restoreScanQuota`) để người bệnh không bị trừ oan lượt.
-     - Dọn dẹp tệp tải lên dư thừa trên Supabase Storage để triệt tiêu file mồ côi.
-     - Truy xuất bản ghi phân tích đã hoàn tất từ luồng thắng cuộc và trả về kết quả mượt mà cho người dùng (Zero Error Experience).
-3. **Trừ Hạn Ngạch Đảm Bảo Tính Nguyên Tử (Atomic Quota Reservation & Compensating Rollback):** Nếu tài liệu mới, hệ thống thực thi câu lệnh SQL nguyên tử `UPDATE users SET scan_quota = scan_quota - 1 WHERE id = :id AND scan_quota > 0` (hoặc bỏ qua nếu là hội viên VIP còn hạn `isVipActive()`).
-   - Nếu số hàng cập nhật = 0 (hết lượt), trả về `HTTP 402 Payment Required` kèm modal báo giá gói quét.
-   - Nếu xảy ra lỗi bất kỳ ở các bước sau (validation fail, AI timeout, lỗi ghi DB), hệ thống tự động kích hoạt **Compensating Rollback Hook** gọi `userRepository.restoreScanQuota()` để hoàn trả 100% quota cho người bệnh.
-   - **Kiểm Soát Tải Nặng Vision OCR (OCR Concurrency Limiter):** Quá trình gọi Gemini Vision / OpenRouter Vision được điều tiết bằng `Semaphore(5, true)` công bằng (FIFO), giới hạn tối đa 5 tác vụ thị giác chạy đồng thời trên toàn hệ thống để chống cạn kiệt RAM và tránh nghẽn ngưỡng gọi API ngoài. Quá thời gian chờ (25s - 30s) sẽ phản hồi an toàn `HTTP 429 OCR_BUSY`.
-4. **Cơ chế Lọc Rác Tiền Thẩm Định (Gatekeeper Sieve Validation):**
+1. **Chọn Tệp & Hàng Đợi Đa Tệp Hỗn Hợp (Mixed Multi-File Ingestion Queue UX):**
+   - Bệnh nhân có thể kéo-thả hoặc chọn đồng thời **tối đa 5 tệp** kết hợp tự do giữa tệp **PDF** và **Hình Ảnh (JPG, PNG)** với dung lượng mỗi tệp $\le 10\text{MB}$ và tổng dung lượng cả đợt $\le 25\text{MB}$.
+   - Giao diện cung cấp thẻ Hàng Đợi Tệp Đã Chọn trực quan: hiển thị huy hiệu loại tệp (`[PDF]` màu đỏ, `[ẢNH]` màu chàm), tên tệp, dung lượng chi tiết, nút xóa từng tệp (`X`), nút xóa toàn bộ hàng đợi, và nút bấm kích hoạt phân tích đồng thời toàn bộ tệp với hiệu ứng spinner động.
+   - Hỗ trợ chọn nhanh các bộ hồ sơ mẫu chuẩn (Mỡ máu / Men gan / Điện não) hoặc tải tệp PDF ngẫu nhiên từ kho dữ liệu Meddies 150.000 ca bệnh.
+2. **Kiểm tra Deduplication Tổng Hợp (Composite SHA-256 Checksum & TOCTOU Recovery):**
+   - Hệ thống tính toán chuỗi hash kết hợp: với đơn tệp là SHA-256 của tệp đó; với đa tệp là `SHA-256(hash_1:hash_2:...:hash_n)`.
+   - Nếu bộ tài liệu này đã từng được phân tích trong hồ sơ EMR của bệnh nhân: Trả về ngay kết quả đã lưu (`cachedResult = true`) kèm danh sách tên tệp đầy đủ (`fileNames`, `filesCount`). Tiêu tốn **0 token AI**, độ trễ $< 5\text{ms}$ và **TUYỆT ĐỐI KHÔNG trừ lượt quét**.
+   - Khối bắt `DataIntegrityViolationException` tự động xử lý xung đột tải lên đồng thời (TOCTOU race), hoàn trả quota và thu hồi tệp dư thừa trên Cloud Storage.
+3. **Trừ Hạn Ngạch Đảm Bảo Tính Nguyên Tử (Atomic Single Quota per Batch):**
+   - Dù người bệnh tải lên 1 tệp hay 5 tệp (cả PDF và ảnh) trong cùng một đợt khám, hệ thống **CHỈ KHẤU TRỪ ĐÚNG 1 LƯỢT QUÉT** duy nhất (`scanQuota = scanQuota - 1`). Không trừ nhân theo số lượng tệp, đảm bảo tính công bằng và thân thiện tối đa với người bệnh.
+   - Miễn phí hoàn toàn không giới hạn đối với hội viên MediPass VIP (`isVipActive()`).
+   - Nếu xảy ra sự cố trong quá trình phân tích, cơ chế **Compensating Rollback Hook** tự động hoàn trả 1 lượt quét cho người bệnh.
+4. **Trích Xuất Song Song Đa Tầng (Parallel Multi-File OCR & PDF Box Extraction):**
+   - Hệ thống thẩm định Header và Magic Bytes (`PDF`, `JPEG`, `PNG`, UTF-8) độc lập cho từng tệp trong đợt tải.
+   - Điều phối tác vụ trích xuất đồng thời qua `CompletableFuture.supplyAsync` trên thread pool chuyên biệt `medicalOcrExecutor`:
+     - Tệp PDF: trích xuất tầng văn bản qua Apache PDFBox; nếu là bản scan mờ thì kích hoạt `PDFRenderer` (200 DPI) + Gemini Vision OCR.
+     - Tệp Ảnh (JPG, PNG): chuyển giao sang động cơ OCR Vision qua điều tiết `Semaphore(5, true)`.
+   - Hệ thống tự động gom cấu trúc toàn bộ nội dung trích xuất thành ngữ cảnh bệnh án hợp nhất (`[HỒ SƠ Y TẾ TỔNG HỢP: N TÀI LIỆU ĐÍNH KÈM]`), loại bỏ trùng lặp và chuyển giao sang bộ phân tích chỉ số sinh hóa và động cơ AI Clinical RAG.
+5. **Cơ chế Lọc Rác Tiền Thẩm Định (Gatekeeper Sieve Validation):**
    - Kiểm tra magic bytes nhị phân thực thụ (chấp nhận PDF, JPEG, PNG chữ ký chuẩn và luồng văn bản y khoa UTF-8 hợp lệ; không tin cậy header client).
    - Kiểm tra độ dài văn bản trích xuất (tối thiểu 15 ký tự; nếu ngắn hơn -> lỗi mờ ảnh `UNREADABLE_DOCUMENT`).
    - Sàng lọc từ điển chỉ số lâm sàng (loại bỏ ký tự đơn lẻ như `%` để tránh hóa đơn thương mại lọt qua).

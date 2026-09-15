@@ -25,7 +25,11 @@ import {
   BadgeCheck,
   AlertTriangle,
   FileQuestion,
-  Download
+  Download,
+  Image as ImageIcon,
+  Layers,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -80,6 +84,8 @@ interface AnalysisResult {
   patientAge?: string;
   patientGender?: string;
   deviceModel?: string;
+  filesCount?: number;
+  fileNames?: string[];
 }
 
 interface UserQuota {
@@ -118,7 +124,9 @@ function formatLocalDate(d: Date): string {
 
 export const DocumentSummarizerPage: React.FC = () => {
   const { user } = useAuthStore();
-  const [file, setFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const file = selectedFiles[0] || null;
+  const [isDragging, setIsDragging] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
@@ -329,33 +337,84 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
     }
   ];
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      // 🛡️ Client-side 10MB File Size Restriction (Protects Network & Storage Egress)
-      if (selectedFile.size > 10 * 1024 * 1024) {
-        setError('Dung lượng tệp vượt quá giới hạn an toàn 10MB (Khuyến nghị 500KB - 5MB cho phiếu xét nghiệm). Vui lòng chọn tệp nhỏ hơn để bảo vệ hệ thống.');
-        return;
-      }
-      setFile(selectedFile);
-      setError(null);
-      setAnalysis(null);
-      setAnalysisSuccessNotification(null);
-      executeAnalysis(selectedFile);
+  const handleFilesSelected = (newFiles: File[]) => {
+    if (!newFiles || newFiles.length === 0) return;
+
+    // Filter allowed extensions
+    const validExtensions = ['.pdf', '.png', '.jpg', '.jpeg'];
+    const invalidFile = newFiles.find((f) => {
+      const name = f.name.toLowerCase();
+      return !validExtensions.some((ext) => name.endsWith(ext)) && f.type !== 'text/plain';
+    });
+
+    if (invalidFile) {
+      setError(`Tệp "${invalidFile.name}" không đúng định dạng hỗ trợ. Hệ thống chỉ tiếp nhận tài liệu chuẩn PDF, PNG, JPG, JPEG.`);
+      return;
     }
+
+    // Deduplicate against existing queue by name and size
+    const existingKeys = new Set(selectedFiles.map((f) => `${f.name}-${f.size}`));
+    const uniqueIncoming = newFiles.filter((f) => !existingKeys.has(`${f.name}-${f.size}`));
+
+    const merged = [...selectedFiles, ...uniqueIncoming];
+
+    if (merged.length > 5) {
+      setError(`Hệ thống hỗ trợ phân tích tối đa 5 tệp cho một lần quét tổng hợp (kết hợp PDF và Ảnh). Bạn đang chọn ${merged.length} tệp.`);
+      return;
+    }
+
+    // Check individual file size limit (10MB)
+    const oversizedFile = merged.find((f) => f.size > 10 * 1024 * 1024);
+    if (oversizedFile) {
+      setError(`Tệp "${oversizedFile.name}" vượt quá giới hạn 10MB (Khuyến nghị 500KB - 5MB cho phiếu xét nghiệm). Vui lòng giảm dung lượng.`);
+      return;
+    }
+
+    // Check total batch size limit (25MB)
+    const totalBytes = merged.reduce((acc, f) => acc + f.size, 0);
+    if (totalBytes > 25 * 1024 * 1024) {
+      setError(`Tổng dung lượng các tệp (${(totalBytes / (1024 * 1024)).toFixed(1)}MB) vượt quá giới hạn 25MB cho một lần quét.`);
+      return;
+    }
+
+    setError(null);
+    setSelectedFiles(merged);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFilesSelected(Array.from(e.target.files));
+      e.target.value = ''; // Reset input to allow re-selecting same file if deleted
+    }
+  };
+
+  const handleRemoveFile = (indexToRemove: number) => {
+    setSelectedFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    setError(null);
+  };
+
+  const handleClearFiles = () => {
+    setSelectedFiles([]);
+    setError(null);
   };
 
   const handleSelectPreset = (preset: typeof samplePresets[0]) => {
     const blob = new Blob([preset.content], { type: 'text/plain;charset=utf-8' });
     const fakeFile = new File([blob], preset.fileName.replace('.pdf', '.txt'), { type: 'text/plain' });
-    setFile(fakeFile);
+    setSelectedFiles([fakeFile]);
     setError(null);
     setAnalysis(null);
     setAnalysisSuccessNotification(null);
-    executeAnalysis(fakeFile);
+    executeAnalysis([fakeFile]);
   };
 
-  const executeAnalysis = async (fileToAnalyze: File) => {
+  const executeAnalysis = async (filesToAnalyze?: File[]) => {
+    const targetFiles = filesToAnalyze && filesToAnalyze.length > 0 ? filesToAnalyze : selectedFiles;
+    if (targetFiles.length === 0) {
+      setError('Vui lòng chọn ít nhất một tệp PDF hoặc ảnh phiếu xét nghiệm để phân tích.');
+      return;
+    }
+
     setAnalyzing(true);
     setError(null);
     setAnalysis(null);
@@ -363,7 +422,12 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
 
     try {
       const formData = new FormData();
-      formData.append('file', fileToAnalyze);
+      // Primary multi-file batch parameter
+      targetFiles.forEach((f) => {
+        formData.append('files', f);
+      });
+      // Backward compatibility parameter for single-file consumers
+      formData.append('file', targetFiles[0]);
 
       // Resilient endpoint routing: authenticated users get EMR storage + quota, guest/preview users get zero-barrier preview
       const endpoint = user ? '/documents/analyze' : '/documents/analyze-preview';
@@ -378,8 +442,12 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
           fetchQuota();
         }
 
+        const displayName = data.filesCount && data.filesCount > 1
+          ? `${data.filesCount} tệp (${data.fileNames?.join(', ') || targetFiles.map((f) => f.name).join(', ')})`
+          : (data.fileName || targetFiles[0].name);
+
         setAnalysisSuccessNotification({
-          fileName: data.fileName || fileToAnalyze.name,
+          fileName: displayName,
           indicatorsCount: data.indicators ? data.indicators.length : 0,
           specialtyName: data.recommendedSpecialtyName || 'Chuyên khoa phù hợp',
           matchedDoctorsCount: data.matchedDoctors ? data.matchedDoctors.length : 0,
@@ -586,48 +654,164 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
       </div>
 
       {/* Upload Zone */}
-      <div className="bg-white p-8 rounded-3xl border-2 border-dashed border-slate-300 hover:border-teal-500 transition text-center space-y-4 shadow-xs">
-        <UploadCloud className="w-14 h-14 text-teal-500 mx-auto animate-bounce" />
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDragging(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDragging(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDragging(false);
+          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFilesSelected(Array.from(e.dataTransfer.files));
+          }
+        }}
+        className={`p-8 rounded-3xl border-2 border-dashed transition text-center space-y-4 shadow-xs ${
+          isDragging
+            ? 'bg-teal-50/70 border-teal-500 ring-4 ring-teal-500/20'
+            : 'bg-white border-slate-300 hover:border-teal-500'
+        }`}
+      >
+        <UploadCloud
+          className={`w-14 h-14 mx-auto transition-transform duration-200 ${
+            isDragging ? 'text-teal-600 scale-110' : 'text-teal-500 animate-bounce'
+          }`}
+        />
         <div>
           <p className="text-base font-bold text-slate-800">
-            Kéo thả tệp PDF phiếu xét nghiệm vào đây hoặc bấm để chọn tệp
+            Kéo thả tệp PDF và Ảnh phiếu xét nghiệm vào đây hoặc bấm để chọn tệp
           </p>
           <p className="text-xs text-slate-400 mt-1">
-            Hỗ trợ định dạng PDF, JPG, PNG dung lượng tối đa 10MB (Khuyến nghị 500KB - 5MB). Dữ liệu được mã hóa an toàn.
+            Hỗ trợ kết hợp đồng thời nhiều tệp: <strong>PDF, JPG, PNG</strong> (tối đa 5 tệp, tổng dung lượng &le; 25MB, mỗi tệp &le; 10MB). Dữ liệu được mã hóa an toàn.
           </p>
         </div>
 
-        <label className="inline-block px-5 py-2.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-xl text-xs font-semibold cursor-pointer transition border border-teal-200 shadow-xs">
-          Chọn Tệp PDF / Ảnh Từ Thiết Bị
-          <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={handleFileUpload} className="hidden" />
+        <label
+          htmlFor="multi-file-upload-input"
+          className="inline-block px-5 py-2.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-xl text-xs font-semibold cursor-pointer transition border border-teal-200 shadow-xs"
+        >
+          Chọn Tệp PDF & Ảnh Từ Thiết Bị
+          <input
+            id="multi-file-upload-input"
+            type="file"
+            multiple
+            accept=".pdf,.png,.jpg,.jpeg"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
         </label>
 
-        {/* Selected File Card */}
-        {file && (
-          <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between max-w-lg mx-auto text-left shadow-xs">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="p-2 bg-teal-100 text-teal-700 rounded-lg flex-shrink-0">
-                <FileText className="w-5 h-5" />
+        {/* Selected Multi-File Queue Card */}
+        {selectedFiles.length > 0 && (
+          <div className="mt-4 p-5 bg-slate-50/90 rounded-2xl border border-teal-200/80 max-w-xl mx-auto text-left shadow-xs space-y-3 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-200/70 pb-2.5">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-teal-600" />
+                <span className="text-xs font-bold text-slate-800">
+                  Hàng Đợi Tệp Đã Chọn ({selectedFiles.length}/5 tệp)
+                </span>
               </div>
-              <div className="overflow-hidden">
-                <p className="text-xs font-bold text-slate-800 truncate">{file.name}</p>
-                <p className="text-[11px] text-slate-400">{(file.size / 1024).toFixed(1)} KB</p>
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] font-mono text-slate-500">
+                  {(selectedFiles.reduce((acc, f) => acc + f.size, 0) / 1024).toFixed(1)} KB / 25 MB
+                </span>
+                <button
+                  type="button"
+                  onClick={handleClearFiles}
+                  disabled={analyzing}
+                  className="text-[11px] text-slate-400 hover:text-rose-600 transition flex items-center gap-1 cursor-pointer"
+                  title="Xóa toàn bộ hàng đợi"
+                >
+                  <Trash2 className="w-3 h-3" /> Xóa tất cả
+                </button>
               </div>
             </div>
 
-            <button
-              onClick={() => executeAnalysis(file)}
-              disabled={analyzing}
-              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5 flex-shrink-0"
-            >
-              {analyzing ? (
-                <>
-                  <Sparkles className="w-3.5 h-3.5 animate-spin" /> Đang Xử Lý...
-                </>
-              ) : (
-                <>Phân Tích AI & Tìm Bác Sĩ</>
-              )}
-            </button>
+            {/* File Queue Items */}
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+              {selectedFiles.map((f, idx) => {
+                const isPdf = f.name.toLowerCase().endsWith('.pdf');
+                return (
+                  <div
+                    key={`${f.name}-${idx}`}
+                    className="p-2.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between gap-3 shadow-2xs hover:border-teal-300 transition"
+                  >
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      <div
+                        className={`p-1.5 rounded-lg flex-shrink-0 ${
+                          isPdf ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'
+                        }`}
+                      >
+                        {isPdf ? <FileText className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
+                      </div>
+                      <div className="overflow-hidden">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-bold text-slate-800 truncate max-w-[200px] sm:max-w-xs">{f.name}</p>
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              isPdf
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                            }`}
+                          >
+                            {isPdf ? 'PDF' : 'ẢNH'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400">{(f.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFile(idx)}
+                      disabled={analyzing}
+                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition flex-shrink-0 cursor-pointer"
+                      title="Xóa tệp này"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Action Bar */}
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
+              <label
+                htmlFor="multi-file-upload-input"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-medium cursor-pointer transition ${
+                  selectedFiles.length >= 5 || analyzing ? 'opacity-50 pointer-events-none' : ''
+                }`}
+              >
+                <Plus className="w-3.5 h-3.5 text-teal-600" />
+                <span>Thêm tệp (PDF/Ảnh)</span>
+              </label>
+
+              <button
+                type="button"
+                onClick={() => executeAnalysis()}
+                disabled={analyzing}
+                className="px-4 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                {analyzing ? (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5 animate-spin" /> Đang Phân Tích {selectedFiles.length} Tệp...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Phân Tích {selectedFiles.length} Tệp Hồ Sơ (Đồng Thời PDF & Ảnh)
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
@@ -730,10 +914,10 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             <span>{error}</span>
           </div>
           <div className="flex items-center gap-2">
-            {file && (
+            {selectedFiles.length > 0 && (
               <button
                 type="button"
-                onClick={() => executeAnalysis(file)}
+                onClick={() => executeAnalysis()}
                 disabled={analyzing}
                 className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
               >
@@ -768,7 +952,18 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   </span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Đang phân tích tệp: <strong className="text-slate-700">{file?.name || 'Tài liệu cận lâm sàng'}</strong>
+                  {selectedFiles.length > 1 ? (
+                    <span>
+                      Đang phân tích đồng thời <strong>{selectedFiles.length} tệp</strong>:{' '}
+                      <span className="text-slate-700 font-medium">
+                        {selectedFiles.map((f) => f.name).join(', ')}
+                      </span>
+                    </span>
+                  ) : (
+                    <span>
+                      Đang phân tích tệp: <strong className="text-slate-700">{file?.name || 'Tài liệu cận lâm sàng'}</strong>
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -919,6 +1114,24 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             </div>
           )}
 
+          {/* Multi-Document Synthesis Banner */}
+          {analysis.filesCount && analysis.filesCount > 1 && (
+            <div className="p-4 bg-gradient-to-r from-indigo-50 via-purple-50 to-teal-50 border border-indigo-200 rounded-2xl flex items-start gap-3 text-xs shadow-xs animate-fadeIn">
+              <div className="p-2 bg-indigo-600 text-white rounded-xl flex-shrink-0 mt-0.5 shadow-xs">
+                <Layers className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="font-bold text-indigo-950 text-sm">
+                  Đã Phân Tích Đồng Thời {analysis.filesCount} Tài Liệu Cận Lâm Sàng (PDF & Hình Ảnh)
+                </p>
+                <p className="text-indigo-800 mt-1 leading-relaxed">
+                  Hệ thống AI đã trích xuất đồng thời toàn bộ nội dung từ{' '}
+                  <strong>{analysis.fileNames?.join(', ') || analysis.fileName}</strong> bằng cơ chế xử lý song song OCR Vision đa tầng. Các chỉ số sinh hóa, huyết học và chẩn đoán đã được tổng hợp, khử trùng lặp và đối chiếu chéo trong một bệnh án duy nhất.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Top Medical Disclaimer Notice */}
           <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 text-xs flex items-start gap-3 shadow-xs">
             <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -1046,7 +1259,27 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 text-lg">Báo Cáo Phân Tích Chỉ Số Cận Lâm Sàng</h3>
-                  <p className="text-xs text-slate-500">Tệp: {analysis.fileName}</p>
+                  {analysis.filesCount && analysis.filesCount > 1 ? (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-md text-[11px] font-bold flex items-center gap-1">
+                        <Layers className="w-3 h-3" /> Hồ sơ tổng hợp ({analysis.filesCount} tệp):
+                      </span>
+                      {analysis.fileNames && analysis.fileNames.length > 0 ? (
+                        analysis.fileNames.map((name, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-mono border border-slate-200"
+                          >
+                            {name}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-slate-500">{analysis.fileName}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500">Tệp: {analysis.fileName}</p>
+                  )}
                 </div>
               </div>
 

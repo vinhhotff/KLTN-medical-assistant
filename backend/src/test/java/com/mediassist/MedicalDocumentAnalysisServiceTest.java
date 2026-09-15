@@ -510,7 +510,7 @@ class MedicalDocumentAnalysisServiceTest {
 
         String uploadedUrl = "https://supabase.co/storage/v1/object/public/medical-documents/test.pdf";
         when(storageService.uploadDocument(any(), any(), any(), any())).thenReturn(uploadedUrl);
-        when(medicalDocumentRepository.saveAndFlush(any())).thenThrow(new RuntimeException("DB Disk Full / Connection Lost"));
+        when(medicalDocumentRepository.save(any())).thenThrow(new RuntimeException("DB Disk Full / Connection Lost"));
 
         assertThrows(RuntimeException.class, () ->
                 analysisService.analyzeDocument(file, "patient@mediassist.local")
@@ -666,8 +666,8 @@ class MedicalDocumentAnalysisServiceTest {
         winnerAnalysis.setAbnormalIndicatorsJson("[]");
         winnerAnalysis.setSuggestedQuestionsJson("[]");
 
-        // Simulate saveAndFlush throwing DataIntegrityViolationException due to concurrent duplicate
-        when(medicalDocumentRepository.saveAndFlush(any(MedicalDocument.class)))
+        // Simulate save throwing DataIntegrityViolationException due to concurrent duplicate
+        when(medicalDocumentRepository.save(any(MedicalDocument.class)))
                 .thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate key violates idx_med_doc_user_hash_unique"));
 
         when(medicalDocumentRepository.findFirstByUserIdAndFileHashOrderByCreatedAtDesc(eq(testUser.getId()), anyString()))
@@ -899,5 +899,48 @@ class MedicalDocumentAnalysisServiceTest {
         assertTrue(response.getMatchedDoctors().get(0).isAiRecommended());
         assertEquals(docAId, response.getMatchedDoctors().get(1).getDoctorId());
         assertFalse(response.getMatchedDoctors().get(1).isAiRecommended());
+    }
+
+    @Test
+    @DisplayName("Should analyze multiple documents (PDF + Image) simultaneously in batch mode")
+    void testAnalyzeDocuments_MultiFileBatchSimultaneousUpload() {
+        byte[] pdfMagic = new byte[]{'%', 'P', 'D', 'F', '-', '1', '.', '4', '\n'};
+        String pdfContent = "BỆNH VIỆN BẠCH MAI\nGlucose huyet doi: 8.5 mmol/L (Tham chiếu: 3.9 - 6.4) -> TĂNG CAO";
+        byte[] pdfBytes = new byte[pdfMagic.length + pdfContent.getBytes().length];
+        System.arraycopy(pdfMagic, 0, pdfBytes, 0, pdfMagic.length);
+        System.arraycopy(pdfContent.getBytes(), 0, pdfBytes, pdfMagic.length, pdfContent.getBytes().length);
+
+        // JPEG Magic bytes 0xFF 0xD8 0xFF
+        byte[] jpegMagic = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 0x10, 'J', 'F', 'I', 'F', 0, 1};
+        String ocrContent = "PHÒNG XÉT NGHIỆM ĐA KHOA\nCreatinine: 145 umol/L (Tham chiếu: 62 - 106) -> TĂNG CAO";
+        byte[] jpegBytes = new byte[jpegMagic.length + ocrContent.getBytes().length];
+        System.arraycopy(jpegMagic, 0, jpegBytes, 0, jpegMagic.length);
+        System.arraycopy(ocrContent.getBytes(), 0, jpegBytes, jpegMagic.length, ocrContent.getBytes().length);
+
+        MockMultipartFile file1 = new MockMultipartFile("files", "blood_test.pdf", "application/pdf", pdfBytes);
+        MockMultipartFile file2 = new MockMultipartFile("files", "kidney_scan.jpg", "image/jpeg", jpegBytes);
+
+        com.mediassist.ai.ClinicalAiResult mockResult = new com.mediassist.ai.ClinicalAiResult();
+        mockResult.setModelUsed("google/gemini-2.0-flash-exp:free (OpenRouter)");
+        mockResult.setRecommendedSpecialtySlug("endocrinology");
+        mockResult.setRecommendedSpecialtyName("Endocrinology & Diabetes");
+        mockResult.setClinicalSummary("Bệnh nhân có tăng đường huyết và tăng Creatinine máu.");
+        mockResult.setPlainLanguageExplanation("Chỉ số đường huyết và chức năng thận của bạn bất thường.");
+
+        when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(pdfContent);
+        when(clinicalRagService.canProcessVision()).thenReturn(true);
+        when(clinicalRagService.extractTextWithVision(any(byte[].class), anyString(), anyString())).thenReturn(ocrContent);
+        when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any())).thenReturn(mockResult);
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocuments(List.of(file1, file2), "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertEquals(2, response.getFilesCount());
+        assertNotNull(response.getFileNames());
+        assertEquals(2, response.getFileNames().size());
+        assertTrue(response.getFileNames().contains("blood_test.pdf"));
+        assertTrue(response.getFileNames().contains("kidney_scan.jpg"));
+        // Deducted exactly 1 quota for the entire multi-file batch
+        assertEquals(0, testUser.getScanQuota());
     }
 }

@@ -37,7 +37,17 @@ public class DocumentAnalysisResponse {
     private int piiEntitiesCount;
     private List<String> piiMaskedTypes;
 
+    // Multi-File Batch Metadata
+    private int filesCount = 1;
+    private List<String> fileNames = new java.util.ArrayList<>();
+
     public DocumentAnalysisResponse() {}
+
+    public int getFilesCount() { return filesCount; }
+    public void setFilesCount(int filesCount) { this.filesCount = filesCount; }
+
+    public List<String> getFileNames() { return fileNames; }
+    public void setFileNames(List<String> fileNames) { this.fileNames = fileNames != null ? fileNames : new java.util.ArrayList<>(); }
 
     public boolean isPiiProtected() { return piiProtected; }
     public void setPiiProtected(boolean piiProtected) { this.piiProtected = piiProtected; }

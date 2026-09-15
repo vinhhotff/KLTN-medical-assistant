@@ -47,9 +47,10 @@ public class MedicalDocumentController {
     }
 
     @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload and analyze medical document (PDF/Image), extract lab indicators and recommend doctors via pgvector")
+    @Operation(summary = "Upload and analyze medical document(s) (PDF/Image), extract lab indicators and recommend doctors via pgvector")
     public ResponseEntity<ApiResponse<DocumentAnalysisResponse>> analyzeDocument(
-            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "files", required = false) List<MultipartFile> files,
             Authentication authentication) {
 
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
@@ -58,9 +59,15 @@ public class MedicalDocumentController {
         }
 
         String userEmail = authentication.getName();
+        List<MultipartFile> resolvedFiles = resolveFiles(file, files);
 
-        if (file == null || file.isEmpty()) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE", "Vui lòng chọn tệp tài liệu y tế (PDF hoặc ảnh) để phân tích.");
+        if (resolvedFiles.isEmpty()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE", "Vui lòng chọn ít nhất một tệp tài liệu y tế (PDF hoặc ảnh) để phân tích.");
+        }
+
+        if (resolvedFiles.size() > 5) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "TOO_MANY_FILES",
+                    "Hệ thống hỗ trợ tải lên tối đa 5 tệp tài liệu trong một lần phân tích.");
         }
 
         if (rateLimiterService != null && rateLimiterService.isUploadPenalized(userEmail)) {
@@ -73,19 +80,29 @@ public class MedicalDocumentController {
                     "Bạn đã gửi quá nhiều yêu cầu phân tích hồ sơ trong thời gian ngắn. Vui lòng chờ 1 phút trước khi tải tệp tiếp theo.");
         }
 
-        if (file.getSize() > 10 * 1024 * 1024) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE",
-                    "Dung lượng tệp vượt quá giới hạn an toàn 10MB (Khuyến nghị 500KB - 5MB cho phiếu xét nghiệm).");
+        long totalSize = 0;
+        for (MultipartFile f : resolvedFiles) {
+            if (f.getSize() > 10 * 1024 * 1024) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE",
+                        String.format("Tệp '%s' có dung lượng vượt quá giới hạn an toàn 10MB.", f.getOriginalFilename()));
+            }
+            totalSize += f.getSize();
         }
 
-        DocumentAnalysisResponse response = analysisService.analyzeDocument(file, userEmail);
+        if (totalSize > 25 * 1024 * 1024) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "TOTAL_SIZE_TOO_LARGE",
+                    "Tổng dung lượng các tệp tải lên vượt quá giới hạn an toàn 25MB.");
+        }
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocuments(resolvedFiles, userEmail);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping(value = "/analyze-preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Kiểm thử và bóc tách tức thì hồ sơ y tế không cần đăng nhập (Preview cho Trang chủ & Thử nghiệm)")
     public ResponseEntity<ApiResponse<DocumentAnalysisResponse>> analyzeDocumentPreview(
-            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "files", required = false) List<MultipartFile> files,
             jakarta.servlet.http.HttpServletRequest request) {
 
         String clientIp = extractClientIp(request);
@@ -94,17 +111,47 @@ public class MedicalDocumentController {
                     "Bạn đã đạt giới hạn 3 lần phân tích xem trước miễn phí trong 10 phút. Vui lòng đăng nhập hoặc tạo tài khoản để tiếp tục sử dụng.");
         }
 
-        if (file == null || file.isEmpty()) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE", "Vui lòng chọn tệp tài liệu y tế (PDF hoặc ảnh) để phân tích.");
+        List<MultipartFile> resolvedFiles = resolveFiles(file, files);
+        if (resolvedFiles.isEmpty()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE", "Vui lòng chọn ít nhất một tệp tài liệu y tế (PDF hoặc ảnh) để phân tích.");
         }
 
-        if (file.getSize() > 10 * 1024 * 1024) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE",
-                    "Dung lượng tệp vượt quá giới hạn an toàn 10MB (Khuyến nghị 500KB - 5MB cho phiếu xét nghiệm).");
+        if (resolvedFiles.size() > 5) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "TOO_MANY_FILES",
+                    "Hệ thống hỗ trợ tải lên tối đa 5 tệp tài liệu trong một lần phân tích.");
         }
 
-        DocumentAnalysisResponse response = analysisService.analyzeDocumentPreview(file);
+        long totalSize = 0;
+        for (MultipartFile f : resolvedFiles) {
+            if (f.getSize() > 10 * 1024 * 1024) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE",
+                        String.format("Tệp '%s' có dung lượng vượt quá giới hạn an toàn 10MB.", f.getOriginalFilename()));
+            }
+            totalSize += f.getSize();
+        }
+
+        if (totalSize > 25 * 1024 * 1024) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "TOTAL_SIZE_TOO_LARGE",
+                    "Tổng dung lượng các tệp tải lên vượt quá giới hạn an toàn 25MB.");
+        }
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocumentsPreview(resolvedFiles);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    private List<MultipartFile> resolveFiles(MultipartFile file, List<MultipartFile> files) {
+        List<MultipartFile> result = new java.util.ArrayList<>();
+        if (files != null) {
+            for (MultipartFile f : files) {
+                if (f != null && !f.isEmpty()) {
+                    result.add(f);
+                }
+            }
+        }
+        if (result.isEmpty() && file != null && !file.isEmpty()) {
+            result.add(file);
+        }
+        return result;
     }
 
     private String extractClientIp(jakarta.servlet.http.HttpServletRequest request) {
