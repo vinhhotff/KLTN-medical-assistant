@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#063** | 15/09/2026 | Kiểm Toán Toàn Diện & Vá Triệt Để 5 Lỗi Tiềm Ẩn / Lỗ Hổng Luồng OpenID Connect (OIDC) & Google OAuth2: (1) Đồng Bộ Cổng 5001 Dynamic URL Frontend, (2) Bổ Sung Vite Proxy Cho /oauth2 & /login/oauth2, (3) Phòng Ngừa NullPointerException Khi Google Thiếu Email/Sub, (4) Zero-Trust Security Guard Chặn Cấp Token & Chặn Đăng Nhập Cho Tài Khoản Bị Đình Chỉ (SUSPENDED) Hoặc Bị Khóa (LOCKED), (5) Đồng Bộ ResponseCookie Chuẩn Hóa Theo AuthController, (6) Bổ Sung Bộ Unit Tests OAuth2SecurityTest Đạt 106/106 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#062** | 15/09/2026 | Rà Soát Toàn Diện Lỗ Hổng & Điểm Lệch Cận Lâm Sàng / Lịch Hẹn: (1) Chống Tràn Cột DB VARCHAR(255) Tên Tệp Tổng Hợp Đa Tệp, (2) Đóng Gói Lưu Trữ Đám Mây Toàn Diện Toàn Bộ Tệp Thành Archive ZIP In-Memory (Ho_So_Tong_Hop_N_Tep.zip), (3) Tái Cấu Trúc Trích Xuất Rào Chắn Kiểm Thẩm Đa Tệp validateBatchConstraints, (4) Phòng Ngừa Lỗi 500 NPE / IllegalArgument Cập Nhật Trạng Thái Lịch Khám & Đạt 95/95 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#061** | 15/09/2026 | Hỗ Trợ Nhập Đồng Thời Nhiều Tệp (Mixed Multi-File Ingestion: PDF + Hình Ảnh PNG/JPG Cùng Lúc) Cho Tính Năng Phân Tích Cận Lâm Sàng: Trích Xuất Song Song (Parallel OCR & PDFBox via medicalOcrExecutor), Khấu Trừ Atomic 1 Quota Cho Cả Đợt Quét, Hàng Đợi Multi-File Queue Card Trực Quan & Đạt 94/94 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#060** | 15/09/2026 | Triển Khai Rào Chắn Chống Câu Hỏi Lệch Chủ Đề (Triage Off-Topic & Non-Medical Guard): Ngăn Chặn Suy Đoán Chuyên Khoa Bừa Bãi, Triệt Tiêu 100% Hiện Tượng Ghép Bác Sĩ pgvector Cho Câu Hỏi Ngoài Y Tế, Giao Diện Hướng Dẫn Thân Thiện & Đạt 93/93 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
@@ -19,6 +20,48 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#063] Kiểm Toán Toàn Diện & Vá Triệt Để 5 Lỗi Tiềm Ẩn / Lỗ Hổng Luồng OpenID Connect (OIDC) & Google OAuth2
+* **Thời gian:** 2026-09-15 22:20:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-01 (Authentication, Authorization & Social SSO)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **106/106 Unit Tests PASS 100%** (Tăng từ 95 lên 106 tests, bổ sung trọn bộ 11 bài test trong `OAuth2SecurityTest`)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1673 modules transformed** trong 2.90s
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Các Lỗi Đã Phát Hiện:
+Tech Lead yêu cầu rà soát tính năng OpenID Connect (OIDC) và Google OAuth2 do thành viên trong nhóm đóng góp trước đó. Quá trình kiểm toán phát hiện 5 điểm nghẽn nghiêm trọng:
+1. **Lệch Cổng Frontend (Port 5000 vs 5001):** `GoogleLoginButton.tsx` và `LoginPage.tsx` hardcode cổng `http://localhost:5000` thay vì cổng thực tế `5001`, gây lỗi `ERR_CONNECTION_REFUSED` khi click.
+2. **Thiếu Proxy Vite:** `vite.config.ts` chỉ proxy `/api`, thiếu proxy cho `/oauth2` và `/login/oauth2`.
+3. **Nguy cơ NullPointerException:** `CustomOAuth2UserService` không kiểm tra `email == null` trước khi gọi `toLowerCase().trim()`, có thể gây crash HTTP 500 nếu Google không trả email.
+4. **Lỗ hổng Zero-Trust Security:** Người dùng bị quản trị viên đình chỉ (`SUSPENDED`) vẫn đăng nhập được qua Google và vẫn được cấp phát token JWT.
+5. **Cấu hình Cookie không đồng nhất:** `OAuth2AuthenticationSuccessHandler` format chuỗi cookie thủ công, bỏ qua cờ `cookieSecure`.
+6. **Thiếu Unit Test:** Hoàn toàn chưa có bài kiểm thử tự động nào cho toàn bộ luồng OAuth2/OIDC.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi:
+* `[MOD]` [`frontend/src/components/common/GoogleLoginButton.tsx`](file:///frontend/src/components/common/GoogleLoginButton.tsx):
+  - Chuyển `backendUrl` sang phân giải động: `import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001'`.
+* `[MOD]` [`frontend/src/pages/LoginPage.tsx`](file:///frontend/src/pages/LoginPage.tsx):
+  - Loại bỏ giá trị hardcode `backendUrl="http://localhost:5000"`.
+* `[MOD]` [`frontend/vite.config.ts`](file:///frontend/vite.config.ts):
+  - Bổ sung cấu hình proxy chuyển tiếp cho `/oauth2` và `/login/oauth2` về `http://localhost:5001`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/security/CustomOAuth2UserService.java`](file:///backend/src/main/java/com/mediassist/security/CustomOAuth2UserService.java):
+  - Bổ sung thẩm định nghiêm ngặt: ném `OAuth2AuthenticationException("invalid_email")` nếu Google không trả email; ném `OAuth2AuthenticationException("invalid_google_id")` nếu thiếu `sub`.
+  - Triển khai Zero-Trust Security Guard: ném `OAuth2AuthenticationException("account_suspended")` ngay lập tức nếu tài khoản tìm thấy ở trạng thái `SUSPENDED`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/security/OAuth2AuthenticationSuccessHandler.java`](file:///backend/src/main/java/com/mediassist/security/OAuth2AuthenticationSuccessHandler.java):
+  - Kiểm tra trạng thái người dùng: Chặn cấp phát token và redirect về failure URL nếu tài khoản `SUSPENDED` hoặc `!isAccountNonLocked()`.
+  - Đồng bộ `ResponseCookie` builder với `@Value("${app.auth.cookie.secure:false}")` tương thích 100% với `AuthController`.
+* `[MOD]` [`backend/src/main/resources/application-dev.properties`](file:///backend/src/main/resources/application-dev.properties) & `[.env.example](file:///.env.example)`:
+  - Cập nhật các ghi chú hướng dẫn đăng ký Google Cloud Console sang cổng `5001`.
+* `[NEW]` [`backend/src/test/java/com/mediassist/OAuth2SecurityTest.java`](file:///backend/src/test/java/com/mediassist/OAuth2SecurityTest.java):
+  - Tạo mới 11 bài kiểm thử tự động toàn diện: Upsert user, link email, tạo profile bệnh nhân, bắt ngoại lệ email null, chặn tài khoản SUSPENDED, cấp phát cookie JWT, mã hóa URL failure handler, và tích hợp OIDC `OAuth2UserPrincipal`.
+
+#### 3. Bằng Chứng Kiểm Thử Đạt Chuẩn:
+* **Backend Unit Tests:** `mvn test` $\rightarrow$ **Tests run: 106, Failures: 0, Errors: 0, Skipped: 0** — **`BUILD SUCCESS`** (106/106 tests PASS 100%).
+* **Frontend Build:** `npm run build` $\rightarrow$ **✓ built in 2.90s, 0 TypeScript errors**.
+
+---
 
 ### [WORK-LOG-#062] Rà Soát Toàn Diện Lỗ Hổng & Điểm Nghẽn Hệ Thống (Data Integrity & Robustness Audit)
 * **Thời gian:** 2026-09-15 15:30:00 (GMT+7)

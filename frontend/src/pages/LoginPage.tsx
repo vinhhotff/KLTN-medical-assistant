@@ -431,8 +431,7 @@ export const LoginPage: React.FC = () => {
                * ve /oauth2/callback tren Frontend.
                */}
               <GoogleLoginButton
-                label="Tiep tuc voi Google"
-                backendUrl="http://localhost:5000"
+                label="Tiếp tục với Google"
                 className="py-2.5 px-3 rounded-xl text-xs shadow-2xs"
               />
 

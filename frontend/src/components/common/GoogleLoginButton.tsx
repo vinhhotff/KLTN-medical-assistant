@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 /**
  * GoogleLoginButton — Nut dang nhap bang Google OAuth2.
@@ -27,7 +27,7 @@ interface GoogleLoginButtonProps {
 export const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
   label = 'Tiếp tục với Google',
   className = '',
-  backendUrl = 'http://localhost:5000',
+  backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001',
 }) => {
 
   /**
