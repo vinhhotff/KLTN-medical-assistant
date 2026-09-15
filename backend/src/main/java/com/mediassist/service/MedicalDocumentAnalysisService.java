@@ -253,9 +253,10 @@ public class MedicalDocumentAnalysisService {
         String fileHash = (files.size() == 1)
                 ? hashJoiner.toString()
                 : calculateSha256(hashJoiner.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        String fileName = (files.size() == 1)
+        String rawFileName = (files.size() == 1)
                 ? fileNames.get(0)
                 : String.format("Bộ hồ sơ (%d tệp): %s", files.size(), String.join(", ", fileNames));
+        String fileName = rawFileName.length() > 250 ? rawFileName.substring(0, 247) + "..." : rawFileName;
         String contentType = (files.size() == 1)
                 ? contentTypes.get(0)
                 : "multipart/mixed";
@@ -367,9 +368,39 @@ public class MedicalDocumentAnalysisService {
             com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, preRagCandidates);
 
             // 9b. Pipelined Asynchronous Cloud Storage Upload
-            final byte[] uploadBytes = filesBytesList.get(0);
-            final String uploadName = fileNames.get(0);
-            final String uploadType = contentTypes.get(0);
+            final byte[] uploadBytes;
+            final String uploadName;
+            final String uploadType;
+            if (files.size() == 1) {
+                uploadBytes = filesBytesList.get(0);
+                uploadName = fileNames.get(0);
+                uploadType = contentTypes.get(0);
+            } else {
+                byte[] zipBytes = null;
+                try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                     java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(baos)) {
+                    for (int i = 0; i < files.size(); i++) {
+                        String entryName = (i + 1) + "_" + fileNames.get(i).replaceAll("[^a-zA-Z0-9._-]", "_");
+                        java.util.zip.ZipEntry entry = new java.util.zip.ZipEntry(entryName);
+                        zos.putNextEntry(entry);
+                        zos.write(filesBytesList.get(i));
+                        zos.closeEntry();
+                    }
+                    zos.finish();
+                    zipBytes = baos.toByteArray();
+                } catch (Exception zipEx) {
+                    log.warn("Could not create multi-file ZIP archive: {}. Falling back to primary file.", zipEx.getMessage());
+                }
+                if (zipBytes != null && zipBytes.length > 0) {
+                    uploadBytes = zipBytes;
+                    uploadName = "Ho_So_Tong_Hop_" + files.size() + "_Tep.zip";
+                    uploadType = "application/zip";
+                } else {
+                    uploadBytes = filesBytesList.get(0);
+                    uploadName = fileNames.get(0);
+                    uploadType = contentTypes.get(0);
+                }
+            }
             final UUID uploadUserId = user.getId();
             if (!isReanalyzingStaleOffline || existingDoc == null || existingDoc.getStorageUrl() == null || existingDoc.getStorageUrl().isBlank()) {
                 java.util.function.Supplier<String> uploadSupplier = () -> {
@@ -724,9 +755,10 @@ public class MedicalDocumentAnalysisService {
             totalSize += f.getSize();
         }
 
-        String fileName = (files.size() == 1)
+        String rawFileName = (files.size() == 1)
                 ? fileNames.get(0)
                 : String.format("Bộ hồ sơ (%d tệp): %s", files.size(), String.join(", ", fileNames));
+        String fileName = rawFileName.length() > 250 ? rawFileName.substring(0, 247) + "..." : rawFileName;
         String contentType = (files.size() == 1)
                 ? contentTypes.get(0)
                 : "multipart/mixed";

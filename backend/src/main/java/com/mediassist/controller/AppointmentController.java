@@ -1,6 +1,7 @@
 package com.mediassist.controller;
 
 import com.mediassist.common.ApiResponse;
+import com.mediassist.common.AppException;
 import com.mediassist.dto.AppointmentDto;
 import com.mediassist.dto.CreateAppointmentRequest;
 import com.mediassist.model.entity.AppointmentStatus;
@@ -56,9 +57,17 @@ public class AppointmentController {
             @PathVariable("id") UUID id,
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody Map<String, String> body) {
-        String statusStr = body.get("status");
+        if (body == null || body.get("status") == null || body.get("status").isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_STATUS", "Vui lòng cung cấp trạng thái cuộc hẹn hợp lệ.");
+        }
+        String statusStr = body.get("status").trim().toUpperCase();
         String notes = body.get("notes");
-        AppointmentStatus newStatus = AppointmentStatus.valueOf(statusStr);
+        AppointmentStatus newStatus;
+        try {
+            newStatus = AppointmentStatus.valueOf(statusStr);
+        } catch (IllegalArgumentException ex) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_STATUS", "Trạng thái '" + statusStr + "' không hợp lệ.");
+        }
 
         AppointmentDto dto = appointmentService.updateAppointmentStatus(id, principal.getId(), principal.getRole(), newStatus, notes);
         return ResponseEntity.ok(ApiResponse.success(dto));
@@ -70,7 +79,7 @@ public class AppointmentController {
     public ResponseEntity<ApiResponse<AppointmentDto>> completeClinical(
             @PathVariable("id") UUID id,
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody com.mediassist.dto.ClinicalEncounterRequest request) {
+            @Valid @RequestBody com.mediassist.dto.ClinicalEncounterRequest request) {
         AppointmentDto dto = appointmentService.completeClinicalEncounter(id, principal.getId(), request);
         return ResponseEntity.ok(ApiResponse.success(dto));
     }

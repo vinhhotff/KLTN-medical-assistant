@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#062** | 15/09/2026 | Rà Soát Toàn Diện Lỗ Hổng & Điểm Lệch Cận Lâm Sàng / Lịch Hẹn: (1) Chống Tràn Cột DB VARCHAR(255) Tên Tệp Tổng Hợp Đa Tệp, (2) Đóng Gói Lưu Trữ Đám Mây Toàn Diện Toàn Bộ Tệp Thành Archive ZIP In-Memory (Ho_So_Tong_Hop_N_Tep.zip), (3) Tái Cấu Trúc Trích Xuất Rào Chắn Kiểm Thẩm Đa Tệp validateBatchConstraints, (4) Phòng Ngừa Lỗi 500 NPE / IllegalArgument Cập Nhật Trạng Thái Lịch Khám & Đạt 95/95 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#061** | 15/09/2026 | Hỗ Trợ Nhập Đồng Thời Nhiều Tệp (Mixed Multi-File Ingestion: PDF + Hình Ảnh PNG/JPG Cùng Lúc) Cho Tính Năng Phân Tích Cận Lâm Sàng: Trích Xuất Song Song (Parallel OCR & PDFBox via medicalOcrExecutor), Khấu Trừ Atomic 1 Quota Cho Cả Đợt Quét, Hàng Đợi Multi-File Queue Card Trực Quan & Đạt 94/94 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#060** | 15/09/2026 | Triển Khai Rào Chắn Chống Câu Hỏi Lệch Chủ Đề (Triage Off-Topic & Non-Medical Guard): Ngăn Chặn Suy Đoán Chuyên Khoa Bừa Bãi, Triệt Tiêu 100% Hiện Tượng Ghép Bác Sĩ pgvector Cho Câu Hỏi Ngoài Y Tế, Giao Diện Hướng Dẫn Thân Thiện & Đạt 93/93 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#059** | 15/09/2026 | Kiểm Toán Chuyên Sâu Toàn Diện & Khắc Phục 5 Điểm Nghẽn / Lỗi Tiềm Ẩn Hệ Thống: (1) Mở Quyền Tra Cứu Lịch Khám Công Khai Cho Bệnh Nhân Chưa Đăng Nhập (Fix 401 Slots Discovery), (2) Đồng Bộ Tự Động Vector Embedding & Invalidate Cache Khi Bác Sĩ Tự Cập Nhật Hồ Sơ Chuyên Môn, (3) Tích Hợp Two-Layer Cache (L1 Caffeine + L2 Redis) 1h TTL Cho Danh Mục Chuyên Khoa (/specialties < 1ms), (4) Dùng Dedicated Thread Pool medicalOcrExecutor Cho Upload Supabase Tránh Nghẽn ForkJoinPool, (5) JOIN FETCH Eager Loading Cho PatientProfile & Bổ Sung DoctorServiceTest Đạt 92/92 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
@@ -18,6 +19,32 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#062] Rà Soát Toàn Diện Lỗ Hổng & Điểm Nghẽn Hệ Thống (Data Integrity & Robustness Audit)
+* **Thời gian:** 2026-09-15 15:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-03 (Multimodal Document Summarization), UC-04 (Doctor Booking & Clinical Encounter)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **95/95 Unit Tests PASS 100%** (Bổ sung test case `testAnalyzeDocuments_LongFilenamesTruncatedUnderVarchar255`)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1673 modules transformed**
+  - Trạng thái Run Daemon: Backend port `5001` (UP), Frontend port `5173` (UP)
+* **Nhánh phát triển:** `develop`
+
+#### 1. Danh Sách Tệp Tin Thay Đổi:
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java):
+  - **Khắc phục lỗi tràn cột DB `file_name VARCHAR(255)`:** Khi người bệnh tải lên 3–5 tệp có tên tệp lâm sàng dài thực tế, chuỗi định danh `"Bộ hồ sơ (N tệp): ..."` dễ dàng vượt quá 255 ký tự dẫn đến ngoại lệ `DataException: value too long for type character varying(255)`. Hệ thống đã bổ sung cơ chế cắt tỉa an toàn bảo đảm độ dài tối đa $\le 250$ ký tự kết thúc bằng `"..."`.
+  - **Bảo toàn lưu trữ đám mây cho tất cả các tệp (Multi-File ZIP Archiving):** Trước đây khi tải lên $N$ tệp, dịch vụ chỉ tải tệp đầu tiên lên Cloud Storage/Supabase và bỏ rơi các tệp từ $2 \dots N$. Hệ thống đã nâng cấp cơ chế đóng gói động trong bộ nhớ qua `java.util.zip.ZipOutputStream` thành tệp nén `Ho_So_Tong_Hop_N_Tep.zip` với MIME `application/zip`, lưu trữ đầy đủ toàn bộ tài liệu gốc và hỗ trợ tải về nguyên vẹn khi người bệnh hoặc bác sĩ tra cứu.
+* `[MOD]` [`backend/src/main/java/com/mediassist/controller/MedicalDocumentController.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/controller/MedicalDocumentController.java):
+  - Tái cấu trúc logic kiểm duyệt kích thước và số lượng tệp thành phương thức dùng chung `validateBatchConstraints(List<MultipartFile> resolvedFiles)`, loại bỏ trùng lặp mã giữa endpoint `/analyze` và `/analyze-preview`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/controller/AppointmentController.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/controller/AppointmentController.java):
+  - Khắc phục lỗ hổng NPE và 500 Unhandled Exception tại endpoint `PATCH /api/v1/appointments/{id}/status`: Thẩm định chặt chẽ trường `status`, bắt ngoại lệ `IllegalArgumentException` và chuyển đổi thành `400 BAD REQUEST` với thông báo lỗi lâm sàng rõ ràng.
+  - Thêm `@Valid` cho `@RequestBody ClinicalEncounterRequest` tại endpoint `POST /api/v1/appointments/{id}/complete-clinical`.
+* `[MOD]` [`backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java):
+  - Bổ sung unit test `testAnalyzeDocuments_LongFilenamesTruncatedUnderVarchar255` kiểm thử tự động khả năng cắt tỉa an toàn tên tệp dài khi lưu vào DB PostgreSQL.
+
+#### 2. Điểm Nóng Tech Lead Cần Review:
+* **Tính toàn vẹn dữ liệu Cloud EMR (Zero-Loss Storage Guarantee):** Việc nén zip $N$ tệp giữ nguyên vẹn 100% hồ sơ lâm sàng của bệnh nhân trên Cloud Bucket mà không phải thay đổi cấu trúc bảng `medical_documents (storage_url)` hay thực hiện migration phức tạp. Khi cần rollback, URL zip duy nhất được thu hồi/xóa nguyên khối tự động.
+* **Độ ổn định API:** Không còn bất kỳ kịch bản nào có thể gây crash 500 hoặc ngoại lệ database không kiểm soát khi người dùng gửi payload không hợp lệ hoặc tải lên tập hợp tên tệp quá dài.
 
 ### [WORK-LOG-#061] Hỗ Trợ Nhập Đồng Thời Nhiều Tệp (Mixed Multi-File Ingestion: PDF + Hình Ảnh Đồng Thời)
 * **Thời gian:** 2026-09-15 14:45:00 (GMT+7)

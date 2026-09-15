@@ -60,15 +60,7 @@ public class MedicalDocumentController {
 
         String userEmail = authentication.getName();
         List<MultipartFile> resolvedFiles = resolveFiles(file, files);
-
-        if (resolvedFiles.isEmpty()) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE", "Vui lòng chọn ít nhất một tệp tài liệu y tế (PDF hoặc ảnh) để phân tích.");
-        }
-
-        if (resolvedFiles.size() > 5) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "TOO_MANY_FILES",
-                    "Hệ thống hỗ trợ tải lên tối đa 5 tệp tài liệu trong một lần phân tích.");
-        }
+        validateBatchConstraints(resolvedFiles);
 
         if (rateLimiterService != null && rateLimiterService.isUploadPenalized(userEmail)) {
             throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "UPLOAD_COOLDOWN_ACTIVE",
@@ -78,20 +70,6 @@ public class MedicalDocumentController {
         if (rateLimiterService != null && !rateLimiterService.allowDocumentUpload(userEmail)) {
             throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
                     "Bạn đã gửi quá nhiều yêu cầu phân tích hồ sơ trong thời gian ngắn. Vui lòng chờ 1 phút trước khi tải tệp tiếp theo.");
-        }
-
-        long totalSize = 0;
-        for (MultipartFile f : resolvedFiles) {
-            if (f.getSize() > 10 * 1024 * 1024) {
-                throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE",
-                        String.format("Tệp '%s' có dung lượng vượt quá giới hạn an toàn 10MB.", f.getOriginalFilename()));
-            }
-            totalSize += f.getSize();
-        }
-
-        if (totalSize > 25 * 1024 * 1024) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "TOTAL_SIZE_TOO_LARGE",
-                    "Tổng dung lượng các tệp tải lên vượt quá giới hạn an toàn 25MB.");
         }
 
         DocumentAnalysisResponse response = analysisService.analyzeDocuments(resolvedFiles, userEmail);
@@ -112,7 +90,14 @@ public class MedicalDocumentController {
         }
 
         List<MultipartFile> resolvedFiles = resolveFiles(file, files);
-        if (resolvedFiles.isEmpty()) {
+        validateBatchConstraints(resolvedFiles);
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocumentsPreview(resolvedFiles);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    private void validateBatchConstraints(List<MultipartFile> resolvedFiles) {
+        if (resolvedFiles == null || resolvedFiles.isEmpty()) {
             throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE", "Vui lòng chọn ít nhất một tệp tài liệu y tế (PDF hoặc ảnh) để phân tích.");
         }
 
@@ -134,9 +119,6 @@ public class MedicalDocumentController {
             throw new AppException(HttpStatus.BAD_REQUEST, "TOTAL_SIZE_TOO_LARGE",
                     "Tổng dung lượng các tệp tải lên vượt quá giới hạn an toàn 25MB.");
         }
-
-        DocumentAnalysisResponse response = analysisService.analyzeDocumentsPreview(resolvedFiles);
-        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     private List<MultipartFile> resolveFiles(MultipartFile file, List<MultipartFile> files) {

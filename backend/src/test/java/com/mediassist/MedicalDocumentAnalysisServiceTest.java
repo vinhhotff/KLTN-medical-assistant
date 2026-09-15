@@ -943,4 +943,37 @@ class MedicalDocumentAnalysisServiceTest {
         // Deducted exactly 1 quota for the entire multi-file batch
         assertEquals(0, testUser.getScanQuota());
     }
+
+    @Test
+    @DisplayName("Should truncate synthesized filename under 250 chars to avoid VARCHAR(255) database exception")
+    void testAnalyzeDocuments_LongFilenamesTruncatedUnderVarchar255() {
+        testUser.setScanQuota(1);
+
+        byte[] pdfMagic = new byte[]{'%', 'P', 'D', 'F', '-'};
+        String pdfContent = "HỒ SƠ BỆNH ÁN CHI TIẾT - PHIẾU XÉT NGHIỆM TỔNG QUÁT\nGlucose: 10.5 mmol/L";
+        byte[] pdfBytes = new byte[pdfMagic.length + pdfContent.getBytes().length];
+        System.arraycopy(pdfMagic, 0, pdfBytes, 0, pdfMagic.length);
+        System.arraycopy(pdfContent.getBytes(), 0, pdfBytes, pdfMagic.length, pdfContent.getBytes().length);
+
+        String longName1 = "Bao_cao_ket_qua_xet_nghiem_tong_quat_benh_vien_da_khoa_trung_uong_can_tho_ngay_15_09_2026_khoa_hoa_sinh_lam_sang_bac_si_le_van_tam.pdf";
+        String longName2 = "Phieu_chup_x_quang_ky_thuat_so_tim_phoi_thang_chuan_doan_hinh_anh_benh_vien_cho_ray_thanh_pho_ho_chi_minh_20260915_001239.pdf";
+        String longName3 = "Giay_ra_vien_va_don_thuoc_dien_tu_dieu_tri_ngoai_tru_benh_vien_dai_hoc_y_duoc_thanh_pho_ho_chi_minh_co_so_1_khoa_kham_benh.pdf";
+
+        MockMultipartFile f1 = new MockMultipartFile("files", longName1, "application/pdf", pdfBytes);
+        MockMultipartFile f2 = new MockMultipartFile("files", longName2, "application/pdf", pdfBytes);
+        MockMultipartFile f3 = new MockMultipartFile("files", longName3, "application/pdf", pdfBytes);
+
+        when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(pdfContent);
+        com.mediassist.ai.ClinicalAiResult mockResult = new com.mediassist.ai.ClinicalAiResult();
+        mockResult.setModelUsed("mock-model");
+        mockResult.setClinicalSummary("Summary");
+        when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any())).thenReturn(mockResult);
+
+        DocumentAnalysisResponse response = analysisService.analyzeDocuments(List.of(f1, f2, f3), "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertEquals(3, response.getFilesCount());
+        // Verify document saved has fileName <= 250 characters
+        verify(medicalDocumentRepository).save(argThat(doc -> doc.getFileName() != null && doc.getFileName().length() <= 250 && doc.getFileName().endsWith("...")));
+    }
 }
