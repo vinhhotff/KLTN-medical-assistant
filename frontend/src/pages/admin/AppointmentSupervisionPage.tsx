@@ -14,7 +14,8 @@ import {
   CheckCircle2, 
   XCircle,
   Pill,
-  Activity
+  Activity,
+  RefreshCw
 } from 'lucide-react';
 import { api } from '../../services/api';
 
@@ -47,6 +48,8 @@ interface AppointmentItem {
 export const AppointmentSupervisionPage: React.FC = () => {
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentItem | null>(null);
@@ -56,22 +59,29 @@ export const AppointmentSupervisionPage: React.FC = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+      else setRefreshing(true);
       const res = await api.get('/admin/appointments');
       if (res.data?.data) {
         setAppointments(res.data.data);
+        setLastUpdated(new Date());
       }
     } catch (err) {
       console.error('Failed to load appointments:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchAppointments();
+    const interval = setInterval(() => {
+      fetchAppointments(true);
+    }, 20000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleAdminCancel = async () => {
@@ -158,6 +168,19 @@ export const AppointmentSupervisionPage: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
+          </div>
+          <button
+            onClick={() => fetchAppointments(true)}
+            disabled={refreshing}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
+            title="Làm mới danh sách lịch khám"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-600' : ''}`} />
+            <span>Làm mới</span>
+          </button>
           <span className="text-xs font-bold text-slate-600 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-xs">
             Tổng cộng: <strong className="text-indigo-600">{appointments.length}</strong> ca khám
           </span>

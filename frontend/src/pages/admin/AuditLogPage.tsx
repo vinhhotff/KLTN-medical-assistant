@@ -28,29 +28,38 @@ interface AuditLogItem {
 export const AuditLogPage: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('ALL');
   const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null);
 
-  const fetchLogs = async (action?: string) => {
+  const fetchLogs = async (action?: string, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+      else setRefreshing(true);
       const url = action && action !== 'ALL' 
         ? `/admin/audit-logs?action=${encodeURIComponent(action)}` 
         : '/admin/audit-logs';
       const res = await api.get(url);
       if (res.data?.data) {
         setLogs(res.data.data);
+        setLastUpdated(new Date());
       }
     } catch (err) {
       console.error('Failed to load audit logs:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchLogs(actionFilter);
+    const interval = setInterval(() => {
+      fetchLogs(actionFilter, true);
+    }, 30000);
+    return () => clearInterval(interval);
   }, [actionFilter]);
 
   const filteredLogs = logs.filter((log) => {
@@ -115,13 +124,21 @@ export const AuditLogPage: React.FC = () => {
             Ghi nhận toàn bộ vết tương tác, xác thực, điều phối lịch khám và thẩm định bác sĩ tuân thủ bảo mật y tế HIPAA.
           </p>
         </div>
-        <button
-          onClick={() => fetchLogs(actionFilter)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
-          Làm mới
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
+          </div>
+          <button
+            onClick={() => fetchLogs(actionFilter, true)}
+            disabled={refreshing}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
+            title="Làm mới nhật ký kiểm toán"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-600' : ''}`} />
+            <span>Làm mới</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}

@@ -298,7 +298,7 @@ class AdminVettingServiceTest {
     }
 
     @Test
-    @DisplayName("Should return audit logs with resolved user emails")
+    @DisplayName("Should return audit logs with resolved user emails via batch lookup")
     void testGetAuditLogs() {
         AuditLog log = new AuditLog();
         log.setId(UUID.randomUUID());
@@ -307,13 +307,35 @@ class AdminVettingServiceTest {
         log.setResource("doctors/1");
 
         when(auditLogRepository.findTop100ByOrderByCreatedAtDesc()).thenReturn(List.of(log));
-        when(userRepository.findById(doctorUser.getId())).thenReturn(Optional.of(doctorUser));
+        when(userRepository.findAllById(any())).thenReturn(List.of(doctorUser));
 
         var logs = adminVettingService.getAuditLogs(null);
         assertNotNull(logs);
         assertEquals(1, logs.size());
         assertEquals("DOCTOR_VETTED", logs.get(0).getAction());
         assertEquals("doctor.nguyen@mediassist.local", logs.get(0).getUserEmail());
+        verify(userRepository).findAllById(any());
+    }
+
+    @Test
+    @DisplayName("Should return triage sessions with eager loaded user details without N+1 queries")
+    void testGetTriageSessions() {
+        com.mediassist.model.entity.TriageSession session = new com.mediassist.model.entity.TriageSession();
+        session.setId(UUID.randomUUID());
+        session.setSymptomsText("Đau ngực dữ dội");
+        session.setEmergency(true);
+        session.setUrgencyLevel(com.mediassist.model.entity.TriageUrgencyLevel.EMERGENCY);
+        session.setPrimarySpecialty("Tim Mạch");
+        session.setUser(doctorUser);
+
+        when(triageSessionRepository.findAllWithUserOrderByCreatedAtDesc()).thenReturn(List.of(session));
+
+        var result = adminVettingService.getTriageSessions();
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertTrue(result.get(0).isEmergency());
+        assertEquals("doctor.nguyen@mediassist.local", result.get(0).getPatientEmail());
+        verify(triageSessionRepository).findAllWithUserOrderByCreatedAtDesc();
     }
 
     @Test

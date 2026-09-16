@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Clock, Check, X, AlertCircle, FileBadge, Building2, User } from 'lucide-react';
+import { ShieldCheck, Clock, Check, X, AlertCircle, FileBadge, Building2, User, RefreshCw } from 'lucide-react';
 import { api } from '../../services/api';
 
 interface PendingDoctor {
@@ -25,6 +25,8 @@ interface PendingDoctor {
 export const DoctorVettingPage: React.FC = () => {
   const [pendingDoctors, setPendingDoctors] = useState<PendingDoctor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -34,19 +36,26 @@ export const DoctorVettingPage: React.FC = () => {
 
   useEffect(() => {
     fetchPendingDoctors();
+    const interval = setInterval(() => {
+      fetchPendingDoctors(true);
+    }, 20000);
+    return () => clearInterval(interval);
   }, []);
 
-  const fetchPendingDoctors = async () => {
+  const fetchPendingDoctors = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+      else setRefreshing(true);
       const res = await api.get('/admin/doctors/pending');
       if (res.data?.data) {
         setPendingDoctors(res.data.data);
+        setLastUpdated(new Date());
       }
     } catch (err) {
       console.error('Failed to fetch pending doctors:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -124,7 +133,20 @@ export const DoctorVettingPage: React.FC = () => {
             Xác minh chứng chỉ hành nghề (CCHN), hồ sơ bằng cấp và chuyên khoa trước khi kích hoạt trên hệ thống tìm kiếm.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+            <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
+          </div>
+          <button
+            onClick={() => fetchPendingDoctors(true)}
+            disabled={refreshing}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
+            title="Làm mới hàng đợi duyệt bác sĩ"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-600' : ''}`} />
+            <span>Làm mới</span>
+          </button>
           <span className="text-xs px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200 flex items-center gap-1.5">
             <ShieldCheck className="w-4 h-4 text-indigo-600" />
             Kiểm duyệt tuân thủ Bộ Y Tế

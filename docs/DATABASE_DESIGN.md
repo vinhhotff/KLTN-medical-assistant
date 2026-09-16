@@ -474,3 +474,18 @@ Hệ thống chuẩn hóa DTO `PageResponse<T>` và tích hợp phân trang limi
 * `totalPages`: Tổng số trang được tính toán: $\lceil \text{totalElements} / \text{size} \rceil$.
 * Giúp loại bỏ hoàn toàn tình trạng render hàng nghìn DOM nodes cùng lúc, tránh nghẽn RAM trình duyệt và loại bỏ hiện tượng đơ giật giao diện.
 
+---
+
+## 8. Tối Ưu Chỉ Mục Hiệu Năng Cao Cho Giám Sát & Realtime (Flyway V12)
+
+Nhằm triệt tiêu triệt để độ trễ truy vấn (Query Lag) và hiện tượng chậm tải khi số lượng giao dịch tăng cao, bản di chuyển `V12__supervision_and_realtime_performance_indexes.sql` bổ sung hệ thống chỉ mục chuyên biệt:
+
+| Tên Chỉ Mục | Bảng Áp Dụng | Định Dạng Cột / Điều Kiện | Mục Đích Tối Ưu |
+| :--- | :--- | :--- | :--- |
+| `idx_appointments_scheduled_start_desc` | `appointments` | `(scheduled_start DESC)` | Tối ưu hóa truy vấn lịch khám toàn viện không điều kiện lọc theo user, loại bỏ thao tác Disk Sort. |
+| `idx_triage_sessions_created_desc` | `triage_sessions` | `(created_at DESC)` | Tối ưu hóa sắp xếp thời gian toàn viện cho danh sách phân luồng triệu chứng AI. |
+| `idx_triage_emergency_partial` | `triage_sessions` | `(is_emergency) WHERE is_emergency = true` | **Partial Index** siêu nhẹ ($< 50\text{KB}$) giúp API thống kê `/admin/stats` đếm số ca cấp cứu với độ phức tạp $O(1)$. |
+| `idx_doc_analysis_abnormal_partial` | `document_analyses` | `(id) WHERE abnormal_indicators_json IS NOT NULL AND ...` | **Partial Index** loại bỏ hoàn toàn Full Table Scan khi đếm các hồ sơ cận lâm sàng có chỉ số bệnh lý bất thường. |
+| `idx_doc_analyses_created_desc` | `document_analyses` | `(created_at DESC)` | Tăng tốc truy vấn lịch sử phân tích tài liệu cận lâm sàng bệnh nhân và bác sĩ. |
+
+

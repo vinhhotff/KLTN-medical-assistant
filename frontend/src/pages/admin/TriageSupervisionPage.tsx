@@ -10,7 +10,8 @@ import {
   Clock, 
   ShieldAlert, 
   Stethoscope, 
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import { api } from '../../services/api';
 
@@ -31,26 +32,35 @@ interface AdminTriageSession {
 export const TriageSupervisionPage: React.FC = () => {
   const [sessions, setSessions] = useState<AdminTriageSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('ALL');
   const [selectedSession, setSelectedSession] = useState<AdminTriageSession | null>(null);
 
-  const fetchTriageSessions = async () => {
+  const fetchTriageSessions = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+      else setRefreshing(true);
       const res = await api.get('/admin/triage-sessions');
       if (res.data?.data) {
         setSessions(res.data.data);
+        setLastUpdated(new Date());
       }
     } catch (err) {
       console.error('Failed to load triage sessions:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchTriageSessions();
+    const interval = setInterval(() => {
+      fetchTriageSessions(true);
+    }, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const filteredSessions = sessions.filter((s) => {
@@ -103,6 +113,19 @@ export const TriageSupervisionPage: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+            <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
+          </div>
+          <button
+            onClick={() => fetchTriageSessions(true)}
+            disabled={refreshing}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
+            title="Làm mới danh sách phân luồng"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-rose-600' : ''}`} />
+            <span>Làm mới</span>
+          </button>
           <span className="text-xs font-bold text-slate-600 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-xs">
             Tổng phiên Triage: <strong className="text-rose-600">{sessions.length}</strong>
           </span>

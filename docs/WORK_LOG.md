@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#065** | 16/09/2026 | Kiểm Toán Chuyên Sâu & Triệt Tiêu 3 Lỗi Tiềm Ẩn: N+1 Queries, Nguy Cơ Lag & Thiếu Đồng Bộ Thời Gian Thực (Realtime Supervision): (1) Batch Fetch Users Xóa Sổ N+1 Tại Audit Logs, (2) Eager JOIN FETCH Xóa Sổ N+1 Tại Triage Sessions, (3) Flyway V12 Bổ Sung Hệ Thống Performance & Partial Indexes, (4) Đồng Bộ Silent Polling Ngầm & Nút Làm Mới Trực Quan Trên Toàn Bộ Giao Diện Quản Trị & Đạt 110/110 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#064** | 16/09/2026 | Nâng Cấp Toàn Diện Trung Tâm Giám Sát & Quản Trị Hệ Thống Dành Cho Admin (Admin Clinical & Infrastructure Supervision Hub): (1) Bảng KPIs Vận Hành Thời Gian Thực (/admin/stats), (2) Trung Tâm Giám Sát Lịch Hẹn Toàn Viện (/admin/appointments) Kèm Thanh Tra Chẩn Đoán ICD-10 & Quyền Hủy Can Thiệp, (3) Trung Tâm Giám Sát Phân Luồng Lâm Sàng AI & Cảnh Báo Đỏ Cấp Cứu (/admin/triage), (4) Trung Tâm Tra Cứu Nhật Ký Kiểm Toán HIPAA (/admin/audit-logs) & Đạt 109/109 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#063** | 15/09/2026 | Kiểm Toán Toàn Diện & Vá Triệt Để 5 Lỗi Tiềm Ẩn / Lỗ Hổng Luồng OpenID Connect (OIDC) & Google OAuth2: (1) Đồng Bộ Cổng 5001 Dynamic URL Frontend, (2) Bổ Sung Vite Proxy Cho /oauth2 & /login/oauth2, (3) Phòng Ngừa NullPointerException Khi Google Thiếu Email/Sub, (4) Zero-Trust Security Guard Chặn Cấp Token & Chặn Đăng Nhập Cho Tài Khoản Bị Đình Chỉ (SUSPENDED) Hoặc Bị Khóa (LOCKED), (5) Đồng Bộ ResponseCookie Chuẩn Hóa Theo AuthController, (6) Bổ Sung Bộ Unit Tests OAuth2SecurityTest Đạt 106/106 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#062** | 15/09/2026 | Rà Soát Toàn Diện Lỗ Hổng & Điểm Lệch Cận Lâm Sàng / Lịch Hẹn: (1) Chống Tràn Cột DB VARCHAR(255) Tên Tệp Tổng Hợp Đa Tệp, (2) Đóng Gói Lưu Trữ Đám Mây Toàn Diện Toàn Bộ Tệp Thành Archive ZIP In-Memory (Ho_So_Tong_Hop_N_Tep.zip), (3) Tái Cấu Trúc Trích Xuất Rào Chắn Kiểm Thẩm Đa Tệp validateBatchConstraints, (4) Phòng Ngừa Lỗi 500 NPE / IllegalArgument Cập Nhật Trạng Thái Lịch Khám & Đạt 95/95 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
@@ -21,6 +22,56 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#065] Kiểm Toán Chuyên Sâu & Triệt Tiêu 3 Lỗi Tiềm Ẩn: N+1 Queries, Nguy Cơ Lag & Thiếu Đồng Bộ Thời Gian Thực (Realtime Supervision)
+* **Thời gian:** 2026-09-16 08:52:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-17 (Giám Sát Vận Hành Toàn Viện, Lịch Khám Lâm Sàng, An Toàn Triage AI & Nhật Ký Kiểm Toán)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **110/110 Unit Tests PASS 100%** (Tăng từ 109 lên 110 tests, bổ sung kiểm thử batch user fetch & eager triage session)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1676 modules transformed** trong 1.51s
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Các Lỗi Tiềm Ẩn Đã Phát Hiện:
+Tech Lead yêu cầu kiểm toán rà soát các nguy cơ: N+1 queries, tác nhân gây lag hệ thống và hiện tượng thông tin không realtime:
+1. **Lỗ hổng N+1 Query tại `getAuditLogs()`:** Sử dụng `userRepository.findById(id)` lặp tuần tự cho từng bản ghi trong stream audit log, dẫn đến việc kích hoạt hàng chục câu lệnh SQL đơn lẻ `SELECT * FROM users WHERE id = ?`.
+2. **Lỗ hổng N+1 Query tại `getTriageSessions()`:** Tải danh sách `TriageSession` bằng `findAllByOrderByCreatedAtDesc()` không eager fetch quan hệ `@ManyToOne private User user`. Khi DTO gọi `session.getUser().getEmail()`, Hibernate tiếp tục sinh ra $N$ câu lệnh SELECT user riêng lẻ.
+3. **Nguy cơ Gây Lag Khi Tải Cao (Missing Performance Indexes):**
+   - Lịch khám toàn viện sắp xếp theo `scheduled_start DESC` chưa có index đơn độc lập, dẫn đến Disk Sort khi số lượng lịch hẹn lớn.
+   - Bảng `triage_sessions` chưa có index trên `created_at DESC` và thiếu Partial Index cho trường `is_emergency`.
+   - Bảng `document_analyses` thiếu Partial Index phục vụ tính toán số hồ sơ có chỉ số bất thường, dẫn đến Full Table Scan.
+4. **Giao diện Quản trị Chưa Đồng bộ Realtime:**
+   - Toàn bộ các trang `AppointmentSupervisionPage`, `TriageSupervisionPage`, `AuditLogPage`, `DoctorVettingPage` chỉ fetch dữ liệu 1 lần khi mount, không có auto-refresh hoặc nút làm mới thủ công. Người dùng phải F5 tải lại toàn bộ trang web.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi:
+* `[NEW]` [`backend/src/main/resources/db/migration/V12__supervision_and_realtime_performance_indexes.sql`](file:///backend/src/main/resources/db/migration/V12__supervision_and_realtime_performance_indexes.sql):
+  - Bổ sung 5 chỉ mục tối ưu hiệu năng: `idx_appointments_scheduled_start_desc`, `idx_triage_sessions_created_desc`, Partial index `idx_triage_emergency_partial`, Partial index `idx_doc_analysis_abnormal_partial`, `idx_doc_analyses_created_desc`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/repository/TriageSessionRepository.java`](file:///backend/src/main/java/com/mediassist/repository/TriageSessionRepository.java):
+  - Bổ sung phương thức `@Query("SELECT s FROM TriageSession s LEFT JOIN FETCH s.user ORDER BY s.createdAt DESC") List<TriageSession> findAllWithUserOrderByCreatedAtDesc();`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/AdminVettingService.java`](file:///backend/src/main/java/com/mediassist/service/AdminVettingService.java):
+  - Tái cấu trúc `getAuditLogs()`: Gom nhóm toàn bộ `userIds` và dùng `userRepository.findAllById(userIds)` nạp hàng loạt trong 1 câu lệnh SQL duy nhất (`WHERE id IN (...)`).
+  - Tái cấu trúc `getTriageSessions()`: Chuyển sang gọi `findAllWithUserOrderByCreatedAtDesc()`, loại bỏ hoàn toàn các câu lệnh lazy query.
+* `[MOD]` [`backend/src/test/java/com/mediassist/service/AdminVettingServiceTest.java`](file:///backend/src/test/java/com/mediassist/service/AdminVettingServiceTest.java):
+  - Cập nhật mock `userRepository.findAllById(any())` và bổ sung unit test `testGetTriageSessions`.
+* `[MOD]` [`frontend/src/pages/admin/AppointmentSupervisionPage.tsx`](file:///frontend/src/pages/admin/AppointmentSupervisionPage.tsx):
+  - Triển khai cơ chế Silent Polling ngầm mỗi 20 giây; bổ sung nút "Làm mới" xoay icon và huy hiệu "Đồng bộ: HH:mm:ss".
+* `[MOD]` [`frontend/src/pages/admin/TriageSupervisionPage.tsx`](file:///frontend/src/pages/admin/TriageSupervisionPage.tsx):
+  - Triển khai cơ chế Silent Polling ngầm mỗi 15 giây phục vụ bắt kịp thời các ca cấp cứu khẩn cấp; bổ sung nút "Làm mới" và huy hiệu trạng thái Live.
+* `[MOD]` [`frontend/src/pages/admin/AuditLogPage.tsx`](file:///frontend/src/pages/admin/AuditLogPage.tsx):
+  - Triển khai cơ chế Silent Polling ngầm mỗi 30 giây; bổ sung nút "Làm mới" và nhãn thời gian đồng bộ.
+* `[MOD]` [`frontend/src/pages/admin/DoctorVettingPage.tsx`](file:///frontend/src/pages/admin/DoctorVettingPage.tsx):
+  - Triển khai cơ chế Silent Polling ngầm mỗi 20 giây; bổ sung nút "Làm mới" và nhãn thời gian đồng bộ.
+* `[MOD]` [`frontend/src/pages/admin/AdminDashboard.tsx`](file:///frontend/src/pages/admin/AdminDashboard.tsx):
+  - Bổ sung huy hiệu thời gian đồng bộ thực tế "Đồng bộ: HH:mm:ss" bên cạnh nút làm mới dữ liệu.
+* `[MOD]` [`docs/DATABASE_DESIGN.md`](file:///docs/DATABASE_DESIGN.md):
+  - Bổ sung Mục 8 ghi chép đặc tả 5 chỉ mục hiệu năng cao của bản di chuyển Flyway V12.
+
+#### 3. Bằng Chứng Kiểm Thử & Xác Nhận (Verification Evidence):
+* **Backend:** `mvn test` $\rightarrow$ **110/110 Tests PASS (100%)**, 0 failures, 0 errors.
+* **Frontend:** `npm run build` $\rightarrow$ **0 TypeScript Errors**, 1676 modules transformed trong 1.51s.
+* **Xác nhận không gián đoạn giao diện:** Quá trình silent polling chạy ngầm không gây nhấp nháy layout, không hiện màn hình trắng loader giữa chừng.
+
+---
 
 ### [WORK-LOG-#064] Nâng Cấp Toàn Diện Trung Tâm Giám Sát & Quản Trị Hệ Thống Dành Cho Admin (Admin Clinical & Infrastructure Supervision Hub)
 * **Thời gian:** 2026-09-16 08:35:00 (GMT+7)

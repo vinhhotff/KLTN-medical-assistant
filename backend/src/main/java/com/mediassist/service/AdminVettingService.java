@@ -517,21 +517,25 @@ public class AdminVettingService {
             return Collections.emptyList();
         }
 
-        // Cache user emails for fast lookup in memory
-        java.util.Map<UUID, String> emailMap = new java.util.HashMap<>();
+        // Batch fetch all distinct users in 1 single SQL query to eliminate N+1 problem
+        java.util.Set<UUID> userIds = logs.stream()
+                .map(AuditLog::getUserId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        java.util.Map<UUID, String> emailMap = userIds.isEmpty()
+                ? Collections.emptyMap()
+                : userRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(User::getId, User::getEmail, (a, b) -> a));
+
         return logs.stream().map(log -> {
-            String email = null;
-            if (log.getUserId() != null) {
-                email = emailMap.computeIfAbsent(log.getUserId(), id ->
-                        userRepository.findById(id).map(User::getEmail).orElse(null)
-                );
-            }
+            String email = log.getUserId() != null ? emailMap.get(log.getUserId()) : null;
             return AuditLogDto.fromEntity(log, email);
         }).collect(Collectors.toList());
     }
 
     public List<AdminTriageSessionDto> getTriageSessions() {
-        List<TriageSession> list = triageSessionRepository.findAllByOrderByCreatedAtDesc();
+        List<TriageSession> list = triageSessionRepository.findAllWithUserOrderByCreatedAtDesc();
         if (list == null || list.isEmpty()) {
             return Collections.emptyList();
         }

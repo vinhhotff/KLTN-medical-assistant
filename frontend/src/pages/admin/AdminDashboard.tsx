@@ -56,6 +56,7 @@ export const AdminDashboard: React.FC = () => {
   const [pendingDoctors, setPendingDoctors] = useState<PendingDoctorSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const fetchDashboardData = async () => {
     try {
@@ -66,6 +67,7 @@ export const AdminDashboard: React.FC = () => {
 
       if (statsRes.status === 'fulfilled' && statsRes.value.data?.data) {
         setStats(statsRes.value.data.data);
+        setLastUpdated(new Date());
       }
 
       if (doctorsRes.status === 'fulfilled' && doctorsRes.value.data?.data) {
@@ -102,14 +104,20 @@ export const AdminDashboard: React.FC = () => {
             Tổng hợp dữ liệu vận hành theo thời gian thực: Bác sĩ, Lịch hẹn Telehealth, Cận lâm sàng EMR và Phân luồng AI.
           </p>
         </div>
-        <button
-          onClick={handleManualRefresh}
-          disabled={refreshing}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-600' : ''}`} />
-          {refreshing ? 'Đang làm mới...' : 'Làm mới dữ liệu'}
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
+          </div>
+          <button
+            onClick={handleManualRefresh}
+            disabled={refreshing}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-600' : ''}`} />
+            {refreshing ? 'Đang làm mới...' : 'Làm mới dữ liệu'}
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards Grid */}
