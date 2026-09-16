@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   CalendarCheck, 
   Search, 
@@ -18,6 +18,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { useDebounce } from '../../hooks/useDebounce';
 
 interface AppointmentItem {
   id: string;
@@ -102,22 +103,21 @@ export const AppointmentSupervisionPage: React.FC = () => {
     }
   };
 
-  const filteredAppointments = appointments.filter((app) => {
-    // Status filter
-    if (statusFilter !== 'ALL' && app.status !== statusFilter) {
-      return false;
-    }
-    // Search filter
-    if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase();
-      const codeMatch = app.appointmentCode?.toLowerCase().includes(q);
-      const docMatch = app.doctorName?.toLowerCase().includes(q) || app.doctorEmail?.toLowerCase().includes(q);
-      const patMatch = app.patientName?.toLowerCase().includes(q) || app.patientEmail?.toLowerCase().includes(q);
-      const icdMatch = app.icd10Code?.toLowerCase().includes(q) || app.icd10Name?.toLowerCase().includes(q);
-      return codeMatch || docMatch || patMatch || icdMatch;
-    }
-    return true;
-  });
+  const debouncedSearch = useDebounce(searchTerm, 250);
+
+  const filteredAppointments = useMemo(() => {
+    const tokens = debouncedSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return appointments.filter((app) => {
+      // Status filter
+      if (statusFilter !== 'ALL' && app.status !== statusFilter) {
+        return false;
+      }
+      // Search filter using tokenized multi-field matching
+      if (tokens.length === 0) return true;
+      const searchableContent = `${app.appointmentCode || ''} ${app.doctorName || ''} ${app.doctorEmail || ''} ${app.doctorSpecialty || ''} ${app.patientName || ''} ${app.patientEmail || ''} ${app.icd10Code || ''} ${app.icd10Name || ''} ${app.chiefComplaint || ''} ${app.clinicRoom || ''}`.toLowerCase();
+      return tokens.every((token) => searchableContent.includes(token));
+    });
+  }, [appointments, statusFilter, debouncedSearch]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   HeartPulse, 
   Search, 
@@ -14,6 +14,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { useDebounce } from '../../hooks/useDebounce';
 
 interface AdminTriageSession {
   id: string;
@@ -63,19 +64,19 @@ export const TriageSupervisionPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const filteredSessions = sessions.filter((s) => {
-    if (urgencyFilter !== 'ALL' && s.urgencyLevel !== urgencyFilter) {
-      return false;
-    }
-    if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase();
-      const symMatch = s.symptomsText?.toLowerCase().includes(q);
-      const patMatch = s.patientName?.toLowerCase().includes(q) || s.patientEmail?.toLowerCase().includes(q);
-      const specMatch = s.primarySpecialty?.toLowerCase().includes(q);
-      return symMatch || patMatch || specMatch;
-    }
-    return true;
-  });
+  const debouncedSearch = useDebounce(searchTerm, 250);
+
+  const filteredSessions = useMemo(() => {
+    const tokens = debouncedSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return sessions.filter((s) => {
+      if (urgencyFilter !== 'ALL' && s.urgencyLevel !== urgencyFilter) {
+        return false;
+      }
+      if (tokens.length === 0) return true;
+      const searchableContent = `${s.symptomsText || ''} ${s.patientName || ''} ${s.patientEmail || ''} ${s.primarySpecialty || ''} ${s.sbarSummary || ''} ${s.aiAdvice || ''}`.toLowerCase();
+      return tokens.every((token) => searchableContent.includes(token));
+    });
+  }, [sessions, urgencyFilter, debouncedSearch]);
 
   const getUrgencyBadge = (level: string, isEmergency: boolean) => {
     if (isEmergency || level === 'EMERGENCY') {

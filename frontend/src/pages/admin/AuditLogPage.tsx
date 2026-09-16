@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   FileSpreadsheet, 
   Search, 
@@ -12,6 +12,7 @@ import {
   X
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { useDebounce } from '../../hooks/useDebounce';
 
 interface AuditLogItem {
   id: string;
@@ -62,18 +63,16 @@ export const AuditLogPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [actionFilter]);
 
-  const filteredLogs = logs.filter((log) => {
-    if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase();
-      const actionMatch = log.action?.toLowerCase().includes(q);
-      const emailMatch = log.userEmail?.toLowerCase().includes(q);
-      const resMatch = log.resource?.toLowerCase().includes(q);
-      const ipMatch = log.ipAddress?.toLowerCase().includes(q);
-      const metaMatch = log.metadata?.toLowerCase().includes(q);
-      return actionMatch || emailMatch || resMatch || ipMatch || metaMatch;
-    }
-    return true;
-  });
+  const debouncedSearch = useDebounce(searchTerm, 250);
+
+  const filteredLogs = useMemo(() => {
+    const tokens = debouncedSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return logs;
+    return logs.filter((log) => {
+      const searchableContent = `${log.action || ''} ${log.userEmail || ''} ${log.resource || ''} ${log.ipAddress || ''} ${log.userAgent || ''} ${log.metadata || ''}`.toLowerCase();
+      return tokens.every((token) => searchableContent.includes(token));
+    });
+  }, [logs, debouncedSearch]);
 
   const getActionBadge = (action: string) => {
     if (action.includes('DOCTOR') || action.includes('VET')) {

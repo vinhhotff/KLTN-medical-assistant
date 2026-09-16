@@ -166,10 +166,11 @@ public class MedicalDocumentValidator {
         return false;
     }
 
+    private static final Pattern DIACRITICS_PATTERN = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+
     private String unaccent(String src) {
         if (src == null) return "";
         String normalized = Normalizer.normalize(src, Normalizer.Form.NFD);
-        Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
-        return pattern.matcher(normalized).replaceAll("").replace('đ', 'd').replace('Đ', 'D');
+        return DIACRITICS_PATTERN.matcher(normalized).replaceAll("").replace('đ', 'd').replace('Đ', 'D');
     }
 }

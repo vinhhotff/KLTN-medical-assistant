@@ -13,14 +13,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
 public class DoctorSemanticSearchService {
 
     private static final Logger log = LoggerFactory.getLogger(DoctorSemanticSearchService.class);
+    private static final Pattern DIACRITICS_PATTERN = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
 
     private final JdbcTemplate jdbcTemplate;
     private final EmbeddingService embeddingService;
@@ -91,7 +94,8 @@ public class DoctorSemanticSearchService {
     }
 
     /**
-     * Performs pgvector Cosine Similarity search over verified doctors.
+     * Performs pgvector Cosine Similarity search over verified doctors, followed by
+     * Weighted Multi-Criteria Hybrid Re-Ranking (WHRF) using a bounded Min-Heap PriorityQueue.
      * Uses L1 Caffeine In-Memory Cache and single SQL query with correlated subquery string_agg
      * to eliminate N+1 database roundtrips.
      */
@@ -110,6 +114,9 @@ public class DoctorSemanticSearchService {
 
         float[] queryVector = embeddingService.generateEmbedding(queryText);
         String vectorSql = embeddingService.toVectorSqlString(queryVector);
+
+        // Fetch candidate pool up to min(30, effectiveLimit * 3) for Multi-Criteria Re-Ranking
+        int candidateLimit = Math.max(effectiveLimit, Math.min(30, effectiveLimit * 3));
 
         // High-Performance Single Query with COALESCE subquery to eliminate N+1 DB roundtrips
         String sql = """
@@ -131,7 +138,7 @@ public class DoctorSemanticSearchService {
             """;
 
         try {
-            List<DoctorMatchDto> results = jdbcTemplate.query(
+            List<DoctorMatchDto> candidates = jdbcTemplate.query(
                     sql,
                     (rs, rowNum) -> {
                         UUID docUserId = UUID.fromString(rs.getString("doctor_user_id"));
@@ -155,8 +162,10 @@ public class DoctorSemanticSearchService {
 
                         return new DoctorMatchDto(docUserId, fullName, bio, license, exp, fee, score, specs, academicTitle, hospitalAffiliation);
                     },
-                    vectorSql, vectorSql, effectiveLimit
+                    vectorSql, vectorSql, candidateLimit
             );
+
+            List<DoctorMatchDto> results = rankDoctors(candidates, queryText, effectiveLimit);
 
             if (results != null && !results.isEmpty()) {
                 doctorSearchCache.put(cacheKey, results);
@@ -166,5 +175,109 @@ public class DoctorSemanticSearchService {
             log.error("❌ pgvector semantic search query error: {}", e.getMessage(), e);
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * Weighted Multi-Criteria Hybrid Re-Ranking (WHRF) using Bounded Min-Heap PriorityQueue.
+     * Time Complexity: O(M log K) where M is candidate pool size and K is effectiveLimit.
+     *
+     * Composite Score Formula:
+     * CompositeScore = 0.65 * CosineSim + 0.20 * min(1.0, exp / 25) + 0.15 * AcademicScore + SpecialtyBonus (0.08)
+     */
+    public List<DoctorMatchDto> rankDoctors(List<DoctorMatchDto> candidates, String queryText, int limit) {
+        if (candidates == null || candidates.isEmpty()) {
+            return Collections.emptyList();
+        }
+        int effectiveLimit = Math.max(1, limit);
+        String normalizedQuery = stripAccents(queryText != null ? queryText.toLowerCase() : "");
+
+        // Bounded Min-Heap PriorityQueue: stores at most effectiveLimit candidates
+        PriorityQueue<DoctorMatchDto> minHeap = new PriorityQueue<>(
+                effectiveLimit,
+                Comparator.comparingDouble(DoctorMatchDto::getSimilarityScore)
+        );
+
+        for (DoctorMatchDto candidate : candidates) {
+            double compositeScore = calculateCompositeScore(candidate, normalizedQuery);
+            candidate.setSimilarityScore(Math.round(compositeScore * 1000.0) / 1000.0);
+
+            if (minHeap.size() < effectiveLimit) {
+                minHeap.offer(candidate);
+            } else if (candidate.getSimilarityScore() > minHeap.peek().getSimilarityScore()) {
+                minHeap.poll();
+                minHeap.offer(candidate);
+            }
+        }
+
+        // Extract elements from Min-Heap and sort in descending order (O(K log K))
+        List<DoctorMatchDto> ranked = new ArrayList<>(minHeap);
+        ranked.sort((a, b) -> Double.compare(b.getSimilarityScore(), a.getSimilarityScore()));
+
+        // Assign AI recommendation to top doctor if score is sufficiently high (>= 0.70)
+        if (!ranked.isEmpty() && ranked.get(0).getSimilarityScore() >= 0.70) {
+            ranked.get(0).setAiRecommended(true);
+            ranked.get(0).setAiRecommendationReason("Bác sĩ được đề xuất hàng đầu dựa trên sự tương thích chuyên môn và kinh nghiệm lâm sàng.");
+        }
+
+        return ranked;
+    }
+
+    private double calculateCompositeScore(DoctorMatchDto doc, String normalizedQuery) {
+        double cosineSim = doc.getSimilarityScore();
+        double expScore = Math.min(1.0, Math.max(0, doc.getYearsOfExperience()) / 25.0);
+        double academicScore = computeAcademicScore(doc.getAcademicTitle());
+        double specialtyBonus = computeSpecialtyBonus(doc.getSpecialties(), normalizedQuery);
+
+        double composite = (0.65 * cosineSim) + (0.20 * expScore) + (0.15 * academicScore) + specialtyBonus;
+        return Math.min(1.0, Math.max(0.0, composite));
+    }
+
+    private double computeAcademicScore(String title) {
+        if (title == null || title.isBlank()) {
+            return 0.5;
+        }
+        String upper = title.toUpperCase();
+        if (upper.contains("PGS") || upper.contains("PHÓ GIÁO SƯ") || upper.contains("PHO GIAO SU")) {
+            return 0.9;
+        }
+        if (upper.contains("GS") || upper.contains("GIÁO SƯ") || upper.contains("GIAO SU")) {
+            return 1.0;
+        }
+        if (upper.contains("THS") || upper.contains("THẠC SĨ") || upper.contains("THAC SI")) {
+            return 0.7;
+        }
+        if (upper.contains("TS") || upper.contains("TIẾN SĨ") || upper.contains("TIEN SI") || upper.contains("CKII") || upper.contains("CK2")) {
+            return 0.8;
+        }
+        if (upper.contains("CKI") || upper.contains("CK1")) {
+            return 0.6;
+        }
+        return 0.5;
+    }
+
+    private double computeSpecialtyBonus(List<String> specialties, String normalizedQuery) {
+        if (specialties == null || specialties.isEmpty() || normalizedQuery == null || normalizedQuery.isBlank()) {
+            return 0.0;
+        }
+        for (String spec : specialties) {
+            if (spec != null && !spec.isBlank()) {
+                String normSpec = stripAccents(spec.toLowerCase());
+                if (normalizedQuery.contains(normSpec)) {
+                    return 0.08;
+                }
+                for (String part : normSpec.split("\\s+")) {
+                    if (part.length() >= 3 && normalizedQuery.contains(part)) {
+                        return 0.08;
+                    }
+                }
+            }
+        }
+        return 0.0;
+    }
+
+    private String stripAccents(String input) {
+        if (input == null) return "";
+        String normalized = Normalizer.normalize(input, Normalizer.Form.NFD);
+        return DIACRITICS_PATTERN.matcher(normalized).replaceAll("").replace('đ', 'd').replace('Đ', 'd');
     }
 }

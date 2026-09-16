@@ -153,9 +153,11 @@ public class EmbeddingService {
         return sb.toString();
     }
 
+    private static final Pattern DIACRITICS_PATTERN = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+
     private String stripAccents(String s) {
+        if (s == null) return "";
         String n = Normalizer.normalize(s, Normalizer.Form.NFD);
-        Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
-        return pattern.matcher(n).replaceAll("").replace('đ', 'd').replace('Đ', 'D');
+        return DIACRITICS_PATTERN.matcher(n).replaceAll("").replace('đ', 'd').replace('Đ', 'D');
     }
 }

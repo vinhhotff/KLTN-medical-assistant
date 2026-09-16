@@ -170,4 +170,57 @@ class DoctorSemanticSearchServiceTest {
         assertTrue(doc.getSpecialties().contains("Dị Ứng"));
         assertTrue(doc.getSpecialties().contains("Miễn Dịch"));
     }
+
+    @Test
+    @DisplayName("rankDoctors uses bounded Min-Heap to re-rank candidates by multi-criteria and limits output to K")
+    void testRankDoctors_WeightedMultiCriteriaAndBoundedMinHeap() {
+        // Doc 1: Cosine 0.85, 2 years exp, BS (0.5), no spec match -> lower composite
+        DoctorMatchDto doc1 = new DoctorMatchDto(
+                UUID.randomUUID(), "BS. Trẻ", "Nội khoa", "L1",
+                2, BigDecimal.valueOf(150000), 0.85,
+                List.of("Nội Khoa"), "BS.", "BV Đa Khoa"
+        );
+
+        // Doc 2: Cosine 0.88, 25 years exp, GS (1.0), matches "tim mach" -> highest composite
+        DoctorMatchDto doc2 = new DoctorMatchDto(
+                UUID.randomUUID(), "GS.TS. Cao Cấp", "Tim mạch", "L2",
+                25, BigDecimal.valueOf(500000), 0.88,
+                List.of("Tim Mạch"), "GS.TS.", "BV Chợ Rẫy"
+        );
+
+        // Doc 3: Cosine 0.80, 15 years exp, PGS (0.9), matches "tim mach" -> high composite
+        DoctorMatchDto doc3 = new DoctorMatchDto(
+                UUID.randomUUID(), "PGS.TS. Trung Cấp", "Tim mạch", "L3",
+                15, BigDecimal.valueOf(350000), 0.80,
+                List.of("Tim Mạch"), "PGS.TS.", "BV Đại Học Y Dược"
+        );
+
+        // Doc 4: Cosine 0.30, 1 year exp, BS (0.5) -> pruned
+        DoctorMatchDto doc4 = new DoctorMatchDto(
+                UUID.randomUUID(), "BS. Yếu", "Da liễu", "L4",
+                1, BigDecimal.valueOf(100000), 0.30,
+                List.of("Da Liễu"), "BS.", "Phòng khám tư"
+        );
+
+        List<DoctorMatchDto> candidates = new java.util.ArrayList<>(List.of(doc1, doc2, doc3, doc4));
+        List<DoctorMatchDto> ranked = searchService.rankDoctors(candidates, "bệnh tim mạch đau ngực", 2);
+
+        assertNotNull(ranked);
+        assertEquals(2, ranked.size(), "Bounded Min-Heap must restrict output to exactly K=2");
+
+        // Doctor 2 must be #1 with highest composite score
+        assertEquals("GS.TS. Cao Cấp", ranked.get(0).getFullName());
+        assertTrue(ranked.get(0).isAiRecommended(), "Top doctor with score >= 0.70 must be AI recommended");
+        assertNotNull(ranked.get(0).getAiRecommendationReason());
+
+        // Doctor 3 or doc1 next, strictly sorted descending
+        assertTrue(ranked.get(0).getSimilarityScore() >= ranked.get(1).getSimilarityScore());
+    }
+
+    @Test
+    @DisplayName("rankDoctors returns empty list when candidates list is null or empty")
+    void testRankDoctors_NullOrEmptyCandidates() {
+        assertTrue(searchService.rankDoctors(null, "tim mạch", 5).isEmpty());
+        assertTrue(searchService.rankDoctors(Collections.emptyList(), "tim mạch", 5).isEmpty());
+    }
 }
