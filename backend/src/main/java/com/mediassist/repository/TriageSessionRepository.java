@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface TriageSessionRepository extends JpaRepository<TriageSession, UUID> {
     List<TriageSession> findByUserIdOrderByCreatedAtDesc(UUID userId);
+    List<TriageSession> findAllByOrderByCreatedAtDesc();
+    long countByIsEmergencyTrue();
 }

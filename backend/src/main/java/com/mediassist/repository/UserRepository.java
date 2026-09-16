@@ -23,4 +23,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query("UPDATE User u SET u.scanQuota = u.scanQuota + 1 WHERE u.id = :id")
     int restoreScanQuota(@org.springframework.data.repository.query.Param("id") UUID id);
+
+    long countByRole(com.mediassist.model.entity.Role role);
+    long countByStatus(com.mediassist.model.entity.UserStatus status);
 }

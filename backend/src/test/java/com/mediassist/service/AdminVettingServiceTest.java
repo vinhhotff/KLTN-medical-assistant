@@ -57,6 +57,18 @@ class AdminVettingServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private com.mediassist.repository.AppointmentRepository appointmentRepository;
+
+    @Mock
+    private com.mediassist.repository.TriageSessionRepository triageSessionRepository;
+
+    @Mock
+    private com.mediassist.repository.MedicalDocumentRepository medicalDocumentRepository;
+
+    @Mock
+    private com.mediassist.repository.DocumentAnalysisRepository documentAnalysisRepository;
+
     @InjectMocks
     private AdminVettingService adminVettingService;
 
@@ -241,5 +253,86 @@ class AdminVettingServiceTest {
         var resNoMatch = adminVettingService.getDoctorsPaged(0, 10, "NonExistentName", null, null);
         assertEquals(0, resNoMatch.getTotalElements());
         assertTrue(resNoMatch.getItems().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should aggregate system stats correctly across all repositories")
+    void testGetSystemStats() {
+        when(userRepository.count()).thenReturn(50L);
+        when(userRepository.countByRole(Role.PATIENT)).thenReturn(40L);
+        when(userRepository.countByRole(Role.DOCTOR)).thenReturn(8L);
+        when(doctorProfileRepository.countByIsVerifiedFalse()).thenReturn(2L);
+        when(userRepository.countByStatus(UserStatus.SUSPENDED)).thenReturn(1L);
+
+        when(appointmentRepository.count()).thenReturn(30L);
+        when(appointmentRepository.countByStatus(com.mediassist.model.entity.AppointmentStatus.SCHEDULED)).thenReturn(10L);
+        when(appointmentRepository.countByStatus(com.mediassist.model.entity.AppointmentStatus.IN_PROGRESS)).thenReturn(5L);
+        when(appointmentRepository.countByStatus(com.mediassist.model.entity.AppointmentStatus.COMPLETED)).thenReturn(12L);
+        when(appointmentRepository.countByStatus(com.mediassist.model.entity.AppointmentStatus.CANCELLED)).thenReturn(3L);
+
+        when(medicalDocumentRepository.count()).thenReturn(25L);
+        when(documentAnalysisRepository.countWithAbnormalIndicators()).thenReturn(8L);
+
+        when(triageSessionRepository.count()).thenReturn(45L);
+        when(triageSessionRepository.countByIsEmergencyTrue()).thenReturn(4L);
+
+        when(auditLogRepository.findTop100ByOrderByCreatedAtDesc()).thenReturn(List.of());
+
+        var stats = adminVettingService.getSystemStats();
+        assertNotNull(stats);
+        assertEquals(50, stats.getTotalUsers());
+        assertEquals(40, stats.getTotalPatients());
+        assertEquals(8, stats.getTotalDoctors());
+        assertEquals(2, stats.getPendingDoctorsCount());
+        assertEquals(1, stats.getSuspendedUsersCount());
+        assertEquals(30, stats.getTotalAppointments());
+        assertEquals(15, stats.getScheduledAppointmentsCount());
+        assertEquals(12, stats.getCompletedAppointmentsCount());
+        assertEquals(3, stats.getCancelledAppointmentsCount());
+        assertEquals(25, stats.getTotalDocumentsAnalyzed());
+        assertEquals(8, stats.getRedFlagDocumentsCount());
+        assertEquals(45, stats.getTotalTriageSessions());
+        assertEquals(4, stats.getEmergencyTriageCount());
+        assertEquals(41, stats.getRoutineTriageCount());
+        assertEquals("UP", stats.getInfrastructureHealth().get("database"));
+    }
+
+    @Test
+    @DisplayName("Should return audit logs with resolved user emails")
+    void testGetAuditLogs() {
+        AuditLog log = new AuditLog();
+        log.setId(UUID.randomUUID());
+        log.setUserId(doctorUser.getId());
+        log.setAction("DOCTOR_VETTED");
+        log.setResource("doctors/1");
+
+        when(auditLogRepository.findTop100ByOrderByCreatedAtDesc()).thenReturn(List.of(log));
+        when(userRepository.findById(doctorUser.getId())).thenReturn(Optional.of(doctorUser));
+
+        var logs = adminVettingService.getAuditLogs(null);
+        assertNotNull(logs);
+        assertEquals(1, logs.size());
+        assertEquals("DOCTOR_VETTED", logs.get(0).getAction());
+        assertEquals("doctor.nguyen@mediassist.local", logs.get(0).getUserEmail());
+    }
+
+    @Test
+    @DisplayName("Should allow admin to cancel an appointment with intervention reason")
+    void testAdminCancelAppointment() {
+        com.mediassist.model.entity.Appointment app = new com.mediassist.model.entity.Appointment();
+        app.setId(UUID.randomUUID());
+        app.setAppointmentCode("AP-2026-TEST");
+        app.setStatus(com.mediassist.model.entity.AppointmentStatus.SCHEDULED);
+        app.setDoctor(doctorUser);
+        app.setPatient(doctorUser);
+
+        when(appointmentRepository.findByIdWithUsers(app.getId())).thenReturn(Optional.of(app));
+        when(appointmentRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var dto = adminVettingService.adminCancelAppointment(app.getId(), adminId, "Doctor emergency leave");
+        assertNotNull(dto);
+        assertEquals(com.mediassist.model.entity.AppointmentStatus.CANCELLED, dto.getStatus());
+        assertTrue(dto.getCancellationReason().contains("Doctor emergency leave"));
+        verify(auditLogRepository).save(any(AuditLog.class));
     }
 }

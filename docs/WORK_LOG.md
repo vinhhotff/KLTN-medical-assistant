@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#064** | 16/09/2026 | Nâng Cấp Toàn Diện Trung Tâm Giám Sát & Quản Trị Hệ Thống Dành Cho Admin (Admin Clinical & Infrastructure Supervision Hub): (1) Bảng KPIs Vận Hành Thời Gian Thực (/admin/stats), (2) Trung Tâm Giám Sát Lịch Hẹn Toàn Viện (/admin/appointments) Kèm Thanh Tra Chẩn Đoán ICD-10 & Quyền Hủy Can Thiệp, (3) Trung Tâm Giám Sát Phân Luồng Lâm Sàng AI & Cảnh Báo Đỏ Cấp Cứu (/admin/triage), (4) Trung Tâm Tra Cứu Nhật Ký Kiểm Toán HIPAA (/admin/audit-logs) & Đạt 109/109 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#063** | 15/09/2026 | Kiểm Toán Toàn Diện & Vá Triệt Để 5 Lỗi Tiềm Ẩn / Lỗ Hổng Luồng OpenID Connect (OIDC) & Google OAuth2: (1) Đồng Bộ Cổng 5001 Dynamic URL Frontend, (2) Bổ Sung Vite Proxy Cho /oauth2 & /login/oauth2, (3) Phòng Ngừa NullPointerException Khi Google Thiếu Email/Sub, (4) Zero-Trust Security Guard Chặn Cấp Token & Chặn Đăng Nhập Cho Tài Khoản Bị Đình Chỉ (SUSPENDED) Hoặc Bị Khóa (LOCKED), (5) Đồng Bộ ResponseCookie Chuẩn Hóa Theo AuthController, (6) Bổ Sung Bộ Unit Tests OAuth2SecurityTest Đạt 106/106 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#062** | 15/09/2026 | Rà Soát Toàn Diện Lỗ Hổng & Điểm Lệch Cận Lâm Sàng / Lịch Hẹn: (1) Chống Tràn Cột DB VARCHAR(255) Tên Tệp Tổng Hợp Đa Tệp, (2) Đóng Gói Lưu Trữ Đám Mây Toàn Diện Toàn Bộ Tệp Thành Archive ZIP In-Memory (Ho_So_Tong_Hop_N_Tep.zip), (3) Tái Cấu Trúc Trích Xuất Rào Chắn Kiểm Thẩm Đa Tệp validateBatchConstraints, (4) Phòng Ngừa Lỗi 500 NPE / IllegalArgument Cập Nhật Trạng Thái Lịch Khám & Đạt 95/95 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#061** | 15/09/2026 | Hỗ Trợ Nhập Đồng Thời Nhiều Tệp (Mixed Multi-File Ingestion: PDF + Hình Ảnh PNG/JPG Cùng Lúc) Cho Tính Năng Phân Tích Cận Lâm Sàng: Trích Xuất Song Song (Parallel OCR & PDFBox via medicalOcrExecutor), Khấu Trừ Atomic 1 Quota Cho Cả Đợt Quét, Hàng Đợi Multi-File Queue Card Trực Quan & Đạt 94/94 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
@@ -20,6 +21,83 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#064] Nâng Cấp Toàn Diện Trung Tâm Giám Sát & Quản Trị Hệ Thống Dành Cho Admin (Admin Clinical & Infrastructure Supervision Hub)
+* **Thời gian:** 2026-09-16 08:35:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-17 (Giám Sát Vận Hành Toàn Viện, Lịch Khám Lâm Sàng, An Toàn Triage AI & Nhật Ký Kiểm Toán)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **109/109 Unit Tests PASS 100%** (Tăng từ 106 lên 109 tests, bổ sung trọn bộ 3 test cases trong `AdminVettingServiceTest`)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1676 modules transformed** trong 1.62s
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Nhu Cầu Quản Trị (Executive Requirements):
+Tech Lead chỉ ra rằng giao diện Admin hiện tại còn thiếu nhiều tính năng giám sát trọng yếu. Hệ thống y tế cần 4 trụ cột giám sát điều hành toàn diện để phục vụ vận hành thực tế và bảo vệ đồ án KLTN:
+1. **Executive Operational KPIs:** Cần nắm bắt số liệu thời gian thực về người dùng theo vai trò, tỷ lệ bác sĩ chờ duyệt, lịch khám, tỷ lệ ca cấp cứu AI Triage, và tài liệu cận lâm sàng có cảnh báo bất thường.
+2. **Hospital-wide Telehealth Appointments Supervision:** Khả năng tra cứu, lọc và giám sát toàn bộ lịch khám giữa bác sĩ và bệnh nhân, kiểm tra chẩn đoán ICD-10, chỉ số sinh hiệu (vitals), đơn thuốc và can thiệp hủy lịch khi có sự cố kỹ thuật hoặc vi phạm chính sách.
+3. **Clinical Safety & AI Triage Supervision:** Giám sát liên tục các phiên hội thoại phân luồng AI Triage, bắt cờ cảnh báo đỏ cấp cứu (`isEmergency=true`), xem mức độ khẩn cấp (Emergency, Urgent, Routine), chuyên khoa gợi ý và tóm tắt lâm sàng chuẩn SBAR.
+4. **HIPAA-compliant Enterprise Audit Trail:** Tra cứu nhật ký kiểm toán hệ thống (Audit Logs), theo dõi IP client, hành vi người dùng, dữ liệu payload JSON trước/sau nhằm đáp ứng tiêu chuẩn an toàn thông tin y tế.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi:
+* `[NEW]` [`backend/src/main/java/com/mediassist/dto/AdminSystemStatsDto.java`](file:///backend/src/main/java/com/mediassist/dto/AdminSystemStatsDto.java):
+  - DTO tổng hợp 12 chỉ số KPIs vận hành: người dùng theo vai trò, trạng thái tài khoản, lịch hẹn, phiên triage cấp cứu, và phân tích tài liệu bất thường.
+* `[NEW]` [`backend/src/main/java/com/mediassist/dto/AuditLogDto.java`](file:///backend/src/main/java/com/mediassist/dto/AuditLogDto.java):
+  - DTO truyền tải thông tin nhật ký kiểm toán: ID, user, action, entity, IP address, user agent, changes JSON, timestamp.
+* `[NEW]` [`backend/src/main/java/com/mediassist/dto/AdminTriageSessionDto.java`](file:///backend/src/main/java/com/mediassist/dto/AdminTriageSessionDto.java):
+  - DTO chi tiết phiên Triage: thông tin bệnh nhân, mức độ khẩn cấp, cờ cấp cứu, chuyên khoa gợi ý, tóm tắt SBAR, thời gian khởi tạo.
+* `[MOD]` [`backend/src/main/java/com/mediassist/repository/AppointmentRepository.java`](file:///backend/src/main/java/com/mediassist/repository/AppointmentRepository.java):
+  - Bổ sung `findAllWithUsersOrderByScheduledStartDesc()` với `JOIN FETCH` bệnh nhân & bác sĩ; bổ sung `countByStatus()`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/repository/AuditLogRepository.java`](file:///backend/src/main/java/com/mediassist/repository/AuditLogRepository.java):
+  - Bổ sung `findTop100ByOrderByCreatedAtDesc()` và `findByActionOrderByCreatedAtDesc()`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/repository/TriageSessionRepository.java`](file:///backend/src/main/java/com/mediassist/repository/TriageSessionRepository.java):
+  - Bổ sung `findAllByOrderByCreatedAtDesc()` và `countByIsEmergencyTrue()`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/repository/UserRepository.java`](file:///backend/src/main/java/com/mediassist/repository/UserRepository.java):
+  - Bổ sung `countByRole()` và `countByStatus()`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/repository/DoctorProfileRepository.java`](file:///backend/src/main/java/com/mediassist/repository/DoctorProfileRepository.java):
+  - Bổ sung `countByIsVerifiedFalse()`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/repository/DocumentAnalysisRepository.java`](file:///backend/src/main/java/com/mediassist/repository/DocumentAnalysisRepository.java):
+  - Bổ sung `countWithAbnormalIndicators()`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/AdminVettingService.java`](file:///backend/src/main/java/com/mediassist/service/AdminVettingService.java):
+  - Tích hợp các repository mới; bổ sung 5 nghiệp vụ: `getSystemStats()`, `getAuditLogs()`, `getTriageSessions()`, `getAllAppointments()`, và `adminCancelAppointment()`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/controller/AdminController.java`](file:///backend/src/main/java/com/mediassist/controller/AdminController.java):
+  - Mở 5 endpoints REST bảo mật bởi `@PreAuthorize("hasRole('ADMIN')")`:
+    - `GET /api/v1/admin/stats`
+    - `GET /api/v1/admin/appointments`
+    - `PATCH /api/v1/admin/appointments/{id}/cancel`
+    - `GET /api/v1/admin/triage-sessions`
+    - `GET /api/v1/admin/audit-logs`
+* `[MOD]` [`backend/src/test/java/com/mediassist/service/AdminVettingServiceTest.java`](file:///backend/src/test/java/com/mediassist/service/AdminVettingServiceTest.java):
+  - Bổ sung mock repositories và 3 bài unit test cho các tính năng giám sát mới.
+* `[MOD]` [`frontend/src/layouts/AdminLayout.tsx`](file:///frontend/src/layouts/AdminLayout.tsx):
+  - Bổ sung menu điều hướng trực quan với icons Lucide (`CalendarCheck`, `HeartPulse`, `FileSpreadsheet`), active route state và responsive header.
+* `[MOD]` [`frontend/src/pages/admin/AdminDashboard.tsx`](file:///frontend/src/pages/admin/AdminDashboard.tsx):
+  - Nâng cấp Dashboard toàn diện: 4 thẻ KPI cụm (Users, Appointments, AI Clinical Safety, Telehealth Queue), bảng trạng thái hạ tầng (PostgreSQL 16, pgvector, Redis L2, Gemini 2.5 Flash), hàng đợi duyệt bác sĩ và nhật ký kiểm toán gần nhất.
+* `[NEW]` [`frontend/src/pages/admin/AppointmentSupervisionPage.tsx`](file:///frontend/src/pages/admin/AppointmentSupervisionPage.tsx):
+  - Trung tâm giám sát lịch khám toàn viện: lọc theo trạng thái, tìm kiếm bác sĩ/bệnh nhân, drawer xem hồ sơ lâm sàng (ICD-10, Vitals, đơn thuốc), modal hủy lịch hành chính.
+* `[NEW]` [`frontend/src/pages/admin/TriageSupervisionPage.tsx`](file:///frontend/src/pages/admin/TriageSupervisionPage.tsx):
+  - Trung tâm giám sát phân luồng AI: cảnh báo đỏ nhấp nháy cho ca cấp cứu khẩn cấp, lọc theo mức độ khẩn cấp (Emergency, Urgent, Routine), drawer xem tóm tắt SBAR.
+* `[NEW]` [`frontend/src/pages/admin/AuditLogPage.tsx`](file:///frontend/src/pages/admin/AuditLogPage.tsx):
+  - Trung tâm nhật ký kiểm toán HIPAA: tra cứu 100 sự kiện gần nhất, lọc theo loại hành động, hiển thị chi tiết IP, user agent và JSON payload.
+* `[MOD]` [`frontend/src/App.tsx`](file:///frontend/src/App.tsx):
+  - Đăng ký 3 route mới: `/admin/appointments`, `/admin/triage`, `/admin/audit-logs`.
+* `[MOD]` [`docs/USE_CASES.md`](file:///docs/USE_CASES.md):
+  - Bổ sung tài liệu nghiệp vụ chi tiết cho `UC-17`.
+
+#### 3. Bằng Chứng Kiểm Thử & Xác Nhận (Verification Evidence):
+* **Backend:** `mvn test` $\rightarrow$ **109/109 Tests PASS (100%)**, không có lỗi hồi quy.
+* **Frontend:** `npm run build` $\rightarrow$ **0 TypeScript Errors**, build hoàn tất trong 1.62s.
+* **Live API Verification:**
+  - `GET /api/v1/admin/stats` $\rightarrow$ HTTP 200 OK với đầy đủ 12 số liệu KPI.
+  - `GET /api/v1/admin/appointments` $\rightarrow$ HTTP 200 OK trả về danh sách lịch khám toàn viện.
+  - `GET /api/v1/admin/triage-sessions` $\rightarrow$ HTTP 200 OK trả về các phiên triage phân loại lâm sàng.
+  - `GET /api/v1/admin/audit-logs` $\rightarrow$ HTTP 200 OK trả về các bản ghi kiểm toán HIPAA.
+
+#### 4. Điểm Nóng Tech Lead Cần Review:
+1. **Quyền Hủy Lịch Hành Chính:** `PATCH /api/v1/admin/appointments/{id}/cancel` cho phép Admin can thiệp hủy lịch và lưu vết vào cột `notes`, giải phóng slot cho bác sĩ và bệnh nhân.
+2. **Tuân Thủ Giới Hạn Tải:** Endpoint `/audit-logs` trả về `findTop100ByOrderByCreatedAtDesc()` để tránh tải toàn bộ bảng audit log lớn, duy trì tốc độ phản hồi $< 50\text{ms}$.
+3. **Cơ Chế Khóa Bảo Mật Rate Limiting:** Endpoint đăng nhập tuân thủ `SecurityRateLimiterService` với 5 lần thử/phút, bảo vệ an toàn cho tài khoản Quản trị viên.
+
+---
 
 ### [WORK-LOG-#063] Kiểm Toán Toàn Diện & Vá Triệt Để 5 Lỗi Tiềm Ẩn / Lỗ Hổng Luồng OpenID Connect (OIDC) & Google OAuth2
 * **Thời gian:** 2026-09-15 22:20:00 (GMT+7)

@@ -589,4 +589,25 @@ graph TD
   4. Khi người dùng nhập từ khóa tìm kiếm hoặc đổi bộ lọc, hệ thống tự động đưa trang hiện tại về `page = 1`.
   5. Tệp và ảnh xét nghiệm tải lên được đẩy trực tiếp lên bucket `medical-documents` trên Supabase Cloud Storage nếu được bật, hoặc lưu dự phòng vào đĩa nội bộ nếu mạng gián đoạn, bảo đảm 0% downtime.
 
+---
 
+### UC-17: Giám Sát Vận Hành Toàn Viện, Lịch Khám Lâm Sàng, An Toàn Triage AI & Nhật Ký Kiểm Toán (Admin Enterprise Supervision & Audit Hub)
+
+* **Mã Use Case:** `UC-ADM-17`
+* **Tác nhân chính:** System Administrator, Spring Boot API, AuditLogRepository, AppointmentRepository, TriageSessionRepository.
+* **Mục tiêu:** Cung cấp cho Quản trị viên (Admin) một trung tâm chỉ huy vận hành và giám sát lâm sàng tối cao theo chuẩn doanh nghiệp và y tế số:
+  1. Giám sát thời gian thực các chỉ số KPIs vận hành toàn viện qua Dashboard chuyên sâu.
+  2. Thanh tra toàn bộ các cuộc hẹn khám bệnh giữa Bác sĩ và Bệnh nhân, đối soát chẩn đoán ICD-10 và can thiệp hủy lịch khẩn cấp khi có sự cố.
+  3. Giám sát an toàn lâm sàng của các phiên phân luồng triệu chứng AI Triage, phát hiện sớm các ca cảnh báo đỏ cấp cứu (`EMERGENCY`).
+  4. Truy vết toàn bộ hành vi nhạy cảm trong hệ thống thông qua Nhật ký Kiểm toán (System Audit Trail) tuân thủ tiêu chuẩn bảo mật y tế HIPAA và Nghị định 13/2023/NĐ-CP.
+* **REST Endpoints Liên Quan:**
+  - `GET /api/v1/admin/stats`: Trả về `AdminSystemStatsDto` tổng hợp số lượng Người dùng, Bác sĩ, Bệnh nhân, Lịch khám, Hồ sơ EMR, Phiên Triage, Sức khỏe hạ tầng DB/Redis/Thread Pool và 10 hoạt động gần nhất.
+  - `GET /api/v1/admin/appointments`: Lấy toàn bộ danh sách cuộc hẹn khám bệnh toàn viện kèm thông tin Bác sĩ, Bệnh nhân, Chuyên khoa, Chẩn đoán ICD-10, Đơn thuốc điện tử.
+  - `PATCH /api/v1/admin/appointments/{id}/cancel`: Quyền can thiệp của Quản trị viên hủy cuộc hẹn vì lý do điều phối lâm sàng kèm ghi nhận Audit Log.
+  - `GET /api/v1/admin/triage-sessions`: Giám sát toàn bộ phiên phân luồng triệu chứng AI, mức độ khẩn cấp (Emergency / Urgent / Routine), báo cáo lâm sàng chuẩn SBAR và khuyến nghị bác sĩ.
+  - `GET /api/v1/admin/audit-logs?action=...`: Truy xuất nhật ký kiểm toán hệ thống theo từng nhóm hành vi hoặc thời gian thực.
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Executive Dashboard KPIs (`/admin`):** Hiển thị 4 cụm thẻ chỉ số động (Nhân lực y tế, Lịch hẹn, Cận lâm sàng OCR, Phân luồng AI), tình trạng kết nối Database pgvector và Two-Layer Cache, cùng hàng đợi duyệt bác sĩ và luồng hoạt động mới nhất.
+  2. **Giám Sát Lịch Hẹn (`/admin/appointments`):** Quản trị viên lọc cuộc hẹn theo trạng thái (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`), tìm kiếm nhanh theo mã cuộc hẹn, tên bác sĩ/bệnh nhân. Bấm *"Chi Tiết"* để thanh tra hồ sơ lâm sàng gồm Sinh hiệu, Chẩn đoán ICD-10 và Đơn thuốc điện tử. Nếu có sự cố bất khả kháng, Admin bấm *"Hủy khẩn cấp"* nhập lý do giải trình.
+  3. **Giám Sát Triage AI (`/admin/triage`):** Xem danh sách phân loại triệu chứng của người bệnh. Các ca cấp cứu (`isEmergency = true`) được gắn huy hiệu cảnh báo đỏ nhấp nháy nổi bật. Admin có thể mở Drawer xem chi tiết cấu trúc SBAR (`Situation`, `Background`, `Assessment`, `Recommendation`) và lời khuyên do AI đưa ra.
+  4. **Nhật Ký Kiểm Toán (`/admin/audit-logs`):** Xem lịch sử toàn bộ hành vi nhạy cảm trong hệ thống, lọc theo hành động (`DOCTOR_VETTED`, `APPOINTMENT_BOOKED`, `CLINICAL_ENCOUNTER_COMPLETED`, `ADMIN_CANCEL_APPOINTMENT`, `UPDATE_USER_STATUS`, `CREATE_SPECIALTY`), xem địa chỉ IP, tài nguyên tác động và chi tiết metadata JSON.

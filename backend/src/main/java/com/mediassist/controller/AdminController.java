@@ -130,4 +130,40 @@ public class AdminController {
         SpecialtyDto result = adminVettingService.createSpecialty(request, principal.getId());
         return ResponseEntity.ok(ApiResponse.success(result));
     }
+
+    @GetMapping("/stats")
+    @Operation(summary = "Get comprehensive system operational KPIs and health metrics", description = "Aggregates real-time statistics across users, doctors, appointments, EMR scans, and AI triage.")
+    public ResponseEntity<ApiResponse<AdminSystemStatsDto>> getSystemStats() {
+        return ResponseEntity.ok(ApiResponse.success(adminVettingService.getSystemStats()));
+    }
+
+    @GetMapping("/appointments")
+    @Operation(summary = "Supervise all telehealth appointments across the platform", description = "Returns full appointments history with patient and doctor details.")
+    public ResponseEntity<ApiResponse<List<AppointmentDto>>> getAllAppointments() {
+        return ResponseEntity.ok(ApiResponse.success(adminVettingService.getAllAppointments()));
+    }
+
+    @PatchMapping("/appointments/{id}/cancel")
+    @Operation(summary = "Admin intervention to cancel an appointment", description = "Cancels an appointment with operational intervention reason and audit log.")
+    public ResponseEntity<ApiResponse<AppointmentDto>> adminCancelAppointment(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody(required = false) java.util.Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : "Quản trị viên can thiệp hủy lịch hẹn";
+        AppointmentDto result = adminVettingService.adminCancelAppointment(id, principal.getId(), reason);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @GetMapping("/triage-sessions")
+    @Operation(summary = "Supervise AI Symptom Triage consultations and clinical safety", description = "Returns all triage sessions to monitor urgency levels and emergency red flags.")
+    public ResponseEntity<ApiResponse<List<AdminTriageSessionDto>>> getTriageSessions() {
+        return ResponseEntity.ok(ApiResponse.success(adminVettingService.getTriageSessions()));
+    }
+
+    @GetMapping("/audit-logs")
+    @Operation(summary = "Inspect enterprise system audit logs", description = "Returns immutable audit trails for HIPAA-compliant clinical governance.")
+    public ResponseEntity<ApiResponse<List<AuditLogDto>>> getAuditLogs(
+            @RequestParam(name = "action", required = false) String action) {
+        return ResponseEntity.ok(ApiResponse.success(adminVettingService.getAuditLogs(action)));
+    }
 }

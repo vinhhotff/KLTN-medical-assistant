@@ -11,6 +11,9 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { DoctorManagementPage } from './pages/admin/DoctorManagementPage';
 import { UserManagementPage } from './pages/admin/UserManagementPage';
 import { SpecialtyManagementPage } from './pages/admin/SpecialtyManagementPage';
+import { AppointmentSupervisionPage } from './pages/admin/AppointmentSupervisionPage';
+import { TriageSupervisionPage } from './pages/admin/TriageSupervisionPage';
+import { AuditLogPage } from './pages/admin/AuditLogPage';
 import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
 import { DoctorProfilePage } from './pages/doctor/DoctorProfilePage';
 import { PatientDashboard } from './pages/patient/PatientDashboard';
@@ -35,9 +38,12 @@ export function App() {
           <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
+              <Route path="appointments" element={<AppointmentSupervisionPage />} />
+              <Route path="triage" element={<TriageSupervisionPage />} />
               <Route path="doctors" element={<DoctorManagementPage />} />
               <Route path="users" element={<UserManagementPage />} />
               <Route path="specialties" element={<SpecialtyManagementPage />} />
+              <Route path="audit-logs" element={<AuditLogPage />} />
             </Route>
           </Route>
 

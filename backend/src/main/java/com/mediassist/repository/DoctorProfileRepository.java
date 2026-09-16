@@ -31,4 +31,5 @@ public interface DoctorProfileRepository extends JpaRepository<DoctorProfile, UU
 
     Optional<DoctorProfile> findByUserId(UUID userId);
     Optional<DoctorProfile> findByLicenseNumber(String licenseNumber);
+    long countByIsVerifiedFalse();
 }
