@@ -488,4 +488,48 @@ Nhằm triệt tiêu triệt để độ trễ truy vấn (Query Lag) và hiện
 | `idx_doc_analysis_abnormal_partial` | `document_analyses` | `(id) WHERE abnormal_indicators_json IS NOT NULL AND ...` | **Partial Index** loại bỏ hoàn toàn Full Table Scan khi đếm các hồ sơ cận lâm sàng có chỉ số bệnh lý bất thường. |
 | `idx_doc_analyses_created_desc` | `document_analyses` | `(created_at DESC)` | Tăng tốc truy vấn lịch sử phân tích tài liệu cận lâm sàng bệnh nhân và bác sĩ. |
 
+---
+
+## 9. Sổ Cái Giao Dịch & Cổng Thanh Toán Đa Kênh (Flyway V13)
+
+Để phục vụ quản lý doanh thu minh bạch, kiểm toán tài chính y tế và tích hợp các cổng thanh toán (Stripe Sandbox, VietQR, VNPAY, MoMo), bản di trú `V13__create_payment_transactions.sql` thiết lập bảng sổ cái `payment_transactions`:
+
+### 9.1. Lược Đồ Bảng `payment_transactions`
+```sql
+CREATE TABLE IF NOT EXISTS payment_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    transaction_code VARCHAR(64) NOT NULL UNIQUE,       -- Định dạng: TX-YYYYMMDD-XXXXXX
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    order_type VARCHAR(40) NOT NULL,                    -- QUOTA_PURCHASE | APPOINTMENT_FEE
+    reference_id VARCHAR(100),                          -- Mã gói (BASIC_5, VIP_MONTHLY) hoặc appointment_id
+    amount DECIMAL(12, 2) NOT NULL,                     -- Số tiền giao dịch (VNĐ)
+    currency VARCHAR(10) NOT NULL DEFAULT 'VND',
+    payment_method VARCHAR(40) NOT NULL,                -- STRIPE | VIETQR | VNPAY | MOMO | MOCK
+    payment_gateway VARCHAR(40) NOT NULL,               -- STRIPE | LOCAL_MOCK
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDING'       -- PENDING | COMPLETED | FAILED | CANCELLED | REFUNDED
+        CHECK (status IN ('PENDING', 'COMPLETED', 'FAILED', 'CANCELLED', 'REFUNDED')),
+    gateway_reference VARCHAR(255),                     -- Stripe Session ID (cs_test_...) hoặc PaymentIntent ID
+    metadata_json TEXT,                                 -- Thông tin chi tiết phản hồi từ gateway (thẻ, webhook)
+    created_at TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0                   -- Optimistic locking chống ghi đè đồng thời
+);
+
+-- Chỉ mục tối ưu hóa tra cứu sổ cái & kiểm toán tài chính
+CREATE INDEX IF NOT EXISTS idx_payment_tx_user_id ON payment_transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_payment_tx_code ON payment_transactions(transaction_code);
+CREATE INDEX IF NOT EXISTS idx_payment_tx_gateway_ref ON payment_transactions(gateway_reference);
+CREATE INDEX IF NOT EXISTS idx_payment_tx_status ON payment_transactions(status);
+CREATE INDEX IF NOT EXISTS idx_payment_tx_created_at ON payment_transactions(created_at DESC);
+```
+
+### 9.2. Nguyên Tắc An Toàn Tài Chính & Idempotency (Bất Khả Xâm Phạm)
+1. **Chống Ghi Đè Kép (Strict Idempotency Guard):**
+   - Khi nhận yêu cầu xác thực qua Webhook hoặc Redirect Return URL, hệ thống kiểm tra `status == 'COMPLETED'`.
+   - Nếu giao dịch đã hoàn tất trước đó, hệ thống lập tức trả về biên lai thành công mà tuyệt đối không cộng đúp hạn ngạch quét (`scan_quota`) hoặc thời hạn VIP (`vip_valid_until`).
+2. **Khóa Lạc Quan (`@Version` Optimistic Locking):**
+   - Cột `version` ngăn chặn xung đột dữ liệu (race conditions) khi Webhook từ Stripe và luồng Return URL của trình duyệt gửi về đồng thời.
+3. **Audit Trail Bắt Buộc:**
+   - Mọi giao dịch hoàn tất thành công đều tự động kích hoạt tạo bản ghi trong bảng `audit_logs` với `action = 'PAYMENT_COMPLETED'`.
+
 

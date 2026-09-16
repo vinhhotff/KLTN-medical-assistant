@@ -136,6 +136,13 @@
             <version>3.0.4</version>
         </dependency>
 
+        <!-- Stripe Java SDK (Multi-Gateway & Sandbox Payments) -->
+        <dependency>
+            <groupId>com.stripe</groupId>
+            <artifactId>stripe-java</artifactId>
+            <version>33.4.2</version>
+        </dependency>
+
 
         <!-- Test Starter -->
         <dependency>

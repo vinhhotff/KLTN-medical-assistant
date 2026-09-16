@@ -20,6 +20,7 @@ import { PatientDashboard } from './pages/patient/PatientDashboard';
 import { DoctorSearchPage } from './pages/patient/DoctorSearchPage';
 import { DocumentSummarizerPage } from './pages/patient/DocumentSummarizerPage';
 import { SymptomTriagePage } from './pages/patient/SymptomTriagePage';
+import { PaymentSuccessPage } from './pages/patient/PaymentSuccessPage';
 
 export function App() {
   return (
@@ -33,6 +34,10 @@ export function App() {
 
           {/* OAuth2 Callback — Backend redirect ve day sau khi Google xac thuc thanh cong */}
           <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
+
+          {/* Payment Callback & Receipt Verification */}
+          <Route path="/payment/success" element={<PaymentSuccessPage />} />
+          <Route path="/payment/cancel" element={<Navigate to="/patient/documents" replace />} />
 
           {/* Admin Protected Routes */}
           <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>

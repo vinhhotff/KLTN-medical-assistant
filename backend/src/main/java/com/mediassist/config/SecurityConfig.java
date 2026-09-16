@@ -82,11 +82,14 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/documents/sample-random-pdf").permitAll()
                         // Public Medical PII De-identification Testing (Decree 13/2023/ND-CP & HIPAA)
                         .requestMatchers("/api/v1/pii/**").permitAll()
+                        // Public Webhook listener for Stripe Payment Gateway (HMAC Signature Verified)
+                        .requestMatchers("/api/v1/payments/webhook/**").permitAll()
 
                         // ZERO-TRUST MANDATE: AI Triage, pgvector semantic search & OCR Lab PDF analysis strictly require authentication
                         .requestMatchers("/api/v1/triage/**").authenticated()
                         .requestMatchers("/api/v1/documents/**").authenticated()
                         .requestMatchers("/api/v1/appointments/**").authenticated()
+                        .requestMatchers("/api/v1/payments/**").authenticated()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/doctors/me/**").hasRole("DOCTOR")
                         .requestMatchers("/api/v1/doctor/**").hasRole("DOCTOR")

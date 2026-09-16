@@ -648,3 +648,33 @@ graph TD
      - Bấm *"Lưu Cấu Hình Ca Trực"*: Hệ thống ghi nhận vào bảng `doctor_schedule_slots`, phục vụ điều phối lịch đặt khám cho bệnh nhân trên toàn hệ sinh thái.
   5. **Đồng Bộ Hồ Sơ Chuyên Khoa Động (`/doctor/profile`):**
      - Hồ sơ bác sĩ tải danh mục chuyên khoa động từ `/api/v1/specialties`, loại bỏ hoàn toàn mã tĩnh (hardcoded list), tự động đồng bộ vector nhúng 1536 chiều khi cập nhật thông tin.
+
+---
+
+### UC-19: Cổng Thanh Toán Đa Kênh Tích Hợp Stripe Sandbox & Quản Lý Sổ Cái Giao Dịch (Pluggable Payment Gateway, Stripe Sandbox & Financial Transactions)
+
+* **Mã Use Case:** `UC-PAY-19`
+* **Tác nhân chính:** Patient, Stripe Gateway, PaymentService, PostgreSQL (`payment_transactions`), AuditLogRepository.
+* **Mục tiêu:** Cung cấp hệ sinh thái thanh toán y tế đa kênh cắm rút (Pluggable Multi-Gateway) theo Strategy Pattern:
+  1. Tích hợp cổng thanh toán quốc tế **Stripe Sandbox** (hỗ trợ thanh toán thẻ test `4242 4242 4242 4242`, Visa/Mastercard/Apple Pay) bằng tiền tệ VNĐ.
+  2. Hỗ trợ cổng thử nghiệm **VietQR / VNPAY / MoMo** với Napas 247 QR simulation.
+  3. Quản lý sổ cái giao dịch tài chính (`payment_transactions`) minh bạch, chống ghi đè kép (Idempotent Guard), và lưu vết kiểm toán HIPAA.
+  4. Mở rộng thanh toán phí khám lịch hẹn (`APPOINTMENT_FEE`), tự động cập nhật trạng thái `PAID` và đồng bộ doanh thu bác sĩ.
+* **REST Endpoints Liên Quan:**
+  - `POST /api/v1/payments/checkout`: Khởi tạo phiên thanh toán (Stripe Checkout Session hoặc QR Sandbox) kèm sinh mã giao dịch duy nhất `TX-YYYYMMDD-XXXXXX`.
+  - `POST /api/v1/payments/verify`: Đối soát và hoàn tất giao dịch sau khi người dùng điều hướng về trang kết quả `/payment/success`.
+  - `POST /api/v1/payments/webhook/stripe`: Tiếp nhận webhook bất đồng bộ từ Stripe (HMAC SHA-256 signature verified, `permitAll()`).
+  - `GET /api/v1/payments/history`: Xem toàn bộ lịch sử giao dịch và biên lai điện tử của người bệnh.
+  - `GET /api/v1/payments/transactions/{code}`: Tra cứu chi tiết một giao dịch cụ thể.
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Mua Gói Quét Hoặc Nâng Cấp Hội Viên VIP (`/patient/documents`):**
+     - Người bệnh chọn gói dịch vụ (`BASIC_5`, `VIP_MONTHLY`, `VIP_ENTERPRISE`).
+     - Người bệnh chọn phương thức: **Stripe Sandbox**, **VietQR Pro**, **VNPAY QR**, hoặc **Ví MoMo**.
+     - Nếu chọn Stripe: Hệ thống gọi `/api/v1/payments/checkout`, sinh phiên Stripe Checkout và chuyển hướng người bệnh tới trang thanh toán an toàn của Stripe. Người bệnh nhập thẻ test `4242 4242 4242 4242` để thanh toán thử nghiệm.
+     - Sau khi thanh toán, Stripe chuyển hướng về `/payment/success?session_id=...&tx=...`. Trang kết quả tự động đối soát, hiển thị biên lai điện tử và kích hoạt ngay gói dịch vụ.
+  2. **Thanh Toán Phí Khám Lịch Hẹn Trực Tuyến (`/patient`):**
+     - Tại danh sách lịch hẹn trên Patient Dashboard, với các ca khám `Chưa Thanh Toán` (UNPAID), người bệnh có nút *"Thanh Toán Online (Stripe)"*.
+     - Khi bấm thanh toán, hệ thống tạo giao dịch `orderType = 'APPOINTMENT_FEE'` với đúng số tiền `feeAmount` của ca khám.
+     - Sau khi thanh toán thành công, trạng thái ca hẹn chuyển thành `Đã Thanh Toán (PAID)`, đồng thời số tiền được tự động cộng vào Doanh thu hôm nay trên Trạm làm việc của Bác sĩ.
+  3. **Độ Bền Vững & Dự Phòng Cục Bộ (Sandbox Resilience):**
+     - Nếu môi trường chạy offline hoặc không có API key Stripe thật, hệ thống tự động kích hoạt chế độ Stripe Sandbox mô phỏng nội bộ, bảo đảm toàn bộ kịch bản demo và bảo vệ đồ án luôn thành công 100% không bị gián đoạn.

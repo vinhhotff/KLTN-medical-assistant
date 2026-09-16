@@ -14,7 +14,8 @@ import {
   CheckCircle2,
   X,
   Phone,
-  Sparkles
+  Sparkles,
+  CreditCard
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../../services/api';
@@ -121,6 +122,28 @@ export const PatientDashboard: React.FC = () => {
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [submittingCancel, setSubmittingCancel] = useState(false);
+
+  // Online Appointment Payment State
+  const [payingApptId, setPayingApptId] = useState<string | null>(null);
+
+  const handlePayAppointment = async (apt: AppointmentItem) => {
+    try {
+      setPayingApptId(apt.id);
+      const res = await api.post('/payments/checkout', {
+        orderType: 'APPOINTMENT_FEE',
+        appointmentId: apt.id,
+        paymentMethod: 'STRIPE',
+      });
+      if (res.data?.data?.checkoutUrl) {
+        window.location.href = res.data.data.checkoutUrl;
+      }
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
+      alert(axiosError.response?.data?.error?.message || 'Không thể khởi tạo phiên thanh toán cho cuộc hẹn.');
+    } finally {
+      setPayingApptId(null);
+    }
+  };
 
   // Pagination states (Offset)
   const [appointmentsPage, setAppointmentsPage] = useState(1);
@@ -566,12 +589,31 @@ export const PatientDashboard: React.FC = () => {
 
                         <div>
                           <span className="text-slate-400 block font-semibold">Phí dịch vụ & Trạng thái:</span>
-                          <span className="font-bold text-indigo-600 text-sm">
-                            {Number(apt.feeAmount || 300000).toLocaleString('vi-VN')} đ
-                          </span>
-                          <span className="ml-2 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                            {apt.paymentStatus === 'PAID' ? 'Đã Thanh Toán' : 'Thanh Toán Tại Viện'}
-                          </span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="font-bold text-indigo-600 text-sm">
+                              {Number(apt.feeAmount || 350000).toLocaleString('vi-VN')} đ
+                            </span>
+                            <span
+                              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                apt.paymentStatus === 'PAID'
+                                  ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                                  : 'text-amber-700 bg-amber-50 border border-amber-200'
+                              }`}
+                            >
+                              {apt.paymentStatus === 'PAID' ? '✓ Đã Thanh Toán' : '● Chưa Thanh Toán'}
+                            </span>
+                          </div>
+                          {apt.paymentStatus !== 'PAID' && apt.status !== 'CANCELLED' && (
+                            <button
+                              type="button"
+                              onClick={() => handlePayAppointment(apt)}
+                              disabled={payingApptId === apt.id}
+                              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+                            >
+                              <CreditCard className="w-3.5 h-3.5" />
+                              <span>{payingApptId === apt.id ? 'Đang kết nối...' : 'Thanh Toán Online (Stripe)'}</span>
+                            </button>
+                          )}
                         </div>
                       </div>
 

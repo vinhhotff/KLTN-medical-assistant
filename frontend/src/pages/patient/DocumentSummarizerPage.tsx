@@ -162,7 +162,7 @@ export const DocumentSummarizerPage: React.FC = () => {
     priceNum: number;
     benefits: string;
   } | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'VIETQR' | 'VNPAY' | 'MOMO'>('VIETQR');
+  const [paymentMethod, setPaymentMethod] = useState<'STRIPE' | 'VIETQR' | 'VNPAY' | 'MOMO'>('STRIPE');
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentSuccessToast, setPaymentSuccessToast] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -178,6 +178,43 @@ export const DocumentSummarizerPage: React.FC = () => {
 
   // Random Meddies PDF Download State
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleConfirmPayment = async () => {
+    if (!selectedPaymentPackage) return;
+    try {
+      setProcessingPayment(true);
+      setPaymentError(null);
+      const res = await api.post('/payments/checkout', {
+        orderType: 'QUOTA_PURCHASE',
+        packageId: selectedPaymentPackage.packageId,
+        paymentMethod,
+      });
+
+      if (paymentMethod === 'STRIPE' && res.data?.data?.checkoutUrl) {
+        window.location.href = res.data.data.checkoutUrl;
+        return;
+      }
+
+      if (res.data?.data?.transactionCode) {
+        const verifyRes = await api.post('/payments/verify', {
+          transactionCode: res.data.data.transactionCode,
+          sessionId: res.data.data.gatewayReference,
+        });
+        if (verifyRes.data?.success) {
+          await fetchQuota();
+          setPaymentSuccessToast(`Thanh toán thành công! Bạn đã kích hoạt thành công ${selectedPaymentPackage.title}.`);
+          setSelectedPaymentPackage(null);
+          setShowPricingModal(false);
+          setTimeout(() => setPaymentSuccessToast(null), 5000);
+        }
+      }
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
+      setPaymentError(axiosError.response?.data?.error?.message || 'Giao dịch thanh toán không thành công.');
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
   const [downloadSuccessToast, setDownloadSuccessToast] = useState<string | null>(null);
   const [downloadPdfError, setDownloadPdfError] = useState<string | null>(null);
   const downloadToastTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -244,30 +281,6 @@ export const DocumentSummarizerPage: React.FC = () => {
       }
     } finally {
       setDownloadingPdf(false);
-    }
-  };
-
-  const handleConfirmPayment = async () => {
-    if (!selectedPaymentPackage) return;
-    try {
-      setProcessingPayment(true);
-      setPaymentError(null);
-      const res = await api.post('/documents/quota/purchase', {
-        packageId: selectedPaymentPackage.packageId,
-        paymentMethod,
-      });
-      if (res.data?.data) {
-        setQuota(res.data.data);
-        setPaymentSuccessToast(`Thanh toán thành công! Bạn đã kích hoạt thành công ${selectedPaymentPackage.title}.`);
-        setSelectedPaymentPackage(null);
-        setShowPricingModal(false);
-        setTimeout(() => setPaymentSuccessToast(null), 5000);
-      }
-    } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
-      setPaymentError(axiosError.response?.data?.error?.message || 'Giao dịch thanh toán không thành công.');
-    } finally {
-      setProcessingPayment(false);
     }
   };
 
@@ -1872,87 +1885,138 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             {/* Payment Method Selector */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-700 block">Chọn phương thức thanh toán:</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('STRIPE')}
+                  className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                    paymentMethod === 'STRIPE'
+                      ? 'border-indigo-600 bg-indigo-50/70 text-indigo-950 shadow-xs ring-2 ring-indigo-500/20'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <CreditCard className="w-4 h-4 text-indigo-600" />
+                  <span>Stripe Sandbox</span>
+                  <span className="text-[9px] text-indigo-700 font-normal">Thẻ Visa/Master</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('VIETQR')}
                   className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
                     paymentMethod === 'VIETQR'
-                      ? 'border-teal-600 bg-teal-50/60 text-teal-900'
+                      ? 'border-teal-600 bg-teal-50/60 text-teal-900 shadow-xs ring-2 ring-teal-500/20'
                       : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <QrCode className="w-4 h-4 text-teal-600" />
                   <span>VietQR Pro</span>
+                  <span className="text-[9px] text-teal-700 font-normal">Napas 247</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('VNPAY')}
                   className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
                     paymentMethod === 'VNPAY'
-                      ? 'border-teal-600 bg-teal-50/60 text-teal-900'
+                      ? 'border-teal-600 bg-teal-50/60 text-teal-900 shadow-xs ring-2 ring-teal-500/20'
                       : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <Wallet className="w-4 h-4 text-blue-600" />
                   <span>VNPAY QR</span>
+                  <span className="text-[9px] text-slate-400 font-normal">Cổng VNPAY</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('MOMO')}
                   className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
                     paymentMethod === 'MOMO'
-                      ? 'border-teal-600 bg-teal-50/60 text-teal-900'
+                      ? 'border-teal-600 bg-teal-50/60 text-teal-900 shadow-xs ring-2 ring-teal-500/20'
                       : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <CreditCard className="w-4 h-4 text-pink-600" />
                   <span>Ví MoMo</span>
+                  <span className="text-[9px] text-slate-400 font-normal">Ví điện tử</span>
                 </button>
               </div>
             </div>
 
-            {/* Simulated VietQR Payment Details */}
-            <div className="p-4 bg-teal-50/40 rounded-2xl border border-teal-200/80 flex flex-col items-center text-center space-y-3">
-              <div className="w-36 h-36 bg-white p-2 rounded-2xl border border-slate-200 shadow-xs flex flex-col items-center justify-center relative">
-                {/* SVG Mock QR Code */}
-                <svg viewBox="0 0 100 100" className="w-28 h-28 text-slate-900">
-                  <rect x="5" y="5" width="25" height="25" fill="currentColor" />
-                  <rect x="10" y="10" width="15" height="15" fill="white" />
-                  <rect x="12" y="12" width="11" height="11" fill="currentColor" />
-                  <rect x="70" y="5" width="25" height="25" fill="currentColor" />
-                  <rect x="75" y="10" width="15" height="15" fill="white" />
-                  <rect x="77" y="12" width="11" height="11" fill="currentColor" />
-                  <rect x="5" y="70" width="25" height="25" fill="currentColor" />
-                  <rect x="10" y="75" width="15" height="15" fill="white" />
-                  <rect x="12" y="77" width="11" height="11" fill="currentColor" />
-                  <rect x="40" y="15" width="20" height="5" fill="currentColor" />
-                  <rect x="45" y="25" width="10" height="5" fill="currentColor" />
-                  <rect x="40" y="40" width="20" height="20" fill="currentColor" />
-                  <rect x="70" y="40" width="10" height="10" fill="currentColor" />
-                  <rect x="85" y="40" width="10" height="10" fill="currentColor" />
-                  <rect x="40" y="70" width="15" height="15" fill="currentColor" />
-                  <rect x="65" y="70" width="20" height="5" fill="currentColor" />
-                  <rect x="70" y="80" width="25" height="15" fill="currentColor" />
-                </svg>
-                <span className="text-[9px] font-mono font-bold text-teal-800 uppercase tracking-wider">VietQR NAPAS 247</span>
+            {/* Simulated Payment Details */}
+            {paymentMethod === 'STRIPE' ? (
+              <div className="p-4 bg-gradient-to-br from-indigo-50/70 to-slate-50 rounded-2xl border border-indigo-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-indigo-600 text-white rounded-lg">
+                      <CreditCard className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-bold text-indigo-950">Cổng Thanh Toán Quốc Tế Stripe Sandbox</span>
+                  </div>
+                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-full text-[10px] font-bold">
+                    Test Mode
+                  </span>
+                </div>
+                <div className="p-3 bg-white/90 rounded-xl border border-indigo-100 space-y-2 text-xs text-slate-700">
+                  <p className="font-semibold text-slate-900 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    Hỗ trợ thẻ thử nghiệm (Stripe Sandbox Cards):
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-200">
+                      <span className="text-slate-400 block text-[10px]">Số thẻ test</span>
+                      <strong className="text-indigo-950">4242 4242 4242 4242</strong>
+                    </div>
+                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-200">
+                      <span className="text-slate-400 block text-[10px]">Hạn dùng / CVC</span>
+                      <strong className="text-slate-800">Tương lai / 123</strong>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-500 pt-0.5">
+                    Hệ thống sẽ điều hướng an toàn qua trang Stripe Hosted Checkout Sandbox để xác thực thẻ và tự động ghi sổ giao dịch.
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1 text-xs">
-                <p className="font-semibold text-slate-800">Ngân hàng TMCP Quân Đội (MB Bank)</p>
-                <p className="text-slate-600 font-mono">Số tài khoản: <strong className="text-slate-900">9999 8888 6666</strong></p>
-                <p className="text-slate-600 font-mono">Chủ tài khoản: <strong>BENH VIEN DIEN TU MEDIASSIST</strong></p>
-                <p className="text-[11px] text-teal-800 bg-teal-100/70 px-2.5 py-1 rounded-lg font-mono">
-                  Nội dung: NAPQUOTA {user?.email?.split('@')[0]?.toUpperCase()}
-                </p>
+            ) : (
+              <div className="p-4 bg-teal-50/40 rounded-2xl border border-teal-200/80 flex flex-col items-center text-center space-y-3">
+                <div className="w-36 h-36 bg-white p-2 rounded-2xl border border-slate-200 shadow-xs flex flex-col items-center justify-center relative">
+                  {/* SVG Mock QR Code */}
+                  <svg viewBox="0 0 100 100" className="w-28 h-28 text-slate-900">
+                    <rect x="5" y="5" width="25" height="25" fill="currentColor" />
+                    <rect x="10" y="10" width="15" height="15" fill="white" />
+                    <rect x="12" y="12" width="11" height="11" fill="currentColor" />
+                    <rect x="70" y="5" width="25" height="25" fill="currentColor" />
+                    <rect x="75" y="10" width="15" height="15" fill="white" />
+                    <rect x="77" y="12" width="11" height="11" fill="currentColor" />
+                    <rect x="5" y="70" width="25" height="25" fill="currentColor" />
+                    <rect x="10" y="75" width="15" height="15" fill="white" />
+                    <rect x="12" y="77" width="11" height="11" fill="currentColor" />
+                    <rect x="40" y="15" width="20" height="5" fill="currentColor" />
+                    <rect x="45" y="25" width="10" height="5" fill="currentColor" />
+                    <rect x="40" y="40" width="20" height="20" fill="currentColor" />
+                    <rect x="70" y="40" width="10" height="10" fill="currentColor" />
+                    <rect x="85" y="40" width="10" height="10" fill="currentColor" />
+                    <rect x="40" y="70" width="15" height="15" fill="currentColor" />
+                    <rect x="65" y="70" width="20" height="5" fill="currentColor" />
+                    <rect x="70" y="80" width="25" height="15" fill="currentColor" />
+                  </svg>
+                  <span className="text-[9px] font-mono font-bold text-teal-800 uppercase tracking-wider">VietQR NAPAS 247</span>
+                </div>
+                <div className="space-y-1 text-xs">
+                  <p className="font-semibold text-slate-800">Ngân hàng TMCP Quân Đội (MB Bank)</p>
+                  <p className="text-slate-600 font-mono">Số tài khoản: <strong className="text-slate-900">9999 8888 6666</strong></p>
+                  <p className="text-slate-600 font-mono">Chủ tài khoản: <strong>BENH VIEN DIEN TU MEDIASSIST</strong></p>
+                  <p className="text-[11px] text-teal-800 bg-teal-100/70 px-2.5 py-1 rounded-lg font-mono">
+                    Nội dung: NAPQUOTA {user?.email?.split('@')[0]?.toUpperCase()}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Actions */}
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setSelectedPaymentPackage(null)}
-                className="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                className="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
               >
                 Hủy bỏ
               </button>
@@ -1960,14 +2024,23 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 type="button"
                 onClick={handleConfirmPayment}
                 disabled={processingPayment}
-                className="px-5 py-2.5 text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl transition shadow-xs flex items-center gap-2 cursor-pointer"
+                className={`px-5 py-2.5 text-sm font-bold text-white rounded-xl transition shadow-xs flex items-center gap-2 cursor-pointer ${
+                  paymentMethod === 'STRIPE'
+                    ? 'bg-indigo-600 hover:bg-indigo-700'
+                    : 'bg-teal-600 hover:bg-teal-700'
+                }`}
               >
                 {processingPayment ? (
                   'Đang xử lý giao dịch...'
+                ) : paymentMethod === 'STRIPE' ? (
+                  <>
+                    <CreditCard className="w-4 h-4" />
+                    <span>Thanh Toán Stripe Checkout ({selectedPaymentPackage.price})</span>
+                  </>
                 ) : (
                   <>
                     <BadgeCheck className="w-4 h-4" />
-                    Xác Nhận Đã Chuyển Khoản (Sandbox Auto-Verify)
+                    <span>Xác Nhận Đã Chuyển Khoản (Sandbox Auto-Verify)</span>
                   </>
                 )}
               </button>
