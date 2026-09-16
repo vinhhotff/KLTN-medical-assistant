@@ -16,6 +16,7 @@ import { TriageSupervisionPage } from './pages/admin/TriageSupervisionPage';
 import { AuditLogPage } from './pages/admin/AuditLogPage';
 import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
 import { DoctorProfilePage } from './pages/doctor/DoctorProfilePage';
+import { DoctorPatientRecordsPage } from './pages/doctor/DoctorPatientRecordsPage';
 import { PatientDashboard } from './pages/patient/PatientDashboard';
 import { DoctorSearchPage } from './pages/patient/DoctorSearchPage';
 import { DocumentSummarizerPage } from './pages/patient/DocumentSummarizerPage';
@@ -56,6 +57,7 @@ export function App() {
           <Route element={<ProtectedRoute allowedRoles={['DOCTOR']} />}>
             <Route path="/doctor" element={<DoctorLayout />}>
               <Route index element={<DoctorDashboard />} />
+              <Route path="patients" element={<DoctorPatientRecordsPage />} />
               <Route path="profile" element={<DoctorProfilePage />} />
             </Route>
           </Route>

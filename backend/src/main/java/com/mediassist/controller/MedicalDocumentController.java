@@ -163,6 +163,17 @@ public class MedicalDocumentController {
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 
+    @GetMapping("/patient/{patientId}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @Operation(summary = "Bác sĩ hoặc Quản trị viên xem hồ sơ cận lâm sàng và tệp xét nghiệm đã tải lên của bệnh nhân")
+    public ResponseEntity<ApiResponse<List<MedicalDocument>>> getPatientDocuments(@PathVariable("patientId") java.util.UUID patientId) {
+        List<MedicalDocument> list = medicalDocumentRepository.findByUserIdOrderByCreatedAtDesc(patientId);
+        if (list == null) {
+            list = Collections.emptyList();
+        }
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
     @GetMapping("/quota")
     @Operation(summary = "Lấy thông tin hạn ngạch phân tích tài liệu và gói hội viên của người dùng hiện tại")
     public ResponseEntity<ApiResponse<com.mediassist.dto.UserQuotaDto>> getUserQuota(Authentication authentication) {

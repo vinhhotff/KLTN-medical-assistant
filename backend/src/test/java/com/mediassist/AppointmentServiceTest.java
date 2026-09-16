@@ -190,4 +190,52 @@ class AppointmentServiceTest {
         assertEquals("Tăng huyết áp nguyên phát", result.getIcd10Name());
         verify(auditLogRepository, times(1)).save(any(AuditLog.class));
     }
+
+    @Test
+    void testGetPatientAppointmentHistory_Success() {
+        Appointment apt = Appointment.builder()
+                .id(UUID.randomUUID())
+                .appointmentCode("AP-HIST-01")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.COMPLETED)
+                .build();
+
+        when(appointmentRepository.findByPatientIdWithUsersOrderByScheduledStartDesc(patientId))
+                .thenReturn(java.util.List.of(apt));
+
+        java.util.List<AppointmentDto> list = appointmentService.getPatientAppointmentHistory(patientId);
+
+        assertNotNull(list);
+        assertEquals(1, list.size());
+        assertEquals("AP-HIST-01", list.get(0).getAppointmentCode());
+    }
+
+    @Test
+    void testCreateFollowUpAppointment_Success() {
+        LocalDateTime futureTime = LocalDateTime.now().plusDays(7).withHour(10).withMinute(0);
+        com.mediassist.dto.FollowUpAppointmentRequest req = new com.mediassist.dto.FollowUpAppointmentRequest();
+        req.setPatientId(patientId);
+        req.setScheduledStart(futureTime);
+        req.setNotes("Tái khám theo dõi huyết áp sau 1 tuần");
+        req.setClinicRoom("Phòng 204");
+
+        when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
+        when(userRepository.findById(doctorId)).thenReturn(Optional.of(doctorUser));
+        when(appointmentRepository.existsConflict(doctorId, futureTime)).thenReturn(false);
+        when(doctorProfileRepository.findByUserId(doctorId)).thenReturn(Optional.of(doctorProfile));
+        when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(i -> {
+            Appointment a = i.getArgument(0);
+            a.setId(UUID.randomUUID());
+            return a;
+        });
+
+        AppointmentDto result = appointmentService.createFollowUpAppointment(doctorId, req);
+
+        assertNotNull(result);
+        assertTrue(result.getAppointmentCode().startsWith("AP-TK-"));
+        assertEquals(AppointmentStatus.SCHEDULED, result.getStatus());
+        assertEquals("Phòng 204", result.getClinicRoom());
+        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
+    }
 }

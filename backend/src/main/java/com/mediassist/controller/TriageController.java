@@ -104,4 +104,15 @@ public class TriageController {
         List<DoctorMatchDto> results = doctorSemanticSearchService.searchDoctors(query, limit);
         return ResponseEntity.ok(ApiResponse.success(results));
     }
+
+    @GetMapping("/patient/{patientId}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @Operation(summary = "Bác sĩ hoặc Quản trị viên xem lịch sử phân luồng Triage AI và tóm tắt SBAR của bệnh nhân")
+    public ResponseEntity<ApiResponse<List<TriageSession>>> getPatientTriageHistory(@PathVariable("patientId") java.util.UUID patientId) {
+        List<TriageSession> history = triageSessionRepository.findByUserIdOrderByCreatedAtDesc(patientId);
+        if (history == null) {
+            history = Collections.emptyList();
+        }
+        return ResponseEntity.ok(ApiResponse.success(history));
+    }
 }

@@ -80,4 +80,20 @@ public class DoctorController {
             @RequestBody UpdateDoctorScheduleRequest request) {
         return ResponseEntity.ok(ApiResponse.success(doctorService.updateDoctorSchedules(principal.getId(), request)));
     }
+
+    @GetMapping("/me/patients")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Get list of all patients who have visited or booked with the doctor")
+    public ResponseEntity<ApiResponse<List<DoctorPatientItemDto>>> getMyPatients(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(doctorService.getDoctorPatients(principal.getId())));
+    }
+
+    @PostMapping("/me/call-next")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Call next patient in today's queue: transitions earliest SCHEDULED to IN_PROGRESS")
+    public ResponseEntity<ApiResponse<AppointmentDto>> callNextPatient(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(doctorService.callNextPatient(principal.getId())));
+    }
 }

@@ -44,6 +44,13 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
             @Param("scheduledStart") LocalDateTime scheduledStart
     );
 
+    @Query("SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor WHERE a.doctor.id = :doctorId AND a.scheduledStart >= :start AND a.scheduledStart <= :end ORDER BY a.scheduledStart ASC")
+    List<Appointment> findTodayAppointmentsByDoctorWithUsers(
+            @Param("doctorId") UUID doctorId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
     @Query("SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor ORDER BY a.scheduledStart DESC")
     List<Appointment> findAllWithUsersOrderByScheduledStartDesc();
 

@@ -218,4 +218,83 @@ public class AppointmentService {
         log.info("🩺 Clinical encounter completed: {} with ICD-10: {}", saved.getAppointmentCode(), saved.getIcd10Code());
         return AppointmentDto.fromEntity(saved);
     }
+
+    /**
+     * Lấy toàn bộ lịch sử các ca khám của bệnh nhân (dành cho bác sĩ / admin hội chẩn).
+     */
+    @Transactional(readOnly = true)
+    public List<AppointmentDto> getPatientAppointmentHistory(UUID patientId) {
+        List<Appointment> list = appointmentRepository.findByPatientIdWithUsersOrderByScheduledStartDesc(patientId);
+        if (list == null || list.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        return list.stream().map(AppointmentDto::fromEntity).collect(Collectors.toList());
+    }
+
+    /**
+     * Bác sĩ trực tiếp đặt lịch hẹn tái khám cho bệnh nhân ngay từ trạm khám lâm sàng.
+     */
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public AppointmentDto createFollowUpAppointment(UUID doctorUserId, com.mediassist.dto.FollowUpAppointmentRequest req) {
+        User patient = userRepository.findById(req.getPatientId())
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Bệnh nhân không tồn tại"));
+
+        User doctor = userRepository.findById(doctorUserId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Bác sĩ không tồn tại"));
+
+        if (doctor.getRole() != Role.DOCTOR) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_ROLE", "Người dùng không phải bác sĩ");
+        }
+
+        LocalDateTime scheduledStart = req.getScheduledStart();
+        if (scheduledStart.isBefore(LocalDateTime.now())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "PAST_DATE", "Thời gian hẹn tái khám phải lớn hơn thời điểm hiện tại");
+        }
+
+        if (appointmentRepository.existsConflict(doctor.getId(), scheduledStart)) {
+            throw new AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", "Khung giờ này bác sĩ đã có lịch hẹn. Vui lòng chọn khung giờ khác.");
+        }
+
+        LocalDateTime scheduledEnd = scheduledStart.plusMinutes(30);
+
+        BigDecimal fee = doctorProfileRepository.findByUserId(doctor.getId())
+                .map(DoctorProfile::getConsultationFee)
+                .orElse(BigDecimal.valueOf(300000.00));
+
+        String datePrefix = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String randomSuffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        String appointmentCode = "AP-TK-" + datePrefix + "-" + randomSuffix;
+
+        Appointment appointment = Appointment.builder()
+                .appointmentCode(appointmentCode)
+                .patient(patient)
+                .doctor(doctor)
+                .scheduledStart(scheduledStart)
+                .scheduledEnd(scheduledEnd)
+                .status(AppointmentStatus.SCHEDULED)
+                .feeAmount(fee)
+                .paymentStatus(PaymentStatus.UNPAID)
+                .consultationNotes(req.getNotes() != null && !req.getNotes().isBlank() ? req.getNotes().trim() : "Lịch hẹn tái khám theo chỉ định bác sĩ")
+                .build();
+        appointment.setQueueNumber("TK " + String.format("%02d", (int)(Math.random() * 20 + 1)));
+        appointment.setClinicRoom(req.getClinicRoom() != null && !req.getClinicRoom().isBlank() ? req.getClinicRoom().trim() : "Phòng Khám Chuyên Khoa");
+        appointment.setChiefComplaint(req.getNotes() != null && !req.getNotes().isBlank() ? req.getNotes().trim() : "Tái khám theo hẹn bác sĩ");
+
+        Appointment saved;
+        try {
+            saved = appointmentRepository.saveAndFlush(appointment);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", "Khung giờ này đã có ca khám khác được đặt.");
+        }
+
+        AuditLog audit = new AuditLog();
+        audit.setUserId(doctorUserId);
+        audit.setAction("FOLLOW_UP_APPOINTMENT_CREATED");
+        audit.setResource("appointments/" + saved.getId());
+        audit.setMetadata("Follow-up: " + appointmentCode + " for patient " + patient.getEmail());
+        auditLogRepository.save(audit);
+
+        log.info("🩺 Doctor {} scheduled follow-up: {} for patient {}", doctor.getEmail(), appointmentCode, patient.getEmail());
+        return AppointmentDto.fromEntity(saved);
+    }
 }

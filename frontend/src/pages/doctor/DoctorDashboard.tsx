@@ -21,12 +21,59 @@ import {
   PlayCircle,
   Settings,
   Bell,
-  AlertTriangle
+  AlertTriangle,
+  UserCheck,
+  ShieldAlert,
+  Sparkles,
+  History,
+  ExternalLink
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
 import { useDebounce } from '../../hooks/useDebounce';
+
+interface PatientProfileData {
+  id: string;
+  patientCode: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  citizenId: string;
+  healthInsuranceNumber: string;
+  dateOfBirth: string;
+  gender: string;
+  bloodGroup: string;
+  address: string;
+  allergies: string;
+  medicalHistory: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+  emergencyContactRelationship: string;
+}
+
+interface TriageHistoryItem {
+  id: string;
+  symptomsText: string;
+  isEmergency: boolean;
+  urgencyLevel: 'EMERGENCY' | 'URGENT' | 'ROUTINE' | 'SELF_CARE';
+  primarySpecialty?: string;
+  sbarSummary?: string;
+  aiAdvice?: string;
+  createdAt: string;
+}
+
+interface PatientDocumentItem {
+  id: string;
+  fileName: string;
+  fileSizeBytes: number;
+  contentType: string;
+  status: string;
+  storageUrl?: string;
+  isValidMedical: boolean;
+  extractedIndicators?: string;
+  createdAt: string;
+}
 
 interface DoctorAppointment {
   id: string;
@@ -136,6 +183,16 @@ export const DoctorDashboard: React.FC = () => {
   // Selected EMR view modal for completed appointments
   const [selectedViewEmr, setSelectedViewEmr] = useState<DoctorAppointment | null>(null);
 
+  // Supercharged Clinical Encounter States (Patient 360 Integration)
+  const [patientPassport, setPatientPassport] = useState<PatientProfileData | null>(null);
+  const [patientTriageHistory, setPatientTriageHistory] = useState<TriageHistoryItem[]>([]);
+  const [patientDocuments, setPatientDocuments] = useState<PatientDocumentItem[]>([]);
+  const [patientPastAppointments, setPatientPastAppointments] = useState<DoctorAppointment[]>([]);
+  const [activeEncounterTab, setActiveEncounterTab] = useState<'EMR' | 'TRIAGE' | 'DOCUMENTS' | 'HISTORY'>('EMR');
+  const [encounterLoading, setEncounterLoading] = useState(false);
+  const [callingNext, setCallingNext] = useState(false);
+  const [bookingFollowUp, setBookingFollowUp] = useState(false);
+
   // Pagination states
   const [scheduledPage, setScheduledPage] = useState(1);
   const [scheduledPageSize, setScheduledPageSize] = useState(5);
@@ -242,6 +299,115 @@ export const DoctorDashboard: React.FC = () => {
       }
     } else {
       setPrescriptionItems([]);
+    }
+
+    // 360-Degree Clinical Synergy: Fetch Patient Medical Passport, Triage & Lab Documents
+    setActiveEncounterTab('EMR');
+    setEncounterLoading(true);
+    Promise.allSettled([
+      api.get(`/patient/profile/by-user/${apt.patientId}`),
+      api.get(`/triage/patient/${apt.patientId}`),
+      api.get(`/documents/patient/${apt.patientId}`),
+      api.get(`/appointments/patient/${apt.patientId}`)
+    ]).then(([resProfile, resTriage, resDocs, resPast]) => {
+      if (resProfile.status === 'fulfilled' && resProfile.value.data?.data) {
+        setPatientPassport(resProfile.value.data.data);
+      } else {
+        setPatientPassport(null);
+      }
+      if (resTriage.status === 'fulfilled' && Array.isArray(resTriage.value.data?.data)) {
+        setPatientTriageHistory(resTriage.value.data.data);
+      } else {
+        setPatientTriageHistory([]);
+      }
+      if (resDocs.status === 'fulfilled' && Array.isArray(resDocs.value.data?.data)) {
+        setPatientDocuments(resDocs.value.data.data);
+      } else {
+        setPatientDocuments([]);
+      }
+      if (resPast.status === 'fulfilled' && Array.isArray(resPast.value.data?.data)) {
+        setPatientPastAppointments(resPast.value.data.data.filter((a: DoctorAppointment) => a.id !== apt.id));
+      } else {
+        setPatientPastAppointments([]);
+      }
+    }).finally(() => {
+      setEncounterLoading(false);
+    });
+  };
+
+  // Helper to check drug-allergy conflict against patient's known allergies
+  const checkDrugAllergyConflict = (drugName: string, allergies?: string): string | null => {
+    if (!allergies || !drugName || allergies.toLowerCase().includes('chưa ghi nhận')) return null;
+    const cleanDrug = drugName.toLowerCase();
+    const allergyKeywords = allergies.toLowerCase().split(/[,;.\n]+/).map((s) => s.trim()).filter(Boolean);
+    for (const kw of allergyKeywords) {
+      if (kw.length >= 3 && (cleanDrug.includes(kw) || kw.includes(cleanDrug))) {
+        return kw;
+      }
+    }
+    return null;
+  };
+
+  // 1-Click Import AI Triage Symptoms & SBAR Assessment into EMR Encounter
+  const handleImportTriage = (triage: TriageHistoryItem) => {
+    if (triage.symptomsText) {
+      setChiefComplaint(triage.symptomsText);
+    }
+    if (triage.sbarSummary) {
+      setConsultationNotes((prev) => {
+        const header = `[TÓM TẮT TRIAGE SBAR]:\n${triage.sbarSummary}\n\n[DIỄN TIẾN KHÁM LÂM SÀNG]:\n`;
+        return prev ? `${header}${prev}` : header;
+      });
+    }
+    setActiveEncounterTab('EMR');
+    setNotificationToast('✅ Đã nạp thành công dữ liệu phân luồng Triage AI vào phiếu khám!');
+    setTimeout(() => setNotificationToast(null), 4000);
+  };
+
+  // Call next patient in queue (Automatic advancement)
+  const handleCallNextPatient = async () => {
+    try {
+      setCallingNext(true);
+      const res = await api.post('/doctors/me/call-next');
+      if (res.data?.data) {
+        const apt: DoctorAppointment = res.data.data;
+        openEncounterModal(apt);
+        setNotificationToast(`🔔 Đã gọi bệnh nhân: ${apt.patientName} (Mã: ${apt.appointmentCode}) vào phòng khám!`);
+        setTimeout(() => setNotificationToast(null), 5000);
+        fetchData(true);
+      }
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
+      alert(axiosError.response?.data?.error?.message || 'Không có bệnh nhân nào đang chờ hoặc hàng đợi hôm nay đã phục vụ hết.');
+    } finally {
+      setCallingNext(false);
+    }
+  };
+
+  // Follow-up appointment direct booking from clinical workstation
+  const handleCreateFollowUp = async () => {
+    if (!activeEncounterAppointment || !followUpDate) {
+      alert('Vui lòng chọn ngày hẹn tái khám trước.');
+      return;
+    }
+    try {
+      setBookingFollowUp(true);
+      const scheduledStart = `${followUpDate}T09:00:00`;
+      const res = await api.post('/appointments/follow-up', {
+        patientId: activeEncounterAppointment.patientId,
+        scheduledStart,
+        notes: `Tái khám theo hẹn: ${icd10Name || 'Theo dõi điều trị'}`,
+        clinicRoom: clinicRoom || 'Phòng Khám P.102'
+      });
+      if (res.data?.data) {
+        setNotificationToast(`✅ Đã đặt lịch tái khám thành công cho bệnh nhân (Mã: ${res.data.data.appointmentCode})!`);
+        setTimeout(() => setNotificationToast(null), 5000);
+      }
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
+      alert(axiosError.response?.data?.error?.message || 'Không thể tạo lịch tái khám.');
+    } finally {
+      setBookingFollowUp(false);
     }
   };
 
@@ -579,6 +745,16 @@ export const DoctorDashboard: React.FC = () => {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-teal-400' : ''}`} />
             <span>Làm mới</span>
+          </button>
+
+          <button
+            onClick={handleCallNextPatient}
+            disabled={callingNext}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold rounded-xl shadow-md transition cursor-pointer disabled:opacity-50"
+            title="Tự động tiếp nhận và gọi ca chờ sớm nhất hôm nay vào bàn khám"
+          >
+            <UserCheck className={`w-3.5 h-3.5 ${callingNext ? 'animate-bounce' : ''}`} />
+            <span>{callingNext ? 'Đang gọi...' : 'Gọi Số Tiếp Theo'}</span>
           </button>
 
           <button
@@ -1108,350 +1284,619 @@ export const DoctorDashboard: React.FC = () => {
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmitEncounter} className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
-              {/* Section 1: Vital Signs Triage */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                <div className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                  <Activity className="w-4 h-4 text-rose-600" /> Dấu Hiệu Sinh Tồn Tiếp Đón (Vital Signs)
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* ALLERGY RED-FLAG ALERT BANNER (IF PRESENT) */}
+            {patientPassport?.allergies && !patientPassport.allergies.toLowerCase().includes('chưa ghi nhận') && (
+              <div className="bg-rose-50 border-b-2 border-rose-300 px-6 py-3 flex items-center justify-between gap-3 text-rose-900 shadow-xs animate-pulse">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-rose-600 flex-shrink-0" />
                   <div>
-                    <label className="text-slate-500 font-semibold block mb-1">HA Tâm thu / Tâm trương (mmHg)</label>
-                    <div className="flex items-center gap-1">
+                    <span className="font-black text-xs uppercase tracking-wider">CẢNH BÁO TIỀN SỬ DỊ ỨNG: </span>
+                    <span className="font-bold text-xs text-rose-950">{patientPassport.allergies}</span>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 bg-rose-200 text-rose-800 font-black text-[10px] rounded-lg uppercase tracking-wider">
+                  Nguy Cơ Phản Vệ
+                </span>
+              </div>
+            )}
+
+            {/* MEDICAL PASSPORT QUICK BAR */}
+            <div className="bg-slate-100/90 border-b border-slate-200 px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-3 text-slate-700">
+                <span>Mã BN: <strong className="font-mono text-teal-800">{patientPassport?.patientCode || 'BN-2026-N/A'}</strong></span>
+                <span>•</span>
+                <span>Giới tính: <strong>{patientPassport?.gender === 'MALE' ? 'Nam' : patientPassport?.gender === 'FEMALE' ? 'Nữ' : 'Khác'}</strong></span>
+                {patientPassport?.dateOfBirth && (
+                  <>
+                    <span>•</span>
+                    <span>Tuổi: <strong>{new Date().getFullYear() - new Date(patientPassport.dateOfBirth).getFullYear()} tuổi</strong></span>
+                  </>
+                )}
+                <span>•</span>
+                <span>Nhóm máu: <strong className="text-rose-700 font-mono font-black">{patientPassport?.bloodGroup || 'O+'}</strong></span>
+                <span>•</span>
+                <span>BHYT: <strong className="font-mono text-slate-900">{patientPassport?.healthInsuranceNumber || 'Chưa cập nhật'}</strong></span>
+              </div>
+              {patientPassport?.medicalHistory && !patientPassport.medicalHistory.toLowerCase().includes('chưa ghi nhận') && (
+                <div className="text-[11px] text-slate-600 bg-white px-2.5 py-1 rounded-lg border border-slate-200 font-medium">
+                  <strong className="text-slate-800">Bệnh nền:</strong> {patientPassport.medicalHistory}
+                </div>
+              )}
+            </div>
+
+            {/* 4 CLINICAL WORKSTATION TABS */}
+            <div className="flex items-center gap-2 px-6 pt-3 border-b border-slate-200 bg-slate-50 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setActiveEncounterTab('EMR')}
+                className={`pb-2.5 px-3 border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
+                  activeEncounterTab === 'EMR'
+                    ? 'border-teal-600 text-teal-800'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Stethoscope className="w-4 h-4 text-teal-600" />
+                <span>Bàn Khám & Kê Đơn (EMR)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveEncounterTab('TRIAGE')}
+                className={`pb-2.5 px-3 border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
+                  activeEncounterTab === 'TRIAGE'
+                    ? 'border-teal-600 text-teal-800'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                <span>Triage AI & SBAR ({patientTriageHistory.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveEncounterTab('DOCUMENTS')}
+                className={`pb-2.5 px-3 border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
+                  activeEncounterTab === 'DOCUMENTS'
+                    ? 'border-teal-600 text-teal-800'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <FileText className="w-4 h-4 text-sky-600" />
+                <span>Xét Nghiệm & Cận Lâm Sàng ({patientDocuments.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveEncounterTab('HISTORY')}
+                className={`pb-2.5 px-3 border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
+                  activeEncounterTab === 'HISTORY'
+                    ? 'border-teal-600 text-teal-800'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <History className="w-4 h-4 text-amber-600" />
+                <span>Bệnh Sử Các Lần Khám Cũ ({patientPastAppointments.length})</span>
+              </button>
+
+              {encounterLoading && (
+                <div className="ml-auto flex items-center gap-1.5 text-teal-600 font-medium pb-2 text-[11px]">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Đang đồng bộ hồ sơ 360°...</span>
+                </div>
+              )}
+            </div>
+
+            {/* TAB 1: EMR FORM */}
+            {activeEncounterTab === 'EMR' && (
+              <form onSubmit={handleSubmitEncounter} className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+                {/* Section 1: Vital Signs Triage */}
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                  <div className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                    <Activity className="w-4 h-4 text-rose-600" /> Dấu Hiệu Sinh Tồn Tiếp Đón (Vital Signs)
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-slate-500 font-semibold block mb-1">HA Tâm thu / Tâm trương (mmHg)</label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={bpSystolic}
+                          onChange={(e) => setBpSystolic(e.target.value)}
+                          className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-center font-mono font-bold"
+                          placeholder="120"
+                        />
+                        <span>/</span>
+                        <input
+                          type="text"
+                          value={bpDiastolic}
+                          onChange={(e) => setBpDiastolic(e.target.value)}
+                          className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-center font-mono font-bold"
+                          placeholder="80"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-slate-500 font-semibold block mb-1">Tần số mạch (l/phút)</label>
                       <input
-                        type="text"
-                        value={bpSystolic}
-                        onChange={(e) => setBpSystolic(e.target.value)}
-                        className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-center font-mono font-bold"
-                        placeholder="120"
+                        type="number"
+                        value={heartRate}
+                        onChange={(e) => setHeartRate(e.target.value)}
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono font-bold"
+                        placeholder="75"
                       />
-                      <span>/</span>
+                    </div>
+                    <div>
+                      <label className="text-slate-500 font-semibold block mb-1">Thân nhiệt (°C)</label>
                       <input
                         type="text"
-                        value={bpDiastolic}
-                        onChange={(e) => setBpDiastolic(e.target.value)}
-                        className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-center font-mono font-bold"
-                        placeholder="80"
+                        value={temperature}
+                        onChange={(e) => setTemperature(e.target.value)}
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono font-bold"
+                        placeholder="36.8"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-500 font-semibold block mb-1">SpO2 (%)</label>
+                      <input
+                        type="number"
+                        value={spO2}
+                        onChange={(e) => setSpO2(e.target.value)}
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono font-bold text-emerald-700"
+                        placeholder="98"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-500 font-semibold block mb-1">Chiều cao (cm)</label>
+                      <input
+                        type="number"
+                        value={height}
+                        onChange={(e) => setHeight(e.target.value)}
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono"
+                        placeholder="170"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-500 font-semibold block mb-1">Cân nặng (kg)</label>
+                      <input
+                        type="number"
+                        value={weight}
+                        onChange={(e) => setWeight(e.target.value)}
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono"
+                        placeholder="65"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-500 font-semibold block mb-1">Tần số thở (l/phút)</label>
+                      <input
+                        type="number"
+                        value={respiratoryRate}
+                        onChange={(e) => setRespiratoryRate(e.target.value)}
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono"
+                        placeholder="18"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-500 font-semibold block mb-1">Chỉ số BMI (Tự tính)</label>
+                      <div className="py-1.5 px-2 bg-slate-200 rounded-lg font-mono font-bold text-slate-800 text-center">
+                        {Number(weight) && Number(height)
+                          ? (Number(weight) / ((Number(height) / 100) * (Number(height) / 100))).toFixed(1)
+                          : '22.0'}{' '}
+                        kg/m²
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Chief Complaint & Exam Notes */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Lý Do Vào Khám (Chief Complaint)</label>
+                    <textarea
+                      rows={2}
+                      value={chiefComplaint}
+                      onChange={(e) => setChiefComplaint(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500"
+                      placeholder="Triệu chứng chính người bệnh khai báo..."
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Khám Thực Thể & Kết Luận Lâm Sàng</label>
+                    <textarea
+                      rows={2}
+                      value={consultationNotes}
+                      onChange={(e) => setConsultationNotes(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500"
+                      placeholder="Tình trạng tri giác, tim phổi, bụng..."
+                    />
+                  </div>
+                </div>
+
+                {/* Section 3: ICD-10 Coding */}
+                <div className="p-4 bg-indigo-50/50 border border-indigo-200 rounded-2xl space-y-3">
+                  <div className="font-bold text-indigo-900 text-sm flex items-center justify-between">
+                    <span>Chẩn Đoán Chuẩn Quốc Tế WHO (ICD-10)</span>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => selectIcd10Template('I10', 'Tăng huyết áp vô căn (nguyên phát)')}
+                        className="px-2 py-0.5 rounded bg-white text-[11px] font-bold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 cursor-pointer"
+                      >
+                        I10 (THA)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectIcd10Template('I20.9', 'Cơn đau thắt ngực, không xác định')}
+                        className="px-2 py-0.5 rounded bg-white text-[11px] font-bold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 cursor-pointer"
+                      >
+                        I20.9 (Đau ngực)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectIcd10Template('K21.0', 'Trào ngược dạ dày thực quản')}
+                        className="px-2 py-0.5 rounded bg-white text-[11px] font-bold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 cursor-pointer"
+                      >
+                        K21.0 (GERD)
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-slate-500 font-semibold block mb-1">Mã Bệnh (ICD-10 Code)</label>
+                      <input
+                        type="text"
+                        value={icd10Code}
+                        onChange={(e) => setIcd10Code(e.target.value.toUpperCase())}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold uppercase bg-white"
+                        placeholder="I10"
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <label className="text-slate-500 font-semibold block mb-1">Tên Chẩn Đoán Y Khoa</label>
+                      <input
+                        type="text"
+                        value={icd10Name}
+                        onChange={(e) => setIcd10Name(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-semibold"
+                        placeholder="Tên bệnh..."
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="text-slate-500 font-semibold block mb-1">Tần số mạch (l/phút)</label>
-                    <input
-                      type="number"
-                      value={heartRate}
-                      onChange={(e) => setHeartRate(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono font-bold"
-                      placeholder="75"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-500 font-semibold block mb-1">Thân nhiệt (°C)</label>
-                    <input
-                      type="text"
-                      value={temperature}
-                      onChange={(e) => setTemperature(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono font-bold"
-                      placeholder="36.8"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-500 font-semibold block mb-1">SpO2 (%)</label>
-                    <input
-                      type="number"
-                      value={spO2}
-                      onChange={(e) => setSpO2(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono font-bold text-emerald-700"
-                      placeholder="98"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-500 font-semibold block mb-1">Chiều cao (cm)</label>
-                    <input
-                      type="number"
-                      value={height}
-                      onChange={(e) => setHeight(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono"
-                      placeholder="170"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-500 font-semibold block mb-1">Cân nặng (kg)</label>
-                    <input
-                      type="number"
-                      value={weight}
-                      onChange={(e) => setWeight(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono"
-                      placeholder="65"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-500 font-semibold block mb-1">Tần số thở (l/phút)</label>
-                    <input
-                      type="number"
-                      value={respiratoryRate}
-                      onChange={(e) => setRespiratoryRate(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono"
-                      placeholder="18"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-500 font-semibold block mb-1">Chỉ số BMI (Tự tính)</label>
-                    <div className="py-1.5 px-2 bg-slate-200 rounded-lg font-mono font-bold text-slate-800 text-center">
-                      {Number(weight) && Number(height)
-                        ? (Number(weight) / ((Number(height) / 100) * (Number(height) / 100))).toFixed(1)
-                        : '22.0'}{' '}
-                      kg/m²
+                </div>
+
+                {/* Section 4: Multi-item Prescription Writer with Allergy Conflict Guard */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-teal-600" /> Kê Đơn Thuốc Ngoại Trú Điện Tử
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => loadPrescriptionPreset('cardio')}
+                        className="px-2 py-1 rounded-lg bg-teal-50 text-teal-700 font-bold text-[11px] hover:bg-teal-100 cursor-pointer border border-teal-200"
+                      >
+                        + Nạp Mẫu Tim Mạch & Mỡ Máu
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => loadPrescriptionPreset('gastro')}
+                        className="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-[11px] hover:bg-indigo-100 cursor-pointer border border-indigo-200"
+                      >
+                        + Nạp Mẫu Dạ Dày
+                      </button>
+                      <button
+                        type="button"
+                        onClick={addPrescriptionRow}
+                        className="px-2.5 py-1 rounded-lg bg-slate-800 text-white font-bold text-[11px] hover:bg-slate-700 cursor-pointer flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" /> Thêm Thuốc
+                      </button>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Section 2: Chief Complaint & Exam Notes */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Lý Do Vào Khám (Chief Complaint)</label>
-                  <textarea
-                    rows={2}
-                    value={chiefComplaint}
-                    onChange={(e) => setChiefComplaint(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500"
-                    placeholder="Triệu chứng chính người bệnh khai báo..."
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Khám Thực Thể & Kết Luận Lâm Sàng</label>
-                  <textarea
-                    rows={2}
-                    value={consultationNotes}
-                    onChange={(e) => setConsultationNotes(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500"
-                    placeholder="Tình trạng tri giác, tim phổi, bụng..."
-                  />
-                </div>
-              </div>
-
-              {/* Section 3: ICD-10 Coding */}
-              <div className="p-4 bg-indigo-50/50 border border-indigo-200 rounded-2xl space-y-3">
-                <div className="font-bold text-indigo-900 text-sm flex items-center justify-between">
-                  <span>Chẩn Đoán Chuẩn Quốc Tế WHO (ICD-10)</span>
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => selectIcd10Template('I10', 'Tăng huyết áp vô căn (nguyên phát)')}
-                      className="px-2 py-0.5 rounded bg-white text-[11px] font-bold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 cursor-pointer"
-                    >
-                      I10 (THA)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => selectIcd10Template('I20.9', 'Cơn đau thắt ngực, không xác định')}
-                      className="px-2 py-0.5 rounded bg-white text-[11px] font-bold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 cursor-pointer"
-                    >
-                      I20.9 (Đau thắt ngực)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => selectIcd10Template('E78.0', 'Tăng cholesterol máu thuần túy')}
-                      className="px-2 py-0.5 rounded bg-white text-[11px] font-bold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 cursor-pointer"
-                    >
-                      E78.0 (Mỡ máu)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => selectIcd10Template('K21.0', 'Trào ngược dạ dày - thực quản có viêm thực quản')}
-                      className="px-2 py-0.5 rounded bg-white text-[11px] font-bold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 cursor-pointer"
-                    >
-                      K21.0 (Trào ngược)
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <div>
-                    <label className="text-slate-500 font-semibold block mb-1">Mã ICD-10</label>
-                    <input
-                      type="text"
-                      value={icd10Code}
-                      onChange={(e) => setIcd10Code(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono font-bold text-sm bg-white uppercase text-indigo-700"
-                      placeholder="I10"
-                    />
-                  </div>
-                  <div className="sm:col-span-3">
-                    <label className="text-slate-500 font-semibold block mb-1">Tên Chẩn Đoán Y Khoa</label>
-                    <input
-                      type="text"
-                      value={icd10Name}
-                      onChange={(e) => setIcd10Name(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-semibold"
-                      placeholder="Tên bệnh..."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 4: Multi-item Prescription Writer */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-teal-600" /> Kê Đơn Thuốc Ngoại Trú Điện Tử
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => loadPrescriptionPreset('cardio')}
-                      className="px-2 py-1 rounded-lg bg-teal-50 text-teal-700 font-bold text-[11px] hover:bg-teal-100 cursor-pointer border border-teal-200"
-                    >
-                      + Nạp Mẫu Tim Mạch & Mỡ Máu
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => loadPrescriptionPreset('gastro')}
-                      className="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-[11px] hover:bg-indigo-100 cursor-pointer border border-indigo-200"
-                    >
-                      + Nạp Mẫu Dạ Dày
-                    </button>
-                    <button
-                      type="button"
-                      onClick={addPrescriptionRow}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 text-white font-bold text-[11px] hover:bg-slate-700 cursor-pointer flex items-center gap-1"
-                    >
-                      <Plus className="w-3 h-3" /> Thêm Thuốc
-                    </button>
-                  </div>
-                </div>
-
-                <div className="border border-slate-200 rounded-2xl overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                      <tr>
-                        <th className="p-2 w-8">#</th>
-                        <th className="p-2 min-w-[160px]">Tên Thuốc (Biệt Dược)</th>
-                        <th className="p-2 min-w-[140px]">Hoạt Chất</th>
-                        <th className="p-2 min-w-[200px]">Liều Dùng & Hướng Dẫn</th>
-                        <th className="p-2 w-20 text-center">SL</th>
-                        <th className="p-2 w-20 text-center">Đơn Vị</th>
-                        <th className="p-2 w-20 text-center">Ngày</th>
-                        <th className="p-2 w-10 text-center">Xóa</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {prescriptionItems.map((item, index) => (
-                        <tr key={index} className="hover:bg-slate-50">
-                          <td className="p-2 text-slate-400 font-mono">{index + 1}</td>
-                          <td className="p-2">
-                            <input
-                              type="text"
-                              value={item.drugName}
-                              onChange={(e) => updatePrescriptionRow(index, 'drugName', e.target.value)}
-                              className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-bold"
-                              placeholder="Lipitor 20mg"
-                            />
-                          </td>
-                          <td className="p-2">
-                            <input
-                              type="text"
-                              value={item.activeIngredient}
-                              onChange={(e) => updatePrescriptionRow(index, 'activeIngredient', e.target.value)}
-                              className="w-full px-2 py-1 border border-slate-200 rounded text-xs"
-                              placeholder="Atorvastatin"
-                            />
-                          </td>
-                          <td className="p-2">
-                            <input
-                              type="text"
-                              value={item.dosage}
-                              onChange={(e) => updatePrescriptionRow(index, 'dosage', e.target.value)}
-                              className="w-full px-2 py-1 border border-slate-200 rounded text-xs"
-                              placeholder="Uống 1 viên vào buổi tối sau ăn"
-                            />
-                          </td>
-                          <td className="p-2 text-center">
-                            <input
-                              type="number"
-                              value={item.quantity}
-                              onChange={(e) => updatePrescriptionRow(index, 'quantity', Number(e.target.value))}
-                              className="w-16 px-1.5 py-1 border border-slate-200 rounded text-xs text-center font-bold"
-                            />
-                          </td>
-                          <td className="p-2 text-center">
-                            <input
-                              type="text"
-                              value={item.unit}
-                              onChange={(e) => updatePrescriptionRow(index, 'unit', e.target.value)}
-                              className="w-16 px-1.5 py-1 border border-slate-200 rounded text-xs text-center"
-                            />
-                          </td>
-                          <td className="p-2 text-center">
-                            <input
-                              type="number"
-                              value={item.days}
-                              onChange={(e) => updatePrescriptionRow(index, 'days', Number(e.target.value))}
-                              className="w-16 px-1.5 py-1 border border-slate-200 rounded text-xs text-center"
-                            />
-                          </td>
-                          <td className="p-2 text-center">
-                            {prescriptionItems.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => removePrescriptionRow(index)}
-                                className="text-rose-500 hover:text-rose-700 p-1"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </td>
+                  <div className="border border-slate-200 rounded-2xl overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                        <tr>
+                          <th className="p-2 w-8">#</th>
+                          <th className="p-2 min-w-[160px]">Tên Thuốc (Biệt Dược)</th>
+                          <th className="p-2 min-w-[140px]">Hoạt Chất</th>
+                          <th className="p-2 min-w-[200px]">Liều Dùng & Hướng Dẫn</th>
+                          <th className="p-2 w-20 text-center">SL</th>
+                          <th className="p-2 w-20 text-center">Đơn Vị</th>
+                          <th className="p-2 w-20 text-center">Ngày</th>
+                          <th className="p-2 w-10 text-center">Xóa</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {prescriptionItems.map((item, index) => {
+                          const conflict = checkDrugAllergyConflict(item.drugName, patientPassport?.allergies) ||
+                                           checkDrugAllergyConflict(item.activeIngredient, patientPassport?.allergies);
+                          return (
+                            <tr key={index} className={conflict ? "bg-rose-50/80 border-l-4 border-rose-500" : "hover:bg-slate-50"}>
+                              <td className="p-2 text-slate-400 font-mono">{index + 1}</td>
+                              <td className="p-2">
+                                <input
+                                  type="text"
+                                  value={item.drugName}
+                                  onChange={(e) => updatePrescriptionRow(index, 'drugName', e.target.value)}
+                                  className={`w-full px-2 py-1 border rounded text-xs font-bold ${
+                                    conflict ? 'border-rose-400 bg-white text-rose-950 focus:ring-rose-500' : 'border-slate-200'
+                                  }`}
+                                  placeholder="Lipitor 20mg"
+                                />
+                                {conflict && (
+                                  <div className="text-[10px] text-rose-700 font-bold flex items-center gap-1 mt-0.5">
+                                    <ShieldAlert className="w-3 h-3 text-rose-600 flex-shrink-0" />
+                                    <span>Trùng dị ứng: "{conflict}"</span>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="p-2">
+                                <input
+                                  type="text"
+                                  value={item.activeIngredient}
+                                  onChange={(e) => updatePrescriptionRow(index, 'activeIngredient', e.target.value)}
+                                  className="w-full px-2 py-1 border border-slate-200 rounded text-xs"
+                                  placeholder="Atorvastatin"
+                                />
+                              </td>
+                              <td className="p-2">
+                                <input
+                                  type="text"
+                                  value={item.dosage}
+                                  onChange={(e) => updatePrescriptionRow(index, 'dosage', e.target.value)}
+                                  className="w-full px-2 py-1 border border-slate-200 rounded text-xs"
+                                  placeholder="Uống 1 viên vào buổi tối sau ăn"
+                                />
+                              </td>
+                              <td className="p-2 text-center">
+                                <input
+                                  type="number"
+                                  value={item.quantity}
+                                  onChange={(e) => updatePrescriptionRow(index, 'quantity', Number(e.target.value))}
+                                  className="w-16 px-1.5 py-1 border border-slate-200 rounded text-xs text-center font-bold"
+                                />
+                              </td>
+                              <td className="p-2 text-center">
+                                <input
+                                  type="text"
+                                  value={item.unit}
+                                  onChange={(e) => updatePrescriptionRow(index, 'unit', e.target.value)}
+                                  className="w-16 px-1.5 py-1 border border-slate-200 rounded text-xs text-center"
+                                />
+                              </td>
+                              <td className="p-2 text-center">
+                                <input
+                                  type="number"
+                                  value={item.days}
+                                  onChange={(e) => updatePrescriptionRow(index, 'days', Number(e.target.value))}
+                                  className="w-16 px-1.5 py-1 border border-slate-200 rounded text-xs text-center"
+                                />
+                              </td>
+                              <td className="p-2 text-center">
+                                {prescriptionItems.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removePrescriptionRow(index)}
+                                    className="text-rose-500 hover:text-rose-700 p-1"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
 
-              {/* Section 5: Treatment Plan & Follow Up */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="sm:col-span-2">
-                  <label className="font-bold text-slate-700 block mb-1">Hướng Xử Trí & Lời Dặn Của Bác Sĩ</label>
-                  <textarea
-                    rows={2}
-                    value={treatmentPlan}
-                    onChange={(e) => setTreatmentPlan(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500"
-                    placeholder="Chế độ ăn, nghỉ ngơi, theo dõi huyết áp..."
-                  />
+                {/* Section 5: Treatment Plan & Follow Up */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="font-bold text-slate-700 block mb-1">Hướng Xử Trí & Lời Dặn Của Bác Sĩ</label>
+                    <textarea
+                      rows={2}
+                      value={treatmentPlan}
+                      onChange={(e) => setTreatmentPlan(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500"
+                      placeholder="Chế độ ăn, nghỉ ngơi, theo dõi huyết áp..."
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Ngày Hẹn Tái Khám</label>
+                    <div className="space-y-1.5">
+                      <input
+                        type="date"
+                        value={followUpDate}
+                        onChange={(e) => setFollowUpDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500"
+                      />
+                      {followUpDate && (
+                        <button
+                          type="button"
+                          onClick={handleCreateFollowUp}
+                          disabled={bookingFollowUp}
+                          className="w-full py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition disabled:opacity-50"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>{bookingFollowUp ? 'Đang tạo...' : 'Tạo Lịch Tái Khám Trực Tiếp'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Ngày Hẹn Tái Khám</label>
-                  <input
-                    type="date"
-                    value={followUpDate}
-                    onChange={(e) => setFollowUpDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-              </div>
 
-              {/* Footer */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setActiveEncounterAppointment(null)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Hủy Bỏ
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingEncounter}
-                  className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer flex items-center gap-2 disabled:opacity-50"
-                >
-                  <Check className="w-4 h-4" />
-                  {submittingEncounter ? 'Đang Ký Duyệt Bệnh Án...' : 'Ký Duyệt & Hoàn Tất Ca Khám'}
-                </button>
+                {/* Footer */}
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setActiveEncounterAppointment(null)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Hủy Bỏ
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingEncounter}
+                    className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Check className="w-4 h-4" />
+                    {submittingEncounter ? 'Đang Ký Duyệt Bệnh Án...' : 'Ký Duyệt & Hoàn Tất Ca Khám'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* TAB 2: TRIAGE AI */}
+            {activeEncounterTab === 'TRIAGE' && (
+              <div className="p-6 overflow-y-auto space-y-4 flex-1 text-xs">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                  <div>
+                    <h4 className="font-bold text-sm text-purple-900 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-purple-600" />
+                      Lịch Sử Tư Vấn Phân Luồng Triệu Chứng Bệnh Nhân (AI Triage)
+                    </h4>
+                    <p className="text-slate-500 text-[11px]">Bác sĩ có thể bấm "Nạp Vào Phiếu Khám" để tự động điền triệu chứng và kết luận SBAR.</p>
+                  </div>
+                </div>
+                {patientTriageHistory.length === 0 ? (
+                  <p className="text-slate-400 italic text-center py-12">Bệnh nhân chưa từng thực hiện phân luồng Triage AI.</p>
+                ) : (
+                  patientTriageHistory.map((tr) => (
+                    <div key={tr.id} className="p-4 rounded-2xl bg-purple-50/50 border border-purple-200 space-y-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-purple-200 pb-2">
+                        <span className="font-bold text-purple-900">
+                          Phiên Triage: {new Date(tr.createdAt).toLocaleString('vi-VN')}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                            tr.urgencyLevel === 'EMERGENCY'
+                              ? 'bg-rose-100 text-rose-800'
+                              : tr.urgencyLevel === 'URGENT'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-teal-100 text-teal-800'
+                          }`}>
+                            {tr.urgencyLevel}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleImportTriage(tr)}
+                            className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-[11px] flex items-center gap-1 transition shadow-xs cursor-pointer"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            <span>Nạp Vào Phiếu Khám</span>
+                          </button>
+                        </div>
+                      </div>
+                      <div><strong>Triệu chứng khai báo:</strong> {tr.symptomsText}</div>
+                      {tr.primarySpecialty && <div><strong>Chuyên khoa khuyến nghị:</strong> {tr.primarySpecialty}</div>}
+                      {tr.sbarSummary && (
+                        <div className="p-3 bg-white rounded-xl border border-purple-100 font-mono text-[11px] whitespace-pre-wrap text-slate-700">
+                          {tr.sbarSummary}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
-            </form>
+            )}
+
+            {/* TAB 3: LAB DOCUMENTS */}
+            {activeEncounterTab === 'DOCUMENTS' && (
+              <div className="p-6 overflow-y-auto space-y-4 flex-1 text-xs">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                  <div>
+                    <h4 className="font-bold text-sm text-sky-900 flex items-center gap-1.5">
+                      <FileText className="w-4 h-4 text-sky-600" />
+                      Hồ Sơ Xét Nghiệm & Kết Quả Cận Lâm Sàng Của Người Bệnh
+                    </h4>
+                    <p className="text-slate-500 text-[11px]">Các tài liệu y tế (PDF, phiếu xét nghiệm hình ảnh) người bệnh đã tải lên hệ thống.</p>
+                  </div>
+                </div>
+                {patientDocuments.length === 0 ? (
+                  <p className="text-slate-400 italic text-center py-12">Bệnh nhân chưa tải lên hồ sơ xét nghiệm nào.</p>
+                ) : (
+                  patientDocuments.map((doc) => (
+                    <div key={doc.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-sky-100 text-sky-700 rounded-xl">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-900 text-sm">{doc.fileName}</div>
+                          <div className="text-[11px] text-slate-400">
+                            {(doc.fileSizeBytes / 1024).toFixed(1)} KB • {new Date(doc.createdAt).toLocaleString('vi-VN')}
+                          </div>
+                        </div>
+                      </div>
+                      {doc.storageUrl ? (
+                        <a
+                          href={doc.storageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs transition shadow-xs"
+                        >
+                          <span>Xem Tài Liệu</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      ) : (
+                        <span className="text-slate-400 text-xs">Lưu trữ nội bộ</span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* TAB 4: LONGITUDINAL HISTORY */}
+            {activeEncounterTab === 'HISTORY' && (
+              <div className="p-6 overflow-y-auto space-y-4 flex-1 text-xs">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                  <div>
+                    <h4 className="font-bold text-sm text-amber-900 flex items-center gap-1.5">
+                      <History className="w-4 h-4 text-amber-600" />
+                      Lịch Sử Các Ca Khám Lâm Sàng Trước Đây ({patientPastAppointments.length})
+                    </h4>
+                    <p className="text-slate-500 text-[11px]">Theo dõi diễn tiến huyết áp, đơn thuốc cũ và chẩn đoán ICD-10 qua các lần khám.</p>
+                  </div>
+                </div>
+                {patientPastAppointments.length === 0 ? (
+                  <p className="text-slate-400 italic text-center py-12">Chưa có lịch sử các ca khám trước đây.</p>
+                ) : (
+                  patientPastAppointments.map((past) => (
+                    <div key={past.id} className="p-4 rounded-2xl bg-amber-50/30 border border-amber-200 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 pb-2">
+                        <div>
+                          <span className="font-mono font-bold text-amber-900">{past.appointmentCode}</span>
+                          <span className="text-slate-400 mx-1">•</span>
+                          <span className="text-slate-600">{new Date(past.scheduledStart).toLocaleString('vi-VN')}</span>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
+                          {past.status}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-700">
+                        <div><strong>Bác sĩ:</strong> {past.doctorName}</div>
+                        <div><strong>Lý do khám:</strong> {past.chiefComplaint || 'Không có'}</div>
+                        {past.icd10Code && (
+                          <div className="sm:col-span-2 text-indigo-900 font-semibold">
+                            <strong>Chẩn đoán ICD-10:</strong> [{past.icd10Code}] {past.icd10Name}
+                          </div>
+                        )}
+                        {past.prescriptionJson && (
+                          <div className="sm:col-span-2 font-mono text-[11px] bg-white p-2.5 rounded-xl border border-amber-100">
+                            <strong>Đơn thuốc cũ:</strong> {past.prescriptionJson}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Stethoscope, LogOut, CalendarCheck, UserCog } from 'lucide-react';
+import { Stethoscope, LogOut, CalendarCheck, UserCog, Users } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
 export const DoctorLayout: React.FC = () => {
@@ -8,6 +8,7 @@ export const DoctorLayout: React.FC = () => {
   const location = useLocation();
 
   const isDashboard = location.pathname === '/doctor';
+  const isPatients = location.pathname.startsWith('/doctor/patients');
   const isProfile = location.pathname === '/doctor/profile';
 
   return (
@@ -36,6 +37,17 @@ export const DoctorLayout: React.FC = () => {
               >
                 <CalendarCheck className="w-3.5 h-3.5" />
                 <span>Bàn Khám & Hàng Đợi</span>
+              </Link>
+              <Link
+                to="/doctor/patients"
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl transition ${
+                  isPatients
+                    ? 'bg-teal-50 text-teal-800 border border-teal-200'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Danh Bạ Bệnh Nhân</span>
               </Link>
               <Link
                 to="/doctor/profile"

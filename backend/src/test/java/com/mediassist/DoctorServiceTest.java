@@ -53,6 +53,9 @@ class DoctorServiceTest {
     @Mock
     private com.mediassist.repository.DoctorScheduleSlotRepository doctorScheduleSlotRepository;
 
+    @Mock
+    private com.mediassist.repository.PatientProfileRepository patientProfileRepository;
+
     private DoctorService doctorService;
 
     private UUID doctorUserId;
@@ -70,7 +73,8 @@ class DoctorServiceTest {
                 appointmentRepository,
                 cacheService,
                 doctorSemanticSearchService,
-                doctorScheduleSlotRepository
+                doctorScheduleSlotRepository,
+                patientProfileRepository
         );
 
         doctorUserId = UUID.randomUUID();
@@ -287,5 +291,81 @@ class DoctorServiceTest {
         assertNotNull(schedules);
         assertFalse(schedules.isEmpty());
         verify(doctorScheduleSlotRepository, times(1)).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("getDoctorPatients groups appointments by patient and attaches profile data")
+    void testGetDoctorPatients() {
+        UUID patientId = UUID.randomUUID();
+        User patientUser = User.builder()
+                .id(patientId)
+                .fullName("Trần Thị Bình")
+                .email("binh@gmail.com")
+                .phone("0988776655")
+                .role(Role.PATIENT)
+                .build();
+
+        Appointment apt = Appointment.builder()
+                .id(UUID.randomUUID())
+                .patient(patientUser)
+                .doctor(doctorUser)
+                .status(AppointmentStatus.COMPLETED)
+                .scheduledStart(java.time.LocalDateTime.now().minusDays(1))
+                .scheduledEnd(java.time.LocalDateTime.now().minusDays(1).plusMinutes(30))
+                .build();
+        apt.setIcd10Code("I10");
+        apt.setIcd10Name("Tăng huyết áp");
+
+        when(appointmentRepository.findByDoctorIdWithUsersOrderByScheduledStartDesc(doctorUserId))
+                .thenReturn(List.of(apt));
+
+        PatientProfile pp = new PatientProfile();
+        pp.setPatientCode("BN-2026-0001");
+        pp.setBloodGroup("A+");
+        pp.setGender("FEMALE");
+        pp.setAllergies("Dị ứng Penicillin");
+        when(patientProfileRepository.findByUserId(patientId)).thenReturn(Optional.of(pp));
+
+        List<com.mediassist.dto.DoctorPatientItemDto> result = doctorService.getDoctorPatients(doctorUserId);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("Trần Thị Bình", result.get(0).getFullName());
+        assertEquals("BN-2026-0001", result.get(0).getPatientCode());
+        assertEquals("Dị ứng Penicillin", result.get(0).getAllergies());
+        assertEquals("I10", result.get(0).getLastIcd10Code());
+    }
+
+    @Test
+    @DisplayName("callNextPatient advances earliest SCHEDULED appointment to IN_PROGRESS")
+    void testCallNextPatient_AdvancesScheduled() {
+        UUID patientId = UUID.randomUUID();
+        User patientUser = User.builder()
+                .id(patientId)
+                .fullName("Lê Văn Cường")
+                .email("cuong@gmail.com")
+                .role(Role.PATIENT)
+                .build();
+
+        Appointment apt = Appointment.builder()
+                .id(UUID.randomUUID())
+                .appointmentCode("AP-2026-01")
+                .patient(patientUser)
+                .doctor(doctorUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .scheduledStart(java.time.LocalDateTime.now())
+                .scheduledEnd(java.time.LocalDateTime.now().plusMinutes(30))
+                .build();
+
+        when(appointmentRepository.findTodayAppointmentsByDoctorWithUsers(eq(doctorUserId), any(), any()))
+                .thenReturn(List.of(apt));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(i -> i.getArgument(0));
+
+        com.mediassist.dto.AppointmentDto result = doctorService.callNextPatient(doctorUserId);
+
+        assertNotNull(result);
+        assertEquals(AppointmentStatus.IN_PROGRESS, result.getStatus());
+        assertEquals("Lê Văn Cường", result.getPatientName());
+        verify(appointmentRepository, times(1)).save(any(Appointment.class));
     }
 }

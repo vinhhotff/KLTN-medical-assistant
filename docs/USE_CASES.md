@@ -678,3 +678,36 @@ graph TD
      - Sau khi thanh toán thành công, trạng thái ca hẹn chuyển thành `Đã Thanh Toán (PAID)`, đồng thời số tiền được tự động cộng vào Doanh thu hôm nay trên Trạm làm việc của Bác sĩ.
   3. **Độ Bền Vững & Dự Phòng Cục Bộ (Sandbox Resilience):**
      - Nếu môi trường chạy offline hoặc không có API key Stripe thật, hệ thống tự động kích hoạt chế độ Stripe Sandbox mô phỏng nội bộ, bảo đảm toàn bộ kịch bản demo và bảo vệ đồ án luôn thành công 100% không bị gián đoạn.
+
+---
+
+### UC-20: Tương Tác Lâm Sàng Bác Sĩ - Bệnh Nhân 360°, Hồ Sơ Dài Hạn, Cảnh Báo Dị Ứng Thuốc & Điều Phối Hàng Đợi (Doctor-Patient 360° Clinical Synergy, Longitudinal EMR, Drug-Allergy Guard & Smart Queue Advancement)
+
+* **Mã Use Case:** `UC-DOC-20`
+* **Tác nhân chính:** Doctor, Patient, Spring Boot API, PostgreSQL, Two-Layer Cache.
+* **Mục tiêu:** Xóa bỏ hoàn toàn tình trạng đứt gãy thông tin lâm sàng giữa Bệnh nhân và Bác sĩ. Trao quyền tối đa cho Bác sĩ qua Bàn làm việc EMR 360°, kết nối trực tiếp với Hộ Chiếu Y Tế (Medical Passport), tiền sử phân luồng AI Triage, tài liệu xét nghiệm OCR, bệnh sử các lần khám cũ, tự động cảnh báo dị ứng thuốc thời gian thực và lên lịch hẹn tái khám chủ động.
+* **REST Endpoints Liên Quan:**
+  - `GET /api/v1/doctors/me/patients`: Truy xuất danh bạ toàn bộ bệnh nhân đã và đang khám với bác sĩ (kèm thống kê số lần khám, chẩn đoán gần nhất, nhóm máu, tiền sử dị ứng, CCCD, BHYT).
+  - `POST /api/v1/doctors/me/call-next`: Tự động tìm bệnh nhân kế tiếp theo thứ tự khung giờ hẹn trong ngày hôm nay, chuyển trạng thái sang `IN_PROGRESS` và trả về chi tiết ca hẹn cho bác sĩ tiếp nhận tức thì.
+  - `GET /api/v1/patient/profile/by-user/{userId}`: Lấy Hộ chiếu y tế của bệnh nhân (nhóm máu, tiền sử dị ứng, bệnh nền, liên hệ khẩn cấp, BHYT, CCCD) với cơ chế tự sinh hồ sơ dự phòng không bao giờ trả lỗi 404.
+  - `GET /api/v1/triage/patient/{patientId}`: Truy xuất toàn bộ lịch sử phân luồng triệu chứng và bản tóm tắt SBAR của bệnh nhân để bác sĩ đối chiếu lâm sàng.
+  - `GET /api/v1/documents/patient/{patientId}`: Truy xuất toàn bộ tài liệu bệnh án, kết quả xét nghiệm máu/nước tiểu, chẩn đoán hình ảnh và các chỉ số OCR bất thường đã tải lên của bệnh nhân.
+  - `GET /api/v1/appointments/patient/{patientId}`: Truy xuất lịch sử dài hạn (Longitudinal History) tất cả các đợt khám bệnh trước đây kèm chẩn đoán ICD-10, sinh hiệu và đơn thuốc đã kê.
+  - `POST /api/v1/appointments/follow-up`: Bác sĩ trực tiếp đặt lịch hẹn tái khám cho bệnh nhân sau khi kết thúc đợt điều trị.
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Thư Mục Bệnh Nhân Toàn Diện (`/doctor/patients`):**
+     - Bác sĩ quản lý danh sách bệnh nhân điều trị với đầy đủ thông tin: Mã BN, Họ tên, Nhóm máu, BHYT, CCCD, Tiền sử dị ứng, Lần khám gần nhất.
+     - Bộ lọc thông minh theo nhóm máu (A+, B+, O+, AB+), trạng thái dị ứng đã ghi nhận, tìm kiếm tức thì theo tên/SĐT/mã BN.
+     - Ngăn kéo hồ sơ 360° (Patient 360 Drawer): Hiển thị chi tiết 4 khu vực: Hộ chiếu y tế & Liên hệ khẩn cấp, Lịch sử các ca khám cũ, Phân luồng AI Triage, và Tài liệu xét nghiệm OCR.
+  2. **Bàn Khám Lâm Sàng Đa Năng 4 Tab (`/doctor` Encounter Modal):**
+     - **Tab 1 - Bàn Khám & Kê Đơn (EMR):** Nhập dấu hiệu sinh tồn (Mạch, Huyết áp, Thân nhiệt, SpO2, BMI), chẩn đoán WHO ICD-10 và kê đơn thuốc.
+     - **Tab 2 - Triage AI & SBAR:** Xem toàn bộ triệu chứng bệnh nhân đã khai báo với AI. Tích hợp nút *"1-Click Nạp Dữ Liệu Vào Bệnh Án"*, tự động điền triệu chứng vào Lý do khám và tóm tắt SBAR vào Ghi chú lâm sàng, giúp bác sĩ không phải hỏi lại từ đầu.
+     - **Tab 3 - Xét Nghiệm & Cận Lâm Sàng:** Xem trực tiếp các phiếu xét nghiệm bệnh nhân đã tải lên, kèm các chỉ số sinh hóa/huyết học đã được AI OCR trích xuất (đánh dấu đỏ các chỉ số vượt ngưỡng tham chiếu).
+     - **Tab 4 - Bệnh Sử Các Lần Khám Cũ:** Xem lại diễn tiến bệnh, đơn thuốc cũ và kết quả điều trị của các lần khám trước.
+  3. **Rào Chắn An Toàn Dược Lý & Cảnh Báo Dị Ứng Thuốc (Drug-Allergy Safety Guard):**
+     - Khi bác sĩ gõ tên thuốc trong bảng kê đơn, hệ thống tự động chạy thuật toán quét đối chiếu chuỗi token từ khóa dị ứng được lưu trong Hộ chiếu y tế của bệnh nhân (ví dụ: dị ứng Penicillin, Aspirin).
+     - Nếu phát hiện trùng lặp hoặc nguy cơ sốc phản vệ: Dòng thuốc ngay lập tức hiển thị nhãn cảnh báo đỏ rực rỡ kèm thông báo cụ thể *"Phát hiện xung đột với tiền sử dị ứng: [Tên chất]"*, bảo vệ tuyệt đối an toàn tính mạng bệnh nhân.
+  4. **Nút "Gọi Số Tiếp Theo" (Smart Queue Advancement):**
+     - Tại thanh tiêu đề Bàn làm việc Bác sĩ, nút *"Gọi Số Tiếp Theo"* cho phép bác sĩ tiếp nhận ngay bệnh nhân kế tiếp trong hàng đợi chỉ với 1 cú click chuột, tự động mở modal khám và đồng bộ toàn bộ dữ liệu 360°.
+  5. **Chủ Động Đặt Lịch Hẹn Tái Khám (Doctor Follow-Up Scheduling):**
+     - Khi hoàn tất khám, bác sĩ có thể bấm nút *"Hẹn Tái Khám"* ngay trong modal hoặc từ danh mục bệnh nhân, chọn ngày giờ tái khám và ghi chú dặn dò. Hệ thống tự tạo ca hẹn tái khám với trạng thái `CONFIRMED` cho bệnh nhân.

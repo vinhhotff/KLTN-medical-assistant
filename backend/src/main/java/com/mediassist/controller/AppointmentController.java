@@ -83,4 +83,23 @@ public class AppointmentController {
         AppointmentDto dto = appointmentService.completeClinicalEncounter(id, principal.getId(), request);
         return ResponseEntity.ok(ApiResponse.success(dto));
     }
+
+    @GetMapping("/patient/{patientId}")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @Operation(summary = "Bác sĩ hoặc Quản trị viên tra cứu toàn bộ lịch sử ca khám của một bệnh nhân")
+    public ResponseEntity<ApiResponse<List<AppointmentDto>>> getPatientHistory(
+            @PathVariable("patientId") UUID patientId) {
+        List<AppointmentDto> list = appointmentService.getPatientAppointmentHistory(patientId);
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
+    @PostMapping("/follow-up")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Bác sĩ trực tiếp lên lịch hẹn tái khám cho bệnh nhân ngay trên trạm lâm sàng")
+    public ResponseEntity<ApiResponse<AppointmentDto>> createFollowUp(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody com.mediassist.dto.FollowUpAppointmentRequest request) {
+        AppointmentDto dto = appointmentService.createFollowUpAppointment(principal.getId(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(dto));
+    }
 }

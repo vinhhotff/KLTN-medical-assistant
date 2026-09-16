@@ -73,10 +73,14 @@ public class PatientProfileService {
         return toDto(profile);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public PatientProfileDto getProfileByUserId(UUID userId) {
-        PatientProfile profile = findByUserIdInternal(userId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "PROFILE_NOT_FOUND", "Chưa có hồ sơ bệnh án cho bệnh nhân này"));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
+
+        PatientProfile profile = findByUserInternal(user)
+                .orElseGet(() -> createInitialProfile(user));
+
         return toDto(profile);
     }
 

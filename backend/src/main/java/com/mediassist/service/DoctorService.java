@@ -31,6 +31,7 @@ public class DoctorService {
     private final TwoLayerCacheService cacheService;
     private final DoctorSemanticSearchService doctorSemanticSearchService;
     private final DoctorScheduleSlotRepository doctorScheduleSlotRepository;
+    private final PatientProfileRepository patientProfileRepository;
 
     public DoctorService(DoctorProfileRepository doctorProfileRepository,
                          UserRepository userRepository,
@@ -38,7 +39,8 @@ public class DoctorService {
                          AppointmentRepository appointmentRepository,
                          TwoLayerCacheService cacheService,
                          DoctorSemanticSearchService doctorSemanticSearchService,
-                         DoctorScheduleSlotRepository doctorScheduleSlotRepository) {
+                         DoctorScheduleSlotRepository doctorScheduleSlotRepository,
+                         PatientProfileRepository patientProfileRepository) {
         this.doctorProfileRepository = doctorProfileRepository;
         this.userRepository = userRepository;
         this.specialtyRepository = specialtyRepository;
@@ -46,6 +48,7 @@ public class DoctorService {
         this.cacheService = cacheService;
         this.doctorSemanticSearchService = doctorSemanticSearchService;
         this.doctorScheduleSlotRepository = doctorScheduleSlotRepository;
+        this.patientProfileRepository = patientProfileRepository;
     }
 
     public List<DoctorDetailDto> getVerifiedDoctors() {
@@ -339,5 +342,99 @@ public class DoctorService {
                         .thenComparing(DoctorScheduleSlot::getStartTime))
                 .map(DoctorScheduleConfigDto::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Lấy danh bạ người bệnh mà bác sĩ từng khám hoặc có lịch hẹn, kèm hồ sơ lâm sàng tóm tắt.
+     */
+    @Transactional(readOnly = true)
+    public List<DoctorPatientItemDto> getDoctorPatients(UUID doctorUserId) {
+        List<Appointment> appointments = appointmentRepository.findByDoctorIdWithUsersOrderByScheduledStartDesc(doctorUserId);
+        if (appointments == null || appointments.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Group appointments by patient ID preserving order
+        Map<UUID, List<Appointment>> byPatient = appointments.stream()
+                .filter(a -> a.getPatient() != null)
+                .collect(Collectors.groupingBy(a -> a.getPatient().getId(), LinkedHashMap::new, Collectors.toList()));
+
+        List<DoctorPatientItemDto> result = new ArrayList<>();
+        for (Map.Entry<UUID, List<Appointment>> entry : byPatient.entrySet()) {
+            UUID patientId = entry.getKey();
+            List<Appointment> patientAppts = entry.getValue();
+            Appointment latestAppt = patientAppts.get(0); // Ordered by scheduledStart DESC
+            User patientUser = latestAppt.getPatient();
+
+            DoctorPatientItemDto dto = new DoctorPatientItemDto();
+            dto.setPatientId(patientId);
+            dto.setFullName(patientUser.getFullName());
+            dto.setEmail(patientUser.getEmail());
+            dto.setPhone(patientUser.getPhone());
+            dto.setTotalVisits(patientAppts.size());
+            dto.setLastVisitDate(latestAppt.getScheduledStart());
+            dto.setLastStatus(latestAppt.getStatus() != null ? latestAppt.getStatus().name() : "SCHEDULED");
+            dto.setLastIcd10Code(latestAppt.getIcd10Code());
+            dto.setLastIcd10Name(latestAppt.getIcd10Name());
+            dto.setLastChiefComplaint(latestAppt.getChiefComplaint());
+
+            // Fetch patient profile if exists
+            Optional<PatientProfile> profileOpt = patientProfileRepository.findByUserId(patientId);
+            if (profileOpt.isPresent()) {
+                PatientProfile p = profileOpt.get();
+                dto.setPatientCode(p.getPatientCode());
+                dto.setGender(p.getGender());
+                dto.setBloodGroup(p.getBloodGroup());
+                dto.setDateOfBirth(p.getDateOfBirth());
+                dto.setAllergies(p.getAllergies());
+                dto.setMedicalHistory(p.getMedicalHistory());
+            } else {
+                dto.setPatientCode("BN-" + patientId.toString().substring(0, 8).toUpperCase());
+                dto.setGender("OTHER");
+                dto.setBloodGroup("O+");
+                dto.setAllergies("Chưa ghi nhận tiền sử dị ứng thuốc");
+                dto.setMedicalHistory("Chưa ghi nhận bệnh lý mãn tính");
+            }
+            result.add(dto);
+        }
+        return result;
+    }
+
+    /**
+     * Bác sĩ bấm Gọi Bệnh Nhân Kế Tiếp: Tự động tiếp nhận ca SCHEDULED sớm nhất hôm nay sang IN_PROGRESS.
+     */
+    @Transactional
+    public AppointmentDto callNextPatient(UUID doctorUserId) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime dayStart = today.atStartOfDay();
+        LocalDateTime dayEnd = today.atTime(23, 59, 59);
+
+        List<Appointment> todayAppointments = appointmentRepository.findTodayAppointmentsByDoctorWithUsers(
+                doctorUserId, dayStart, dayEnd
+        );
+
+        if (todayAppointments == null || todayAppointments.isEmpty()) {
+            throw new AppException(HttpStatus.NOT_FOUND, "NO_PATIENTS_TODAY", "Không có bệnh nhân nào trong danh sách khám hôm nay.");
+        }
+
+        // Nếu đã có ca IN_PROGRESS đang khám dở, tiếp tục trả về ca đó để bác sĩ không mất dấu
+        Optional<Appointment> inProgressOpt = todayAppointments.stream()
+                .filter(a -> a.getStatus() == AppointmentStatus.IN_PROGRESS)
+                .findFirst();
+
+        if (inProgressOpt.isPresent()) {
+            return AppointmentDto.fromEntity(inProgressOpt.get());
+        }
+
+        // Tìm ca SCHEDULED sớm nhất trong ngày
+        Appointment nextScheduled = todayAppointments.stream()
+                .filter(a -> a.getStatus() == AppointmentStatus.SCHEDULED)
+                .findFirst()
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "QUEUE_EMPTY", "Đã phục vụ hết tất cả bệnh nhân trong hàng đợi hôm nay."));
+
+        nextScheduled.setStatus(AppointmentStatus.IN_PROGRESS);
+        Appointment saved = appointmentRepository.save(nextScheduled);
+        log.info("🔔 Doctor {} called next patient: {} (Code: {})", doctorUserId, saved.getPatient().getFullName(), saved.getAppointmentCode());
+        return AppointmentDto.fromEntity(saved);
     }
 }
