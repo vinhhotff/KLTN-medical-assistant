@@ -3,6 +3,13 @@ import { User, Award, CheckCircle2, Save, AlertCircle, Building2 } from 'lucide-
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
 
+interface SpecialtyOption {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+}
+
 export const DoctorProfilePage: React.FC = () => {
   const { user } = useAuthStore();
   const [academicTitle, setAcademicTitle] = useState('TS.BS');
@@ -14,6 +21,7 @@ export const DoctorProfilePage: React.FC = () => {
   const [consultationFee, setConsultationFee] = useState<number>(350000);
   const [yearsOfExperience, setYearsOfExperience] = useState<number>(10);
   const [specialty, setSpecialty] = useState('cardiology');
+  const [availableSpecialties, setAvailableSpecialties] = useState<SpecialtyOption[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -28,9 +36,19 @@ export const DoctorProfilePage: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const res = await api.get(`/doctors/${user.id}`);
-      if (res.data?.data) {
-        const d = res.data.data;
+      const [profileRes, specRes] = await Promise.allSettled([
+        api.get(`/doctors/${user.id}`),
+        api.get('/specialties')
+      ]);
+
+      let specsList: SpecialtyOption[] = [];
+      if (specRes.status === 'fulfilled' && specRes.value.data?.data) {
+        specsList = specRes.value.data.data;
+        setAvailableSpecialties(specsList);
+      }
+
+      if (profileRes.status === 'fulfilled' && profileRes.value.data?.data) {
+        const d = profileRes.value.data.data;
         setBio(d.bio || '');
         setLicenseNumber(d.licenseNumber || '');
         setConsultationFee(d.consultationFee || 350000);
@@ -39,6 +57,17 @@ export const DoctorProfilePage: React.FC = () => {
         if (d.hospitalAffiliation) setHospitalAffiliation(d.hospitalAffiliation);
         if (d.department) setDepartment(d.department);
         if (d.licenseIssuedBy) setLicenseIssuedBy(d.licenseIssuedBy);
+
+        // Match existing specialty
+        if (d.specialties && Array.isArray(d.specialties) && d.specialties.length > 0) {
+          const firstSpecName = d.specialties[0].toLowerCase();
+          const matched = specsList.find(s =>
+            s.name.toLowerCase() === firstSpecName || s.slug.toLowerCase() === firstSpecName
+          );
+          if (matched) {
+            setSpecialty(matched.slug);
+          }
+        }
       }
     } catch {
       // Fallback defaults
@@ -168,12 +197,22 @@ export const DoctorProfilePage: React.FC = () => {
                 onChange={(e) => setSpecialty(e.target.value)}
                 className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer font-medium"
               >
-                <option value="cardiology">Tim mạch (Cardiology)</option>
-                <option value="dermatology">Da liễu (Dermatology)</option>
-                <option value="neurology">Thần kinh (Neurology)</option>
-                <option value="pediatrics">Nhi khoa (Pediatrics)</option>
-                <option value="gastroenterology">Tiêu hóa - Gan mật (Gastroenterology)</option>
-                <option value="general-internal-medicine">Nội tổng quát (Internal Medicine)</option>
+                {availableSpecialties.length > 0 ? (
+                  availableSpecialties.map((s) => (
+                    <option key={s.id} value={s.slug}>
+                      {s.name} ({s.slug})
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="cardiology">Tim mạch (Cardiology)</option>
+                    <option value="dermatology">Da liễu (Dermatology)</option>
+                    <option value="neurology">Thần kinh (Neurology)</option>
+                    <option value="pediatrics">Nhi khoa (Pediatrics)</option>
+                    <option value="gastroenterology">Tiêu hóa - Gan mật (Gastroenterology)</option>
+                    <option value="general-internal-medicine">Nội tổng quát (Internal Medicine)</option>
+                  </>
+                )}
               </select>
             </div>
           </div>

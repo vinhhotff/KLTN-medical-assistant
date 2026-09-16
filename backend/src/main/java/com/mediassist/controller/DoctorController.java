@@ -1,9 +1,7 @@
 package com.mediassist.controller;
 
 import com.mediassist.common.ApiResponse;
-import com.mediassist.dto.DoctorDetailDto;
-import com.mediassist.dto.DoctorSlotDto;
-import com.mediassist.dto.UpdateDoctorProfileRequest;
+import com.mediassist.dto.*;
 import com.mediassist.security.UserPrincipal;
 import com.mediassist.service.DoctorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -56,5 +54,30 @@ public class DoctorController {
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody UpdateDoctorProfileRequest request) {
         return ResponseEntity.ok(ApiResponse.success(doctorService.updateDoctorProfile(principal.getId(), request)));
+    }
+
+    @GetMapping("/me/stats")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Get current doctor workstation real-time stats and KPIs")
+    public ResponseEntity<ApiResponse<DoctorStatsDto>> getMyStats(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(doctorService.getDoctorStats(principal.getId())));
+    }
+
+    @GetMapping("/me/schedules")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Get current doctor working hours and schedule slots")
+    public ResponseEntity<ApiResponse<List<DoctorScheduleConfigDto>>> getMySchedules(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(doctorService.getDoctorSchedules(principal.getId())));
+    }
+
+    @PutMapping("/me/schedules")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Update current doctor working hours and schedule slots")
+    public ResponseEntity<ApiResponse<List<DoctorScheduleConfigDto>>> updateMySchedules(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody UpdateDoctorScheduleRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(doctorService.updateDoctorSchedules(principal.getId(), request)));
     }
 }

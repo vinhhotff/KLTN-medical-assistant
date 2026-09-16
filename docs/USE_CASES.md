@@ -426,14 +426,21 @@ graph TD
 #### Luồng sự kiện chính (Happy Path):
 1. Bác sĩ truy cập Bảng điều khiển lâm sàng `DoctorDashboard`.
 2. Tại danh sách lịch hẹn hôm nay, bác sĩ thấy số thứ tự khám `STT 08`, phòng khám `Phòng Khám 204`, và lý do vào viện của bệnh nhân.
-3. Bác sĩ bấm *"Khám Lâm Sàng & Kê Đơn (EMR)"* để mở Bàn Làm Việc Bác Sĩ (Clinical Workstation):
-   - Nhập bảng sinh hiệu: Huyết áp (135/85 mmHg), Nhịp tim (78 bpm), Thân nhiệt (36.8°C), Nhịp thở (18 bpm), SpO2 (98%), Chiều cao (170cm), Cân nặng (68kg) $\rightarrow$ Hệ thống tự động tính BMI: $23.53\text{ kg/m}^2$ (Thể trạng bình thường).
-   - Chọn hoặc nhập mã bệnh danh quốc tế ICD-10 (Ví dụ: `I20.9 - Bệnh tim thiếu máu cục bộ nghẽn mạch vành`).
-   - Lập Toa thuốc điện tử đa dòng: Tên thuốc, dạng bào chế, hàm lượng, số lượng, cách dùng (sáng/trưa/chiều/tối, trước/sau ăn), và lưu ý y lệnh.
-   - Nhập Kế hoạch điều trị & Chọn ngày hẹn tái khám.
+3. Bác sĩ bấm *"Bắt Đầu Khám"* (hoặc *"Tiếp tục khám"* nếu đang dang dở):
+   - Trạng thái cuộc hẹn lập tức chuyển đổi tự động sang `status = 'IN_PROGRESS'` qua `PATCH /api/v1/appointments/{id}/status`.
+   - Giao diện ghim banner cuộc gọi khám đang thực hiện (`Active Encounter`) lên đầu trang giúp bác sĩ không bao giờ mất dấu bệnh nhân.
+   - Mở Bàn Làm Việc Bác Sĩ (Clinical Workstation Modal):
+     - Nhập bảng sinh hiệu: Huyết áp (135/85 mmHg), Nhịp tim (78 bpm), Thân nhiệt (36.8°C), Nhịp thở (18 bpm), SpO2 (98%), Chiều cao (170cm), Cân nặng (68kg) $\rightarrow$ Hệ thống tự động tính BMI: $23.53\text{ kg/m}^2$ (Thể trạng bình thường).
+     - Chọn hoặc nhập mã bệnh danh quốc tế ICD-10 (Ví dụ: `I20.9 - Bệnh tim thiếu máu cục bộ nghẽn mạch vành`).
+     - Lập Toa thuốc điện tử đa dòng: Tên thuốc, dạng bào chế, hàm lượng, số lượng, cách dùng (sáng/trưa/chiều/tối, trước/sau ăn), và lưu ý y lệnh.
+     - Nhập Kế hoạch điều trị & Chọn ngày hẹn tái khám.
 4. Bác sĩ bấm *"Ký Số & Hoàn Tất Khám Lâm Sàng"*.
 5. Backend lưu trữ trạng thái `status = 'COMPLETED'`, cập nhật toàn bộ `vitalSignsJson`, `icd10Code`, `prescriptionJson`, và gửi kết quả về bệnh án điện tử của người bệnh.
 6. Cả bác sĩ và bệnh nhân đều có thể mở xem bản in Bệnh Án Điện Tử & Toa Thuốc Chuẩn Bệnh Viện (với nút *"In Bệnh Án & Toa Thuốc"* theo mẫu quy chuẩn Bộ Y Tế).
+
+#### Luồng ngoại lệ & Quản lý vắng mặt:
+- Nếu gọi số thứ tự quá 3 lần mà người bệnh không có mặt tại phòng khám, Bác sĩ bấm *"Vắng Mặt (NO_SHOW)"*.
+- Hệ thống xác nhận và chuyển trạng thái cuộc hẹn sang `NO_SHOW`, giải phóng phòng khám và cập nhật hàng đợi thời gian thực.
 
 ---
 
@@ -611,3 +618,33 @@ graph TD
   2. **Giám Sát Lịch Hẹn (`/admin/appointments`):** Quản trị viên lọc cuộc hẹn theo trạng thái (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`), tìm kiếm nhanh theo mã cuộc hẹn, tên bác sĩ/bệnh nhân. Bấm *"Chi Tiết"* để thanh tra hồ sơ lâm sàng gồm Sinh hiệu, Chẩn đoán ICD-10 và Đơn thuốc điện tử. Nếu có sự cố bất khả kháng, Admin bấm *"Hủy khẩn cấp"* nhập lý do giải trình.
   3. **Giám Sát Triage AI (`/admin/triage`):** Xem danh sách phân loại triệu chứng của người bệnh. Các ca cấp cứu (`isEmergency = true`) được gắn huy hiệu cảnh báo đỏ nhấp nháy nổi bật. Admin có thể mở Drawer xem chi tiết cấu trúc SBAR (`Situation`, `Background`, `Assessment`, `Recommendation`) và lời khuyên do AI đưa ra.
   4. **Nhật Ký Kiểm Toán (`/admin/audit-logs`):** Xem lịch sử toàn bộ hành vi nhạy cảm trong hệ thống, lọc theo hành động (`DOCTOR_VETTED`, `APPOINTMENT_BOOKED`, `CLINICAL_ENCOUNTER_COMPLETED`, `ADMIN_CANCEL_APPOINTMENT`, `UPDATE_USER_STATUS`, `CREATE_SPECIALTY`), xem địa chỉ IP, tài nguyên tác động và chi tiết metadata JSON.
+
+---
+
+### UC-18: Bàn Làm Việc Lâm Sàng Thời Gian Thực, Chỉ Số KPIs & Cấu Hình Lịch Trực Bác Sĩ (Doctor Real-Time Clinical Workstation, Live Metrics & Working Schedules)
+
+* **Mã Use Case:** `UC-DOC-18`
+* **Tác nhân chính:** Doctor, Spring Boot API, PostgreSQL, Two-Layer Cache.
+* **Mục tiêu:** Cung cấp cho Bác sĩ điều trị một Bàn Làm Việc Lâm Sàng (Doctor Clinical Workstation) thông minh, đồng bộ dữ liệu thời gian thực (Real-time Live Sync), trực quan hóa số liệu khám chữa bệnh và cấu hình linh hoạt ca trực khám định kỳ trong tuần.
+* **REST Endpoints Liên Quan:**
+  - `GET /api/v1/doctors/me/stats`: Tổng hợp thời gian thực các chỉ số KPIs của bác sĩ: Hàng đợi chờ khám hôm nay (`waitingQueueToday`), Ca đang khám trong phòng (`inProgressCount`), Ca hoàn tất hôm nay (`completedToday`), Doanh thu thực tế hôm nay (`revenueToday`), Tổng số lượt khám tích lũy (`totalConsultations`), và Điểm đánh giá trung bình (`averageRating`).
+  - `GET /api/v1/doctors/me/schedules`: Lấy danh sách cấu hình khung giờ làm việc định kỳ trong tuần (Thứ 2 - Chủ Nhật, Sáng/Chiều) của bác sĩ. Tự động khởi tạo cấu hình chuẩn bệnh viện nếu bác sĩ chưa từng thiết lập.
+  - `PUT /api/v1/doctors/me/schedules`: Cập nhật trạng thái bật/tắt (active/inactive) và khung giờ các slot trực hàng tuần của bác sĩ.
+  - `PATCH /api/v1/appointments/{id}/status`: Chuyển trạng thái linh hoạt giữa `SCHEDULED`, `IN_PROGRESS`, và `NO_SHOW`.
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Bảng Điều Khiển Lâm Sàng Thời Gian Thực (`/doctor`):**
+     - Cơ chế Silent Polling ngầm định kỳ 12 giây kết hợp nút làm mới tức thời (với hiệu ứng xoay đồng bộ và huy hiệu Live Sync xanh nhấp nháy), đảm bảo bác sĩ luôn thấy danh sách bệnh nhân mới nhất mà không gây giật lag.
+     - 4 Thẻ KPIs vận hành hiển thị sắc nét: Hàng đợi chờ khám (cam), Ca đang khám (tím), Hoàn tất hôm nay (xanh lá), và Doanh thu hôm nay (xanh dương kèm định dạng VNĐ chuẩn).
+     - **Active In-Progress Callout Banner:** Khi có ca bệnh đang khám dở trong phòng (`IN_PROGRESS`), giao diện ghim banner thông báo nổi bật lên đầu trang kèm nút *"Tiếp tục nhập bệnh án"* để bác sĩ nhanh chóng quay lại ca khám mà không sợ mất dấu vết.
+  2. **Quản Lý Ca Khám & Chuyển Đổi Trạng Thái:**
+     - Khi bệnh nhân bước vào phòng, Bác sĩ bấm *"Bắt Đầu Khám"*: Hệ thống tự động chuyển trạng thái cuộc hẹn sang `IN_PROGRESS` và mở EMR Modal ghi nhận sinh hiệu, chẩn đoán ICD-10 và kê toa.
+     - Nếu gọi tên bệnh nhân quá 3 lượt nhưng không có mặt, Bác sĩ bấm *"Vắng Mặt (NO_SHOW)"*: Hệ thống ghi nhận trạng thái vắng mặt và chuyển sang tiếp nhận bệnh nhân tiếp theo trong hàng đợi.
+  3. **Bộ Lọc Đa Năng & Tìm Kiếm Nghịch Đảo Token Hóa:**
+     - Bác sĩ có thể lọc ca khám theo Ngày (*"Hôm nay"* / *"Tất cả"*), theo Trạng thái (*"Tất cả", "Chờ khám", "Đang khám", "Hoàn tất", "Vắng mặt", "Đã hủy"*).
+     - Ô tìm kiếm tức thời áp dụng thuật toán `Tokenized Inverted Search` kết hợp `useDebounce` (250ms), cho phép tìm theo tên bệnh nhân, số điện thoại, mã ca hẹn, phòng khám, triệu chứng và mã ICD-10.
+  4. **Cấu Hình Khung Giờ Trực Khám (`Cấu Hình Lịch Trực`):**
+     - Bác sĩ bấm nút *"Cấu Hình Lịch Trực"* để mở bảng điều khiển ca làm việc 7 ngày trong tuần.
+     - Bác sĩ chủ động bật/tắt các khung giờ làm việc buổi sáng hoặc buổi chiều (ví dụ: Thứ Bảy chỉ trực sáng, Chủ Nhật nghỉ).
+     - Bấm *"Lưu Cấu Hình Ca Trực"*: Hệ thống ghi nhận vào bảng `doctor_schedule_slots`, phục vụ điều phối lịch đặt khám cho bệnh nhân trên toàn hệ sinh thái.
+  5. **Đồng Bộ Hồ Sơ Chuyên Khoa Động (`/doctor/profile`):**
+     - Hồ sơ bác sĩ tải danh mục chuyên khoa động từ `/api/v1/specialties`, loại bỏ hoàn toàn mã tĩnh (hardcoded list), tự động đồng bộ vector nhúng 1536 chiều khi cập nhật thông tin.

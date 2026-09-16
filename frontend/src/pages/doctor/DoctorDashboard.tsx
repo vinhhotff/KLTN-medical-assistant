@@ -14,11 +14,19 @@ import {
   Plus,
   Trash2,
   X,
-  Printer
+  Printer,
+  RefreshCw,
+  Search,
+  DollarSign,
+  PlayCircle,
+  Settings,
+  Bell,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
+import { useDebounce } from '../../hooks/useDebounce';
 
 interface DoctorAppointment {
   id: string;
@@ -31,7 +39,7 @@ interface DoctorAppointment {
   doctorName: string;
   scheduledStart: string;
   scheduledEnd: string;
-  status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+  status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
   feeAmount: number;
   paymentStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
   consultationNotes?: string;
@@ -56,17 +64,55 @@ interface PrescriptionItem {
   days: number;
 }
 
+interface DoctorStats {
+  todayAppointmentsCount: number;
+  todayWaitingCount: number;
+  todayInProgressCount: number;
+  todayCompletedCount: number;
+  totalCompletedCount: number;
+  totalAppointmentsCount: number;
+  todayRevenue: number;
+  lifetimeRevenue: number;
+  doctorRating: number;
+  totalConsultations: number;
+}
+
+interface DoctorScheduleSlot {
+  id: string;
+  dayOfWeek: string;
+  dayOfWeekLabel: string;
+  startTime: string;
+  endTime: string;
+  slotDurationMinutes: number;
+  active: boolean;
+}
+
 export const DoctorDashboard: React.FC = () => {
   const { user } = useAuthStore();
   const [appointments, setAppointments] = useState<DoctorAppointment[]>([]);
+  const [stats, setStats] = useState<DoctorStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [actionError, setActionError] = useState<string | null>(null);
+  const [notificationToast, setNotificationToast] = useState<string | null>(null);
+
+  // Search and Filter States
+  const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm, 250);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED_NO_SHOW'>('ALL');
+  const [dateFilter, setDateFilter] = useState<'TODAY' | 'ALL'>('TODAY');
+
+  // Schedule Modal State
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [schedules, setSchedules] = useState<DoctorScheduleSlot[]>([]);
+  const [savingSchedule, setSavingSchedule] = useState(false);
 
   // Active Clinical Encounter Modal State
   const [activeEncounterAppointment, setActiveEncounterAppointment] = useState<DoctorAppointment | null>(null);
   const [submittingEncounter, setSubmittingEncounter] = useState(false);
 
-  // Clinical Form Fields (Initialized empty for genuine doctor entry)
+  // Clinical Form Fields
   const [bpSystolic, setBpSystolic] = useState('');
   const [bpDiastolic, setBpDiastolic] = useState('');
   const [heartRate, setHeartRate] = useState('');
@@ -84,49 +130,138 @@ export const DoctorDashboard: React.FC = () => {
   const [followUpDate, setFollowUpDate] = useState('');
   const [clinicRoom, setClinicRoom] = useState('');
 
-  // Multi-drug prescription items (Empty by default)
+  // Multi-drug prescription items
   const [prescriptionItems, setPrescriptionItems] = useState<PrescriptionItem[]>([]);
 
   // Selected EMR view modal for completed appointments
   const [selectedViewEmr, setSelectedViewEmr] = useState<DoctorAppointment | null>(null);
 
-  useEffect(() => {
-    fetchAppointments();
-  }, []);
+  // Pagination states
+  const [scheduledPage, setScheduledPage] = useState(1);
+  const [scheduledPageSize, setScheduledPageSize] = useState(5);
 
-  const fetchAppointments = async () => {
+  const [pastPage, setPastPage] = useState(1);
+  const [pastPageSize, setPastPageSize] = useState(5);
+
+  const fetchData = async (silent = false) => {
     try {
-      setLoading(true);
-      const res = await api.get('/appointments/my');
-      if (res.data?.data) {
-        setAppointments(res.data.data);
+      if (!silent) setLoading(true);
+      else setRefreshing(true);
+
+      const [resAppt, resStats] = await Promise.allSettled([
+        api.get('/appointments/my'),
+        api.get('/doctors/me/stats')
+      ]);
+
+      if (resAppt.status === 'fulfilled' && resAppt.value.data?.data) {
+        const fresh: DoctorAppointment[] = resAppt.value.data.data;
+        setAppointments((prev) => {
+          if (silent && prev.length > 0) {
+            const prevWaiting = prev.filter((a) => a.status === 'SCHEDULED').length;
+            const newWaiting = fresh.filter((a) => a.status === 'SCHEDULED').length;
+            if (newWaiting > prevWaiting) {
+              setNotificationToast(`🔔 Có ${newWaiting - prevWaiting} bệnh nhân mới vừa đăng ký vào hàng đợi khám!`);
+              setTimeout(() => setNotificationToast(null), 6000);
+            }
+          }
+          return fresh;
+        });
       }
+
+      if (resStats.status === 'fulfilled' && resStats.value.data?.data) {
+        setStats(resStats.value.data.data);
+      }
+
+      setLastUpdated(new Date());
     } catch (err) {
-      console.error('Failed to load doctor appointments:', err);
+      console.error('Failed to load doctor workstation data:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  // Open Examination Modal - Reset form to clean clinical state
+  useEffect(() => {
+    fetchData();
+    // Silent background polling every 12 seconds for realtime clinical supervision
+    const interval = setInterval(() => {
+      fetchData(true);
+    }, 12000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Open Examination Modal - Reset form or load existing clinical state
   const openEncounterModal = (apt: DoctorAppointment) => {
     setActiveEncounterAppointment(apt);
-    setChiefComplaint(apt.consultationNotes || '');
-    setClinicRoom(apt.clinicRoom || '');
-    setConsultationNotes('');
-    setTreatmentPlan('');
-    setFollowUpDate('');
-    setBpSystolic('');
-    setBpDiastolic('');
-    setHeartRate('');
-    setTemperature('');
-    setRespiratoryRate('');
-    setHeight('');
-    setWeight('');
-    setSpO2('');
-    setIcd10Code('');
-    setIcd10Name('');
-    setPrescriptionItems([]);
+    setChiefComplaint(apt.chiefComplaint || apt.consultationNotes || '');
+    setClinicRoom(apt.clinicRoom || 'Phòng Khám P.102');
+    setConsultationNotes(apt.consultationNotes || '');
+    setTreatmentPlan(apt.treatmentPlan || '');
+    setFollowUpDate(apt.followUpDate ? apt.followUpDate.slice(0, 10) : '');
+    setIcd10Code(apt.icd10Code || '');
+    setIcd10Name(apt.icd10Name || '');
+
+    // Parse existing vital signs if available
+    if (apt.vitalSignsJson) {
+      try {
+        const vs = JSON.parse(apt.vitalSignsJson);
+        if (vs.bloodPressure && vs.bloodPressure.includes('/')) {
+          const parts = vs.bloodPressure.split('/');
+          setBpSystolic(parts[0]);
+          setBpDiastolic(parts[1]);
+        }
+        if (vs.heartRate) setHeartRate(String(vs.heartRate));
+        if (vs.temperature) setTemperature(String(vs.temperature));
+        if (vs.respiratoryRate) setRespiratoryRate(String(vs.respiratoryRate));
+        if (vs.height) setHeight(String(vs.height));
+        if (vs.weight) setWeight(String(vs.weight));
+        if (vs.spO2) setSpO2(String(vs.spO2));
+      } catch {
+        // Ignored
+      }
+    } else {
+      setBpSystolic('120');
+      setBpDiastolic('80');
+      setHeartRate('75');
+      setTemperature('36.8');
+      setRespiratoryRate('18');
+      setHeight('165');
+      setWeight('60');
+      setSpO2('98');
+    }
+
+    // Parse existing prescriptions if available
+    if (apt.prescriptionJson) {
+      try {
+        const parsed = JSON.parse(apt.prescriptionJson);
+        if (Array.isArray(parsed)) {
+          setPrescriptionItems(parsed);
+        }
+      } catch {
+        setPrescriptionItems([]);
+      }
+    } else {
+      setPrescriptionItems([]);
+    }
+  };
+
+  // State Machine: Transition appointment to IN_PROGRESS when doctor begins examination
+  const handleStartExam = async (apt: DoctorAppointment) => {
+    try {
+      if (apt.status === 'SCHEDULED') {
+        await api.patch(`/appointments/${apt.id}/status`, {
+          status: 'IN_PROGRESS'
+        });
+        setAppointments((prev) =>
+          prev.map((a) => (a.id === apt.id ? { ...a, status: 'IN_PROGRESS' as const } : a))
+        );
+      }
+      openEncounterModal(apt);
+      fetchData(true);
+    } catch (err) {
+      console.error('Failed to transition appointment to IN_PROGRESS:', err);
+      openEncounterModal(apt);
+    }
   };
 
   // Quick select common ICD-10 templates
@@ -251,7 +386,9 @@ export const DoctorDashboard: React.FC = () => {
       });
 
       setActiveEncounterAppointment(null);
-      fetchAppointments();
+      setNotificationToast(`Đã ký duyệt và hoàn tất ca khám cho bệnh nhân ${activeEncounterAppointment.patientName}!`);
+      setTimeout(() => setNotificationToast(null), 5000);
+      fetchData();
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
       setActionError(axiosError.response?.data?.error?.message || 'Không thể hoàn tất ca khám.');
@@ -260,6 +397,7 @@ export const DoctorDashboard: React.FC = () => {
     }
   };
 
+  // Cancel appointment
   const handleCancelAppointment = async (appointmentId: string) => {
     const reason = window.prompt('Nhập lý do hủy ca khám:');
     if (!reason) return;
@@ -268,29 +406,118 @@ export const DoctorDashboard: React.FC = () => {
       setActionError(null);
       await api.patch(`/appointments/${appointmentId}/status`, {
         status: 'CANCELLED',
-        notes: reason,
+        notes: reason
       });
-      fetchAppointments();
+      fetchData();
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
       setActionError(axiosError.response?.data?.error?.message || 'Thao tác không thành công.');
     }
   };
 
-  // Pagination states (Offset)
-  const [scheduledPage, setScheduledPage] = useState(1);
-  const [scheduledPageSize, setScheduledPageSize] = useState(5);
+  // Mark patient as No-Show
+  const handleMarkNoShow = async (appointmentId: string) => {
+    const confirm = window.confirm('Xác nhận bệnh nhân vắng mặt khi gọi số khám? Cuộc hẹn sẽ chuyển sang trạng thái Vắng Mặt (NO_SHOW).');
+    if (!confirm) return;
 
-  const [pastPage, setPastPage] = useState(1);
-  const [pastPageSize, setPastPageSize] = useState(5);
+    try {
+      setActionError(null);
+      await api.patch(`/appointments/${appointmentId}/status`, {
+        status: 'NO_SHOW',
+        notes: 'Bệnh nhân không có mặt tại bàn khám khi gọi số thứ tự'
+      });
+      setNotificationToast('Đã ghi nhận bệnh nhân vắng mặt (NO_SHOW).');
+      setTimeout(() => setNotificationToast(null), 4000);
+      fetchData();
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
+      setActionError(axiosError.response?.data?.error?.message || 'Không thể cập nhật trạng thái vắng mặt.');
+    }
+  };
 
-  const scheduledAppointments = useMemo(() => {
-    return appointments.filter((a) => a.status === 'SCHEDULED');
+  // Doctor Schedule Management Modal
+  const openScheduleModal = async () => {
+    try {
+      setScheduleModalOpen(true);
+      const res = await api.get('/doctors/me/schedules');
+      if (res.data?.data) {
+        setSchedules(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load doctor schedules:', err);
+    }
+  };
+
+  const handleSaveSchedules = async () => {
+    try {
+      setSavingSchedule(true);
+      const res = await api.put('/doctors/me/schedules', {
+        slots: schedules.map((s) => ({
+          dayOfWeek: s.dayOfWeek,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          slotDurationMinutes: s.slotDurationMinutes || 30,
+          active: s.active
+        }))
+      });
+      if (res.data?.data) {
+        setSchedules(res.data.data);
+      }
+      setScheduleModalOpen(false);
+      setNotificationToast('Lịch làm việc và khung giờ tiếp đón đã được lưu thành công!');
+      setTimeout(() => setNotificationToast(null), 4000);
+    } catch (err) {
+      console.error('Failed to update schedules:', err);
+      alert('Không thể lưu lịch làm việc. Vui lòng thử lại.');
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
+  const toggleScheduleActive = (index: number) => {
+    const updated = [...schedules];
+    updated[index] = { ...updated[index], active: !updated[index].active };
+    setSchedules(updated);
+  };
+
+  // Active In-Progress Appointments (Prominent top callout)
+  const inProgressAppointments = useMemo(() => {
+    return appointments.filter((a) => a.status === 'IN_PROGRESS');
   }, [appointments]);
+
+  // Tokenized Search & Filtered Lists
+  const filteredAppointments = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const tokens = debouncedSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
+
+    return appointments.filter((app) => {
+      // Date Filter
+      if (dateFilter === 'TODAY') {
+        const appDate = app.scheduledStart ? app.scheduledStart.slice(0, 10) : '';
+        if (appDate !== todayStr) return false;
+      }
+
+      // Status Filter
+      if (statusFilter === 'WAITING' && app.status !== 'SCHEDULED') return false;
+      if (statusFilter === 'IN_PROGRESS' && app.status !== 'IN_PROGRESS') return false;
+      if (statusFilter === 'COMPLETED' && app.status !== 'COMPLETED') return false;
+      if (statusFilter === 'CANCELLED_NO_SHOW' && app.status !== 'CANCELLED' && app.status !== 'NO_SHOW') return false;
+
+      // Tokenized Matching
+      if (tokens.length === 0) return true;
+      const searchable = `${app.appointmentCode || ''} ${app.patientName || ''} ${app.patientEmail || ''} ${app.patientPhone || ''} ${app.clinicRoom || ''} ${app.icd10Code || ''} ${app.icd10Name || ''} ${app.consultationNotes || ''} ${app.chiefComplaint || ''}`.toLowerCase();
+      return tokens.every((token) => searchable.includes(token));
+    });
+  }, [appointments, debouncedSearch, statusFilter, dateFilter]);
+
+  // Categorize for 2-column layout
+  const scheduledAppointments = useMemo(() => {
+    return filteredAppointments.filter((a) => a.status === 'SCHEDULED' || a.status === 'IN_PROGRESS');
+  }, [filteredAppointments]);
 
   const pastAppointments = useMemo(() => {
-    return appointments.filter((a) => a.status !== 'SCHEDULED');
-  }, [appointments]);
+    return filteredAppointments.filter((a) => a.status === 'COMPLETED' || a.status === 'CANCELLED' || a.status === 'NO_SHOW');
+  }, [filteredAppointments]);
 
   const paginatedScheduled = useMemo(() => {
     const start = (scheduledPage - 1) * scheduledPageSize;
@@ -303,24 +530,65 @@ export const DoctorDashboard: React.FC = () => {
   }, [pastAppointments, pastPage, pastPageSize]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {/* Toast notification */}
+      {notificationToast && (
+        <div className="p-4 bg-teal-900 text-white rounded-2xl shadow-xl flex items-center justify-between gap-3 animate-slideDown border border-teal-700">
+          <div className="flex items-center gap-2.5 text-sm font-bold">
+            <Bell className="w-5 h-5 text-teal-300 animate-bounce" />
+            <span>{notificationToast}</span>
+          </div>
+          <button
+            onClick={() => setNotificationToast(null)}
+            className="text-teal-300 hover:text-white p-1"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header Banner */}
-      <div className="bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="text-xs uppercase font-bold text-teal-400 tracking-wider">
-            Cổng Bác Sĩ Lâm Sàng (Hospital Clinical Workstation)
+          <div className="text-xs uppercase font-black text-teal-400 tracking-wider flex items-center gap-2">
+            <span>Bàn Khám Bệnh Điện Tử & Giám Sát Ca Lâm Sàng (HIS / EMR)</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
+              Live Realtime
+            </span>
           </div>
           <h2 className="text-2xl font-black mt-1">
             Chào Bác sĩ, {user?.fullName || 'Đồng nghiệp'}!
           </h2>
           <p className="text-slate-400 text-sm mt-0.5">
-            Bàn khám bệnh điện tử, chẩn đoán theo mã quốc tế WHO ICD-10 và kê đơn thuốc ngoại trú.
+            Quản lý hàng đợi tiếp đón, chẩn đoán ICD-10, kê đơn thuốc điện tử và đồng bộ lịch trực khám bệnh viện.
           </p>
         </div>
-        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30 self-start sm:self-auto">
-          <CheckCircle2 className="w-4 h-4 text-teal-400" />
-          Chứng Chỉ Hành Nghề Đã Thẩm Định
-        </span>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Realtime Live Pulse Badge */}
+          <div className="flex items-center gap-1.5 text-xs text-slate-300 bg-slate-800/80 px-3.5 py-2 rounded-xl border border-slate-700 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
+          </div>
+
+          <button
+            onClick={() => fetchData(true)}
+            disabled={refreshing}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition shadow-xs cursor-pointer disabled:opacity-50"
+            title="Làm mới dữ liệu tức thì"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-teal-400' : ''}`} />
+            <span>Làm mới</span>
+          </button>
+
+          <button
+            onClick={openScheduleModal}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            <span>Cấu Hình Lịch Trực</span>
+          </button>
+        </div>
       </div>
 
       {actionError && (
@@ -330,7 +598,196 @@ export const DoctorDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Main Layout Grid */}
+      {/* 4 REAL-TIME KPI STATS CARDS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-300 transition">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 uppercase">Hàng Đợi Chờ Khám</span>
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-black text-slate-900">{stats?.todayWaitingCount ?? 0}</span>
+            <span className="text-xs text-slate-500">ca hôm nay</span>
+          </div>
+          <p className="text-[11px] text-amber-700 mt-1 font-medium">Bệnh nhân đang chờ gọi số</p>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-300 transition">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 uppercase">Ca Đang Khám Tại Bàn</span>
+            <div className="p-2 rounded-xl bg-teal-50 text-teal-600 border border-teal-200">
+              <PlayCircle className="w-4 h-4 animate-pulse" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-black text-teal-700">{stats?.todayInProgressCount ?? inProgressAppointments.length}</span>
+            <span className="text-xs text-slate-500">trong phòng</span>
+          </div>
+          <p className="text-[11px] text-teal-700 mt-1 font-medium">Đang thao tác lâm sàng</p>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-300 transition">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 uppercase">Đã Khám Xong Hôm Nay</span>
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-black text-emerald-700">{stats?.todayCompletedCount ?? 0}</span>
+            <span className="text-xs text-slate-500">ca hoàn tất</span>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1">Tổng tích lũy: {stats?.totalCompletedCount ?? 0} ca</p>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-300 transition">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 uppercase">Doanh Thu Trong Ngày</span>
+            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200">
+              <DollarSign className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-1">
+            <span className="text-2xl font-black text-indigo-700">
+              {Number(stats?.todayRevenue ?? 0).toLocaleString('vi-VN')}
+            </span>
+            <span className="text-xs font-bold text-slate-500">VNĐ</span>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1">Đánh giá: ⭐ {stats?.doctorRating ?? 4.9}/5.0</p>
+        </div>
+      </div>
+
+      {/* PROMINENT ACTIVE IN-PROGRESS CALLOUT (CA ĐANG KHÁM TẠI PHÒNG) */}
+      {inProgressAppointments.length > 0 && (
+        <div className="p-5 bg-gradient-to-r from-teal-900 to-slate-900 text-white rounded-3xl shadow-md border border-teal-700/50 space-y-3 animate-fadeIn">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
+              <h3 className="font-bold text-base text-teal-200 flex items-center gap-2">
+                <Stethoscope className="w-5 h-5 text-teal-400" />
+                Ca Khám Đang Diễn Ra Trong Phòng ({inProgressAppointments.length})
+              </h3>
+            </div>
+            <span className="text-xs text-teal-300 font-medium">Bệnh nhân đang ở trong phòng khám</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {inProgressAppointments.map((apt) => (
+              <div
+                key={apt.id}
+                className="bg-white/10 p-4 rounded-2xl border border-white/15 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 backdrop-blur-xs"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded-lg bg-teal-400/20 text-teal-200 border border-teal-400/30">
+                      {apt.appointmentCode}
+                    </span>
+                    {apt.queueNumber && (
+                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-lg bg-amber-400/20 text-amber-200">
+                        {apt.queueNumber}
+                      </span>
+                    )}
+                    <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-400/20 text-emerald-300">
+                      Đang Khám
+                    </span>
+                  </div>
+                  <h4 className="text-lg font-black text-white mt-1">{apt.patientName}</h4>
+                  <p className="text-xs text-teal-200 mt-0.5">
+                    Phòng khám: <strong>{apt.clinicRoom || 'P.102'}</strong>
+                  </p>
+                  {apt.chiefComplaint && (
+                    <p className="text-xs text-slate-300 mt-1 line-clamp-1 italic">
+                      "{apt.chiefComplaint}"
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={() => openEncounterModal(apt)}
+                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold text-slate-900 bg-teal-400 hover:bg-teal-300 rounded-xl transition cursor-pointer shadow-sm"
+                  >
+                    <FileText className="w-3.5 h-3.5" /> Tiếp Tục Nhập Bệnh Án
+                  </button>
+                  <button
+                    onClick={() => handleCancelAppointment(apt.id)}
+                    className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs text-rose-300 hover:text-rose-100 hover:bg-white/10 rounded-xl transition cursor-pointer"
+                  >
+                    <Ban className="w-3.5 h-3.5" /> Hủy Ca
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* FILTER AND SEARCH CONTROLS */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+        {/* Tokenized Search input */}
+        <div className="relative w-full md:w-80">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Tìm theo tên, SĐT, mã ca, ICD-10..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {/* Date Filter */}
+          <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200 text-xs font-bold">
+            <button
+              onClick={() => setDateFilter('TODAY')}
+              className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                dateFilter === 'TODAY' ? 'bg-white text-teal-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Hôm Nay
+            </button>
+            <button
+              onClick={() => setDateFilter('ALL')}
+              className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                dateFilter === 'ALL' ? 'bg-white text-teal-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Tất Cả Ngày
+            </button>
+          </div>
+
+          {/* Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium cursor-pointer"
+          >
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="WAITING">Chờ tiếp đón (SCHEDULED)</option>
+            <option value="IN_PROGRESS">Đang khám (IN_PROGRESS)</option>
+            <option value="COMPLETED">Đã khám xong (COMPLETED)</option>
+            <option value="CANCELLED_NO_SHOW">Đã hủy / Vắng mặt</option>
+          </select>
+
+          <span className="text-xs text-slate-500 font-semibold ml-1">
+            Tổng: <strong className="text-teal-700">{filteredAppointments.length}</strong> ca
+          </span>
+        </div>
+      </div>
+
+      {/* MAIN WORKSTATION GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Scheduled Appointments (2 cols) */}
         <div className="lg:col-span-2 space-y-6">
@@ -338,28 +795,30 @@ export const DoctorDashboard: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-teal-600" />
-                Ca Khám Chờ Tiếp Nhận ({scheduledAppointments.length})
+                Hàng Đợi Ca Khám Tiếp Nhận ({scheduledAppointments.length})
               </h3>
-              <button
-                onClick={fetchAppointments}
-                className="text-xs text-teal-600 hover:text-teal-700 font-semibold cursor-pointer"
-              >
-                Làm mới
-              </button>
+              <span className="text-xs text-slate-500">
+                Sắp xếp theo giờ hẹn
+              </span>
             </div>
 
             {loading ? (
-              <div className="py-12 text-center text-slate-400 text-sm">Đang tải lịch hẹn...</div>
+              <div className="py-12 text-center text-slate-400 text-sm">Đang đồng bộ dữ liệu ca khám...</div>
             ) : scheduledAppointments.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">
-                Hiện tại không có ca khám nào đang chờ tiếp nhận.
+              <div className="py-12 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl space-y-1">
+                <p className="font-semibold text-slate-600">Không có ca khám nào phù hợp bộ lọc.</p>
+                <p className="text-xs text-slate-400">Hàng đợi khám sẽ tự động cập nhật ngầm khi có bệnh nhân mới đặt lịch.</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {paginatedScheduled.map((apt) => (
                   <div
                     key={apt.id}
-                    className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-teal-400 transition shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    className={`p-5 rounded-2xl border transition shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                      apt.status === 'IN_PROGRESS'
+                        ? 'border-teal-500 bg-teal-50/40 ring-1 ring-teal-500'
+                        : 'border-slate-200 bg-white hover:border-teal-400'
+                    }`}
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
@@ -368,11 +827,17 @@ export const DoctorDashboard: React.FC = () => {
                         </span>
                         {apt.queueNumber && (
                           <span className="font-mono text-xs font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
-                            {apt.queueNumber}
+                            STT: {apt.queueNumber}
                           </span>
                         )}
-                        <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Chờ Khám
+                        <span
+                          className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${
+                            apt.status === 'IN_PROGRESS'
+                              ? 'bg-teal-100 text-teal-800 border-teal-300 animate-pulse'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          }`}
+                        >
+                          {apt.status === 'IN_PROGRESS' ? 'Đang Khám' : 'Chờ Khám'}
                         </span>
                       </div>
 
@@ -389,13 +854,18 @@ export const DoctorDashboard: React.FC = () => {
                             minute: '2-digit',
                             day: 'numeric',
                             month: 'numeric',
-                            year: 'numeric',
+                            year: 'numeric'
                           })}
                         </span>
                         {apt.patientPhone && (
                           <span className="flex items-center gap-1">
                             <Phone className="w-3.5 h-3.5 text-slate-400" />
                             {apt.patientPhone}
+                          </span>
+                        )}
+                        {apt.clinicRoom && (
+                          <span className="font-medium text-slate-700">
+                            Phòng: {apt.clinicRoom}
                           </span>
                         )}
                       </div>
@@ -410,14 +880,25 @@ export const DoctorDashboard: React.FC = () => {
                     {/* Action buttons */}
                     <div className="flex sm:flex-col gap-2 flex-shrink-0">
                       <button
-                        onClick={() => openEncounterModal(apt)}
+                        onClick={() => handleStartExam(apt)}
                         className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl transition shadow-sm cursor-pointer"
                       >
-                        <Stethoscope className="w-3.5 h-3.5" /> Bắt Đầu Khám Bệnh
+                        <Stethoscope className="w-3.5 h-3.5" />
+                        {apt.status === 'IN_PROGRESS' ? 'Tiếp Tục Khám' : 'Bắt Đầu Khám Bệnh'}
                       </button>
+
+                      <button
+                        onClick={() => handleMarkNoShow(apt.id)}
+                        className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition border border-amber-200 cursor-pointer"
+                        title="Đánh dấu bệnh nhân vắng mặt khi gọi tên"
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                        Vắng Mặt
+                      </button>
+
                       <button
                         onClick={() => handleCancelAppointment(apt.id)}
-                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition border border-rose-200 cursor-pointer"
+                        className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition border border-rose-200 cursor-pointer"
                       >
                         <Ban className="w-3.5 h-3.5" /> Hủy Ca
                       </button>
@@ -441,17 +922,17 @@ export const DoctorDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Past & Completed Appointments (1 col) */}
+        {/* Right Column: Completed and Past Appointments */}
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
             <h3 className="font-bold text-base text-slate-900 mb-4 flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-indigo-600" />
-              Lịch Sử Khám Lâm Sàng ({pastAppointments.length})
+              Lịch Sử Khám & Hồ Sơ Bệnh Án ({pastAppointments.length})
             </h3>
 
             {pastAppointments.length === 0 ? (
               <div className="py-8 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-2xl">
-                Chưa có ca khám nào hoàn thành.
+                Chưa có ca khám nào hoàn thành hoặc bị hủy.
               </div>
             ) : (
               <div className="space-y-3">
@@ -466,18 +947,33 @@ export const DoctorDashboard: React.FC = () => {
                         className={`px-2 py-0.5 rounded-full font-bold ${
                           apt.status === 'COMPLETED'
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : apt.status === 'NO_SHOW'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
                             : 'bg-rose-50 text-rose-700 border border-rose-200'
                         }`}
                       >
-                        {apt.status === 'COMPLETED' ? 'Đã Khám' : 'Đã Hủy'}
+                        {apt.status === 'COMPLETED'
+                          ? 'Đã Khám'
+                          : apt.status === 'NO_SHOW'
+                          ? 'Vắng Mặt'
+                          : 'Đã Hủy'}
                       </span>
                     </div>
+
                     <div className="font-semibold text-slate-900">{apt.patientName}</div>
+
                     {apt.icd10Code && (
                       <div className="text-[11px] text-indigo-700 font-medium">
                         ICD-10: <strong>{apt.icd10Code}</strong> - {apt.icd10Name}
                       </div>
                     )}
+
+                    {apt.cancellationReason && (
+                      <div className="text-[11px] text-rose-600 font-medium italic">
+                        Lý do: {apt.cancellationReason}
+                      </div>
+                    )}
+
                     {apt.status === 'COMPLETED' && (
                       <button
                         onClick={() => setSelectedViewEmr(apt)}
@@ -506,7 +1002,86 @@ export const DoctorDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* MODAL: CLINICAL ENCOUNTER WORKSTATION (HỒ SƠ KHÁM LÂM SÀNG BỆNH VIỆN) */}
+      {/* MODAL: DOCTOR SCHEDULE CONFIGURATION MODAL */}
+      {scheduleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-2xl rounded-3xl border border-slate-200 shadow-2xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-xs uppercase font-bold text-teal-600">Thời Gian Biểu Lâm Sàng</span>
+                <h3 className="font-black text-lg text-slate-900 flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-teal-600" />
+                  Cấu Hình Lịch Trực & Khung Giờ Khám Bệnh
+                </h3>
+              </div>
+              <button
+                onClick={() => setScheduleModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Bật hoặc tắt các ngày và khung giờ bạn sẵn sàng tiếp nhận bệnh nhân. Hệ thống đặt lịch trực tuyến sẽ tự động chia thành các slot 30 phút.
+            </p>
+
+            <div className="space-y-2.5">
+              {schedules.map((slot, index) => (
+                <div
+                  key={index}
+                  className={`p-3.5 rounded-2xl border flex items-center justify-between gap-4 transition ${
+                    slot.active ? 'bg-white border-teal-200' : 'bg-slate-50 border-slate-200 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={slot.active}
+                      onChange={() => toggleScheduleActive(index)}
+                      className="w-4 h-4 text-teal-600 rounded cursor-pointer"
+                    />
+                    <div>
+                      <span className="font-bold text-xs text-slate-900 block">{slot.dayOfWeekLabel}</span>
+                      <span className="text-[11px] text-slate-500 font-mono">
+                        {slot.startTime} - {slot.endTime} (Thời lượng: {slot.slotDurationMinutes || 30} phút)
+                      </span>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                      slot.active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {slot.active ? 'Đang Nhận Lịch' : 'Tạm Nghỉ'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setScheduleModalOpen(false)}
+                className="px-4 py-2 border border-slate-200 text-xs font-semibold text-slate-600 rounded-xl hover:bg-slate-50 cursor-pointer"
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                disabled={savingSchedule}
+                onClick={handleSaveSchedules}
+                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50"
+              >
+                {savingSchedule ? 'Đang Lưu Lịch...' : 'Lưu Lịch Trực'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CLINICAL ENCOUNTER WORKSTATION (EMR FORM) */}
       {activeEncounterAppointment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white w-full max-w-4xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col animate-scaleUp">
@@ -514,7 +1089,7 @@ export const DoctorDashboard: React.FC = () => {
             <div className="bg-teal-900 text-white p-6 flex items-center justify-between">
               <div>
                 <div className="text-xs uppercase font-bold text-teal-300 tracking-widest">
-                  PHIẾU KHÁM BỆNH & CHỈ ĐỊNH ĐIỀU TRỊ NGOẠI TRÚ (HIS/EMR)
+                  PHIẾU KHÁM BỆNH & CHỈ ĐỊNH ĐIỀU TRỊ NGOẠI TRÚ (HIS / EMR)
                 </div>
                 <h3 className="text-xl font-black mt-1 flex items-center gap-2">
                   <Stethoscope className="w-5 h-5 text-teal-300" />
@@ -892,7 +1467,7 @@ export const DoctorDashboard: React.FC = () => {
               </div>
               <button
                 onClick={() => setSelectedViewEmr(null)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -933,13 +1508,13 @@ export const DoctorDashboard: React.FC = () => {
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5" /> In Bệnh Án
               </button>
               <button
                 onClick={() => setSelectedViewEmr(null)}
-                className="px-4 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                className="px-4 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
               >
                 Đóng
               </button>

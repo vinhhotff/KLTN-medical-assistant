@@ -50,6 +50,9 @@ class DoctorServiceTest {
     @Mock
     private DoctorSemanticSearchService doctorSemanticSearchService;
 
+    @Mock
+    private com.mediassist.repository.DoctorScheduleSlotRepository doctorScheduleSlotRepository;
+
     private DoctorService doctorService;
 
     private UUID doctorUserId;
@@ -66,7 +69,8 @@ class DoctorServiceTest {
                 specialtyRepository,
                 appointmentRepository,
                 cacheService,
-                doctorSemanticSearchService
+                doctorSemanticSearchService,
+                doctorScheduleSlotRepository
         );
 
         doctorUserId = UUID.randomUUID();
@@ -210,5 +214,78 @@ class DoctorServiceTest {
 
         verify(cacheService, times(1)).evict("doctors:verified");
         verify(doctorSemanticSearchService, times(1)).updateDoctorEmbedding(eq(doctorProfileId), anyString());
+    }
+
+    @Test
+    @DisplayName("getDoctorStats calculates today and lifetime clinical metrics correctly")
+    void testGetDoctorStats_ComputesRealTimeMetricsCorrectly() {
+        when(doctorProfileRepository.findByUserIdWithDetails(doctorUserId)).thenReturn(Optional.of(doctorProfile));
+
+        // Create appointments: 1 completed today (350k), 1 scheduled today, 1 in-progress today, 1 completed in past (300k)
+        Appointment apt1 = Appointment.builder()
+                .id(UUID.randomUUID())
+                .doctor(doctorUser)
+                .status(AppointmentStatus.COMPLETED)
+                .feeAmount(BigDecimal.valueOf(350000))
+                .scheduledStart(java.time.LocalDateTime.now())
+                .scheduledEnd(java.time.LocalDateTime.now().plusMinutes(30))
+                .build();
+
+        Appointment apt2 = Appointment.builder()
+                .id(UUID.randomUUID())
+                .doctor(doctorUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .feeAmount(BigDecimal.valueOf(350000))
+                .scheduledStart(java.time.LocalDateTime.now().plusHours(1))
+                .scheduledEnd(java.time.LocalDateTime.now().plusHours(1).plusMinutes(30))
+                .build();
+
+        Appointment apt3 = Appointment.builder()
+                .id(UUID.randomUUID())
+                .doctor(doctorUser)
+                .status(AppointmentStatus.IN_PROGRESS)
+                .feeAmount(BigDecimal.valueOf(350000))
+                .scheduledStart(java.time.LocalDateTime.now())
+                .scheduledEnd(java.time.LocalDateTime.now().plusMinutes(30))
+                .build();
+
+        Appointment apt4 = Appointment.builder()
+                .id(UUID.randomUUID())
+                .doctor(doctorUser)
+                .status(AppointmentStatus.COMPLETED)
+                .feeAmount(BigDecimal.valueOf(300000))
+                .scheduledStart(java.time.LocalDateTime.now().minusDays(5))
+                .scheduledEnd(java.time.LocalDateTime.now().minusDays(5).plusMinutes(30))
+                .build();
+
+        when(appointmentRepository.findByDoctorIdOrderByScheduledStartDesc(doctorUserId))
+                .thenReturn(List.of(apt1, apt2, apt3, apt4));
+
+        com.mediassist.dto.DoctorStatsDto stats = doctorService.getDoctorStats(doctorUserId);
+
+        assertNotNull(stats);
+        assertEquals(3, stats.getTodayAppointmentsCount());
+        assertEquals(1, stats.getTodayWaitingCount());
+        assertEquals(1, stats.getTodayInProgressCount());
+        assertEquals(1, stats.getTodayCompletedCount());
+        assertEquals(2, stats.getTotalCompletedCount());
+        assertEquals(4, stats.getTotalAppointmentsCount());
+        assertEquals(BigDecimal.valueOf(350000), stats.getTodayRevenue());
+        assertEquals(BigDecimal.valueOf(650000), stats.getLifetimeRevenue());
+        assertEquals(4.9, stats.getDoctorRating());
+    }
+
+    @Test
+    @DisplayName("getDoctorSchedules initializes default schedule slots when none exist")
+    void testGetDoctorSchedules_InitializesDefaultsWhenEmpty() {
+        when(doctorProfileRepository.findByUserIdWithDetails(doctorUserId)).thenReturn(Optional.of(doctorProfile));
+        when(doctorScheduleSlotRepository.findByDoctorProfileIdAndIsActiveTrue(doctorProfileId)).thenReturn(Collections.emptyList());
+        when(doctorScheduleSlotRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
+
+        List<com.mediassist.dto.DoctorScheduleConfigDto> schedules = doctorService.getDoctorSchedules(doctorUserId);
+
+        assertNotNull(schedules);
+        assertFalse(schedules.isEmpty());
+        verify(doctorScheduleSlotRepository, times(1)).saveAll(anyList());
     }
 }

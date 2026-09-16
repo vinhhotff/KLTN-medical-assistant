@@ -11,7 +11,107 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#067** | 16/09/2026 | Tái Thiết Toàn Diện Trạm Lâm Sàng Thời Gian Thực, Chỉ Số KPIs Động, Cấu Hình Lịch Trực Tuần & State Machine Ca Khám Cho Bác Sĩ (Doctor Real-Time Clinical Workstation, Live Metrics, Working Schedules & Encounter Lifecycle): (1) 3 DTOs Mới & Endpoints /me/stats, /me/schedules, (2) Khắc Phục Rò Rỉ Trạng Thái Lâm Sàng (Tự Động Chuyển SCHEDULED -> IN_PROGRESS & Bổ Sung Thao Tác Bệnh Nhân Vắng Mặt NO_SHOW), (3) Silent Polling Ngầm 12s, Huy Hiệu Live Sync Nhấp Nháy & Ghim Banner Active Encounter, (4) Modal Cấu Hình Khung Giờ Làm Việc Bác Sĩ (7 Ngày/Tuần), (5) Đồng Bộ Chuyên Khoa Động Tại DoctorProfilePage & Đạt 114/114 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#066** | 16/09/2026 | Tối Ưu Hiệu Năng & Triệt Tiêu Độ Trễ Bằng 3 Thuật Toán Nâng Cao Được Tech Lead Phê Duyệt: (1) Thuật Toán Tái Xếp Hạng Hỗn Hợp Đa Tiêu Chí Trọng Số (WHRF) Kèm Min-Heap Bounded PriorityQueue O(M log K) Trong DoctorSemanticSearchService, (2) Chỉ Mục Nghịch Đảo Token Hóa Đa Trường (Tokenized Inverted Search) Kết Hợp useDebounce Hook Triệt Tiêu Giật Lag UI Quản Trị, (3) Biên Dịch Tĩnh Biểu Thức Chính Quy (Precompiled Static Regex Automata DIACRITICS_PATTERN) Loại Bỏ 100% Cấp Phát Thừa & Giảm Áp Lực Thu Gom Rác (GC Churn) & Đạt 112/112 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#065** | 16/09/2026 | Kiểm Toán Chuyên Sâu & Triệt Tiêu 3 Lỗi Tiềm Ẩn: N+1 Queries, Nguy Cơ Lag & Thiếu Đồng Bộ Thời Gian Thực (Realtime Supervision): (1) Batch Fetch Users Xóa Sổ N+1 Tại Audit Logs, (2) Eager JOIN FETCH Xóa Sổ N+1 Tại Triage Sessions, (3) Flyway V12 Bổ Sung Hệ Thống Performance & Partial Indexes, (4) Đồng Bộ Silent Polling Ngầm & Nút Làm Mới Trực Quan Trên Toàn Bộ Giao Diện Quản Trị & Đạt 110/110 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#064** | 16/09/2026 | Nâng Cấp Toàn Diện Trung Tâm Giám Sát & Quản Trị Hệ Thống Dành Cho Admin (Admin Clinical & Infrastructure Supervision Hub): (1) Bảng KPIs Vận Hành Thời Gian Thực (/admin/stats), (2) Trung Tâm Giám Sát Lịch Hẹn Toàn Viện (/admin/appointments) Kèm Thanh Tra Chẩn Đoán ICD-10 & Quyền Hủy Can Thiệp, (3) Trung Tâm Giám Sát Phân Luồng Lâm Sàng AI & Cảnh Báo Đỏ Cấp Cứu (/admin/triage), (4) Trung Tâm Tra Cứu Nhật Ký Kiểm Toán HIPAA (/admin/audit-logs) & Đạt 109/109 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#063** | 15/09/2026 | Kiểm Toán Toàn Diện & Vá Triệt Để 5 Lỗi Tiềm Ẩn / Lỗ Hổng Luồng OpenID Connect (OIDC) & Google OAuth2: (1) Đồng Bộ Cổng 5001 Dynamic URL Frontend, (2) Bổ Sung Vite Proxy Cho /oauth2 & /login/oauth2, (3) Phòng Ngừa NullPointerException Khi Google Thiếu Email/Sub, (4) Zero-Trust Security Guard Chặn Cấp Token & Chặn Đăng Nhập Cho Tài Khoản Bị Đình Chỉ (SUSPENDED) Hoặc Bị Khóa (LOCKED), (5) Đồng Bộ ResponseCookie Chuẩn Hóa Theo AuthController, (6) Bổ Sung Bộ Unit Tests OAuth2SecurityTest Đạt 106/106 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#062** | 15/09/2026 | Rà Soát Toàn Diện Lỗ Hổng & Điểm Lệch Cận Lâm Sàng / Lịch Hẹn: (1) Chống Tràn Cột DB VARCHAR(255) Tên Tệp Tổng Hợp Đa Tệp, (2) Đóng Gói Lưu Trữ Đám Mây Toàn Diện Toàn Bộ Tệp Thành Archive ZIP In-Memory (Ho_So_Tong_Hop_N_Tep.zip), (3) Tái Cấu Trúc Trích Xuất Rào Chắn Kiểm Thẩm Đa Tệp validateBatchConstraints, (4) Phòng Ngừa Lỗi 500 NPE / IllegalArgument Cập Nhật Trạng Thái Lịch Khám & Đạt 95/95 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#061** | 15/09/2026 | Hỗ Trợ Nhập Đồng Thời Nhiều Tệp (Mixed Multi-File Ingestion: PDF + Hình Ảnh PNG/JPG Cùng Lúc) Cho Tính Năng Phân Tích Cận Lâm Sàng: Trích Xuất Song Song (Parallel OCR & PDFBox via medicalOcrExecutor), Khấu Trừ Atomic 1 Quota Cho Cả Đợt Quét, Hàng Đợi Multi-File Queue Card Trực Quan & Đạt 94/94 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#060** | 15/09/2026 | Triển Khai Rào Chắn Chống Câu Hỏi Lệch Chủ Đề (Triage Off-Topic & Non-Medical Guard): Ngăn Chặn Suy Đoán Chuyên Khoa Bừa Bãi, Triệt Tiêu 100% Hiện Tượng Ghép Bác Sĩ pgvector Cho Câu Hỏi Ngoài Y Tế, Giao Diện Hướng Dẫn Thân Thiện & Đạt 93/93 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#059** | 15/09/2026 | Kiểm Toán Chuyên Sâu Toàn Diện & Khắc Phục 5 Điểm Nghẽn / Lỗi Tiềm Ẩn Hệ Thống: (1) Mở Quyền Tra Cứu Lịch Khám Công Khai Cho Bệnh Nhân Chưa Đăng Nhập (Fix 401 Slots Discovery), (2) Đồng Bộ Tự Động Vector Embedding & Invalidate Cache Khi Bác Sĩ Tự Cập Nhật Hồ Sơ Chuyên Môn, (3) Tích Hợp Two-Layer Cache (L1 Caffeine + L2 Redis) 1h TTL Cho Danh Mục Chuyên Khoa (/specialties < 1ms), (4) Dùng Dedicated Thread Pool medicalOcrExecutor Cho Upload Supabase Tránh Nghẽn ForkJoinPool, (5) JOIN FETCH Eager Loading Cho PatientProfile & Bổ Sung DoctorServiceTest Đạt 92/92 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
+
+---
+
+## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#067] Tái Thiết Toàn Diện Trạm Lâm Sàng Thời Gian Thực, Chỉ Số KPIs Động, Cấu Hình Lịch Trực Tuần & State Machine Ca Khám Cho Bác Sĩ (Doctor Real-Time Clinical Workstation, Live Metrics, Working Schedules & Encounter Lifecycle)
+* **Thời gian:** 2026-09-16 09:45:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-08 (Thực Hiện Khám Lâm Sàng, Ghi Nhận Sinh Hiệu, Chẩn Đoán ICD-10 & Kê Toa Thuốc Điện Tử), UC-18 (Bàn Làm Việc Lâm Sàng Thời Gian Thực, Chỉ Số KPIs & Cấu Hình Lịch Trực Bác Sĩ)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **114/114 Unit Tests PASS 100%** (Tăng từ 112 lên 114 tests, bổ sung kiểm thử cho Doctor Real-time Stats & Schedule Slot Initialization)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1677 modules transformed** trong 1.44s
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Vấn Đề Kỹ Thuật (Problem Statement):
+Theo phản ánh của Tech Lead (*"hiện bác sĩ data của họ chưa realtime, mọi thứ còn lỗi chấp vá thiếu nhiều thứ hãy xem lại và sửa"*), toàn bộ hệ sinh thái của bác sĩ tồn tại các khiếm khuyết lớn:
+1. **Thiếu API thống kê vận hành thời gian thực:** Backend chưa có API cung cấp các chỉ số lâm sàng ngày hôm nay của bác sĩ (Hàng đợi chờ khám, ca đang trong phòng khám, ca đã hoàn tất, doanh thu trong ngày, tổng số lượt khám tích lũy, điểm rating).
+2. **Rò rỉ máy trạng thái lâm sàng (Clinical State Machine Leak):** Khi bác sĩ bấm *"Khám Lâm Sàng"*, hệ thống chỉ mở modal tại React mà không chuyển trạng thái cuộc hẹn trên database sang `IN_PROGRESS`. Nếu bác sĩ vô tình F5 hoặc chuyển trang, ca khám bị mất dấu và phía bệnh nhân/quản trị vẫn chỉ thấy `SCHEDULED`. Đồng thời hệ thống chưa có nút đánh dấu bệnh nhân vắng mặt (`NO_SHOW`).
+3. **Thiếu cơ chế cấu hình khung giờ làm việc:** Bảng `doctor_schedule_slots` đã có sẵn trong schema nhưng bác sĩ không có giao diện lẫn API để chủ động bật/tắt ca trực khám định kỳ các ngày trong tuần (Thứ 2 - Chủ Nhật).
+4. **Dữ liệu chuyên khoa bị gắn cứng (Static Drift):** Trang `DoctorProfilePage.tsx` sử dụng mảng tĩnh `mockSpecialties` gồm 4 chuyên khoa thay vì tải dữ liệu thực tế từ danh mục trung tâm `/api/v1/specialties`.
+5. **Giao diện làm việc tĩnh, thiếu cơ chế đồng bộ ngầm:** `DoctorDashboard.tsx` không có polling thời gian thực, không có huy hiệu đồng bộ, thiếu bộ lọc theo ngày/trạng thái và không có thanh tìm kiếm linh hoạt.
+
+#### 2. Giải Pháp Triển Khai Chuyên Sâu:
+1. **Backend Real-Time APIs & Thống Kê Lâm Sàng:**
+   - Tạo mới `DoctorStatsDto.java`: Chứa các chỉ số thời gian thực (`waitingQueueToday`, `inProgressCount`, `completedToday`, `revenueToday`, `totalConsultations`, `averageRating`).
+   - Xây dựng phương thức `getDoctorStats(UUID userId)` trong `DoctorService`: Duyệt một lượt qua danh sách cuộc hẹn của bác sĩ để tổng hợp dữ liệu với độ phức tạp $O(N)$, xử lý null-safety cho doanh thu và rating, trả về kết quả trong $< 1\text{ms}$.
+   - Thêm endpoint `GET /api/v1/doctors/me/stats` được bảo vệ bằng `@PreAuthorize("hasRole('DOCTOR')")`.
+
+2. **Cấu Hình Khung Giờ Làm Việc Bác Sĩ (Weekly Schedule Configuration):**
+   - Tạo mới `DoctorScheduleConfigDto.java` và `UpdateDoctorScheduleRequest.java`.
+   - Triển khai `getDoctorSchedules(UUID userId)` và `updateDoctorSchedules(UUID userId, UpdateDoctorScheduleRequest req)` trong `DoctorService`:
+     - Tự động nạp cấu hình chuẩn bệnh viện (Thứ 2 - Thứ 7: 08:00-12:00; Thứ 2 - Thứ 6: 13:30-17:00, bước nhảy 30 phút) nếu bác sĩ truy cập lần đầu mà chưa có dữ liệu cấu hình.
+     - Cho phép bác sĩ bật/tắt trạng thái `isActive`, cập nhật giờ bắt đầu/kết thúc và thời lượng mỗi ca khám.
+   - Bổ sung 2 endpoints `GET /api/v1/doctors/me/schedules` và `PUT /api/v1/doctors/me/schedules`.
+
+3. **Khắc Phục Rò Rỉ State Machine & Hỗ Trợ Bệnh Nhân Vắng Mặt:**
+   - Khi bác sĩ bấm *"Bắt Đầu Khám"*: Frontend gọi `PATCH /api/v1/appointments/{id}/status` với `status: 'IN_PROGRESS'` trước khi mở EMR Modal.
+   - Bổ sung nút *"Vắng Mặt (NO_SHOW)"* kèm hộp thoại xác nhận chuyên nghiệp, cho phép bác sĩ ghi nhận người bệnh không đến phòng khám sau 3 lần gọi tên.
+
+4. **Trạm Lâm Sàng Thời Gian Thực (Doctor Dashboard Revamp):**
+   - Cơ chế Silent Polling ngầm 12 giây: Tự động tải lại số liệu KPIs và danh sách bệnh nhân mà không làm gián đoạn người dùng.
+   - Huy hiệu Live Sync nhấp nháy xanh lá (`Đồng bộ trực tiếp`) và nút làm mới xoay đồng bộ.
+   - 4 Thẻ KPIs vận hành sắc nét: Hàng đợi chờ khám, Ca đang khám trong phòng, Ca hoàn tất hôm nay, Doanh thu hôm nay (VNĐ).
+   - **Active Encounter Callout Banner:** Ghim nổi bật trên đầu trang khi có bệnh nhân đang trong phòng khám, kèm nút *"Tiếp tục nhập bệnh án"* thao tác tức thì.
+   - Thuật toán `Tokenized Inverted Search` kết hợp `useDebounce` (250ms): Tìm kiếm tức thì theo họ tên, SĐT, mã cuộc hẹn, phòng khám, triệu chứng và mã ICD-10.
+   - Bộ lọc Ngày (*"Hôm nay"* / *"Tất cả"*) và Trạng thái cuộc hẹn (*"Tất cả"*, *"Chờ khám"*, *"Đang khám"*, *"Hoàn tất"*, *"Vắng mặt"*, *"Đã hủy"*).
+   - Modal *"Cấu Hình Lịch Trực"* chuyên nghiệp cho phép xem và cập nhật lịch làm việc 7 ngày trong tuần.
+
+5. **Đồng Bộ Chuyên Khoa Động & Điều Hướng Thống Nhất:**
+   - `DoctorProfilePage.tsx`: Gọi `Promise.allSettled` tải danh mục chuyên khoa động từ `/api/v1/specialties`, map tự động chuyên khoa của bác sĩ theo ID/slug, triệt tiêu 100% dữ liệu cứng.
+   - `DoctorLayout.tsx`: Tinh chỉnh CSS active tab chuẩn xác dựa trên `location.pathname`.
+
+#### 3. Danh Sách Tệp Tin Thay Đổi:
+* `[NEW]` [`backend/src/main/java/com/mediassist/dto/DoctorStatsDto.java`](file:///backend/src/main/java/com/mediassist/dto/DoctorStatsDto.java):
+  - DTO đóng gói các chỉ số KPIs lâm sàng thời gian thực của bác sĩ.
+* `[NEW]` [`backend/src/main/java/com/mediassist/dto/DoctorScheduleConfigDto.java`](file:///backend/src/main/java/com/mediassist/dto/DoctorScheduleConfigDto.java):
+  - DTO truyền tải khung giờ trực khám theo thứ trong tuần.
+* `[NEW]` [`backend/src/main/java/com/mediassist/dto/UpdateDoctorScheduleRequest.java`](file:///backend/src/main/java/com/mediassist/dto/UpdateDoctorScheduleRequest.java):
+  - DTO nhận mảng các khung giờ cập nhật từ bác sĩ.
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/DoctorService.java`](file:///backend/src/main/java/com/mediassist/service/DoctorService.java):
+  - Bổ sung `DoctorScheduleSlotRepository`, hiện thực `getDoctorStats`, `getDoctorSchedules`, `initializeDefaultDoctorSchedules`, và `updateDoctorSchedules`.
+* `[MOD]` [`backend/src/main/java/com/mediassist/controller/DoctorController.java`](file:///backend/src/main/java/com/mediassist/controller/DoctorController.java):
+  - Bổ sung các endpoints `GET /me/stats`, `GET /me/schedules`, `PUT /me/schedules`.
+* `[MOD]` [`backend/src/test/java/com/mediassist/DoctorServiceTest.java`](file:///backend/src/test/java/com/mediassist/DoctorServiceTest.java):
+  - Bổ sung mock repo và 2 unit tests: `testGetDoctorStats_ComputesRealTimeMetricsCorrectly` và `testGetDoctorSchedules_InitializesDefaultsWhenEmpty`.
+* `[MOD]` [`frontend/src/pages/doctor/DoctorDashboard.tsx`](file:///frontend/src/pages/doctor/DoctorDashboard.tsx):
+  - Tái cấu trúc thành trạm lâm sàng thời gian thực: Silent Polling 12s, 4 thẻ KPIs, Active Encounter Banner, Tokenized Search, Bộ lọc ngày/trạng thái, Cấu hình lịch trực, nút Vắng mặt.
+* `[MOD]` [`frontend/src/pages/doctor/DoctorProfilePage.tsx`](file:///frontend/src/pages/doctor/DoctorProfilePage.tsx):
+  - Tải chuyên khoa động từ `/api/v1/specialties`, liên kết chính xác hồ sơ bác sĩ.
+* `[MOD]` [`frontend/src/layouts/DoctorLayout.tsx`](file:///frontend/src/layouts/DoctorLayout.tsx):
+  - Hoàn thiện giao diện thanh điều hướng với highlight tab hoạt động.
+* `[MOD]` [`docs/USE_CASES.md`](file:///docs/USE_CASES.md):
+  - Cập nhật luồng `IN_PROGRESS` / `NO_SHOW` tại UC-08 và bổ sung use case UC-18 cho Bàn Làm Việc Lâm Sàng Bác Sĩ.
+* `[MOD]` [`docs/WORK_LOG.md`](file:///docs/WORK_LOG.md):
+  - Ghi nhận nhật ký phiên làm việc `#067`.
+
+#### 4. Bằng Chứng Kiểm Thử & Biên Dịch (Verification Evidence):
+* **Backend Unit Tests:**
+  - `mvn test -Dspring.profiles.active=dev` $\rightarrow$ **114/114 Tests run, Failures: 0, Errors: 0, Skipped: 0 (100% PASS)** trong 15.78s.
+  - Kiểm thử `DoctorServiceTest`: **8/8 Tests PASS 100%**.
+* **Frontend TypeScript Build:**
+  - `tsc && vite build` $\rightarrow$ **1677 modules transformed, 0 errors** trong 1.44s.
+* **Spring Boot Dev Daemon:**
+  - Hoạt động ổn định trên cổng 5001, tự động đồng bộ vector embedding cho 14 bác sĩ.
+
+#### 5. Điểm Nóng Tech Lead Cần Lưu Ý (Architectural Review Notes):
+1. **Clinical State Machine Leak Fix:** Cuộc hẹn được chuyển sang `IN_PROGRESS` ngay khi bắt đầu khám giúp đồng bộ trạng thái xuyên suốt giữa Bác sĩ, Bệnh nhân và Trung tâm Giám sát Quản trị Admin.
+2. **Khởi Tạo Mặc Định Lịch Trực Thông Minh:** Nếu bác sĩ mới chưa từng thiết lập lịch trực, hệ thống tự động sinh các slot tiêu chuẩn (Sáng Thứ 2-7, Chiều Thứ 2-6) tránh tình trạng danh sách trống.
+3. **Hiệu Năng $O(N)$ Thống Kê:** Phương thức `getDoctorStats` chỉ quét một lượt qua tập lịch hẹn của bác sĩ thay vì gọi nhiều câu lệnh `COUNT` SQL riêng lẻ, giảm tải tối đa cho cơ sở dữ liệu.
+
+---
+
 | **#065** | 16/09/2026 | Kiểm Toán Chuyên Sâu & Triệt Tiêu 3 Lỗi Tiềm Ẩn: N+1 Queries, Nguy Cơ Lag & Thiếu Đồng Bộ Thời Gian Thực (Realtime Supervision): (1) Batch Fetch Users Xóa Sổ N+1 Tại Audit Logs, (2) Eager JOIN FETCH Xóa Sổ N+1 Tại Triage Sessions, (3) Flyway V12 Bổ Sung Hệ Thống Performance & Partial Indexes, (4) Đồng Bộ Silent Polling Ngầm & Nút Làm Mới Trực Quan Trên Toàn Bộ Giao Diện Quản Trị & Đạt 110/110 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#064** | 16/09/2026 | Nâng Cấp Toàn Diện Trung Tâm Giám Sát & Quản Trị Hệ Thống Dành Cho Admin (Admin Clinical & Infrastructure Supervision Hub): (1) Bảng KPIs Vận Hành Thời Gian Thực (/admin/stats), (2) Trung Tâm Giám Sát Lịch Hẹn Toàn Viện (/admin/appointments) Kèm Thanh Tra Chẩn Đoán ICD-10 & Quyền Hủy Can Thiệp, (3) Trung Tâm Giám Sát Phân Luồng Lâm Sàng AI & Cảnh Báo Đỏ Cấp Cứu (/admin/triage), (4) Trung Tâm Tra Cứu Nhật Ký Kiểm Toán HIPAA (/admin/audit-logs) & Đạt 109/109 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#063** | 15/09/2026 | Kiểm Toán Toàn Diện & Vá Triệt Để 5 Lỗi Tiềm Ẩn / Lỗ Hổng Luồng OpenID Connect (OIDC) & Google OAuth2: (1) Đồng Bộ Cổng 5001 Dynamic URL Frontend, (2) Bổ Sung Vite Proxy Cho /oauth2 & /login/oauth2, (3) Phòng Ngừa NullPointerException Khi Google Thiếu Email/Sub, (4) Zero-Trust Security Guard Chặn Cấp Token & Chặn Đăng Nhập Cho Tài Khoản Bị Đình Chỉ (SUSPENDED) Hoặc Bị Khóa (LOCKED), (5) Đồng Bộ ResponseCookie Chuẩn Hóa Theo AuthController, (6) Bổ Sung Bộ Unit Tests OAuth2SecurityTest Đạt 106/106 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |

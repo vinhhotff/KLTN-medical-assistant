@@ -1,22 +1,17 @@
 package com.mediassist.service;
 
 import com.mediassist.common.AppException;
-import com.mediassist.dto.DoctorDetailDto;
-import com.mediassist.dto.DoctorSlotDto;
-import com.mediassist.dto.UpdateDoctorProfileRequest;
-import com.mediassist.model.entity.Appointment;
-import com.mediassist.model.entity.DoctorProfile;
-import com.mediassist.model.entity.Specialty;
-import com.mediassist.repository.AppointmentRepository;
-import com.mediassist.repository.DoctorProfileRepository;
-import com.mediassist.repository.SpecialtyRepository;
-import com.mediassist.repository.UserRepository;
+import com.mediassist.dto.*;
+import com.mediassist.model.entity.*;
+import com.mediassist.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -35,19 +30,22 @@ public class DoctorService {
     private final AppointmentRepository appointmentRepository;
     private final TwoLayerCacheService cacheService;
     private final DoctorSemanticSearchService doctorSemanticSearchService;
+    private final DoctorScheduleSlotRepository doctorScheduleSlotRepository;
 
     public DoctorService(DoctorProfileRepository doctorProfileRepository,
                          UserRepository userRepository,
                          SpecialtyRepository specialtyRepository,
                          AppointmentRepository appointmentRepository,
                          TwoLayerCacheService cacheService,
-                         DoctorSemanticSearchService doctorSemanticSearchService) {
+                         DoctorSemanticSearchService doctorSemanticSearchService,
+                         DoctorScheduleSlotRepository doctorScheduleSlotRepository) {
         this.doctorProfileRepository = doctorProfileRepository;
         this.userRepository = userRepository;
         this.specialtyRepository = specialtyRepository;
         this.appointmentRepository = appointmentRepository;
         this.cacheService = cacheService;
         this.doctorSemanticSearchService = doctorSemanticSearchService;
+        this.doctorScheduleSlotRepository = doctorScheduleSlotRepository;
     }
 
     public List<DoctorDetailDto> getVerifiedDoctors() {
@@ -193,5 +191,153 @@ public class DoctorService {
         } catch (Exception e) {
             log.warn("Failed to sync vector embedding for doctor profile {}: {}", profile.getId(), e.getMessage());
         }
+    }
+
+    /**
+     * Computes real-time workstation KPIs and metrics for the authenticated doctor.
+     */
+    public DoctorStatsDto getDoctorStats(UUID doctorUserId) {
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
+                .orElse(null);
+
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        LocalDateTime todayEnd = LocalDate.now().atTime(23, 59, 59);
+
+        List<Appointment> allAppointments = appointmentRepository.findByDoctorIdOrderByScheduledStartDesc(doctorUserId);
+
+        long todayAppointmentsCount = 0;
+        long todayWaitingCount = 0;
+        long todayInProgressCount = 0;
+        long todayCompletedCount = 0;
+        long totalCompletedCount = 0;
+        BigDecimal todayRevenue = BigDecimal.ZERO;
+        BigDecimal lifetimeRevenue = BigDecimal.ZERO;
+
+        for (Appointment a : allAppointments) {
+            boolean isToday = a.getScheduledStart() != null
+                    && !a.getScheduledStart().isBefore(todayStart)
+                    && !a.getScheduledStart().isAfter(todayEnd);
+
+            if (a.getStatus() == AppointmentStatus.COMPLETED) {
+                totalCompletedCount++;
+                BigDecimal fee = a.getFeeAmount() != null ? a.getFeeAmount() : BigDecimal.ZERO;
+                lifetimeRevenue = lifetimeRevenue.add(fee);
+
+                if (isToday) {
+                    todayCompletedCount++;
+                    todayRevenue = todayRevenue.add(fee);
+                }
+            }
+
+            if (isToday) {
+                if (a.getStatus() != AppointmentStatus.CANCELLED) {
+                    todayAppointmentsCount++;
+                }
+                if (a.getStatus() == AppointmentStatus.SCHEDULED) {
+                    todayWaitingCount++;
+                } else if (a.getStatus() == AppointmentStatus.IN_PROGRESS) {
+                    todayInProgressCount++;
+                }
+            }
+        }
+
+        double rating = (profile != null && profile.getRating() != null) ? profile.getRating() : 4.9;
+        int consultations = (profile != null && profile.getTotalConsultations() != null)
+                ? profile.getTotalConsultations()
+                : (int) totalCompletedCount;
+
+        return new DoctorStatsDto(
+                todayAppointmentsCount,
+                todayWaitingCount,
+                todayInProgressCount,
+                todayCompletedCount,
+                totalCompletedCount,
+                allAppointments.size(),
+                todayRevenue,
+                lifetimeRevenue,
+                rating,
+                consultations
+        );
+    }
+
+    /**
+     * Gets the weekly schedule slots configured for the doctor.
+     * Seeds standard clinical hours if none are configured yet.
+     */
+    public List<DoctorScheduleConfigDto> getDoctorSchedules(UUID doctorUserId) {
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
+                .orElseThrow(() -> new com.mediassist.common.AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        List<DoctorScheduleSlot> slots = doctorScheduleSlotRepository.findByDoctorProfileIdAndIsActiveTrue(profile.getId());
+        if (slots == null || slots.isEmpty()) {
+            slots = initializeDefaultDoctorSchedules(profile);
+        }
+
+        return slots.stream()
+                .sorted(Comparator.comparing(DoctorScheduleSlot::getDayOfWeek)
+                        .thenComparing(DoctorScheduleSlot::getStartTime))
+                .map(DoctorScheduleConfigDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public List<DoctorScheduleSlot> initializeDefaultDoctorSchedules(DoctorProfile profile) {
+        List<DoctorScheduleSlot> defaultSlots = new ArrayList<>();
+        DayOfWeek[] weekdays = {
+                DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+                DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY
+        };
+        for (DayOfWeek day : weekdays) {
+            defaultSlots.add(new DoctorScheduleSlot(profile, day, LocalTime.of(8, 0), LocalTime.of(12, 0), 30, true));
+            if (day != DayOfWeek.SATURDAY) {
+                defaultSlots.add(new DoctorScheduleSlot(profile, day, LocalTime.of(13, 30), LocalTime.of(17, 0), 30, true));
+            }
+        }
+        return doctorScheduleSlotRepository.saveAll(defaultSlots);
+    }
+
+    /**
+     * Updates doctor weekly working hours and schedule slots.
+     */
+    @Transactional
+    public List<DoctorScheduleConfigDto> updateDoctorSchedules(UUID doctorUserId, UpdateDoctorScheduleRequest req) {
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
+                .orElseThrow(() -> new com.mediassist.common.AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        if (req == null || req.getSlots() == null) {
+            return getDoctorSchedules(doctorUserId);
+        }
+
+        List<DoctorScheduleSlot> existing = doctorScheduleSlotRepository.findByDoctorProfileIdAndIsActiveTrue(profile.getId());
+        if (existing != null && !existing.isEmpty()) {
+            for (DoctorScheduleSlot slot : existing) {
+                slot.setActive(false);
+            }
+            doctorScheduleSlotRepository.saveAll(existing);
+        }
+
+        List<DoctorScheduleSlot> newSlots = new ArrayList<>();
+        for (UpdateDoctorScheduleRequest.SlotItem item : req.getSlots()) {
+            if (item.getDayOfWeek() != null && item.getStartTime() != null && item.getEndTime() != null) {
+                newSlots.add(new DoctorScheduleSlot(
+                        profile,
+                        item.getDayOfWeek(),
+                        item.getStartTime(),
+                        item.getEndTime(),
+                        item.getSlotDurationMinutes() > 0 ? item.getSlotDurationMinutes() : 30,
+                        item.isActive()
+                ));
+            }
+        }
+
+        List<DoctorScheduleSlot> saved = doctorScheduleSlotRepository.saveAll(newSlots);
+        return saved.stream()
+                .sorted(Comparator.comparing(DoctorScheduleSlot::getDayOfWeek)
+                        .thenComparing(DoctorScheduleSlot::getStartTime))
+                .map(DoctorScheduleConfigDto::fromEntity)
+                .collect(Collectors.toList());
     }
 }
