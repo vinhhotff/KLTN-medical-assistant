@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#071** | 17/09/2026 | Tách Biệt Lâm Sàng Đa Bệnh Nhân & Đề Xuất Bác Sĩ Chuyên Khoa Riêng Biệt (Multi-Patient Clinical Segregation & Per-Patient Doctor Matching): (1) DTO Mới DocumentPatientAnalysisDto & Bổ Sung multiPatientDetected Vào DocumentAnalysisResponse, (2) Thuật Toán Sàng Lọc Danh Tính (Identity Sieve with stripAccents) Phát Hiện Tệp Của Nhiều Người Khác Nhau, (3) Điều Phối Phân Tích Lâm Sàng Song Song Độc Lập analyzeIndividualDocument Không Gây Nhiễm Chéo Hồ Sơ, (4) Thẻ An Toàn & Thanh Chọn Bệnh Nhân Động Trên UI Cho Phép Xem Chỉ Số, Bác Sĩ & Đặt Khám Đích Danh Cho Từng Người, (5) Đạt 126/126 Tests PASS (100%) & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#070** | 17/09/2026 | Khắc Phục Triệt Để Sự Cố Quét Ảnh PNG & 500 Server Error: (1) Chuyển Đổi RestClient sang JdkClientHttpRequestFactory (HTTP/2 Native) Triệt Tiêu Lỗi Octet-Stream, (2) Cấu Hình Đồng Bộ Khóa Google Gemini 3.6 Flash & OpenRouter Vào application-local.properties, (3) Kích Hoạt Cơ Chế Medical Gatekeeper Bóc Tách & Nhận Diện Ảnh Phi Y Tế Kèm Compensating Action Hoàn Trả Quota 100%, (4) Khắc Phục Lỗi 500 Do Trùng Khớp Thời Điểm Backend Restart & Vite Dev Proxy Gián Đoạn | AI Assistant | 🟢 Sẵn sàng Review |
 | **#069** | 16/09/2026 | Tương Tác Lâm Sàng Bác Sĩ - Bệnh Nhân 360°, Hồ Sơ Dài Hạn, Rào Chắn Cảnh Báo Dị Ứng Thuốc, Nạp Triage SBAR 1-Chạm, Điều Phối Hàng Đợi "Gọi Số Tiếp Theo" & Trang Danh Bạ Bệnh Nhân Toàn Viện: (1) 2 DTOs Mới DoctorPatientItemDto, FollowUpAppointmentRequest, (2) Khắc Phục Triệt Để 404 PatientProfile Bằng Cơ Chế Tự Khởi Tạo Hồ Sơ Dự Phòng, (3) 6 Endpoints Mới Phục Vụ Liên Kết Lâm Sàng Đa Chiều, (4) Rào Chắn An Toàn Dược Lý Drug-Allergy Guard Nhấp Nháy Cảnh Báo Khi Kê Toa, (5) Trang /doctor/patients Kèm Ngăn Kéo Hồ Sơ 360°, (6) Nạp SBAR AI 1-Chạm Loại Bỏ Thao Tác Thủ Công, (7) Đạt 124/124 Backend Tests PASS (100%) & Frontend Build Sạch Sẽ 0 Lỗi TypeScript | AI Assistant | 🟢 Sẵn sàng Review |
 | **#068** | 16/09/2026 | Kiến Trúc Cổng Thanh Toán Đa Kênh Cắm Rút (Pluggable Multi-Gateway), Tích Hợp Stripe Sandbox, Sổ Cái Giao Dịch & Thanh Toán Phí Khám: (1) Strategy Pattern (PaymentGateway, StripePaymentGateway, MockPaymentGateway, PaymentGatewayRouter), (2) Bảng payment_transactions (Flyway V13) & Strict Idempotency Guard Chống Ghi Đè Kép, (3) Tích Hợp stripe-java 33.4.2 & Stripe Sandbox Mode (Thẻ Test 4242) Kèm Mock Resilience, (4) Trang Đích Đối Soát & Biên Lai Điện Tử /payment/success, (5) Mở Rộng Thanh Toán Online Phí Khám Bệnh Trên Patient Dashboard & Đạt 120/120 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
@@ -27,6 +28,62 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#071] Tách Biệt Lâm Sàng Đa Bệnh Nhân & Đề Xuất Bác Sĩ Chuyên Khoa Riêng Biệt Khi Tải Lên Nhiều Tệp
+* **Thời gian:** 2026-09-17 15:45:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-21 (Phân Tách Lâm Sàng Đa Bệnh Nhân - Multi-Patient Clinical Segregation & Intelligent Doctor Matching)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **126/126 Unit Tests PASS 100%** (25/25 tests trong `MedicalDocumentAnalysisServiceTest`)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1679 modules transformed** trong 1.59s
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Vấn Đề Kỹ Thuật (Problem Statement):
+Người dùng (bệnh nhân hoặc người nhà) có thể tải lên đồng thời nhiều tệp PDF/ảnh cận lâm sàng thuộc về **nhiều bệnh nhân khác nhau** trong một lượt quét (ví dụ: phiếu khám tuyến giáp của Mẹ và kết quả đo mỡ máu/men gan của Bố).
+- **Hiện tượng cũ:** Trước đây hệ thống gộp chung toàn bộ văn bản OCR của tất cả các tệp lại thành một chuỗi duy nhất để gửi cho LLM. Khi đó, AI phân tích tổng hợp sinh ra một kết luận lâm sàng lẫn lộn ("nhiễm chéo lâm sàng" - Cross-Patient Clinical Contamination). Đồng thời, thuật toán tìm kiếm vector ngữ nghĩa pgvector gợi ý danh sách bác sĩ chung, không rõ bác sĩ nào phục vụ cho người bệnh nào, dẫn đến nguy cơ đặt nhầm lịch khám.
+- **Yêu cầu của Tech Lead:**
+  > *"ok hiện nếu gửi file pdf của 2 người không liên quan, hiện AI vẫn tóm tắt và show ra gộp lại làm 1 và đề xuất bác sĩ không liên quan , nên có trường hợp AI phân tích rồi tách riêng từng cái đề xuất từng người sao cho phù hợp"*
+
+#### 2. Giải Pháp Kiến Trúc & Cải Tiến Kỹ Thuật:
+1. **Định Nghĩa DTO Độc Lập Cho Từng Bệnh Nhân:**
+   - Tạo mới `DocumentPatientAnalysisDto.java`: Chứa toàn bộ bức tranh cận lâm sàng độc lập của 1 người bệnh gồm: `sourceFileName`, `patientName`, `patientAge`, `patientGender`, `hospitalName`, `departmentName`, `orderingDoctor`, `testDate`, `sidCode`, `deviceModel`, `clinicalSummary`, `plainLanguageExplanation`, `indicators`, `recommendedSpecialtySlug`, `recommendedSpecialtyName`, `doctorRecommendationReason`, `matchedDoctors`, `suggestedQuestions`.
+   - Mở rộng `DocumentAnalysisResponse.java`: Bổ sung cờ `multiPatientDetected` (`boolean`) và danh sách `patientAnalyses` (`List<DocumentPatientAnalysisDto>`).
+2. **Thuật Toán Sàng Lọc Danh Tính (Identity Sieve with `stripAccents`):**
+   - Trích xuất metadata từ văn bản OCR của từng tệp.
+   - Chuẩn hóa họ tên bằng `Normalizer.normalize(s, Normalizer.Form.NFD)` kết hợp biểu thức tĩnh `DIACRITICS_PATTERN` để so sánh chính xác tên tiếng Việt có/không dấu.
+   - Nếu phát hiện >= 2 tệp có tên bệnh nhân khác nhau, hoặc cùng tên nhưng lệch giới tính/mã SID: Tự động kích hoạt cờ `isMultiPatient = true`.
+3. **Điều Phối Phân Tích Song Song Độc Lập (`analyzeIndividualDocument`):**
+   - Với từng tệp, hệ thống kích hoạt luồng xử lý độc lập qua `medicalOcrExecutor`:
+     - Bóc tách chỉ số (`parseIndicators`) riêng biệt.
+     - Tìm kiếm bác sĩ pgvector sơ bộ (pre-RAG) riêng cho bất thường của tệp đó.
+     - Kích hoạt Clinical RAG suy luận chuyên khoa và xếp hạng bác sĩ (post-RAG) riêng biệt cho từng người bệnh.
+   - Sinh ra bản tóm tắt điều phối tổng quan (`Executive Clinical Dispatch Summary`) cho cấp tài liệu cha.
+   - Khấu trừ duy nhất 1 lượt quét (1 Quota) đảm bảo tính công bằng tối đa cho người dùng.
+   - Lưu trữ metadata vào `document_analyses.metadata_json` với đầy đủ cấu trúc đa bệnh nhân, hỗ trợ Deduplication khôi phục 0ms và 0 token.
+4. **Giao Diện Frontend Chuyển Mạch Hồ Sơ Tức Thì (`DocumentSummarizerPage.tsx`):**
+   - Hiển thị **Thẻ Cảnh Báo An Toàn Y Khoa Đa Bệnh Nhân (Multi-Patient Clinical Segregation Safety Card)** giải thích rõ việc tách biệt hồ sơ để chống nhiễm chéo.
+   - Cung cấp **Patient Selector Tabs**: Chuyển đổi giữa các bệnh nhân chỉ với 1 click.
+   - Toàn bộ giao diện chi tiết (Tiêu đề cơ sở y tế ISO 15189, Bảng chỉ số xét nghiệm, Bản dịch dễ hiểu, Tóm tắt SBAR, Bác sĩ đề xuất, Câu hỏi tư vấn) cập nhật reactively theo bệnh nhân đang chọn.
+   - Khi bấm *"Đặt Khám Với Bác Sĩ Này"*: Tự động điền ghi chú chỉ định đích danh tên bệnh nhân và tệp cận lâm sàng tương ứng.
+   - Giữ nguyên 100% tính tương thích ngược khi quét tài liệu đơn lẻ hoặc nhiều tệp cùng 1 người.
+
+#### 3. Danh Sách Tệp Thay Đổi:
+* `[NEW]` [`backend/src/main/java/com/mediassist/dto/DocumentPatientAnalysisDto.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/dto/DocumentPatientAnalysisDto.java)
+* `[MOD]` [`backend/src/main/java/com/mediassist/dto/DocumentAnalysisResponse.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/dto/DocumentAnalysisResponse.java)
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java)
+* `[MOD]` [`backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java)
+* `[MOD]` [`frontend/src/pages/patient/DocumentSummarizerPage.tsx`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/pages/patient/DocumentSummarizerPage.tsx)
+* `[MOD]` [`docs/USE_CASES.md`](file:///Users/thanvinh/Desktop/KLTN/docs/USE_CASES.md)
+* `[MOD]` [`docs/WORK_LOG.md`](file:///Users/thanvinh/Desktop/KLTN/docs/WORK_LOG.md)
+
+#### 4. Bằng Chứng Kiểm Thử & Xác Minh (Test Evidence):
+* **Backend Unit Tests:** `mvn test` -> **126/126 Tests PASS (100% Success)** trong 18.2s.
+  - `testAnalyzeDocuments_MultiPatient_SegregatesIndividually`: PASS (asserts `multiPatientDetected == true`, `patientAnalyses.size() == 2`, distinct specialties, distinct doctors, exactly 1 quota deducted).
+  - `testAnalyzeDocuments_SamePatientMultiFiles_Consolidates`: PASS (asserts `multiPatientDetected == false`).
+* **Frontend Compilation:** `npm run build` -> **0 TypeScript Errors, 1679 modules transformed** trong 1.59s.
+* **Service Liveness:** Backend running on port 5001 (`/actuator/health` UP), Frontend running on port 5173.
+
+---
 
 ### [WORK-LOG-#070] Khắc Phục Triệt Để Sự Cố Quét Ảnh PNG, Nâng Cấp HTTP/2 JdkClientHttpRequestFactory & Kích Hoạt Rào Chắn Medical Gatekeeper
 * **Thời gian:** 2026-09-17 15:25:00 (GMT+7)

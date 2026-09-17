@@ -41,7 +41,19 @@ public class DocumentAnalysisResponse {
     private int filesCount = 1;
     private List<String> fileNames = new java.util.ArrayList<>();
 
+    // Multi-Patient Segregation Metadata
+    private boolean multiPatientDetected;
+    private List<DocumentPatientAnalysisDto> patientAnalyses = new java.util.ArrayList<>();
+
     public DocumentAnalysisResponse() {}
+
+    public boolean isMultiPatientDetected() { return multiPatientDetected; }
+    public void setMultiPatientDetected(boolean multiPatientDetected) { this.multiPatientDetected = multiPatientDetected; }
+
+    public List<DocumentPatientAnalysisDto> getPatientAnalyses() { return patientAnalyses; }
+    public void setPatientAnalyses(List<DocumentPatientAnalysisDto> patientAnalyses) {
+        this.patientAnalyses = patientAnalyses != null ? patientAnalyses : new java.util.ArrayList<>();
+    }
 
     public int getFilesCount() { return filesCount; }
     public void setFilesCount(int filesCount) { this.filesCount = filesCount; }

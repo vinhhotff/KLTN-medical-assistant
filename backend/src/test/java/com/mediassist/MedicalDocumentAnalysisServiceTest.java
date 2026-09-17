@@ -976,4 +976,123 @@ class MedicalDocumentAnalysisServiceTest {
         // Verify document saved has fileName <= 250 characters
         verify(medicalDocumentRepository).save(argThat(doc -> doc.getFileName() != null && doc.getFileName().length() <= 250 && doc.getFileName().endsWith("...")));
     }
+
+    @Test
+    @DisplayName("Should detect multi-patient batch and segregate individual clinical analysis and matched doctors")
+    void testAnalyzeDocuments_MultiPatient_SegregatesIndividually() {
+        testUser.setScanQuota(1);
+
+        byte[] pdfMagic = new byte[]{'%', 'P', 'D', 'F', '-'};
+        String p1Content = "BỆNH VIỆN BẠCH MAI\nBỆNH NHÂN: NGUYỄN VĂN BÌNH\nTuổi: 52\nGiới tính: Nam\nGlucose: 14.5 mmol/L";
+        String p2Content = "BỆNH VIỆN CHỢ RẪY\nBỆNH NHÂN: HOÀNG THU TRANG\nTuổi: 29\nGiới tính: Nữ\nAST: 85 U/L";
+
+        byte[] b1 = new byte[pdfMagic.length + p1Content.getBytes().length];
+        System.arraycopy(pdfMagic, 0, b1, 0, pdfMagic.length);
+        System.arraycopy(p1Content.getBytes(), 0, b1, pdfMagic.length, p1Content.getBytes().length);
+
+        byte[] b2 = new byte[pdfMagic.length + p2Content.getBytes().length];
+        System.arraycopy(pdfMagic, 0, b2, 0, pdfMagic.length);
+        System.arraycopy(p2Content.getBytes(), 0, b2, pdfMagic.length, p2Content.getBytes().length);
+
+        MockMultipartFile f1 = new MockMultipartFile("files", "nguyen_van_binh_blood.pdf", "application/pdf", b1);
+        MockMultipartFile f2 = new MockMultipartFile("files", "hoang_thu_trang_liver.pdf", "application/pdf", b2);
+
+        when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenAnswer(inv -> {
+            byte[] arg = inv.getArgument(0);
+            String str = new String(arg, java.nio.charset.StandardCharsets.UTF_8);
+            if (str.contains("HOÀNG THU TRANG")) {
+                return p2Content;
+            }
+            return p1Content;
+        });
+
+        com.mediassist.ai.ClinicalAiResult res1 = new com.mediassist.ai.ClinicalAiResult();
+        res1.setModelUsed("gemini-flash");
+        res1.setClinicalSummary("Bệnh nhân Bình có đường huyết tăng cao");
+        res1.setRecommendedSpecialtySlug("endocrinology");
+        res1.setRecommendedSpecialtyName("Nội tiết - Đái tháo đường");
+
+        com.mediassist.ai.ClinicalAiResult res2 = new com.mediassist.ai.ClinicalAiResult();
+        res2.setModelUsed("gemini-flash");
+        res2.setClinicalSummary("Bệnh nhân Trang có men gan tăng cao");
+        res2.setRecommendedSpecialtySlug("gastroenterology");
+        res2.setRecommendedSpecialtyName("Tiêu hóa - Gan mật");
+
+        when(clinicalRagService.performDocumentRagAnalysis(anyString(), eq("nguyen_van_binh_blood.pdf"), any()))
+                .thenReturn(res1);
+        when(clinicalRagService.performDocumentRagAnalysis(anyString(), eq("hoang_thu_trang_liver.pdf"), any()))
+                .thenReturn(res2);
+
+        DoctorMatchDto docEndo = new DoctorMatchDto();
+        docEndo.setDoctorId(UUID.randomUUID());
+        docEndo.setFullName("BS CKII Lê Văn Nội Tiết");
+
+        DoctorMatchDto docGastro = new DoctorMatchDto();
+        docGastro.setDoctorId(UUID.randomUUID());
+        docGastro.setFullName("BS CKI Trần Thị Tiêu Hóa");
+
+        lenient().when(doctorSemanticSearchService.searchDoctors(anyString(), anyInt()))
+                .thenAnswer(inv -> {
+                    String q = inv.getArgument(0);
+                    if (q.contains("endocrinology") || q.contains("Glucose") || q.contains("BÌNH")) {
+                        return List.of(docEndo);
+                    }
+                    return List.of(docGastro);
+                });
+
+        DocumentAnalysisResponse resp = analysisService.analyzeDocuments(List.of(f1, f2), "patient@mediassist.local");
+
+        assertNotNull(resp);
+        assertTrue(resp.isMultiPatientDetected());
+        assertEquals(2, resp.getFilesCount());
+        assertNotNull(resp.getPatientAnalyses());
+        assertEquals(2, resp.getPatientAnalyses().size());
+
+        var pAnalysis1 = resp.getPatientAnalyses().get(0);
+        assertEquals("nguyen_van_binh_blood.pdf", pAnalysis1.getSourceFileName());
+        assertTrue(pAnalysis1.getPatientName().toUpperCase().contains("NGUYỄN VĂN BÌNH"));
+        assertEquals("Nội tiết - Đái tháo đường", pAnalysis1.getRecommendedSpecialtyName());
+
+        var pAnalysis2 = resp.getPatientAnalyses().get(1);
+        assertEquals("hoang_thu_trang_liver.pdf", pAnalysis2.getSourceFileName());
+        assertTrue(pAnalysis2.getPatientName().toUpperCase().contains("HOÀNG THU TRANG"));
+        assertEquals("Tiêu hóa - Gan mật", pAnalysis2.getRecommendedSpecialtyName());
+
+        assertEquals(0, testUser.getScanQuota());
+    }
+
+    @Test
+    @DisplayName("Should not trigger multi-patient segregation when all files belong to same patient")
+    void testAnalyzeDocuments_SamePatientMultiFiles_Consolidates() {
+        testUser.setScanQuota(1);
+
+        byte[] pdfMagic = new byte[]{'%', 'P', 'D', 'F', '-'};
+        String p1Content = "BỆNH VIỆN BẠCH MAI\nBỆNH NHÂN: NGUYỄN VĂN BÌNH\nTuổi: 52\nGiới tính: Nam\nGlucose: 14.5 mmol/L";
+        String p2Content = "BỆNH VIỆN BẠCH MAI\nBỆNH NHÂN: NGUYỄN VĂN BÌNH\nTuổi: 52\nGiới tính: Nam\nHbA1c: 8.5 %";
+
+        byte[] b1 = new byte[pdfMagic.length + p1Content.getBytes().length];
+        System.arraycopy(pdfMagic, 0, b1, 0, pdfMagic.length);
+        System.arraycopy(p1Content.getBytes(), 0, b1, pdfMagic.length, p1Content.getBytes().length);
+
+        byte[] b2 = new byte[pdfMagic.length + p2Content.getBytes().length];
+        System.arraycopy(pdfMagic, 0, b2, 0, pdfMagic.length);
+        System.arraycopy(p2Content.getBytes(), 0, b2, pdfMagic.length, p2Content.getBytes().length);
+
+        MockMultipartFile f1 = new MockMultipartFile("files", "page1.pdf", "application/pdf", b1);
+        MockMultipartFile f2 = new MockMultipartFile("files", "page2.pdf", "application/pdf", b2);
+
+        when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(p1Content);
+
+        com.mediassist.ai.ClinicalAiResult mockResult = new com.mediassist.ai.ClinicalAiResult();
+        mockResult.setModelUsed("mock-model");
+        mockResult.setClinicalSummary("Bệnh nhân Bình đái tháo đường");
+        when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any())).thenReturn(mockResult);
+
+        DocumentAnalysisResponse resp = analysisService.analyzeDocuments(List.of(f1, f2), "patient@mediassist.local");
+
+        assertNotNull(resp);
+        assertFalse(resp.isMultiPatientDetected());
+        assertEquals(2, resp.getFilesCount());
+        assertEquals(0, testUser.getScanQuota());
+    }
 }

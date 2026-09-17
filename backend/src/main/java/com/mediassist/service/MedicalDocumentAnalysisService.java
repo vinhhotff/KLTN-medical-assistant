@@ -179,6 +179,21 @@ public class MedicalDocumentAnalysisService {
                 if (metaNode.has("patientAge") && !metaNode.get("patientAge").isNull()) resp.setPatientAge(metaNode.get("patientAge").asText());
                 if (metaNode.has("patientGender") && !metaNode.get("patientGender").isNull()) resp.setPatientGender(metaNode.get("patientGender").asText());
                 if (metaNode.has("deviceModel") && !metaNode.get("deviceModel").isNull()) resp.setDeviceModel(metaNode.get("deviceModel").asText());
+
+                boolean isMulti = metaNode.has("multiPatientDetected") && (metaNode.get("multiPatientDetected").asBoolean() || "true".equalsIgnoreCase(metaNode.get("multiPatientDetected").asText()));
+                resp.setMultiPatientDetected(isMulti);
+                if (isMulti && metaNode.has("patientAnalysesJson") && !metaNode.get("patientAnalysesJson").isNull()) {
+                    String pJson = metaNode.get("patientAnalysesJson").asText();
+                    try {
+                        java.util.List<com.mediassist.dto.DocumentPatientAnalysisDto> pList = objectMapper.readValue(
+                                pJson,
+                                new com.fasterxml.jackson.core.type.TypeReference<java.util.List<com.mediassist.dto.DocumentPatientAnalysisDto>>() {}
+                        );
+                        resp.setPatientAnalyses(pList);
+                    } catch (Exception ex) {
+                        log.warn("Failed to deserialize cached patientAnalyses: {}", ex.getMessage());
+                    }
+                }
             } catch (Exception ignored) {}
         }
 
@@ -332,42 +347,40 @@ public class MedicalDocumentAnalysisService {
                 log.warn("Multi-file text extraction timeout or error: {}. Assembling available extracted texts.", ex.getMessage());
             }
 
-            String extractedText;
-            if (files.size() == 1) {
-                extractedText = extractionFutures.get(0).getNow("");
-            } else {
-                StringBuilder sb = new StringBuilder();
-                sb.append(String.format("[HỒ SƠ Y TẾ TỔNG HỢP: %d TÀI LIỆU ĐÍNH KÈM]\n\n", files.size()));
-                for (int i = 0; i < files.size(); i++) {
-                    String t = extractionFutures.get(i).getNow("");
-                    sb.append(String.format("=== TÀI LIỆU %d/%d: %s (%s) ===\n%s\n\n",
-                            (i + 1), files.size(), fileNames.get(i), contentTypes.get(i),
-                            (t != null && !t.isBlank() ? t : "(Không trích xuất được nội dung)")));
+            List<String> individualTexts = new ArrayList<>();
+            List<Map<String, String>> perFileMetadata = new ArrayList<>();
+            Set<String> distinctNormalizedPatientNames = new LinkedHashSet<>();
+
+            for (int i = 0; i < files.size(); i++) {
+                String t = extractionFutures.get(i).getNow("");
+                individualTexts.add(t != null ? t : "");
+                Map<String, String> m = extractDocumentMetadata(t);
+                perFileMetadata.add(m);
+                String pName = m.get("patientName");
+                if (pName != null && !pName.isBlank()) {
+                    String clean = stripAccents(pName).toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
+                    if (!clean.isEmpty()) {
+                        distinctNormalizedPatientNames.add(clean);
+                    }
                 }
-                extractedText = sb.toString().trim();
             }
 
-            // 5. Gatekeeper Validation (Readability + Clinical Sieve on combined text)
-            medicalDocumentValidator.validateDocument(filesBytesList.get(0), contentTypes.get(0), extractedText, fileName);
+            boolean isMultiPatient = (files.size() > 1 && distinctNormalizedPatientNames.size() > 1);
+            if (!isMultiPatient && files.size() > 1) {
+                Set<String> genders = new HashSet<>();
+                Set<String> sids = new HashSet<>();
+                for (Map<String, String> m : perFileMetadata) {
+                    String g = m.get("patientGender");
+                    if (g != null && !g.isBlank()) genders.add(g.toLowerCase().trim());
+                    String s = m.get("sidCode");
+                    if (s != null && !s.isBlank()) sids.add(s.toLowerCase().trim());
+                }
+                if (genders.size() > 1 && sids.size() > 1) {
+                    isMultiPatient = true;
+                }
+            }
 
-            // 6. Dynamic Metadata Extraction from raw text
-            Map<String, String> rawMeta = extractDocumentMetadata(extractedText);
-            String patientGender = rawMeta.get("patientGender");
-
-            // 7. Comprehensive Lab Scanning across all files
-            List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName, patientGender);
-
-            // 8. Smart Clinical Windowing for Verbose Documents
-            String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
-
-            // 8b. Pre-RAG Semantic Retrieval
-            String preRagQuery = buildInitialDoctorQuery(parsedIndicators, clinicalContext);
-            List<DoctorMatchDto> preRagCandidates = doctorSemanticSearchService.searchDoctors(preRagQuery, 4);
-
-            // 9. AI-First Clinical Reasoning via Gemini / OpenRouter
-            com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, preRagCandidates);
-
-            // 9b. Pipelined Asynchronous Cloud Storage Upload
+            // Pipelined Asynchronous Cloud Storage Upload
             final byte[] uploadBytes;
             final String uploadName;
             final String uploadType;
@@ -402,6 +415,264 @@ public class MedicalDocumentAnalysisService {
                 }
             }
             final UUID uploadUserId = user.getId();
+
+            // 4c. Multi-Patient Clinical Segregation Branch
+            if (isMultiPatient) {
+                log.info("🚨 [MULTI-PATIENT DETECTED] Found {} distinct patient records across {} files. Executing clinical segregation pipeline.",
+                        distinctNormalizedPatientNames.size(), files.size());
+
+                for (int i = 0; i < files.size(); i++) {
+                    medicalDocumentValidator.validateDocument(filesBytesList.get(i), contentTypes.get(i), individualTexts.get(i), fileNames.get(i));
+                }
+
+                List<java.util.concurrent.CompletableFuture<com.mediassist.dto.DocumentPatientAnalysisDto>> individualFutures = new ArrayList<>();
+                for (int i = 0; i < files.size(); i++) {
+                    final int idx = i;
+                    final byte[] b = filesBytesList.get(idx);
+                    final String ct = contentTypes.get(idx);
+                    final String fn = fileNames.get(idx);
+                    final String txt = individualTexts.get(idx);
+                    individualFutures.add(java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                        try {
+                            return analyzeIndividualDocument(b, ct, fn, txt);
+                        } catch (Exception ex) {
+                            log.error("Error analyzing individual document {}: {}", fn, ex.getMessage(), ex);
+                            com.mediassist.dto.DocumentPatientAnalysisDto errDto = new com.mediassist.dto.DocumentPatientAnalysisDto();
+                            errDto.setSourceFileName(fn);
+                            errDto.setPatientName("Tệp: " + fn);
+                            errDto.setClinicalSummary("Không thể phân tích độc lập tệp " + fn + ": " + ex.getMessage());
+                            errDto.setPlainLanguageExplanation("Đã xảy ra sự cố khi phân tích riêng tệp này.");
+                            return errDto;
+                        }
+                    }, executor));
+                }
+
+                try {
+                    java.util.concurrent.CompletableFuture.allOf(individualFutures.toArray(new java.util.concurrent.CompletableFuture[0]))
+                            .get(60, java.util.concurrent.TimeUnit.SECONDS);
+                } catch (Exception ex) {
+                    log.warn("Multi-patient individual analysis timeout: {}. Continuing with available results.", ex.getMessage());
+                }
+
+                List<com.mediassist.dto.DocumentPatientAnalysisDto> patientAnalyses = new ArrayList<>();
+                for (var f : individualFutures) {
+                    try {
+                        patientAnalyses.add(f.get());
+                    } catch (Exception ex) {
+                        log.error("Failed to retrieve individual patient analysis: {}", ex.getMessage());
+                    }
+                }
+
+                StringBuilder sumSb = new StringBuilder();
+                sumSb.append(String.format("🚨 PHÁT HIỆN HỒ SƠ Y TẾ CỦA %d BỆNH NHÂN KHÁC NHAU TRONG CÙNG ĐỢT QUÉT:\n\n", patientAnalyses.size()));
+                for (int i = 0; i < patientAnalyses.size(); i++) {
+                    com.mediassist.dto.DocumentPatientAnalysisDto p = patientAnalyses.get(i);
+                    String pName = (p.getPatientName() != null && !p.getPatientName().isBlank()) ? p.getPatientName() : ("Bệnh nhân " + (i + 1));
+                    String pAgeGender = ((p.getPatientAge() != null ? p.getPatientAge() + " tuổi" : "") + (p.getPatientGender() != null ? ((p.getPatientAge() != null ? " - " : "") + p.getPatientGender()) : "")).trim();
+                    sumSb.append(String.format("• Hồ sơ %d: %s%s (Tệp: %s) ➔ Chuyên khoa đề xuất: %s. %s\n",
+                            (i + 1), pName, (!pAgeGender.isEmpty() ? " (" + pAgeGender + ")" : ""),
+                            p.getSourceFileName(),
+                            p.getRecommendedSpecialtyName() != null ? p.getRecommendedSpecialtyName() : "Tổng quát",
+                            (p.getIndicators() == null || p.getIndicators().isEmpty()) ? "Không ghi nhận chỉ số bất thường." : ("Ghi nhận " + p.getIndicators().size() + " chỉ số cần lưu ý.")));
+                }
+                sumSb.append("\n⚠️ Để bảo đảm an toàn y tế và không chỉ định sai bác sĩ điều trị, MediAssist-AI đã tự động phân tách độc lập hồ sơ, chỉ số xét nghiệm và bác sĩ chuyên khoa tương ứng cho từng người bệnh theo các thẻ bên dưới.");
+
+                StringBuilder expSb = new StringBuilder();
+                expSb.append(String.format("Hệ thống phát hiện tài liệu tải lên chứa kết quả y tế của %d người bệnh khác nhau. Để đảm bảo an toàn y khoa và phác đồ chính xác, AI đã tự động phân tách thành %d hồ sơ riêng biệt. Vui lòng bấm vào từng thẻ người bệnh để theo dõi chỉ số lâm sàng chi tiết và kết nối với bác sĩ chuyên khoa phù hợp.",
+                        patientAnalyses.size(), patientAnalyses.size()));
+
+                List<AbnormalIndicatorDto> combinedIndicators = new ArrayList<>();
+                List<DoctorMatchDto> combinedDoctors = new ArrayList<>();
+                List<String> combinedQuestions = new ArrayList<>();
+                for (com.mediassist.dto.DocumentPatientAnalysisDto p : patientAnalyses) {
+                    if (p.getIndicators() != null) combinedIndicators.addAll(p.getIndicators());
+                    if (p.getMatchedDoctors() != null) {
+                        for (DoctorMatchDto d : p.getMatchedDoctors()) {
+                            if (combinedDoctors.stream().noneMatch(cd -> cd.getDoctorId().equals(d.getDoctorId()))) {
+                                combinedDoctors.add(d);
+                            }
+                        }
+                    }
+                    if (p.getSuggestedQuestions() != null) {
+                        for (String q : p.getSuggestedQuestions()) {
+                            if (!combinedQuestions.contains(q)) combinedQuestions.add(q);
+                        }
+                    }
+                }
+
+                String topSpecialtyName = "Đa Chuyên Khoa (" + patientAnalyses.size() + " người bệnh)";
+                String topSpecialtySlug = "multi-specialty";
+                String topDocReason = "Hệ thống đã phân loại và đề xuất bác sĩ chuyên khoa riêng biệt cho từng người bệnh để đảm bảo an toàn y tế.";
+
+                if (!isReanalyzingStaleOffline || existingDoc == null || existingDoc.getStorageUrl() == null || existingDoc.getStorageUrl().isBlank()) {
+                    try {
+                        storageUrl = storageService.uploadDocument(uploadBytes, uploadName, uploadType, uploadUserId);
+                    } catch (Exception uploadEx) {
+                        log.warn("Storage upload failed for multi-patient batch: {}. Continuing without permanent storage URL.", uploadEx.getMessage());
+                    }
+                } else if (isReanalyzingStaleOffline && existingDoc != null) {
+                    storageUrl = existingDoc.getStorageUrl();
+                }
+
+                if (isReanalyzingStaleOffline && existingDoc != null) {
+                    medDoc = existingDoc;
+                    medDoc.setFileName(fileName);
+                    medDoc.setFileSizeBytes(size);
+                    medDoc.setContentType(contentType);
+                    medDoc.setStatus("PROCESSED");
+                    medDoc.setStorageUrl(storageUrl);
+                    medDoc.setValidMedical(true);
+                    medicalDocumentRepository.save(medDoc);
+                } else {
+                    try {
+                        medDoc = new MedicalDocument();
+                        medDoc.setUser(user);
+                        medDoc.setFileName(fileName);
+                        medDoc.setFileSizeBytes(size);
+                        medDoc.setContentType(contentType);
+                        medDoc.setStatus("PROCESSED");
+                        medDoc.setStorageUrl(storageUrl);
+                        medDoc.setFileHash(fileHash);
+                        medDoc.setValidMedical(true);
+                        medDoc = medicalDocumentRepository.save(medDoc);
+                    } catch (org.springframework.dao.DataIntegrityViolationException dive) {
+                        if (quotaDeducted) {
+                            try {
+                                userRepository.restoreScanQuota(user.getId());
+                                quotaDeducted = false;
+                            } catch (Exception ignored) {}
+                        }
+                        for (int attempt = 0; attempt < 5; attempt++) {
+                            Optional<MedicalDocument> winnerDoc = medicalDocumentRepository.findFirstByUserIdAndFileHashOrderByCreatedAtDesc(user.getId(), fileHash);
+                            if (winnerDoc.isPresent()) {
+                                DocumentAnalysisResponse cached = buildCachedResponse(winnerDoc.get(), fileName);
+                                if (cached != null) {
+                                    cached.setFilesCount(files.size());
+                                    cached.setFileNames(fileNames);
+                                    return cached;
+                                }
+                            }
+                            try { Thread.sleep(150); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
+                        }
+                        throw dive;
+                    }
+                }
+
+                Map<String, String> metadataMap = new LinkedHashMap<>();
+                if (!patientAnalyses.isEmpty()) {
+                    com.mediassist.dto.DocumentPatientAnalysisDto first = patientAnalyses.get(0);
+                    metadataMap.put("hospitalName", first.getHospitalName());
+                    metadataMap.put("departmentName", first.getDepartmentName());
+                    metadataMap.put("orderingDoctor", first.getOrderingDoctor());
+                    metadataMap.put("testDate", first.getTestDate());
+                    metadataMap.put("sidCode", first.getSidCode());
+                    metadataMap.put("patientName", first.getPatientName());
+                    metadataMap.put("patientAge", first.getPatientAge());
+                    metadataMap.put("patientGender", first.getPatientGender());
+                }
+                metadataMap.put("multiPatientDetected", "true");
+                try {
+                    metadataMap.put("patientAnalysesJson", objectMapper.writeValueAsString(patientAnalyses));
+                } catch (Exception e) {
+                    log.error("Failed to serialize patientAnalysesJson: {}", e.getMessage());
+                }
+
+                final MedicalDocument targetDoc = medDoc;
+                Optional<DocumentAnalysis> existingAnalysisOpt = documentAnalysisRepository.findByDocumentId(targetDoc.getId());
+                DocumentAnalysis analysis = existingAnalysisOpt.orElseGet(() -> {
+                    DocumentAnalysis da = new DocumentAnalysis();
+                    da.setDocument(targetDoc);
+                    return da;
+                });
+                analysis.setClinicalSummary(sumSb.toString());
+                analysis.setPlainLanguageExplanation(expSb.toString());
+                analysis.setRecommendedSpecialtySlug(topSpecialtySlug);
+                analysis.setRecommendedSpecialtyName(topSpecialtyName);
+                try {
+                    analysis.setMetadataJson(objectMapper.writeValueAsString(metadataMap));
+                    analysis.setAbnormalIndicatorsJson(objectMapper.writeValueAsString(combinedIndicators));
+                    analysis.setSuggestedQuestionsJson(objectMapper.writeValueAsString(combinedQuestions));
+                } catch (Exception e) {
+                    analysis.setAbnormalIndicatorsJson("[]");
+                    analysis.setSuggestedQuestionsJson("[]");
+                }
+                documentAnalysisRepository.save(analysis);
+
+                if (rateLimiterService != null) {
+                    rateLimiterService.recordSuccessfulUpload(userEmail);
+                }
+
+                DocumentAnalysisResponse response = new DocumentAnalysisResponse();
+                response.setDocumentId(medDoc.getId());
+                response.setFileName(fileName);
+                response.setFileSizeBytes(size);
+                response.setContentType(contentType);
+                response.setClinicalSummary(sumSb.toString());
+                response.setPlainLanguageExplanation(expSb.toString());
+                response.setIndicators(combinedIndicators);
+                response.setRecommendedSpecialtySlug(topSpecialtySlug);
+                response.setRecommendedSpecialtyName(topSpecialtyName);
+                response.setSuggestedQuestions(combinedQuestions);
+                response.setMatchedDoctors(combinedDoctors);
+                response.setStorageUrl(storageUrl);
+                response.setCachedResult(false);
+                response.setModelUsed("Multi-Patient Clinical Segregation Engine");
+                response.setDoctorRecommendationReason(topDocReason);
+                response.setFilesCount(files.size());
+                response.setFileNames(fileNames);
+                response.setMultiPatientDetected(true);
+                response.setPatientAnalyses(patientAnalyses);
+                if (!patientAnalyses.isEmpty()) {
+                    com.mediassist.dto.DocumentPatientAnalysisDto first = patientAnalyses.get(0);
+                    response.setHospitalName(first.getHospitalName());
+                    response.setDepartmentName(first.getDepartmentName());
+                    response.setOrderingDoctor(first.getOrderingDoctor());
+                    response.setTestDate(first.getTestDate());
+                    response.setSidCode(first.getSidCode());
+                    response.setPatientName(first.getPatientName());
+                    response.setPatientAge(first.getPatientAge());
+                    response.setPatientGender(first.getPatientGender());
+                }
+                return response;
+            }
+
+            // Single patient or homogeneous multi-file batch continues below:
+            String extractedText;
+            if (files.size() == 1) {
+                extractedText = individualTexts.get(0);
+            } else {
+                StringBuilder sb = new StringBuilder();
+                sb.append(String.format("[HỒ SƠ Y TẾ TỔNG HỢP: %d TÀI LIỆU ĐÍNH KÈM]\n\n", files.size()));
+                for (int i = 0; i < files.size(); i++) {
+                    String t = individualTexts.get(i);
+                    sb.append(String.format("=== TÀI LIỆU %d/%d: %s (%s) ===\n%s\n\n",
+                            (i + 1), files.size(), fileNames.get(i), contentTypes.get(i),
+                            (t != null && !t.isBlank() ? t : "(Không trích xuất được nội dung)")));
+                }
+                extractedText = sb.toString().trim();
+            }
+
+            // 5. Gatekeeper Validation (Readability + Clinical Sieve on combined text)
+            medicalDocumentValidator.validateDocument(filesBytesList.get(0), contentTypes.get(0), extractedText, fileName);
+
+            // 6. Dynamic Metadata Extraction from raw text
+            Map<String, String> rawMeta = extractDocumentMetadata(extractedText);
+            String patientGender = rawMeta.get("patientGender");
+
+            // 7. Comprehensive Lab Scanning across all files
+            List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName, patientGender);
+
+            // 8. Smart Clinical Windowing for Verbose Documents
+            String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
+
+            // 8b. Pre-RAG Semantic Retrieval
+            String preRagQuery = buildInitialDoctorQuery(parsedIndicators, clinicalContext);
+            List<DoctorMatchDto> preRagCandidates = doctorSemanticSearchService.searchDoctors(preRagQuery, 4);
+
+            // 9. AI-First Clinical Reasoning via Gemini / OpenRouter
+            com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, preRagCandidates);
+
+            // 9b. Pipelined Asynchronous Cloud Storage Upload (Lazy - only after AI succeeds)
             if (!isReanalyzingStaleOffline || existingDoc == null || existingDoc.getStorageUrl() == null || existingDoc.getStorageUrl().isBlank()) {
                 java.util.function.Supplier<String> uploadSupplier = () -> {
                     try {
@@ -607,6 +878,7 @@ public class MedicalDocumentAnalysisService {
             metadataMap.put("patientAge", finalAge);
             metadataMap.put("patientGender", finalGender);
             metadataMap.put("deviceModel", finalDev);
+            metadataMap.put("multiPatientDetected", "false");
 
             final MedicalDocument targetDoc = medDoc;
             Optional<DocumentAnalysis> existingAnalysisOpt = documentAnalysisRepository.findByDocumentId(targetDoc.getId());
@@ -667,6 +939,8 @@ public class MedicalDocumentAnalysisService {
             response.setPiiProtected(ragResult.isPiiProtected());
             response.setPiiEntitiesCount(ragResult.getPiiEntitiesCount());
             response.setPiiMaskedTypes(ragResult.getPiiMaskedTypes());
+            response.setMultiPatientDetected(false);
+            response.setPatientAnalyses(new java.util.ArrayList<>());
 
             return response;
 
@@ -1099,9 +1373,13 @@ public class MedicalDocumentAnalysisService {
         }
 
         // Patient Name:
-        Matcher mPatient = Pattern.compile("(?ium)(?:họ\\s*(?:và|&)?\\s*tên(?:\\s*bn|\\s*bệnh\\s*nhân)?|tên\\s*bệnh\\s*nhân|patient\\s*name)\\s*[:–-]?[ \\t]*([\\p{L}\\p{M} ]{3,40})").matcher(text);
+        Matcher mPatient = Pattern.compile("(?ium)(?:họ\\s*(?:và|&)?\\s*tên(?:\\s*bn|\\s*bệnh\\s*nhân)?|tên\\s*bệnh\\s*nhân|bệnh\\s*nhân|người\\s*bệnh|patient\\s*name)\\s*[:–-]?[ \\t]*([\\p{L}\\p{M} ]{3,40})").matcher(text);
         if (mPatient.find()) {
-            meta.put("patientName", mPatient.group(1).trim());
+            String rawName = mPatient.group(1).trim();
+            rawName = rawName.replaceAll("(?i)\\s+(?:tuổi|nam|nữ|ns|sinh|nam\\s*sinh).*$", "").trim();
+            if (!rawName.isBlank()) {
+                meta.put("patientName", rawName);
+            }
         }
 
         // Patient Age:
@@ -1705,6 +1983,142 @@ public class MedicalDocumentAnalysisService {
 
         query.append("Tư vấn chẩn đoán và điều trị bệnh lý chuyên khoa ").append(specialtySlug).append(".");
         return query.toString();
+    }
+
+    /**
+     * Performs isolated, independent clinical analysis for an individual document within a multi-document batch.
+     * Prevents cross-contamination between different patients or distinct clinical reports.
+     */
+    private com.mediassist.dto.DocumentPatientAnalysisDto analyzeIndividualDocument(
+            byte[] fileBytes,
+            String contentType,
+            String fileName,
+            String extractedText) {
+
+        Map<String, String> rawMeta = extractDocumentMetadata(extractedText);
+        String patientGender = rawMeta.get("patientGender");
+
+        List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName, patientGender);
+        String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
+
+        String preRagQuery = buildInitialDoctorQuery(parsedIndicators, clinicalContext);
+        List<DoctorMatchDto> preRagCandidates = doctorSemanticSearchService.searchDoctors(preRagQuery, 4);
+
+        com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, preRagCandidates);
+
+        List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
+                ? ragResult.getIndicators()
+                : parsedIndicators;
+
+        boolean hasClinicalIndicators = indicators != null && !indicators.isEmpty();
+
+        String specialtySlug;
+        String specialtyName;
+        List<DoctorMatchDto> matchedDoctors;
+
+        if (hasClinicalIndicators) {
+            specialtySlug = (ragResult.getRecommendedSpecialtySlug() != null && !ragResult.getRecommendedSpecialtySlug().isBlank())
+                    ? ragResult.getRecommendedSpecialtySlug().toLowerCase().trim()
+                    : "general-internal-medicine";
+            specialtyName = (ragResult.getRecommendedSpecialtyName() != null && !ragResult.getRecommendedSpecialtyName().isBlank())
+                    ? ragResult.getRecommendedSpecialtyName()
+                    : getSpecialtyDisplayName(specialtySlug);
+
+            String focusedDoctorQuery = buildFocusedDoctorQuery(specialtySlug, specialtyName, indicators, fileName);
+            matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+            if ((matchedDoctors == null || matchedDoctors.isEmpty()) && preRagCandidates != null && !preRagCandidates.isEmpty()) {
+                matchedDoctors = preRagCandidates;
+            }
+
+            if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+                matchedDoctors = new ArrayList<>(matchedDoctors);
+                if (ragResult.getRecommendedDoctorId() != null) {
+                    UUID recId = ragResult.getRecommendedDoctorId();
+                    int recIdx = -1;
+                    for (int i = 0; i < matchedDoctors.size(); i++) {
+                        if (recId.equals(matchedDoctors.get(i).getDoctorId())) {
+                            recIdx = i;
+                            break;
+                        }
+                    }
+                    if (recIdx > 0) {
+                        DoctorMatchDto recDoc = matchedDoctors.remove(recIdx);
+                        matchedDoctors.add(0, recDoc);
+                    }
+                }
+
+                DoctorMatchDto top = matchedDoctors.get(0);
+                top.setAiRecommended(true);
+
+                String aiReason = ragResult.getDoctorRecommendationReason();
+                boolean isMeta = isMetaComplaint(aiReason);
+                String finalReason = isMeta
+                        ? buildClinicalDoctorRecommendationReason(top, specialtyName, indicators)
+                        : aiReason;
+
+                top.setAiRecommendationReason(finalReason);
+                ragResult.setRecommendedDoctorId(top.getDoctorId());
+                ragResult.setDoctorRecommendationReason(finalReason);
+            }
+        } else {
+            specialtySlug = null;
+            specialtyName = "Chưa xác định (Cần bổ sung kết quả)";
+            matchedDoctors = Collections.emptyList();
+            ragResult.setRecommendedDoctorId(null);
+            ragResult.setDoctorRecommendationReason("Không đủ cơ sở lâm sàng để đề xuất bác sĩ do tài liệu chưa có chỉ số kết quả xét nghiệm cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu.");
+        }
+
+        String clinicalSummary = (ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank())
+                ? ragResult.getClinicalSummary()
+                : (hasClinicalIndicators ? generateClinicalSummary(indicators, specialtyName) : "Tài liệu y tế chưa ghi nhận kết quả đo lường cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu.");
+
+        String plainExplanation = (ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank())
+                ? ragResult.getPlainLanguageExplanation()
+                : (hasClinicalIndicators ? generatePlainLanguageExplanation(indicators, specialtyName) : "⚠️ Thông báo an toàn y tế: Phiếu xét nghiệm chưa có kết quả đo lường cụ thể.");
+
+        List<String> suggestedQuestions = (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty())
+                ? ragResult.getSuggestedQuestions() : generateSuggestedQuestions(indicators);
+
+        String finalHospital = (ragResult.getHospitalName() != null && !ragResult.getHospitalName().isBlank())
+                ? ragResult.getHospitalName() : rawMeta.get("hospitalName");
+        String finalDept = (ragResult.getDepartmentName() != null && !ragResult.getDepartmentName().isBlank())
+                ? ragResult.getDepartmentName() : rawMeta.get("departmentName");
+        String finalDoc = (ragResult.getOrderingDoctor() != null && !ragResult.getOrderingDoctor().isBlank())
+                ? ragResult.getOrderingDoctor() : rawMeta.get("orderingDoctor");
+        String finalDate = (ragResult.getTestDate() != null && !ragResult.getTestDate().isBlank())
+                ? ragResult.getTestDate() : rawMeta.get("testDate");
+        String finalSid = (ragResult.getSidCode() != null && !ragResult.getSidCode().isBlank())
+                ? ragResult.getSidCode() : rawMeta.get("sidCode");
+        String finalPat = (ragResult.getPatientName() != null && !ragResult.getPatientName().isBlank())
+                ? ragResult.getPatientName() : rawMeta.get("patientName");
+        String finalAge = (ragResult.getPatientAge() != null && !ragResult.getPatientAge().isBlank())
+                ? ragResult.getPatientAge() : rawMeta.get("patientAge");
+        String finalGender = (ragResult.getPatientGender() != null && !ragResult.getPatientGender().isBlank())
+                ? ragResult.getPatientGender() : rawMeta.get("patientGender");
+        String finalDev = (ragResult.getDeviceModel() != null && !ragResult.getDeviceModel().isBlank())
+                ? ragResult.getDeviceModel() : rawMeta.get("deviceModel");
+
+        com.mediassist.dto.DocumentPatientAnalysisDto dto = new com.mediassist.dto.DocumentPatientAnalysisDto();
+        dto.setSourceFileName(fileName);
+        dto.setPatientName(finalPat != null && !finalPat.isBlank() ? finalPat : ("Hồ sơ: " + fileName));
+        dto.setPatientAge(finalAge);
+        dto.setPatientGender(finalGender);
+        dto.setHospitalName(finalHospital);
+        dto.setDepartmentName(finalDept);
+        dto.setOrderingDoctor(finalDoc);
+        dto.setTestDate(finalDate);
+        dto.setSidCode(finalSid);
+        dto.setDeviceModel(finalDev);
+        dto.setClinicalSummary(clinicalSummary);
+        dto.setPlainLanguageExplanation(plainExplanation);
+        dto.setIndicators(indicators != null ? indicators : Collections.emptyList());
+        dto.setRecommendedSpecialtySlug(specialtySlug);
+        dto.setRecommendedSpecialtyName(specialtyName);
+        dto.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
+        dto.setMatchedDoctors(matchedDoctors != null ? matchedDoctors : Collections.emptyList());
+        dto.setSuggestedQuestions(suggestedQuestions != null ? suggestedQuestions : Collections.emptyList());
+
+        return dto;
     }
 
     private static final Pattern DIACRITICS_PATTERN = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");

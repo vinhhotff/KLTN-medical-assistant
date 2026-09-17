@@ -711,3 +711,37 @@ graph TD
      - Tại thanh tiêu đề Bàn làm việc Bác sĩ, nút *"Gọi Số Tiếp Theo"* cho phép bác sĩ tiếp nhận ngay bệnh nhân kế tiếp trong hàng đợi chỉ với 1 cú click chuột, tự động mở modal khám và đồng bộ toàn bộ dữ liệu 360°.
   5. **Chủ Động Đặt Lịch Hẹn Tái Khám (Doctor Follow-Up Scheduling):**
      - Khi hoàn tất khám, bác sĩ có thể bấm nút *"Hẹn Tái Khám"* ngay trong modal hoặc từ danh mục bệnh nhân, chọn ngày giờ tái khám và ghi chú dặn dò. Hệ thống tự tạo ca hẹn tái khám với trạng thái `CONFIRMED` cho bệnh nhân.
+
+---
+
+### UC-21: Phân Tách Lâm Sàng Đa Bệnh Nhân & Ghép Bác Sĩ Chuyên Khoa Độc Lập Khi Tải Lên Nhiều Tệp Cận Lâm Sàng (Multi-Patient Clinical Segregation & Per-Patient Intelligent Doctor Matching)
+
+* **Mã Use Case:** `UC-DOC-21`
+* **Tác nhân chính:** Patient / Caregiver (Người nhà / Người dùng), AI Scribe & RAG Pipeline, PostgreSQL pgvector, Dedicated Thread Pool (`medicalOcrExecutor`), Supabase Storage.
+* **Mục tiêu:** Giải quyết triệt để rủi ro an toàn y khoa khi người dùng tải lên đồng thời nhiều tài liệu cận lâm sàng (PDF/Hình ảnh) thuộc về **các bệnh nhân khác nhau** (ví dụ: người nhà nộp cùng lúc phiếu xét nghiệm tuyến giáp của Mẹ và kết quả đo mỡ máu/men gan của Bố). Ngăn chặn 100% tình trạng "nhiễm chéo lâm sàng" (cross-patient clinical contamination) bằng cách tự động nhận diện danh tính khác biệt, phân nhánh xử lý song song độc lập cho từng hồ sơ bệnh nhân, bóc tách chỉ số riêng biệt, và đề xuất Bác sĩ chuyên khoa phù hợp đích danh cho từng người.
+* **REST Endpoints Liên Quan:**
+  - `POST /api/v1/documents/analyze`: Phân tích bộ tệp cận lâm sàng (tự động phát hiện đơn bệnh nhân vs đa bệnh nhân).
+  - `POST /api/v1/documents/analyze-preview`: Bản xem trước phân tích cận lâm sàng (hỗ trợ phân tách đa bệnh nhân cho khách dùng thử).
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Nhận Diện Danh Tính & Phát Hiện Đa Bệnh Nhân Tự Động (Identity Sieve):**
+     - Trích xuất metadata từ văn bản OCR của từng tệp: Họ tên bệnh nhân (`patientName`), Tuổi (`patientAge`), Giới tính (`patientGender`), Mã định danh bệnh phẩm (`sidCode`).
+     - Chuẩn hóa chuỗi họ tên bằng thuật toán khử dấu tiếng Việt (`stripAccents` với `Normalizer.NFD`).
+     - So sánh đối chiếu chéo các tệp: Nếu phát hiện >= 2 tệp có họ tên khác biệt rõ ràng, hoặc cùng họ tên nhưng lệch giới tính / mã SID: Hệ thống bật cờ `multiPatientDetected = true`.
+  2. **Thực Thi Phân Tích Lâm Sàng Song Song Độc Lập (Isolated Parallel Execution):**
+     - Với mỗi tệp của từng bệnh nhân riêng lẻ, hệ thống điều phối qua `CompletableFuture.supplyAsync(..., medicalOcrExecutor)` thực thi hàm `analyzeIndividualDocument`.
+     - Phân tích cú pháp chỉ số (`parseIndicators`) độc lập cho từng tệp.
+     - Tìm kiếm bác sĩ sơ bộ (`searchDoctors` pre-RAG) từ pgvector cho từng tệp.
+     - Gọi mô hình AI chuyên khoa suy luận RAG riêng biệt, xây dựng tóm tắt SBAR lâm sàng, bản dịch ngôn ngữ dễ hiểu và câu hỏi tư vấn bác sĩ riêng cho từng người.
+     - Tìm kiếm và xếp hạng bác sĩ chuyên sâu (`searchDoctors` post-RAG) theo chuyên khoa riêng biệt của từng người bệnh.
+     - Tổng hợp toàn bộ vào mảng `patientAnalyses` chứa các DTO `DocumentPatientAnalysisDto`.
+  3. **Tóm Tắt Điều Phối Tổng Thể (Executive Clinical Dispatch Overview):**
+     - Sinh ra bản tóm tắt cấp cao (`clinicalSummary`) tổng quan về toàn bộ phiên tải lên, liệt kê tóm lược tình trạng của từng bệnh nhân để người nhà nắm bắt bức tranh toàn cảnh.
+  4. **Giao Diện Chuyển Đổi Hồ Sơ & Đặt Khám Đích Danh (Interactive Patient Switcher & Targeted Booking):**
+     - Trên giao diện Frontend (`DocumentSummarizerPage.tsx`), hiển thị **Thẻ Cảnh Báo An Toàn Y Khoa Đa Bệnh Nhân (Multi-Patient Clinical Segregation Safety Card)** với biểu tượng `Users` nổi bật.
+     - Cung cấp **Thanh Chọn Hồ Sơ Bệnh Nhân (Patient Selector Tabs)**: Mỗi tab đại diện cho 1 người bệnh kèm thông tin tệp nguồn, số lượng chỉ số xét nghiệm và số lượng bác sĩ đề xuất.
+     - Khi người dùng bấm chọn một bệnh nhân: Toàn bộ thông tin hiển thị bên dưới (Tiêu đề cơ sở y tế ISO 15189, Bảng chỉ số đối chiếu, Bản dịch dễ hiểu, Tóm tắt SBAR, Danh sách Bác sĩ đề xuất, Câu hỏi tư vấn) sẽ phản ứng chuyển mạch tức thì (`activePatientIndex`) sang đúng bệnh nhân đó.
+     - Nút *"Đặt Khám Với Bác Sĩ Này"* tự động gắn kèm ghi chú lâm sàng chỉ định rõ tên bệnh nhân, tệp đính kèm và tóm tắt bất thường của chính người bệnh đó vào lịch hẹn.
+  5. **An Toàn Tiêu Thụ Tài Nguyên & Bộ Nhớ Đệm Toàn Vẹn (Quota & Cache Integrity):**
+     - Toàn bộ đợt quét dù gồm nhiều tệp và nhiều bệnh nhân vẫn tuân thủ quy tắc công bằng: **Chỉ khấu trừ duy nhất 1 lượt quét (1 Scan Quota)**.
+     - Lưu trữ kết quả phân tách đa bệnh nhân trong `document_analyses.metadata_json` với khóa `multiPatientDetected` và `patientAnalysesJson`.
+     - Khi trùng mã SHA-256 (Deduplication Hit): Khôi phục nguyên vẹn cấu trúc đa bệnh nhân với chi phí 0 token AI và 0ms độ trễ.

@@ -29,7 +29,9 @@ import {
   Image as ImageIcon,
   Layers,
   Plus,
-  Trash2
+  Trash2,
+  Users,
+  User
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -59,6 +61,27 @@ interface DoctorMatch {
   aiRecommendationReason?: string;
 }
 
+interface DocumentPatientAnalysis {
+  sourceFileName: string;
+  patientName?: string;
+  patientAge?: string;
+  patientGender?: string;
+  hospitalName?: string;
+  departmentName?: string;
+  orderingDoctor?: string;
+  testDate?: string;
+  sidCode?: string;
+  deviceModel?: string;
+  clinicalSummary: string;
+  plainLanguageExplanation: string;
+  indicators: AbnormalIndicator[];
+  recommendedSpecialtySlug?: string;
+  recommendedSpecialtyName?: string;
+  doctorRecommendationReason?: string;
+  matchedDoctors: DoctorMatch[];
+  suggestedQuestions: string[];
+}
+
 interface AnalysisResult {
   documentId: string;
   fileName: string;
@@ -86,6 +109,8 @@ interface AnalysisResult {
   deviceModel?: string;
   filesCount?: number;
   fileNames?: string[];
+  multiPatientDetected?: boolean;
+  patientAnalyses?: DocumentPatientAnalysis[];
 }
 
 interface UserQuota {
@@ -131,6 +156,7 @@ export const DocumentSummarizerPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analysisStage, setAnalysisStage] = useState(0);
+  const [activePatientIndex, setActivePatientIndex] = useState<number>(0);
 
   // Progressive Visual Pipeline Stepper Timer
   useEffect(() => {
@@ -451,6 +477,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
       if (res.data?.data) {
         const data: AnalysisResult = res.data.data;
         setAnalysis(data);
+        setActivePatientIndex(0);
         if (user) {
           fetchQuota();
         }
@@ -486,12 +513,16 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
     }
   };
 
-  const handleOpenBooking = (doc: DoctorMatch) => {
+  const handleOpenBooking = (doc: DoctorMatch, customNotes?: string) => {
     setBookingDoctor(doc);
     setSelectedSlot(null);
     setBookingError(null);
     setConfirmedAppt(null);
-    setBookingNotes(analysis ? `Phân tích tệp ${analysis.fileName}: ${analysis.clinicalSummary.slice(0, 150)}...` : '');
+    if (customNotes) {
+      setBookingNotes(customNotes);
+    } else {
+      setBookingNotes(analysis ? `Phân tích tệp ${analysis.fileName}: ${analysis.clinicalSummary.slice(0, 150)}...` : '');
+    }
     const docId = doc.doctorId || (doc as any).id;
     if (docId) {
       loadSlots(docId, selectedDate);
@@ -1207,366 +1238,511 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             );
           })()}
 
-          {/* Scribe Summary & Patient Translation */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-6">
-            {/* 🏥 Official Hospital Header */}
-            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-700/60 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-teal-400 flex-shrink-0">
-                    <Building2 className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-base tracking-tight text-white uppercase">
-                      {analysis.hospitalName || 'Cơ Sở Khám Chữa Bệnh / Đơn Vị Xét Nghiệm'}
+          {/* 👥 Multi-Patient Clinical Segregation Safety Card & Tab Switcher */}
+          {analysis.multiPatientDetected && analysis.patientAnalyses && analysis.patientAnalyses.length > 1 && (
+            <div className="p-5 bg-gradient-to-r from-amber-50 via-orange-50 to-rose-50 border-2 border-amber-400 rounded-3xl space-y-4 shadow-sm animate-fadeIn">
+              <div className="flex items-start gap-3.5">
+                <div className="p-2.5 bg-amber-600 text-white rounded-2xl shrink-0 mt-0.5 shadow-xs">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="font-bold text-amber-950 text-base">
+                      Phát Hiện Hồ Sơ Của Nhiều Bệnh Nhân Khác Nhau ({analysis.patientAnalyses.length} Người Bệnh)
                     </h4>
-                    <p className="text-xs text-slate-400">
-                      {analysis.departmentName || 'Khoa Xét Nghiệm Cận Lâm Sàng | Tiêu Chuẩn ISO 15189'}
-                    </p>
+                    <span className="px-2.5 py-0.5 bg-amber-600 text-white text-[11px] font-bold rounded-full">
+                      Tách Biệt Lâm Sàng Độc Lập
+                    </span>
                   </div>
-                </div>
-                <div className="text-right text-xs space-y-1">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full font-mono text-[11px]">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Chữ ký số điện tử hợp lệ
-                  </div>
-                  <p className="text-slate-400 font-mono">
-                    Mã SID: <span className="text-teal-300 font-bold">{analysis.sidCode || (analysis.documentId ? `SID-${analysis.documentId.substring(0, 8).toUpperCase()}` : 'SID-CHƯA-XÁC-ĐỊNH')}</span>
+                  <p className="text-amber-900 text-xs leading-relaxed">
+                    Hệ thống nhận diện các tài liệu tải lên thuộc về các bệnh nhân khác nhau (dựa trên họ tên, giới tính hoặc mã định danh SID).
+                    Để đảm bảo <strong>an toàn y khoa và chống nhiễm chéo hồ sơ</strong>, AI đã phân tích độc lập từng bệnh án, bóc tách chỉ số riêng biệt và đối chiếu đề xuất Bác sĩ chuyên khoa phù hợp cho từng người.
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <div className="p-2.5 bg-slate-800/80 rounded-xl">
-                  <span className="text-slate-400 text-[10px] block">Người Bệnh:</span>
-                  <span className="font-bold text-white">
-                    {analysis.patientName || user?.fullName || 'Người Bệnh'}
-                    {analysis.patientAge ? ` (${analysis.patientAge}t` : ''}
-                    {analysis.patientGender ? ` - ${analysis.patientGender})` : (analysis.patientAge ? ')' : '')}
-                  </span>
-                </div>
-                <div className="p-2.5 bg-slate-800/80 rounded-xl">
-                  <span className="text-slate-400 text-[10px] block">Thiết Bị Tự Động:</span>
-                  <span className="font-bold text-slate-200">
-                    {analysis.deviceModel || 'Hệ thống phân tích tự động'}
-                  </span>
-                </div>
-                <div className="p-2.5 bg-slate-800/80 rounded-xl">
-                  <span className="text-slate-400 text-[10px] block">Bác Sĩ Chỉ Định:</span>
-                  <span className="font-bold text-slate-200">
-                    {analysis.orderingDoctor || 'Bác sĩ điều trị / KTV'}
-                  </span>
-                </div>
-                <div className="p-2.5 bg-slate-800/80 rounded-xl">
-                  <span className="text-slate-400 text-[10px] block">Thời Gian Tiếp Nhận:</span>
-                  <span className="font-mono text-slate-200">
-                    {analysis.testDate || 'Không xác định trong tài liệu'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-teal-50 text-teal-600 rounded-xl">
-                  <Stethoscope className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-lg">Báo Cáo Phân Tích Chỉ Số Cận Lâm Sàng</h3>
-                  {analysis.filesCount && analysis.filesCount > 1 ? (
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                      <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-md text-[11px] font-bold flex items-center gap-1">
-                        <Layers className="w-3 h-3" /> Hồ sơ tổng hợp ({analysis.filesCount} tệp):
-                      </span>
-                      {analysis.fileNames && analysis.fileNames.length > 0 ? (
-                        analysis.fileNames.map((name, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-mono border border-slate-200"
-                          >
-                            {name}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-slate-500">{analysis.fileName}</span>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-500">Tệp: {analysis.fileName}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {analysis.storageUrl && (
-                  <a
-                    href={analysis.storageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-xs font-semibold transition"
-                    title="Xem tệp gốc trên Cloud Storage"
-                  >
-                    <UploadCloud className="w-3.5 h-3.5 text-sky-600" />
-                    <span>Supabase Cloud EMR</span>
-                    <ExternalLink className="w-3 h-3 text-sky-500" />
-                  </a>
-                )}
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5"
-                >
-                  <Printer className="w-3.5 h-3.5" /> In Phiếu Xét Nghiệm
-                </button>
-                <span className="px-3.5 py-1.5 bg-teal-50 text-teal-700 rounded-full text-xs font-bold border border-teal-200">
-                  {analysis.recommendedSpecialtyName
-                    ? `Chuyên khoa: ${analysis.recommendedSpecialtyName}`
-                    : 'Chuyên khoa: Chưa xác định (Cần bổ sung kết quả)'}
-                </span>
-              </div>
-            </div>
-
-            {/* Medical Safety Alert Banner when document has NO indicators (blank order form or blurry) */}
-            {analysis.indicators.length === 0 && (
-              <div className="p-4.5 bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl flex items-start gap-3.5 text-amber-900 shadow-xs">
-                <div className="p-2 bg-amber-500 text-white rounded-xl shrink-0 mt-0.5 shadow-xs">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div className="space-y-1 text-xs">
-                  <h4 className="font-bold text-amber-950 text-sm flex items-center gap-2">
-                    Phiếu Xét Nghiệm Chưa Có Kết Quả Đo Lường Hoặc Ảnh Không Rõ Số Liệu
-                  </h4>
-                  <p className="text-amber-900 leading-relaxed">
-                    Hệ thống không nhận diện được giá trị kết quả cận lâm sàng nào trong tài liệu này (phiếu chỉ định chưa điền kết quả hoặc ảnh bị mờ/mất nét).
-                    Theo tiêu chuẩn an toàn y tế <strong>MediAssist Medical Integrity</strong>: Hệ thống <strong>tuyệt đối không suy đoán chẩn đoán hoặc chỉ định bác sĩ khi thiếu dữ liệu lâm sàng</strong>.
-                  </p>
-                  <p className="text-amber-800 font-medium">
-                    👉 <strong>Khuyến nghị</strong>: Vui lòng chụp lại ảnh rõ nét, đủ ánh sáng, căn thẳng góc hoặc tải tệp PDF điện tử gốc từ bệnh viện để AI phân tích chính xác.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Plain Language Explanation Box */}
-            <div className="p-5 bg-teal-50/50 rounded-2xl border border-teal-100 space-y-2">
-              <h4 className="text-xs font-bold text-teal-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-teal-600" /> Bản Dịch Ngôn Ngữ Dễ Hiểu Dành Cho Người Bệnh
-              </h4>
-              <p className="text-xs text-teal-950 whitespace-pre-line leading-relaxed">
-                {analysis.plainLanguageExplanation}
-              </p>
-            </div>
-
-            {/* Clinical Summary */}
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1 font-mono text-xs text-slate-700">
-              <p className="font-semibold text-slate-800 uppercase tracking-wider text-[11px]">Tóm tắt lâm sàng (Clinical Summary):</p>
-              <p className="leading-relaxed">{analysis.clinicalSummary}</p>
-            </div>
-          </div>
-
-          {/* Indicators Comparison Table */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-4">
-            <h3 className="font-bold text-slate-900 text-base">Bảng Đối Chiếu Chỉ Số Xét Nghiệm</h3>
-            {analysis.indicators.length === 0 ? (
-              <div className="text-center py-10 px-4 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200 space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
-                  <FileQuestion className="w-6 h-6" />
-                </div>
-                <div className="space-y-1 max-w-md mx-auto">
-                  <p className="font-bold text-slate-800 text-sm">Chưa có chỉ số cận lâm sàng để đối chiếu</p>
-                  <p className="text-xs text-slate-500">
-                    Toàn bộ cột kết quả xét nghiệm trong tài liệu đang để trống hoặc chất lượng ảnh quá mờ để nhận diện số liệu đo lường.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                      <th className="py-3 px-4 font-semibold">Tên Xét Nghiệm</th>
-                      <th className="py-3 px-4 font-semibold">Kết Quả Đo Được</th>
-                      <th className="py-3 px-4 font-semibold">Khoảng Tham Chiếu</th>
-                      <th className="py-3 px-4 font-semibold">Đánh Giá</th>
-                      <th className="py-3 px-4 font-semibold">Ý Nghĩa Lâm Sàng</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {analysis.indicators.map((ind, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/60 transition">
-                        <td className="py-3 px-4 font-bold text-slate-800">{ind.name}</td>
-                        <td className="py-3 px-4 font-mono font-bold text-indigo-700">
-                          {ind.value} {ind.unit}
-                        </td>
-                        <td className="py-3 px-4 text-slate-500">{ind.referenceRange}</td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                            ind.status === 'ELEVATED' || (ind.status as string) === 'HIGH'
-                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                              : ind.status === 'LOW'
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          }`}>
-                            {ind.status === 'ELEVATED' || (ind.status as string) === 'HIGH' ? 'TĂNG CAO' : ind.status === 'LOW' ? 'HẠ THẤP' : 'BÌNH THƯỜNG'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-slate-600 text-[11px] leading-relaxed">
-                          {ind.clinicalSignificance}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* 🧑‍⚕️ Recommended Doctors (pgvector Cosine Similarity Match from PDF findings) */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-teal-600" />
-                  Bác Sĩ Chuyên Khoa Được AI Đề Xuất Cho Bệnh Án Này
-                </h3>
-                <p className="text-xs text-slate-500">
-                  PostgreSQL pgvector đã đối chiếu các bất thường trong tài liệu và tìm kiếm các Bác sĩ có chuyên môn sát nhất.
+              {/* Patient Selector Tabs */}
+              <div className="pt-2 border-t border-amber-200/80">
+                <p className="text-xs font-bold text-amber-950 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                  <User className="w-4 h-4 text-amber-700" /> Chọn Hồ Sơ Bệnh Nhân Để Xem Chi Tiết & Đặt Khám Bác Sĩ:
                 </p>
-              </div>
-              <span className="text-xs text-slate-400">
-                Tìm thấy {analysis.matchedDoctors ? analysis.matchedDoctors.length : 0} bác sĩ phù hợp
-              </span>
-            </div>
-
-            {analysis.matchedDoctors && analysis.matchedDoctors.length > 0 && analysis.indicators.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {analysis.matchedDoctors.map((doc) => {
-                  const matchPct = Math.round(doc.similarityScore * 100);
-                  const docKey = doc.doctorId || (doc as any).id;
-                  return (
-                    <div
-                      key={docKey}
-                      className={`rounded-2xl transition p-5 flex flex-col justify-between space-y-4 ${
-                        doc.aiRecommended
-                          ? 'bg-gradient-to-b from-teal-50/50 to-white border-2 border-teal-500 shadow-md ring-2 ring-teal-500/20'
-                          : 'bg-white border border-slate-200 shadow-xs hover:shadow-md'
-                      }`}
-                    >
-                      {/* AI Recommendation Highlight Badge */}
-                      {doc.aiRecommended && (
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-teal-600 text-white text-[11px] font-bold rounded-lg shadow-xs -mt-1">
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>Được AI Lựa Chọn Ưu Tiên Cho Ca Bệnh Này</span>
-                        </div>
-                      )}
-
-                      <div className="space-y-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              {doc.academicTitle && (
-                                <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
-                                  {doc.academicTitle}
-                                </span>
-                              )}
-                              <h4 className="font-bold text-slate-900 text-base">{doc.fullName}</h4>
-                              <span title="Đã thẩm định CCHN">
-                                <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {analysis.patientAnalyses.map((p, idx) => {
+                    const isSelected = activePatientIndex === idx;
+                    const patientName = p.patientName || `Bệnh nhân #${idx + 1}`;
+                    const indCount = p.indicators ? p.indicators.length : 0;
+                    const docCount = p.matchedDoctors ? p.matchedDoctors.length : 0;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActivePatientIndex(idx)}
+                        className={`p-3.5 rounded-2xl text-left transition flex flex-col justify-between gap-2 border-2 cursor-pointer ${
+                          isSelected
+                            ? 'bg-white border-teal-600 shadow-md ring-2 ring-teal-500/20'
+                            : 'bg-white/70 hover:bg-white border-amber-200 hover:border-amber-300 shadow-2xs'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
+                              isSelected ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {idx + 1}
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-900 text-sm block leading-tight">
+                                {patientName}
+                              </span>
+                              <span className="text-[11px] text-slate-500">
+                                {p.patientAge ? `${p.patientAge}t` : ''} {p.patientGender ? `(${p.patientGender})` : ''}
                               </span>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-500">
-                              {doc.hospitalAffiliation && (
-                                <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
-                                  <Building2 className="w-3.5 h-3.5 text-teal-600" />
-                                  {doc.hospitalAffiliation}
-                                </span>
-                              )}
-                              <span>•</span>
-                              <span className="font-mono">CCHN: {doc.licenseNumber}</span>
-                            </div>
                           </div>
-
-                          {/* Match Score Badge */}
-                          <div className="flex flex-col items-end">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                              matchPct >= 80
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
-                                : 'bg-teal-50 text-teal-700 border border-teal-200'
-                            }`}>
-                              Độ khớp: {matchPct}%
+                          {isSelected && (
+                            <span className="px-2 py-0.5 bg-teal-100 text-teal-800 text-[10px] font-bold rounded-md">
+                              Đang xem
                             </span>
-                          </div>
+                          )}
                         </div>
-
-                        {/* Specialties */}
-                        <div className="flex flex-wrap gap-1.5">
-                          {doc.specialties && doc.specialties.map((spec, i) => (
-                            <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-md">
-                              {spec}
-                            </span>
-                          ))}
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-600 font-mono">
+                          <span className="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200 truncate max-w-[140px]" title={p.sourceFileName}>
+                            📄 {p.sourceFileName}
+                          </span>
+                          <span className="px-1.5 py-0.5 bg-teal-50 text-teal-700 rounded border border-teal-200">
+                            {indCount} chỉ số
+                          </span>
+                          <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-200">
+                            {docCount} bác sĩ
+                          </span>
                         </div>
-
-                        {/* Bio */}
-                        <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
-                          {doc.bio}
-                        </p>
-
-                        {/* AI Doctor Recommendation Reason Callout */}
-                        {doc.aiRecommendationReason && (
-                          <div className="p-3 bg-teal-50/80 rounded-xl border border-teal-200 text-xs text-teal-950 flex items-start gap-2">
-                            <span className="font-bold text-teal-800 flex-shrink-0">Lý do đề xuất:</span>
-                            <span className="leading-relaxed">{doc.aiRecommendationReason}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Footer / Booking Action */}
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                        <div>
-                          <span className="text-xs text-slate-400">Giá khám tư vấn:</span>
-                          <p className="text-sm font-bold text-teal-700">
-                            {doc.consultationFee.toLocaleString('vi-VN')} đ
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleOpenBooking(doc)}
-                          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Calendar className="w-3.5 h-3.5" /> Đặt Khám Với Bác Sĩ Này
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            ) : (
-              <div className="p-8 bg-slate-50 border border-slate-200 rounded-3xl text-center space-y-2">
-                <Stethoscope className="w-8 h-8 text-slate-400 mx-auto" />
-                <p className="text-sm font-bold text-slate-700">Chưa có chỉ định Bác sĩ chuyên khoa</p>
-                <p className="text-xs text-slate-500 max-w-lg mx-auto leading-relaxed">
-                  Hệ thống tuân thủ tiêu chuẩn an toàn y tế <strong>MediAssist Medical Safety</strong>: Chỉ đề xuất Bác sĩ chuyên khoa khi có kết quả xét nghiệm định lượng bất thường cụ thể. Khi tài liệu là phiếu trắng hoặc ảnh không rõ số liệu, hệ thống không chỉ định bác sĩ để bảo đảm an toàn điều trị cho người bệnh.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Suggested Questions for Doctor */}
-          {analysis.suggestedQuestions && analysis.suggestedQuestions.length > 0 && (
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-3">
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <HelpCircle className="w-4 h-4 text-teal-600" />
-                Câu Hỏi Gợi Ý Bạn Nên Trao Đổi Với Bác Sĩ Trong Buổi Khám
-              </h4>
-              <ul className="space-y-2 text-xs text-slate-600">
-                {analysis.suggestedQuestions.map((q, idx) => (
-                  <li key={idx} className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <span className="font-bold text-teal-600 flex-shrink-0">{idx + 1}.</span>
-                    <span>{q}</span>
-                  </li>
-                ))}
-              </ul>
             </div>
           )}
+
+          {/* Active Patient Clinical Details & Scribe Summary */}
+          {(() => {
+            const isMulti = Boolean(analysis.multiPatientDetected && analysis.patientAnalyses && analysis.patientAnalyses.length > 1);
+            const activePatient = isMulti ? (analysis.patientAnalyses![activePatientIndex] || analysis.patientAnalyses![0]) : null;
+
+            const displayHospital = activePatient?.hospitalName || analysis.hospitalName;
+            const displayDept = activePatient?.departmentName || analysis.departmentName;
+            const displayDoctor = activePatient?.orderingDoctor || analysis.orderingDoctor;
+            const displayDate = activePatient?.testDate || analysis.testDate;
+            const displaySid = activePatient?.sidCode || analysis.sidCode;
+            const displayPatientName = activePatient?.patientName || analysis.patientName || user?.fullName || 'Người Bệnh';
+            const displayPatientAge = activePatient?.patientAge || analysis.patientAge;
+            const displayPatientGender = activePatient?.patientGender || analysis.patientGender;
+            const displayDeviceModel = activePatient?.deviceModel || analysis.deviceModel;
+            const displaySpecialtyName = activePatient?.recommendedSpecialtyName || analysis.recommendedSpecialtyName;
+            const displayExplanation = activePatient?.plainLanguageExplanation || analysis.plainLanguageExplanation;
+            const displaySummary = activePatient?.clinicalSummary || analysis.clinicalSummary;
+            const displayIndicators = activePatient?.indicators ?? analysis.indicators ?? [];
+            const displayDoctors = activePatient?.matchedDoctors ?? analysis.matchedDoctors ?? [];
+            const displayQuestions = activePatient?.suggestedQuestions ?? analysis.suggestedQuestions ?? [];
+            const displayFileName = activePatient?.sourceFileName || analysis.fileName;
+
+            return (
+              <>
+                {/* Scribe Summary & Patient Translation */}
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-6">
+                  {/* 🏥 Official Hospital Header */}
+                  <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl p-5 shadow-sm space-y-4">
+                    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-700/60 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-teal-400 flex-shrink-0">
+                          <Building2 className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-base tracking-tight text-white uppercase">
+                              {displayHospital || 'Cơ Sở Khám Chữa Bệnh / Đơn Vị Xét Nghiệm'}
+                            </h4>
+                            {isMulti && (
+                              <span className="px-2.5 py-0.5 bg-teal-500/30 text-teal-300 border border-teal-500/40 rounded-full text-[11px] font-semibold">
+                                Bệnh nhân #{activePatientIndex + 1}/{analysis.patientAnalyses!.length}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-400">
+                            {displayDept || 'Khoa Xét Nghiệm Cận Lâm Sàng | Tiêu Chuẩn ISO 15189'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right text-xs space-y-1">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full font-mono text-[11px]">
+                          <ShieldCheck className="w-3.5 h-3.5" /> Chữ ký số điện tử hợp lệ
+                        </div>
+                        <p className="text-slate-400 font-mono">
+                          Mã SID: <span className="text-teal-300 font-bold">{displaySid || (analysis.documentId ? `SID-${analysis.documentId.substring(0, 8).toUpperCase()}` : 'SID-CHƯA-XÁC-ĐỊNH')}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                      <div className="p-2.5 bg-slate-800/80 rounded-xl">
+                        <span className="text-slate-400 text-[10px] block">Người Bệnh:</span>
+                        <span className="font-bold text-white">
+                          {displayPatientName}
+                          {displayPatientAge ? ` (${displayPatientAge}t` : ''}
+                          {displayPatientGender ? ` - ${displayPatientGender})` : (displayPatientAge ? ')' : '')}
+                        </span>
+                      </div>
+                      <div className="p-2.5 bg-slate-800/80 rounded-xl">
+                        <span className="text-slate-400 text-[10px] block">Thiết Bị Tự Động:</span>
+                        <span className="font-bold text-slate-200">
+                          {displayDeviceModel || 'Hệ thống phân tích tự động'}
+                        </span>
+                      </div>
+                      <div className="p-2.5 bg-slate-800/80 rounded-xl">
+                        <span className="text-slate-400 text-[10px] block">Bác Sĩ Chỉ Định:</span>
+                        <span className="font-bold text-slate-200">
+                          {displayDoctor || 'Bác sĩ điều trị / KTV'}
+                        </span>
+                      </div>
+                      <div className="p-2.5 bg-slate-800/80 rounded-xl">
+                        <span className="text-slate-400 text-[10px] block">Thời Gian Tiếp Nhận:</span>
+                        <span className="font-mono text-slate-200">
+                          {displayDate || 'Không xác định trong tài liệu'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-teal-50 text-teal-600 rounded-xl">
+                        <Stethoscope className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-lg">Báo Cáo Phân Tích Chỉ Số Cận Lâm Sàng</h3>
+                        {isMulti ? (
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            <span className="px-2 py-0.5 bg-amber-100 text-amber-900 rounded-md text-[11px] font-bold flex items-center gap-1">
+                              <User className="w-3 h-3" /> Bệnh nhân: {displayPatientName}
+                            </span>
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-mono border border-slate-200">
+                              📄 Tệp nguồn: {displayFileName}
+                            </span>
+                          </div>
+                        ) : analysis.filesCount && analysis.filesCount > 1 ? (
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-md text-[11px] font-bold flex items-center gap-1">
+                              <Layers className="w-3 h-3" /> Hồ sơ tổng hợp ({analysis.filesCount} tệp):
+                            </span>
+                            {analysis.fileNames && analysis.fileNames.length > 0 ? (
+                              analysis.fileNames.map((name, idx) => (
+                                <span
+                                  key={idx}
+                                  className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-mono border border-slate-200"
+                                >
+                                  {name}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-slate-500">{analysis.fileName}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-500">Tệp: {analysis.fileName}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {analysis.storageUrl && (
+                        <a
+                          href={analysis.storageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-xs font-semibold transition"
+                          title="Xem tệp gốc trên Cloud Storage"
+                        >
+                          <UploadCloud className="w-3.5 h-3.5 text-sky-600" />
+                          <span>Supabase Cloud EMR</span>
+                          <ExternalLink className="w-3 h-3 text-sky-500" />
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => window.print()}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Printer className="w-3.5 h-3.5" /> In Phiếu Xét Nghiệm
+                      </button>
+                      <span className="px-3.5 py-1.5 bg-teal-50 text-teal-700 rounded-full text-xs font-bold border border-teal-200">
+                        {displaySpecialtyName
+                          ? `Chuyên khoa: ${displaySpecialtyName}`
+                          : 'Chuyên khoa: Chưa xác định (Cần bổ sung kết quả)'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Medical Safety Alert Banner when document has NO indicators (blank order form or blurry) */}
+                  {displayIndicators.length === 0 && (
+                    <div className="p-4.5 bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl flex items-start gap-3.5 text-amber-900 shadow-xs">
+                      <div className="p-2 bg-amber-500 text-white rounded-xl shrink-0 mt-0.5 shadow-xs">
+                        <AlertTriangle className="w-5 h-5" />
+                      </div>
+                      <div className="space-y-1 text-xs">
+                        <h4 className="font-bold text-amber-950 text-sm flex items-center gap-2">
+                          Phiếu Xét Nghiệm Chưa Có Kết Quả Đo Lường Hoặc Ảnh Không Rõ Số Liệu
+                        </h4>
+                        <p className="text-amber-900 leading-relaxed">
+                          Hệ thống không nhận diện được giá trị kết quả cận lâm sàng nào trong tài liệu này (phiếu chỉ định chưa điền kết quả hoặc ảnh bị mờ/mất nét).
+                          Theo tiêu chuẩn an toàn y tế <strong>MediAssist Medical Integrity</strong>: Hệ thống <strong>tuyệt đối không suy đoán chẩn đoán hoặc chỉ định bác sĩ khi thiếu dữ liệu lâm sàng</strong>.
+                        </p>
+                        <p className="text-amber-800 font-medium">
+                          👉 <strong>Khuyến nghị</strong>: Vui lòng chụp lại ảnh rõ nét, đủ ánh sáng, căn thẳng góc hoặc tải tệp PDF điện tử gốc từ bệnh viện để AI phân tích chính xác.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Plain Language Explanation Box */}
+                  <div className="p-5 bg-teal-50/50 rounded-2xl border border-teal-100 space-y-2">
+                    <h4 className="text-xs font-bold text-teal-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-teal-600" /> Bản Dịch Ngôn Ngữ Dễ Hiểu Dành Cho Người Bệnh
+                    </h4>
+                    <p className="text-xs text-teal-950 whitespace-pre-line leading-relaxed">
+                      {displayExplanation}
+                    </p>
+                  </div>
+
+                  {/* Clinical Summary */}
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1 font-mono text-xs text-slate-700">
+                    <p className="font-semibold text-slate-800 uppercase tracking-wider text-[11px]">Tóm tắt lâm sàng (Clinical Summary):</p>
+                    <p className="leading-relaxed">{displaySummary}</p>
+                  </div>
+                </div>
+
+                {/* Indicators Comparison Table */}
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-slate-900 text-base">
+                      Bảng Đối Chiếu Chỉ Số Xét Nghiệm {isMulti ? `- ${displayPatientName}` : ''}
+                    </h3>
+                    <span className="text-xs text-slate-500 font-mono">
+                      {displayIndicators.length} chỉ số
+                    </span>
+                  </div>
+                  {displayIndicators.length === 0 ? (
+                    <div className="text-center py-10 px-4 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200 space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+                        <FileQuestion className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1 max-w-md mx-auto">
+                        <p className="font-bold text-slate-800 text-sm">Chưa có chỉ số cận lâm sàng để đối chiếu</p>
+                        <p className="text-xs text-slate-500">
+                          Toàn bộ cột kết quả xét nghiệm trong tài liệu đang để trống hoặc chất lượng ảnh quá mờ để nhận diện số liệu đo lường.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
+                            <th className="py-3 px-4 font-semibold">Tên Xét Nghiệm</th>
+                            <th className="py-3 px-4 font-semibold">Kết Quả Đo Được</th>
+                            <th className="py-3 px-4 font-semibold">Khoảng Tham Chiếu</th>
+                            <th className="py-3 px-4 font-semibold">Đánh Giá</th>
+                            <th className="py-3 px-4 font-semibold">Ý Nghĩa Lâm Sàng</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {displayIndicators.map((ind, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/60 transition">
+                              <td className="py-3 px-4 font-bold text-slate-800">{ind.name}</td>
+                              <td className="py-3 px-4 font-mono font-bold text-indigo-700">
+                                {ind.value} {ind.unit}
+                              </td>
+                              <td className="py-3 px-4 text-slate-500">{ind.referenceRange}</td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                                  ind.status === 'ELEVATED' || (ind.status as string) === 'HIGH'
+                                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                    : ind.status === 'LOW'
+                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                }`}>
+                                  {ind.status === 'ELEVATED' || (ind.status as string) === 'HIGH' ? 'TĂNG CAO' : ind.status === 'LOW' ? 'HẠ THẤP' : 'BÌNH THƯỜNG'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-slate-600 text-[11px] leading-relaxed">
+                                {ind.clinicalSignificance}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* 🧑‍⚕️ Recommended Doctors (pgvector Cosine Similarity Match from PDF findings) */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <UserCheck className="w-5 h-5 text-teal-600" />
+                        {isMulti
+                          ? `Bác Sĩ Chuyên Khoa Đề Xuất Riêng Cho: ${displayPatientName}`
+                          : 'Bác Sĩ Chuyên Khoa Được AI Đề Xuất Cho Bệnh Án Này'}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        {isMulti
+                          ? `PostgreSQL pgvector đã đối chiếu các bất thường trong tệp ${displayFileName} và đề xuất Bác sĩ có chuyên môn sát nhất cho ${displayPatientName}.`
+                          : 'PostgreSQL pgvector đã đối chiếu các bất thường trong tài liệu và tìm kiếm các Bác sĩ có chuyên môn sát nhất.'}
+                      </p>
+                    </div>
+                    <span className="text-xs text-slate-400">
+                      Tìm thấy {displayDoctors.length} bác sĩ phù hợp
+                    </span>
+                  </div>
+
+                  {displayDoctors.length > 0 && displayIndicators.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {displayDoctors.map((doc) => {
+                        const matchPct = Math.round(doc.similarityScore * 100);
+                        const docKey = doc.doctorId || (doc as any).id;
+                        return (
+                          <div
+                            key={docKey}
+                            className={`rounded-2xl transition p-5 flex flex-col justify-between space-y-4 ${
+                              doc.aiRecommended
+                                ? 'bg-gradient-to-b from-teal-50/50 to-white border-2 border-teal-500 shadow-md ring-2 ring-teal-500/20'
+                                : 'bg-white border border-slate-200 shadow-xs hover:shadow-md'
+                            }`}
+                          >
+                            {/* AI Recommendation Highlight Badge */}
+                            {doc.aiRecommended && (
+                              <div className="flex items-center gap-1.5 px-3 py-1 bg-teal-600 text-white text-[11px] font-bold rounded-lg shadow-xs -mt-1">
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>Được AI Lựa Chọn Ưu Tiên Cho Ca Bệnh Này</span>
+                              </div>
+                            )}
+
+                            <div className="space-y-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    {doc.academicTitle && (
+                                      <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                                        {doc.academicTitle}
+                                      </span>
+                                    )}
+                                    <h4 className="font-bold text-slate-900 text-base">{doc.fullName}</h4>
+                                    <span title="Đã thẩm định CCHN">
+                                      <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-500">
+                                    {doc.hospitalAffiliation && (
+                                      <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
+                                        <Building2 className="w-3.5 h-3.5 text-teal-600" />
+                                        {doc.hospitalAffiliation}
+                                      </span>
+                                    )}
+                                    <span>•</span>
+                                    <span className="font-mono">CCHN: {doc.licenseNumber}</span>
+                                  </div>
+                                </div>
+
+                                {/* Match Score Badge */}
+                                <div className="flex flex-col items-end">
+                                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                    matchPct >= 80
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                                      : 'bg-teal-50 text-teal-700 border border-teal-200'
+                                  }`}>
+                                    Độ khớp: {matchPct}%
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Specialties */}
+                              <div className="flex flex-wrap gap-1.5">
+                                {doc.specialties && doc.specialties.map((spec, i) => (
+                                  <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-md">
+                                    {spec}
+                                  </span>
+                                ))}
+                              </div>
+
+                              {/* Bio */}
+                              <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                                {doc.bio}
+                              </p>
+
+                              {/* AI Doctor Recommendation Reason Callout */}
+                              {doc.aiRecommendationReason && (
+                                <div className="p-3 bg-teal-50/80 rounded-xl border border-teal-200 text-xs text-teal-950 flex items-start gap-2">
+                                  <span className="font-bold text-teal-800 flex-shrink-0">Lý do đề xuất:</span>
+                                  <span className="leading-relaxed">{doc.aiRecommendationReason}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Footer / Booking Action */}
+                            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                              <div>
+                                <span className="text-xs text-slate-400">Giá khám tư vấn:</span>
+                                <p className="text-sm font-bold text-teal-700">
+                                  {doc.consultationFee.toLocaleString('vi-VN')} đ
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => handleOpenBooking(
+                                  doc,
+                                  isMulti
+                                    ? `Bệnh nhân: ${displayPatientName} (${displayFileName}) - ${displaySummary.slice(0, 140)}...`
+                                    : undefined
+                                )}
+                                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Calendar className="w-3.5 h-3.5" /> Đặt Khám Với Bác Sĩ Này
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-8 bg-slate-50 border border-slate-200 rounded-3xl text-center space-y-2">
+                      <Stethoscope className="w-8 h-8 text-slate-400 mx-auto" />
+                      <p className="text-sm font-bold text-slate-700">Chưa có chỉ định Bác sĩ chuyên khoa</p>
+                      <p className="text-xs text-slate-500 max-w-lg mx-auto leading-relaxed">
+                        Hệ thống tuân thủ tiêu chuẩn an toàn y tế <strong>MediAssist Medical Safety</strong>: Chỉ đề xuất Bác sĩ chuyên khoa khi có kết quả xét nghiệm định lượng bất thường cụ thể. Khi tài liệu là phiếu trắng hoặc ảnh không rõ số liệu, hệ thống không chỉ định bác sĩ để bảo đảm an toàn điều trị cho người bệnh.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Suggested Questions for Doctor */}
+                {displayQuestions.length > 0 && (
+                  <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-3">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <HelpCircle className="w-4 h-4 text-teal-600" />
+                      Câu Hỏi Gợi Ý Bạn Nên Trao Đổi Với Bác Sĩ Trong Buổi Khám {isMulti ? `Cho ${displayPatientName}` : ''}
+                    </h4>
+                    <ul className="space-y-2 text-xs text-slate-600">
+                      {displayQuestions.map((q, idx) => (
+                        <li key={idx} className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                          <span className="font-bold text-teal-600 flex-shrink-0">{idx + 1}.</span>
+                          <span>{q}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 
