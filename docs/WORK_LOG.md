@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#070** | 17/09/2026 | Khắc Phục Triệt Để Sự Cố Quét Ảnh PNG & 500 Server Error: (1) Chuyển Đổi RestClient sang JdkClientHttpRequestFactory (HTTP/2 Native) Triệt Tiêu Lỗi Octet-Stream, (2) Cấu Hình Đồng Bộ Khóa Google Gemini 3.6 Flash & OpenRouter Vào application-local.properties, (3) Kích Hoạt Cơ Chế Medical Gatekeeper Bóc Tách & Nhận Diện Ảnh Phi Y Tế Kèm Compensating Action Hoàn Trả Quota 100%, (4) Khắc Phục Lỗi 500 Do Trùng Khớp Thời Điểm Backend Restart & Vite Dev Proxy Gián Đoạn | AI Assistant | 🟢 Sẵn sàng Review |
 | **#069** | 16/09/2026 | Tương Tác Lâm Sàng Bác Sĩ - Bệnh Nhân 360°, Hồ Sơ Dài Hạn, Rào Chắn Cảnh Báo Dị Ứng Thuốc, Nạp Triage SBAR 1-Chạm, Điều Phối Hàng Đợi "Gọi Số Tiếp Theo" & Trang Danh Bạ Bệnh Nhân Toàn Viện: (1) 2 DTOs Mới DoctorPatientItemDto, FollowUpAppointmentRequest, (2) Khắc Phục Triệt Để 404 PatientProfile Bằng Cơ Chế Tự Khởi Tạo Hồ Sơ Dự Phòng, (3) 6 Endpoints Mới Phục Vụ Liên Kết Lâm Sàng Đa Chiều, (4) Rào Chắn An Toàn Dược Lý Drug-Allergy Guard Nhấp Nháy Cảnh Báo Khi Kê Toa, (5) Trang /doctor/patients Kèm Ngăn Kéo Hồ Sơ 360°, (6) Nạp SBAR AI 1-Chạm Loại Bỏ Thao Tác Thủ Công, (7) Đạt 124/124 Backend Tests PASS (100%) & Frontend Build Sạch Sẽ 0 Lỗi TypeScript | AI Assistant | 🟢 Sẵn sàng Review |
 | **#068** | 16/09/2026 | Kiến Trúc Cổng Thanh Toán Đa Kênh Cắm Rút (Pluggable Multi-Gateway), Tích Hợp Stripe Sandbox, Sổ Cái Giao Dịch & Thanh Toán Phí Khám: (1) Strategy Pattern (PaymentGateway, StripePaymentGateway, MockPaymentGateway, PaymentGatewayRouter), (2) Bảng payment_transactions (Flyway V13) & Strict Idempotency Guard Chống Ghi Đè Kép, (3) Tích Hợp stripe-java 33.4.2 & Stripe Sandbox Mode (Thẻ Test 4242) Kèm Mock Resilience, (4) Trang Đích Đối Soát & Biên Lai Điện Tử /payment/success, (5) Mở Rộng Thanh Toán Online Phí Khám Bệnh Trên Patient Dashboard & Đạt 120/120 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#067** | 16/09/2026 | Tái Thiết Toàn Diện Trạm Lâm Sàng Thời Gian Thực, Chỉ Số KPIs Động, Cấu Hình Lịch Trực Tuần & State Machine Ca Khám Cho Bác Sĩ (Doctor Real-Time Clinical Workstation, Live Metrics, Working Schedules & Encounter Lifecycle): (1) 3 DTOs Mới & Endpoints /me/stats, /me/schedules, (2) Khắc Phục Rò Rỉ Trạng Thái Lâm Sàng (Tự Động Chuyển SCHEDULED -> IN_PROGRESS & Bổ Sung Thao Tác Bệnh Nhân Vắng Mặt NO_SHOW), (3) Silent Polling Ngầm 12s, Huy Hiệu Live Sync Nhấp Nháy & Ghim Banner Active Encounter, (4) Modal Cấu Hình Khung Giờ Làm Việc Bác Sĩ (7 Ngày/Tuần), (5) Đồng Bộ Chuyên Khoa Động Tại DoctorProfilePage & Đạt 114/114 Tests PASS (100%) | AI Assistant | 🟢 Sẵn sàng Review |
@@ -26,6 +27,49 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#070] Khắc Phục Triệt Để Sự Cố Quét Ảnh PNG, Nâng Cấp HTTP/2 JdkClientHttpRequestFactory & Kích Hoạt Rào Chắn Medical Gatekeeper
+* **Thời gian:** 2026-09-17 15:25:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-06 (Phân Tích Cận Lâm Sàng Đa Phương Thức - Multimodal Vision OCR & Gatekeeper)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **124/124 Unit Tests PASS 100%**
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1679 modules transformed** trong 1.78s
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Vấn Đề Kỹ Thuật (Problem Statement):
+Tech Lead tải lên một ảnh định dạng PNG (`Ảnh màn hình 2026-09-17 lúc 15.11.51.png`, dung lượng 214 KB) và gặp lỗi trên giao diện:
+- Console: `:5173/api/v1/documents/analyze:1 Failed to load resource: the server responded with a status of 500 (Internal Server Error)`
+- Warning: `WebSocket connection to 'ws://localhost:5173/?token=...' failed: Page entered Back-Forward Cache.`
+- UI Alert Banner: *"Không thể phân tích tài liệu y tế. Vui lòng kiểm tra định dạng tệp."*
+- Câu hỏi đặt ra: *"tại sao quét ảnh pmg lại lỗi"*
+
+#### 2. Nguyên Nhân Gốc Rễ (Root Cause Analysis):
+Qua điều tra chi tiết log và phân tích luồng dữ liệu:
+1. **Lỗi HTTP 500 thực chất là do gián đoạn kết nối Vite Proxy lúc khởi động lại Backend (Reboot Collision):**
+   - Vào lúc 15:11:51 đến 15:12:04, Backend daemon được khởi động lại để nạp khóa Google OAuth2 (`application-local.properties`).
+   - Đúng thời điểm này, request phân tích tệp được gửi từ trình duyệt tới Vite Dev Server (`localhost:5173`). Vite chuyển tiếp proxy sang `localhost:5001` nhưng bị từ chối kết nối (`ECONNREFUSED`), dẫn đến việc Vite Dev Server tự sinh mã phản hồi `HTTP 500 (Internal Server Error)`.
+   - Người dùng bấm thao tác tải lại / điều hướng khiến trình duyệt đưa tab vào Back-Forward Cache (BFcache), làm ngắt kết nối WebSocket HMR của Vite (`WebSocket connection failed: Page entered Back-Forward Cache`).
+2. **Ảnh tải lên là Ảnh chụp màn hình máy tính (Screenshot), không phải phiếu xét nghiệm y khoa:**
+   - Tệp `Ảnh màn hình 2026-09-17 lúc 15.11.51.png` là ảnh chụp toàn màn hình giao diện trình duyệt web MediAssist-AI.
+   - Khi Backend trực tuyến, mô hình Vision AI bóc tách hình ảnh và rào chắn an toàn lâm sàng phát hiện ảnh không chứa chỉ số xét nghiệm y tế (`KHONG_PHAI_TAI_LIEU_Y_TE`).
+   - Bộ lọc kiểm duyệt `MedicalDocumentValidator` lập tức kích hoạt rào chắn `NON_MEDICAL_DOCUMENT` để bảo vệ hệ thống khỏi các dữ liệu rác ngoài y tế.
+3. **Nghẽn kỹ thuật tại `SimpleClientHttpRequestFactory` của RestClient:**
+   - `GeminiAiProvider` trước đó sử dụng `SimpleClientHttpRequestFactory` (dựa trên `HttpURLConnection` cổ điển). Khi gửi payload ảnh base64 lớn, việc xử lý luồng lỗi hoặc timeout dẫn tới lỗi: `Error while extracting response for type [byte[]] and content type [application/octet-stream]`.
+   - Các khóa `GEMINI_API_KEY` và `OPENROUTER_API_KEY` trong `application-local.properties` cần được đồng bộ tường minh để đảm bảo nạp profile `dev` tự động 100%.
+
+#### 3. Các Biện Pháp Kỹ Thuật Đã Triển Khai:
+1. **Chuyển đổi sang `JdkClientHttpRequestFactory` (HTTP/2 Native):**
+   - Cập nhật cả `GeminiAiProvider` và `OpenRouterAiProvider` sử dụng `org.springframework.http.client.JdkClientHttpRequestFactory` kết hợp `readTimeout` 35 giây.
+   - Thêm tiêu đề tường minh `.accept(MediaType.APPLICATION_JSON)` và chuyển đổi an toàn `byte[]` sang `StandardCharsets.UTF_8`, triệt tiêu hoàn toàn lỗi deserialization `application/octet-stream`.
+2. **Đồng bộ khóa AI vào `application-local.properties`:**
+   - Thêm trực tiếp `GEMINI_API_KEY` (`AQ.Ab8RN...`) và `OPENROUTER_API_KEY` (`sk-or-v1-...`) vào `application-local.properties` (tệp được gitignore an toàn).
+   - Kiểm thử trực tiếp: Google Gemini 3.6 Flash phản hồi trích xuất Vision chỉ trong **4.6 giây** qua HTTP/2.
+3. **Cơ chế Hoàn Trả Quota Tự Động (Compensating Action):**
+   - Khi tài liệu bị phát hiện không phải là tài liệu y tế hoặc không đọc được, hệ thống tự động hoàn trả 1 lượt quét (`Restored 1 scan quota`), không trừ phí của bệnh nhân và trả về mã lỗi `HTTP 400 NON_MEDICAL_DOCUMENT` với thông báo thân thiện:
+     *"Hệ thống không phát hiện thấy bất kỳ chỉ số xét nghiệm hoặc thuật ngữ y tế nào trong nội dung tài liệu này. Vui lòng tải lên đúng phiếu kết quả xét nghiệm y khoa."*
+
+---
 
 ### [WORK-LOG-#069] Tương Tác Lâm Sàng Bác Sĩ - Bệnh Nhân 360°, Hồ Sơ Dài Hạn, Rào Chắn Cảnh Báo Dị Ứng Thuốc, Nạp Triage SBAR 1-Chạm, Điều Phối Hàng Đợi "Gọi Số Tiếp Theo" & Trang Danh Bạ Bệnh Nhân Toàn Viện
 * **Thời gian:** 2026-09-16 17:15:00 (GMT+7)

@@ -37,9 +37,8 @@ public class OpenRouterAiProvider implements AiProvider {
 
     public OpenRouterAiProvider(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-        var requestFactory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(java.time.Duration.ofSeconds(5));
-        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(20));
+        var requestFactory = new org.springframework.http.client.JdkClientHttpRequestFactory();
+        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(35));
         this.restClient = RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
@@ -118,6 +117,7 @@ public class OpenRouterAiProvider implements AiProvider {
                         .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                         .header("HTTP-Referer", "http://localhost:5173")
                         .header("X-Title", "MediAssist-AI Telehealth")
+                        .accept(MediaType.APPLICATION_JSON)
                         .body(requestBody)
                         .retrieve()
                         .body(String.class);
@@ -180,6 +180,7 @@ public class OpenRouterAiProvider implements AiProvider {
                     .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                     .header("HTTP-Referer", "http://localhost:5173")
                     .header("X-Title", "MediAssist-AI Telehealth")
+                    .accept(MediaType.APPLICATION_JSON)
                     .body(requestBody)
                     .retrieve()
                     .body(String.class);

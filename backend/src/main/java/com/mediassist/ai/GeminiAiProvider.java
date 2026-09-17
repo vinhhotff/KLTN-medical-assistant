@@ -12,6 +12,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 
@@ -37,9 +38,8 @@ public class GeminiAiProvider implements AiProvider {
 
     public GeminiAiProvider(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-        var requestFactory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(Duration.ofSeconds(5));
-        requestFactory.setReadTimeout(Duration.ofSeconds(15));
+        var requestFactory = new org.springframework.http.client.JdkClientHttpRequestFactory();
+        requestFactory.setReadTimeout(Duration.ofSeconds(35));
         this.restClient = RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
@@ -114,17 +114,20 @@ public class GeminiAiProvider implements AiProvider {
 
             String url = String.format("%s/models/%s:generateContent", baseUrl, targetModel);
 
-            String responseJson = restClient.post()
+            byte[] responseBytes = restClient.post()
                     .uri(url)
                     .header("x-goog-api-key", apiKey.trim())
                     .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON, MediaType.ALL)
                     .body(requestBody)
                     .retrieve()
-                    .body(String.class);
+                    .body(byte[].class);
 
-            if (responseJson == null || responseJson.isBlank()) {
+            if (responseBytes == null || responseBytes.length == 0) {
                 return "";
             }
+
+            String responseJson = new String(responseBytes, StandardCharsets.UTF_8);
 
             JsonNode root = objectMapper.readTree(responseJson);
             JsonNode textNode = root.path("candidates").path(0).path("content").path("parts").path(0).path("text");
@@ -176,17 +179,20 @@ public class GeminiAiProvider implements AiProvider {
 
             String url = String.format("%s/models/%s:generateContent", baseUrl, targetModel);
 
-            String responseJson = restClient.post()
+            byte[] responseBytes = restClient.post()
                     .uri(url)
                     .header("x-goog-api-key", apiKey.trim())
                     .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON, MediaType.ALL)
                     .body(requestBody)
                     .retrieve()
-                    .body(String.class);
+                    .body(byte[].class);
 
-            if (responseJson == null || responseJson.isBlank()) {
+            if (responseBytes == null || responseBytes.length == 0) {
                 throw new RuntimeException("Gemini returned empty response body");
             }
+
+            String responseJson = new String(responseBytes, StandardCharsets.UTF_8);
 
             JsonNode root = objectMapper.readTree(responseJson);
             JsonNode textNode = root.path("candidates").path(0).path("content").path("parts").path(0).path("text");

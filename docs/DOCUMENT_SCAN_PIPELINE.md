@@ -41,7 +41,7 @@ sequenceDiagram
     rect rgb(255, 250, 240)
         note over Svc,Val: GIAI ĐOẠN 2: THẨM ĐỊNH TỆP & TRÍCH XUẤT VĂN BẢN
         Svc->>Val: • Thẩm định Magic Bytes nhị phân (%PDF, \xFF\xD8\xFF, \x89PNG)<br>• Rây lọc từ khóa y khoa (Medical Keyword Sieve)
-        Svc->>OCR: • Trích xuất song song qua thread pool medicalOcrExecutor:<br>  - PDF số: Apache PDFBox 3.0.4<br>  - PDF scan/Ảnh: Gemini 1.5 Flash Vision
+        Svc->>OCR: • Trích xuất song song qua thread pool medicalOcrExecutor:<br>  - PDF số: Apache PDFBox 3.0.4<br>  - PDF scan / Hình ảnh PNG/JPG: Google Gemini 3.6 Flash Vision (HTTP/2 JdkClientHttpRequestFactory) -> OpenRouter Multi-Vision Pool<br>  - Rào chắn an toàn: Tự phát hiện ảnh ngoài y tế (KHONG_PHAI_TAI_LIEU_Y_TE) & hoàn trả quota tự động
         OCR-->>Svc: Trả về văn bản thô tổng hợp
     end
 
