@@ -57,6 +57,10 @@ Qua điều tra chi tiết log và phân tích luồng dữ liệu:
 3. **Nghẽn kỹ thuật tại `SimpleClientHttpRequestFactory` của RestClient:**
    - `GeminiAiProvider` trước đó sử dụng `SimpleClientHttpRequestFactory` (dựa trên `HttpURLConnection` cổ điển). Khi gửi payload ảnh base64 lớn, việc xử lý luồng lỗi hoặc timeout dẫn tới lỗi: `Error while extracting response for type [byte[]] and content type [application/octet-stream]`.
    - Các khóa `GEMINI_API_KEY` và `OPENROUTER_API_KEY` trong `application-local.properties` cần được đồng bộ tường minh để đảm bảo nạp profile `dev` tự động 100%.
+4. **Nguyên nhân tệp không lưu xuống Supabase Storage (Hình ảnh Tech Lead cung cấp):**
+   - Trong tệp cấu hình `.env` và `backend/.env`, biến `SUPABASE_KEY` trước đó bị gán nhầm khóa publishable (`sb_publishable_8oAIAHTackCTa7P9GKRJLA_-cTglwwA`).
+   - Khóa publishable/anon này không có quyền ghi đối với bucket riêng tư (vi phạm RLS: `new row violates row-level security policy`, HTTP 403 AccessDenied).
+   - Cơ chế bảo đảm không sập hệ thống (Zero-Crash Resilience) của `SupabaseStorageService` khi gặp lỗi 403 đã tự động chuyển hướng lưu tệp xuống thư mục cục bộ (`/uploads/medical_documents/...`), khiến trên Supabase Dashboard bucket `medical-documents` vẫn ở trạng thái trống!
 
 #### 3. Các Biện Pháp Kỹ Thuật Đã Triển Khai:
 1. **Chuyển đổi sang `JdkClientHttpRequestFactory` (HTTP/2 Native):**
@@ -68,6 +72,10 @@ Qua điều tra chi tiết log và phân tích luồng dữ liệu:
 3. **Cơ chế Hoàn Trả Quota Tự Động (Compensating Action):**
    - Khi tài liệu bị phát hiện không phải là tài liệu y tế hoặc không đọc được, hệ thống tự động hoàn trả 1 lượt quét (`Restored 1 scan quota`), không trừ phí của bệnh nhân và trả về mã lỗi `HTTP 400 NON_MEDICAL_DOCUMENT` với thông báo thân thiện:
      *"Hệ thống không phát hiện thấy bất kỳ chỉ số xét nghiệm hoặc thuật ngữ y tế nào trong nội dung tài liệu này. Vui lòng tải lên đúng phiếu kết quả xét nghiệm y khoa."*
+4. **Kích hoạt Thành Công 100% Supabase Cloud Storage Bằng Service Role Key:**
+   - Nạp khóa `service_role` (`eyJhbGciOiJIUzI1Ni...`) do Tech Lead cung cấp vào `application-local.properties` và làm rỗng khóa publishable trong `.env` mẫu.
+   - Kiểm thử End-to-End thành công: Tệp xét nghiệm `test_medical_sample.pdf` đã được tải lên trực tiếp và hiển thị ngay lập tức trên Supabase Cloud Storage tại:
+     `https://wakgzrzchmqdqyrgxlaq.supabase.co/storage/v1/object/public/medical-documents/patients/b0000000-0000-0000-0000-000000000031/e8de7c53_test_medical_sample.pdf` (HTTP 200 OK).
 
 ---
 
