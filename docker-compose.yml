@@ -38,6 +38,19 @@ services:
     networks:
       - mediassist_net
 
+  pgweb:
+    image: sosedoff/pgweb:latest
+    container_name: mediassist_pgweb
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - PGWEB_DATABASE_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres_secure_2026}@postgres:5432/${DB_NAME:-mediassist_db}?sslmode=disable
+    depends_on:
+      - postgres
+    networks:
+      - mediassist_net
+
 volumes:
   postgres_data:
     name: mediassist_postgres_data
