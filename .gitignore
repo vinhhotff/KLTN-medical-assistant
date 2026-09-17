@@ -10,12 +10,11 @@ target/
 backend/target/
 coverage/
 
-# Environment variables (Local secrets ignored, baseline .env tracked)
-.env.local
-.env.*.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Environment variables & local secrets
+.env
+.env.*
+backend/.env
+backend/src/main/resources/application-local.properties
 
 # Logs
 logs
