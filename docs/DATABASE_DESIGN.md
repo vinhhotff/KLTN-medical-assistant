@@ -273,6 +273,7 @@ CREATE TABLE appointments (
     cancellation_reason TEXT,
     consultation_notes TEXT,                     -- Ghi chú chẩn đoán lâm sàng của Bác sĩ
     telehealth_room_id VARCHAR(100),             -- Room ID WebRTC/Jitsi
+    medical_document_id UUID REFERENCES medical_documents(id) ON DELETE SET NULL, -- [V14] Hồ sơ y tế / kết quả xét nghiệm đính kèm khi bệnh nhân đặt lịch
     fee_amount NUMERIC(12, 2) NOT NULL,
     payment_status VARCHAR(30) NOT NULL DEFAULT 'UNPAID'
         CHECK (payment_status IN ('UNPAID', 'PAID', 'REFUNDED')),
@@ -290,6 +291,7 @@ WHERE status NOT IN ('CANCELLED');
 CREATE INDEX idx_appointments_patient ON appointments(patient_id);
 CREATE INDEX idx_appointments_doctor ON appointments(doctor_id);
 CREATE INDEX idx_appointments_status ON appointments(status);
+CREATE INDEX idx_appointments_medical_document_id ON appointments(medical_document_id);
 ```
 
 #### Bảng `doctor_schedule_slots`
@@ -433,6 +435,9 @@ spring.flyway.table=flyway_schema_history
 | **10** | `9` | `V9__verify_all_specialties_and_seed_pending_doctors.sql` | SQL | Kích hoạt và xác thực toàn bộ 12 bác sĩ chuyên khoa (bao gồm Thần kinh, Tai Mũi Họng, Nội tiết & Đái tháo đường - TS.BS Đỗ Phương Lan) với lịch khám định kỳ T2-T6, nạp vector 1536 chiều cho toàn bộ 12 chuyên khoa vào pgvector; đồng thời khởi tạo 2 bác sĩ chờ duyệt chuyên biệt (`dr.nam.pending`, `dr.thao.pending`) phục vụ quy trình Admin Vetting. | **SUCCESS** |
 | **11** | `10` | `V10__optimize_doctor_hnsw_index.sql` | SQL | Tối ưu hóa truy vấn pgvector: Bổ sung B-tree index `idx_doctor_verified_has_embedding` trên `doctor_profiles(is_verified) WHERE bio_embedding IS NOT NULL` và Partial HNSW vector index `idx_doctor_bio_hnsw_verified` giúp triệt tiêu độ trễ lọc sau (post-filter) khi tìm kiếm bác sĩ đã xác minh. | **SUCCESS** |
 | **12** | `11` | `V11__add_composite_performance_indexes.sql` | SQL | Triệt tiêu điểm nghẽn hiệu năng sắp xếp & khóa ngoại (N+1 Query & Table Scan Elimination): Bổ sung composite indexes `idx_appointments_patient_schedule` trên `appointments(patient_id, scheduled_start DESC)`, `idx_appointments_doctor_schedule` trên `appointments(doctor_id, scheduled_start DESC)`, `idx_med_doc_user_created` trên `medical_documents(user_id, created_at DESC)`, `idx_triage_user_created` trên `triage_sessions(user_id, created_at DESC)`, và index khóa ngoại `idx_doctor_specialties_specialty_id` trên `doctor_specialties(specialty_id)`. | **SUCCESS** |
+| **13** | `12` | `V12__supervision_and_realtime_performance_indexes.sql` | SQL | Tối ưu hóa truy vấn giám sát & realtime: Bổ sung chỉ mục `idx_appointments_scheduled_start_desc`, `idx_triage_sessions_created_desc`, partial index `idx_triage_emergency_partial`, partial index `idx_doc_analysis_abnormal_partial` và `idx_doc_analyses_created_desc`. | **SUCCESS** |
+| **14** | `13` | `V13__create_payment_transactions.sql` | SQL | Thiết lập bảng sổ cái `payment_transactions` hỗ trợ cổng thanh toán đa kênh (Stripe Sandbox, VietQR, VNPAY, MoMo, Mock), bảo đảm kiểm toán tài chính, chống trùng lặp và khóa lạc quan `@Version`. | **SUCCESS** |
+| **15** | `14` | `V14__add_medical_document_to_appointments.sql` | SQL | Bổ sung khóa ngoại `medical_document_id UUID REFERENCES medical_documents(id) ON DELETE SET NULL` và chỉ mục `idx_appointments_medical_document_id` vào bảng `appointments`, liên kết trực tiếp ca khám với hồ sơ xét nghiệm bệnh nhân đã tải lên & phân tích AI. | **SUCCESS** |
 
 ### 6.3. Chi Tiết Tập Dữ Liệu Bệnh Viện Mẫu (Enterprise Hospital Seed Data)
 1. **12 Chuyên Khoa Toàn Diện:** Tim mạch, Thần kinh, Tiêu hóa - Gan mật, Da liễu, Nhi khoa, Nội tổng quát, Hô hấp & Phổi, Cơ Xương Khớp, Thận & Tiết niệu, Sản Phụ Khoa, Nội tiết & Đái tháo đường, Tai Mũi Họng.
@@ -531,5 +536,25 @@ CREATE INDEX IF NOT EXISTS idx_payment_tx_created_at ON payment_transactions(cre
    - Cột `version` ngăn chặn xung đột dữ liệu (race conditions) khi Webhook từ Stripe và luồng Return URL của trình duyệt gửi về đồng thời.
 3. **Audit Trail Bắt Buộc:**
    - Mọi giao dịch hoàn tất thành công đều tự động kích hoạt tạo bản ghi trong bảng `audit_logs` với `action = 'PAYMENT_COMPLETED'`.
+
+---
+
+## 10. Liên Kết Hồ Sơ Cận Lâm Sàng Với Lịch Khám (Flyway V14)
+
+Để giải quyết nhu cầu thực tế của Bác sĩ khi tiếp nhận ca khám: **Xem trực tiếp hồ sơ bệnh án gốc (PDF/ảnh) và kết quả bóc tách chỉ số AI OCR** do bệnh nhân tải lên từ phân hệ *Tóm Tắt Hồ Sơ*, bản di chuyển `V14__add_medical_document_to_appointments.sql` thiết lập mối quan hệ trực tiếp:
+
+### 10.1. Lược Đồ & Ràng Buộc Khóa Ngoại
+```sql
+ALTER TABLE appointments 
+ADD COLUMN IF NOT EXISTS medical_document_id UUID REFERENCES medical_documents(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_appointments_medical_document_id ON appointments(medical_document_id);
+```
+
+### 10.2. Đặc Tính Kỹ Thuật & An Toàn Dữ Liệu
+1. **Liên Kết Tự Động Khi Đặt Lịch:** Khi bệnh nhân hoàn tất quy trình quét hồ sơ cận lâm sàng tại `DocumentSummarizerPage.tsx` và chọn bác sĩ đề xuất, `medicalDocumentId` được truyền tự động vào payload `POST /api/v1/appointments`.
+2. **Ràng Buộc `ON DELETE SET NULL`:** Nếu bệnh nhân xóa tệp tài liệu gốc trong kho cá nhân, lịch hẹn khám và dữ liệu lâm sàng của bác sĩ vẫn được bảo toàn nguyên vẹn mà không vi phạm tính toàn vẹn tham chiếu.
+3. **Bảo Mật Truy Cập Đa Tầng (RBAC Access Control):** Endpoint trích xuất file (`GET /api/v1/documents/{id}/file`) và dữ liệu bóc tách (`GET /api/v1/documents/{id}/analysis`) chỉ cấp quyền cho chính Bệnh nhân sở hữu, Bác sĩ được chỉ định khám hoặc Quản trị viên hệ thống (Admin).
+
 
 

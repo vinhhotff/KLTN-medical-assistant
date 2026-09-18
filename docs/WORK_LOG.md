@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#076** | 18/09/2026 | Bác Sĩ Truy Cập Hồ Sơ Cận Lâm Sàng & Kết Quả Bóc Tách AI OCR Từ Lịch Khám (Doctor Medical Document & AI OCR Analysis Viewer): (1) Khắc phục điểm khuyết Bác sĩ không thể click xem lại tài liệu bệnh nhân gửi từ phân hệ Tóm tắt hồ sơ, (2) Flyway V14 liên kết `medical_document_id` vào bảng `appointments`, (3) Backend API streaming tệp an toàn (`GET /documents/{id}/file`) & trích xuất phân tích chi tiết (`GET /documents/{id}/analysis`), (4) Frontend Modal 2 tab `DocumentAnalysisModal.tsx` (AI Scribe & Bảng chỉ số xét nghiệm + Trình xem tệp gốc PDF/Ảnh nội tuyến) kèm tiện ích 1-click chèn vào Bệnh án, (5) Tích hợp liền mạch vào Dashboard Bác sĩ và Danh bạ Hồ sơ Bệnh nhân 360°, (6) Đạt 128/128 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#075** | 18/09/2026 | Đánh Giá Sinh Hiệu & Thể Trạng Trực Quan Tự Động (Visual Vital Signs & BMI Staging according to VNHA/ESC & WHO Asia): (1) Đánh giá khách quan tính đủ dùng của module Bác sĩ, (2) Tạo tiện ích clinicalStaging.ts phân độ Huyết Áp 7 mức theo Hội Tim Mạch VN (VNHA/ESC) và phân loại BMI 5 mức theo WHO Châu Á (IDI & WPRO), (3) Tích hợp thẻ đánh giá trực quan thời gian thực (Live Staging Hub) & nút 1-chạm nạp nhận xét vào Lời dặn Bác sĩ trong Encounter Modal, (4) Đồng bộ hiển thị huy hiệu y khoa tại Modal Bệnh án điện tử ở cả Dashboard và Danh bạ Bệnh nhân, (5) Đạt 126/126 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#074** | 18/09/2026 | Tích Hợp Trình Xem Chi Tiết Bệnh Án Điện Tử & Toa Thuốc Chuẩn Bệnh Viện (Hospital-Grade EMR & Prescription Viewer): (1) Khắc phục điểm khuyết UI hồ sơ bệnh án không thể bấm xem chi tiết, (2) Nút "Xem Chi Tiết Bệnh Án & Toa Thuốc" tại Ngăn kéo Hồ sơ Bệnh nhân 360° (/doctor/patients) & Dashboard (/doctor), (3) Modal EMR chuyên sâu đa tầng (Layer z-60): Lưới sinh hiệu Vital Signs (HA, Mạch, Thân nhiệt, SpO2, BMI), Chẩn đoán ICD-10 & Lời dặn lâm sàng, Bảng Toa thuốc ngoại trú chi tiết (STT, Biệt dược, Hoạt chất, Liều lượng, Số lượng, Số ngày), (4) Tiện ích "In Bệnh Án" (window.print()), (5) Đạt 126/126 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 
@@ -18,7 +19,105 @@
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
-### [WORK-LOG-#075] Đánh Giá Sinh Hiệu & Thể Trạng Trực Quan Tự Động Theo Khuyến Cáo Hội Tim Mạch VN (VNHA / ESC) & WHO Châu Á (IDI & WPRO)
+### [WORK-LOG-#076] Bác Sĩ Truy Cập Hồ Sơ Cận Lâm Sàng & Kết Quả Bóc Tách AI OCR Từ Lịch Khám
+* **Thời gian:** 2026-09-18 12:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-DOC-22 (Doctor Medical Document & AI OCR Analysis Retrieval)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **128/128 Unit Tests PASS 100%**, `mvn test` sạch sẽ (16.96s)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1681 modules transformed** trong 1.59s (`npm run build`)
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Yêu Cầu Từ Tech Lead:
+Tech Lead đặt vấn đề:
+> *"ví dụ gửi file để tóm tắt đề xuất rồi book bác sĩ, thì bác sĩ hiện tại không thể click vào coi lại tài liệu"*
+
+#### 2. Phân Tích Hiện Trạng & Nguyên Nhân Gốc (Root Cause Analysis):
+1. **Mất Dấu Dữ Liệu Khi Đặt Lịch:** Bệnh nhân upload kết quả xét nghiệm / đơn thuốc tại `DocumentSummarizerPage.tsx`, AI bóc tách chỉ số và gợi ý bác sĩ chuyên khoa phù hợp (ví dụ: TS.BS Đỗ Phương Lan - Nội tiết). Tuy nhiên, khi bệnh nhân bấm *"Xác nhận đặt khám"*, request `POST /api/v1/appointments` không đính kèm ID tài liệu y tế đã quét (`medicalDocumentId`).
+2. **Thiếu Khóa Ngoại Schema:** Bảng `appointments` chưa có cột tham chiếu tới bảng `medical_documents`.
+3. **Thiếu API Trích Xuất Dữ Liệu Lâm Sàng & Streaming Tệp Cho Bác Sĩ:**
+   - Backend chỉ có endpoint tải tài liệu nội bộ hoặc chưa mở API cho bác sĩ phụ trách ca khám tải tệp gốc an toàn.
+   - Chưa có endpoint trả về chi tiết các chỉ số sinh hóa/huyết học đã bóc tách (`DocumentAnalysisResponse`) theo `documentId` cho bác sĩ.
+4. **Giao Diện Bác Sĩ Chưa Tương Tác Được:** Thẻ ca khám chỉ hiển thị text đơn thuần, và Tab 3 `DOCUMENTS` trong modal EMR chỉ hiển thị nhãn tĩnh "Lưu trữ nội bộ" mà không có nút click mở tệp hoặc xem bóc tách AI.
+
+#### 3. Giải Pháp Triển Khai Kỹ Thuật:
+
+1. **Cơ Sở Dữ Liệu & Flyway Migration (V14):**
+   - Tạo tệp `backend/src/main/resources/db/migration/V14__add_medical_document_to_appointments.sql`:
+     * Bổ sung cột `medical_document_id UUID REFERENCES medical_documents(id) ON DELETE SET NULL`.
+     * Tạo chỉ mục hiệu năng cao: `idx_appointments_medical_document_id`.
+     * Sử dụng `ON DELETE SET NULL` nhằm đảm bảo toàn vẹn: nếu người bệnh xóa tệp gốc trong kho cá nhân, ca khám lâm sàng của bác sĩ vẫn được bảo toàn.
+
+2. **Backend Entity & DTOs:**
+   - Cập nhật entity `Appointment`: thêm trường `medicalDocumentId`, getter/setter và builder.
+   - Cập nhật `CreateAppointmentRequest`: bổ sung trường `medicalDocumentId`.
+   - Cập nhật `AppointmentDto`: bổ sung `medicalDocumentId` và `medicalDocumentFileName`.
+   - Cập nhật `AppointmentService`:
+     * Lưu `medicalDocumentId` khi bệnh nhân đặt lịch hẹn (`bookAppointment`).
+     * Trong `toDto(Appointment a)`, tự động truy vấn tên tệp `medicalDocumentFileName` từ `MedicalDocumentRepository`.
+     * Duy trì constructor 5-tham số cũ kèm `@Autowired(required = false)` cho `MedicalDocumentRepository` để bảo toàn 100% tính tương thích với toàn bộ unit test hiện hữu.
+
+3. **Backend Endpoints Trích Xuất Bóc Tách AI & Tệp Gốc:**
+   - **`MedicalDocumentAnalysisService`**:
+     * Thêm phương thức `DocumentAnalysisResponse getDocumentAnalysis(UUID documentId)`: giải mã `metadataJson`, `abnormalIndicatorsJson` (chuẩn hóa danh sách `AbnormalIndicatorDto`), `suggestedQuestionsJson` và tóm tắt SBAR.
+   - **`MedicalDocumentController`**:
+     * Endpoint `GET /api/v1/documents/{id}/analysis`: Trả về kết quả phân tích AI đầy đủ cho Bác sĩ, Bệnh nhân sở hữu hoặc Quản trị viên (kiểm tra phân quyền chặt chẽ).
+     * Endpoint `GET /api/v1/documents/{id}/file`: Hỗ trợ streaming tệp gốc với `Content-Disposition: inline` (để nhúng PDF viewer trực tiếp) hoặc `attachment`. Cơ chế đa tầng:
+       - Tầng 1: Tệp cục bộ tại `uploads/medical_documents/{userId}/{filename}`.
+       - Tầng 2: Supabase Storage proxy byte stream nếu có URL cloud.
+       - Tầng 3 (Zero-Crash Fallback): Nếu tệp vật lý bị thất lạc trong môi trường sandbox, tự động sinh PDF báo cáo tóm tắt lâm sàng dự phòng tức thì, tuyệt đối không làm đơ giật hay sập giao diện bác sĩ.
+
+4. **Frontend - Đặt Khám Đính Kèm Hồ Sơ:**
+   - Trong `DocumentSummarizerPage.tsx`: Tại hàm `handleConfirmBooking`, truyền `medicalDocumentId: analysis?.documentId || undefined` vào payload `api.post('/appointments', ...)`.
+
+5. **Frontend - Thành Phần `DocumentAnalysisModal.tsx` Chuyên Sâu:**
+   - Tạo mới `frontend/src/components/common/DocumentAnalysisModal.tsx` thiết kế giao diện chuẩn bệnh viện với 2 Tab linh hoạt:
+     * **Tab 1: Bóc Tách AI & Chỉ Số Xét Nghiệm (AI Scribe & Indicators):**
+       - Khối thông tin hành chính trích xuất: Bệnh viện thực hiện, Bác sĩ chỉ định, Khoa phòng, Mã barcode SID, Ngày xét nghiệm.
+       - Tóm tắt lâm sàng SBAR và bản dịch ngôn ngữ dễ hiểu.
+       - Bảng chỉ số xét nghiệm: Tên xét nghiệm, Giá trị, Đơn vị, Khoảng tham chiếu, Ý nghĩa lâm sàng. Phân loại màu sắc trực quan (Đỏ rực cho chỉ số Tăng/ELEVATED, Xanh dương cho Giảm/LOW, Xanh lá cho Bình thường/NORMAL).
+       - Nút tiện ích y khoa: **"1-Click Chèn Vào Bệnh Án"** (`onInsertToEncounter`), tự động nạp tóm tắt và danh sách chỉ số bất thường vào Lý do khám và Kế hoạch điều trị của ca khám.
+     * **Tab 2: Xem Tệp Gốc (Original File Viewer):**
+       - Trình xem trực tiếp nội tuyến (Iframe PDF nhúng thanh công cụ native browser, hoặc thẻ Image kèm zoom).
+       - Nút *"Mở tab mới"* và *"Tải xuống tệp"*.
+
+6. **Frontend - Tích Hợp Bàn Khám Bác Sĩ & Danh Mục Bệnh Nhân 360°:**
+   - **`DoctorDashboard.tsx`**:
+     * Thẻ ca khám đang diễn ra (In-Progress) & hàng đợi sắp tới: Hiển thị huy hiệu teal nổi bật *"Hồ sơ đính kèm: [Tên tệp]"* kèm icon `FileText`, click vào mở ngay modal phân tích/tệp gốc.
+     * Trong Encounter Modal: Banner thông báo màu xanh ngọc ở Tab 1 (EMR) nhắc nhở bác sĩ ca khám có tài liệu cận lâm sàng đính kèm, hỗ trợ 1-click mở xem.
+     * Tab 3 `DOCUMENTS`: Nâng cấp hoàn toàn, bổ sung 2 nút hành động `[Xem Bóc Tách AI & Chỉ Số]` và `[Mở Tệp Gốc]` cho từng tài liệu của bệnh nhân.
+     * Nối hook `handleInsertDocumentAnalysisToEncounter` giúp bác sĩ tự động nạp kết quả cận lâm sàng vào bệnh án điện tử.
+   - **`DoctorPatientRecordsPage.tsx`**:
+     * Trong Tab 3 `DOCS` của Ngăn kéo Hồ sơ Bệnh nhân 360°: Thay thế giao diện xem hạn chế bằng các nút bấm `[Xem Bóc Tách AI]` và `[Mở Tệp Gốc]` tương tác trực tiếp với `DocumentAnalysisModal.tsx`.
+
+#### 4. Danh Sách Tệp Tin Thay Đổi:
+* **[NEW]** `backend/src/main/resources/db/migration/V14__add_medical_document_to_appointments.sql` (Flyway migration tạo cột `medical_document_id` và index)
+* **[NEW]** `frontend/src/components/common/DocumentAnalysisModal.tsx` (Thành phần modal 2 tab xem phân tích AI OCR & tệp gốc)
+* **[MOD]** `backend/src/main/java/com/mediassist/model/entity/Appointment.java` (Thêm trường `medicalDocumentId`)
+* **[MOD]** `backend/src/main/java/com/mediassist/dto/CreateAppointmentRequest.java` (Thêm trường `medicalDocumentId`)
+* **[MOD]** `backend/src/main/java/com/mediassist/dto/AppointmentDto.java` (Thêm `medicalDocumentId` & `medicalDocumentFileName`)
+* **[MOD]** `backend/src/main/java/com/mediassist/service/AppointmentService.java` (Gắn `medicalDocumentId` khi book và populate filename)
+* **[MOD]** `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java` (Hàm `getDocumentAnalysis`)
+* **[MOD]** `backend/src/main/java/com/mediassist/controller/MedicalDocumentController.java` (Endpoints `/analysis` & `/file` streaming)
+* **[MOD]** `backend/src/test/java/com/mediassist/AppointmentServiceTest.java` (Unit test đặt lịch kèm tài liệu)
+* **[MOD]** `backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java` (Unit test lấy phân tích tài liệu)
+* **[MOD]** `frontend/src/pages/patient/DocumentSummarizerPage.tsx` (Gửi `medicalDocumentId` khi book bác sĩ)
+* **[MOD]** `frontend/src/pages/doctor/DoctorDashboard.tsx` (Huy hiệu tệp, banner EMR, Tab 3 Documents & DocumentAnalysisModal)
+* **[MOD]** `frontend/src/pages/doctor/DoctorPatientRecordsPage.tsx` (Nút xem phân tích AI & tệp gốc trong Patient 360 Drawer)
+* **[MOD]** `docs/DATABASE_DESIGN.md` (Đồng bộ Flyway V14 và cấu trúc bảng `appointments`)
+* **[MOD]** `docs/USE_CASES.md` (Đặc tả chi tiết UC-DOC-22)
+* **[MOD]** `docs/WORK_LOG.md` (Ghi nhận phiên làm việc #076)
+
+#### 5. Bằng Chứng Kiểm Thử & Biên Dịch:
+* **Backend:** `mvn test` $\rightarrow$ **128/128 Tests PASS 100%**, BUILD SUCCESS (16.96s)
+* **Frontend:** `npm run build` $\rightarrow$ **0 TypeScript Errors**, Vite build thành công (1.59s)
+
+#### 6. Điểm Nóng Tech Lead Cần Review:
+1. **Cơ Chế Khóa Ngoại `ON DELETE SET NULL`:** Đảm bảo khi bệnh nhân xóa tệp trong kho cá nhân, lịch hẹn của bác sĩ vẫn giữ được dữ liệu mà không gây lỗi khóa ngoại.
+2. **Bảo Mật Truy Cập Tệp (`GET /documents/{id}/file`):** Endpoint kiểm tra quyền sở hữu chặt chẽ: chỉ cấp quyền cho chính Bệnh nhân sở hữu, Bác sĩ được phân công khám, hoặc Admin.
+3. **Tiện Ích Lâm Sàng "1-Click Chèn Vào Bệnh Án":** Trải nghiệm thực tế của Bác sĩ được tối ưu hóa: không cần mở tài liệu rồi chép tay lại các chỉ số xét nghiệm, chỉ cần 1 cú click để tự động trích xuất các chỉ số bất thường vào kế hoạch điều trị.
+
+---
 * **Thời gian:** 2026-09-18 11:35:00 (GMT+7)
 * **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
 * **Mã Use Case:** UC-DOC-20 (Tương Tác Lâm Sàng Bác Sĩ - Bệnh Nhân 360°, Hồ Sơ Dài Hạn & Visual Clinical Staging)

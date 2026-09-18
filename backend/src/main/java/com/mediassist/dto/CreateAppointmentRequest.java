@@ -14,6 +14,7 @@ public class CreateAppointmentRequest {
     private LocalDateTime scheduledStart;
 
     private String notes;
+    private UUID medicalDocumentId;
 
     public CreateAppointmentRequest() {}
 
@@ -21,6 +22,13 @@ public class CreateAppointmentRequest {
         this.doctorId = doctorId;
         this.scheduledStart = scheduledStart;
         this.notes = notes;
+    }
+
+    public CreateAppointmentRequest(UUID doctorId, LocalDateTime scheduledStart, String notes, UUID medicalDocumentId) {
+        this.doctorId = doctorId;
+        this.scheduledStart = scheduledStart;
+        this.notes = notes;
+        this.medicalDocumentId = medicalDocumentId;
     }
 
     public UUID getDoctorId() { return doctorId; }
@@ -31,4 +39,7 @@ public class CreateAppointmentRequest {
 
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+
+    public UUID getMedicalDocumentId() { return medicalDocumentId; }
+    public void setMedicalDocumentId(UUID medicalDocumentId) { this.medicalDocumentId = medicalDocumentId; }
 }

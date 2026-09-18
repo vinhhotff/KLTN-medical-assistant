@@ -1095,4 +1095,43 @@ class MedicalDocumentAnalysisServiceTest {
         assertEquals(2, resp.getFilesCount());
         assertEquals(0, testUser.getScanQuota());
     }
+
+    @Test
+    @DisplayName("Should retrieve full analysis data for a document successfully")
+    void testGetDocumentAnalysis_Success() {
+        UUID docId = UUID.randomUUID();
+        MedicalDocument doc = new MedicalDocument();
+        doc.setId(docId);
+        doc.setFileName("xet_nghiem_mau.pdf");
+        doc.setFileSizeBytes(102400);
+        doc.setContentType("application/pdf");
+        doc.setStorageUrl("https://storage.mediassist.local/doc.pdf");
+
+        DocumentAnalysis da = new DocumentAnalysis();
+        da.setId(UUID.randomUUID());
+        da.setDocument(doc);
+        da.setClinicalSummary("Bệnh nhân có tăng đường huyết cần theo dõi nội tiết");
+        da.setPlainLanguageExplanation("Chỉ số đường trong máu của bạn cao hơn bình thường");
+        da.setRecommendedSpecialtySlug("endocrinology");
+        da.setRecommendedSpecialtyName("Nội Tiết - Đái Tháo Đường");
+        da.setAbnormalIndicatorsJson("[{\"name\":\"Glucose\",\"value\":\"12.4\",\"unit\":\"mmol/L\",\"referenceRange\":\"3.9 - 6.4\",\"status\":\"HIGH\",\"clinicalSignificance\":\"Tăng đường huyết\"}]");
+        da.setSuggestedQuestionsJson("[\"Tôi có cần dùng thuốc hạ đường huyết không?\"]");
+        da.setMetadataJson("{\"hospitalName\":\"BV Chợ Rẫy\",\"orderingDoctor\":\"BS. Tuấn\"}");
+
+        when(medicalDocumentRepository.findById(docId)).thenReturn(Optional.of(doc));
+        when(documentAnalysisRepository.findByDocumentId(docId)).thenReturn(Optional.of(da));
+
+        DocumentAnalysisResponse response = analysisService.getDocumentAnalysis(docId);
+
+        assertNotNull(response);
+        assertEquals(docId, response.getDocumentId());
+        assertEquals("xet_nghiem_mau.pdf", response.getFileName());
+        assertEquals("Bệnh nhân có tăng đường huyết cần theo dõi nội tiết", response.getClinicalSummary());
+        assertEquals("BV Chợ Rẫy", response.getHospitalName());
+        assertEquals("BS. Tuấn", response.getOrderingDoctor());
+        assertNotNull(response.getIndicators());
+        assertEquals(1, response.getIndicators().size());
+        assertEquals("Glucose", response.getIndicators().get(0).getName());
+        assertEquals("HIGH", response.getIndicators().get(0).getStatus());
+    }
 }

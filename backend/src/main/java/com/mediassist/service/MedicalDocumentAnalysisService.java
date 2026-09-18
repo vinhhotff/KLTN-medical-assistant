@@ -92,6 +92,65 @@ public class MedicalDocumentAnalysisService {
         this.medicalOcrExecutor = medicalOcrExecutor;
     }
 
+    public DocumentAnalysisResponse getDocumentAnalysis(UUID documentId) {
+        MedicalDocument doc = medicalDocumentRepository.findById(documentId)
+                .orElseThrow(() -> new com.mediassist.common.AppException(
+                        org.springframework.http.HttpStatus.NOT_FOUND,
+                        "NOT_FOUND",
+                        "Không tìm thấy tài liệu y tế yêu cầu."
+                ));
+
+        Optional<DocumentAnalysis> analysisOpt = documentAnalysisRepository.findByDocumentId(doc.getId());
+        DocumentAnalysisResponse resp = new DocumentAnalysisResponse();
+        resp.setDocumentId(doc.getId());
+        resp.setFileName(doc.getFileName());
+        resp.setFileSizeBytes(doc.getFileSizeBytes());
+        resp.setContentType(doc.getContentType());
+        resp.setStorageUrl(doc.getStorageUrl());
+
+        if (analysisOpt.isPresent()) {
+            DocumentAnalysis da = analysisOpt.get();
+            resp.setClinicalSummary(da.getClinicalSummary());
+            resp.setPlainLanguageExplanation(da.getPlainLanguageExplanation());
+            resp.setRecommendedSpecialtySlug(da.getRecommendedSpecialtySlug());
+            resp.setRecommendedSpecialtyName(da.getRecommendedSpecialtyName());
+
+            List<AbnormalIndicatorDto> indicators = new ArrayList<>();
+            List<String> questions = new ArrayList<>();
+            try {
+                if (da.getAbnormalIndicatorsJson() != null && !da.getAbnormalIndicatorsJson().isBlank()) {
+                    indicators = objectMapper.readValue(da.getAbnormalIndicatorsJson(), new TypeReference<List<AbnormalIndicatorDto>>() {});
+                }
+                if (da.getSuggestedQuestionsJson() != null && !da.getSuggestedQuestionsJson().isBlank()) {
+                    questions = objectMapper.readValue(da.getSuggestedQuestionsJson(), new TypeReference<List<String>>() {});
+                }
+            } catch (Exception ignored) {}
+            resp.setIndicators(indicators);
+            resp.setSuggestedQuestions(questions);
+
+            if (da.getMetadataJson() != null && !da.getMetadataJson().isBlank()) {
+                try {
+                    com.fasterxml.jackson.databind.JsonNode metaNode = objectMapper.readTree(da.getMetadataJson());
+                    if (metaNode.has("hospitalName") && !metaNode.get("hospitalName").isNull()) resp.setHospitalName(metaNode.get("hospitalName").asText());
+                    if (metaNode.has("departmentName") && !metaNode.get("departmentName").isNull()) resp.setDepartmentName(metaNode.get("departmentName").asText());
+                    if (metaNode.has("orderingDoctor") && !metaNode.get("orderingDoctor").isNull()) resp.setOrderingDoctor(metaNode.get("orderingDoctor").asText());
+                    if (metaNode.has("testDate") && !metaNode.get("testDate").isNull()) resp.setTestDate(metaNode.get("testDate").asText());
+                    if (metaNode.has("sidCode") && !metaNode.get("sidCode").isNull()) resp.setSidCode(metaNode.get("sidCode").asText());
+                    if (metaNode.has("patientName") && !metaNode.get("patientName").isNull()) resp.setPatientName(metaNode.get("patientName").asText());
+                    if (metaNode.has("patientAge") && !metaNode.get("patientAge").isNull()) resp.setPatientAge(metaNode.get("patientAge").asText());
+                    if (metaNode.has("patientGender") && !metaNode.get("patientGender").isNull()) resp.setPatientGender(metaNode.get("patientGender").asText());
+                    if (metaNode.has("deviceModel") && !metaNode.get("deviceModel").isNull()) resp.setDeviceModel(metaNode.get("deviceModel").asText());
+                } catch (Exception ignored) {}
+            }
+        } else {
+            resp.setClinicalSummary("Chưa có kết quả phân tích AI lưu trữ cho hồ sơ này.");
+            resp.setIndicators(Collections.emptyList());
+            resp.setSuggestedQuestions(Collections.emptyList());
+        }
+
+        return resp;
+    }
+
     private DocumentAnalysisResponse buildCachedResponse(MedicalDocument existingDoc, String fallbackFileName) {
         Optional<DocumentAnalysis> existingAnalysisOpt = documentAnalysisRepository.findByDocumentId(existingDoc.getId());
         if (existingAnalysisOpt.isEmpty()) {

@@ -36,6 +36,8 @@ public class AppointmentDto {
     private String treatmentPlan;
     private java.time.LocalDate followUpDate;
     private LocalDateTime createdAt;
+    private UUID medicalDocumentId;
+    private String medicalDocumentFileName;
 
     public AppointmentDto() {}
 
@@ -71,6 +73,7 @@ public class AppointmentDto {
         dto.setTreatmentPlan(a.getTreatmentPlan());
         dto.setFollowUpDate(a.getFollowUpDate());
         dto.setCreatedAt(a.getCreatedAt());
+        dto.setMedicalDocumentId(a.getMedicalDocumentId());
         return dto;
     }
 
@@ -151,4 +154,10 @@ public class AppointmentDto {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public UUID getMedicalDocumentId() { return medicalDocumentId; }
+    public void setMedicalDocumentId(UUID medicalDocumentId) { this.medicalDocumentId = medicalDocumentId; }
+
+    public String getMedicalDocumentFileName() { return medicalDocumentFileName; }
+    public void setMedicalDocumentFileName(String medicalDocumentFileName) { this.medicalDocumentFileName = medicalDocumentFileName; }
 }

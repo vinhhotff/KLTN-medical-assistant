@@ -573,7 +573,8 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
       const res = await api.post('/appointments', {
         doctorId: docId,
         scheduledStart: slotTime,
-        notes: bookingNotes
+        notes: bookingNotes,
+        medicalDocumentId: analysis?.documentId || undefined
       });
 
       if (res.data?.data) {

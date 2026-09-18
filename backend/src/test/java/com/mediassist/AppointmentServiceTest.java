@@ -238,4 +238,29 @@ class AppointmentServiceTest {
         assertEquals("Phòng 204", result.getClinicRoom());
         verify(auditLogRepository, times(1)).save(any(AuditLog.class));
     }
+
+    @Test
+    void testBookAppointment_WithMedicalDocumentId_Success() {
+        LocalDateTime futureTime = LocalDateTime.now().plusDays(3).withHour(14).withMinute(0);
+        UUID docId = UUID.randomUUID();
+        CreateAppointmentRequest request = new CreateAppointmentRequest(doctorId, futureTime, "Khám theo kết quả xét nghiệm máu", docId);
+
+        when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
+        when(userRepository.findById(doctorId)).thenReturn(Optional.of(doctorUser));
+        when(appointmentRepository.existsConflict(doctorId, futureTime)).thenReturn(false);
+        when(doctorProfileRepository.findByUserId(doctorId)).thenReturn(Optional.of(doctorProfile));
+
+        when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(invocation -> {
+            Appointment saved = invocation.getArgument(0);
+            saved.setId(UUID.randomUUID());
+            return saved;
+        });
+
+        AppointmentDto result = appointmentService.bookAppointment(patientId, request);
+
+        assertNotNull(result);
+        assertEquals(docId, result.getMedicalDocumentId());
+        assertEquals(AppointmentStatus.SCHEDULED, result.getStatus());
+        verify(appointmentRepository, times(1)).saveAndFlush(argThat(a -> docId.equals(a.getMedicalDocumentId())));
+    }
 }

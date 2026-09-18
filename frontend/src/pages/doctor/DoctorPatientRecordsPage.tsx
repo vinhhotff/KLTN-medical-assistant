@@ -17,11 +17,13 @@ import {
   RefreshCw,
   Sparkles,
   Printer,
-  CheckCircle2
+  CheckCircle2,
+  Eye
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
 import { useDebounce } from '../../hooks/useDebounce';
+import { DocumentAnalysisModal } from '../../components/common/DocumentAnalysisModal';
 import {
   evaluateBloodPressure,
   evaluateBmiAsia,
@@ -148,6 +150,19 @@ export const DoctorPatientRecordsPage: React.FC = () => {
   const [followUpNotes, setFollowUpNotes] = useState('');
   const [submittingFollowUp, setSubmittingFollowUp] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Document & AI Analysis Modal State
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const [docModalId, setDocModalId] = useState<string | null>(null);
+  const [docModalFileName, setDocModalFileName] = useState<string | undefined>(undefined);
+  const [docModalStorageUrl, setDocModalStorageUrl] = useState<string | undefined>(undefined);
+
+  const handleOpenDocumentModal = (docId: string, fileName?: string, storageUrl?: string) => {
+    setDocModalId(docId);
+    setDocModalFileName(fileName);
+    setDocModalStorageUrl(storageUrl);
+    setDocModalOpen(true);
+  };
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -776,29 +791,37 @@ export const DoctorPatientRecordsPage: React.FC = () => {
                         <p className="text-slate-400 italic text-center py-8">Bệnh nhân chưa tải lên tài liệu xét nghiệm nào.</p>
                       ) : (
                         patientDocs.map((doc) => (
-                          <div key={doc.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <FileText className="w-5 h-5 text-sky-600" />
+                          <div key={doc.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="p-2 bg-sky-100 text-sky-700 rounded-xl">
+                                <FileText className="w-5 h-5" />
+                              </div>
                               <div>
-                                <div className="font-bold text-slate-900">{doc.fileName}</div>
-                                <div className="text-[10px] text-slate-400">
+                                <div className="font-bold text-slate-900 text-sm">{doc.fileName}</div>
+                                <div className="text-[11px] text-slate-400">
                                   {(doc.fileSizeBytes / 1024).toFixed(1)} KB • {new Date(doc.createdAt).toLocaleDateString('vi-VN')}
                                 </div>
                               </div>
                             </div>
-                            {doc.storageUrl ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDocumentModal(doc.id, doc.fileName, doc.storageUrl)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs transition shadow-xs cursor-pointer"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>Xem Bóc Tách AI</span>
+                              </button>
                               <a
-                                href={doc.storageUrl}
+                                href={`/api/v1/documents/${doc.id}/file`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-1 px-3 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded-lg font-bold transition"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl text-xs transition"
                               >
-                                <span>Xem Tệp</span>
+                                <span>Mở Tệp</span>
                                 <ExternalLink className="w-3 h-3" />
                               </a>
-                            ) : (
-                              <span className="text-slate-400">Tệp nội bộ</span>
-                            )}
+                            </div>
                           </div>
                         ))
                       )}
@@ -1164,6 +1187,20 @@ export const DoctorPatientRecordsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Document & AI Analysis Viewer Modal */}
+      <DocumentAnalysisModal
+        isOpen={docModalOpen}
+        onClose={() => {
+          setDocModalOpen(false);
+          setDocModalId(null);
+          setDocModalFileName(undefined);
+          setDocModalStorageUrl(undefined);
+        }}
+        documentId={docModalId}
+        initialFileName={docModalFileName}
+        initialStorageUrl={docModalStorageUrl}
+      />
     </div>
   );
 };

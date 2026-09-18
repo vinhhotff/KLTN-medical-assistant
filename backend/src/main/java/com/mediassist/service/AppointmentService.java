@@ -8,6 +8,7 @@ import com.mediassist.model.entity.*;
 import com.mediassist.repository.AppointmentRepository;
 import com.mediassist.repository.AuditLogRepository;
 import com.mediassist.repository.DoctorProfileRepository;
+import com.mediassist.repository.MedicalDocumentRepository;
 import com.mediassist.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,9 @@ public class AppointmentService {
     private final DoctorProfileRepository doctorProfileRepository;
     private final AuditLogRepository auditLogRepository;
     private final TwoLayerCacheService cacheService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private MedicalDocumentRepository medicalDocumentRepository;
 
     public AppointmentService(AppointmentRepository appointmentRepository,
                               UserRepository userRepository,
@@ -94,6 +98,9 @@ public class AppointmentService {
                 .paymentStatus(PaymentStatus.UNPAID)
                 .consultationNotes(request.getNotes())
                 .build();
+        if (request.getMedicalDocumentId() != null) {
+            appointment.setMedicalDocumentId(request.getMedicalDocumentId());
+        }
         appointment.setQueueNumber("STT " + String.format("%02d", (int)(Math.random() * 25 + 1)));
         appointment.setClinicRoom("Phòng Khám 204 - Khoa Chuyên Môn");
         appointment.setChiefComplaint(request.getNotes() != null && !request.getNotes().isBlank() ? request.getNotes() : "Đăng ký khám tư vấn chuyên khoa");
@@ -115,7 +122,7 @@ public class AppointmentService {
         auditLogRepository.save(audit);
 
         log.info("✅ Appointment booked: {} for patient {} with doctor {}", appointmentCode, patient.getEmail(), doctor.getEmail());
-        return AppointmentDto.fromEntity(saved);
+        return toDto(saved);
     }
 
     public List<AppointmentDto> getMyAppointments(UUID userId, Role role) {
@@ -125,7 +132,7 @@ public class AppointmentService {
         } else {
             list = appointmentRepository.findByPatientIdWithUsersOrderByScheduledStartDesc(userId);
         }
-        return list.stream().map(AppointmentDto::fromEntity).collect(Collectors.toList());
+        return list.stream().map(this::toDto).collect(Collectors.toList());
     }
 
     @Transactional
@@ -163,7 +170,7 @@ public class AppointmentService {
         Appointment updated = appointmentRepository.save(appointment);
 
         log.info("ℹ️ Appointment {} status updated to {} by user {}", appointment.getAppointmentCode(), newStatus, userId);
-        return AppointmentDto.fromEntity(updated);
+        return toDto(updated);
     }
 
     @Transactional
@@ -216,7 +223,7 @@ public class AppointmentService {
         auditLogRepository.save(audit);
 
         log.info("🩺 Clinical encounter completed: {} with ICD-10: {}", saved.getAppointmentCode(), saved.getIcd10Code());
-        return AppointmentDto.fromEntity(saved);
+        return toDto(saved);
     }
 
     /**
@@ -228,7 +235,7 @@ public class AppointmentService {
         if (list == null || list.isEmpty()) {
             return java.util.Collections.emptyList();
         }
-        return list.stream().map(AppointmentDto::fromEntity).collect(Collectors.toList());
+        return list.stream().map(this::toDto).collect(Collectors.toList());
     }
 
     /**
@@ -295,6 +302,18 @@ public class AppointmentService {
         auditLogRepository.save(audit);
 
         log.info("🩺 Doctor {} scheduled follow-up: {} for patient {}", doctor.getEmail(), appointmentCode, patient.getEmail());
-        return AppointmentDto.fromEntity(saved);
+        return toDto(saved);
+    }
+
+    private AppointmentDto toDto(Appointment a) {
+        if (a == null) return null;
+        AppointmentDto dto = AppointmentDto.fromEntity(a);
+        if (a.getMedicalDocumentId() != null && medicalDocumentRepository != null) {
+            try {
+                medicalDocumentRepository.findById(a.getMedicalDocumentId())
+                        .ifPresent(doc -> dto.setMedicalDocumentFileName(doc.getFileName()));
+            } catch (Exception ignored) {}
+        }
+        return dto;
     }
 }

@@ -84,6 +84,9 @@ public class Appointment {
     @Column(nullable = false, length = 30)
     private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
 
+    @Column(name = "medical_document_id")
+    private UUID medicalDocumentId;
+
     @Version
     private Long version = 0L;
 
@@ -176,6 +179,9 @@ public class Appointment {
     public LocalDate getFollowUpDate() { return followUpDate; }
     public void setFollowUpDate(LocalDate followUpDate) { this.followUpDate = followUpDate; }
 
+    public UUID getMedicalDocumentId() { return medicalDocumentId; }
+    public void setMedicalDocumentId(UUID medicalDocumentId) { this.medicalDocumentId = medicalDocumentId; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 
@@ -193,6 +199,7 @@ public class Appointment {
         private String consultationNotes;
         private BigDecimal feeAmount = BigDecimal.ZERO;
         private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
+        private UUID medicalDocumentId;
 
         public Builder id(UUID id) { this.id = id; return this; }
         public Builder appointmentCode(String appointmentCode) { this.appointmentCode = appointmentCode; return this; }
@@ -205,9 +212,12 @@ public class Appointment {
         public Builder consultationNotes(String consultationNotes) { this.consultationNotes = consultationNotes; return this; }
         public Builder feeAmount(BigDecimal feeAmount) { this.feeAmount = feeAmount; return this; }
         public Builder paymentStatus(PaymentStatus paymentStatus) { this.paymentStatus = paymentStatus; return this; }
+        public Builder medicalDocumentId(UUID medicalDocumentId) { this.medicalDocumentId = medicalDocumentId; return this; }
 
         public Appointment build() {
-            return new Appointment(id, appointmentCode, patient, doctor, scheduledStart, scheduledEnd, status, cancellationReason, consultationNotes, feeAmount, paymentStatus);
+            Appointment appt = new Appointment(id, appointmentCode, patient, doctor, scheduledStart, scheduledEnd, status, cancellationReason, consultationNotes, feeAmount, paymentStatus);
+            appt.setMedicalDocumentId(medicalDocumentId);
+            return appt;
         }
     }
 }

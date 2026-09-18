@@ -29,12 +29,14 @@ import {
   ExternalLink,
   Sun,
   Sunset,
-  Copy
+  Copy,
+  Eye
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
 import { useDebounce } from '../../hooks/useDebounce';
+import { DocumentAnalysisModal } from '../../components/common/DocumentAnalysisModal';
 import {
   evaluateBloodPressure,
   evaluateBmiAsia,
@@ -110,6 +112,8 @@ interface DoctorAppointment {
   prescriptionJson?: string;
   treatmentPlan?: string;
   followUpDate?: string;
+  medicalDocumentId?: string;
+  medicalDocumentFileName?: string;
 }
 
 interface PrescriptionItem {
@@ -237,6 +241,36 @@ export const DoctorDashboard: React.FC = () => {
   const [encounterLoading, setEncounterLoading] = useState(false);
   const [callingNext, setCallingNext] = useState(false);
   const [bookingFollowUp, setBookingFollowUp] = useState(false);
+
+  // Document & AI Analysis Modal States
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const [docModalId, setDocModalId] = useState<string | null>(null);
+  const [docModalFileName, setDocModalFileName] = useState<string | undefined>(undefined);
+  const [docModalStorageUrl, setDocModalStorageUrl] = useState<string | undefined>(undefined);
+
+  const handleOpenDocumentModal = (docId: string, fileName?: string, storageUrl?: string) => {
+    setDocModalId(docId);
+    setDocModalFileName(fileName);
+    setDocModalStorageUrl(storageUrl);
+    setDocModalOpen(true);
+  };
+
+  const handleInsertDocumentAnalysisToEncounter = (data: { clinicalSummary: string; abnormalIndicatorsText: string }) => {
+    if (data.clinicalSummary) {
+      setChiefComplaint((prev) =>
+        prev
+          ? `${prev}\n\n[Tóm tắt hồ sơ xét nghiệm đính kèm]: ${data.clinicalSummary}`
+          : `[Tóm tắt hồ sơ xét nghiệm đính kèm]: ${data.clinicalSummary}`
+      );
+    }
+    if (data.abnormalIndicatorsText && data.abnormalIndicatorsText !== 'Không có chỉ số vượt ngưỡng') {
+      setTreatmentPlan((prev) =>
+        prev
+          ? `${prev}\n\n[Chỉ số cận lâm sàng bất thường]:\n• ${data.abnormalIndicatorsText}`
+          : `[Chỉ số cận lâm sàng bất thường]:\n• ${data.abnormalIndicatorsText}`
+      );
+    }
+  };
 
   // Pagination states
   const [scheduledPage, setScheduledPage] = useState(1);
@@ -1116,6 +1150,22 @@ export const DoctorDashboard: React.FC = () => {
                       "{apt.chiefComplaint}"
                     </p>
                   )}
+                  {apt.medicalDocumentId && (
+                    <div className="pt-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenDocumentModal(apt.medicalDocumentId!, apt.medicalDocumentFileName);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-400/20 hover:bg-sky-400/30 text-sky-200 border border-sky-300/30 text-xs font-semibold transition cursor-pointer"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-sky-300" />
+                        <span>📎 {apt.medicalDocumentFileName || 'Hồ sơ xét nghiệm'}: Xem AI & Tệp</span>
+                        <Eye className="w-3 h-3 text-sky-300 ml-0.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
@@ -1288,6 +1338,23 @@ export const DoctorDashboard: React.FC = () => {
                         <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 mt-2">
                           <strong className="text-slate-700">Lý do/Triệu chứng:</strong> {apt.consultationNotes}
                         </p>
+                      )}
+
+                      {apt.medicalDocumentId && (
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDocumentModal(apt.medicalDocumentId!, apt.medicalDocumentFileName);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-bold transition cursor-pointer shadow-xs"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-sky-600" />
+                            <span>📎 {apt.medicalDocumentFileName || 'Hồ sơ xét nghiệm'}: Xem AI & Tệp</span>
+                            <Eye className="w-3 h-3 text-sky-500 ml-0.5" />
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -1957,6 +2024,46 @@ export const DoctorDashboard: React.FC = () => {
             {/* TAB 1: EMR FORM */}
             {activeEncounterTab === 'EMR' && (
               <form onSubmit={handleSubmitEncounter} className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+                {/* Banner: Linked Medical Document from Booking */}
+                {activeEncounterAppointment?.medicalDocumentId && (
+                  <div className="p-4 bg-gradient-to-r from-sky-50 to-indigo-50/40 border border-sky-200 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-2xs">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-sky-100 text-sky-700 rounded-xl border border-sky-200">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-900 flex items-center gap-2">
+                          <span>Hồ sơ xét nghiệm đính kèm ca khám:</span>
+                          <span className="font-mono text-sky-800 bg-white px-2 py-0.5 rounded-lg border border-sky-200">
+                            {activeEncounterAppointment.medicalDocumentFileName || 'Phiếu kết quả xét nghiệm'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Được người bệnh tải lên và bóc tách AI khi đặt lịch khám này.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDocumentModal(activeEncounterAppointment.medicalDocumentId!, activeEncounterAppointment.medicalDocumentFileName)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-xs transition cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Xem Bóc Tách AI & Tệp Gốc</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveEncounterTab('DOCUMENTS')}
+                        className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 font-semibold rounded-xl border border-slate-200 transition cursor-pointer"
+                      >
+                        Tất Cả ({patientDocuments.length})
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Section 1: Vital Signs Triage */}
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                   <div className="font-bold text-slate-800 text-sm flex items-center justify-between">
@@ -2455,37 +2562,75 @@ export const DoctorDashboard: React.FC = () => {
                     <p className="text-slate-500 text-[11px]">Các tài liệu y tế (PDF, phiếu xét nghiệm hình ảnh) người bệnh đã tải lên hệ thống.</p>
                   </div>
                 </div>
-                {patientDocuments.length === 0 ? (
+                {patientDocuments.length === 0 && activeEncounterAppointment?.medicalDocumentId ? (
+                  <div className="p-8 bg-sky-50 border border-sky-200 rounded-2xl text-center space-y-3">
+                    <p className="text-sky-900 font-bold text-sm">
+                      Ca khám này có hồ sơ xét nghiệm đính kèm: {activeEncounterAppointment.medicalDocumentFileName || 'Phiếu xét nghiệm'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDocumentModal(activeEncounterAppointment.medicalDocumentId!, activeEncounterAppointment.medicalDocumentFileName)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-xs transition cursor-pointer"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>Xem Phân Tích AI & Tệp Xét Nghiệm</span>
+                    </button>
+                  </div>
+                ) : patientDocuments.length === 0 ? (
                   <p className="text-slate-400 italic text-center py-12">Bệnh nhân chưa tải lên hồ sơ xét nghiệm nào.</p>
                 ) : (
-                  patientDocuments.map((doc) => (
-                    <div key={doc.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-sky-100 text-sky-700 rounded-xl">
-                          <FileText className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="font-bold text-slate-900 text-sm">{doc.fileName}</div>
-                          <div className="text-[11px] text-slate-400">
-                            {(doc.fileSizeBytes / 1024).toFixed(1)} KB • {new Date(doc.createdAt).toLocaleString('vi-VN')}
+                  patientDocuments.map((doc) => {
+                    const isLinkedToCurrent = activeEncounterAppointment?.medicalDocumentId === doc.id;
+                    return (
+                      <div
+                        key={doc.id}
+                        className={`p-4 rounded-2xl border flex flex-wrap items-center justify-between gap-3 transition ${
+                          isLinkedToCurrent
+                            ? 'bg-sky-50/70 border-sky-300 ring-1 ring-sky-400/50'
+                            : 'bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 bg-sky-100 text-sky-700 rounded-xl">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-bold text-slate-900 text-sm">{doc.fileName}</div>
+                              {isLinkedToCurrent && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
+                                  ⭐ Đính kèm ca khám này
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-slate-400">
+                              {(doc.fileSizeBytes / 1024).toFixed(1)} KB • {new Date(doc.createdAt).toLocaleString('vi-VN')}
+                            </div>
                           </div>
                         </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDocumentModal(doc.id, doc.fileName, doc.storageUrl)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs transition shadow-xs cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Xem Bóc Tách AI & Chỉ Số</span>
+                          </button>
+                          <a
+                            href={`/api/v1/documents/${doc.id}/file`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl text-xs transition"
+                          >
+                            <span>Mở Tệp</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
                       </div>
-                      {doc.storageUrl ? (
-                        <a
-                          href={doc.storageUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs transition shadow-xs"
-                        >
-                          <span>Xem Tài Liệu</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      ) : (
-                        <span className="text-slate-400 text-xs">Lưu trữ nội bộ</span>
-                      )}
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             )}
@@ -2780,6 +2925,21 @@ export const DoctorDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Document & AI Analysis Viewer Modal */}
+      <DocumentAnalysisModal
+        isOpen={docModalOpen}
+        onClose={() => {
+          setDocModalOpen(false);
+          setDocModalId(null);
+          setDocModalFileName(undefined);
+          setDocModalStorageUrl(undefined);
+        }}
+        documentId={docModalId}
+        initialFileName={docModalFileName}
+        initialStorageUrl={docModalStorageUrl}
+        onInsertToEncounter={activeEncounterAppointment ? handleInsertDocumentAnalysisToEncounter : undefined}
+      />
     </div>
   );
 };

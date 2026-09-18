@@ -761,7 +761,42 @@ graph TD
      - Cung cấp **Thanh Chọn Hồ Sơ Bệnh Nhân (Patient Selector Tabs)**: Mỗi tab đại diện cho 1 người bệnh kèm thông tin tệp nguồn, số lượng chỉ số xét nghiệm và số lượng bác sĩ đề xuất.
      - Khi người dùng bấm chọn một bệnh nhân: Toàn bộ thông tin hiển thị bên dưới (Tiêu đề cơ sở y tế ISO 15189, Bảng chỉ số đối chiếu, Bản dịch dễ hiểu, Tóm tắt SBAR, Danh sách Bác sĩ đề xuất, Câu hỏi tư vấn) sẽ phản ứng chuyển mạch tức thì (`activePatientIndex`) sang đúng bệnh nhân đó.
      - Nút *"Đặt Khám Với Bác Sĩ Này"* tự động gắn kèm ghi chú lâm sàng chỉ định rõ tên bệnh nhân, tệp đính kèm và tóm tắt bất thường của chính người bệnh đó vào lịch hẹn.
-  5. **An Toàn Tiêu Thụ Tài Nguyên & Bộ Nhớ Đệm Toàn Vẹn (Quota & Cache Integrity):**
-     - Toàn bộ đợt quét dù gồm nhiều tệp và nhiều bệnh nhân vẫn tuân thủ quy tắc công bằng: **Chỉ khấu trừ duy nhất 1 lượt quét (1 Scan Quota)**.
-     - Lưu trữ kết quả phân tách đa bệnh nhân trong `document_analyses.metadata_json` với khóa `multiPatientDetected` và `patientAnalysesJson`.
-     - Khi trùng mã SHA-256 (Deduplication Hit): Khôi phục nguyên vẹn cấu trúc đa bệnh nhân với chi phí 0 token AI và 0ms độ trễ.
+   5. **An Toàn Tiêu Thụ Tài Nguyên & Bộ Nhớ Đệm Toàn Vẹn (Quota & Cache Integrity):**
+      - Toàn bộ đợt quét dù gồm nhiều tệp và nhiều bệnh nhân vẫn tuân thủ quy tắc công bằng: **Chỉ khấu trừ duy nhất 1 lượt quét (1 Scan Quota)**.
+      - Lưu trữ kết quả phân tách đa bệnh nhân trong `document_analyses.metadata_json` với khóa `multiPatientDetected` và `patientAnalysesJson`.
+      - Khi trùng mã SHA-256 (Deduplication Hit): Khôi phục nguyên vẹn cấu trúc đa bệnh nhân với chi phí 0 token AI và 0ms độ trễ.
+
+---
+
+### UC-22: Bác Sĩ Truy Cập Tài Liệu Cận Lâm Sàng & Kết Quả Bóc Tách AI OCR Từ Lịch Hẹn Khám (Doctor Medical Document & AI OCR Analysis Retrieval)
+
+* **Mã Use Case:** `UC-DOC-22`
+* **Tác nhân chính:** Bác sĩ điều trị (Doctor), Người bệnh sở hữu (Patient Owner), Hệ thống lưu trữ kép (Local Fallback & Supabase Storage).
+* **Mục tiêu:** Cho phép bác sĩ click vào xem lại trực tiếp tệp xét nghiệm gốc (PDF / Hình ảnh) và bản báo cáo bóc tách chỉ số sinh hóa/huyết học AI OCR kèm tóm tắt SBAR khi tiếp nhận bệnh nhân đã đặt lịch từ phân hệ Tóm Tắt Hồ Sơ (`DocumentSummarizerPage.tsx`).
+* **REST Endpoints Liên Quan:**
+  - `GET /api/v1/documents/{id}/file`: Trích xuất file nhị phân (binary stream) hiển thị nội tuyến (`Content-Disposition: inline`) hoặc tải về (`attachment`). Hỗ trợ đường dẫn cục bộ (`uploads/...`), proxy tệp Supabase Cloud Storage, hoặc tự động tạo tài liệu lâm sàng PDF dự phòng an toàn (Zero-Crash Fallback).
+  - `GET /api/v1/documents/{id}/analysis`: Truy xuất toàn bộ dữ liệu bóc tách AI OCR, danh sách chỉ số xét nghiệm (`name`, `value`, `unit`, `referenceRange`, `status`, `clinicalSignificance`), siêu dữ liệu hành chính (`hospitalName`, `orderingDoctor`, `testDate`, `sidCode`, `deviceModel`), tóm tắt lâm sàng SBAR và gợi ý câu hỏi tư vấn.
+  - `POST /api/v1/appointments`: Nhận thêm trường tùy chọn `medicalDocumentId` để liên kết vĩnh viễn ca khám với tài liệu xét nghiệm.
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Khởi Tạo Liên Kết Tự Động Từ Phía Bệnh Nhân:**
+     - Khi người bệnh phân tích kết quả xét nghiệm tại trang `/patient/documents`, hệ thống đề xuất bác sĩ chuyên khoa phù hợp (ví dụ: TS.BS Đỗ Phương Lan - Nội tiết).
+     - Người bệnh chọn bác sĩ và bấm *"Xác nhận đặt khám"*. Payload tạo ca khám tự động đính kèm `medicalDocumentId: analysis.documentId`.
+     - Backend lưu `medical_document_id` vào bảng `appointments`.
+  2. **Chỉ Báo Trực Quan Trên Giao Diện Bác Sĩ (`DoctorDashboard.tsx`):**
+     - Tại thẻ ca khám đang diễn ra (In-Progress) và hàng đợi chờ tiếp nhận (Scheduled Queue), nếu ca khám có đính kèm tài liệu xét nghiệm, hệ thống hiển thị ngay huy hiệu nổi bật: **"Hồ sơ đính kèm: [Tên tệp]"** với màu xanh ngọc bích (Teal) và biểu tượng `FileText`.
+     - Bác sĩ chỉ cần click vào huy hiệu để mở ngay **Modal Chi Tiết Phân Tích & Tệp Gốc (`DocumentAnalysisModal.tsx`)**.
+  3. **Hộp Thoại Phân Tích Đa Năng 2 Tab (`DocumentAnalysisModal.tsx`):**
+     - **Tab 1 - Phân Tích AI & Chỉ Số Xét Nghiệm (AI Scribe & Lab Indicators):**
+       + Hiển thị thông tin hành chính trích xuất: Bệnh viện thực hiện, Bác sĩ chỉ định, Khoa phòng, Mã vạch SID, Ngày xét nghiệm.
+       + Tóm tắt lâm sàng theo chuẩn SBAR và bản giải nghĩa ngôn ngữ dễ hiểu.
+       + Bảng chỉ số xét nghiệm trực quan: Tên chỉ số, Giá trị đo được, Khoảng tham chiếu, Đơn vị tính, Ý nghĩa lâm sàng.
+       + Phân loại trạng thái chỉ số bằng badge màu y khoa: Đỏ rực (`ELEVATED` / `HIGH`), Xanh dương (`LOW`), Xanh lá (`NORMAL`).
+       + Nút tiện ích y khoa: **"1-Click Chèn Vào Bệnh Án"** (`onInsertToEncounter`), tự động nạp tóm tắt và danh sách chỉ số bất thường vào Lý do khám và Kế hoạch điều trị của ca khám hiện tại.
+     - **Tab 2 - Xem Tệp Gốc (Original File Viewer):**
+       + Tích hợp khung xem trực tiếp nội tuyến (`<iframe src="/api/v1/documents/{id}/file#toolbar=1">` cho PDF và `<img>` kèm zoom cho tệp hình ảnh).
+       + Hỗ trợ nút *"Mở tab mới"* và *"Tải xuống tệp"* cho bác sĩ lưu trữ hoặc hội chẩn liên viện.
+  4. **Tích Hợp Trong Tab Cận Lâm Sàng & Hồ Sơ Bệnh Nhân 360°:**
+     - Trong Bàn khám EMR (`DoctorDashboard.tsx` - Tab 3 `DOCUMENTS`): Các tài liệu lưu trữ nội bộ nay được bổ sung nút bấm hành động `[Xem Bóc Tách AI & Chỉ Số]` và `[Mở Tệp Gốc]`.
+     - Trong Ngăn kéo Hồ sơ Bệnh nhân 360° (`DoctorPatientRecordsPage.tsx` - Tab 3 `DOCS`): Bác sĩ có thể bấm xem chi tiết phân tích AI và tệp gốc của mọi tài liệu bệnh nhân từng gửi trong quá khứ.
+  5. **Kiểm Soát Phân Quyền & Bảo Mật Chuẩn Y Tế (HIPAA & RBAC Guard):**
+     - Chỉ Bác sĩ được chỉ định, Bệnh nhân sở hữu tài liệu, hoặc Admin hệ thống mới được phép gọi API tải tệp và xem bóc tách. Mọi truy cập trái phép bị chặn đứng với mã lỗi `403 FORBIDDEN`.
