@@ -42,8 +42,8 @@ export const LoginPage: React.FC = () => {
   const [agreeTerms, setAgreeTerms] = useState(true);
 
   // Login state
-  const [loginEmail, setLoginEmail] = useState('patient.nam@mediassist.local');
-  const [loginPassword, setLoginPassword] = useState('Patient@SecurePass2026!');
+  const [loginEmail, setLoginEmail] = useState('doctor@mediassist.local');
+  const [loginPassword, setLoginPassword] = useState('Doctor@SecurePass2026!');
 
   // UI state
   const [showPassword, setShowPassword] = useState(false);
@@ -780,24 +780,39 @@ export const LoginPage: React.FC = () => {
                   <div className="flex flex-wrap gap-1.5">
                     <button
                       type="button"
+                      onClick={() => handleQuickPreset('doctor@mediassist.local', 'Doctor@SecurePass2026!')}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-800 transition cursor-pointer flex items-center gap-1"
+                    >
+                      <Stethoscope className="w-3 h-3 text-teal-600" />
+                      Bác Sĩ (TS.BS Nguyễn Văn An)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickPreset('dr.tuan@mediassist.local', 'Doctor@SecurePass2026!')}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition cursor-pointer"
+                    >
+                      Bác Sĩ (BS.CKII Phạm Quốc Tuấn)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickPreset('dr.huong@mediassist.local', 'Doctor@SecurePass2026!')}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition cursor-pointer"
+                    >
+                      Bác Sĩ (ThS.BS Mai Hương)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickPreset('patient@mediassist.local', 'Patient@SecurePass2026!')}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition cursor-pointer"
+                    >
+                      Bệnh Nhân (Trần Thị Bình)
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleQuickPreset('admin@mediassist.local', 'Admin@SecurePass2026!')}
                       className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition cursor-pointer"
                     >
                       Quản Trị Viên (Admin)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickPreset('dr.an@mediassist.local', 'Doctor@SecurePass2026!')}
-                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition cursor-pointer"
-                    >
-                      Bác Sĩ (GS.TS Nguyễn Văn An)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickPreset('patient.nam@mediassist.local', 'Patient@SecurePass2026!')}
-                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition cursor-pointer"
-                    >
-                      Bệnh Nhân (Trần Văn Nam)
                     </button>
                   </div>
                 </div>

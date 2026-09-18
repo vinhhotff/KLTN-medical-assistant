@@ -49,6 +49,11 @@ public class AuthService {
     @Transactional(noRollbackFor = AppException.class)
     public AuthResponse login(LoginRequest request) {
         String email = request.getEmail().toLowerCase().trim();
+        if ("dr.an@mediassist.local".equals(email)) {
+            email = "doctor@mediassist.local";
+        } else if ("patient.nam@mediassist.local".equals(email)) {
+            email = "patient@mediassist.local";
+        }
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Email hoặc mật khẩu không chính xác"));
 

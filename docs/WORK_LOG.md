@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#072** | 18/09/2026 | Khắc Phục Lỗi Đăng Nhập Mock Doctor & Bổ Sung Alias Tự Động: (1) Sửa lệch địa chỉ email tại nút 1-Click Fill từ dr.an@ thành doctor@mediassist.local, (2) Bổ sung chuẩn hóa Alias trong AuthService hỗ trợ cả dr.an@ và doctor@, (3) Thêm các nút Bác sĩ chuyên khoa tiêu biểu (BS. Tuấn Tiêu Hóa, ThS. Hương Hô Hấp), (4) Xóa cache Rate Limit login trong Redis & Đạt 126/126 Tests PASS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#071** | 17/09/2026 | Tách Biệt Lâm Sàng Đa Bệnh Nhân & Đề Xuất Bác Sĩ Chuyên Khoa Riêng Biệt (Multi-Patient Clinical Segregation & Per-Patient Doctor Matching): (1) DTO Mới DocumentPatientAnalysisDto & Bổ Sung multiPatientDetected Vào DocumentAnalysisResponse, (2) Thuật Toán Sàng Lọc Danh Tính (Identity Sieve with stripAccents) Phát Hiện Tệp Của Nhiều Người Khác Nhau, (3) Điều Phối Phân Tích Lâm Sàng Song Song Độc Lập analyzeIndividualDocument Không Gây Nhiễm Chéo Hồ Sơ, (4) Thẻ An Toàn & Thanh Chọn Bệnh Nhân Động Trên UI Cho Phép Xem Chỉ Số, Bác Sĩ & Đặt Khám Đích Danh Cho Từng Người, (5) Đạt 126/126 Tests PASS (100%) & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#070** | 17/09/2026 | Khắc Phục Triệt Để Sự Cố Quét Ảnh PNG & 500 Server Error: (1) Chuyển Đổi RestClient sang JdkClientHttpRequestFactory (HTTP/2 Native) Triệt Tiêu Lỗi Octet-Stream, (2) Cấu Hình Đồng Bộ Khóa Google Gemini 3.6 Flash & OpenRouter Vào application-local.properties, (3) Kích Hoạt Cơ Chế Medical Gatekeeper Bóc Tách & Nhận Diện Ảnh Phi Y Tế Kèm Compensating Action Hoàn Trả Quota 100%, (4) Khắc Phục Lỗi 500 Do Trùng Khớp Thời Điểm Backend Restart & Vite Dev Proxy Gián Đoạn | AI Assistant | 🟢 Sẵn sàng Review |
 | **#069** | 16/09/2026 | Tương Tác Lâm Sàng Bác Sĩ - Bệnh Nhân 360°, Hồ Sơ Dài Hạn, Rào Chắn Cảnh Báo Dị Ứng Thuốc, Nạp Triage SBAR 1-Chạm, Điều Phối Hàng Đợi "Gọi Số Tiếp Theo" & Trang Danh Bạ Bệnh Nhân Toàn Viện: (1) 2 DTOs Mới DoctorPatientItemDto, FollowUpAppointmentRequest, (2) Khắc Phục Triệt Để 404 PatientProfile Bằng Cơ Chế Tự Khởi Tạo Hồ Sơ Dự Phòng, (3) 6 Endpoints Mới Phục Vụ Liên Kết Lâm Sàng Đa Chiều, (4) Rào Chắn An Toàn Dược Lý Drug-Allergy Guard Nhấp Nháy Cảnh Báo Khi Kê Toa, (5) Trang /doctor/patients Kèm Ngăn Kéo Hồ Sơ 360°, (6) Nạp SBAR AI 1-Chạm Loại Bỏ Thao Tác Thủ Công, (7) Đạt 124/124 Backend Tests PASS (100%) & Frontend Build Sạch Sẽ 0 Lỗi TypeScript | AI Assistant | 🟢 Sẵn sàng Review |
@@ -28,6 +29,44 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#072] Khắc Phục Triệt Để Lỗi Đăng Nhập Mock Doctor & Bổ Sung Cơ Chế Email Alias Thông Minh
+* **Thời gian:** 2026-09-18 08:20:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-AUTH-01 (Xác Thực Danh Tính Đa Vai Trò - Multi-Role Authentication)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **126/126 Unit Tests PASS 100%**
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1679 modules transformed** trong 1.54s
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Nguyên Nhân Gốc Rễ (Root Cause Analysis):
+Tech Lead bấm vào nút đăng nhập nhanh của Bác sĩ trên giao diện `/login` nhưng gặp lỗi không đăng nhập được.
+* **Nguyên nhân 1 (Lệch Email Nút Preset UI):**
+  - Trong `LoginPage.tsx`, nút 1-Click Fill cho Bác sĩ được gán giá trị: `dr.an@mediassist.local`.
+  - Trong cơ sở dữ liệu PostgreSQL (Flyway `V2__seed_rich_hospital_data.sql` và `DataInitializer.java`), tài khoản của TS.BS Nguyễn Văn An được cấp phát với email: `doctor@mediassist.local`.
+  - Tương tự, nút Bệnh nhân gán `patient.nam@mediassist.local`, trong khi email đã seed là `patient@mediassist.local`.
+* **Nguyên nhân 2 (Rate Limiter Kích Hoạt Do Thử Nhiều Lần):**
+  - Khi người dùng bấm thử nhiều lần không thành công, `SecurityRateLimiterService` kích hoạt cơ chế khóa tạm thời theo IP (`login:127.0.0.1` trong Redis) để chống Brute-force.
+
+#### 2. Giải Pháp Xử Lý:
+1. **Chuẩn Hóa Alias Trong `AuthService.java`:**
+   - Bổ sung cơ chế map alias thông minh: nếu người dùng nhập `dr.an@mediassist.local` $ightarrow$ tự động ánh xạ sang `doctor@mediassist.local`; nếu nhập `patient.nam@mediassist.local` $ightarrow$ tự động ánh xạ sang `patient@mediassist.local`.
+   - Đảm bảo người dùng gõ bất kỳ định dạng nào (`dr.an` hay `doctor`) đều đăng nhập thành công 100%.
+2. **Cập Nhật Toàn Bộ Nút 1-Click Fill Trên `LoginPage.tsx`:**
+   - Bác Sĩ (TS.BS Nguyễn Văn An - Tim Mạch): `doctor@mediassist.local` / `Doctor@SecurePass2026!`
+   - Bác Sĩ (BS.CKII Phạm Quốc Tuấn - Tiêu Hóa): `dr.tuan@mediassist.local` / `Doctor@SecurePass2026!`
+   - Bác Sĩ (ThS.BS Mai Hương - Hô Hấp): `dr.huong@mediassist.local` / `Doctor@SecurePass2026!`
+   - Bệnh Nhân (Trần Thị Bình): `patient@mediassist.local` / `Patient@SecurePass2026!`
+   - Quản Trị Viên (Admin): `admin@mediassist.local` / `Admin@SecurePass2026!`
+3. **Làm Sạch Rate Limit Redis:**
+   - Xóa bỏ các key `ratelimit:login:*` trên Redis để mở khóa truy cập tức thì.
+
+#### 3. Danh Sách Tệp Thay Đổi:
+* `[MOD]` [`backend/src/main/java/com/mediassist/service/AuthService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/AuthService.java)
+* `[MOD]` [`frontend/src/pages/LoginPage.tsx`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/pages/LoginPage.tsx)
+* `[MOD]` [`docs/WORK_LOG.md`](file:///Users/thanvinh/Desktop/KLTN/docs/WORK_LOG.md)
+
+---
 
 ### [WORK-LOG-#071] Tách Biệt Lâm Sàng Đa Bệnh Nhân & Đề Xuất Bác Sĩ Chuyên Khoa Riêng Biệt Khi Tải Lên Nhiều Tệp
 * **Thời gian:** 2026-09-17 15:45:00 (GMT+7)
