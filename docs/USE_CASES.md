@@ -642,10 +642,13 @@ graph TD
   3. **Bộ Lọc Đa Năng & Tìm Kiếm Nghịch Đảo Token Hóa:**
      - Bác sĩ có thể lọc ca khám theo Ngày (*"Hôm nay"* / *"Tất cả"*), theo Trạng thái (*"Tất cả", "Chờ khám", "Đang khám", "Hoàn tất", "Vắng mặt", "Đã hủy"*).
      - Ô tìm kiếm tức thời áp dụng thuật toán `Tokenized Inverted Search` kết hợp `useDebounce` (250ms), cho phép tìm theo tên bệnh nhân, số điện thoại, mã ca hẹn, phòng khám, triệu chứng và mã ICD-10.
-  4. **Cấu Hình Khung Giờ Trực Khám (`Cấu Hình Lịch Trực`):**
-     - Bác sĩ bấm nút *"Cấu Hình Lịch Trực"* để mở bảng điều khiển ca làm việc 7 ngày trong tuần.
-     - Bác sĩ chủ động bật/tắt các khung giờ làm việc buổi sáng hoặc buổi chiều (ví dụ: Thứ Bảy chỉ trực sáng, Chủ Nhật nghỉ).
-     - Bấm *"Lưu Cấu Hình Ca Trực"*: Hệ thống ghi nhận vào bảng `doctor_schedule_slots`, phục vụ điều phối lịch đặt khám cho bệnh nhân trên toàn hệ sinh thái.
+   4. **Trạm Điều Khiển Cấu Hình Khung Giờ Trực Khám Đa Tầng (`Cấu Hình Lịch Trực`):**
+      - Bác sĩ bấm nút *"Cấu Hình Lịch Trực"* để mở trạm điều khiển ca làm việc chuyên nghiệp (Doctor Schedule Workstation) với kiến trúc UI đa tầng phân cấp:
+        - **Thanh Chỉ Số & Thiết Lập Nhanh 1 Chạm:** Hiển thị tổng số slot mở khám khả dụng, số ngày tiếp nhận trong tuần, kèm 3 phím tắt tiện ích: *"Giờ Hành Chính (T2-T6)"* (bật trọn T2-T6, nghỉ T7-CN), *"Bật Cả Tuần"* và *"Nghỉ Toàn Bộ"* (hỗ trợ nghỉ phép/công tác đột xuất).
+        - **Phân Tầng Cấp 1 (Thanh Chọn 7 Ngày Tuần):** 7 thẻ tương tác đại diện cho Thứ 2 $\rightarrow$ Chủ Nhật, tự động gắn huy hiệu trạng thái sắc nét (*"Đủ ca"*, *"1 phần"*, *"Nghỉ"*) và tỉ lệ slot hoạt động.
+        - **Phân Tầng Cấp 2 (Không Gian Ca Trực Lâm Sàng):** Tách bạch rõ rệt 2 ca độc lập — **Ca Sáng (08:00 - 12:00, 7 slots)** và **Ca Chiều (13:30 - 17:00, 7 slots)**. Cung cấp nút thao tác nhanh *"Mở Cả Ngày"*, *"Tắt Cả Ngày"*, *"Mở hết ca sáng/chiều"*, *"Nghỉ ca sáng/chiều"*, và nút *"Sao Chép Sang T2 - T6"* giúp bác sĩ nhân bản cấu hình chuẩn chỉ trong 1 thao tác.
+        - **Phân Tầng Cấp 3 (Lưới Slot Tương Tác 30 Phút):** Các khung giờ hiển thị dạng nút bấm badge bo tròn 2-4 cột, phản hồi màu xanh ngọc (Active) hoặc xám nhạt (Inactive), bấm trực tiếp để chuyển đổi tức thời.
+      - Bấm *"Lưu Lịch Trực"*: Hệ thống tự động chuẩn hóa 98 slot làm việc hàng tuần gửi tới `PUT /api/v1/doctors/me/schedules`, đồng bộ thời gian thực vào cơ sở dữ liệu `doctor_schedule_slots`.
   5. **Đồng Bộ Hồ Sơ Chuyên Khoa Động (`/doctor/profile`):**
      - Hồ sơ bác sĩ tải danh mục chuyên khoa động từ `/api/v1/specialties`, loại bỏ hoàn toàn mã tĩnh (hardcoded list), tự động đồng bộ vector nhúng 1536 chiều khi cập nhật thông tin.
 

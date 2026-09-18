@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#073** | 18/09/2026 | Tái Cấu Trúc Toàn Diện Giao Diện Cấu Hình Lịch Trực Bác Sĩ (Doctor Schedule Configuration Workstation): (1) Thay thế danh sách cuộn dọc phẳng ~98 card bằng UI đa tầng phân cấp (Hierarchical Multi-Level UI), (2) Thanh KPI tổng quan & Phím tắt 1-chạm (Giờ Hành Chính T2-T6, Bật Cả Tuần, Nghỉ Toàn Bộ), (3) Level 1: Thanh 7 ngày trong tuần với huy hiệu trạng thái (Đủ ca, 1 phần, Nghỉ), (4) Level 2: Phân tách Ca Sáng (08:00 - 12:00) & Ca Chiều (13:30 - 17:00) kèm bật/tắt toàn ca, (5) Level 3: Lưới khung giờ 30 phút dạng badge tương tác trực tiếp & Tiện ích sao chép sang T2 - T6, (6) Frontend Build 0 Lỗi TypeScript | AI Assistant | 🟢 Sẵn sàng Review |
 | **#072** | 18/09/2026 | Khắc Phục Lỗi Đăng Nhập Mock Doctor & Bổ Sung Alias Tự Động: (1) Sửa lệch địa chỉ email tại nút 1-Click Fill từ dr.an@ thành doctor@mediassist.local, (2) Bổ sung chuẩn hóa Alias trong AuthService hỗ trợ cả dr.an@ và doctor@, (3) Thêm các nút Bác sĩ chuyên khoa tiêu biểu (BS. Tuấn Tiêu Hóa, ThS. Hương Hô Hấp), (4) Xóa cache Rate Limit login trong Redis & Đạt 126/126 Tests PASS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#071** | 17/09/2026 | Tách Biệt Lâm Sàng Đa Bệnh Nhân & Đề Xuất Bác Sĩ Chuyên Khoa Riêng Biệt (Multi-Patient Clinical Segregation & Per-Patient Doctor Matching): (1) DTO Mới DocumentPatientAnalysisDto & Bổ Sung multiPatientDetected Vào DocumentAnalysisResponse, (2) Thuật Toán Sàng Lọc Danh Tính (Identity Sieve with stripAccents) Phát Hiện Tệp Của Nhiều Người Khác Nhau, (3) Điều Phối Phân Tích Lâm Sàng Song Song Độc Lập analyzeIndividualDocument Không Gây Nhiễm Chéo Hồ Sơ, (4) Thẻ An Toàn & Thanh Chọn Bệnh Nhân Động Trên UI Cho Phép Xem Chỉ Số, Bác Sĩ & Đặt Khám Đích Danh Cho Từng Người, (5) Đạt 126/126 Tests PASS (100%) & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#070** | 17/09/2026 | Khắc Phục Triệt Để Sự Cố Quét Ảnh PNG & 500 Server Error: (1) Chuyển Đổi RestClient sang JdkClientHttpRequestFactory (HTTP/2 Native) Triệt Tiêu Lỗi Octet-Stream, (2) Cấu Hình Đồng Bộ Khóa Google Gemini 3.6 Flash & OpenRouter Vào application-local.properties, (3) Kích Hoạt Cơ Chế Medical Gatekeeper Bóc Tách & Nhận Diện Ảnh Phi Y Tế Kèm Compensating Action Hoàn Trả Quota 100%, (4) Khắc Phục Lỗi 500 Do Trùng Khớp Thời Điểm Backend Restart & Vite Dev Proxy Gián Đoạn | AI Assistant | 🟢 Sẵn sàng Review |
@@ -29,6 +30,85 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#073] Tái Cấu Trúc Toàn Diện Giao Diện Cấu Hình Lịch Trực Bác Sĩ Thành Trạm Điều Khiển Đa Tầng Phân Cấp (Hierarchical Doctor Schedule Workstation)
+* **Thời gian:** 2026-09-18 08:40:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-DOC-18 (Bàn Làm Việc Lâm Sàng Bác Sĩ & Cấu Hình Khung Giờ Trực Tuần)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **126/126 Unit Tests PASS 100%**, `mvn test-compile` sạch sẽ
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1679 modules transformed** trong 1.50s (`npm run build`)
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Phản Hồi Từ Tech Lead:
+Tech Lead gửi ảnh chụp màn hình modal cấu hình lịch khám của Bác sĩ (`media_1789695137411.png`) và nhận xét:
+> *"hiện phần này của bác sĩ đang khá là xấu, nó cứ kéo dài mà không có tổng thể gì, chia ra từng thứ ,bấm vào sẽ chia ra tiếp chứ"*
+
+**Vấn đề của thiết kế cũ:**
+1. Toàn bộ 7 ngày trong tuần với ~98 slot khám (mỗi slot 30 phút) bị dồn chung vào một danh sách cuộn dọc đơn điệu, lặp đi lặp lại không có điểm dừng.
+2. Không có góc nhìn tổng quan (High-Level Overview): Bác sĩ không thể biết nhanh tuần này mình đang mở bao nhiêu slot, trực bao nhiêu ngày.
+3. Thiếu phân tầng nghiệp vụ: Không phân tách rõ Ca Sáng và Ca Chiều; việc bật/tắt từng slot riêng lẻ bằng tay 98 lần gây mỏi mệt cực độ cho nhân viên y tế.
+4. Thiếu các tiện ích sao chép (Batch Copy) hoặc phím tắt 1-chạm (Presets) phổ biến như Giờ Hành Chính.
+
+#### 2. Kiến Trúc Thiết Kế UI Đa Tầng Phân Cấp (Hierarchical Architecture):
+Chúng tôi đã tái thiết hoàn toàn modal cấu hình lịch trực trong [`frontend/src/pages/doctor/DoctorDashboard.tsx`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/pages/doctor/DoctorDashboard.tsx) theo mô hình 4 tầng phân cấp rõ rệt:
+
+1. **Thanh Chỉ Số KPIs Vận Hành & Bộ Phím Tắt 1-Chạm (Top Header & Quick Presets Bar):**
+   - Bộ đếm thời gian thực: Hiển thị tức thời số khung giờ khả dụng (`X / 98 slot`) và số ngày trực trong tuần (`Y / 7 ngày`).
+   - 3 Phím tắt thiết lập nhanh thông minh:
+     - **Giờ Hành Chính (T2-T6):** Kích hoạt toàn bộ slot từ Thứ 2 đến Thứ 6 và tắt Thứ 7, Chủ Nhật chỉ với 1 click.
+     - **Bật Cả Tuần:** Mở toàn bộ 98 khung giờ từ T2 đến CN.
+     - **Nghỉ Toàn Bộ:** Tắt nhanh tất cả các slot (phục vụ kỳ nghỉ phép hoặc công tác đột xuất).
+
+2. **Phân Tầng Cấp 1 — Thanh Điều Hướng 7 Ngày Trong Tuần (7-Day Selector Strip):**
+   - 7 thẻ bấm đại diện cho các ngày từ Thứ Hai đến Chủ Nhật (`grid grid-cols-7`).
+   - Tự động gắn thẻ trạng thái màu sắc trực quan:
+     - `Đủ ca` (Màu xanh ngọc emerald) khi tất cả các slot trong ngày đều bật.
+     - `1 phần` (Màu vàng cam amber) khi chỉ bật một số ca nhất định.
+     - `Nghỉ` (Màu xám slate) khi ngày đó không nhận khám.
+   - Thẻ ngày đang chọn có viền `ring-2 ring-teal-500/30`, nền `bg-teal-50` và thanh chỉ báo nổi bật ở đáy.
+
+3. **Phân Tầng Cấp 2 — Phân Rã Ca Trực Lâm Sàng (Shift Splitting Workstation):**
+   - Khi chọn bất kỳ ngày nào, giao diện mở ra khu vực làm việc chuyên biệt cho ngày đó.
+   - Tách bạch 2 ca khám tiêu chuẩn:
+     - **🌅 Ca Sáng (08:00 - 12:00):** Gồm 7 khung giờ tiếp đón 30 phút, icon Sun màu vàng cam, kèm nút thao tác nhanh *"Mở hết ca sáng"* và *"Nghỉ ca sáng"*.
+     - **🌇 Ca Chiều (13:30 - 17:00):** Gồm 7 khung giờ tiếp đón 30 phút, icon Sunset màu xanh tím/indigo, kèm nút thao tác nhanh *"Mở hết ca chiều"* và *"Nghỉ ca chiều"*.
+   - Tiện ích đặc biệt: Nút **"Sao Chép Sang T2 - T6"** cho phép nhân bản nguyên vẹn cấu hình của ngày đang chọn sang tất cả các ngày trong tuần chỉ trong 1 click.
+
+4. **Phân Tầng Cấp 3 — Lưới Khung Giờ Badge Tương Tác Trực Tiếp (Interactive Slot Grid):**
+   - Mỗi khung giờ được hiển thị dạng badge bo góc hiện đại 4 cột (`grid grid-cols-4`).
+   - Trạng thái `Mở`: Nền xanh ngọc đậm `bg-teal-600 text-white` kèm icon đồng hồ sắc nét, nhãn `Mở` bo tròn.
+   - Trạng thái `Tắt`: Nền xám mềm mại `bg-slate-50 text-slate-400`, nhãn `Tắt`.
+   - Bác sĩ chỉ cần nhấp trực tiếp vào badge để bật/tắt khung giờ ngay lập tức mà không cần bấm nút phụ.
+
+5. **Hàm Chuẩn Hóa Dữ Liệu Tự Phục Hồi (Self-Healing Schedule Normalization):**
+   - Viết hàm `normalizeSchedules(rawSlots)` tự động khớp các slot từ backend với khung chuẩn 7 ngày $\times$ 14 slot = 98 slot.
+   - Khắc phục triệt để hiện tượng backend chỉ trả về những slot có `active: true` khiến các ngày nghỉ bị biến mất khỏi UI.
+   - Khi bác sĩ lưu cấu hình (`handleSaveSchedules`), toàn bộ 98 slot được đóng gói chuẩn định dạng gửi tới `PUT /api/v1/doctors/me/schedules`.
+
+#### 3. Danh Sách Tệp Tin Thay Đổi:
+* `[MOD]` [`frontend/src/pages/doctor/DoctorDashboard.tsx`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/pages/doctor/DoctorDashboard.tsx):
+  - Bổ sung imports `Sun`, `Sunset`, `Copy` từ `lucide-react`.
+  - Khai báo state `selectedScheduleDay`, `loadingSchedule`.
+  - Hiện thực các helpers: `DAYS_OF_WEEK`, `STANDARD_SLOT_TIMES`, `formatTimeClean`, `normalizeSchedules`, `toggleSlotByKey`, `toggleDayAll`, `toggleShiftAll`, `copyDayToWeekdays`, `applyStandardHours`, `toggleAllWeek`.
+  - Định nghĩa các useMemo: `scheduleStats`, `selectedDayInfo`, `selectedDaySlots`, `morningSlots`, `afternoonSlots`, `getDaySummary`.
+  - Thay thế hoàn toàn modal danh sách phẳng ~98 thẻ bằng trạm điều khiển đa tầng phân cấp.
+* `[MOD]` [`docs/USE_CASES.md`](file:///Users/thanvinh/Desktop/KLTN/docs/USE_CASES.md): Cập nhật chi tiết use case `UC-DOC-18` mục 4 về Trạm Điều Khiển Cấu Hình Khung Giờ Trực Khám Đa Tầng.
+* `[MOD]` [`docs/WORK_LOG.md`](file:///Users/thanvinh/Desktop/KLTN/docs/WORK_LOG.md): Ghi lại nhật ký phiên làm việc #073.
+
+#### 4. Bằng Chứng Kiểm Thử (Verification Evidence):
+* **Frontend TypeScript Build:**
+  - Lệnh chạy: `npm run build`
+  - Kết quả: `tsc && vite build` hoàn tất sạch sẽ, **0 lỗi TypeScript**, 1679 modules transformed.
+* **Backend Build:**
+  - Lệnh chạy: `mvn test-compile`
+  - Kết quả: `BUILD SUCCESS` (0 errors, 100% compatibility).
+
+#### 5. Điểm Nóng Tech Lead Cần Review (Key Takeaways):
+1. **Trải nghiệm người dùng (UX):** Không còn tình trạng cuộn chuột vô tận qua 98 thẻ đơn điệu. Bác sĩ nắm bắt toàn bộ lịch trực tuần qua thanh 7 ngày và điều chỉnh chi tiết theo từng ca trực cực kỳ trực quan và thanh lịch.
+2. **Khả năng tương thích ngược (Zero Breaking Changes):** Payload gửi lên `PUT /api/v1/doctors/me/schedules` giữ nguyên 100% cấu trúc `{ slots: [{ dayOfWeek, startTime, endTime, slotDurationMinutes, active }] }`.
+
+---
 
 ### [WORK-LOG-#072] Khắc Phục Triệt Để Lỗi Đăng Nhập Mock Doctor & Bổ Sung Cơ Chế Email Alias Thông Minh
 * **Thời gian:** 2026-09-18 08:20:00 (GMT+7)
