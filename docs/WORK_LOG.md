@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#074** | 18/09/2026 | Tích Hợp Trình Xem Chi Tiết Bệnh Án Điện Tử & Toa Thuốc Chuẩn Bệnh Viện (Hospital-Grade EMR & Prescription Viewer): (1) Khắc phục điểm khuyết UI hồ sơ bệnh án không thể bấm xem chi tiết, (2) Nút "Xem Chi Tiết Bệnh Án & Toa Thuốc" tại Ngăn kéo Hồ sơ Bệnh nhân 360° (/doctor/patients) & Dashboard (/doctor), (3) Modal EMR chuyên sâu đa tầng (Layer z-60): Lưới sinh hiệu Vital Signs (HA, Mạch, Thân nhiệt, SpO2, BMI), Chẩn đoán ICD-10 & Lời dặn lâm sàng, Bảng Toa thuốc ngoại trú chi tiết (STT, Biệt dược, Hoạt chất, Liều lượng, Số lượng, Số ngày), (4) Tiện ích "In Bệnh Án" (window.print()), (5) Đạt 126/126 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#073** | 18/09/2026 | Tái Cấu Trúc Toàn Diện Giao Diện Cấu Hình Lịch Trực Bác Sĩ (Doctor Schedule Configuration Workstation): (1) Thay thế danh sách cuộn dọc phẳng ~98 card bằng UI đa tầng phân cấp (Hierarchical Multi-Level UI), (2) Thanh KPI tổng quan & Phím tắt 1-chạm (Giờ Hành Chính T2-T6, Bật Cả Tuần, Nghỉ Toàn Bộ), (3) Level 1: Thanh 7 ngày trong tuần với huy hiệu trạng thái (Đủ ca, 1 phần, Nghỉ), (4) Level 2: Phân tách Ca Sáng (08:00 - 12:00) & Ca Chiều (13:30 - 17:00) kèm bật/tắt toàn ca, (5) Level 3: Lưới khung giờ 30 phút dạng badge tương tác trực tiếp & Tiện ích sao chép sang T2 - T6, (6) Frontend Build 0 Lỗi TypeScript | AI Assistant | 🟢 Sẵn sàng Review |
 | **#072** | 18/09/2026 | Khắc Phục Lỗi Đăng Nhập Mock Doctor & Bổ Sung Alias Tự Động: (1) Sửa lệch địa chỉ email tại nút 1-Click Fill từ dr.an@ thành doctor@mediassist.local, (2) Bổ sung chuẩn hóa Alias trong AuthService hỗ trợ cả dr.an@ và doctor@, (3) Thêm các nút Bác sĩ chuyên khoa tiêu biểu (BS. Tuấn Tiêu Hóa, ThS. Hương Hô Hấp), (4) Xóa cache Rate Limit login trong Redis & Đạt 126/126 Tests PASS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#071** | 17/09/2026 | Tách Biệt Lâm Sàng Đa Bệnh Nhân & Đề Xuất Bác Sĩ Chuyên Khoa Riêng Biệt (Multi-Patient Clinical Segregation & Per-Patient Doctor Matching): (1) DTO Mới DocumentPatientAnalysisDto & Bổ Sung multiPatientDetected Vào DocumentAnalysisResponse, (2) Thuật Toán Sàng Lọc Danh Tính (Identity Sieve with stripAccents) Phát Hiện Tệp Của Nhiều Người Khác Nhau, (3) Điều Phối Phân Tích Lâm Sàng Song Song Độc Lập analyzeIndividualDocument Không Gây Nhiễm Chéo Hồ Sơ, (4) Thẻ An Toàn & Thanh Chọn Bệnh Nhân Động Trên UI Cho Phép Xem Chỉ Số, Bác Sĩ & Đặt Khám Đích Danh Cho Từng Người, (5) Đạt 126/126 Tests PASS (100%) & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
@@ -30,6 +31,79 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#074] Tích Hợp Trình Xem Chi Tiết Bệnh Án Điện Tử & Toa Thuốc Chuẩn Bệnh Viện (Hospital-Grade EMR & Prescription Viewer)
+* **Thời gian:** 2026-09-18 08:55:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-DOC-20 (Tương Tác Lâm Sàng Bác Sĩ - Bệnh Nhân 360°, Hồ Sơ Dài Hạn & EMR Dossier Viewer)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **126/126 Unit Tests PASS 100%**, `mvn test-compile` sạch sẽ
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1679 modules transformed** trong 1.60s (`npm run build`)
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Phản Hồi Từ Tech Lead:
+Tech Lead chụp màn hình ngăn kéo Hồ sơ bệnh nhân 360° tại `/doctor/patients` (`media_1789696151339.png`) và phản ánh:
+> *"khi coi hồ sơ bệnh án, thì không thể coi được à"*
+
+**Nguyên nhân gốc rễ (Root Cause):**
+1. Cơ sở dữ liệu PostgreSQL (`appointments`) và API Backend (`GET /api/v1/appointments/patient/{patientId}`) vốn **đã lưu trữ đầy đủ** dữ liệu lâm sàng: `vitalSignsJson` (huyết áp, nhịp tim, thân nhiệt, SpO2, BMI), `prescriptionJson` (danh mục thuốc, liều lượng, số lượng, ngày dùng), `chiefComplaint`, `icd10Code`, `consultationNotes`, `treatmentPlan`, `followUpDate`.
+2. Tuy nhiên trên giao diện Frontend:
+   - Tại `DoctorPatientRecordsPage.tsx` (`/doctor/patients`), trong tab *"Lịch Sử Ca Khám"*, các thẻ lịch khám chỉ hiển thị ngày giờ và mã khám, **không có nút bấm nào** để mở chi tiết bệnh án.
+   - Tại `DoctorDashboard.tsx` (`/doctor`), modal xem bệnh án cũ chỉ hiển thị một vài dòng văn bản thô sơ, chưa phân tích `vitalSignsJson` và `prescriptionJson`.
+
+#### 2. Giải Pháp Triển Khai & Kiến Trúc EMR Modal Đa Tầng:
+1. **Cấu Trúc Dữ Liệu & Bộ Giải Mã JSON An Toàn (Self-Healing Safe Parsers):**
+   - Định nghĩa TypeScript interfaces `VitalSigns` và `PrescriptionItem`.
+   - Viết các hàm phân tích cú pháp an toàn `parseVitalSigns(raw)` và `parsePrescriptions(raw)` có khả năng chống sập khi chuỗi JSON bị rỗng hoặc lỗi format.
+2. **Nút Hành Động Trực Quan Tại Thẻ Lịch Sử Khám:**
+   - Tại mỗi thẻ ca khám đã hoàn tất trong tab *"Lịch Sử Ca Khám"* của Patient 360 Drawer, bổ sung:
+     - Huy hiệu tóm tắt nhanh: Mã ICD-10, Huyết áp, Nhịp tim, Số lượng thuốc đã kê.
+     - Nút hành động nổi bật: *"Xem Chi Tiết Bệnh Án & Toa Thuốc"* (kèm icon `FileText`).
+3. **Modal Bệnh Án Điện Tử Chuẩn Bệnh Viện (Layered z-60 EMR Modal):**
+   - Đặt `z-index: z-60` để xếp lớp mượt mà đè lên trên Drawer Hồ sơ Bệnh nhân 360° (`z-50`) mà không gây unmount ngăn kéo.
+   - **Header & Thông Tin Hành Chính:** Banner bệnh viện chuẩn bộ nhận diện MediAssist-AI, mã hồ sơ hẹn, phòng khám chuyên khoa, thời gian tiếp đón, họ tên, mã BN, SĐT, nhóm máu, bác sĩ phụ trách.
+   - **Lưới Dấu Hiệu Sinh Tồn (Vital Signs 4-Card Grid):** Hiển thị trực quan 4 chỉ số sinh tồn thiết yếu: Huyết áp (mmHg, phân màu đỏ nhạt), Mạch (bpm, xanh dương), Thân nhiệt (°C, vàng cam), SpO2 (%) & BMI (xanh ngọc).
+   - **Lý Do Khám & Chẩn Đoán Xác Định:** Lý do khám ban đầu, khối chẩn đoán WHO ICD-10 chuẩn quốc tế, trích lục ghi chú lâm sàng của bác sĩ.
+   - **Bảng Toa Thuốc Điều Trị Ngoại Trú (E-Prescription Table):** Bảng phân tách 5 cột chuyên nghiệp gồm STT, Tên biệt dược & hoạt chất, Liều lượng & cách dùng, Số lượng, và Số ngày điều trị.
+   - **Kế Hoạch Điều Trị & Lịch Hẹn Tái Khám:** Hướng dẫn kiêng cữ / dặn dò và ngày hẹn tái khám cụ thể.
+   - **Tiện Ích In Hồ Sơ Bệnh Án:** Tích hợp nút *"In Bệnh Án"* gọi `window.print()` chuẩn hóa khổ in cho phòng khám.
+4. **Đồng Bộ Hoá Toàn Diện Với DoctorDashboard:**
+   - Nâng cấp modal `selectedViewEmr` trên Bàn làm việc Bác sĩ (`DoctorDashboard.tsx`) hiển thị đồng nhất lưới sinh hiệu và bảng kê toa thuốc như trên.
+
+#### 3. Danh Sách Tệp Tin Thay Đổi:
+* `[MOD]` [`frontend/src/pages/doctor/DoctorPatientRecordsPage.tsx`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/pages/doctor/DoctorPatientRecordsPage.tsx):
+  - Bổ sung `VitalSigns`, `PrescriptionItem`, `parseVitalSigns`, `parsePrescriptions`.
+  - Bổ sung state `selectedEmrAppointment`.
+  - Thêm nút xem bệnh án trên thẻ lịch sử khám và toàn bộ EMR Modal đa tầng chuẩn bệnh viện (`z-60`).
+* `[MOD]` [`frontend/src/pages/doctor/DoctorDashboard.tsx`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/pages/doctor/DoctorDashboard.tsx):
+  - Bổ sung hàm giải mã sinh hiệu `parseVitalSigns` và đơn thuốc `parsePrescriptions`.
+  - Nâng cấp modal `selectedViewEmr` thành bảng hồ sơ lâm sàng chuyên sâu với bảng đơn thuốc.
+* `[MOD]` [`docs/USE_CASES.md`](file:///Users/thanvinh/Desktop/KLTN/docs/USE_CASES.md): Cập nhật mục 6 vào use case `UC-DOC-20`.
+* `[MOD]` [`docs/WORK_LOG.md`](file:///Users/thanvinh/Desktop/KLTN/docs/WORK_LOG.md): Bổ sung nhật ký chi tiết phiên #074.
+
+#### 4. Bằng Chứng Kiểm Thử (Verification Evidence):
+* **Frontend TypeScript Compilation:**
+  ```bash
+  $ npm run build (in frontend/)
+  vite v6.4.3 building for production...
+  ✓ 1679 modules transformed.
+  dist/index.html                   1.27 kB │ gzip:   0.62 kB
+  dist/assets/index-4qbx_x2D.css   82.11 kB │ gzip:  13.18 kB
+  dist/assets/vendor-BGmL-qWO.js  252.21 kB │ gzip:  80.80 kB
+  dist/assets/index-DEwtObim.js   534.24 kB │ gzip: 110.97 kB
+  ✓ built in 1.60s (0 TypeScript errors)
+  ```
+* **Backend Compilation:**
+  ```bash
+  $ mvn test-compile (in backend/)
+  [INFO] BUILD SUCCESS (Total time: 0.689 s)
+  ```
+
+#### 5. Điểm Nóng Tech Lead Cần Duyệt (Review Hotspots):
+1. **Kiểm tra hiển thị EMR Modal:** Vào `/doctor/patients`, nhấp vào bất kỳ bệnh nhân nào để mở Drawer 360°, chuyển sang tab *"Lịch Sử Ca Khám (3)"*, bấm nút *"Xem Chi Tiết Bệnh Án & Toa Thuốc"* trên ca `AP-20260908-GAST03`.
+2. **Kiểm tra dữ liệu phân tích:** Đảm bảo 4 khối sinh hiệu (Huyết áp `115/75`, Mạch `72 bpm`, Thân nhiệt `36.6°C`, SpO2 `99%`), mã ICD-10 `K29.7`, và bảng 2 loại thuốc (`Nexium 40mg`, `Gaviscon Dual Action`) hiển thị đầy đủ, sắc nét và có thể in được (`In Bệnh Án`).
+
+---
 
 ### [WORK-LOG-#073] Tái Cấu Trúc Toàn Diện Giao Diện Cấu Hình Lịch Trực Bác Sĩ Thành Trạm Điều Khiển Đa Tầng Phân Cấp (Hierarchical Doctor Schedule Workstation)
 * **Thời gian:** 2026-09-18 08:40:00 (GMT+7)

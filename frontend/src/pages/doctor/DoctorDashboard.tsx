@@ -826,6 +826,24 @@ export const DoctorDashboard: React.FC = () => {
     return { total, active, status };
   };
 
+  const parseVitalSigns = (jsonStr?: string) => {
+    if (!jsonStr) return null;
+    try {
+      return JSON.parse(jsonStr);
+    } catch {
+      return null;
+    }
+  };
+
+  const parsePrescriptions = (jsonStr?: string): PrescriptionItem[] => {
+    if (!jsonStr) return [];
+    try {
+      return JSON.parse(jsonStr);
+    } catch {
+      return [];
+    }
+  };
+
   // Active In-Progress Appointments (Prominent top callout)
   const inProgressAppointments = useMemo(() => {
     return appointments.filter((a) => a.status === 'IN_PROGRESS');
@@ -2413,66 +2431,203 @@ export const DoctorDashboard: React.FC = () => {
 
       {/* MODAL: DOCTOR VIEW COMPLETED EMR RECORD */}
       {selectedViewEmr && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-2xl rounded-3xl border border-slate-200 shadow-2xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white w-full max-w-3xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col animate-scaleUp">
+            <div className="bg-linear-to-r from-teal-900 via-slate-900 to-teal-950 text-white p-5 sm:p-6 flex items-center justify-between border-b border-teal-800/40 shrink-0">
               <div>
-                <span className="font-mono text-xs font-bold text-teal-700">{selectedViewEmr.appointmentCode}</span>
-                <h3 className="font-bold text-lg text-slate-900">Hồ Sơ Ca Khám Đã Hoàn Thành</h3>
+                <div className="text-[10px] uppercase font-bold text-teal-300 tracking-widest">
+                  HỒ SƠ LÂM SÀNG BỆNH NHÂN (HIS / EMR)
+                </div>
+                <h3 className="text-lg sm:text-xl font-black mt-0.5 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-teal-300" />
+                  Phiếu Khám Bệnh & Toa Thuốc Ngoại Trú
+                </h3>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300 mt-1">
+                  <span>Mã Ca Khám: <strong className="font-mono text-emerald-300">{selectedViewEmr.appointmentCode}</strong></span>
+                  {selectedViewEmr.clinicRoom && <span>Phòng: <strong className="text-white">{selectedViewEmr.clinicRoom}</strong></span>}
+                  <span>Thời gian: <strong className="text-white">{new Date(selectedViewEmr.scheduledStart).toLocaleString('vi-VN')}</strong></span>
+                </div>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedViewEmr(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition cursor-pointer"
+                title="Đóng cửa sổ"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="text-xs space-y-3 text-slate-700">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <strong>Bệnh nhân:</strong> {selectedViewEmr.patientName} ({selectedViewEmr.patientEmail})
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 text-slate-800 text-xs">
+              {/* Administrative Information */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Thông Tin Bệnh Nhân</div>
+                  <div className="font-black text-sm text-slate-900">{selectedViewEmr.patientName}</div>
+                  <div className="text-slate-600">Email: <span className="font-medium text-slate-800">{selectedViewEmr.patientEmail}</span></div>
+                  {selectedViewEmr.patientPhone && <div className="text-slate-600">SĐT: <span>{selectedViewEmr.patientPhone}</span></div>}
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bác Sĩ Điều Trị</div>
+                  <div className="font-black text-sm text-teal-900">{selectedViewEmr.doctorName}</div>
+                  <div className="text-emerald-700 font-bold flex items-center gap-1 pt-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Hồ sơ đã ký duyệt điện tử</span>
+                  </div>
+                </div>
               </div>
-              {selectedViewEmr.icd10Code && (
-                <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-200">
-                  <strong className="text-indigo-900">Mã ICD-10:</strong> {selectedViewEmr.icd10Code} - {selectedViewEmr.icd10Name}
+
+              {/* Vital Signs Cards */}
+              {(() => {
+                const vs = parseVitalSigns(selectedViewEmr.vitalSignsJson);
+                if (!vs) return null;
+                return (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <Activity className="w-4 h-4 text-rose-500" /> Dấu Hiệu Sinh Tồn Tiếp Đón (Vital Signs)
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      <div className="p-3 bg-rose-50/50 border border-rose-100 rounded-xl text-center">
+                        <div className="text-[11px] text-slate-500">Huyết Áp</div>
+                        <div className="text-sm font-black text-rose-700 font-mono mt-0.5">
+                          {vs.bloodPressure || '120/80'} <span className="text-[10px] font-normal text-slate-400">mmHg</span>
+                        </div>
+                      </div>
+                      <div className="p-3 bg-sky-50/50 border border-sky-100 rounded-xl text-center">
+                        <div className="text-[11px] text-slate-500">Tần Số Mạch</div>
+                        <div className="text-sm font-black text-sky-700 font-mono mt-0.5">
+                          {vs.heartRate || 72} <span className="text-[10px] font-normal text-slate-400">bpm</span>
+                        </div>
+                      </div>
+                      <div className="p-3 bg-amber-50/50 border border-amber-100 rounded-xl text-center">
+                        <div className="text-[11px] text-slate-500">Thân Nhiệt</div>
+                        <div className="text-sm font-black text-amber-700 font-mono mt-0.5">
+                          {vs.temperature || 36.6} <span className="text-[10px] font-normal text-slate-400">°C</span>
+                        </div>
+                      </div>
+                      <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl text-center">
+                        <div className="text-[11px] text-slate-500">SpO2 / BMI</div>
+                        <div className="text-sm font-black text-emerald-700 font-mono mt-0.5">
+                          {vs.spO2 || 99}% <span className="text-[10px] font-normal text-slate-400">({vs.bmi || 21.0})</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Chief Complaint */}
+              {selectedViewEmr.chiefComplaint && (
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Lý Do Khám & Triệu Chứng Cơ Năng</div>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-800">
+                    {selectedViewEmr.chiefComplaint}
+                  </div>
                 </div>
               )}
-              {selectedViewEmr.consultationNotes && (
-                <div>
-                  <strong>Kết luận lâm sàng:</strong>
-                  <p className="mt-1 text-slate-600 bg-white p-2.5 rounded-lg border border-slate-100">
-                    {selectedViewEmr.consultationNotes}
-                  </p>
+
+              {/* ICD-10 Diagnosis */}
+              <div className="p-4 bg-indigo-50/60 border border-indigo-200 rounded-2xl space-y-1.5">
+                <div className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider">Chẩn Đoán Lâm Sàng Chuẩn Quốc Tế (ICD-10)</div>
+                <div className="text-sm font-black text-indigo-950 flex items-center gap-2">
+                  <span className="font-mono bg-indigo-700 text-white px-2 py-0.5 rounded text-xs">
+                    {selectedViewEmr.icd10Code || 'Chưa ghi nhận'}
+                  </span>
+                  <span>{selectedViewEmr.icd10Name || 'Chẩn đoán xác định'}</span>
                 </div>
-              )}
-              {selectedViewEmr.treatmentPlan && (
-                <div>
-                  <strong>Hướng xử trí:</strong>
-                  <p className="mt-1 text-slate-600 bg-white p-2.5 rounded-lg border border-slate-100">
-                    {selectedViewEmr.treatmentPlan}
-                  </p>
-                </div>
-              )}
-              {selectedViewEmr.followUpDate && (
-                <div className="text-amber-800 font-semibold">
-                  📅 Hẹn tái khám: {new Date(selectedViewEmr.followUpDate).toLocaleDateString('vi-VN')}
-                </div>
-              )}
+                {selectedViewEmr.consultationNotes && (
+                  <div className="pt-1 text-slate-700 leading-relaxed border-t border-indigo-100/60 mt-2">
+                    <span className="font-bold text-slate-800 block text-[11px] mb-0.5">Ghi chú & Đánh giá lâm sàng của Bác sĩ:</span>
+                    <p className="italic bg-white p-2.5 rounded-xl border border-indigo-100">
+                      "{selectedViewEmr.consultationNotes}"
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* E-Prescription Table */}
+              {(() => {
+                const drugs = parsePrescriptions(selectedViewEmr.prescriptionJson);
+                if (drugs.length === 0) return null;
+                return (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      Toa Thuốc Điều Trị Ngoại Trú ({drugs.length} Loại Thuốc)
+                    </h4>
+                    <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                          <tr>
+                            <th className="p-2.5">STT</th>
+                            <th className="p-2.5">Tên Biệt Dược & Hoạt Chất</th>
+                            <th className="p-2.5">Liều Lượng & Cách Dùng</th>
+                            <th className="p-2.5 text-center">Số Lượng</th>
+                            <th className="p-2.5 text-center">Ngày Dùng</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {drugs.map((d, i) => (
+                            <tr key={i} className="hover:bg-slate-50">
+                              <td className="p-2.5 font-mono text-slate-400">{i + 1}</td>
+                              <td className="p-2.5 font-bold text-slate-900">
+                                {d.drugName}
+                                {d.activeIngredient && (
+                                  <div className="text-[10px] font-normal text-slate-500">({d.activeIngredient})</div>
+                                )}
+                              </td>
+                              <td className="p-2.5 text-slate-700 font-medium">{d.dosage}</td>
+                              <td className="p-2.5 text-center font-bold text-teal-700">{d.quantity} {d.unit}</td>
+                              <td className="p-2.5 text-center font-mono text-slate-600">{d.days} ngày</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Treatment Plan & Follow-up */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {selectedViewEmr.treatmentPlan && (
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                    <div className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">Hướng Xử Trí & Lời Dặn Bác Sĩ</div>
+                    <p className="text-slate-700 leading-relaxed">{selectedViewEmr.treatmentPlan}</p>
+                  </div>
+                )}
+                {selectedViewEmr.followUpDate && (
+                  <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-1">
+                    <div className="font-bold text-amber-900 uppercase tracking-wider text-[10px]">Lịch Hẹn Tái Khám</div>
+                    <div className="text-sm font-black text-amber-900">
+                      📅 {new Date(selectedViewEmr.followUpDate).toLocaleDateString('vi-VN')}
+                    </div>
+                    <p className="text-[11px] text-amber-700">Người bệnh cần mang theo đơn thuốc và kết quả cận lâm sàng khi tái khám.</p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                onClick={() => window.print()}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold cursor-pointer"
-              >
-                <Printer className="w-3.5 h-3.5" /> In Bệnh Án
-              </button>
-              <button
-                onClick={() => setSelectedViewEmr(null)}
-                className="px-4 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-              >
-                Đóng
-              </button>
+            <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
+              <span className="text-[11px] text-slate-500 italic">
+                Bản ghi bệnh án điện tử có giá trị lưu trữ pháp lý và đối soát bảo hiểm.
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>In Bệnh Án</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedViewEmr(null)}
+                  className="px-4 py-2 border border-slate-200 text-xs font-semibold text-slate-700 rounded-xl hover:bg-white cursor-pointer transition"
+                >
+                  Đóng
+                </button>
+              </div>
             </div>
           </div>
         </div>

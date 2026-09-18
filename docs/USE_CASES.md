@@ -714,6 +714,17 @@ graph TD
      - Tại thanh tiêu đề Bàn làm việc Bác sĩ, nút *"Gọi Số Tiếp Theo"* cho phép bác sĩ tiếp nhận ngay bệnh nhân kế tiếp trong hàng đợi chỉ với 1 cú click chuột, tự động mở modal khám và đồng bộ toàn bộ dữ liệu 360°.
   5. **Chủ Động Đặt Lịch Hẹn Tái Khám (Doctor Follow-Up Scheduling):**
      - Khi hoàn tất khám, bác sĩ có thể bấm nút *"Hẹn Tái Khám"* ngay trong modal hoặc từ danh mục bệnh nhân, chọn ngày giờ tái khám và ghi chú dặn dò. Hệ thống tự tạo ca hẹn tái khám với trạng thái `CONFIRMED` cho bệnh nhân.
+   6. **Trình Xem Chi Tiết Bệnh Án Điện Tử & Toa Thuốc Chuẩn Bệnh Viện (Full EMR & Prescription Dossier Viewer):**
+      - **Truy cập thuận tiện:** Bác sĩ có thể bấm xem chi tiết bệnh án điện tử từ:
+        + Thẻ ca khám trong ngăn kéo Hồ sơ bệnh nhân 360° (`/doctor/patients` $\rightarrow$ Tab *"Lịch Sử Ca Khám"*).
+        + Thẻ ca khám đã hoàn tất trên Bảng điều khiển lâm sàng Bác sĩ (`/doctor` $\rightarrow$ Nút *"Xem Bệnh Án"*).
+      - **Modal Bệnh Án Điện Tử Đa Tầng (Layered z-60 EMR Modal):**
+        + **Header & Hành chính:** Mã cuộc hẹn, phòng khám, thời gian tiếp đón, họ tên bệnh nhân, mã số bệnh nhân, số điện thoại, nhóm máu, và bác sĩ phụ trách.
+        + **Bảng Dấu Hiệu Sinh Tồn (Vital Signs Grid):** Tự động giải mã chuỗi JSON `vitalSignsJson` thành 4 khối chỉ số trực quan: Huyết áp (mmHg), Nhịp tim/Mạch (bpm), Thân nhiệt (°C), SpO2 (%) và chỉ số thể trọng BMI.
+        + **Chẩn Đoán Lâm Sàng & Đánh Giá:** Hiển thị mã bệnh quốc tế WHO ICD-10 (`icd10Code` và `icd10Name`), kèm trích lục nguyên văn đánh giá và ghi chú lâm sàng của bác sĩ khám.
+        + **Bảng Toa Thuốc Ngoại Trú Chi Tiết (E-Prescription Table):** Tự động giải mã `prescriptionJson` thành bảng dữ liệu chuẩn: Số thứ tự, Tên biệt dược, Hoạt chất, Liều lượng & hướng dẫn sử dụng, Số lượng, Đơn vị, và Số ngày dùng thuốc.
+        + **Hướng Xử Trí & Lịch Hẹn Tái Khám:** Trình bày chi tiết lời dặn điều trị và ngày hẹn tái khám cụ thể.
+        + **Tiện ích In Ấn Chuẩn Y Khoa:** Nút *"In Bệnh Án"* (`window.print()`) hỗ trợ xuất hoặc in trực tiếp hồ sơ bệnh án và đơn thuốc ngoại trú cho bệnh nhân.
 
 ---
 
