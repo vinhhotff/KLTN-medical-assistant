@@ -11,7 +11,97 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#075** | 18/09/2026 | Đánh Giá Sinh Hiệu & Thể Trạng Trực Quan Tự Động (Visual Vital Signs & BMI Staging according to VNHA/ESC & WHO Asia): (1) Đánh giá khách quan tính đủ dùng của module Bác sĩ, (2) Tạo tiện ích clinicalStaging.ts phân độ Huyết Áp 7 mức theo Hội Tim Mạch VN (VNHA/ESC) và phân loại BMI 5 mức theo WHO Châu Á (IDI & WPRO), (3) Tích hợp thẻ đánh giá trực quan thời gian thực (Live Staging Hub) & nút 1-chạm nạp nhận xét vào Lời dặn Bác sĩ trong Encounter Modal, (4) Đồng bộ hiển thị huy hiệu y khoa tại Modal Bệnh án điện tử ở cả Dashboard và Danh bạ Bệnh nhân, (5) Đạt 126/126 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#074** | 18/09/2026 | Tích Hợp Trình Xem Chi Tiết Bệnh Án Điện Tử & Toa Thuốc Chuẩn Bệnh Viện (Hospital-Grade EMR & Prescription Viewer): (1) Khắc phục điểm khuyết UI hồ sơ bệnh án không thể bấm xem chi tiết, (2) Nút "Xem Chi Tiết Bệnh Án & Toa Thuốc" tại Ngăn kéo Hồ sơ Bệnh nhân 360° (/doctor/patients) & Dashboard (/doctor), (3) Modal EMR chuyên sâu đa tầng (Layer z-60): Lưới sinh hiệu Vital Signs (HA, Mạch, Thân nhiệt, SpO2, BMI), Chẩn đoán ICD-10 & Lời dặn lâm sàng, Bảng Toa thuốc ngoại trú chi tiết (STT, Biệt dược, Hoạt chất, Liều lượng, Số lượng, Số ngày), (4) Tiện ích "In Bệnh Án" (window.print()), (5) Đạt 126/126 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
+
+---
+
+## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#075] Đánh Giá Sinh Hiệu & Thể Trạng Trực Quan Tự Động Theo Khuyến Cáo Hội Tim Mạch VN (VNHA / ESC) & WHO Châu Á (IDI & WPRO)
+* **Thời gian:** 2026-09-18 11:35:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Case:** UC-DOC-20 (Tương Tác Lâm Sàng Bác Sĩ - Bệnh Nhân 360°, Hồ Sơ Dài Hạn & Visual Clinical Staging)
+* **Trạng thái Dịch vụ:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **126/126 Unit Tests PASS 100%**, `mvn test` sạch sẽ (15.87s)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1680 modules transformed** trong 1.69s (`npm run build`)
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Phản Hồi Từ Tech Lead:
+Tech Lead chỉ đạo:
+> *"thôi khá mơ hồ, lấy cái này Đánh Giá Sinh Hiệu & Thể Trạng Trực Quan Tự Động: Phân loại Huyết áp theo Hội Tim Mạch VN (VNHA / ESC) và BMI theo chuẩn WHO Châu Á (IDI & WPRO)., đánh giá các feature hiện tại có đủ dùng chưa"*
+
+#### 2. Báo Cáo Đánh Giá: Các Feature Hiện Tại Có Đủ Dùng Chưa?
+* **Về Luồng Nghiệp Vụ Cơ Bản (Functional Core): ĐÃ ĐỦ DÙNG.**
+  - Đầy đủ quy trình khép kín: Tiếp nhận ca hẹn $\rightarrow$ Nhập phiếu khám EMR $\rightarrow$ Kê đơn $\rightarrow$ Hoàn tất ca khám $\rightarrow$ Đặt lịch hẹn tái khám $\rightarrow$ Quản lý hồ sơ bệnh nhân 360°.
+  - Hệ thống xếp lịch trực và trạm điều khiển đa tầng tuần (phiên #073) và modal xem/in bệnh án điện tử (phiên #074) đã hoàn chỉnh và hoạt động ổn định.
+* **Về Trực Quan Y Khoa (Medical Visual Intuition): CHƯA ĐỦ SẮC NÉT.**
+  - Dữ liệu sinh hiệu (Huyết áp, BMI, SpO2, Mạch) trước đây chỉ hiển thị dạng con số thô (raw numbers).
+  - Thiếu sự tự động phân loại theo chuẩn hiệp hội y tế chính thống, khiến bác sĩ hoặc bệnh nhân phải tự nhẩm xem 145/95 là độ mấy, hoặc BMI 23.5 là chuẩn hay thừa cân theo người Việt.
+
+#### 3. Giải Pháp Triển Khai Kỹ Thuật:
+1. **Tạo Tệp Tiện Ích Y Khoa [`frontend/src/utils/clinicalStaging.ts`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/utils/clinicalStaging.ts):**
+   - **Hàm `evaluateBloodPressure(systolic, diastolic)`:**
+     - Phân loại 7 mức theo Khuyến cáo Hội Tim Mạch Học Quốc Gia Việt Nam (VNHA) & ESC:
+       * Tối ưu ($<120/<80\text{ mmHg}$)
+       * Bình thường ($120-129/80-84\text{ mmHg}$)
+       * Tiền tăng huyết áp ($130-139/85-89\text{ mmHg}$)
+       * Tăng huyết áp Độ 1 ($140-159/90-99\text{ mmHg}$)
+       * Tăng huyết áp Độ 2 ($160-179/100-109\text{ mmHg}$)
+       * Tăng huyết áp Tâm thu đơn độc ($\ge 140$ và $< 90\text{ mmHg}$)
+       * **⚠️ Cơn Tăng Huyết Áp Khẩn Cấp (Hypertensive Crisis):** $\ge 180$ hoặc $\ge 110\text{ mmHg}$ với huy hiệu đỏ nhấp nháy cảnh báo biến cố tim mạch/đột quỵ cấp.
+   - **Hàm `evaluateBmiAsia(weight, height, bmi)`:**
+     - Phân loại 5 mức theo Chuẩn WHO Tây Thái Bình Dương / Châu Á (IDI & WPRO) riêng cho người trưởng thành Việt Nam:
+       * Gầy / Thiếu cân ($< 18.5$)
+       * Bình thường / Lý tưởng ($18.5 - 22.9$)
+       * Tiền béo phì / Thừa cân ($23.0 - 24.9$)
+       * Béo phì Độ I ($25.0 - 29.9$)
+       * Béo phì Độ II ($\ge 30.0$)
+   - **Hàm `evaluateSpO2` & `evaluateHeartRate`:**
+     - Đánh giá bão hòa oxy và tần số tim (cảnh báo thiếu oxy $<94\%$, nhịp chậm $<60\text{ bpm}$, nhịp nhanh $>100\text{ bpm}$).
+   - **Hàm `generateClinicalVitalsNote`:**
+     - Tự động tạo câu nhận xét lâm sàng và lời dặn dò dinh dưỡng, lối sống chuẩn mực.
+2. **Tích Hợp Vào Bàn Khám Lâm Sàng (`DoctorDashboard.tsx`):**
+   - Đặt khối **Live Clinical Staging Hub** ngay bên dưới 8 ô nhập sinh hiệu: hiển thị thẻ phân độ Huyết Áp (VNHA/ESC) và Thể Trạng BMI (WHO Châu Á) thời gian thực kèm lời khuyên ngắn.
+   - Nút tiện ích 1-chạm *"Nạp Nhận Xét Vào Lời Dặn"*: tự động đưa nhận xét lâm sàng vào Hướng xử trí gửi người bệnh.
+3. **Đồng Bộ Vào Trình Xem Bệnh Án Điện Tử Cũ:**
+   - Tại `DoctorDashboard.tsx` (`selectedViewEmr`) và `DoctorPatientRecordsPage.tsx` (`selectedEmrAppointment`), 4 thẻ sinh hiệu được nâng cấp bổ sung các huy hiệu y khoa phân loại tương ứng.
+
+#### 4. Danh Sách Tệp Tin Thay Đổi:
+* `[NEW]` [`frontend/src/utils/clinicalStaging.ts`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/utils/clinicalStaging.ts): Thuật toán phân độ Huyết Áp VNHA/ESC và BMI WHO Châu Á/WPRO.
+* `[MOD]` [`frontend/src/pages/doctor/DoctorDashboard.tsx`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/pages/doctor/DoctorDashboard.tsx): Tích hợp Live Staging Hub, nút nạp nhận xét 1-click và đồng bộ modal xem bệnh án cũ.
+* `[MOD]` [`frontend/src/pages/doctor/DoctorPatientRecordsPage.tsx`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/pages/doctor/DoctorPatientRecordsPage.tsx): Đồng bộ huy hiệu y khoa trong EMR modal.
+* `[MOD]` [`docs/USE_CASES.md`](file:///Users/thanvinh/Desktop/KLTN/docs/USE_CASES.md): Cập nhật mục 7 vào use case `UC-DOC-20`.
+* `[MOD]` [`docs/WORK_LOG.md`](file:///Users/thanvinh/Desktop/KLTN/docs/WORK_LOG.md): Bổ sung nhật ký chi tiết phiên #075.
+
+#### 5. Bằng Chứng Kiểm Thử (Verification Evidence):
+* **Backend Unit Tests:**
+  ```bash
+  $ mvn test
+  [INFO] Tests run: 126, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS (Total time: 15.879 s)
+  ```
+* **Frontend TypeScript Build:**
+  ```bash
+  $ npm run build (in frontend/)
+  vite v6.4.3 building for production...
+  ✓ 1680 modules transformed.
+  dist/index.html                   1.27 kB │ gzip:   0.62 kB
+  dist/assets/index-8Hd4swJ-.css   82.93 kB │ gzip:  13.30 kB
+  dist/assets/vendor-BGmL-qWO.js  252.21 kB │ gzip:  80.80 kB
+  dist/assets/index-DR_ZM-G9.js   548.63 kB │ gzip: 114.97 kB
+  ✓ built in 1.69s (0 TypeScript errors)
+  ```
+
+#### 6. Điểm Nóng Tech Lead Cần Duyệt (Review Hotspots):
+1. Mở Bàn khám (`/doctor`), bấm *"Tiếp Tục Nhập Bệnh Án"* hoặc *"Bắt Đầu Khám Bệnh"*:
+   - Thử đổi Huyết áp thành `145/95` $\rightarrow$ Quan sát thẻ phân độ chuyển màu cam *"Tăng Huyết Áp Độ 1 (VNHA/ESC)"*.
+   - Thử đổi Huyết áp thành `185/115` $\rightarrow$ Quan sát thẻ chuyển đỏ nhấp nháy *"⚠️ Cơn THA Khẩn Cấp"*.
+   - Thử đổi Cân nặng thành `63kg`, Chiều cao `160cm` $\rightarrow$ Thẻ BMI chuyển vàng *"Tiền Béo Phì (Chuẩn WHO Châu Á)"*.
+   - Bấm nút *"Nạp Nhận Xét Vào Lời Dặn"* $\rightarrow$ Kiểm tra đoạn văn bản nhận xét được đưa vào ô Hướng xử trí.
+2. Mở modal xem bệnh án cũ ở Dashboard hoặc Danh bạ Bệnh nhân $\rightarrow$ Kiểm tra các huy hiệu hiển thị sắc nét dưới từng chỉ số sinh hiệu.
+
+---
 | **#073** | 18/09/2026 | Tái Cấu Trúc Toàn Diện Giao Diện Cấu Hình Lịch Trực Bác Sĩ (Doctor Schedule Configuration Workstation): (1) Thay thế danh sách cuộn dọc phẳng ~98 card bằng UI đa tầng phân cấp (Hierarchical Multi-Level UI), (2) Thanh KPI tổng quan & Phím tắt 1-chạm (Giờ Hành Chính T2-T6, Bật Cả Tuần, Nghỉ Toàn Bộ), (3) Level 1: Thanh 7 ngày trong tuần với huy hiệu trạng thái (Đủ ca, 1 phần, Nghỉ), (4) Level 2: Phân tách Ca Sáng (08:00 - 12:00) & Ca Chiều (13:30 - 17:00) kèm bật/tắt toàn ca, (5) Level 3: Lưới khung giờ 30 phút dạng badge tương tác trực tiếp & Tiện ích sao chép sang T2 - T6, (6) Frontend Build 0 Lỗi TypeScript | AI Assistant | 🟢 Sẵn sàng Review |
 | **#072** | 18/09/2026 | Khắc Phục Lỗi Đăng Nhập Mock Doctor & Bổ Sung Alias Tự Động: (1) Sửa lệch địa chỉ email tại nút 1-Click Fill từ dr.an@ thành doctor@mediassist.local, (2) Bổ sung chuẩn hóa Alias trong AuthService hỗ trợ cả dr.an@ và doctor@, (3) Thêm các nút Bác sĩ chuyên khoa tiêu biểu (BS. Tuấn Tiêu Hóa, ThS. Hương Hô Hấp), (4) Xóa cache Rate Limit login trong Redis & Đạt 126/126 Tests PASS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#071** | 17/09/2026 | Tách Biệt Lâm Sàng Đa Bệnh Nhân & Đề Xuất Bác Sĩ Chuyên Khoa Riêng Biệt (Multi-Patient Clinical Segregation & Per-Patient Doctor Matching): (1) DTO Mới DocumentPatientAnalysisDto & Bổ Sung multiPatientDetected Vào DocumentAnalysisResponse, (2) Thuật Toán Sàng Lọc Danh Tính (Identity Sieve with stripAccents) Phát Hiện Tệp Của Nhiều Người Khác Nhau, (3) Điều Phối Phân Tích Lâm Sàng Song Song Độc Lập analyzeIndividualDocument Không Gây Nhiễm Chéo Hồ Sơ, (4) Thẻ An Toàn & Thanh Chọn Bệnh Nhân Động Trên UI Cho Phép Xem Chỉ Số, Bác Sĩ & Đặt Khám Đích Danh Cho Từng Người, (5) Đạt 126/126 Tests PASS (100%) & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |

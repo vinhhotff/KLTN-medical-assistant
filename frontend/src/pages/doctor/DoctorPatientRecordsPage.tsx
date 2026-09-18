@@ -22,6 +22,12 @@ import {
 import { api } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
 import { useDebounce } from '../../hooks/useDebounce';
+import {
+  evaluateBloodPressure,
+  evaluateBmiAsia,
+  evaluateSpO2,
+  evaluateHeartRate
+} from '../../utils/clinicalStaging';
 
 interface DoctorPatientItem {
   patientId: string;
@@ -965,38 +971,75 @@ export const DoctorPatientRecordsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Vital Signs Cards */}
+              {/* Vital Signs Cards with VNHA & WHO Asia Badges */}
               {(() => {
                 const vs = parseVitalSigns(selectedEmrAppointment.vitalSignsJson);
                 if (!vs) return null;
+                const bpParts = (vs.bloodPressure || '').split('/');
+                const bpEval = evaluateBloodPressure(bpParts[0], bpParts[1]);
+                const bmiEval = evaluateBmiAsia(vs.weight, vs.height, vs.bmi);
+                const spo2Eval = evaluateSpO2(vs.spO2);
+                const hrEval = evaluateHeartRate(vs.heartRate);
+
                 return (
                   <div className="space-y-2">
                     <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                      <Activity className="w-4 h-4 text-rose-500" /> Dấu Hiệu Sinh Tồn Tiếp Đón (Vital Signs)
+                      <Activity className="w-4 h-4 text-rose-500" /> Dấu Hiệu Sinh Tồn & Thể Trạng (VNHA & WHO Châu Á)
                     </h4>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                      <div className="p-3 bg-rose-50/50 border border-rose-100 rounded-xl text-center">
-                        <div className="text-[11px] text-slate-500">Huyết Áp</div>
-                        <div className="text-sm font-black text-rose-700 font-mono mt-0.5">
-                          {vs.bloodPressure || '120/80'} <span className="text-[10px] font-normal text-slate-400">mmHg</span>
+                      <div className="p-3 bg-rose-50/50 border border-rose-100 rounded-xl text-center flex flex-col justify-between">
+                        <div>
+                          <div className="text-[11px] text-slate-500 font-semibold">Huyết Áp</div>
+                          <div className="text-sm font-black text-rose-700 font-mono mt-0.5">
+                            {vs.bloodPressure || '120/80'} <span className="text-[10px] font-normal text-slate-400">mmHg</span>
+                          </div>
+                        </div>
+                        <div className="mt-1.5">
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full inline-block ${bpEval.badgeBgClass} ${bpEval.badgeTextClass}`}>
+                            {bpEval.badgeText}
+                          </span>
                         </div>
                       </div>
-                      <div className="p-3 bg-sky-50/50 border border-sky-100 rounded-xl text-center">
-                        <div className="text-[11px] text-slate-500">Tần Số Mạch</div>
-                        <div className="text-sm font-black text-sky-700 font-mono mt-0.5">
-                          {vs.heartRate || 72} <span className="text-[10px] font-normal text-slate-400">bpm</span>
+                      <div className="p-3 bg-sky-50/50 border border-sky-100 rounded-xl text-center flex flex-col justify-between">
+                        <div>
+                          <div className="text-[11px] text-slate-500 font-semibold">Tần Số Mạch</div>
+                          <div className="text-sm font-black text-sky-700 font-mono mt-0.5">
+                            {vs.heartRate || 72} <span className="text-[10px] font-normal text-slate-400">bpm</span>
+                          </div>
+                        </div>
+                        <div className="mt-1.5">
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full inline-block ${hrEval.badgeClass}`}>
+                            {hrEval.badgeText}
+                          </span>
                         </div>
                       </div>
-                      <div className="p-3 bg-amber-50/50 border border-amber-100 rounded-xl text-center">
-                        <div className="text-[11px] text-slate-500">Thân Nhiệt</div>
-                        <div className="text-sm font-black text-amber-700 font-mono mt-0.5">
-                          {vs.temperature || 36.6} <span className="text-[10px] font-normal text-slate-400">°C</span>
+                      <div className="p-3 bg-amber-50/50 border border-amber-100 rounded-xl text-center flex flex-col justify-between">
+                        <div>
+                          <div className="text-[11px] text-slate-500 font-semibold">Thân Nhiệt</div>
+                          <div className="text-sm font-black text-amber-700 font-mono mt-0.5">
+                            {vs.temperature || 36.6} <span className="text-[10px] font-normal text-slate-400">°C</span>
+                          </div>
+                        </div>
+                        <div className="mt-1.5">
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 inline-block">
+                            {Number(vs.temperature) >= 38.5 ? 'Sốt Cao' : Number(vs.temperature) >= 37.5 ? 'Sốt Nhẹ' : 'Bình Thường'}
+                          </span>
                         </div>
                       </div>
-                      <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl text-center">
-                        <div className="text-[11px] text-slate-500">SpO2 / BMI</div>
-                        <div className="text-sm font-black text-emerald-700 font-mono mt-0.5">
-                          {vs.spO2 || 99}% <span className="text-[10px] font-normal text-slate-400">({vs.bmi || 21.0})</span>
+                      <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl text-center flex flex-col justify-between">
+                        <div>
+                          <div className="text-[11px] text-slate-500 font-semibold">SpO2 / BMI</div>
+                          <div className="text-sm font-black text-emerald-700 font-mono mt-0.5">
+                            {vs.spO2 || 99}% <span className="text-[10px] font-normal text-slate-400">({vs.bmi || 21.0})</span>
+                          </div>
+                        </div>
+                        <div className="mt-1.5 flex items-center justify-center gap-1">
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${spo2Eval.badgeClass}`}>
+                            {spo2Eval.badgeText}
+                          </span>
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${bmiEval.badgeBgClass} ${bmiEval.badgeTextClass}`}>
+                            {bmiEval.badgeText}
+                          </span>
                         </div>
                       </div>
                     </div>

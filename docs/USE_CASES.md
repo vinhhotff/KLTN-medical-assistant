@@ -725,6 +725,12 @@ graph TD
         + **Bảng Toa Thuốc Ngoại Trú Chi Tiết (E-Prescription Table):** Tự động giải mã `prescriptionJson` thành bảng dữ liệu chuẩn: Số thứ tự, Tên biệt dược, Hoạt chất, Liều lượng & hướng dẫn sử dụng, Số lượng, Đơn vị, và Số ngày dùng thuốc.
         + **Hướng Xử Trí & Lịch Hẹn Tái Khám:** Trình bày chi tiết lời dặn điều trị và ngày hẹn tái khám cụ thể.
         + **Tiện ích In Ấn Chuẩn Y Khoa:** Nút *"In Bệnh Án"* (`window.print()`) hỗ trợ xuất hoặc in trực tiếp hồ sơ bệnh án và đơn thuốc ngoại trú cho bệnh nhân.
+   7. **Đánh Giá Sinh Hiệu & Thể Trạng Trực Quan Tự Động (Visual Vital Signs & BMI Staging - VNHA/ESC & WHO Asia):**
+      - **Phân Độ Tăng Huyết Áp Chuẩn Y Khoa:** Tự động phân loại theo Khuyến cáo Hội Tim Mạch Học Quốc Gia Việt Nam (VNHA) & Hội Tim Mạch Châu Âu (ESC) thành 7 mức độ: Tối ưu ($<120/<80$), Bình thường ($120-129/80-84$), Tiền tăng huyết áp ($130-139/85-89$), Tăng huyết áp Độ 1 ($140-159/90-99$), Tăng huyết áp Độ 2 ($160-179/100-109$), Tăng huyết áp Tâm thu đơn độc ($\ge 140$ và $< 90$), và Cơn tăng huyết áp khẩn cấp (Hypertensive Crisis - báo động đỏ nhấp nháy $\ge 180$ hoặc $\ge 110\text{ mmHg}$).
+      - **Phân Loại Thể Trạng BMI Theo Chuẩn WHO Châu Á (IDI & WPRO):** Dành riêng cho người Việt Nam: Gầy / Thiếu cân ($< 18.5$), Bình thường ($18.5 - 22.9$), Tiền béo phì ($23.0 - 24.9$), Béo phì Độ I ($25.0 - 29.9$), Béo phì Độ II ($\ge 30.0$).
+      - **Đánh Giá SpO2 & Tần Số Tim:** Tự động gắn nhãn Bão hòa oxy tốt ($\ge 96\%$), Cần theo dõi ($94-95\%$), Cảnh báo thiếu oxy mô ($< 94\%$), Mạch chậm ($< 60\text{ bpm}$), Mạch nhanh ($> 100\text{ bpm}$).
+      - **Nút Tiện Ích 1-Chạm:** Nút *"Nạp Nhận Xét Vào Lời Dặn"* tự động tạo đoạn nhận xét lâm sàng và khuyến nghị chế độ ăn, tập luyện vào ô Lời dặn Bác sĩ (`treatmentPlan`).
+      - **Đồng Bộ Toàn Diện:** Hiển thị huy hiệu phân loại màu sắc trực quan tại cả Phiếu khám ngoại trú (`DoctorDashboard.tsx`) và Trình xem bệnh án điện tử (`DoctorDashboard.tsx` & `DoctorPatientRecordsPage.tsx`).
 
 ---
 
