@@ -6,6 +6,7 @@ import com.mediassist.dto.LoginRequest;
 import com.mediassist.dto.RegisterRequest;
 import com.mediassist.dto.UserDto;
 import com.mediassist.model.entity.PatientProfile;
+import com.mediassist.model.entity.PasswordResetToken;
 import com.mediassist.model.entity.Role;
 import com.mediassist.model.entity.User;
 import com.mediassist.model.entity.UserStatus;
@@ -36,6 +37,9 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.mediassist.repository.PasswordResetTokenRepository passwordResetTokenRepository;
+
     public AuthService(UserRepository userRepository,
                        PatientProfileRepository patientProfileRepository,
                        PasswordEncoder passwordEncoder,
@@ -49,10 +53,13 @@ public class AuthService {
     @Transactional(noRollbackFor = AppException.class)
     public AuthResponse login(LoginRequest request) {
         String email = request.getEmail().toLowerCase().trim();
-        if ("dr.an@mediassist.local".equals(email)) {
-            email = "doctor@mediassist.local";
-        } else if ("patient.nam@mediassist.local".equals(email)) {
-            email = "patient@mediassist.local";
+        boolean enableAlias = "true".equalsIgnoreCase(System.getProperty("app.dev.email-alias.enabled", "true"));
+        if (enableAlias) {
+            if ("dr.an@mediassist.local".equals(email)) {
+                email = "doctor@mediassist.local";
+            } else if ("patient.nam@mediassist.local".equals(email)) {
+                email = "patient@mediassist.local";
+            }
         }
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Email hoặc mật khẩu không chính xác"));
@@ -140,11 +147,21 @@ public class AuthService {
         // 2. Automatically Create Patient EMR Profile
         PatientProfile profile = new PatientProfile();
         profile.setUser(user);
-        String uniqueSuffix = UUID.randomUUID().toString().substring(0, 5).toUpperCase();
-        profile.setPatientCode("BN-2026-" + uniqueSuffix);
-        profile.setGender(request.getGender() != null ? request.getGender() : "OTHER");
+        String patientCode;
+        int attempts = 0;
+        do {
+            String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+            patientCode = "BN-2026-" + suffix;
+            attempts++;
+            if (attempts > 15) {
+                throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "CODE_GEN_FAILED", "Không thể tạo mã hồ sơ bệnh nhân.");
+            }
+        } while (patientProfileRepository.existsByPatientCode(patientCode));
+
+        profile.setPatientCode(patientCode);
+        profile.setGender(request.getGender());
         profile.setDateOfBirth(request.getDateOfBirth());
-        profile.setBloodGroup("O+");
+        profile.setBloodGroup(null);
         profile.setAddress(request.getAddress() != null ? request.getAddress().trim() : "Việt Nam");
         patientProfileRepository.save(profile);
 
@@ -154,6 +171,45 @@ public class AuthService {
         String token = tokenProvider.generateAccessToken(principal);
 
         return new AuthResponse(UserDto.from(user), token);
+    }
+
+    @Transactional
+    public void requestPasswordReset(String email) {
+        if (email == null || email.isBlank() || passwordResetTokenRepository == null) return;
+        userRepository.findByEmail(email.trim().toLowerCase()).ifPresent(user -> {
+            passwordResetTokenRepository.deleteByUserId(user.getId());
+            String token = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "").substring(0, 32);
+            PasswordResetToken prt = new PasswordResetToken(user, token, LocalDateTime.now().plusMinutes(30));
+            passwordResetTokenRepository.save(prt);
+            log.info("🔑 Password reset token generated for user: {}", user.getEmail());
+        });
+    }
+
+    @Transactional
+    public void resetPassword(String token, String newPassword) {
+        if (token == null || token.isBlank() || passwordResetTokenRepository == null) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_TOKEN", "Mã xác thực không hợp lệ.");
+        }
+        PasswordResetToken prt = passwordResetTokenRepository.findByToken(token.trim())
+                .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST, "INVALID_TOKEN", "Mã xác thực không hợp lệ hoặc đã hết hạn."));
+
+        if (prt.isUsed() || prt.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", "Mã xác thực đã hết hạn hoặc đã được sử dụng.");
+        }
+
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "WEAK_PASSWORD", "Mật khẩu phải có ít nhất 6 ký tự.");
+        }
+
+        User user = prt.getUser();
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        userRepository.save(user);
+
+        prt.setUsed(true);
+        passwordResetTokenRepository.save(prt);
+        log.info("🔑 Password reset successfully completed for user: {}", user.getEmail());
     }
 
     @Transactional(readOnly = true)

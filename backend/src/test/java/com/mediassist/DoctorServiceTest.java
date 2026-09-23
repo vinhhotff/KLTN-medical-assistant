@@ -262,8 +262,22 @@ class DoctorServiceTest {
                 .scheduledEnd(java.time.LocalDateTime.now().minusDays(5).plusMinutes(30))
                 .build();
 
-        when(appointmentRepository.findByDoctorIdOrderByScheduledStartDesc(doctorUserId))
-                .thenReturn(List.of(apt1, apt2, apt3, apt4));
+        when(appointmentRepository.countActiveAppointmentsByDoctorAndDateRange(eq(doctorUserId), any(), any()))
+                .thenReturn(3L);
+        when(appointmentRepository.countByDoctorStatusAndRange(eq(doctorUserId), eq(AppointmentStatus.SCHEDULED), any(), any()))
+                .thenReturn(1L);
+        when(appointmentRepository.countByDoctorStatusAndRange(eq(doctorUserId), eq(AppointmentStatus.IN_PROGRESS), any(), any()))
+                .thenReturn(1L);
+        when(appointmentRepository.countByDoctorStatusAndRange(eq(doctorUserId), eq(AppointmentStatus.COMPLETED), any(), any()))
+                .thenReturn(1L);
+        when(appointmentRepository.countByDoctorIdAndStatus(eq(doctorUserId), eq(AppointmentStatus.COMPLETED)))
+                .thenReturn(2L);
+        when(appointmentRepository.countByDoctorId(eq(doctorUserId)))
+                .thenReturn(4L);
+        when(appointmentRepository.sumTodayRevenue(eq(doctorUserId), any(), any()))
+                .thenReturn(BigDecimal.valueOf(350000));
+        when(appointmentRepository.sumLifetimeRevenue(eq(doctorUserId)))
+                .thenReturn(BigDecimal.valueOf(650000));
 
         com.mediassist.dto.DoctorStatsDto stats = doctorService.getDoctorStats(doctorUserId);
 

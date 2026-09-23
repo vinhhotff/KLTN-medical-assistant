@@ -107,6 +107,13 @@ public class PaymentService {
                 throw new AppException(HttpStatus.BAD_REQUEST, "ALREADY_PAID", "Lịch hẹn này đã được thanh toán trước đó.");
             }
 
+            boolean hasPendingTx = paymentTransactionRepository
+                    .existsByReferenceIdAndStatusIn(appt.getId().toString(), List.of(TransactionStatus.PENDING, TransactionStatus.COMPLETED));
+            if (hasPendingTx) {
+                throw new AppException(HttpStatus.CONFLICT, "PAYMENT_ALREADY_IN_PROGRESS",
+                        "Đang có giao dịch thanh toán đang xử lý hoặc đã hoàn tất cho lịch hẹn này.");
+            }
+
             referenceId = appt.getId().toString();
             amount = (appt.getFeeAmount() != null && appt.getFeeAmount().compareTo(BigDecimal.ZERO) > 0)
                     ? appt.getFeeAmount()
@@ -189,8 +196,16 @@ public class PaymentService {
                     "Giao dịch chưa được xác nhận hoàn tất: " + verifyResult.getFailureReason());
         }
 
-        // Fulfill the business effect
-        fulfillOrder(tx);
+        // Fulfill the business effect with error handling
+        try {
+            fulfillOrder(tx);
+        } catch (Exception e) {
+            log.error("💥 [PAYMENT FULFILL ERROR] TxCode {}: {}", tx.getTransactionCode(), e.getMessage());
+            tx.setStatus(TransactionStatus.PENDING);
+            paymentTransactionRepository.save(tx);
+            throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "FULFILL_FAILED",
+                    "Thanh toán đã được ghi nhận nhưng kích hoạt dịch vụ gặp sự cố tạm thời. Hệ thống sẽ tự động xử lý.");
+        }
 
         tx.setStatus(TransactionStatus.COMPLETED);
         if (verifyResult.getGatewayReference() != null) {
@@ -262,7 +277,8 @@ public class PaymentService {
         return toDto(tx, "Chi tiết thông tin giao dịch");
     }
 
-    private void fulfillOrder(PaymentTransaction tx) {
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void fulfillOrder(PaymentTransaction tx) {
         User user = tx.getUser();
         LocalDateTime now = LocalDateTime.now();
 
@@ -298,13 +314,23 @@ public class PaymentService {
         } else if (tx.getOrderType() == OrderType.APPOINTMENT_FEE) {
             try {
                 UUID apptId = UUID.fromString(tx.getReferenceId());
-                appointmentRepository.findById(apptId).ifPresent(appt -> {
+                Appointment appt = appointmentRepository.findById(apptId).orElse(null);
+                if (appt == null) {
+                    log.error("💥 [FULFILL ORPHAN WARNING] Payment {} fulfilled but appointment {} NOT FOUND!", tx.getTransactionCode(), tx.getReferenceId());
+                    AuditLog orphan = new AuditLog();
+                    orphan.setUserId(user.getId());
+                    orphan.setAction("PAYMENT_ORPHAN");
+                    orphan.setResource("payments/" + tx.getTransactionCode());
+                    orphan.setMetadata("Appointment reference not found: " + tx.getReferenceId());
+                    auditLogRepository.save(orphan);
+                } else {
                     appt.setPaymentStatus(PaymentStatus.PAID);
                     appointmentRepository.save(appt);
                     log.info("🏥 [FULFILL APPOINTMENT] Appointment {} marked as PAID for patient {}", appt.getAppointmentCode(), user.getEmail());
-                });
+                }
             } catch (Exception e) {
                 log.error("Could not fulfill appointment payment for ref {}: {}", tx.getReferenceId(), e.getMessage());
+                throw new RuntimeException("Fulfill appointment payment failed: " + e.getMessage(), e);
             }
         }
     }

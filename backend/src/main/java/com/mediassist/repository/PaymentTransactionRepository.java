@@ -24,4 +24,10 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
 
     Optional<PaymentTransaction> findFirstByUserIdAndOrderTypeAndReferenceIdAndStatus(
             UUID userId, OrderType orderType, String referenceId, TransactionStatus status);
+
+    boolean existsByReferenceIdAndStatusIn(String referenceId, List<TransactionStatus> statuses);
+
+    Optional<PaymentTransaction> findFirstByReferenceIdAndStatus(String referenceId, TransactionStatus status);
+
+    Optional<PaymentTransaction> findFirstByReferenceIdOrderByCreatedAtDesc(String referenceId);
 }

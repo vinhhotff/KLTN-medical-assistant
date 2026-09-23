@@ -73,6 +73,17 @@ public class AppointmentController {
         return ResponseEntity.ok(ApiResponse.success(dto));
     }
 
+    @PatchMapping("/{id}/reschedule")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Đổi lịch hẹn sang khung giờ mới (Reschedule)")
+    public ResponseEntity<ApiResponse<AppointmentDto>> rescheduleAppointment(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody com.mediassist.dto.RescheduleAppointmentRequest request) {
+        AppointmentDto dto = appointmentService.rescheduleAppointment(id, principal.getId(), principal.getRole(), request);
+        return ResponseEntity.ok(ApiResponse.success(dto));
+    }
+
     @PostMapping("/{id}/complete-clinical")
     @PreAuthorize("hasRole('DOCTOR')")
     @Operation(summary = "Bác sĩ hoàn tất ca khám lâm sàng với Sinh hiệu, Chẩn đoán ICD-10 và Đơn thuốc điện tử")

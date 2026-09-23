@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { HeartPulse, MessageSquare, UploadCloud, LogOut, Search } from 'lucide-react';
 import { MedicalDisclaimerBanner } from '../components/common/MedicalDisclaimerBanner';
+import { NotificationBell } from '../components/common/NotificationBell';
 import { useAuthStore } from '../store/useAuthStore';
 
 export const PatientLayout: React.FC = () => {
@@ -58,6 +59,7 @@ export const PatientLayout: React.FC = () => {
           <div className="flex items-center gap-4">
             {isAuthenticated && user ? (
               <div className="flex items-center gap-3">
+                <NotificationBell />
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-medium text-slate-900">{user.fullName}</p>
                   <p className="text-xs text-slate-500">{user.email}</p>

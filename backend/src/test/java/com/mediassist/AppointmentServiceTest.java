@@ -3,6 +3,7 @@ package com.mediassist;
 import com.mediassist.common.AppException;
 import com.mediassist.dto.AppointmentDto;
 import com.mediassist.dto.CreateAppointmentRequest;
+import com.mediassist.dto.RescheduleAppointmentRequest;
 import com.mediassist.model.entity.*;
 import com.mediassist.repository.AppointmentRepository;
 import com.mediassist.repository.AuditLogRepository;
@@ -18,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -70,6 +72,7 @@ class AppointmentServiceTest {
                 .email("patient@mediassist.local")
                 .fullName("Trần Thị Bình")
                 .role(Role.PATIENT)
+                .status(UserStatus.ACTIVE)
                 .build();
 
         doctorUser = User.builder()
@@ -77,16 +80,26 @@ class AppointmentServiceTest {
                 .email("doctor@mediassist.local")
                 .fullName("BS. Nguyễn Văn An")
                 .role(Role.DOCTOR)
+                .status(UserStatus.ACTIVE)
                 .build();
 
         doctorProfile = new DoctorProfile();
         doctorProfile.setUser(doctorUser);
+        doctorProfile.setVerified(true);
         doctorProfile.setConsultationFee(new BigDecimal("350000.00"));
+    }
+
+    private LocalDateTime getNextWeekdaySlot(int plusDays, int hour, int minute) {
+        LocalDate date = LocalDate.now().plusDays(plusDays);
+        while (date.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+            date = date.plusDays(1);
+        }
+        return date.atTime(hour, minute);
     }
 
     @Test
     void testBookAppointment_Success() {
-        LocalDateTime futureTime = LocalDateTime.now().plusDays(2).withHour(9).withMinute(0);
+        LocalDateTime futureTime = getNextWeekdaySlot(2, 9, 0);
         CreateAppointmentRequest request = new CreateAppointmentRequest(doctorId, futureTime, "Khám kiểm tra đau ngực");
 
         when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
@@ -113,11 +126,12 @@ class AppointmentServiceTest {
 
     @Test
     void testBookAppointment_SlotConflict_ThrowsException() {
-        LocalDateTime futureTime = LocalDateTime.now().plusDays(1).withHour(10).withMinute(0);
+        LocalDateTime futureTime = getNextWeekdaySlot(1, 10, 0);
         CreateAppointmentRequest request = new CreateAppointmentRequest(doctorId, futureTime, "Khám tổng quát");
 
         when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
         when(userRepository.findById(doctorId)).thenReturn(Optional.of(doctorUser));
+        when(doctorProfileRepository.findByUserId(doctorId)).thenReturn(Optional.of(doctorProfile));
         when(appointmentRepository.existsConflict(doctorId, futureTime)).thenReturn(true);
 
         AppException ex = assertThrows(AppException.class, () -> appointmentService.bookAppointment(patientId, request));
@@ -128,7 +142,7 @@ class AppointmentServiceTest {
 
     @Test
     void testBookAppointment_ConcurrentSlotCollision_DataIntegrityViolation_ThrowsSlotConflict() {
-        LocalDateTime futureTime = LocalDateTime.now().plusDays(1).withHour(14).withMinute(0);
+        LocalDateTime futureTime = getNextWeekdaySlot(1, 14, 0);
         CreateAppointmentRequest request = new CreateAppointmentRequest(doctorId, futureTime, "Khám chuyên khoa");
 
         when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
@@ -153,6 +167,7 @@ class AppointmentServiceTest {
 
         when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
         when(userRepository.findById(doctorId)).thenReturn(Optional.of(doctorUser));
+        when(doctorProfileRepository.findByUserId(doctorId)).thenReturn(Optional.of(doctorProfile));
 
         AppException ex = assertThrows(AppException.class, () -> appointmentService.bookAppointment(patientId, request));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
@@ -241,7 +256,7 @@ class AppointmentServiceTest {
 
     @Test
     void testBookAppointment_WithMedicalDocumentId_Success() {
-        LocalDateTime futureTime = LocalDateTime.now().plusDays(3).withHour(14).withMinute(0);
+        LocalDateTime futureTime = getNextWeekdaySlot(3, 14, 0);
         UUID docId = UUID.randomUUID();
         CreateAppointmentRequest request = new CreateAppointmentRequest(doctorId, futureTime, "Khám theo kết quả xét nghiệm máu", docId);
 
@@ -262,5 +277,104 @@ class AppointmentServiceTest {
         assertEquals(docId, result.getMedicalDocumentId());
         assertEquals(AppointmentStatus.SCHEDULED, result.getStatus());
         verify(appointmentRepository, times(1)).saveAndFlush(argThat(a -> docId.equals(a.getMedicalDocumentId())));
+    }
+
+    @Test
+    void testRescheduleAppointment_Success() {
+        UUID apptId = UUID.randomUUID();
+        LocalDateTime oldStart = getNextWeekdaySlot(2, 9, 0);
+        LocalDateTime newStart = getNextWeekdaySlot(3, 10, 0);
+
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-RESCHED")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .scheduledStart(oldStart)
+                .scheduledEnd(oldStart.plusMinutes(30))
+                .build();
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+        when(appointmentRepository.existsConflictExcluding(eq(doctorId), eq(newStart), eq(apptId))).thenReturn(false);
+        when(appointmentRepository.countActiveAppointmentsByDoctorAndDateRange(eq(doctorId), any(), any())).thenReturn(1L);
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        RescheduleAppointmentRequest req = new RescheduleAppointmentRequest(newStart, "Bận việc đột xuất");
+        AppointmentDto result = appointmentService.rescheduleAppointment(apptId, patientId, Role.PATIENT, req);
+
+        assertNotNull(result);
+        assertEquals(newStart, result.getScheduledStart());
+        assertEquals("STT 02", result.getQueueNumber());
+        assertTrue(result.getConsultationNotes().contains("Bận việc đột xuất"));
+    }
+
+    @Test
+    void testRescheduleAppointment_Conflict_ThrowsException() {
+        UUID apptId = UUID.randomUUID();
+        LocalDateTime oldStart = getNextWeekdaySlot(2, 9, 0);
+        LocalDateTime newStart = getNextWeekdaySlot(3, 10, 0);
+
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-RESCHED-ERR")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .scheduledStart(oldStart)
+                .scheduledEnd(oldStart.plusMinutes(30))
+                .build();
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+        when(appointmentRepository.existsConflictExcluding(eq(doctorId), eq(newStart), eq(apptId))).thenReturn(true);
+
+        RescheduleAppointmentRequest req = new RescheduleAppointmentRequest(newStart, "Bận việc đột xuất");
+        AppException ex = assertThrows(AppException.class, () ->
+                appointmentService.rescheduleAppointment(apptId, patientId, Role.PATIENT, req));
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+        assertEquals("SLOT_CONFLICT", ex.getCode());
+    }
+
+    @Test
+    void testUpdateStatus_InvalidTransition_ThrowsException() {
+        UUID apptId = UUID.randomUUID();
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-COMPLETED")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.COMPLETED)
+                .build();
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+
+        AppException ex = assertThrows(AppException.class, () ->
+                appointmentService.updateAppointmentStatus(apptId, doctorId, Role.DOCTOR, AppointmentStatus.SCHEDULED, "Back to scheduled"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals("INVALID_STATUS_TRANSITION", ex.getCode());
+    }
+
+    @Test
+    void testUpdateStatus_AutoRefund_WhenPaidAndCancelled() {
+        UUID apptId = UUID.randomUUID();
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-REFUND")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .paymentStatus(PaymentStatus.PAID)
+                .build();
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AppointmentDto result = appointmentService.updateAppointmentStatus(apptId, patientId, Role.PATIENT, AppointmentStatus.CANCELLED, "Bệnh nhân hủy");
+
+        assertNotNull(result);
+        assertEquals(AppointmentStatus.CANCELLED, result.getStatus());
+        assertEquals(PaymentStatus.REFUNDED, result.getPaymentStatus());
     }
 }

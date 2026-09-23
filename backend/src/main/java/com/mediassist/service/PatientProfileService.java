@@ -47,8 +47,20 @@ public class PatientProfileService {
         PatientProfile profile = findByUserInternal(user)
                 .orElseGet(() -> createInitialProfile(user));
 
-        if (dto.getCitizenId() != null) profile.setCitizenId(dto.getCitizenId().trim());
-        if (dto.getHealthInsuranceNumber() != null) profile.setHealthInsuranceNumber(dto.getHealthInsuranceNumber().trim());
+        if (dto.getCitizenId() != null && !dto.getCitizenId().isBlank()) {
+            String cccd = dto.getCitizenId().trim();
+            if (!cccd.matches("^\\d{12}$")) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_CITIZEN_ID", "Số CCCD phải bao gồm đúng 12 chữ số.");
+            }
+            profile.setCitizenId(cccd);
+        }
+        if (dto.getHealthInsuranceNumber() != null && !dto.getHealthInsuranceNumber().isBlank()) {
+            String bhyt = dto.getHealthInsuranceNumber().trim().toUpperCase();
+            if (!bhyt.matches("^[A-Z]{2}[A-Z0-9]{10,14}$")) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_BHYT", "Số thẻ BHYT không đúng định dạng (VD: GD1234567890123).");
+            }
+            profile.setHealthInsuranceNumber(bhyt);
+        }
         if (dto.getDateOfBirth() != null) profile.setDateOfBirth(dto.getDateOfBirth());
         if (dto.getGender() != null) profile.setGender(dto.getGender());
         if (dto.getBloodGroup() != null) profile.setBloodGroup(dto.getBloodGroup().trim());
@@ -59,12 +71,16 @@ public class PatientProfileService {
         if (dto.getEmergencyContactPhone() != null) profile.setEmergencyContactPhone(dto.getEmergencyContactPhone().trim());
         if (dto.getEmergencyContactRelationship() != null) profile.setEmergencyContactRelationship(dto.getEmergencyContactRelationship().trim());
 
-        // Update phone / name in User if provided
+        // Update phone / name in User if provided with validation
         if (dto.getFullName() != null && !dto.getFullName().isBlank()) {
             user.setFullName(dto.getFullName().trim());
         }
         if (dto.getPhone() != null && !dto.getPhone().isBlank()) {
-            user.setPhone(dto.getPhone().trim());
+            String phone = dto.getPhone().trim().replaceAll("[\\s\\-\\.]", "");
+            if (!phone.matches("^(0|\\+84)(3[2-9]|5[6-9]|7[0-9]|8[1-9]|9[0-9])\\d{7}$")) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_PHONE", "Số điện thoại không đúng định dạng Việt Nam (VD: 0901234567).");
+            }
+            user.setPhone(phone);
         }
         userRepository.save(user);
 
@@ -103,11 +119,21 @@ public class PatientProfileService {
     private PatientProfile createInitialProfile(User user) {
         PatientProfile p = new PatientProfile();
         p.setUser(user);
-        // Generate unique hospital code: BN-2026-XXXX
-        String uniqueSuffix = UUID.randomUUID().toString().substring(0, 5).toUpperCase();
-        p.setPatientCode("BN-2026-" + uniqueSuffix);
-        p.setBloodGroup("O+");
-        p.setGender("OTHER");
+        // Generate collision-resistant unique hospital code: BN-2026-XXXXXXXX
+        String patientCode;
+        int attempts = 0;
+        do {
+            String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+            patientCode = "BN-2026-" + suffix;
+            attempts++;
+            if (attempts > 15) {
+                throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "CODE_GEN_FAILED", "Không thể tạo mã hồ sơ bệnh nhân.");
+            }
+        } while (patientProfileRepository.existsByPatientCode(patientCode));
+
+        p.setPatientCode(patientCode);
+        p.setBloodGroup(null);
+        p.setGender(null);
         p.setAddress("TP. Hồ Chí Minh, Việt Nam");
         p.setAllergies("Chưa ghi nhận tiền sử dị ứng thuốc");
         p.setMedicalHistory("Chưa ghi nhận bệnh mạn tính");

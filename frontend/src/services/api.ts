@@ -24,6 +24,9 @@ api.interceptors.response.use(
       // Clear localStorage on unauthorized
       localStorage.removeItem('mediassist_token');
       localStorage.removeItem('mediassist_user');
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login?expired=true';
+      }
     }
     return Promise.reject(error);
   }

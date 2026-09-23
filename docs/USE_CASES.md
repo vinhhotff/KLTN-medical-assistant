@@ -800,3 +800,53 @@ graph TD
      - Trong Ngăn kéo Hồ sơ Bệnh nhân 360° (`DoctorPatientRecordsPage.tsx` - Tab 3 `DOCS`): Bác sĩ có thể bấm xem chi tiết phân tích AI và tệp gốc của mọi tài liệu bệnh nhân từng gửi trong quá khứ.
   5. **Kiểm Soát Phân Quyền & Bảo Mật Chuẩn Y Tế (HIPAA & RBAC Guard):**
      - Chỉ Bác sĩ được chỉ định, Bệnh nhân sở hữu tài liệu, hoặc Admin hệ thống mới được phép gọi API tải tệp và xem bóc tách. Mọi truy cập trái phép bị chặn đứng với mã lỗi `403 FORBIDDEN`.
+
+---
+
+### UC-23: Dời Lịch Hẹn Khám Bệnh & Rào Chắn Giờ Hành Chính (Appointment Rescheduling & Working Hours Guard)
+
+* **Mã Use Case:** `UC-CLIN-23`
+* **Tác nhân chính:** Patient (Bệnh nhân), Doctor (Bác sĩ), Scheduler Engine.
+* **Mục tiêu:** Cho phép bệnh nhân chủ động dời lịch khám sang khung giờ mới mà không phải hủy và đặt lại từ đầu, đồng thời bảo vệ nghiêm ngặt khung giờ làm việc của bác sĩ và tính toàn vẹn trạng thái.
+* **REST Endpoints:**
+  - `PATCH /api/v1/appointments/{id}/reschedule`: Tiếp nhận `RescheduleAppointmentRequest` gồm `newScheduledStart` (chuỗi ISO 8601) và `reason` (lý do dời lịch).
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Kiểm Tra Trạng Thái Hiện Tại (State Machine Guard):**
+     - Chỉ cho phép dời lịch khi ca khám đang ở trạng thái `SCHEDULED`.
+     - Nếu ca khám đã `COMPLETED`, `CANCELLED` hoặc `IN_PROGRESS`, hệ thống từ chối với lỗi `HTTP 400 INVALID_STATE`.
+  2. **Rào Chắn Khung Giờ Làm Việc (Working Hours & Sunday Guard):**
+     - Giờ làm việc tiêu chuẩn: Sáng `08:00 - 12:00`, Chiều `13:30 - 17:00`.
+     - Bác sĩ nghỉ định kỳ Chủ Nhật; mọi yêu cầu xếp lịch vào Chủ Nhật hoặc ngoài khung giờ trên đều bị từ chối với thông báo hướng dẫn rõ ràng.
+  3. **Kiểm Tra Trùng Lịch Thời Gian Thực (Conflict Detection):**
+     - Kiểm tra xung đột với các ca khám khác của bác sĩ (loại trừ chính ca khám đang xét).
+  4. **Cập Nhật & Thông Báo Tự Động:**
+     - Lưu lại thời gian khám mới, giữ nguyên mã ca khám `appointmentCode` và thông tin thanh toán.
+     - Phát sinh bản ghi thông báo nội bộ cho bác sĩ phụ trách biết bệnh nhân đã dời lịch.
+
+---
+
+### UC-24: Khôi Phục & Đặt Lại Mật Khẩu Tài Khoản (Secure Password Reset Flow)
+
+* **Mã Use Case:** `UC-SEC-24`
+* **Tác nhân chính:** Người dùng (User / Patient / Doctor), AuthService, PasswordResetTokenRepository.
+* **Mục tiêu:** Cung cấp quy trình tự phục hồi mật khẩu bảo mật qua mã xác thực an toàn, tuân thủ nguyên tắc Zero-Knowledge và chống lạm dụng enumeration.
+* **REST Endpoints:**
+  - `POST /api/v1/auth/forgot-password`: Tiếp nhận email, phát sinh token UUIDv4 lưu trong bảng `password_reset_tokens` (thời hạn 60 phút). Luôn trả về phản hồi thành công chung để bảo vệ quyền riêng tư người dùng (không làm lộ việc email có tồn tại hay không).
+  - `POST /api/v1/auth/reset-password`: Tiếp nhận `token` và `newPassword`, kiểm tra tính hợp lệ và thời hạn (`expiryDate > now`, `isUsed == false`), băm mật khẩu qua BCrypt (`BCryptPasswordEncoder(12)`) và vô hiệu hóa token ngay lập tức (`isUsed = true`).
+
+---
+
+### UC-25: Hệ Thống Thông Báo Nội Bộ & Tự Động Hoàn Tiền Khi Hủy Lịch (In-App Notifications & Auto-Refund)
+
+* **Mã Use Case:** `UC-SYS-25`
+* **Tác nhân chính:** Patient, Doctor, Admin, NotificationService, PaymentService.
+* **Mục tiêu:** Duy trì thông tin hai chiều giữa bệnh nhân, bác sĩ và ban quản trị qua chuông thông báo nội bộ; tự động kích hoạt hoàn tiền khi ca khám đã thanh toán bị hủy.
+* **REST Endpoints:**
+  - `GET /api/v1/notifications`: Lấy danh sách 20 thông báo gần nhất của người dùng hiện tại kèm số lượng chưa đọc.
+  - `GET /api/v1/notifications/unread-count`: Đếm nhanh số thông báo chưa đọc phục vụ biểu tượng chuông Navbar.
+  - `PATCH /api/v1/notifications/{id}/read`: Đánh dấu đã đọc một thông báo.
+  - `PATCH /api/v1/notifications/read-all`: Đánh dấu đã đọc tất cả thông báo của người dùng.
+* **Quy Trình Hoàn Tiền Tự Động (Auto-Refund on Cancellation):**
+  - Khi ca khám có trạng thái `paymentStatus == 'PAID'` bị hủy bởi bệnh nhân hoặc bác sĩ, `AppointmentService.updateStatus()` tự động kích hoạt phương thức hoàn tiền `paymentService.refundPayment(appointmentId)`.
+  - Trạng thái thanh toán của ca khám chuyển từ `PAID` sang `REFUNDED`, tạo bản ghi thông báo xác nhận hoàn tiền cho bệnh nhân.
+
