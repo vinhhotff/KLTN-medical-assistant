@@ -30,7 +30,15 @@ public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationF
     public void onAuthenticationFailure(HttpServletRequest request,
                                         HttpServletResponse response,
                                         AuthenticationException exception) throws IOException {
-        log.warn("OAuth2 Authentication Failed: {}", exception.getMessage());
+        // Log ngu canh callback (khong log gia tri 'code') de chan doan: invalid_request = thieu code/state,
+        // authorization_request_not_found = mat session/state (vd. mo lai URL callback cu)
+        log.warn("OAuth2 Authentication Failed: {} | uri={}, hasCode={}, hasState={}, providerError={}, providerErrorDescription={}",
+                exception.getMessage(),
+                request.getRequestURI(),
+                request.getParameter("code") != null,
+                request.getParameter("state") != null,
+                request.getParameter("error"),
+                request.getParameter("error_description"));
 
         String errorMsg = URLEncoder.encode(
                 exception.getMessage() != null ? exception.getMessage() : "oauth2_failed",
