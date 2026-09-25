@@ -42,3 +42,7 @@ redis_data/
 uploads/
 backend/uploads/
 .claude/
+
+# Keep env templates tracked
+!.env.example
+!**/.env.example
