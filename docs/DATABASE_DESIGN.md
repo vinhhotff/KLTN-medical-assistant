@@ -385,6 +385,10 @@ CREATE INDEX idx_audit_action ON audit_logs(action);
 CREATE INDEX idx_audit_created ON audit_logs(created_at DESC);
 ```
 
+> **Action `VIEW_PATIENT_RECORD` (UC-27):** Được ghi mỗi khi `DOCTOR`/`ADMIN` được `PatientAccessGuard` cấp quyền mở hồ sơ bệnh nhân. Các cột sử dụng: `user_id` (người xem), `resource` (ví dụ `medical_documents/{id}/file`, `triage_sessions/patient/{patientId}`), `ip_address`, `user_agent`, `metadata` (`Role: DOCTOR, PatientId: {uuid}`). Không thay đổi schema.
+>
+> Kiểm tra quan hệ điều trị dùng truy vấn dẫn xuất `AppointmentRepository.existsByDoctorIdAndPatientIdAndStatusIn(doctorId, patientId, [SCHEDULED, IN_PROGRESS, COMPLETED])` trên bảng `appointments` (tận dụng chỉ mục có tiền tố `doctor_id`), không cần migration mới.
+
 ---
 
 ## 3. Chiến Lược Vector Similarity Search (`pgvector`)

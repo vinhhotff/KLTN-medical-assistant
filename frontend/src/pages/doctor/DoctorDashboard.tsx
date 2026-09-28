@@ -33,7 +33,8 @@ import {
   Eye
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
-import { api } from '../../services/api';
+import { api, isPatientAccessDenied } from '../../services/api';
+import { PatientAccessDeniedNotice } from '../../components/common/PatientAccessDeniedNotice';
 import { Pagination } from '../../components/common/Pagination';
 import { useDebounce } from '../../hooks/useDebounce';
 import { DocumentAnalysisModal } from '../../components/common/DocumentAnalysisModal';
@@ -244,6 +245,7 @@ export const DoctorDashboard: React.FC = () => {
   const [patientPastAppointments, setPatientPastAppointments] = useState<DoctorAppointment[]>([]);
   const [activeEncounterTab, setActiveEncounterTab] = useState<'EMR' | 'TRIAGE' | 'DOCUMENTS' | 'HISTORY'>('EMR');
   const [encounterLoading, setEncounterLoading] = useState(false);
+  const [patientAccessDenied, setPatientAccessDenied] = useState(false);
   const [callingNext, setCallingNext] = useState(false);
   const [bookingFollowUp, setBookingFollowUp] = useState(false);
 
@@ -388,12 +390,16 @@ export const DoctorDashboard: React.FC = () => {
     // 360-Degree Clinical Synergy: Fetch Patient Medical Passport, Triage & Lab Documents
     setActiveEncounterTab('EMR');
     setEncounterLoading(true);
+    setPatientAccessDenied(false);
     Promise.allSettled([
       api.get(`/patient/profile/by-user/${apt.patientId}`),
       api.get(`/triage/patient/${apt.patientId}`),
       api.get(`/documents/patient/${apt.patientId}`),
       api.get(`/appointments/patient/${apt.patientId}`)
     ]).then(([resProfile, resTriage, resDocs, resPast]) => {
+      setPatientAccessDenied(
+        [resProfile, resTriage, resDocs, resPast].some((r) => r.status === 'rejected' && isPatientAccessDenied(r.reason))
+      );
       if (resProfile.status === 'fulfilled' && resProfile.value.data?.data) {
         setPatientPassport(resProfile.value.data.data);
       } else {
@@ -2027,6 +2033,10 @@ export const DoctorDashboard: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {patientAccessDenied && !encounterLoading && (
+              <PatientAccessDeniedNotice className="mx-6 mt-4" />
+            )}
 
             {/* TAB 1: EMR FORM */}
             {activeEncounterTab === 'EMR' && (

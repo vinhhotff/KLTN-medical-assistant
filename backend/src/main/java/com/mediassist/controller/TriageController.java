@@ -5,10 +5,12 @@ import com.mediassist.common.AppException;
 import com.mediassist.dto.DoctorMatchDto;
 import com.mediassist.dto.TriageRequest;
 import com.mediassist.dto.TriageResponse;
-import com.mediassist.model.entity.TriageSession;
+import com.mediassist.dto.TriageSessionDto;
 import com.mediassist.model.entity.User;
 import com.mediassist.repository.TriageSessionRepository;
 import com.mediassist.repository.UserRepository;
+import com.mediassist.security.UserPrincipal;
+import com.mediassist.service.PatientAccessGuard;
 import com.mediassist.service.DoctorSemanticSearchService;
 import com.mediassist.service.TriageRateLimiterService;
 import com.mediassist.service.TriageService;
@@ -18,11 +20,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/triage")
@@ -34,17 +39,20 @@ public class TriageController {
     private final TriageRateLimiterService rateLimiterService;
     private final TriageSessionRepository triageSessionRepository;
     private final UserRepository userRepository;
+    private final PatientAccessGuard patientAccessGuard;
 
     public TriageController(TriageService triageService,
                             DoctorSemanticSearchService doctorSemanticSearchService,
                             TriageRateLimiterService rateLimiterService,
                             TriageSessionRepository triageSessionRepository,
-                            UserRepository userRepository) {
+                            UserRepository userRepository,
+                            PatientAccessGuard patientAccessGuard) {
         this.triageService = triageService;
         this.doctorSemanticSearchService = doctorSemanticSearchService;
         this.rateLimiterService = rateLimiterService;
         this.triageSessionRepository = triageSessionRepository;
         this.userRepository = userRepository;
+        this.patientAccessGuard = patientAccessGuard;
     }
 
     @PostMapping("/assess")
@@ -77,7 +85,7 @@ public class TriageController {
 
     @GetMapping("/history")
     @Operation(summary = "Get triage consultation history for current patient")
-    public ResponseEntity<ApiResponse<List<TriageSession>>> getHistory(Authentication authentication) {
+    public ResponseEntity<ApiResponse<List<TriageSessionDto>>> getHistory(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
             throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập để xem lịch sử tư vấn.");
         }
@@ -85,7 +93,8 @@ public class TriageController {
         if (user == null) {
             return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
         }
-        List<TriageSession> history = triageSessionRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+        List<TriageSessionDto> history = triageSessionRepository.findByUserIdOrderByCreatedAtDesc(user.getId())
+                .stream().map(TriageSessionDto::fromEntity).toList();
         return ResponseEntity.ok(ApiResponse.success(history));
     }
 
@@ -106,13 +115,14 @@ public class TriageController {
     }
 
     @GetMapping("/patient/{patientId}")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "Bác sĩ hoặc Quản trị viên xem lịch sử phân luồng Triage AI và tóm tắt SBAR của bệnh nhân")
-    public ResponseEntity<ApiResponse<List<TriageSession>>> getPatientTriageHistory(@PathVariable("patientId") java.util.UUID patientId) {
-        List<TriageSession> history = triageSessionRepository.findByUserIdOrderByCreatedAtDesc(patientId);
-        if (history == null) {
-            history = Collections.emptyList();
-        }
+    public ResponseEntity<ApiResponse<List<TriageSessionDto>>> getPatientTriageHistory(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable("patientId") UUID patientId) {
+        patientAccessGuard.assertCanAccessPatient(principal.getId(), principal.getRole(), patientId, "triage_sessions/patient/" + patientId);
+        List<TriageSessionDto> history = triageSessionRepository.findByUserIdOrderByCreatedAtDesc(patientId)
+                .stream().map(TriageSessionDto::fromEntity).toList();
         return ResponseEntity.ok(ApiResponse.success(history));
     }
 }

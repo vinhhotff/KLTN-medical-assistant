@@ -280,6 +280,20 @@
 
 ---
 
+### Câu hỏi 15: Theo Nghị định 13/2023/NĐ-CP, dữ liệu sức khỏe là dữ liệu cá nhân nhạy cảm. Một bác sĩ bất kỳ trên hệ thống có thể mở hồ sơ của mọi bệnh nhân không? Nhóm chứng minh việc kiểm soát truy cập như thế nào?
+* **Trả lời mẫu:**
+  - **Không.** Nhóm đã phát hiện và vá lỗ hổng IDOR: trước đây chỉ cần có vai trò `DOCTOR` và biết UUID là đọc được hồ sơ. Hiện nay mọi endpoint đọc hồ sơ bệnh nhân (hộ chiếu y tế, tài liệu xét nghiệm, tệp gốc, kết quả OCR, lịch sử Triage, lịch sử khám) đều đi qua một điểm kiểm soát duy nhất là `PatientAccessGuard`.
+  - **Nguyên tắc tối thiểu cần thiết (Điều 3 & Điều 11 - xử lý dữ liệu đúng mục đích, có sự đồng ý):** Bác sĩ chỉ được xem khi có **quan hệ điều trị** — tức bệnh nhân đã chủ động đặt lịch với chính bác sĩ đó (trạng thái `SCHEDULED`, `IN_PROGRESS` hoặc `COMPLETED`). Việc bệnh nhân đặt lịch chính là hành vi đồng ý chia sẻ hồ sơ cho bác sĩ đó. Lịch đã hủy hoặc vắng mặt không tạo quyền.
+  - **Bệnh nhân** chỉ xem được dữ liệu của chính mình, kể cả khi dò UUID tài liệu của người khác (`/documents/{id}/file`) — hệ thống tra chủ sở hữu tài liệu trước khi trả tệp.
+  - **Quản trị viên** được xem để hội chẩn/giải quyết khiếu nại nhưng **bắt buộc để lại dấu vết**.
+  - **Truy vết (Điều 27 - biện pháp bảo vệ dữ liệu nhạy cảm):** Mỗi lượt bác sĩ/admin mở hồ sơ tạo một bản ghi `audit_logs` với `action = VIEW_PATIENT_RECORD`, ai xem, xem hồ sơ bệnh nhân nào, tài nguyên cụ thể nào, từ IP nào, lúc nào. Admin xem lại trên Nhật ký kiểm toán (UC-17). Khi có sự cố rò rỉ, nhóm trả lời được câu hỏi "ai đã xem hồ sơ này".
+  - **Giảm thiểu dữ liệu trả về:** Controller trả DTO (`MedicalDocumentDto`, `TriageSessionDto`) thay vì JPA entity, nên không lộ các trường nội bộ như `fileHash` hay quan hệ `User`.
+  - **Bằng chứng:** Unit test `PatientAccessGuardTest` và `PatientRecordAccessControllerTest` kiểm chứng 4 kịch bản: bác sĩ có lịch hẹn → 200; bác sĩ không liên quan → 403 `FORBIDDEN_PATIENT_ACCESS`; bệnh nhân xem của người khác → 403; admin → 200 kèm audit log.
+  - **Demo trực tiếp:** Đăng nhập một bác sĩ chưa từng khám bệnh nhân X, gọi `GET /api/v1/triage/patient/{X}` → nhận 403, giao diện hiển thị thông báo thân thiện; sau đó đăng nhập bác sĩ có lịch hẹn → xem được và bản ghi `VIEW_PATIENT_RECORD` xuất hiện trong Nhật ký kiểm toán.
+  - **Hạn chế thừa nhận trung thực:** Quyền của bác sĩ hiện chưa hết hạn theo thời gian sau khi ca khám hoàn tất, và tệp lưu trên Supabase có `storageUrl` công khai. Hướng phát triển: giới hạn cửa sổ thời gian truy cập và chuyển sang Signed URL có thời hạn.
+
+---
+
 ## 5. Bảng Tiêu Chí Đánh Giá Xuất Sắc Của Hội Đồng (Evaluation Rubric)
 
 | Tiêu Chí Đánh Giá | Trọng Số | Yêu Cầu Để Đạt Điểm Tối Đa (Grade A / 9.0 - 10.0) | Hiện Trạng Dự Án MediAssist-AI |

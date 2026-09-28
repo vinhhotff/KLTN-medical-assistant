@@ -7,6 +7,7 @@ import com.mediassist.dto.CreateAppointmentRequest;
 import com.mediassist.model.entity.AppointmentStatus;
 import com.mediassist.security.UserPrincipal;
 import com.mediassist.service.AppointmentService;
+import com.mediassist.service.PatientAccessGuard;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -26,9 +27,11 @@ import java.util.UUID;
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
+    private final PatientAccessGuard patientAccessGuard;
 
-    public AppointmentController(AppointmentService appointmentService) {
+    public AppointmentController(AppointmentService appointmentService, PatientAccessGuard patientAccessGuard) {
         this.appointmentService = appointmentService;
+        this.patientAccessGuard = patientAccessGuard;
     }
 
     @PostMapping
@@ -99,7 +102,9 @@ public class AppointmentController {
     @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "Bác sĩ hoặc Quản trị viên tra cứu toàn bộ lịch sử ca khám của một bệnh nhân")
     public ResponseEntity<ApiResponse<List<AppointmentDto>>> getPatientHistory(
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable("patientId") UUID patientId) {
+        patientAccessGuard.assertCanAccessPatient(principal.getId(), principal.getRole(), patientId, "appointments/patient/" + patientId);
         List<AppointmentDto> list = appointmentService.getPatientAppointmentHistory(patientId);
         return ResponseEntity.ok(ApiResponse.success(list));
     }
