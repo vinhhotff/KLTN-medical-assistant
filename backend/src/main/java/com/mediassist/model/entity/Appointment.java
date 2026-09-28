@@ -87,6 +87,9 @@ public class Appointment {
     @Column(name = "medical_document_id")
     private UUID medicalDocumentId;
 
+    @Column(name = "triage_session_id")
+    private UUID triageSessionId;
+
     @Version
     private Long version = 0L;
 
@@ -182,6 +185,9 @@ public class Appointment {
     public UUID getMedicalDocumentId() { return medicalDocumentId; }
     public void setMedicalDocumentId(UUID medicalDocumentId) { this.medicalDocumentId = medicalDocumentId; }
 
+    public UUID getTriageSessionId() { return triageSessionId; }
+    public void setTriageSessionId(UUID triageSessionId) { this.triageSessionId = triageSessionId; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 
@@ -200,6 +206,7 @@ public class Appointment {
         private BigDecimal feeAmount = BigDecimal.ZERO;
         private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
         private UUID medicalDocumentId;
+        private UUID triageSessionId;
 
         public Builder id(UUID id) { this.id = id; return this; }
         public Builder appointmentCode(String appointmentCode) { this.appointmentCode = appointmentCode; return this; }
@@ -213,10 +220,12 @@ public class Appointment {
         public Builder feeAmount(BigDecimal feeAmount) { this.feeAmount = feeAmount; return this; }
         public Builder paymentStatus(PaymentStatus paymentStatus) { this.paymentStatus = paymentStatus; return this; }
         public Builder medicalDocumentId(UUID medicalDocumentId) { this.medicalDocumentId = medicalDocumentId; return this; }
+        public Builder triageSessionId(UUID triageSessionId) { this.triageSessionId = triageSessionId; return this; }
 
         public Appointment build() {
             Appointment appt = new Appointment(id, appointmentCode, patient, doctor, scheduledStart, scheduledEnd, status, cancellationReason, consultationNotes, feeAmount, paymentStatus);
             appt.setMedicalDocumentId(medicalDocumentId);
+            appt.setTriageSessionId(triageSessionId);
             return appt;
         }
     }

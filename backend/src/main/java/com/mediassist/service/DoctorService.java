@@ -104,23 +104,33 @@ public class DoctorService {
                 .map(a -> a.getScheduledStart().toLocalTime())
                 .collect(Collectors.toSet());
 
-        // Standard consultation hours: 08:00 to 12:00 and 13:30 to 17:00 (30 min slots)
+        DayOfWeek targetDow = date.getDayOfWeek();
+        List<DoctorScheduleSlot> slotConfigs = doctorScheduleSlotRepository
+                .findByDoctorProfileIdAndDayOfWeekAndIsActiveTrue(profile.getId(), targetDow);
+
+        if (slotConfigs == null || slotConfigs.isEmpty()) {
+            slotConfigs = initializeDefaultDoctorSchedules(profile).stream()
+                    .filter(s -> s.getDayOfWeek() == targetDow && s.isActive())
+                    .collect(Collectors.toList());
+        }
+
         List<DoctorSlotDto> slots = new ArrayList<>();
         LocalTime nowTime = LocalTime.now();
         boolean isToday = date.isEqual(LocalDate.now());
 
-        // Morning slots: 08:00 - 11:30
-        addTimeSlots(date, LocalTime.of(8, 0), LocalTime.of(12, 0), bookedTimes, slots, isToday, nowTime);
-        // Afternoon slots: 13:30 - 17:00
-        addTimeSlots(date, LocalTime.of(13, 30), LocalTime.of(17, 0), bookedTimes, slots, isToday, nowTime);
+        for (DoctorScheduleSlot slotConfig : slotConfigs) {
+            int duration = slotConfig.getSlotDurationMinutes() > 0 ? slotConfig.getSlotDurationMinutes() : 30;
+            addTimeSlots(date, slotConfig.getStartTime(), slotConfig.getEndTime(), duration, bookedTimes, slots, isToday, nowTime);
+        }
 
+        slots.sort(Comparator.comparing(DoctorSlotDto::getStartTime));
         return slots;
     }
 
-    private void addTimeSlots(LocalDate date, LocalTime start, LocalTime end, Set<LocalTime> bookedTimes, List<DoctorSlotDto> slots, boolean isToday, LocalTime nowTime) {
+    private void addTimeSlots(LocalDate date, LocalTime start, LocalTime end, int durationMinutes, Set<LocalTime> bookedTimes, List<DoctorSlotDto> slots, boolean isToday, LocalTime nowTime) {
         LocalTime current = start;
-        while (current.plusMinutes(30).isBefore(end) || current.plusMinutes(30).equals(end)) {
-            LocalTime slotEnd = current.plusMinutes(30);
+        while (current.plusMinutes(durationMinutes).isBefore(end) || current.plusMinutes(durationMinutes).equals(end)) {
+            LocalTime slotEnd = current.plusMinutes(durationMinutes);
             boolean isBooked = bookedTimes.contains(current);
             boolean isPastToday = isToday && current.isBefore(nowTime);
             boolean available = !isBooked && !isPastToday;
@@ -207,43 +217,14 @@ public class DoctorService {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         LocalDateTime todayEnd = LocalDate.now().atTime(23, 59, 59);
 
-        List<Appointment> allAppointments = appointmentRepository.findByDoctorIdOrderByScheduledStartDesc(doctorUserId);
-
-        long todayAppointmentsCount = 0;
-        long todayWaitingCount = 0;
-        long todayInProgressCount = 0;
-        long todayCompletedCount = 0;
-        long totalCompletedCount = 0;
-        BigDecimal todayRevenue = BigDecimal.ZERO;
-        BigDecimal lifetimeRevenue = BigDecimal.ZERO;
-
-        for (Appointment a : allAppointments) {
-            boolean isToday = a.getScheduledStart() != null
-                    && !a.getScheduledStart().isBefore(todayStart)
-                    && !a.getScheduledStart().isAfter(todayEnd);
-
-            if (a.getStatus() == AppointmentStatus.COMPLETED) {
-                totalCompletedCount++;
-                BigDecimal fee = a.getFeeAmount() != null ? a.getFeeAmount() : BigDecimal.ZERO;
-                lifetimeRevenue = lifetimeRevenue.add(fee);
-
-                if (isToday) {
-                    todayCompletedCount++;
-                    todayRevenue = todayRevenue.add(fee);
-                }
-            }
-
-            if (isToday) {
-                if (a.getStatus() != AppointmentStatus.CANCELLED) {
-                    todayAppointmentsCount++;
-                }
-                if (a.getStatus() == AppointmentStatus.SCHEDULED) {
-                    todayWaitingCount++;
-                } else if (a.getStatus() == AppointmentStatus.IN_PROGRESS) {
-                    todayInProgressCount++;
-                }
-            }
-        }
+        long todayAppointmentsCount = appointmentRepository.countActiveAppointmentsByDoctorAndDateRange(doctorUserId, todayStart, todayEnd);
+        long todayWaitingCount = appointmentRepository.countByDoctorStatusAndRange(doctorUserId, AppointmentStatus.SCHEDULED, todayStart, todayEnd);
+        long todayInProgressCount = appointmentRepository.countByDoctorStatusAndRange(doctorUserId, AppointmentStatus.IN_PROGRESS, todayStart, todayEnd);
+        long todayCompletedCount = appointmentRepository.countByDoctorStatusAndRange(doctorUserId, AppointmentStatus.COMPLETED, todayStart, todayEnd);
+        long totalCompletedCount = appointmentRepository.countByDoctorIdAndStatus(doctorUserId, AppointmentStatus.COMPLETED);
+        long totalAppointments = appointmentRepository.countByDoctorId(doctorUserId);
+        BigDecimal todayRevenue = appointmentRepository.sumTodayRevenue(doctorUserId, todayStart, todayEnd);
+        BigDecimal lifetimeRevenue = appointmentRepository.sumLifetimeRevenue(doctorUserId);
 
         double rating = (profile != null && profile.getRating() != null) ? profile.getRating() : 4.9;
         int consultations = (profile != null && profile.getTotalConsultations() != null)
@@ -256,9 +237,9 @@ public class DoctorService {
                 todayInProgressCount,
                 todayCompletedCount,
                 totalCompletedCount,
-                allAppointments.size(),
-                todayRevenue,
-                lifetimeRevenue,
+                (int) totalAppointments,
+                todayRevenue != null ? todayRevenue : BigDecimal.ZERO,
+                lifetimeRevenue != null ? lifetimeRevenue : BigDecimal.ZERO,
                 rating,
                 consultations
         );
@@ -298,7 +279,8 @@ public class DoctorService {
                 defaultSlots.add(new DoctorScheduleSlot(profile, day, LocalTime.of(13, 30), LocalTime.of(17, 0), 30, true));
             }
         }
-        return doctorScheduleSlotRepository.saveAll(defaultSlots);
+        List<DoctorScheduleSlot> saved = doctorScheduleSlotRepository.saveAll(defaultSlots);
+        return (saved != null && !saved.isEmpty()) ? saved : defaultSlots;
     }
 
     /**
@@ -426,12 +408,24 @@ public class DoctorService {
             return AppointmentDto.fromEntity(inProgressOpt.get());
         }
 
-        // Tìm ca SCHEDULED sớm nhất trong ngày
-        Appointment nextScheduled = todayAppointments.stream()
-                .filter(a -> a.getStatus() == AppointmentStatus.SCHEDULED)
-                .findFirst()
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "QUEUE_EMPTY", "Đã phục vụ hết tất cả bệnh nhân trong hàng đợi hôm nay."));
+        // Khóa bi quan và lấy ca SCHEDULED sớm nhất trong ngày
+        List<Appointment> locked = appointmentRepository.findNextScheduledWithLock(
+                doctorUserId, dayStart, dayEnd, org.springframework.data.domain.PageRequest.of(0, 1)
+        );
 
+        if (locked == null || locked.isEmpty()) {
+            locked = todayAppointments.stream()
+                    .filter(a -> a.getStatus() == AppointmentStatus.SCHEDULED)
+                    .findFirst()
+                    .map(List::of)
+                    .orElse(Collections.emptyList());
+        }
+
+        if (locked.isEmpty()) {
+            throw new AppException(HttpStatus.NOT_FOUND, "QUEUE_EMPTY", "Đã phục vụ hết tất cả bệnh nhân trong hàng đợi hôm nay.");
+        }
+
+        Appointment nextScheduled = locked.get(0);
         nextScheduled.setStatus(AppointmentStatus.IN_PROGRESS);
         Appointment saved = appointmentRepository.save(nextScheduled);
         log.info("🔔 Doctor {} called next patient: {} (Code: {})", doctorUserId, saved.getPatient().getFullName(), saved.getAppointmentCode());

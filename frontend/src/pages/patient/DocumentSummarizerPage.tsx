@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useSearchParams } from 'react-router-dom';
 
 interface AbnormalIndicator {
   name: string;
@@ -149,6 +150,9 @@ function formatLocalDate(d: Date): string {
 
 export const DocumentSummarizerPage: React.FC = () => {
   const { user } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const focusId = searchParams.get('focusId');
+  const [loadingFocusDoc, setLoadingFocusDoc] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const file = selectedFiles[0] || null;
   const [isDragging, setIsDragging] = useState(false);
@@ -157,6 +161,30 @@ export const DocumentSummarizerPage: React.FC = () => {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analysisStage, setAnalysisStage] = useState(0);
   const [activePatientIndex, setActivePatientIndex] = useState<number>(0);
+
+  // Auto-load document if focusId is present in URL
+  useEffect(() => {
+    if (focusId) {
+      const loadFocusDocument = async () => {
+        try {
+          setLoadingFocusDoc(true);
+          const res = await api.get(`/documents/${focusId}/analysis`);
+          if (res.data?.data) {
+            setAnalysis(res.data.data);
+            setTimeout(() => {
+              const el = document.getElementById('analysis-results');
+              el?.scrollIntoView({ behavior: 'smooth' });
+            }, 300);
+          }
+        } catch (err) {
+          console.warn('Could not load analysis for focusId:', focusId, err);
+        } finally {
+          setLoadingFocusDoc(false);
+        }
+      };
+      loadFocusDocument();
+    }
+  }, [focusId]);
 
   // Progressive Visual Pipeline Stepper Timer
   useEffect(() => {
@@ -608,6 +636,13 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
           <button onClick={() => setPaymentSuccessToast(null)} className="text-slate-400 hover:text-slate-600 p-1">
             <X className="w-4 h-4" />
           </button>
+        </div>
+      )}
+
+      {loadingFocusDoc && (
+        <div className="p-4 bg-teal-50 border border-teal-200 rounded-2xl flex items-center gap-3 text-sm font-semibold text-teal-800 animate-fadeIn shadow-xs">
+          <Sparkles className="w-5 h-5 text-teal-600 animate-spin flex-shrink-0" />
+          <span>Đang tải kết quả bóc tách chỉ số xét nghiệm và gợi ý bác sĩ cho tài liệu đã chọn...</span>
         </div>
       )}
 

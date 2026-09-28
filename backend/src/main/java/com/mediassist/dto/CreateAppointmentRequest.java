@@ -15,6 +15,7 @@ public class CreateAppointmentRequest {
 
     private String notes;
     private UUID medicalDocumentId;
+    private UUID triageSessionId;
 
     public CreateAppointmentRequest() {}
 
@@ -31,6 +32,14 @@ public class CreateAppointmentRequest {
         this.medicalDocumentId = medicalDocumentId;
     }
 
+    public CreateAppointmentRequest(UUID doctorId, LocalDateTime scheduledStart, String notes, UUID medicalDocumentId, UUID triageSessionId) {
+        this.doctorId = doctorId;
+        this.scheduledStart = scheduledStart;
+        this.notes = notes;
+        this.medicalDocumentId = medicalDocumentId;
+        this.triageSessionId = triageSessionId;
+    }
+
     public UUID getDoctorId() { return doctorId; }
     public void setDoctorId(UUID doctorId) { this.doctorId = doctorId; }
 
@@ -42,4 +51,7 @@ public class CreateAppointmentRequest {
 
     public UUID getMedicalDocumentId() { return medicalDocumentId; }
     public void setMedicalDocumentId(UUID medicalDocumentId) { this.medicalDocumentId = medicalDocumentId; }
+
+    public UUID getTriageSessionId() { return triageSessionId; }
+    public void setTriageSessionId(UUID triageSessionId) { this.triageSessionId = triageSessionId; }
 }

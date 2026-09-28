@@ -6,6 +6,7 @@ import java.util.List;
 public class TriageRequest {
 
     @NotBlank(message = "Mô tả triệu chứng không được để trống")
+    @jakarta.validation.constraints.Size(min = 3, max = 2000, message = "Triệu chứng phải từ 3 đến 2000 ký tự")
     private String symptoms;
 
     private List<String> conversationHistory;

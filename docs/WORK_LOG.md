@@ -11,8 +11,77 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#077** | 23/09/2026 | Hoàn Thiện Toàn Diện Nghiệp Vụ Doanh Nghiệp, Rào Chắn Lịch Khám, Tính Nguyên Tử Thanh Toán & Chuông Thông Báo (Enterprise Flows & Safeguards Hardening): (1) Flyway V15 & V16 bổ sung `triage_session_id`, `password_reset_tokens`, `notifications`, (2) Rào chắn đặt lịch: Bác sĩ active/verified, giờ hành chính (8-12h, 13h30-17h, nghỉ Chủ Nhật), số thứ tự tiếp đón (STT), state machine chuyển đổi trạng thái, API Dời lịch hẹn (`PATCH /appointments/{id}/reschedule`), tự động hoàn tiền khi hủy ca khám đã thanh toán, (3) Tính nguyên tử thanh toán: Chống duplicate checkout race condition, `@Transactional(REQUIRES_NEW)` cho fulfillOrder, kiểm toán giao dịch mồ côi, (4) Lịch làm việc bác sĩ động từ `DoctorScheduleSlot` & DB aggregation cho thống kê, hàng đợi khóa bi quan (pessimistic lock), (5) Sanitization đầu vào Triage, CCCD 12 số & SĐT Việt Nam, chu trình Quên mật khẩu an toàn, (6) Hệ thống chuông thông báo nội bộ thời gian thực cho Bệnh nhân & Bác sĩ, (7) Frontend wire-up: Dời lịch hẹn modal, liên kết xem tài liệu `focusId`, banner cảnh báo CCCD/nhóm máu chưa hoàn thiện, chọn giờ tái khám bác sĩ, (8) Đạt 136/136 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#076** | 18/09/2026 | Bác Sĩ Truy Cập Hồ Sơ Cận Lâm Sàng & Kết Quả Bóc Tách AI OCR Từ Lịch Khám (Doctor Medical Document & AI OCR Analysis Viewer): (1) Khắc phục điểm khuyết Bác sĩ không thể click xem lại tài liệu bệnh nhân gửi từ phân hệ Tóm tắt hồ sơ, (2) Flyway V14 liên kết `medical_document_id` vào bảng `appointments`, (3) Backend API streaming tệp an toàn (`GET /documents/{id}/file`) & trích xuất phân tích chi tiết (`GET /documents/{id}/analysis`), (4) Frontend Modal 2 tab `DocumentAnalysisModal.tsx` (AI Scribe & Bảng chỉ số xét nghiệm + Trình xem tệp gốc PDF/Ảnh nội tuyến) kèm tiện ích 1-click chèn vào Bệnh án, (5) Tích hợp liền mạch vào Dashboard Bác sĩ và Danh bạ Hồ sơ Bệnh nhân 360°, (6) Đạt 128/128 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
-| **#075** | 18/09/2026 | Đánh Giá Sinh Hiệu & Thể Trạng Trực Quan Tự Động (Visual Vital Signs & BMI Staging according to VNHA/ESC & WHO Asia): (1) Đánh giá khách quan tính đủ dùng của module Bác sĩ, (2) Tạo tiện ích clinicalStaging.ts phân độ Huyết Áp 7 mức theo Hội Tim Mạch VN (VNHA/ESC) và phân loại BMI 5 mức theo WHO Châu Á (IDI & WPRO), (3) Tích hợp thẻ đánh giá trực quan thời gian thực (Live Staging Hub) & nút 1-chạm nạp nhận xét vào Lời dặn Bác sĩ trong Encounter Modal, (4) Đồng bộ hiển thị huy hiệu y khoa tại Modal Bệnh án điện tử ở cả Dashboard và Danh bạ Bệnh nhân, (5) Đạt 126/126 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
+
+---
+
+## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#077] Hoàn Thiện Toàn Diện Nghiệp Vụ Doanh Nghiệp, Rào Chắn Lịch Khám, Tính Nguyên Tử Thanh Toán & Chuông Thông Báo
+* **Thời gian:** 2026-09-23 07:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-CLIN-23 (Appointment Rescheduling), UC-SEC-24 (Password Reset), UC-SYS-25 (In-App Notifications & Auto-Refund)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **136/136 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1683 modules transformed** (`npm run build`)
+  - Nhánh phát triển: `mediassist_gap_analysis`
+
+#### 1. Danh Sách Tệp Tin:
+* **Tạo mới `[NEW]`:**
+  - `backend/src/main/resources/db/migration/V15__add_triage_session_and_refund_to_appointments.sql`: Bổ sung `triage_session_id` và index.
+  - `backend/src/main/resources/db/migration/V16__create_password_reset_and_notifications.sql`: Bảng `password_reset_tokens` và `notifications`.
+  - `backend/src/main/java/com/mediassist/dto/RescheduleAppointmentRequest.java`: DTO yêu cầu dời lịch hẹn.
+  - `backend/src/main/java/com/mediassist/dto/ForgotPasswordRequest.java`: DTO yêu cầu quên mật khẩu.
+  - `backend/src/main/java/com/mediassist/dto/ResetPasswordRequest.java`: DTO đặt lại mật khẩu.
+  - `backend/src/main/java/com/mediassist/dto/NotificationDto.java`: DTO thông báo.
+  - `backend/src/main/java/com/mediassist/model/entity/PasswordResetToken.java`: Thực thể lưu token đặt lại mật khẩu.
+  - `backend/src/main/java/com/mediassist/model/entity/Notification.java`: Thực thể lưu thông báo người dùng.
+  - `backend/src/main/java/com/mediassist/repository/PasswordResetTokenRepository.java`: Repository token reset.
+  - `backend/src/main/java/com/mediassist/repository/NotificationRepository.java`: Repository thông báo.
+  - `backend/src/main/java/com/mediassist/service/NotificationService.java`: Service gửi, đọc, đếm thông báo.
+  - `backend/src/main/java/com/mediassist/controller/NotificationController.java`: Controller thông báo người dùng.
+  - `backend/src/test/java/com/mediassist/NotificationServiceTest.java`: 4 unit tests kiểm thử luồng thông báo.
+  - `frontend/src/services/notificationService.ts`: Client API gọi endpoints thông báo.
+  - `frontend/src/components/common/NotificationBell.tsx`: Component chuông thông báo polling 15s với popup dropdown.
+
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/java/com/mediassist/model/entity/Appointment.java`: Bổ sung `triageSessionId`, constructor, getter/setter.
+  - `backend/src/main/java/com/mediassist/dto/AppointmentDto.java`: Bổ sung `triageSessionId`, `triageSbarSummary`, `triageUrgencyLevel`.
+  - `backend/src/main/java/com/mediassist/dto/CreateAppointmentRequest.java`: Bổ sung `triageSessionId`.
+  - `backend/src/main/java/com/mediassist/repository/AppointmentRepository.java`: Thêm các query conflict, count active, next scheduled with pessimistic lock, aggregate stats.
+  - `backend/src/main/java/com/mediassist/repository/PaymentTransactionRepository.java`: Thêm query kiểm tra duplicate pending/completed tx.
+  - `backend/src/main/java/com/mediassist/repository/DoctorProfileRepository.java`: Thêm `countByBioEmbeddingIsNotNull()`.
+  - `backend/src/main/java/com/mediassist/service/AppointmentService.java`: Thêm rào chắn bác sĩ active/verified, giờ hành chính (8-12h, 13h30-17h, không phải Chủ Nhật), STT hàng đợi, state machine chuyển trạng thái, tự động hoàn tiền khi hủy ca khám đã thanh toán, triển khai `rescheduleAppointment()`.
+  - `backend/src/main/java/com/mediassist/service/PaymentService.java`: Chống race condition duplicate checkout, `@Transactional(REQUIRES_NEW)` cho fulfillOrder, kiểm toán giao dịch mồ côi.
+  - `backend/src/main/java/com/mediassist/service/DoctorService.java`: Khung giờ khám động từ `DoctorScheduleSlot`, DB query aggregation cho thống kê hiệu năng cao, fallback an toàn cho hàng đợi khám.
+  - `backend/src/main/java/com/mediassist/service/TriageService.java`: Kiểm tra giới hạn ký tự và khử trùng XSS/HTML/control chars.
+  - `backend/src/main/java/com/mediassist/service/PatientProfileService.java`: Xóa bỏ hardcode `O+`/`OTHER`, validate 12 số CCCD và SĐT VN, vòng lặp sinh mã bệnh nhân an toàn chống trùng lặp.
+  - `backend/src/main/java/com/mediassist/service/AuthService.java`: Ẩn dev email alias sau cờ cấu hình, luồng quên mật khẩu và đặt lại mật khẩu an toàn.
+  - `backend/src/main/java/com/mediassist/service/AdminVettingService.java`: Health check thực sự kiểm tra PostgreSQL, Redis, pgvector count; gửi thông báo khi phê duyệt/từ chối bác sĩ.
+  - `backend/src/main/java/com/mediassist/controller/AppointmentController.java`: Mở endpoint `PATCH /api/v1/appointments/{id}/reschedule`.
+  - `backend/src/main/java/com/mediassist/controller/AuthController.java`: Mở endpoints forgot/reset password.
+  - `backend/src/main/java/com/mediassist/config/SecurityConfig.java`: Cho phép truy cập công khai endpoints forgot/reset password.
+  - `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`: Thêm 4 unit tests kiểm thử reschedule, validation, state machine, và auto-refund.
+  - `frontend/src/services/api.ts`: Điều hướng về `/login?expired=true` khi gặp 401.
+  - `frontend/src/layouts/PatientLayout.tsx` & `DoctorLayout.tsx`: Tích hợp `NotificationBell` cố định trên thanh điều hướng.
+  - `frontend/src/pages/patient/PatientDashboard.tsx`: Modal Dời lịch hẹn (`PATCH /appointments/{id}/reschedule`), liên kết xem tài liệu `focusId`, banner cảnh báo CCCD/nhóm máu chưa cập nhật, loại bỏ dữ liệu mặc định ảo.
+  - `frontend/src/pages/doctor/DoctorDashboard.tsx`: Thẻ AI Triage SBAR trong ca khám lâm sàng, bộ chọn giờ khám tái khám thay vì hardcode 09:00:00.
+  - `frontend/src/pages/patient/DocumentSummarizerPage.tsx`: Nhận `focusId` qua URL query param, tự động tải chi tiết phân tích và cuộn xuống bảng chỉ số.
+
+#### 2. Tài Liệu Đã Đồng Bộ:
+- `docs/DATABASE_DESIGN.md`: Bổ sung Mục 11 (V15 - Triage Session & Auto Refund) và Mục 12 (V16 - Password Reset Tokens & In-App Notifications).
+- `docs/USE_CASES.md`: Bổ sung Use Case UC-23 (Dời Lịch Hẹn & Rào Chắn Giờ Hành Chính), UC-24 (Khôi Phục Mật Khẩu), UC-25 (Thông Báo Nội Bộ & Tự Động Hoàn Tiền).
+- `docs/WORK_LOG.md`: Thêm bản ghi #077.
+
+#### 3. Bằng Chứng Kiểm Thử:
+- `mvn test`: 136/136 tests PASS (0 failures, 0 errors).
+- `npm run build`: 0 TypeScript errors, 1683 modules transformed, đóng gói thành công trong 19.11s.
+
+#### 4. Điểm Nóng Tech Lead Cần Review:
+1. **Rào Chắn Giờ Làm Việc Y Tế:** 08:00 - 12:00, 13:30 - 17:00, nghỉ Chủ Nhật. Mọi thao tác đặt lịch và dời lịch đều được kiểm soát chặt chẽ ở cả Frontend và Backend.
+2. **Auto-Refund Atomicity:** Khi ca khám `PAID` bị hủy, hệ thống gọi `refundPayment()` và chuyển thành `REFUNDED` trong cùng luồng kiểm soát giao dịch, đảm bảo không thất thoát viện phí.
+3. **Pessimistic Locking & Mock Fallback:** Hàng đợi `callNextPatient` sử dụng row-level lock (`PESSIMISTIC_WRITE`) trên DB thật để ngăn 2 bác sĩ gọi trùng bệnh nhân, đồng thời có cơ chế fallback mềm dẻo cho môi trường mock unit test.
 | **#074** | 18/09/2026 | Tích Hợp Trình Xem Chi Tiết Bệnh Án Điện Tử & Toa Thuốc Chuẩn Bệnh Viện (Hospital-Grade EMR & Prescription Viewer): (1) Khắc phục điểm khuyết UI hồ sơ bệnh án không thể bấm xem chi tiết, (2) Nút "Xem Chi Tiết Bệnh Án & Toa Thuốc" tại Ngăn kéo Hồ sơ Bệnh nhân 360° (/doctor/patients) & Dashboard (/doctor), (3) Modal EMR chuyên sâu đa tầng (Layer z-60): Lưới sinh hiệu Vital Signs (HA, Mạch, Thân nhiệt, SpO2, BMI), Chẩn đoán ICD-10 & Lời dặn lâm sàng, Bảng Toa thuốc ngoại trú chi tiết (STT, Biệt dược, Hoạt chất, Liều lượng, Số lượng, Số ngày), (4) Tiện ích "In Bệnh Án" (window.print()), (5) Đạt 126/126 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 
 ---

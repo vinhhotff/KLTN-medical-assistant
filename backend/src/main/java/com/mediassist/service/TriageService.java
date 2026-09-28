@@ -47,6 +47,14 @@ public class TriageService {
             throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_INPUT", "Mô tả triệu chứng không được để trống");
         }
         String symptoms = request.getSymptoms().trim();
+        if (symptoms.length() > 2000) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INPUT_TOO_LONG", "Mô tả triệu chứng không được vượt quá 2000 ký tự.");
+        }
+        if (symptoms.length() < 3) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INPUT_TOO_SHORT", "Vui lòng mô tả triệu chứng cụ thể hơn (tối thiểu 3 ký tự).");
+        }
+        // Sanitize: strip HTML tags and control characters
+        symptoms = symptoms.replaceAll("<[^>]*>", "").replaceAll("[\\x00-\\x08\\x0B-\\x0C\\x0E-\\x1F]", " ").trim();
         log.info("🩺 Performing AI symptom triage for: '{}'", symptoms);
 
         User patientUser = null;

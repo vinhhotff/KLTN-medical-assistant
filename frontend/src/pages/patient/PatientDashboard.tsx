@@ -64,6 +64,9 @@ interface AppointmentItem {
   prescriptionJson?: string;
   treatmentPlan?: string;
   followUpDate?: string;
+  triageSessionId?: string;
+  triageSbarSummary?: string;
+  triageUrgencyLevel?: string;
 }
 
 interface VitalSigns {
@@ -122,6 +125,40 @@ export const PatientDashboard: React.FC = () => {
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [submittingCancel, setSubmittingCancel] = useState(false);
+
+  // Reschedule Modal State
+  const [reschedulingAppointment, setReschedulingAppointment] = useState<AppointmentItem | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [rescheduleReason, setRescheduleReason] = useState('');
+  const [submittingReschedule, setSubmittingReschedule] = useState(false);
+
+  const handleConfirmReschedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reschedulingAppointment || !rescheduleDate || !rescheduleTime) {
+      alert('Vui lòng chọn ngày và giờ hẹn mới.');
+      return;
+    }
+    try {
+      setSubmittingReschedule(true);
+      const newScheduledStart = `${rescheduleDate}T${rescheduleTime}:00`;
+      await api.patch(`/appointments/${reschedulingAppointment.id}/reschedule`, {
+        newScheduledStart,
+        reason: rescheduleReason.trim() || undefined,
+      });
+      await loadData();
+      setReschedulingAppointment(null);
+      setRescheduleDate('');
+      setRescheduleTime('');
+      setRescheduleReason('');
+      alert('Dời lịch hẹn thành công!');
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
+      alert(axiosError.response?.data?.error?.message || 'Không thể dời lịch hẹn. Vui lòng thử lại với khung giờ khác.');
+    } finally {
+      setSubmittingReschedule(false);
+    }
+  };
 
   // Online Appointment Payment State
   const [payingApptId, setPayingApptId] = useState<string | null>(null);
@@ -336,6 +373,19 @@ export const PatientDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* Missing CCCD or Blood Group Clinical Alert */}
+      {profile && (!profile.citizenId || !profile.bloodGroup) && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-sm flex items-start gap-3 shadow-xs">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
+          <div className="space-y-1">
+            <h5 className="font-bold">Hồ sơ định danh y tế chưa hoàn thiện</h5>
+            <p className="text-xs text-amber-800 leading-relaxed">
+              Bạn chưa cập nhật {!profile.citizenId ? 'Số CCCD (12 số)' : ''} {!profile.citizenId && !profile.bloodGroup ? 'và' : ''} {!profile.bloodGroup ? 'Nhóm máu' : ''}. Vui lòng nhấn nút <strong>"Cập Nhật Hồ Sơ Y Tế"</strong> bên dưới để hoàn thiện thông tin, phục vụ tra cứu bảo hiểm y tế và an toàn truyền máu cấp cứu.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* PATIENT MEDICAL PASSPORT & EMR IDENTITY CARD */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="bg-slate-900 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white">
@@ -373,27 +423,39 @@ export const PatientDashboard: React.FC = () => {
                 <span className="text-slate-500">Họ và Tên:</span>
                 <span className="font-bold text-slate-900">{profile?.fullName || 'Chưa cập nhật'}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-500">Số CCCD (12 số):</span>
-                <span className="font-mono font-medium text-slate-800">{profile?.citizenId || '079188002931'}</span>
+                {profile?.citizenId ? (
+                  <span className="font-mono font-medium text-slate-800">{profile.citizenId}</span>
+                ) : (
+                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    Chưa bổ sung
+                  </span>
+                )}
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Số Thẻ BHYT:</span>
                 <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                  {profile?.healthInsuranceNumber || 'DN4791234567890'}
+                  {profile?.healthInsuranceNumber || 'Chưa liên kết BHYT'}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Ngày sinh / Giới tính:</span>
                 <span className="font-medium text-slate-800">
-                  {profile?.dateOfBirth ? new Date(profile.dateOfBirth).toLocaleDateString('vi-VN') : '15/10/1988'} ({profile?.gender === 'FEMALE' ? 'Nữ' : profile?.gender === 'MALE' ? 'Nam' : 'Khác'})
+                  {profile?.dateOfBirth ? new Date(profile.dateOfBirth).toLocaleDateString('vi-VN') : 'Chưa cập nhật'} ({profile?.gender === 'FEMALE' ? 'Nữ' : profile?.gender === 'MALE' ? 'Nam' : 'Khác'})
                 </span>
               </div>
               <div className="flex justify-between items-center pt-1">
                 <span className="text-slate-500">Nhóm Máu:</span>
-                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
-                  {profile?.bloodGroup || 'O+'} (Rh Dương)
-                </span>
+                {profile?.bloodGroup ? (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
+                    {profile.bloodGroup} (Rh Dương)
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    Chưa bổ sung
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -694,13 +756,32 @@ export const PatientDashboard: React.FC = () => {
 
                         <div className="flex items-center gap-2">
                           {isScheduled && (
-                            <button
-                              type="button"
-                              onClick={() => handleCancelAppointment(apt.id)}
-                              className="px-3 py-1.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl font-bold transition flex items-center gap-1"
-                            >
-                              <Ban className="w-3.5 h-3.5" /> Hủy Lịch Khám
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReschedulingAppointment(apt);
+                                  const currentStart = new Date(apt.scheduledStart);
+                                  // Format local YYYY-MM-DD
+                                  const year = currentStart.getFullYear();
+                                  const month = String(currentStart.getMonth() + 1).padStart(2, '0');
+                                  const day = String(currentStart.getDate()).padStart(2, '0');
+                                  setRescheduleDate(`${year}-${month}-${day}`);
+                                  setRescheduleTime(currentStart.toTimeString().slice(0, 5));
+                                  setRescheduleReason('');
+                                }}
+                                className="px-3 py-1.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer"
+                              >
+                                <Calendar className="w-3.5 h-3.5" /> Dời Lịch Hẹn
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleCancelAppointment(apt.id)}
+                                className="px-3 py-1.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer"
+                              >
+                                <Ban className="w-3.5 h-3.5" /> Hủy Lịch Khám
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -895,7 +976,7 @@ export const PatientDashboard: React.FC = () => {
                         </span>
                       )}
                       <Link
-                        to="/patient/documents"
+                        to={`/patient/documents?focusId=${doc.id}`}
                         className="px-3.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl text-xs font-bold border border-teal-200 transition"
                       >
                         Mở Phân Tích
@@ -1320,6 +1401,90 @@ export const PatientDashboard: React.FC = () => {
                   className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
                 >
                   {submittingCancel ? 'Đang hủy...' : 'Xác Nhận Hủy Lịch'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: RESCHEDULE APPOINTMENT */}
+      {reschedulingAppointment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl overflow-hidden p-6 space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-indigo-600">
+                <Calendar className="w-5 h-5" />
+                <h3 className="font-bold text-base text-slate-900">Dời Lịch Hẹn Khám</h3>
+              </div>
+              <button
+                onClick={() => setReschedulingAppointment(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1">
+              <p><span className="text-slate-500">Mã lịch hẹn:</span> <strong className="font-mono text-indigo-700">{reschedulingAppointment.appointmentCode}</strong></p>
+              <p><span className="text-slate-500">Bác sĩ:</span> <strong className="text-slate-800">{reschedulingAppointment.doctorName}</strong></p>
+              <p><span className="text-slate-500">Giờ hẹn cũ:</span> <span className="font-medium text-slate-700">{new Date(reschedulingAppointment.scheduledStart).toLocaleString('vi-VN')}</span></p>
+            </div>
+
+            <form onSubmit={handleConfirmReschedule} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1 text-xs">Ngày khám mới *</label>
+                  <input
+                    type="date"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    value={rescheduleDate}
+                    onChange={(e) => setRescheduleDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1 text-xs">Giờ khám mới *</label>
+                  <input
+                    type="time"
+                    required
+                    value={rescheduleTime}
+                    onChange={(e) => setRescheduleTime(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1 text-xs">Lý do dời lịch (tùy chọn)</label>
+                <textarea
+                  rows={2}
+                  value={rescheduleReason}
+                  onChange={(e) => setRescheduleReason(e.target.value)}
+                  placeholder="Ví dụ: Bận đột xuất, chuyển đổi ngày khám thuận tiện hơn..."
+                  className="w-full p-2.5 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <p className="text-[11px] text-slate-500 italic">
+                * Giờ làm việc: Sáng 08:00 - 12:00, Chiều 13:30 - 17:00 (Thứ 2 - Thứ 7).
+              </p>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setReschedulingAppointment(null)}
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Hủy Bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingReschedule || !rescheduleDate || !rescheduleTime}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+                >
+                  {submittingReschedule ? 'Đang cập nhật...' : 'Xác Nhận Dời Lịch'}
                 </button>
               </div>
             </form>

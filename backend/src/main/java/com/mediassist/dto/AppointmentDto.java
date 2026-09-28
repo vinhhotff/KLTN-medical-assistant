@@ -38,6 +38,9 @@ public class AppointmentDto {
     private LocalDateTime createdAt;
     private UUID medicalDocumentId;
     private String medicalDocumentFileName;
+    private UUID triageSessionId;
+    private String triageSbarSummary;
+    private String triageUrgencyLevel;
 
     public AppointmentDto() {}
 
@@ -74,6 +77,7 @@ public class AppointmentDto {
         dto.setFollowUpDate(a.getFollowUpDate());
         dto.setCreatedAt(a.getCreatedAt());
         dto.setMedicalDocumentId(a.getMedicalDocumentId());
+        dto.setTriageSessionId(a.getTriageSessionId());
         return dto;
     }
 
@@ -160,4 +164,13 @@ public class AppointmentDto {
 
     public String getMedicalDocumentFileName() { return medicalDocumentFileName; }
     public void setMedicalDocumentFileName(String medicalDocumentFileName) { this.medicalDocumentFileName = medicalDocumentFileName; }
+
+    public UUID getTriageSessionId() { return triageSessionId; }
+    public void setTriageSessionId(UUID triageSessionId) { this.triageSessionId = triageSessionId; }
+
+    public String getTriageSbarSummary() { return triageSbarSummary; }
+    public void setTriageSbarSummary(String triageSbarSummary) { this.triageSbarSummary = triageSbarSummary; }
+
+    public String getTriageUrgencyLevel() { return triageUrgencyLevel; }
+    public void setTriageUrgencyLevel(String triageUrgencyLevel) { this.triageUrgencyLevel = triageUrgencyLevel; }
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Stethoscope, LogOut, CalendarCheck, UserCog, Users } from 'lucide-react';
+import { NotificationBell } from '../components/common/NotificationBell';
 import { useAuthStore } from '../store/useAuthStore';
 
 export const DoctorLayout: React.FC = () => {
@@ -64,6 +65,7 @@ export const DoctorLayout: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4">
+            <NotificationBell />
             <div className="text-right hidden sm:block">
               <p className="text-sm font-semibold text-slate-900">{user?.fullName || 'Bác sĩ'}</p>
               <span className="text-xs text-emerald-600 font-medium">✓ Đã xác thực</span>

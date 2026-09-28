@@ -556,5 +556,72 @@ CREATE INDEX IF NOT EXISTS idx_appointments_medical_document_id ON appointments(
 2. **Ràng Buộc `ON DELETE SET NULL`:** Nếu bệnh nhân xóa tệp tài liệu gốc trong kho cá nhân, lịch hẹn khám và dữ liệu lâm sàng của bác sĩ vẫn được bảo toàn nguyên vẹn mà không vi phạm tính toàn vẹn tham chiếu.
 3. **Bảo Mật Truy Cập Đa Tầng (RBAC Access Control):** Endpoint trích xuất file (`GET /api/v1/documents/{id}/file`) và dữ liệu bóc tách (`GET /api/v1/documents/{id}/analysis`) chỉ cấp quyền cho chính Bệnh nhân sở hữu, Bác sĩ được chỉ định khám hoặc Quản trị viên hệ thống (Admin).
 
+---
+
+## 11. Liên Kết Phiên Phân Luồng AI Triage & Tự Động Hoàn Tiền (Flyway V15)
+
+Nhằm hiện thực hóa chu trình khám lâm sàng khép kín (End-to-End Clinical Synergy), bản di trú `V15__add_triage_session_and_refund_to_appointments.sql` bổ sung liên kết giữa ca khám `appointments` và phiên sàng lọc triệu chứng AI `symptom_triage_sessions`:
+
+### 11.1. Lược Đồ Bảng
+```sql
+ALTER TABLE appointments 
+ADD COLUMN IF NOT EXISTS triage_session_id UUID REFERENCES symptom_triage_sessions(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_appointments_triage_session_id ON appointments(triage_session_id);
+```
+
+### 11.2. Ứng Dụng Lâm Sàng & Cơ Chế Hoàn Tiền (Refund State Guard)
+1. **Đồng Bộ Dữ Liệu SBAR Sang Bàn Khám Bác Sĩ:**
+   - Khi bệnh nhân đặt lịch từ phân hệ Triage, `triageSessionId` được lưu vào `appointments`.
+   - Bác sĩ khi mở ca khám (`activeEncounterAppointment`) có thể lập tức xem mức độ khẩn cấp (`triageUrgencyLevel`) và tóm tắt theo chuẩn SBAR (`triageSbarSummary`), nạp thẳng vào phiếu khám lâm sàng.
+2. **Tự Động Kích Hoạt Hoàn Tiền (Auto-Refund on Cancellation):**
+   - Khi ca khám có `payment_status = 'PAID'` bị hủy bởi bệnh nhân hoặc bác sĩ (`status = 'CANCELLED'`), hệ thống tự động gọi `paymentService.refundPayment(appointmentId)` và cập nhật `payment_status = 'REFUNDED'`.
+
+---
+
+## 12. Xác Thực Quên Mật Khẩu & Hệ Thống Thông Báo Nội Bộ (Flyway V16)
+
+Bản di trú `V16__create_password_reset_and_notifications.sql` thiết lập 2 bảng trọng yếu phục vụ tính năng bảo mật tài khoản và trải nghiệm tương tác thời gian thực:
+
+### 12.1. Lược Đồ Bảng `password_reset_tokens`
+```sql
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) NOT NULL UNIQUE,
+    expiry_date TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL,
+    is_used BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_password_reset_user_id ON password_reset_tokens(user_id);
+```
+
+- **Cơ chế an toàn:** Token UUID ngẫu nhiên có hiệu lực 60 phút, kiểm tra cờ `is_used = FALSE`, tự động đánh dấu đã dùng ngay khi đặt lại mật khẩu thành công.
+
+### 12.2. Lược Đồ Bảng `notifications`
+```sql
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(50) NOT NULL DEFAULT 'SYSTEM',
+    reference_id VARCHAR(100),
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
+```
+
+- **Phân loại thông báo (`type`):**
+  - `APPOINTMENT`: Nhắc lịch hẹn, thông báo ca khám mới hoặc xác nhận dời lịch.
+  - `DOCTOR_VERIFIED` / `DOCTOR_REJECTED`: Thông báo kết quả kiểm duyệt chứng chỉ hành nghề từ Quản trị viên.
+  - `SYSTEM`: Cảnh báo bảo mật và nâng cấp hệ thống.
+
 
 

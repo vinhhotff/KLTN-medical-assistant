@@ -137,4 +137,18 @@ public class AuthController {
 
         return ResponseEntity.ok(ApiResponse.success(null, "Đăng xuất thành công"));
     }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Yêu cầu mã đặt lại mật khẩu qua email")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody com.mediassist.dto.ForgotPasswordRequest request) {
+        authService.requestPasswordReset(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.success(null, "Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được xử lý."));
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Xác nhận đặt lại mật khẩu mới với mã token")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody com.mediassist.dto.ResetPasswordRequest request) {
+        authService.resetPassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.success(null, "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay."));
+    }
 }
