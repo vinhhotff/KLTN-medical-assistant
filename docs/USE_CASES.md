@@ -850,3 +850,30 @@ graph TD
   - Khi ca khám có trạng thái `paymentStatus == 'PAID'` bị hủy bởi bệnh nhân hoặc bác sĩ, `AppointmentService.updateStatus()` tự động kích hoạt phương thức hoàn tiền `paymentService.refundPayment(appointmentId)`.
   - Trạng thái thanh toán của ca khám chuyển từ `PAID` sang `REFUNDED`, tạo bản ghi thông báo xác nhận hoàn tiền cho bệnh nhân.
 
+---
+
+### UC-26: Đánh Giá & Chấm Sao Bác Sĩ Sau Ca Khám và Tích Hợp WHRF (Doctor Rating & Review System & Real-Time WHRF Integration)
+
+* **Mã Use Case:** `UC-DOC-26`
+* **Tác nhân chính:** Patient (Bệnh nhân), Doctor (Bác sĩ), `DoctorReviewService`, `DoctorSemanticSearchService` (WHRF Min-Heap), `TwoLayerCacheService` (Caffeine L1 + Redis L2).
+* **Mục tiêu:** Cung cấp cơ chế khép kín vòng phản hồi y tế thực tế sau khi hoàn thành buổi khám (`COMPLETED`), tính toán điểm số uy tín lâm sàng và tích hợp trực tiếp vào thuật toán gợi ý bác sĩ WHRF:
+  1. Cho phép bệnh nhân đánh giá (1-5 sao), viết nhận xét lâm sàng và chọn thẻ cảm nhận (preset tags) cho bác sĩ đã thăm khám.
+  2. Ràng buộc bảo mật và tính toàn vẹn: Chỉ bệnh nhân thực hiện ca khám mới được quyền đánh giá; mỗi ca khám đã hoàn tất chỉ được đánh giá 1 lần duy nhất (Idempotent Unique Constraint).
+  3. Tự động tính toán lại điểm trung bình (`rating`) và tổng số đánh giá (`review_count`) của bác sĩ ngay khi tiếp nhận đánh giá mới.
+  4. Cơ chế giải phóng bộ nhớ đệm (Cache Eviction): Tự động xóa sạch cache bác sĩ trên L1 Caffeine, L2 Redis và bộ nhớ đệm WHRF search cache (`doctor_search_cache`).
+  5. Tích hợp điểm số thực tế vào thuật toán WHRF ($O(M \log K)$ Min-Heap Ranking): Trọng số 20% trong công thức xếp hạng bác sĩ kèm hệ số suy giảm độ tin cậy (Credibility Damper) cho bác sĩ có dưới 5 lượt đánh giá, ngăn chặn hiện tượng gian lận điểm số.
+  6. Bảo vệ quyền riêng tư người bệnh theo Nghị định 13/2023/NĐ-CP và HIPAA thông qua mặt nạ ẩn danh họ tên ("Nguyễn Văn Bình" $\rightarrow$ "Nguyễn V. Bình").
+* **REST Endpoints Liên Quan:**
+  - `POST /api/v1/appointments/{appointmentId}/review`: Gửi đánh giá buổi khám (`rating`, `comment`, `tags`).
+  - `GET /api/v1/appointments/{appointmentId}/review`: Lấy đánh giá của một cuộc hẹn cụ thể.
+  - `GET /api/v1/doctors/{doctorId}/reviews`: Lấy danh sách đánh giá của một bác sĩ (công khai, ẩn danh tên bệnh nhân).
+  - `GET /api/v1/reviews/my`: Lấy danh sách đánh giá của bệnh nhân hiện tại.
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. Sau khi buổi khám chuyển sang trạng thái `COMPLETED`, trên `PatientDashboard`, ca khám xuất hiện nút *"⭐ Đánh Giá Bác Sĩ"*. Nếu đã đánh giá, hiển thị *"Đã Đánh Giá ({rating}★)"* cho phép xem lại nhận xét.
+  2. Modal `DoctorReviewModal` hiển thị bộ chọn sao tương tác (1-5 sao kèm nhãn mô tả cảm nhận: Rất thất vọng, Chưa hài lòng, Bình thường, Hài lòng, Rất tuyệt vời), các tag chọn nhanh ("Bác sĩ tận tình", "Giải thích rõ ràng", "Đúng giờ", "Chẩn đoán chính xác", "Thân thiện", "Tư vấn chu đáo"), ô nhập nhận xét và bộ đếm ký tự.
+  3. Bệnh nhân bấm *"Gửi Đánh Giá"*: Backend kiểm tra quyền sở hữu, trạng thái ca khám, lưu bản ghi vào `doctor_reviews`, tính lại `rating` và `review_count` trong `doctor_profiles`, gửi thông báo in-app cho bác sĩ, ghi Audit Log y tế, và xóa cache L1 + L2 + WHRF.
+  4. Trên `DoctorSearchPage`, điểm sao và số lượt đánh giá hiển thị nổi bật trên thẻ bác sĩ; người dùng bấm vào có thể mở `DoctorReviewsListModal` xem phân bổ số sao (5★, 4★, 3★, 2★, 1★), lọc theo số sao và đọc các nhận xét đã ẩn danh.
+  5. Trên `DocumentSummarizerPage` và `SymptomTriagePage`, các thẻ bác sĩ được gợi ý qua AI Vector Search hiển thị kèm số sao và số lượt đánh giá thực tế.
+  6. Trên `DoctorDashboard`, số lượt đánh giá thực tế hiển thị ngay tại thanh tiêu đề bàn làm việc lâm sàng cạnh điểm đánh giá trung bình.
+
+

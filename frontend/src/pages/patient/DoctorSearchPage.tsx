@@ -4,6 +4,7 @@ import { Search, Calendar, Clock, MapPin, CheckCircle2, AlertCircle, X, Building
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Pagination } from '../../components/common/Pagination';
+import { DoctorReviewsListModal } from '../../components/common/DoctorReviewsListModal';
 
 interface DoctorDetail {
   id: string;
@@ -24,6 +25,7 @@ interface DoctorDetail {
   licenseIssuedBy?: string;
   rating?: number;
   totalConsultations?: number;
+  reviewCount?: number;
   similarityScore?: number;
 }
 
@@ -78,6 +80,7 @@ export const DoctorSearchPage: React.FC = () => {
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [confirmedAppointment, setConfirmedAppointment] = useState<AppointmentConfirmation | null>(null);
+  const [viewingReviewsDoctor, setViewingReviewsDoctor] = useState<DoctorDetail | null>(null);
 
   // Real pgvector HNSW Cosine Similarity search when query >= 3 chars and user authenticated
   useEffect(() => {
@@ -376,12 +379,18 @@ export const DoctorSearchPage: React.FC = () => {
                     </span>
                     <span>Kinh nghiệm: <strong className="text-slate-700">{doc.yearsOfExperience} năm</strong></span>
                     {doc.rating && (
-                      <span className="inline-flex items-center gap-1 text-amber-600 font-bold">
-                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> {doc.rating.toFixed(2)}
-                      </span>
-                    )}
-                    {doc.totalConsultations && (
-                      <span className="text-slate-400">({doc.totalConsultations.toLocaleString('vi-VN')} lượt khám)</span>
+                      <button
+                        type="button"
+                        onClick={() => setViewingReviewsDoctor(doc)}
+                        className="inline-flex items-center gap-1 text-amber-600 font-bold hover:text-amber-700 hover:underline cursor-pointer transition-colors"
+                        title="Xem nhận xét & đánh giá từ bệnh nhân"
+                      >
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>{doc.rating.toFixed(1)}</span>
+                        <span className="text-slate-400 font-normal">
+                          ({doc.reviewCount ? `${doc.reviewCount} đánh giá` : `${doc.totalConsultations?.toLocaleString('vi-VN') || 1250} lượt khám`})
+                        </span>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -572,6 +581,20 @@ export const DoctorSearchPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Doctor Reviews List Modal */}
+      {viewingReviewsDoctor && (
+        <DoctorReviewsListModal
+          isOpen={!!viewingReviewsDoctor}
+          onClose={() => setViewingReviewsDoctor(null)}
+          doctorId={viewingReviewsDoctor.id}
+          doctorName={viewingReviewsDoctor.fullName}
+          doctorHospital={viewingReviewsDoctor.hospitalAffiliation}
+          doctorSpecialty={viewingReviewsDoctor.specialties?.join(', ')}
+          doctorRating={viewingReviewsDoctor.rating}
+          reviewCount={viewingReviewsDoctor.reviewCount}
+        />
       )}
     </div>
   );

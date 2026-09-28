@@ -13,7 +13,8 @@ import {
   Stethoscope,
   X,
   HelpCircle,
-  Info
+  Info,
+  Star
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -29,6 +30,8 @@ interface DoctorMatch {
   specialties: string[];
   academicTitle?: string;
   hospitalAffiliation?: string;
+  rating?: number;
+  reviewCount?: number;
   aiRecommended?: boolean;
   aiRecommendationReason?: string;
 }
@@ -488,12 +491,37 @@ export const SymptomTriagePage: React.FC = () => {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="flex items-center gap-1.5">
+                            {doc.academicTitle && (
+                              <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+                                {doc.academicTitle}
+                              </span>
+                            )}
                             <h4 className="font-bold text-slate-900 text-base">{doc.fullName}</h4>
                             <span title="Đã thẩm định CCHN">
                               <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                             </span>
                           </div>
-                          <p className="text-xs text-slate-400 mt-0.5">CCHN: {doc.licenseNumber}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-slate-500">
+                            {doc.hospitalAffiliation && (
+                              <span className="text-slate-700 font-medium">
+                                {doc.hospitalAffiliation}
+                              </span>
+                            )}
+                            {doc.hospitalAffiliation && <span>•</span>}
+                            <span>CCHN: {doc.licenseNumber}</span>
+                            {doc.rating !== undefined && (
+                              <>
+                                <span>•</span>
+                                <span className="inline-flex items-center gap-1 text-amber-600 font-bold">
+                                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                  {doc.rating > 0 ? doc.rating.toFixed(1) : '5.0'}
+                                  {doc.reviewCount !== undefined && (
+                                    <span className="text-slate-400 font-normal">({doc.reviewCount})</span>
+                                  )}
+                                </span>
+                              </>
+                            )}
+                          </div>
                         </div>
 
                         {/* Match Score Badge */}

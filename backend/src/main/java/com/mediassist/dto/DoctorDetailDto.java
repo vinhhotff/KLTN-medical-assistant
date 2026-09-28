@@ -29,6 +29,7 @@ public class DoctorDetailDto {
     private String licenseIssuedBy;
     private Double rating;
     private Integer totalConsultations;
+    private Integer reviewCount;
     private String userStatus;
     private java.time.LocalDateTime createdAt;
 
@@ -58,6 +59,7 @@ public class DoctorDetailDto {
         dto.setLicenseIssuedBy(profile.getLicenseIssuedBy());
         dto.setRating(profile.getRating() != null ? profile.getRating() : 4.9);
         dto.setTotalConsultations(profile.getTotalConsultations() != null ? profile.getTotalConsultations() : 1250);
+        dto.setReviewCount(profile.getReviewCount() != null ? profile.getReviewCount() : 0);
         if (profile.getSpecialties() != null) {
             dto.setSpecialties(profile.getSpecialties().stream()
                     .map(Specialty::getName)
@@ -119,6 +121,9 @@ public class DoctorDetailDto {
 
     public Integer getTotalConsultations() { return totalConsultations; }
     public void setTotalConsultations(Integer totalConsultations) { this.totalConsultations = totalConsultations; }
+
+    public Integer getReviewCount() { return reviewCount != null ? reviewCount : 0; }
+    public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
 
     public String getUserStatus() { return userStatus; }
     public void setUserStatus(String userStatus) { this.userStatus = userStatus; }

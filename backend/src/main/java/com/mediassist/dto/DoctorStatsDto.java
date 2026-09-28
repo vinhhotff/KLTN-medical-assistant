@@ -71,4 +71,9 @@ public class DoctorStatsDto {
 
     public int getTotalConsultations() { return totalConsultations; }
     public void setTotalConsultations(int totalConsultations) { this.totalConsultations = totalConsultations; }
+
+    private int reviewCount;
+
+    public int getReviewCount() { return reviewCount; }
+    public void setReviewCount(int reviewCount) { this.reviewCount = reviewCount; }
 }

@@ -123,6 +123,7 @@ public class DoctorSemanticSearchService {
             SELECT u.id AS doctor_user_id, dp.id AS doctor_profile_id, u.full_name, dp.bio, dp.license_number,
                    dp.years_of_experience, dp.consultation_fee,
                    dp.academic_title, dp.hospital_affiliation,
+                   dp.rating, dp.review_count,
                    1 - (dp.bio_embedding <=> CAST(? AS vector)) AS similarity_score,
                    COALESCE((
                        SELECT string_agg(s.name, ', ')
@@ -150,6 +151,8 @@ public class DoctorSemanticSearchService {
                         BigDecimal fee = rs.getBigDecimal("consultation_fee");
                         String academicTitle = rs.getString("academic_title");
                         String hospitalAffiliation = rs.getString("hospital_affiliation");
+                        double docRating = rs.getObject("rating") != null ? rs.getDouble("rating") : 4.9;
+                        int reviewCount = rs.getInt("review_count");
                         double score = Math.max(0.0, Math.min(1.0, rs.getDouble("similarity_score")));
 
                         String specialtiesStr = rs.getString("specialties_str");
@@ -160,7 +163,7 @@ public class DoctorSemanticSearchService {
                                         .collect(Collectors.toList())
                                 : Collections.emptyList();
 
-                        return new DoctorMatchDto(docUserId, fullName, bio, license, exp, fee, score, specs, academicTitle, hospitalAffiliation);
+                        return new DoctorMatchDto(docUserId, fullName, bio, license, exp, fee, score, specs, academicTitle, hospitalAffiliation, docRating, reviewCount);
                     },
                     vectorSql, vectorSql, candidateLimit
             );
@@ -182,7 +185,7 @@ public class DoctorSemanticSearchService {
      * Time Complexity: O(M log K) where M is candidate pool size and K is effectiveLimit.
      *
      * Composite Score Formula:
-     * CompositeScore = 0.65 * CosineSim + 0.20 * min(1.0, exp / 25) + 0.15 * AcademicScore + SpecialtyBonus (0.08)
+     * CompositeScore = 0.50 * CosineSim + 0.20 * RatingScore + 0.15 * ExpScore + 0.15 * AcademicScore + SpecialtyBonus (0.08)
      */
     public List<DoctorMatchDto> rankDoctors(List<DoctorMatchDto> candidates, String queryText, int limit) {
         if (candidates == null || candidates.isEmpty()) {
@@ -226,9 +229,19 @@ public class DoctorSemanticSearchService {
         double cosineSim = doc.getSimilarityScore();
         double expScore = Math.min(1.0, Math.max(0, doc.getYearsOfExperience()) / 25.0);
         double academicScore = computeAcademicScore(doc.getAcademicTitle());
+
+        // Patient Rating & Clinical Trust Score (20% weight in WHRF)
+        double ratingVal = doc.getRating() != null ? doc.getRating() : 4.5;
+        double ratingScore = Math.max(0.0, Math.min(1.0, ratingVal / 5.0));
+
+        // Credibility damper: doctors with fewer reviews slightly blended with neutral baseline
+        int reviews = doc.getReviewCount();
+        double credibility = reviews >= 5 ? 1.0 : (0.70 + 0.06 * reviews);
+        double adjustedRating = ratingScore * credibility;
+
         double specialtyBonus = computeSpecialtyBonus(doc.getSpecialties(), normalizedQuery);
 
-        double composite = (0.65 * cosineSim) + (0.20 * expScore) + (0.15 * academicScore) + specialtyBonus;
+        double composite = (0.50 * cosineSim) + (0.20 * adjustedRating) + (0.15 * expScore) + (0.15 * academicScore) + specialtyBonus;
         return Math.min(1.0, Math.max(0.0, composite));
     }
 

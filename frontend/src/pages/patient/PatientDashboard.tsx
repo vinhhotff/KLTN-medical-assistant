@@ -15,11 +15,13 @@ import {
   X,
   Phone,
   Sparkles,
-  CreditCard
+  CreditCard,
+  Star
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { api } from '../../services/api';
+import { api, DoctorReviewDto } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
+import { DoctorReviewModal } from '../../components/common/DoctorReviewModal';
 
 interface PatientProfileData {
   id: string;
@@ -217,6 +219,11 @@ export const PatientDashboard: React.FC = () => {
   // EMR Details Modal State
   const [selectedEmrAppointment, setSelectedEmrAppointment] = useState<AppointmentItem | null>(null);
 
+  // Doctor Review & Rating States
+  const [reviewsMap, setReviewsMap] = useState<Record<string, DoctorReviewDto>>({});
+  const [reviewingAppointment, setReviewingAppointment] = useState<AppointmentItem | null>(null);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -224,11 +231,12 @@ export const PatientDashboard: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [appRes, profRes, triageRes, docsRes] = await Promise.all([
+      const [appRes, profRes, triageRes, docsRes, reviewsRes] = await Promise.all([
         api.get('/appointments/my').catch(() => ({ data: { data: [] } })),
         api.get('/patient/profile').catch(() => null),
         api.get('/triage/history').catch(() => ({ data: { data: [] } })),
         api.get('/documents/my').catch(() => ({ data: { data: [] } })),
+        api.get('/reviews/my').catch(() => ({ data: { data: [] } })),
       ]);
 
       if (appRes.data?.data) {
@@ -244,10 +252,28 @@ export const PatientDashboard: React.FC = () => {
       if (docsRes.data?.data && Array.isArray(docsRes.data.data)) {
         setDocuments(docsRes.data.data);
       }
+      if (reviewsRes.data?.data && Array.isArray(reviewsRes.data.data)) {
+        const map: Record<string, DoctorReviewDto> = {};
+        reviewsRes.data.data.forEach((r: DoctorReviewDto) => {
+          if (r.appointmentId) {
+            map[r.appointmentId] = r;
+          }
+        });
+        setReviewsMap(map);
+      }
     } catch (err) {
       console.error('Failed to load patient dashboard data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReviewSubmitted = (newReview: DoctorReviewDto) => {
+    if (newReview.appointmentId) {
+      setReviewsMap((prev) => ({
+        ...prev,
+        [newReview.appointmentId]: newReview,
+      }));
     }
   };
 
@@ -735,12 +761,38 @@ export const PatientDashboard: React.FC = () => {
                             </div>
                           )}
 
-                          {/* Action view full EMR */}
-                          <div className="pt-2 flex justify-end">
+                          {/* Action view full EMR & Rating */}
+                          <div className="pt-2 flex flex-wrap items-center justify-end gap-2">
+                            {reviewsMap[apt.id] ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReviewingAppointment(apt);
+                                  setReviewModalOpen(true);
+                                }}
+                                className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                              >
+                                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                <span>Đã Đánh Giá ({reviewsMap[apt.id].rating}★)</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReviewingAppointment(apt);
+                                  setReviewModalOpen(true);
+                                }}
+                                className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                              >
+                                <Star className="w-3.5 h-3.5 fill-white text-white" />
+                                <span>⭐ Đánh Giá Bác Sĩ</span>
+                              </button>
+                            )}
+
                             <button
                               type="button"
                               onClick={() => setSelectedEmrAppointment(apt)}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
                             >
                               <FileText className="w-3.5 h-3.5" /> Xem Chi Tiết Bệnh Án EMR
                             </button>
@@ -1491,6 +1543,30 @@ export const PatientDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Doctor Review & Rating Modal */}
+      <DoctorReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => {
+          setReviewModalOpen(false);
+          setReviewingAppointment(null);
+        }}
+        appointment={
+          reviewingAppointment
+            ? {
+                id: reviewingAppointment.id,
+                appointmentCode: reviewingAppointment.appointmentCode,
+                doctorId: reviewingAppointment.doctorId,
+                doctorName: reviewingAppointment.doctorName,
+                doctorHospital: reviewingAppointment.clinicRoom || 'Bệnh viện Đa khoa Trung ương',
+                doctorSpecialty: reviewingAppointment.icd10Name || 'Khám Chuyên Khoa',
+                scheduledStart: reviewingAppointment.scheduledStart,
+              }
+            : null
+        }
+        existingReview={reviewingAppointment ? reviewsMap[reviewingAppointment.id] : null}
+        onReviewSubmitted={handleReviewSubmitted}
+      />
     </div>
   );
 };

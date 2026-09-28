@@ -31,3 +31,23 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export interface DoctorReviewDto {
+  id: string;
+  appointmentId: string;
+  appointmentCode?: string;
+  doctorId: string;
+  doctorName?: string;
+  patientId: string;
+  patientName?: string;
+  rating: number;
+  comment?: string;
+  tags?: string;
+  createdAt: string;
+}
+
+export interface DoctorReviewRequest {
+  rating: number;
+  comment?: string;
+  tags?: string;
+}

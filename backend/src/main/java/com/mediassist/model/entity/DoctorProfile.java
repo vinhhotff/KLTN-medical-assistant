@@ -71,6 +71,9 @@ public class DoctorProfile {
     @Column
     private Integer totalConsultations = 1250;
 
+    @Column(name = "review_count")
+    private Integer reviewCount = 0;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -98,6 +101,9 @@ public class DoctorProfile {
 
     public Integer getTotalConsultations() { return totalConsultations; }
     public void setTotalConsultations(Integer totalConsultations) { this.totalConsultations = totalConsultations; }
+
+    public Integer getReviewCount() { return reviewCount != null ? reviewCount : 0; }
+    public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }

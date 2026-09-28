@@ -148,6 +148,7 @@ CREATE TABLE doctor_profiles (
     department VARCHAR(150),                     -- Khoa chuyên môn trực thuộc: Khoa Tim Mạch Can Thiệp
     license_issued_by VARCHAR(150),              -- Đơn vị cấp CCHN: Cục Quản lý Khám chữa bệnh - Bộ Y Tế
     rating DOUBLE PRECISION DEFAULT 4.9,         -- Điểm đánh giá hài lòng người bệnh (1.0 - 5.0)
+    review_count INT NOT NULL DEFAULT 0,         -- [V17] Tổng số lượt đánh giá thực tế của người bệnh
     total_consultations INT DEFAULT 1250,        -- Tổng số ca khám lâm sàng đã hoàn thành
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,  -- Trạng thái phê duyệt của Admin
     verified_at TIMESTAMPTZ,
@@ -311,6 +312,30 @@ CREATE TABLE doctor_schedule_slots (
 
 CREATE INDEX idx_doctor_schedule_lookup 
 ON doctor_schedule_slots(doctor_profile_id, day_of_week, is_active);
+```
+
+#### Bảng `doctor_reviews` [V17]
+Lưu trữ đánh giá chất lượng lâm sàng (1-5 sao, nhận xét, tags) của người bệnh sau khi hoàn thành buổi khám (`COMPLETED`). Khép kín vòng phản hồi thực tế và cung cấp trọng số thực tế cho thuật toán WHRF ($O(M \log K)$ Min-Heap).
+
+```sql
+CREATE TABLE doctor_reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    appointment_id UUID NOT NULL UNIQUE REFERENCES appointments(id) ON DELETE CASCADE,
+    doctor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    patient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    tags TEXT,                                    -- Mảng tag phân cách bằng phẩy (Ví dụ: "Tận tình,Giải thích rõ,Đúng giờ")
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Ràng buộc 1 đánh giá duy nhất cho mỗi lịch hẹn đã hoàn thành
+CREATE UNIQUE INDEX idx_doctor_reviews_appointment ON doctor_reviews(appointment_id);
+-- Tăng tốc truy vấn danh sách đánh giá của từng bác sĩ
+CREATE INDEX idx_doctor_reviews_doctor ON doctor_reviews(doctor_id, created_at DESC);
+-- Truy vấn lịch sử đánh giá của người bệnh
+CREATE INDEX idx_doctor_reviews_patient ON doctor_reviews(patient_id);
 ```
 
 ---
