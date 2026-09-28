@@ -31,7 +31,8 @@ import {
   Plus,
   Trash2,
   Users,
-  User
+  User,
+  Star
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -58,6 +59,8 @@ interface DoctorMatch {
   specialties: string[];
   academicTitle?: string;
   hospitalAffiliation?: string;
+  rating?: number;
+  reviewCount?: number;
   aiRecommended?: boolean;
   aiRecommendationReason?: string;
 }
@@ -1686,6 +1689,18 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                                     )}
                                     <span>•</span>
                                     <span className="font-mono">CCHN: {doc.licenseNumber}</span>
+                                    {doc.rating !== undefined && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="inline-flex items-center gap-1 text-amber-600 font-bold">
+                                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                          {doc.rating > 0 ? doc.rating.toFixed(1) : '5.0'}
+                                          {doc.reviewCount !== undefined && (
+                                            <span className="text-slate-400 font-normal">({doc.reviewCount})</span>
+                                          )}
+                                        </span>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
 

@@ -138,6 +138,7 @@ interface DoctorStats {
   todayRevenue: number;
   lifetimeRevenue: number;
   doctorRating: number;
+  reviewCount?: number;
   totalConsultations: number;
 }
 
@@ -1107,7 +1108,9 @@ export const DoctorDashboard: React.FC = () => {
             </span>
             <span className="text-xs font-bold text-slate-500">VNĐ</span>
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">Đánh giá: ⭐ {stats?.doctorRating ?? 4.9}/5.0</p>
+          <p className="text-[11px] text-slate-500 mt-1">
+            Đánh giá: ⭐ {stats?.doctorRating ? stats.doctorRating.toFixed(1) : '4.9'}/5.0 ({stats?.reviewCount ?? 0} nhận xét)
+          </p>
         </div>
       </div>
 

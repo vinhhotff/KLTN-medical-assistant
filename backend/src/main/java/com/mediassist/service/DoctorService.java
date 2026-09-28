@@ -230,8 +230,11 @@ public class DoctorService {
         int consultations = (profile != null && profile.getTotalConsultations() != null)
                 ? profile.getTotalConsultations()
                 : (int) totalCompletedCount;
+        int reviewCount = (profile != null && profile.getReviewCount() != null)
+                ? profile.getReviewCount()
+                : 0;
 
-        return new DoctorStatsDto(
+        DoctorStatsDto dto = new DoctorStatsDto(
                 todayAppointmentsCount,
                 todayWaitingCount,
                 todayInProgressCount,
@@ -243,6 +246,8 @@ public class DoctorService {
                 rating,
                 consultations
         );
+        dto.setReviewCount(reviewCount);
+        return dto;
     }
 
     /**

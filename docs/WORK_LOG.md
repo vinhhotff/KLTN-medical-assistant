@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#079** | 28/09/2026 | Hiện Thực Hóa Toàn Diện Hệ Thống Đánh Giá & Chấm Sao Bác Sĩ (Rating & Review System) Khép Kín Vòng Phản Hồi Lâm Sàng & Đưa Điểm Thực Tế Vào Thuật Toán WHRF: (1) Flyway V17 tạo bảng `doctor_reviews` và cột `review_count`, (2) Ràng buộc 1 ca khám hoàn tất (`COMPLETED`) 1 đánh giá duy nhất (idempotent), (3) Tự động tái tính điểm trung bình và cập nhật số lượt đánh giá, (4) Invalidate Two-Layer Cache (Caffeine L1 + Redis L2) và WHRF search cache, (5) Tích hợp điểm thực tế vào thuật toán WHRF ($O(M \log K)$ Min-Heap) với hệ số suy giảm độ tin cậy (Credibility Damper) cho bác sĩ ít review, (6) Bảo vệ riêng tư Nghị định 13/2023/NĐ-CP & HIPAA bằng mặt nạ họ tên bệnh nhân, (7) Frontend Modal chấm sao tương tác, xem danh sách đánh giá chi tiết, hiển thị sao và số lượt đánh giá trên DoctorSearch, PatientDashboard, DoctorDashboard, Triage, DocumentSummarizer, (8) 143/143 Backend Tests PASS (100%), Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#078** | 28/09/2026 | Tích Hợp Toàn Diện 2 Nhánh Đồng Nghiệp Vào Nhánh develop (Integration Merge: fix/critical-bugs & feature/fuction): (1) Merge nhánh fix/critical-bugs của Bảo: Thu hẹp Vite proxy tránh cướp route /oauth2/callback SPA, nâng cấp logging lỗi OAuth2, untrack các tệp .env và cấu hình nạp qua spring.config.import, (2) Merge nhánh feature/fuction của Khương: Chuông thông báo in-app NotificationBell, Quên/Đặt lại mật khẩu PasswordResetToken, Rào chắn hoàn tiền hủy khám & Dời lịch hẹn, Flyway V15 & V16, (3) Xác thực toàn diện: 136/136 Backend Tests PASS (100%), Frontend build 0 lỗi TypeScript (1683 modules), và bảo toàn các tệp .env cục bộ cho môi trường phát triển | AI Assistant | 🟢 Sẵn sàng Review |
 | **#077** | 23/09/2026 | Hoàn Thiện Toàn Diện Nghiệp Vụ Doanh Nghiệp, Rào Chắn Lịch Khám, Tính Nguyên Tử Thanh Toán & Chuông Thông Báo (Enterprise Flows & Safeguards Hardening): (1) Flyway V15 & V16 bổ sung `triage_session_id`, `password_reset_tokens`, `notifications`, (2) Rào chắn đặt lịch: Bác sĩ active/verified, giờ hành chính (8-12h, 13h30-17h, nghỉ Chủ Nhật), số thứ tự tiếp đón (STT), state machine chuyển đổi trạng thái, API Dời lịch hẹn (`PATCH /appointments/{id}/reschedule`), tự động hoàn tiền khi hủy ca khám đã thanh toán, (3) Tính nguyên tử thanh toán: Chống duplicate checkout race condition, `@Transactional(REQUIRES_NEW)` cho fulfillOrder, kiểm toán giao dịch mồ côi, (4) Lịch làm việc bác sĩ động từ `DoctorScheduleSlot` & DB aggregation cho thống kê, hàng đợi khóa bi quan (pessimistic lock), (5) Sanitization đầu vào Triage, CCCD 12 số & SĐT Việt Nam, chu trình Quên mật khẩu an toàn, (6) Hệ thống chuông thông báo nội bộ thời gian thực cho Bệnh nhân & Bác sĩ, (7) Frontend wire-up: Dời lịch hẹn modal, liên kết xem tài liệu `focusId`, banner cảnh báo CCCD/nhóm máu chưa hoàn thiện, chọn giờ tái khám bác sĩ, (8) Đạt 136/136 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#076** | 18/09/2026 | Bác Sĩ Truy Cập Hồ Sơ Cận Lâm Sàng & Kết Quả Bóc Tách AI OCR Từ Lịch Khám (Doctor Medical Document & AI OCR Analysis Viewer): (1) Khắc phục điểm khuyết Bác sĩ không thể click xem lại tài liệu bệnh nhân gửi từ phân hệ Tóm tắt hồ sơ, (2) Flyway V14 liên kết `medical_document_id` vào bảng `appointments`, (3) Backend API streaming tệp an toàn (`GET /documents/{id}/file`) & trích xuất phân tích chi tiết (`GET /documents/{id}/analysis`), (4) Frontend Modal 2 tab `DocumentAnalysisModal.tsx` (AI Scribe & Bảng chỉ số xét nghiệm + Trình xem tệp gốc PDF/Ảnh nội tuyến) kèm tiện ích 1-click chèn vào Bệnh án, (5) Tích hợp liền mạch vào Dashboard Bác sĩ và Danh bạ Hồ sơ Bệnh nhân 360°, (6) Đạt 128/128 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
@@ -18,6 +19,73 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#079] Hiện Thực Hóa Toàn Diện Hệ Thống Đánh Giá & Chấm Sao Bác Sĩ (Rating & Review System) Khép Kín Vòng Phản Hồi Lâm Sàng & Đưa Điểm Thực Tế Vào Thuật Toán WHRF
+* **Thời gian:** 2026-09-28 20:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-DOC-26 (Doctor Rating & Review System & Real-Time WHRF Integration)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **143/143 Unit Tests PASS 100%**, `mvn test` sạch sẽ (24.198s)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1685 modules transformed** trong 3.22s (`npm run build`)
+  - Nhánh phát triển: `feature/doctor-rating-review` $\rightarrow$ `develop`
+
+#### 1. Bối Cảnh & Quyết Định Kiến Trúc:
+Tech Lead yêu cầu thực hiện **Ưu tiên số 3 (Khép kín dữ liệu): Đánh Giá & Chấm Sao Bác Sĩ (Rating & Review) $\rightarrow$ Đưa điểm số thực tế vào thuật toán WHRF**.  
+Trước đây, điểm `rating` của bác sĩ trong `doctor_profiles` chỉ là giá trị mặc định (4.9) hoặc khởi tạo cố định mà chưa được khép kín vòng phản hồi từ người bệnh thực tế sau khi khám xong.
+
+**Các quyết định kiến trúc trọng tâm đã triển khai:**
+1. **Ràng Buộc Đánh Giá Chuẩn Y Tế (Clinical Review Integrity):**
+   - Chỉ cho phép bệnh nhân gửi đánh giá khi cuộc hẹn có trạng thái `COMPLETED`.
+   - Ràng buộc 1 ca khám chỉ được đánh giá duy nhất 1 lần (`appointment_id UNIQUE`), chống spam điểm số hoặc review ảo.
+   - Thang điểm chuẩn 1 - 5 sao kèm nhãn cảm xúc trực quan và các thẻ đánh giá nhanh (preset tags: "Bác sĩ tận tình", "Giải thích rõ ràng", "Đúng giờ", "Chẩn đoán chính xác", "Thân thiện", "Tư vấn chu đáo").
+2. **Cơ Chế Tái Tính Điểm Trung Bình & Giải Phóng Bộ Nhớ Đệm Đa Tầng:**
+   - Ngay khi nhận review mới, `DoctorReviewService` tính toán lại `average_rating` (làm tròn 1 chữ số thập phân) và `review_count` trong bảng `doctor_profiles`.
+   - Kích hoạt cơ chế Cache Eviction tức thì trên cả **L1 In-Memory Caffeine** và **L2 Distributed Redis**, đồng thời xóa sạch tiền tố `doctor_search_cache` để bảo đảm các truy vấn tìm kiếm phản ánh điểm mới nhất.
+3. **Đưa Điểm Thực Tế Vào Thuật Toán WHRF ($O(M \log K)$ Min-Heap Ranking):**
+   - Trong `DoctorSemanticSearchService`, công thức chấm điểm đa tiêu chí kết hợp:
+     $$\text{CompositeScore} = 0.50 \cdot \text{CosineSim} + 0.20 \cdot \text{AdjustedRating} + 0.15 \cdot \text{ExpScore} + 0.15 \cdot \text{AcademicScore} + \text{SpecialtyBonus}$$
+   - **Hệ số suy giảm độ tin cậy (Credibility Damper):** Để ngăn chặn trường hợp bác sĩ mới chỉ có 1 đánh giá 5 sao vượt mặt các bác sĩ gạo cội có hàng chục đánh giá 4.8 sao:
+     $$\text{CredibilityFactor} = \begin{cases} 0.70 + 0.06 \times \text{reviewCount} & \text{khi } \text{reviewCount} < 5 \\ 1.00 & \text{khi } \text{reviewCount} \ge 5 \end{cases}$$
+4. **Bảo Vệ Quyền Riêng Tư Bệnh Nhân (HIPAA & Nghị Định 13/2023/NĐ-CP):**
+   - API công khai trả về danh sách đánh giá của bác sĩ tự động làm mờ tên đệm của người bệnh (Ví dụ: "Nguyễn Văn Bình" $\rightarrow$ "Nguyễn V. Bình", "Trần Thị Mai Anh" $\rightarrow$ "Trần T. M. Anh"), vừa giữ tính xác thực vừa bảo vệ dữ liệu cá nhân y tế.
+
+#### 2. Danh Sách Tệp Tin Tạo Mới & Sửa Đổi:
+* **Tạo mới `[NEW]`:**
+  - `V17__create_doctor_reviews_and_rating_system.sql`: Migration Flyway tạo bảng `doctor_reviews`, thêm cột `review_count` cho `doctor_profiles`, và chèn dữ liệu đánh giá mẫu cho các ca khám đã hoàn thành.
+  - `DoctorReview.java`: JPA Entity cho đánh giá lâm sàng với các getter/setter tường minh (Java 25 compatible).
+  - `DoctorReviewRepository.java`: Repository truy vấn đánh giá theo ca khám, bác sĩ, bệnh nhân, tính điểm trung bình và đếm số lượng.
+  - `DoctorReviewRequest.java`: DTO tiếp nhận đánh giá từ phía client kèm validation (`@NotNull`, `@Min(1)`, `@Max(5)`).
+  - `DoctorReviewDto.java`: DTO phản hồi dữ liệu đánh giá kèm tiện ích ẩn danh hóa tên bệnh nhân (`anonymizePatientName`).
+  - `DoctorReviewService.java`: Service xử lý nghiệp vụ gửi đánh giá, tính lại rating/count, xóa cache L1+L2+WHRF, phát thông báo chuông in-app cho bác sĩ và ghi Audit Log.
+  - `DoctorReviewController.java`: REST Controller cung cấp các endpoint đánh giá ca khám, xem đánh giá của bác sĩ, và lịch sử đánh giá cá nhân.
+  - `DoctorReviewServiceTest.java`: 7 bài kiểm thử đơn vị chuyên sâu (gửi review thành công, kiểm tra 404, 403, 400 ca khám chưa hoàn tất, 409 duplicate review, kiểm tra ẩn danh hóa).
+  - `DoctorReviewModal.tsx`: Component Modal chấm sao tương tác, chọn tag nhanh, nhập nhận xét, đếm ký tự, và chế độ xem lại đánh giá đã gửi.
+  - `DoctorReviewsListModal.tsx`: Component Modal hiển thị chi tiết danh sách đánh giá của bác sĩ, biểu đồ phân bổ số sao (5★ - 1★), và bộ lọc theo số sao.
+* **Sửa đổi `[MOD]`:**
+  - `DoctorProfile.java`: Bổ sung trường `reviewCount` kèm getter/setter.
+  - `DoctorMatchDto.java`: Bổ sung `rating` và `reviewCount` cho đối tượng kết quả WHRF.
+  - `DoctorDetailDto.java`: Bổ sung `reviewCount` cho đối tượng chi tiết bác sĩ.
+  - `DoctorStatsDto.java`: Bổ sung `reviewCount` cho thống kê bàn làm việc lâm sàng bác sĩ.
+  - `DoctorSemanticSearchService.java`: Nạp `dp.rating` và `dp.review_count` từ database, áp dụng công thức WHRF cải tiến với Credibility Damper.
+  - `DoctorService.java`: Nạp `reviewCount` trong thống kê `getDoctorStats`.
+  - `SecurityConfig.java`: Cho phép truy cập công khai endpoint xem review bác sĩ `/api/v1/doctors/{doctorId}/reviews`.
+  - `frontend/src/services/api.ts`: Bổ sung các DTO và API calls `submitReview`, `getAppointmentReview`, `getDoctorReviews`, `getMyReviews`.
+  - `PatientDashboard.tsx`: Bổ sung nạp danh sách đánh giá của bệnh nhân, hiển thị nút *"⭐ Đánh Giá Bác Sĩ"* hoặc *"Đã Đánh Giá ({rating}★)"* cho ca khám `COMPLETED`, mở `DoctorReviewModal`.
+  - `DoctorSearchPage.tsx`: Hiển thị số sao và số lượt đánh giá, nhấp vào mở `DoctorReviewsListModal` xem chi tiết.
+  - `DoctorDashboard.tsx`: Hiển thị số lượt đánh giá thực tế trên thanh tiêu đề bàn làm việc bác sĩ.
+  - `DocumentSummarizerPage.tsx` & `SymptomTriagePage.tsx`: Hiển thị số sao và số lượt đánh giá trên các thẻ bác sĩ được AI gợi ý.
+  - `docs/DATABASE_DESIGN.md`: Bổ sung tài liệu bảng `doctor_reviews` và trường `review_count`.
+  - `docs/USE_CASES.md`: Bổ sung tài liệu ca sử dụng `UC-DOC-26`.
+
+#### 3. Bằng Chứng Kiểm Thử Đạt Chuẩn:
+* **Backend:** `mvn test` $\rightarrow$ **Tests run: 143, Failures: 0, Errors: 0, Skipped: 0** — **`BUILD SUCCESS`** (100% tests PASS).
+* **Frontend:** `npm run build` $\rightarrow$ **0 TypeScript errors, 1685 modules transformed** thành công trong 3.22s.
+
+#### 4. Điểm Nóng Tech Lead Cần Review:
+- **Hệ số Credibility Damper trong WHRF:** Bác sĩ có ít hơn 5 review sẽ chịu hệ số phạt nhẹ ($0.70 + 0.06 \times \text{count}$), bảo đảm tính công bằng y tế.
+- **Quy tắc ẩn danh hóa:** Họ và tên bệnh nhân được rút gọn phần đệm thành chữ cái đầu kèm dấu chấm (VD: "Nguyễn V. Bình") trước khi hiển thị cho công chúng.
+
+---
 
 ### [WORK-LOG-#078] Tích Hợp Toàn Diện 2 Nhánh Đồng Nghiệp Vào Nhánh develop (Integration Merge: fix/critical-bugs & feature/fuction)
 * **Thời gian:** 2026-09-28 19:40:00 (GMT+7)

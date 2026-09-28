@@ -16,6 +16,8 @@ public class DoctorMatchDto {
     private List<String> specialties;
     private String academicTitle;
     private String hospitalAffiliation;
+    private Double rating = 4.9;
+    private int reviewCount = 0;
     private boolean aiRecommended;
     private String aiRecommendationReason;
 
@@ -24,12 +26,19 @@ public class DoctorMatchDto {
     public DoctorMatchDto(UUID doctorId, String fullName, String bio, String licenseNumber,
                           int yearsOfExperience, BigDecimal consultationFee, double similarityScore,
                           List<String> specialties) {
-        this(doctorId, fullName, bio, licenseNumber, yearsOfExperience, consultationFee, similarityScore, specialties, "TS.BS", "BV Đại Học Y Dược TP.HCM");
+        this(doctorId, fullName, bio, licenseNumber, yearsOfExperience, consultationFee, similarityScore, specialties, "TS.BS", "BV Đại Học Y Dược TP.HCM", 4.9, 0);
     }
 
     public DoctorMatchDto(UUID doctorId, String fullName, String bio, String licenseNumber,
                           int yearsOfExperience, BigDecimal consultationFee, double similarityScore,
                           List<String> specialties, String academicTitle, String hospitalAffiliation) {
+        this(doctorId, fullName, bio, licenseNumber, yearsOfExperience, consultationFee, similarityScore, specialties, academicTitle, hospitalAffiliation, 4.9, 0);
+    }
+
+    public DoctorMatchDto(UUID doctorId, String fullName, String bio, String licenseNumber,
+                          int yearsOfExperience, BigDecimal consultationFee, double similarityScore,
+                          List<String> specialties, String academicTitle, String hospitalAffiliation,
+                          Double rating, int reviewCount) {
         this.doctorId = doctorId;
         this.fullName = fullName;
         this.bio = bio;
@@ -40,6 +49,8 @@ public class DoctorMatchDto {
         this.specialties = specialties;
         this.academicTitle = academicTitle != null ? academicTitle : "TS.BS";
         this.hospitalAffiliation = hospitalAffiliation != null ? hospitalAffiliation : "BV Đại Học Y Dược TP.HCM";
+        this.rating = rating != null ? rating : 4.9;
+        this.reviewCount = reviewCount;
     }
 
     public UUID getDoctorId() { return doctorId; }
@@ -83,4 +94,10 @@ public class DoctorMatchDto {
 
     public String getAiRecommendationReason() { return aiRecommendationReason; }
     public void setAiRecommendationReason(String aiRecommendationReason) { this.aiRecommendationReason = aiRecommendationReason; }
+
+    public Double getRating() { return rating != null ? rating : 4.9; }
+    public void setRating(Double rating) { this.rating = rating; }
+
+    public int getReviewCount() { return reviewCount; }
+    public void setReviewCount(int reviewCount) { this.reviewCount = reviewCount; }
 }
