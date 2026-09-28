@@ -11,12 +11,47 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#078** | 28/09/2026 | Tích Hợp Toàn Diện 2 Nhánh Đồng Nghiệp Vào Nhánh develop (Integration Merge: fix/critical-bugs & feature/fuction): (1) Merge nhánh fix/critical-bugs của Bảo: Thu hẹp Vite proxy tránh cướp route /oauth2/callback SPA, nâng cấp logging lỗi OAuth2, untrack các tệp .env và cấu hình nạp qua spring.config.import, (2) Merge nhánh feature/fuction của Khương: Chuông thông báo in-app NotificationBell, Quên/Đặt lại mật khẩu PasswordResetToken, Rào chắn hoàn tiền hủy khám & Dời lịch hẹn, Flyway V15 & V16, (3) Xác thực toàn diện: 136/136 Backend Tests PASS (100%), Frontend build 0 lỗi TypeScript (1683 modules), và bảo toàn các tệp .env cục bộ cho môi trường phát triển | AI Assistant | 🟢 Sẵn sàng Review |
 | **#077** | 23/09/2026 | Hoàn Thiện Toàn Diện Nghiệp Vụ Doanh Nghiệp, Rào Chắn Lịch Khám, Tính Nguyên Tử Thanh Toán & Chuông Thông Báo (Enterprise Flows & Safeguards Hardening): (1) Flyway V15 & V16 bổ sung `triage_session_id`, `password_reset_tokens`, `notifications`, (2) Rào chắn đặt lịch: Bác sĩ active/verified, giờ hành chính (8-12h, 13h30-17h, nghỉ Chủ Nhật), số thứ tự tiếp đón (STT), state machine chuyển đổi trạng thái, API Dời lịch hẹn (`PATCH /appointments/{id}/reschedule`), tự động hoàn tiền khi hủy ca khám đã thanh toán, (3) Tính nguyên tử thanh toán: Chống duplicate checkout race condition, `@Transactional(REQUIRES_NEW)` cho fulfillOrder, kiểm toán giao dịch mồ côi, (4) Lịch làm việc bác sĩ động từ `DoctorScheduleSlot` & DB aggregation cho thống kê, hàng đợi khóa bi quan (pessimistic lock), (5) Sanitization đầu vào Triage, CCCD 12 số & SĐT Việt Nam, chu trình Quên mật khẩu an toàn, (6) Hệ thống chuông thông báo nội bộ thời gian thực cho Bệnh nhân & Bác sĩ, (7) Frontend wire-up: Dời lịch hẹn modal, liên kết xem tài liệu `focusId`, banner cảnh báo CCCD/nhóm máu chưa hoàn thiện, chọn giờ tái khám bác sĩ, (8) Đạt 136/136 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#076** | 18/09/2026 | Bác Sĩ Truy Cập Hồ Sơ Cận Lâm Sàng & Kết Quả Bóc Tách AI OCR Từ Lịch Khám (Doctor Medical Document & AI OCR Analysis Viewer): (1) Khắc phục điểm khuyết Bác sĩ không thể click xem lại tài liệu bệnh nhân gửi từ phân hệ Tóm tắt hồ sơ, (2) Flyway V14 liên kết `medical_document_id` vào bảng `appointments`, (3) Backend API streaming tệp an toàn (`GET /documents/{id}/file`) & trích xuất phân tích chi tiết (`GET /documents/{id}/analysis`), (4) Frontend Modal 2 tab `DocumentAnalysisModal.tsx` (AI Scribe & Bảng chỉ số xét nghiệm + Trình xem tệp gốc PDF/Ảnh nội tuyến) kèm tiện ích 1-click chèn vào Bệnh án, (5) Tích hợp liền mạch vào Dashboard Bác sĩ và Danh bạ Hồ sơ Bệnh nhân 360°, (6) Đạt 128/128 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#078] Tích Hợp Toàn Diện 2 Nhánh Đồng Nghiệp Vào Nhánh develop (Integration Merge: fix/critical-bugs & feature/fuction)
+* **Thời gian:** 2026-09-28 19:40:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-01 (Authn & OAuth2 Routing), UC-CLIN-23 (Rescheduling), UC-SEC-24 (Password Reset), UC-SYS-25 (In-App Notifications & Auto-Refund)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **136/136 Unit Tests PASS 100%**, `mvn test` sạch sẽ (26.17s)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1683 modules transformed** trong 6.81s (`npm run build`)
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Quyết Định Kiến Trúc:
+Tech Lead chỉ đạo merge các nhánh phát triển độc lập của 2 thành viên trong nhóm vào nhánh chính `develop`:
+1. Nhánh `fix/critical-bugs` của bạn Bảo (`phnbao2004`): Xử lý xung đột proxy Vite nuốt route `/oauth2/callback`, nâng cấp logging xác thực thất bại, untrack các tệp `.env` để bảo mật kho lưu trữ.
+2. Nhánh `feature/fuction` của bạn Khương (`HoangKhuong`): Hoàn thiện quả chuông thông báo in-app, chu trình quên mật khẩu, hoàn tiền và dời lịch khám, cùng 2 Flyway migrations V15 & V16.
+
+Quá trình tích hợp diễn ra hoàn hảo theo chiến lược Git merge tiêu chuẩn, **không có bất kỳ xung đột mã nguồn (zero merge conflict)** nào.
+
+#### 2. Danh Sách Tệp Tin Tích Hợp:
+* **Từ `fix/critical-bugs`:**
+  - `[MOD]` `frontend/vite.config.ts`: Thu hẹp proxy từ `/oauth2` sang `/oauth2/authorization` giải phóng route SPA `/oauth2/callback`.
+  - `[MOD]` `backend/src/main/java/com/mediassist/security/OAuth2AuthenticationFailureHandler.java`: Ghi log chẩn đoán context khi OAuth2 fail.
+  - `[MOD]` `.gitignore` & `backend/src/main/resources/application.properties`: Untrack `.env`, nạp config qua `spring.config.import=optional:file:.env`.
+* **Từ `feature/fuction`:**
+  - `[NEW]` `V15__add_triage_session_and_refund_to_appointments.sql` & `V16__create_password_reset_and_notifications.sql`.
+  - `[NEW]` `Notification.java`, `PasswordResetToken.java`, `NotificationService.java`, `NotificationController.java`.
+  - `[NEW]` `NotificationBell.tsx`, `notificationService.ts`.
+  - `[MOD]` `AppointmentService.java`, `AuthService.java`, `PatientDashboard.tsx`, `DoctorDashboard.tsx`.
+  - `[NEW]` `NotificationServiceTest.java`.
+
+#### 3. Bằng Chứng Kiểm Thử Đạt Chuẩn:
+* **Backend:** `mvn test` $\rightarrow$ **Tests run: 136, Failures: 0, Errors: 0, Skipped: 0** — **`BUILD SUCCESS`**.
+* **Frontend:** `npm run build` $\rightarrow$ **0 TypeScript errors, 1683 modules transformed** thành công.
+
+---
 
 ### [WORK-LOG-#077] Hoàn Thiện Toàn Diện Nghiệp Vụ Doanh Nghiệp, Rào Chắn Lịch Khám, Tính Nguyên Tử Thanh Toán & Chuông Thông Báo
 * **Thời gian:** 2026-09-23 07:30:00 (GMT+7)
