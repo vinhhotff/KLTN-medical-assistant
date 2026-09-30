@@ -11,12 +11,38 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#078** | 30/09/2026 | Triển Khai Phiếu Khám Bệnh Điện Tử O2O (E-Admission Ticket with QR, STT, Google Maps & Print): (1) Bổ sung trường E-Admission Ticket vào `AppointmentDto` (clinicRoom, clinicFloor, clinicBuilding, clinicAddress, clinicMapUrl, qrCodeData, sttNumber, preVisitInstructions), (2) Bổ sung logic trích xuất thông tin phòng khám, số thứ tự hàng chờ (STT), sinh payload QR code chuẩn JSON và lời dặn chuẩn bị lâm sàng trong `AppointmentService`, (3) Mở endpoint `GET /api/v1/appointments/{id}/ticket`, (4) Cài đặt `qrcode.react` và tạo mới component `AdmissionTicketModal.tsx` với mã QR SVG sắc nét, STT nổi bật, tích hợp chỉ đường Google Maps, nút thêm lịch vào Google Calendar và chế độ in phiếu (`window.print()`), (5) Tích hợp nút '📋 Xem Phiếu Khám' vào danh sách lịch khám trên `PatientDashboard.tsx`, (6) Đạt 138/138 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#077** | 23/09/2026 | Hoàn Thiện Toàn Diện Nghiệp Vụ Doanh Nghiệp, Rào Chắn Lịch Khám, Tính Nguyên Tử Thanh Toán & Chuông Thông Báo (Enterprise Flows & Safeguards Hardening): (1) Flyway V15 & V16 bổ sung `triage_session_id`, `password_reset_tokens`, `notifications`, (2) Rào chắn đặt lịch: Bác sĩ active/verified, giờ hành chính (8-12h, 13h30-17h, nghỉ Chủ Nhật), số thứ tự tiếp đón (STT), state machine chuyển đổi trạng thái, API Dời lịch hẹn (`PATCH /appointments/{id}/reschedule`), tự động hoàn tiền khi hủy ca khám đã thanh toán, (3) Tính nguyên tử thanh toán: Chống duplicate checkout race condition, `@Transactional(REQUIRES_NEW)` cho fulfillOrder, kiểm toán giao dịch mồ côi, (4) Lịch làm việc bác sĩ động từ `DoctorScheduleSlot` & DB aggregation cho thống kê, hàng đợi khóa bi quan (pessimistic lock), (5) Sanitization đầu vào Triage, CCCD 12 số & SĐT Việt Nam, chu trình Quên mật khẩu an toàn, (6) Hệ thống chuông thông báo nội bộ thời gian thực cho Bệnh nhân & Bác sĩ, (7) Frontend wire-up: Dời lịch hẹn modal, liên kết xem tài liệu `focusId`, banner cảnh báo CCCD/nhóm máu chưa hoàn thiện, chọn giờ tái khám bác sĩ, (8) Đạt 136/136 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#076** | 18/09/2026 | Bác Sĩ Truy Cập Hồ Sơ Cận Lâm Sàng & Kết Quả Bóc Tách AI OCR Từ Lịch Khám (Doctor Medical Document & AI OCR Analysis Viewer): (1) Khắc phục điểm khuyết Bác sĩ không thể click xem lại tài liệu bệnh nhân gửi từ phân hệ Tóm tắt hồ sơ, (2) Flyway V14 liên kết `medical_document_id` vào bảng `appointments`, (3) Backend API streaming tệp an toàn (`GET /documents/{id}/file`) & trích xuất phân tích chi tiết (`GET /documents/{id}/analysis`), (4) Frontend Modal 2 tab `DocumentAnalysisModal.tsx` (AI Scribe & Bảng chỉ số xét nghiệm + Trình xem tệp gốc PDF/Ảnh nội tuyến) kèm tiện ích 1-click chèn vào Bệnh án, (5) Tích hợp liền mạch vào Dashboard Bác sĩ và Danh bạ Hồ sơ Bệnh nhân 360°, (6) Đạt 128/128 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#078] Triển Khai Phiếu Khám Bệnh Điện Tử O2O (E-Admission Ticket with QR, STT, Google Maps & Print)
+* **Thời gian:** 2026-09-30 23:10:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-CLIN-26 (O2O E-Admission Ticket)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **138/138 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1685 modules transformed**, build thành công trong 7.52s (`npm run build`)
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Tạo mới `[NEW]`:**
+  - `frontend/src/components/patient/AdmissionTicketModal.tsx`: Component phiếu khám điện tử O2O hoàn chỉnh với mã QR SVG chuẩn hoá, số STT khổ lớn, thông tin bác sĩ/phòng khám, đường dẫn Google Maps chỉ đường, nút thêm sự kiện Google Calendar và phong cách CSS `@media print` in ấn tự động.
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/java/com/mediassist/dto/AppointmentDto.java`: Bổ sung 7 trường thông tin phục vụ E-Admission Ticket (`clinicFloor`, `clinicBuilding`, `clinicAddress`, `clinicMapUrl`, `qrCodeData`, `sttNumber`, `preVisitInstructions`) kèm getters & setters.
+  - `backend/src/main/java/com/mediassist/service/AppointmentService.java`: Bổ sung method `getAppointmentTicket()`, logic `populateTicketInfo()` trích xuất phòng khám, số thứ tự (STT), sinh payload QR code chuẩn JSON cho máy quét lễ tân và danh mục 4 chỉ dẫn lâm sàng trước khi khám.
+  - `backend/src/main/java/com/mediassist/controller/AppointmentController.java`: Mở endpoint `GET /api/v1/appointments/{id}/ticket` bảo vệ phân quyền cho Bệnh nhân, Bác sĩ và Quản trị viên.
+  - `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`: Bổ sung 2 unit tests (`testGetAppointmentTicket_Success` và `testGetAppointmentTicket_Forbidden_OtherPatient`), nâng tổng số test lên 138/138 PASS.
+  - `frontend/package.json` & `package-lock.json`: Cài đặt thư viện `qrcode.react`.
+  - `frontend/src/pages/patient/PatientDashboard.tsx`: Bổ sung nút '📋 Xem Phiếu Khám' trên mỗi thẻ lịch khám đã được tiếp nhận/thanh toán, quản lý trạng thái mở modal `AdmissionTicketModal`.
+
+#### 2. Nghiệp Vụ Doanh Nghiệp & Giá Trị O2O (Online-to-Offline):
+1. **Tiếp Đón Bệnh Viện Tự Động:** Mã QR chứa đầy đủ chuỗi định danh JSON (`appointmentId`, `code`, `stt`, `patient`, `doctor`, `datetime`, `room`), tương thích ngay với các trụ Kiosk Check-in tự động hoặc máy quét mã vạch 2D của điều dưỡng/lễ tân.
+2. **Trải Nghiệm Bệnh Nhân Tối Ưu:** Nút "Thêm vào Google Calendar" thiết lập lịch nhắc nhở kèm cảnh báo có mặt trước 15 phút. Nút "Chỉ Đường Google Maps" dẫn trực tiếp đến cơ sở khám bệnh. Tiện ích in ấn "In Phiếu Khám" giúp bệnh nhân cao tuổi lưu giữ phiếu giấy nếu cần.
+3. **Tuân Thủ Lâm Sàng (Pre-visit Compliance):** Hiển thị rõ ràng danh sách kiểm tra các giấy tờ bắt buộc (CCCD, BHYT) và lời dặn nhịn ăn trước xét nghiệm máu/nội soi, giảm thiểu tỷ lệ hoãn/hủy ca khám tại chỗ.
 
 ### [WORK-LOG-#077] Hoàn Thiện Toàn Diện Nghiệp Vụ Doanh Nghiệp, Rào Chắn Lịch Khám, Tính Nguyên Tử Thanh Toán & Chuông Thông Báo
 * **Thời gian:** 2026-09-23 07:30:00 (GMT+7)

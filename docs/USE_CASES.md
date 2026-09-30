@@ -850,3 +850,27 @@ graph TD
   - Khi ca khám có trạng thái `paymentStatus == 'PAID'` bị hủy bởi bệnh nhân hoặc bác sĩ, `AppointmentService.updateStatus()` tự động kích hoạt phương thức hoàn tiền `paymentService.refundPayment(appointmentId)`.
   - Trạng thái thanh toán của ca khám chuyển từ `PAID` sang `REFUNDED`, tạo bản ghi thông báo xác nhận hoàn tiền cho bệnh nhân.
 
+---
+
+### UC-26: Xem Phiếu Khám Bệnh Điện Tử O2O (E-Admission Ticket with QR & STT)
+
+* **Mã Use Case:** `UC-CLIN-26`
+* **Tác nhân chính:** Patient (Bệnh nhân), Lễ Tân / Bác Sĩ (Receptionist / Doctor), Kiosk Check-in Tự Động.
+* **Mục tiêu:** Cung cấp cho bệnh nhân phiếu tiếp đón lâm sàng điện tử ngay sau khi đặt lịch khám trực tiếp (O2O) thành công, chứa mã QR tiêu chuẩn, số thứ tự (STT), định vị phòng khám, tích hợp Google Maps, Google Calendar và tiện ích in ấn giấy.
+* **REST Endpoints:**
+  - `GET /api/v1/appointments/{id}/ticket`: Trả về dữ liệu chi tiết của phiếu khám (`clinicRoom`, `clinicFloor`, `clinicBuilding`, `clinicAddress`, `clinicMapUrl`, `qrCodeData`, `sttNumber`, `preVisitInstructions`).
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Tạo Mã QR Check-in Chuẩn Hóa:**
+     - Mã QR chứa chuỗi JSON mã hóa: `appointmentId`, `code`, `stt`, `patient`, `doctor`, `datetime`, `room`.
+     - Phục vụ máy quét mã vạch 2D hoặc Kiosk thông minh tại sảnh bệnh viện để check-in tức thì, không cần xếp hàng khai báo thủ công.
+  2. **Hiển Thị Thông Tin Định Vị Phòng Khám (O2O Navigation):**
+     - Hiển thị rõ số phòng khám, số tầng, tòa nhà và địa chỉ cơ sở y tế.
+     - Cung cấp nút liên kết sâu (Deep Link) "Chỉ Đường Google Maps" mở ngay ứng dụng bản đồ dẫn đường cho người bệnh.
+  3. **Đồng Bộ Lịch Hẹn Với Google Calendar:**
+     - Nút "Thêm vào Google Calendar" phát sinh đường dẫn tạo sự kiện với đầy đủ tiêu đề, vị trí, giờ khám và lời nhắc có mặt trước 15 phút.
+  4. **Hướng Dẫn Chuẩn Bị Trước Khi Đến Khám (Pre-visit Clinical Compliance):**
+     - Nhắc nhở mang CCCD bản gốc, thẻ BHYT, lời dặn nhịn ăn xét nghiệm máu/nội soi, giảm thiểu nguy cơ phải hoãn lịch khám.
+  5. **Hỗ Trợ In Ấn Bản Giấy (One-Click Print):**
+     - Tích hợp phong cách CSS `@media print` giúp người bệnh hoặc thân nhân lớn tuổi có thể in trực tiếp phiếu khám rõ ràng, loại bỏ toàn bộ khung điều hướng thừa.
+
+

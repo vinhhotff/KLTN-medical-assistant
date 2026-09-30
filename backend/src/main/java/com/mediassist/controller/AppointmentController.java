@@ -113,4 +113,14 @@ public class AppointmentController {
         AppointmentDto dto = appointmentService.createFollowUpAppointment(principal.getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(dto));
     }
+
+    @GetMapping("/{id}/ticket")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Lấy phiếu khám điện tử (E-Admission Ticket) với mã QR, số STT và hướng dẫn chuẩn bị")
+    public ResponseEntity<ApiResponse<AppointmentDto>> getTicket(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        AppointmentDto dto = appointmentService.getAppointmentTicket(id, principal.getId(), principal.getRole());
+        return ResponseEntity.ok(ApiResponse.success(dto));
+    }
 }

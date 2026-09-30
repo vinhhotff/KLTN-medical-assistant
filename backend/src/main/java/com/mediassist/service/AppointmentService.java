@@ -19,6 +19,8 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -448,6 +450,23 @@ public class AppointmentService {
         return toDto(saved);
     }
 
+    @Transactional(readOnly = true)
+    public AppointmentDto getAppointmentTicket(UUID appointmentId, UUID userId, Role role) {
+        Appointment appointment = appointmentRepository.findByIdWithUsers(appointmentId)
+                .or(() -> appointmentRepository.findById(appointmentId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy thông tin cuộc hẹn"));
+
+        boolean isPatient = appointment.getPatient().getId().equals(userId);
+        boolean isDoctor = appointment.getDoctor().getId().equals(userId);
+        boolean isAdmin = role == Role.ADMIN;
+
+        if (!isPatient && !isDoctor && !isAdmin) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập phiếu khám này");
+        }
+
+        return toDto(appointment);
+    }
+
     private AppointmentDto toDto(Appointment a) {
         if (a == null) return null;
         AppointmentDto dto = AppointmentDto.fromEntity(a);
@@ -467,6 +486,66 @@ public class AppointmentService {
                 });
             } catch (Exception ignored) {}
         }
+        populateTicketInfo(dto, a);
         return dto;
+    }
+
+    private void populateTicketInfo(AppointmentDto dto, Appointment a) {
+        if (dto == null || a == null) return;
+
+        // 1. STT Number
+        String stt = a.getQueueNumber();
+        if (stt == null || stt.isBlank()) {
+            int codeHash = Math.abs(a.getId() != null ? a.getId().hashCode() : a.getAppointmentCode().hashCode());
+            stt = "STT-" + String.format("%03d", (codeHash % 999) + 1);
+        }
+        dto.setSttNumber(stt);
+
+        // 2. Room & Clinic Info
+        String room = (a.getClinicRoom() != null && !a.getClinicRoom().isBlank())
+                ? a.getClinicRoom()
+                : "Phòng Khám 205 - Chuyên Khoa Nội";
+        dto.setClinicRoom(room);
+        dto.setClinicFloor("Tầng 2");
+        dto.setClinicBuilding("Tòa A - Bệnh viện Đa Khoa MediAssist FPT");
+        String address = "Lô E2a-7, Đường D1, Khu Công Nghệ Cao, TP. Thủ Đức, TP. Hồ Chí Minh";
+        dto.setClinicAddress(address);
+        try {
+            dto.setClinicMapUrl("https://maps.google.com/?q=" + URLEncoder.encode(address, StandardCharsets.UTF_8));
+        } catch (Exception ignored) {
+            dto.setClinicMapUrl("https://maps.google.com/?q=" + address);
+        }
+
+        // 3. Pre-visit Instructions
+        dto.setPreVisitInstructions(List.of(
+                "Mang theo CCCD / Căn cước công dân bản gốc để đối chiếu thủ tục",
+                "Mang theo thẻ BHYT (nếu có) để hưởng quyền lợi bảo hiểm y tế",
+                "Nhịn ăn ít nhất 4 tiếng nếu có chỉ định xét nghiệm máu hoặc nội soi",
+                "Đến trước giờ hẹn 15 phút tại bàn đón tiếp để nhận số phòng khám"
+        ));
+
+        // 4. QR Code Data
+        String patientName = (a.getPatient() != null && a.getPatient().getFullName() != null)
+                ? a.getPatient().getFullName() : (dto.getPatientName() != null ? dto.getPatientName() : "Bệnh nhân");
+        String doctorName = (a.getDoctor() != null && a.getDoctor().getFullName() != null)
+                ? a.getDoctor().getFullName() : (dto.getDoctorName() != null ? dto.getDoctorName() : "Bác sĩ");
+        String startStr = a.getScheduledStart() != null ? a.getScheduledStart().toString() : "";
+
+        String qrJson = String.format(
+                "{\"appointmentId\":\"%s\",\"code\":\"%s\",\"stt\":\"%s\",\"patient\":\"%s\",\"doctor\":\"%s\",\"datetime\":\"%s\",\"room\":\"%s\"}",
+                a.getId() != null ? a.getId().toString() : "",
+                a.getAppointmentCode() != null ? a.getAppointmentCode() : "",
+                stt,
+                escapeJson(patientName),
+                escapeJson(doctorName),
+                startStr,
+                escapeJson(room)
+        );
+        dto.setQrCodeData(qrJson);
+    }
+
+    private String escapeJson(String raw) {
+        if (raw == null) return "";
+        return raw.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ").replace("\r", "");
     }
 }
