@@ -7,6 +7,7 @@ import com.mediassist.dto.AuthResponse;
 import com.mediassist.dto.LoginRequest;
 import com.mediassist.dto.TokenValidationResponse;
 import com.mediassist.dto.UserDto;
+import com.mediassist.dto.VerifyEmailRequest;
 import com.mediassist.security.UserPrincipal;
 import com.mediassist.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -169,7 +170,7 @@ public class AuthController {
             @RequestParam(value = "token", required = false) String token,
             HttpServletRequest servletRequest
     ) {
-        requireResetTokenRateLimit(servletRequest);
+        requireTokenAttemptRateLimit(servletRequest);
         boolean valid = authService.isPasswordResetTokenValid(token);
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
@@ -182,12 +183,36 @@ public class AuthController {
             @Valid @RequestBody com.mediassist.dto.ResetPasswordRequest request,
             HttpServletRequest servletRequest
     ) {
-        requireResetTokenRateLimit(servletRequest);
+        requireTokenAttemptRateLimit(servletRequest);
         authService.resetPassword(request.getToken(), request.getNewPassword());
         return ResponseEntity.ok(ApiResponse.success(null, "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới."));
     }
 
-    private void requireResetTokenRateLimit(HttpServletRequest servletRequest) {
+    @PostMapping("/verify-email")
+    @Operation(summary = "Xác thực địa chỉ email bằng liên kết trong email")
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(
+            @Valid @RequestBody VerifyEmailRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        requireTokenAttemptRateLimit(servletRequest);
+        authService.verifyEmail(request.getToken());
+        return ResponseEntity.ok(ApiResponse.success(null, "Xác thực email thành công! Bạn đã có thể đặt lịch khám và thanh toán."));
+    }
+
+    @PostMapping("/resend-verification")
+    @Operation(summary = "Gửi lại email xác thực cho tài khoản đang đăng nhập")
+    public ResponseEntity<ApiResponse<Void>> resendVerification(@AuthenticationPrincipal UserPrincipal principal) {
+        if (principal == null) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập tài khoản");
+        }
+        AuthService.ResendVerificationResult result = authService.resendVerificationEmail(principal.getId());
+        String message = result == AuthService.ResendVerificationResult.ALREADY_VERIFIED
+                ? "Email của bạn đã được xác thực trước đó."
+                : "Đã gửi lại email xác thực. Vui lòng kiểm tra hộp thư (kể cả thư rác).";
+        return ResponseEntity.ok(ApiResponse.success(null, message));
+    }
+
+    private void requireTokenAttemptRateLimit(HttpServletRequest servletRequest) {
         if (!rateLimiterService.allowResetTokenAttempt(ClientRequestInfo.clientIp(servletRequest))) {
             throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
                     "Bạn đã thử quá nhiều lần. Vui lòng thử lại sau 10 phút.");

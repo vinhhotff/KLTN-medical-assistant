@@ -135,6 +135,9 @@ graph TD
 * **2d. Quá tải tần suất đăng ký từ 1 IP (Anti-Spam Bot):** Khi 1 IP gửi quá 5 lượt đăng ký trong 10 phút, hệ thống từ chối với `HTTP 429 Too Many Requests`.
 * **2e. Tài khoản bị đình chỉ (Suspended User Rejection):** Khi tài khoản mang trạng thái `SUSPENDED` (do Admin khóa), `JwtAuthenticationFilter` chặn ngay lập tức với `HTTP 403 Forbidden` (`ACCOUNT_SUSPENDED`), vô hiệu hóa tức thời quyền truy cập kể cả khi token JWT của phiên trước vẫn còn hiệu lực.
 * **2f. Người dùng hủy bỏ xác thực Google hoặc lỗi Token:** Google hoặc backend chuyển hướng về `/login?error=oauth2_failed`, Frontend hiển thị thông báo lỗi thân thiện.
+* **Cập nhật WORK_LOG #083 (xác thực email, xem UC-29):**
+  - `UserDto` có thêm `emailVerified`. Đăng ký email/mật khẩu tạo tài khoản PATIENT `emailVerified=false` (vẫn đăng nhập ngay) và gửi email xác thực.
+  - Tài khoản tạo mới bằng Google có `emailVerified=true`. Liên kết Google vào tài khoản **đã** xác thực: giữ mật khẩu. Liên kết Google vào tài khoản **chưa** xác thực: **xóa mật khẩu**, đặt `emailVerified=true`, xóa token xác thực còn lại, ghi audit `ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED` (chống pre-hijacking).
 
 ---
 
@@ -361,6 +364,7 @@ graph TD
 #### Luồng xung đột (Conflict Exception Flow):
 * **3a. Người khác đã đặt slot trước đó (Pre-check):** `existsConflict` phát hiện trùng giờ $\rightarrow$ Ném ngoại lệ `AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", ...)`. Backend trả về HTTP 409: *"Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác."*
 * **3b. Xung đột đặt lịch song song (Concurrent Race Condition Shield):** Trường hợp hai bệnh nhân cùng bấm xác nhận tại cùng một microsecond và cùng vượt qua bước `existsConflict()`, Database Partial Unique Index `idx_appointment_unique_active_slot` trên `appointments(doctor_id, scheduled_start) WHERE status != 'CANCELLED'` sẽ chặn transaction thứ hai. Lệnh `saveAndFlush()` kích hoạt `DataIntegrityViolationException`, được bắt và chuyển đổi thành HTTP 409 `SLOT_CONFLICT` an toàn, loại bỏ 100% rủi ro Double-booking.
+* **3c. Bệnh nhân chưa xác thực email (WORK_LOG #083):** `EmailVerificationGuard` chạy ngay sau khi nạp bệnh nhân, trước mọi kiểm tra khác → 403 `EMAIL_NOT_VERIFIED` *"Vui lòng xác thực email trước khi đặt lịch khám hoặc thanh toán..."*. Không tạo lịch, không ghi audit. Frontend (DoctorSearchPage, SymptomTriagePage, DocumentSummarizerPage) vô hiệu hóa nút "Xác Nhận Đặt Khám" kèm tooltip, và hiển thị thông báo rõ ràng nếu vẫn nhận lỗi này (`isEmailNotVerified`).
 
 ---
 
@@ -545,6 +549,7 @@ graph TD
   3. Bệnh nhân nhấn "Xác Nhận Đã Chuyển Khoản (Sandbox Auto-Verify)".
   4. Backend xử lý cộng ngay hạn ngạch (ví dụ: +5 lượt quét cho gói `BASIC_5`, hoặc kích hoạt 30 ngày VIP cho gói `VIP_MONTHLY`) và cập nhật cơ sở dữ liệu `users`.
   5. Giao diện frontend cập nhật trực tiếp huy hiệu VIP / số lượt quét trên thanh trạng thái mà không cần tải lại trang.
+* **Ngoại lệ (WORK_LOG #083):** bệnh nhân chưa xác thực email gọi `POST /payments/checkout` hoặc `POST /documents/quota/purchase` → 403 `EMAIL_NOT_VERIFIED`; không tạo giao dịch, quota/VIP không đổi. Nút thanh toán trong DocumentSummarizerPage bị vô hiệu hóa kèm tooltip.
 
 ---
 
@@ -681,6 +686,7 @@ graph TD
      - Sau khi thanh toán thành công, trạng thái ca hẹn chuyển thành `Đã Thanh Toán (PAID)`, đồng thời số tiền được tự động cộng vào Doanh thu hôm nay trên Trạm làm việc của Bác sĩ.
   3. **Độ Bền Vững & Dự Phòng Cục Bộ (Sandbox Resilience):**
      - Nếu môi trường chạy offline hoặc không có API key Stripe thật, hệ thống tự động kích hoạt chế độ Stripe Sandbox mô phỏng nội bộ, bảo đảm toàn bộ kịch bản demo và bảo vệ đồ án luôn thành công 100% không bị gián đoạn.
+  4. **Rào chắn xác thực email (WORK_LOG #083):** `PaymentService.createCheckoutSession` gọi `EmailVerificationGuard` ngay sau khi nạp người dùng → bệnh nhân chưa xác thực nhận 403 `EMAIL_NOT_VERIFIED`, không có giao dịch PENDING nào được tạo. Nút "Thanh Toán Online (Stripe)" trên PatientDashboard bị vô hiệu hóa kèm tooltip.
 
 ---
 
@@ -825,6 +831,8 @@ graph TD
   4. **Cập Nhật & Thông Báo Tự Động:**
      - Lưu lại thời gian khám mới, giữ nguyên mã ca khám `appointmentCode` và thông tin thanh toán.
      - Phát sinh bản ghi thông báo nội bộ cho bác sĩ phụ trách biết bệnh nhân đã dời lịch.
+* **Rào chắn xác thực email (WORK_LOG #083):** khi **người dời lịch là bệnh nhân** mà email chưa xác thực → 403 `EMAIL_NOT_VERIFIED`. Bác sĩ hoặc quản trị viên dời lịch giúp bệnh nhân thì không bị chặn. Nút "Dời Lịch Hẹn" và "Xác Nhận Dời Lịch" trên PatientDashboard bị vô hiệu hóa kèm tooltip.
+* **Email:** dời lịch hiện **không** gửi email (ghi nhận là việc có thể làm sau, WORK_LOG #083).
 
 ---
 
@@ -969,3 +977,32 @@ graph TD
   - **E4 - 429 RATE_LIMIT_EXCEEDED:** vượt 30 lần/phút → thông báo chờ 1 phút.
   - **Tuyệt đối không** sinh PDF xét nghiệm giả thay cho tệp thật trong bất kỳ nhánh lỗi nào.
 * **Bảo mật cấu hình:** `SUPABASE_KEY` (service_role) chỉ đặt trong `backend/.env` (không commit). Khi khởi động, nếu bucket đang `"public": true` hệ thống log WARN `[SECURITY]`.
+
+---
+
+### UC-29: Xác Thực Địa Chỉ Email Khi Đăng Ký & Rào Chắn Đặt Lịch/Thanh Toán (Email Verification Gate)
+
+* **Mã Use Case:** `UC-SEC-29` (WORK_LOG #083)
+* **Tác nhân chính:** Bệnh nhân mới đăng ký, `AuthService`, `EmailVerificationGuard`, `MailNotificationListener`, SMTP (Mailpit ở dev).
+* **Mục tiêu:** Bảo đảm email của bệnh nhân là thật và thuộc về họ trước khi cho phép đặt lịch, dời lịch và thanh toán, vì email là kênh duy nhất nhận xác nhận lịch hẹn, thông báo hủy, biên nhận và liên kết khôi phục tài khoản.
+* **Tiền điều kiện:** Bệnh nhân vừa đăng ký bằng email/mật khẩu (`POST /auth/register`).
+* **Hậu điều kiện (thành công):** `users.email_verified = true`, `users.email_verified_at` được ghi; token đã dùng có `used_at`, các token khác bị xóa; có audit `EMAIL_VERIFIED`; banner vàng biến mất và các nút đặt lịch/thanh toán hoạt động.
+* **REST Endpoints:**
+  - `POST /api/v1/auth/verify-email` (public) body `{token}`. Rate limit 20 lần / 10 phút / IP.
+  - `POST /api/v1/auth/resend-verification` (cần đăng nhập). Rate limit 1 lần / 60 giây và 5 lần / giờ mỗi tài khoản. Đã xác thực thì trả 200 *"Email của bạn đã được xác thực trước đó."* và không tốn lượt.
+  - `GET /api/v1/auth/me` trả thêm `emailVerified`.
+* **Luồng chính (Happy Path):**
+  1. Bệnh nhân đăng ký → tài khoản `ACTIVE`, `emailVerified=false`, được đăng nhập ngay. Backend sinh token 32 byte, lưu `SHA-256(token)` vào `email_verification_tokens` (hết hạn 24 giờ), phát `EmailVerificationRequestedEvent`.
+  2. Sau commit, email "Xác thực địa chỉ email" được gửi với liên kết `{app.client-base-url}/verify-email?token=...`. Trang đăng ký hiện *"Chúng tôi đã gửi email xác thực tới ..."*.
+  3. Trong khu vực bệnh nhân, `PatientLayout` gọi lại `/auth/me` khi mount (user cũ trong localStorage có thể thiếu field), hiển thị banner *"Email chưa được xác thực..."* kèm nút "Gửi lại email xác thực" ngay dưới `MedicalDisclaimerBanner`.
+  4. Bệnh nhân mở liên kết → trang `/verify-email` (public) đọc token rồi xóa token khỏi URL (`history.replaceState`), gọi `POST /auth/verify-email`.
+  5. Backend tìm token theo hash, kiểm tra còn hạn và chưa dùng → `markEmailVerified`, `used_at = now`, xóa token khác, audit `EMAIL_VERIFIED`. Trang hiển thị thành công; nếu đang đăng nhập thì làm mới user (banner biến mất).
+* **Luồng thay thế (Alternative Flow):**
+  - **A1 - Bấm lại liên kết sau khi đã xác thực:** trả thành công (idempotent), không ghi audit lần hai.
+  - **A2 - Gửi lại email:** token cũ bị xóa, chỉ liên kết mới nhất dùng được. Nút gửi lại có đếm ngược 60 giây.
+  - **A3 - Tài khoản xác thực bằng cách khác:** đặt lại mật khẩu thành công (UC-24), đăng nhập/liên kết Google, bác sĩ do admin tạo, dữ liệu seed và **mọi tài khoản tồn tại trước Flyway V20** (backfill) đều có `emailVerified=true`.
+* **Luồng ngoại lệ (Exception Flow):**
+  - **E1 - Token sai / đã bị thay bằng liên kết mới:** 400 `INVALID_TOKEN`. **E2 - Token hết hạn (> 24 giờ):** 400 `TOKEN_EXPIRED`. Trang hiển thị lỗi và hướng dẫn đăng nhập để gửi lại.
+  - **E3 - Gửi lại quá nhanh / quá nhiều:** 429 `RATE_LIMIT_EXCEEDED` với thông báo chờ 60 giây hoặc thử lại sau.
+  - **E4 - Bệnh nhân chưa xác thực đặt lịch / dời lịch / thanh toán / mua gói:** `EmailVerificationGuard.requireVerifiedPatient` ở **tầng service** (`bookAppointment`, `rescheduleAppointment` khi người dời là bệnh nhân, `PaymentService.createCheckoutSession`, `MedicalDocumentAnalysisService.purchaseQuota`) ném **403 `EMAIL_NOT_VERIFIED`**. Bác sĩ/quản trị viên không bị chặn. Frontend vô hiệu hóa nút kèm tooltip; nếu vẫn nhận lỗi (ví dụ user trong localStorage cũ), `isEmailNotVerified()` hiển thị thông báo rõ ràng. `isPatientAccessDenied()` chỉ nhận `FORBIDDEN_PATIENT_ACCESS` nên không bắt nhầm lỗi này.
+* **Liên kết Google vào tài khoản chưa xác thực (chống pre-hijacking):** xóa `password_hash`, đặt `emailVerified=true`, xóa token xác thực còn lại, audit `ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED`. Chủ thật đăng nhập tiếp bằng Google hoặc dùng "Quên mật khẩu" để đặt mật khẩu mới.

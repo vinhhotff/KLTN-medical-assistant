@@ -73,6 +73,7 @@ class AppointmentServiceTest {
                 .fullName("Trần Thị Bình")
                 .role(Role.PATIENT)
                 .status(UserStatus.ACTIVE)
+                .emailVerified(true)
                 .build();
 
         doctorUser = User.builder()
@@ -376,5 +377,66 @@ class AppointmentServiceTest {
         assertNotNull(result);
         assertEquals(AppointmentStatus.CANCELLED, result.getStatus());
         assertEquals(PaymentStatus.REFUNDED, result.getPaymentStatus());
+    }
+
+    // ===== Rao chan EMAIL_NOT_VERIFIED (WORK_LOG #083 phan C) =====
+
+    @Test
+    void testBookAppointment_UnverifiedPatient_BlockedBeforeAnySave() {
+        patientUser.setEmailVerified(false);
+        LocalDateTime futureTime = getNextWeekdaySlot(2, 9, 0);
+        CreateAppointmentRequest request = new CreateAppointmentRequest(doctorId, futureTime, "Khám tổng quát");
+        when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
+
+        AppException ex = assertThrows(AppException.class, () -> appointmentService.bookAppointment(patientId, request));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
+        assertEquals("EMAIL_NOT_VERIFIED", ex.getCode());
+        verify(appointmentRepository, never()).saveAndFlush(any());
+        verify(auditLogRepository, never()).save(any());
+    }
+
+    @Test
+    void testRescheduleAppointment_UnverifiedPatient_Blocked() {
+        patientUser.setEmailVerified(false);
+        UUID apptId = UUID.randomUUID();
+        LocalDateTime oldStart = getNextWeekdaySlot(2, 9, 0);
+        Appointment appt = Appointment.builder()
+                .id(apptId).appointmentCode("AP-2026-UNVERIFIED")
+                .doctor(doctorUser).patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .scheduledStart(oldStart).scheduledEnd(oldStart.plusMinutes(30))
+                .build();
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+
+        RescheduleAppointmentRequest req = new RescheduleAppointmentRequest(getNextWeekdaySlot(3, 10, 0), "Bận");
+        AppException ex = assertThrows(AppException.class,
+                () -> appointmentService.rescheduleAppointment(apptId, patientId, Role.PATIENT, req));
+
+        assertEquals("EMAIL_NOT_VERIFIED", ex.getCode());
+        verify(appointmentRepository, never()).save(any());
+    }
+
+    @Test
+    void testRescheduleAppointment_ByDoctor_UnverifiedPatient_Allowed() {
+        patientUser.setEmailVerified(false);
+        UUID apptId = UUID.randomUUID();
+        LocalDateTime oldStart = getNextWeekdaySlot(2, 9, 0);
+        LocalDateTime newStart = getNextWeekdaySlot(3, 10, 0);
+        Appointment appt = Appointment.builder()
+                .id(apptId).appointmentCode("AP-2026-DOC-RESCHED")
+                .doctor(doctorUser).patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .scheduledStart(oldStart).scheduledEnd(oldStart.plusMinutes(30))
+                .build();
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+        when(appointmentRepository.existsConflictExcluding(eq(doctorId), eq(newStart), eq(apptId))).thenReturn(false);
+        when(appointmentRepository.countActiveAppointmentsByDoctorAndDateRange(eq(doctorId), any(), any())).thenReturn(0L);
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AppointmentDto result = appointmentService.rescheduleAppointment(apptId, doctorId, Role.DOCTOR,
+                new RescheduleAppointmentRequest(newStart, "Bác sĩ đổi ca"));
+
+        assertEquals(newStart, result.getScheduledStart());
     }
 }

@@ -9,6 +9,8 @@ export interface UserProfile {
   status: string;
   avatarUrl?: string;
   doctorProfile?: any;
+  /** Có thể thiếu với user cũ lưu trong localStorage: chỉ coi là chưa xác thực khi đúng bằng false. */
+  emailVerified?: boolean;
 }
 
 interface AuthState {
@@ -17,6 +19,8 @@ interface AuthState {
   isAuthenticated: boolean;
   setUser: (user: UserProfile | null, token?: string) => void;
   fetchCurrentUser: () => Promise<void>;
+  /** Làm mới user từ /auth/me mà KHÔNG xóa phiên khi lỗi mạng (401 do interceptor xử lý). */
+  refreshCurrentUser: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -74,6 +78,19 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.removeItem('mediassist_user');
       localStorage.removeItem('mediassist_token');
       set({ user: null, isAuthenticated: false, isLoading: false });
+    }
+  },
+
+  refreshCurrentUser: async () => {
+    try {
+      const res = await api.get('/auth/me');
+      const userData = res.data?.data?.user || res.data?.data;
+      if (res.data?.success && userData) {
+        localStorage.setItem('mediassist_user', JSON.stringify(userData));
+        set({ user: userData, isAuthenticated: true, isLoading: false });
+      }
+    } catch {
+      // Giữ nguyên phiên hiện tại; lỗi 401 đã được interceptor trong api.ts xử lý
     }
   },
 

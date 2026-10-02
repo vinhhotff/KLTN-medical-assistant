@@ -61,7 +61,8 @@ CREATE TABLE users (
     google_id VARCHAR(255) UNIQUE,               -- Định danh Google Account phục vụ Social Login (OAuth2)
     role VARCHAR(30) NOT NULL CHECK (role IN ('ADMIN', 'DOCTOR', 'PATIENT')),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    is_email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE, -- V1 tên is_email_verified (chưa map); V20 đổi tên + backfill TRUE
+    email_verified_at TIMESTAMPTZ,                -- V20: thời điểm xác thực email lần đầu
     scan_quota INT NOT NULL DEFAULT 1,            -- Số lượt phân tích tài liệu khả dụng
     subscription_tier VARCHAR(30) NOT NULL DEFAULT 'FREE', -- FREE, VIP_MONTHLY, VIP_YEARLY
     vip_valid_until TIMESTAMPTZ,                 -- Hạn hội viên MediPass VIP
@@ -385,6 +386,8 @@ CREATE INDEX idx_audit_action ON audit_logs(action);
 CREATE INDEX idx_audit_created ON audit_logs(created_at DESC);
 ```
 
+> **Action email & xác thực tài khoản (WORK_LOG #083, UC-24/UC-29):** `PASSWORD_RESET_REQUESTED` (chỉ khi email tồn tại; metadata ghi có gửi mail hay không), `PASSWORD_RESET_COMPLETED`, `EMAIL_VERIFIED`, `ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED` (liên kết Google vào tài khoản chưa xác thực → xóa mật khẩu). Kèm IP, User-Agent; không bao giờ lưu token hay liên kết.
+>
 > **Action `DOCUMENT_SIGNED_URL_ISSUED` (UC-28, V18):** Được ghi mỗi khi backend cấp liên kết xem / tải tệp y tế gốc (`GET /documents/{id}/signed-url` hoặc redirect 302 của `GET /documents/{id}/file`) cho **MỌI role**, kể cả bệnh nhân tự xem. Chỉ ghi **sau khi** đã ký được URL (Supabase lỗi 404/503 thì không ghi). Các cột: `user_id` (người xem), `resource` = `medical_documents/{id}`, `ip_address`, `user_agent`, `metadata` = `Role: PATIENT, PatientId: {uuid}, Download: false, TtlSeconds: 900, Storage: SUPABASE|LOCAL`. Không bao giờ lưu signed URL/token. Với DOCTOR/ADMIN, một lần xem tệp sinh 2 dòng: `VIEW_PATIENT_RECORD` (mở hồ sơ) + `DOCUMENT_SIGNED_URL_ISSUED` (cấp link tệp).
 >
 > **Action `VIEW_PATIENT_RECORD` (UC-27):** Được ghi mỗi khi `DOCTOR`/`ADMIN` được `PatientAccessGuard` cấp quyền mở hồ sơ bệnh nhân. Các cột sử dụng: `user_id` (người xem), `resource` (ví dụ `medical_documents/{id}/file`, `triage_sessions/patient/{patientId}`), `ip_address`, `user_agent`, `metadata` (`Role: DOCTOR, PatientId: {uuid}`). Không thay đổi schema.
@@ -706,3 +709,29 @@ password_reset_tokens (
 
 **Audit (bảng `audit_logs`, không đổi schema):** `PASSWORD_RESET_REQUESTED` (chỉ khi email tồn tại; metadata ghi rõ có gửi mail hay không), `PASSWORD_RESET_COMPLETED`. Kèm IP và User-Agent.
 
+### 14.2. Flyway V20: Xác thực email (`users.email_verified`, bảng `email_verification_tokens`)
+Bản di trú `V20__email_verification.sql`:
+
+| Bước | Câu lệnh | Ghi chú |
+| :--- | :--- | :--- |
+| 1 | `ALTER TABLE users RENAME COLUMN is_email_verified TO email_verified` | V1 đã có cột `is_email_verified` nhưng entity chưa từng map (mọi dòng FALSE, vô nghĩa). Đổi tên thay vì thêm cột thứ hai cùng ý nghĩa. Không có cột cũ thì `ADD COLUMN`; có cả hai thì `DROP` cột cũ. |
+| 2 | `UPDATE users SET email_verified = TRUE` | **Backfill một lần** (chỉ chạy khi cột `email_verified` vừa xuất hiện): mọi tài khoản tồn tại trước V20 (seed/demo, Google, bác sĩ) không bị chặn đặt lịch/thanh toán. |
+| 3 | `ALTER COLUMN email_verified SET DEFAULT FALSE, SET NOT NULL` | Tài khoản đăng ký mới mặc định chưa xác thực (fail-closed, entity cũng mặc định `false`). |
+| 4 | `ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ` + backfill `created_at` | Thời điểm xác thực lần đầu. |
+| 5 | `CREATE TABLE IF NOT EXISTS email_verification_tokens` + `idx_evt_token_hash` (UNIQUE), `idx_evt_user_id` | Cấu trúc giống `password_reset_tokens`. |
+
+```sql
+email_verification_tokens (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  VARCHAR(64) NOT NULL,     -- SHA-256 hex; UNIQUE qua idx_evt_token_hash
+    expires_at  TIMESTAMPTZ NOT NULL,     -- now + 24 giờ
+    used_at     TIMESTAMPTZ,              -- NULL = chưa dùng
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+- Gửi lại email → xóa token cũ của user; xác thực thành công → ghi `used_at` và xóa token khác.
+- Các luồng đặt `email_verified = true`: liên kết xác thực, đặt lại mật khẩu thành công, tài khoản Google mới, liên kết Google (kèm xóa mật khẩu nếu chưa xác thực), bác sĩ do admin tạo, `DataInitializer`.
+
+### 14.3. Kiểm chứng V19 + V20
+Chạy trên **PostgreSQL 16.4 embedded (scratch, không đụng DB dev)** với bảng tối giản mô phỏng đúng cột liên quan của V1/V16, 3 kịch bản: (A) schema gốc (có `is_email_verified`, `token` UNIQUE + `idx_prt_token`); (B) chạy V19 + V20 **hai lần**; (C) không có `is_email_verified`, có thêm UNIQUE do Hibernate sinh với tên ngẫu nhiên. Cả 3 cho cùng kết quả: `password_reset_tokens` còn 0 dòng, cột `token_hash VARCHAR NOT NULL`, chỉ còn khóa chính + khóa ngoại + `idx_prt_token_hash` UNIQUE + `idx_prt_user_id`; `users.email_verified BOOLEAN NOT NULL DEFAULT false`; user cũ `email_verified = t` và có `email_verified_at`; user chèn sau migration `email_verified = f`; chèn trùng `token_hash` bị từ chối. Kiểm chứng trên DB dev thật bằng Docker: xem WORK_LOG #083.

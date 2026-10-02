@@ -1336,6 +1336,7 @@ public class MedicalDocumentAnalysisService {
                         "USER_NOT_FOUND",
                         "Người dùng không tồn tại trên hệ thống."
                 ));
+        EmailVerificationGuard.requireVerifiedPatient(user);
 
         String pkg = request.getPackageId() != null ? request.getPackageId().toUpperCase() : "BASIC_5";
         LocalDateTime now = LocalDateTime.now();

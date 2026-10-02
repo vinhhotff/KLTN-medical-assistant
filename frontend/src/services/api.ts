@@ -62,6 +62,21 @@ export const isPatientAccessDenied = (error: unknown): boolean => {
   return body?.error?.code === 'FORBIDDEN_PATIENT_ACCESS';
 };
 
+export const EMAIL_NOT_VERIFIED_MESSAGE =
+  'Bạn cần xác thực email trước khi đặt lịch khám hoặc thanh toán. Vui lòng mở email xác thực MediAssist gửi tới hộp thư của bạn, hoặc bấm "Gửi lại email xác thực" ở đầu trang.';
+
+/** Tooltip cho nút bị vô hiệu hóa khi bệnh nhân chưa xác thực email. */
+export const EMAIL_NOT_VERIFIED_TOOLTIP = 'Cần xác thực email trước khi đặt lịch hoặc thanh toán';
+
+/**
+ * Nhận diện lỗi 403 do bệnh nhân chưa xác thực email (backend trả error.code === 'EMAIL_NOT_VERIFIED').
+ */
+export const isEmailNotVerified = (error: unknown): boolean => {
+  if (!axios.isAxiosError(error) || error.response?.status !== 403) return false;
+  const body = error.response.data as { error?: { code?: string } } | undefined;
+  return body?.error?.code === 'EMAIL_NOT_VERIFIED';
+};
+
 export interface DoctorReviewDto {
   id: string;
   appointmentId: string;

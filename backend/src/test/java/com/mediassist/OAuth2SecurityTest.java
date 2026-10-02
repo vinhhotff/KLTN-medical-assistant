@@ -1,9 +1,12 @@
 package com.mediassist;
 
+import com.mediassist.model.entity.AuditLog;
 import com.mediassist.model.entity.PatientProfile;
 import com.mediassist.model.entity.Role;
 import com.mediassist.model.entity.User;
 import com.mediassist.model.entity.UserStatus;
+import com.mediassist.repository.AuditLogRepository;
+import com.mediassist.repository.EmailVerificationTokenRepository;
 import com.mediassist.repository.PatientProfileRepository;
 import com.mediassist.repository.UserRepository;
 import com.mediassist.security.*;
@@ -46,6 +49,12 @@ class OAuth2SecurityTest {
     private JwtTokenProvider jwtTokenProvider;
 
     @Mock
+    private EmailVerificationTokenRepository emailVerificationTokenRepository;
+
+    @Mock
+    private AuditLogRepository auditLogRepository;
+
+    @Mock
     private HttpServletRequest request;
 
     @Mock
@@ -60,7 +69,8 @@ class OAuth2SecurityTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        customOAuth2UserService = new CustomOAuth2UserService(userRepository, patientProfileRepository);
+        customOAuth2UserService = new CustomOAuth2UserService(userRepository, patientProfileRepository,
+                emailVerificationTokenRepository, auditLogRepository);
         successHandler = new OAuth2AuthenticationSuccessHandler(jwtTokenProvider, customOAuth2UserService);
         failureHandler = new OAuth2AuthenticationFailureHandler();
 
@@ -341,5 +351,69 @@ class OAuth2SecurityTest {
         assertEquals("oidc-sub-999", principal.getClaims().get("sub"));
         assertTrue(principal.isEnabled());
         assertTrue(principal.isAccountNonLocked());
+    }
+
+    // ===== Xac thuc email & chong pre-hijacking (WORK_LOG #083 phan C) =====
+
+    @Test
+    @DisplayName("Lien ket Google vao tai khoan CHUA xac thuc: xoa mat khau, danh dau verified, xoa token, audit")
+    void linkGoogle_UnverifiedAccount_ClearsPassword() {
+        User existing = User.builder()
+                .id(UUID.randomUUID())
+                .email("victim@gmail.com")
+                .fullName("Pre-registered")
+                .passwordHash("attacker-chosen-hash")
+                .role(Role.PATIENT)
+                .status(UserStatus.ACTIVE)
+                .build();
+        when(userRepository.findByGoogleId("google-victim")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("victim@gmail.com")).thenReturn(Optional.of(existing));
+
+        User result = customOAuth2UserService.findOrCreateUser("google-victim", "victim@gmail.com", "Victim", null);
+
+        assertNull(result.getPasswordHash(), "Mat khau do nguoi dang ky truoc dat phai bi xoa");
+        assertTrue(result.isEmailVerified());
+        assertNotNull(result.getEmailVerifiedAt());
+        assertEquals("google-victim", result.getGoogleId());
+        verify(emailVerificationTokenRepository).deleteByUserId(existing.getId());
+        ArgumentCaptor<AuditLog> audit = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository).save(audit.capture());
+        assertEquals("ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED", audit.getValue().getAction());
+    }
+
+    @Test
+    @DisplayName("Lien ket Google vao tai khoan DA xac thuc: giu nguyen mat khau, khong audit")
+    void linkGoogle_VerifiedAccount_KeepsPassword() {
+        User existing = User.builder()
+                .id(UUID.randomUUID())
+                .email("owner@gmail.com")
+                .fullName("Owner")
+                .passwordHash("owner-hash")
+                .role(Role.PATIENT)
+                .status(UserStatus.ACTIVE)
+                .emailVerified(true)
+                .build();
+        when(userRepository.findByGoogleId("google-owner")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("owner@gmail.com")).thenReturn(Optional.of(existing));
+
+        User result = customOAuth2UserService.findOrCreateUser("google-owner", "owner@gmail.com", "Owner", null);
+
+        assertEquals("owner-hash", result.getPasswordHash());
+        assertTrue(result.isEmailVerified());
+        verify(auditLogRepository, never()).save(any());
+        verify(emailVerificationTokenRepository, never()).deleteByUserId(any());
+    }
+
+    @Test
+    @DisplayName("Tai khoan moi tao bang Google: email da xac thuc ngay")
+    void newGoogleUser_IsVerified() {
+        when(userRepository.findByGoogleId("google-new")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("brand.new@gmail.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        User result = customOAuth2UserService.findOrCreateUser("google-new", "brand.new@gmail.com", "Brand New", null);
+
+        assertTrue(result.isEmailVerified());
+        assertNotNull(result.getEmailVerifiedAt());
     }
 }

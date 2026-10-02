@@ -312,6 +312,15 @@
   - **Các lớp bảo vệ khác:** hiệu lực 30 phút, dùng một lần, yêu cầu mới vô hiệu liên kết cũ; trang đặt lại mật khẩu xóa token khỏi thanh địa chỉ ngay khi đọc; token và liên kết không bao giờ ghi vào log; `forgot-password` luôn trả cùng một thông báo (không lộ email có tồn tại hay không) và có rate limit theo IP lẫn theo email.
   - **Bằng chứng:** `AuthServicePasswordResetTest.tokenIsStoredHashed` khẳng định giá trị lưu DB khác token gửi qua email và bằng `SHA-256(token)`; `AuthControllerPasswordResetTest.sameResponseForExistingAndUnknownEmail` khẳng định hai response giống hệt nhau.
 
+### Câu hỏi 18: Vì sao bệnh nhân chưa xác thực email vẫn đăng nhập được nhưng lại không được đặt lịch và thanh toán? Sao không chặn ngay từ lúc đăng nhập?
+* **Trả lời mẫu:**
+  - **Email là kênh vận hành, không chỉ là tên đăng nhập:** xác nhận lịch hẹn, thông báo hủy lịch kèm hoàn tiền, biên nhận thanh toán và liên kết khôi phục mật khẩu đều đi qua email. Nếu email gõ sai, bệnh nhân không nhận được thông tin về lịch khám và tiền của mình. Nếu là email của người khác, người lạ nhận thông tin lịch khám và có thể dùng "Quên mật khẩu" để chiếm tài khoản.
+  - **Chặn đúng chỗ, không chặn thừa:** chỉ các hành động tạo nghĩa vụ hoặc giao dịch (đặt lịch, bệnh nhân tự dời lịch, thanh toán, mua gói) mới bị chặn. Bệnh nhân vẫn đăng nhập, xem hướng dẫn, dùng Trợ lý triệu chứng AI để không mất trải nghiệm ban đầu; việc xác thực chỉ mất một cú bấm trong email.
+  - **Chặn ở tầng service, không chỉ giao diện:** `EmailVerificationGuard.requireVerifiedPatient` được gọi trong `bookAppointment`, `rescheduleAppointment`, `createCheckoutSession`, `purchaseQuota`. Gọi API trực tiếp bằng curl/Postman vẫn nhận 403 `EMAIL_NOT_VERIFIED`. Giao diện chỉ vô hiệu hóa nút để trải nghiệm rõ ràng.
+  - **Không làm hỏng tài khoản cũ:** Flyway V20 backfill `email_verified = true` cho mọi tài khoản tồn tại trước migration; tài khoản Google, bác sĩ do admin tạo và người đã đặt lại mật khẩu qua email được coi là đã chứng minh sở hữu email.
+  - **Pre-hijacking:** kẻ xấu có thể đăng ký trước bằng email của nạn nhân. Khi nạn nhân đăng nhập Google lần đầu, hệ thống liên kết tài khoản nhưng **xóa mật khẩu do người đăng ký trước đặt** và ghi audit `ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED`, nên kẻ xấu mất quyền truy cập.
+  - **Bằng chứng:** `AuthServiceEmailVerificationTest` (token đúng/sai/hết hạn, idempotent, resend bị rate limit 60 giây và 5 lần/giờ, guard chỉ chặn PATIENT), `AppointmentServiceTest` (đặt lịch và dời lịch bị chặn, bác sĩ dời lịch vẫn được), `PaymentServiceTest` (checkout bị chặn, không tạo giao dịch), `MedicalDocumentAnalysisServiceTest` (mua gói bị chặn / được phép), `OAuth2SecurityTest` (xóa mật khẩu khi liên kết Google vào tài khoản chưa xác thực).
+
 ---
 
 ## 5. Bảng Tiêu Chí Đánh Giá Xuất Sắc Của Hội Đồng (Evaluation Rubric)

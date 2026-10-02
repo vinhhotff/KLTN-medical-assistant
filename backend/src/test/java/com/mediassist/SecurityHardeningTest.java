@@ -9,6 +9,7 @@ import com.mediassist.model.entity.Role;
 import com.mediassist.model.entity.User;
 import com.mediassist.model.entity.UserStatus;
 import com.mediassist.repository.AuditLogRepository;
+import com.mediassist.repository.EmailVerificationTokenRepository;
 import com.mediassist.repository.PasswordResetTokenRepository;
 import com.mediassist.repository.PatientProfileRepository;
 import com.mediassist.repository.UserRepository;
@@ -49,7 +50,8 @@ class SecurityHardeningTest {
         passwordEncoder = mock(PasswordEncoder.class);
         tokenProvider = mock(JwtTokenProvider.class);
         authService = new AuthService(userRepository, patientProfileRepository, passwordEncoder, tokenProvider,
-                mock(PasswordResetTokenRepository.class), mock(AuditLogRepository.class), mock(ApplicationEventPublisher.class));
+                mock(PasswordResetTokenRepository.class), mock(AuditLogRepository.class), mock(ApplicationEventPublisher.class),
+                mock(EmailVerificationTokenRepository.class), mock(SecurityRateLimiterService.class));
     }
 
     @Test

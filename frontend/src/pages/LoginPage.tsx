@@ -185,10 +185,12 @@ export const LoginPage: React.FC = () => {
         const user = res.data.data.user;
         const token = res.data.data.token;
         setUser(user, token);
-        setSuccessMsg('Đăng ký tài khoản thành công! Đang chuyển hướng...');
+        setSuccessMsg(
+          `Đăng ký thành công! Chúng tôi đã gửi email xác thực tới ${user.email}. Vui lòng xác thực để có thể đặt lịch khám và thanh toán. Đang chuyển hướng...`
+        );
         setTimeout(() => {
           navigate('/patient');
-        }, 800);
+        }, 2500);
       }
     } catch (err: any) {
       const errorObj = err.response?.data?.error;

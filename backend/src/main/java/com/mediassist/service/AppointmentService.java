@@ -63,6 +63,7 @@ public class AppointmentService {
     public AppointmentDto bookAppointment(UUID patientId, CreateAppointmentRequest request) {
         User patient = userRepository.findById(patientId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Bệnh nhân không tồn tại"));
+        EmailVerificationGuard.requireVerifiedPatient(patient);
 
         User doctor = userRepository.findById(request.getDoctorId())
                 .or(() -> doctorProfileRepository.findById(request.getDoctorId()).map(DoctorProfile::getUser))
@@ -396,6 +397,11 @@ public class AppointmentService {
 
         if (!isDoctor && !isPatient && !isAdmin) {
             throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền đổi lịch hẹn này");
+        }
+
+        // Benh nhan tu doi lich phai co email da xac thuc (bac si/admin doi lich thi khong chan)
+        if (isPatient && !isDoctor && !isAdmin) {
+            EmailVerificationGuard.requireVerifiedPatient(appointment.getPatient());
         }
 
         if (appointment.getStatus() != AppointmentStatus.SCHEDULED) {

@@ -6,16 +6,19 @@ import com.mediassist.dto.AuthResponse;
 import com.mediassist.dto.LoginRequest;
 import com.mediassist.dto.RegisterRequest;
 import com.mediassist.dto.UserDto;
+import com.mediassist.event.EmailVerificationRequestedEvent;
 import com.mediassist.event.PasswordChangedEvent;
 import com.mediassist.event.PasswordResetRequestedEvent;
 import com.mediassist.mail.MailFormat;
 import com.mediassist.model.entity.AuditLog;
+import com.mediassist.model.entity.EmailVerificationToken;
 import com.mediassist.model.entity.PatientProfile;
 import com.mediassist.model.entity.PasswordResetToken;
 import com.mediassist.model.entity.Role;
 import com.mediassist.model.entity.User;
 import com.mediassist.model.entity.UserStatus;
 import com.mediassist.repository.AuditLogRepository;
+import com.mediassist.repository.EmailVerificationTokenRepository;
 import com.mediassist.repository.PasswordResetTokenRepository;
 import com.mediassist.repository.PatientProfileRepository;
 import com.mediassist.repository.UserRepository;
@@ -45,6 +48,10 @@ public class AuthService {
 
     public static final int MIN_PASSWORD_LENGTH = 8;
     public static final Duration PASSWORD_RESET_TTL = Duration.ofMinutes(30);
+    public static final Duration EMAIL_VERIFICATION_TTL = Duration.ofHours(24);
+
+    /** Ket qua yeu cau gui lai email xac thuc. */
+    public enum ResendVerificationResult { SENT, ALREADY_VERIFIED }
 
     private final UserRepository userRepository;
     private final PatientProfileRepository patientProfileRepository;
@@ -53,6 +60,8 @@ public class AuthService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final AuditLogRepository auditLogRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
+    private final SecurityRateLimiterService rateLimiterService;
 
     public AuthService(UserRepository userRepository,
                        PatientProfileRepository patientProfileRepository,
@@ -60,7 +69,9 @@ public class AuthService {
                        JwtTokenProvider tokenProvider,
                        PasswordResetTokenRepository passwordResetTokenRepository,
                        AuditLogRepository auditLogRepository,
-                       ApplicationEventPublisher eventPublisher) {
+                       ApplicationEventPublisher eventPublisher,
+                       EmailVerificationTokenRepository emailVerificationTokenRepository,
+                       SecurityRateLimiterService rateLimiterService) {
         this.userRepository = userRepository;
         this.patientProfileRepository = patientProfileRepository;
         this.passwordEncoder = passwordEncoder;
@@ -68,6 +79,8 @@ public class AuthService {
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.auditLogRepository = auditLogRepository;
         this.eventPublisher = eventPublisher;
+        this.emailVerificationTokenRepository = emailVerificationTokenRepository;
+        this.rateLimiterService = rateLimiterService;
     }
 
     @Transactional(noRollbackFor = AppException.class)
@@ -160,6 +173,8 @@ public class AuthService {
         }
         user.setRole(Role.PATIENT);
         user.setStatus(UserStatus.ACTIVE);
+        // Van dang nhap ngay, nhung chua duoc dat lich/thanh toan cho den khi xac thuc email
+        user.setEmailVerified(false);
         user.setFailedLoginAttempts(0);
         user.setLockedUntil(null);
         user = userRepository.save(user);
@@ -186,6 +201,8 @@ public class AuthService {
         patientProfileRepository.save(profile);
 
         log.info("🎉 Registered new patient {} with code {}", user.getEmail(), profile.getPatientCode());
+
+        issueEmailVerification(user);
 
         UserPrincipal principal = UserPrincipal.create(user);
         String token = tokenProvider.generateAccessToken(principal);
@@ -249,6 +266,8 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setFailedLoginAttempts(0);
         user.setLockedUntil(null);
+        // Mo duoc link trong email = da chung minh so huu email
+        user.markEmailVerified(LocalDateTime.now());
         userRepository.save(user);
 
         prt.setUsed(true);
@@ -258,6 +277,73 @@ public class AuthService {
         recordAudit(user.getId(), "PASSWORD_RESET_COMPLETED", null);
         eventPublisher.publishEvent(new PasswordChangedEvent(user.getEmail(), user.getFullName(), LocalDateTime.now()));
         log.info("Password reset completed for {}", MailFormat.maskEmail(user.getEmail()));
+    }
+
+    /**
+     * Xac thuc email bang token trong link. Bam lai link khi tai khoan da xac thuc => thanh cong (idempotent).
+     */
+    @Transactional
+    public void verifyEmail(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_TOKEN", "Liên kết xác thực email không hợp lệ.");
+        }
+        EmailVerificationToken token = emailVerificationTokenRepository.findByTokenHash(SecureTokens.sha256Hex(rawToken.trim()))
+                .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST, "INVALID_TOKEN",
+                        "Liên kết xác thực email không hợp lệ hoặc đã được thay bằng liên kết mới hơn."));
+
+        User user = token.getUser();
+        if (user.isEmailVerified()) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (!token.isUsable(now)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED",
+                    "Liên kết xác thực email đã hết hạn. Vui lòng đăng nhập và bấm \"Gửi lại email xác thực\".");
+        }
+
+        user.markEmailVerified(now);
+        userRepository.save(user);
+        token.setUsedAt(now);
+        emailVerificationTokenRepository.save(token);
+        emailVerificationTokenRepository.deleteByUserIdAndIdNot(user.getId(), token.getId());
+
+        recordAudit(user.getId(), "EMAIL_VERIFIED", null);
+        log.info("Email verified for {}", MailFormat.maskEmail(user.getEmail()));
+    }
+
+    /**
+     * Gui lai email xac thuc cho nguoi dung dang dang nhap.
+     * Rate limit: 1 lan / 60 giay va 5 lan / gio moi tai khoan.
+     */
+    @Transactional
+    public ResendVerificationResult resendVerificationEmail(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
+        if (user.isEmailVerified()) {
+            return ResendVerificationResult.ALREADY_VERIFIED;
+        }
+
+        String userKey = user.getId().toString();
+        if (!rateLimiterService.allowVerificationResendBurst(userKey)) {
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
+                    "Email xác thực vừa được gửi. Vui lòng đợi 60 giây trước khi yêu cầu gửi lại.");
+        }
+        if (!rateLimiterService.allowVerificationResendHourly(userKey)) {
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
+                    "Bạn đã yêu cầu gửi lại email xác thực quá 5 lần trong 1 giờ. Vui lòng thử lại sau.");
+        }
+
+        issueEmailVerification(user);
+        return ResendVerificationResult.SENT;
+    }
+
+    /** Tao token xac thuc moi (vo hieu token cu) va phat event gui email sau khi commit. */
+    private void issueEmailVerification(User user) {
+        emailVerificationTokenRepository.deleteByUserId(user.getId());
+        String rawToken = SecureTokens.generate();
+        emailVerificationTokenRepository.save(new EmailVerificationToken(
+                user, SecureTokens.sha256Hex(rawToken), LocalDateTime.now().plus(EMAIL_VERIFICATION_TTL)));
+        eventPublisher.publishEvent(new EmailVerificationRequestedEvent(user.getEmail(), user.getFullName(), rawToken));
     }
 
     private Optional<PasswordResetToken> findUsableResetToken(String rawToken) {

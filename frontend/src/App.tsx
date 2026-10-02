@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage';
 import { OAuth2CallbackPage } from './pages/OAuth2CallbackPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
+import { VerifyEmailPage } from './pages/auth/VerifyEmailPage';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { AdminLayout } from './layouts/AdminLayout';
 import { DoctorLayout } from './layouts/DoctorLayout';
@@ -36,6 +37,7 @@ export function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
 
           {/* OAuth2 Callback — Backend redirect ve day sau khi Google xac thuc thanh cong */}
           <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />

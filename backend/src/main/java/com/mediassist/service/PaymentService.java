@@ -65,6 +65,7 @@ public class PaymentService {
     public PaymentResponseDto createCheckoutSession(String userEmail, CreatePaymentRequest request) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Người dùng không tồn tại."));
+        EmailVerificationGuard.requireVerifiedPatient(user);
 
         OrderType orderType;
         try {
