@@ -32,5 +32,10 @@ public interface DoctorProfileRepository extends JpaRepository<DoctorProfile, UU
     Optional<DoctorProfile> findByUserId(UUID userId);
     Optional<DoctorProfile> findByLicenseNumber(String licenseNumber);
     long countByIsVerifiedFalse();
+    /**
+     * Cot bio_embedding (pgvector) khong duoc map trong entity DoctorProfile nen khong dung derived query duoc
+     * (Spring Data hieu thanh bio.embedding va lam hong khoi dong ApplicationContext).
+     */
+    @Query(value = "SELECT count(*) FROM doctor_profiles WHERE bio_embedding IS NOT NULL", nativeQuery = true)
     long countByBioEmbeddingIsNotNull();
 }
