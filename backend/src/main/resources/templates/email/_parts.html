@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<body>
+<a th:fragment="button(href, label)" th:href="${href}" th:text="${label}"
+   style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:8px;">Mở</a>
+
+<table>
+    <tr th:fragment="row(label, value)">
+        <td style="padding:6px 12px 6px 0;color:#64748b;white-space:nowrap;vertical-align:top;" th:text="${label}">Nhãn</td>
+        <td style="padding:6px 0;font-weight:bold;" th:text="${value}">Giá trị</td>
+    </tr>
+</table>
+
+<p th:fragment="fallbackLink(href)" style="font-size:12px;color:#64748b;word-break:break-all;">
+    Nếu nút không hoạt động, hãy sao chép liên kết sau vào trình duyệt:<br>
+    <span th:text="${href}">link</span>
+</p>
+</body>
+</html>

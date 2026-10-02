@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#083** | 02/10/2026 | Hệ Thống Email (Email Notifications), đang thực hiện theo 4 phần A–D. **Phần A (xong):** (1) `spring-boot-starter-mail` + Thymeleaf, template HTML tiếng Việt auto-escape trong `templates/email/`, (2) Mailpit trong `docker-compose.yml` (SMTP 1025, UI 8025), (3) `EmailService` nuốt lỗi SMTP + log WARN không lộ token, (4) 7 domain event (record, chỉ dữ liệu hành chính) + `MailNotificationListener` `@TransactionalEventListener(AFTER_COMMIT, fallbackExecution)` + `@Async("mailExecutor")`, (5) 209/209 Backend Tests PASS | AI Assistant | 🟡 Đang thực hiện |
 | **#082** | 02/10/2026 | Lưu Trữ Tài Liệu Y Tế Riêng Tư (Private Document Storage): (1) Flyway V18 đổi `storage_url` thành `storage_path` (object key) và chuyển URL public cũ về key, (2) Endpoint `GET /documents/{id}/signed-url` cấp signed URL 15 phút sau `PatientAccessGuard`, audit `DOCUMENT_SIGNED_URL_ISSUED` cho mọi role, rate limit 30/phút, (3) `/documents/{id}/file` redirect 302, **xóa fallback sinh PDF giả**, (4) DTO bỏ `storageUrl` thay bằng `hasFile`, (5) Frontend helper signed URL + modal có trạng thái 403/404/503/hết hạn, (6) Xóa service_role key và OpenRouter key khỏi file đã commit, hỗ trợ secret key `sb_secret_...` (chỉ header `apikey`), (7) 190/190 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#081** | 29/09/2026 | Vá Lỗ Hổng IDOR Hồ Sơ Bệnh Nhân (Patient Record Access Guard): (1) `PatientAccessGuard` phân quyền PATIENT tự xem / DOCTOR cần quan hệ điều trị (lịch hẹn SCHEDULED/IN_PROGRESS/COMPLETED) / ADMIN bắt buộc audit, (2) Áp guard cho 6 endpoint hồ sơ, vi phạm trả 403 `FORBIDDEN_PATIENT_ACCESS`, (3) AuditLog `VIEW_PATIENT_RECORD` kèm IP, (4) `MedicalDocumentDto` & `TriageSessionDto` thay entity, (5) Thông báo 403 thân thiện trên DoctorDashboard, DoctorPatientRecordsPage, DocumentAnalysisModal, (6) 157/157 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#079** | 28/09/2026 | Hiện Thực Hóa Toàn Diện Hệ Thống Đánh Giá & Chấm Sao Bác Sĩ (Rating & Review System) Khép Kín Vòng Phản Hồi Lâm Sàng & Đưa Điểm Thực Tế Vào Thuật Toán WHRF: (1) Flyway V17 tạo bảng `doctor_reviews` và cột `review_count`, (2) Ràng buộc 1 ca khám hoàn tất (`COMPLETED`) 1 đánh giá duy nhất (idempotent), (3) Tự động tái tính điểm trung bình và cập nhật số lượt đánh giá, (4) Invalidate Two-Layer Cache (Caffeine L1 + Redis L2) và WHRF search cache, (5) Tích hợp điểm thực tế vào thuật toán WHRF ($O(M \log K)$ Min-Heap) với hệ số suy giảm độ tin cậy (Credibility Damper) cho bác sĩ ít review, (6) Bảo vệ riêng tư Nghị định 13/2023/NĐ-CP & HIPAA bằng mặt nạ họ tên bệnh nhân, (7) Frontend Modal chấm sao tương tác, xem danh sách đánh giá chi tiết, hiển thị sao và số lượt đánh giá trên DoctorSearch, PatientDashboard, DoctorDashboard, Triage, DocumentSummarizer, (8) 143/143 Backend Tests PASS (100%), Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
@@ -21,6 +22,36 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#083] Hệ Thống Email: Quên Mật Khẩu Chạy Thật, Xác Thực Email, Email Đặt/Hủy Lịch & Biên Nhận Thanh Toán (Email Notifications)
+* **Thời gian:** 2026-10-02 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code
+* **Nhánh:** `feature/email-notifications`, tách từ `feature/private-document-storage` @ `f1dcec6` (KHÔNG tách từ `develop`) vì nhánh đó chứa migration V18 và chưa merge. Migration của phiên này bắt đầu từ **V19**. Khi merge: merge `feature/patient-access-guard` → `feature/private-document-storage` → nhánh này theo thứ tự.
+* **Cách chia commit:** mỗi phần A/B/C/D là một commit Conventional Commits riêng.
+
+#### Phần A — Hạ tầng email
+**Trạng thái kiểm thử:** Backend **209/209 Unit Tests PASS** (`mvn test`, BUILD SUCCESS). 19 test mới: `EmailServiceTest` 6, `MailNotificationListenerTest` 10, `MailTransactionPhaseTest` 3. Frontend không đổi ở phần này.
+
+**Danh sách tệp tin**
+- `[MOD]` `backend/pom.xml`: thêm `spring-boot-starter-mail`, `spring-boot-starter-thymeleaf`.
+- `[MOD]` `docker-compose.yml`: service `mailpit` (`axllent/mailpit`), cổng `1025` (SMTP) và `8025` (UI), network `mediassist_net`.
+- `[MOD]` `backend/src/main/resources/application.properties`: `app.client-base-url` (`APP_CLIENT_BASE_URL`, mặc định `http://localhost:5173`); `app.payment.client-base-url` trỏ về giá trị này. Thêm `app.mail.enabled`, `app.mail.from`, `spring.mail.*` (timeout connection/read/write 5000 ms), `management.health.mail.enabled=false`, `spring.thymeleaf.check-template-location=false`.
+- `[MOD]` `application-dev.properties` (Mailpit `localhost:1025`, không auth, không TLS), `application-prod.properties` (`SMTP_HOST/PORT/USERNAME/PASSWORD`, STARTTLS required), `application-test.properties` (`app.mail.enabled=false`).
+- `[MOD]` `backend/.env.example`: biến `APP_CLIENT_BASE_URL`, `APP_MAIL_*`, `SMTP_*`.
+- `[MOD]` `backend/.../config/AsyncConfig.java`: bean `mailExecutor` (core 2, max 4, queue 100). Khi đầy thì **bỏ email + log WARN**, không dùng CallerRuns để luồng request không bị SMTP chặn.
+- `[NEW]` `backend/.../event/`: `PasswordResetRequestedEvent`, `PasswordChangedEvent`, `EmailVerificationRequestedEvent`, `AppointmentMailInfo`, `AppointmentBookedEvent`, `AppointmentCancelledEvent` (enum `CancelledBy`), `PaymentCompletedEvent`. Event chứa token override `toString()` để che token.
+- `[NEW]` `backend/.../mail/EmailService.java`: render Thymeleaf → `MimeMessageHelper` UTF-8 HTML. Mọi lỗi bị nuốt, trả `false`. Log WARN chỉ gồm tên template, email đã che (`p***@gmail.com`) và tên lỗi; lỗi SMTP kèm nguyên nhân gốc, lỗi render **không** ghi message (có thể chứa link token).
+- `[NEW]` `backend/.../mail/MailFormat.java`: giờ `HH:mm dd/MM/yyyy`, tiền `350.000 ₫`, che email, nhãn phương thức thanh toán và gói dịch vụ.
+- `[NEW]` `backend/.../mail/MailNotificationListener.java`: 6 handler `@Async("mailExecutor") @TransactionalEventListener(phase = AFTER_COMMIT, fallbackExecution = true)`. Dựng link `{app.client-base-url}/reset-password?token=...`, `/verify-email?token=...`, `/patient`, `/doctor`.
+- `[NEW]` `backend/src/main/resources/templates/email/`: `_layout.html` (header, footer "email không chứa thông tin sức khỏe", số 115), `_parts.html` (button, dòng bảng, link dự phòng), `password-reset`, `password-changed`, `verify-email`, `appointment-booked-patient`, `appointment-booked-doctor`, `appointment-cancelled`, `payment-receipt`. Chỉ dùng `th:text`/`th:href` (auto-escape), không có `th:utext`.
+- `[NEW]` `backend/src/test/.../mail/MailTestSupport.java`, `EmailServiceTest.java`, `MailNotificationListenerTest.java`, `MailTransactionPhaseTest.java` (context Spring tối giản + transaction manager in-memory: commit → gửi, rollback → không gửi, ngoài transaction → vẫn gửi).
+- `[MOD]` `README.md`: Mailpit trong `docker compose up -d`, xem mail tại http://localhost:8025, biến SMTP production.
+
+**Quyết định thiết kế**
+- **Không có dữ liệu y tế trong email theo thiết kế:** `AppointmentMailInfo` chỉ có mã lịch, giờ, tên bệnh nhân/bác sĩ, chuyên khoa, phòng khám. Event không có trường lý do khám, ghi chú hay lý do hủy, nên template không thể vô tình hiển thị.
+- **Snapshot dữ liệu trong transaction:** event là record dữ liệu nguyên thủy, không chứa entity, nên luồng async không gặp `LazyInitializationException`.
+
+---
 
 ### [WORK-LOG-#082] Lưu Trữ Tài Liệu Y Tế Riêng Tư: Bucket Supabase PRIVATE, Signed URL 15 Phút, Kiểm Tra Quyền & Audit Mọi Lượt Xem Tệp (Private Document Storage)
 * **Thời gian:** 2026-10-02 (GMT+7)
