@@ -49,6 +49,7 @@ public class AppointmentDto {
     private UUID triageSessionId;
     private String triageSbarSummary;
     private String triageUrgencyLevel;
+    private LocalDateTime checkedInAt;
 
     public AppointmentDto() {}
 
@@ -86,6 +87,7 @@ public class AppointmentDto {
         dto.setCreatedAt(a.getCreatedAt());
         dto.setMedicalDocumentId(a.getMedicalDocumentId());
         dto.setTriageSessionId(a.getTriageSessionId());
+        dto.setCheckedInAt(a.getCheckedInAt());
         return dto;
     }
 
@@ -202,4 +204,7 @@ public class AppointmentDto {
 
     public List<String> getPreVisitInstructions() { return preVisitInstructions; }
     public void setPreVisitInstructions(List<String> preVisitInstructions) { this.preVisitInstructions = preVisitInstructions; }
+
+    public LocalDateTime getCheckedInAt() { return checkedInAt; }
+    public void setCheckedInAt(LocalDateTime checkedInAt) { this.checkedInAt = checkedInAt; }
 }

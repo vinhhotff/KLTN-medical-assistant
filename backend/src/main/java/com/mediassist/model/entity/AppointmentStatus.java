@@ -2,6 +2,7 @@ package com.mediassist.model.entity;
 
 public enum AppointmentStatus {
     SCHEDULED,
+    CHECKED_IN,
     IN_PROGRESS,
     COMPLETED,
     CANCELLED,

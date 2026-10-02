@@ -198,7 +198,8 @@ public class AppointmentService {
         // State Machine validation
         AppointmentStatus currentStatus = appointment.getStatus();
         java.util.Map<AppointmentStatus, java.util.Set<AppointmentStatus>> validTransitions = java.util.Map.of(
-                AppointmentStatus.SCHEDULED, java.util.Set.of(AppointmentStatus.IN_PROGRESS, AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW),
+                AppointmentStatus.SCHEDULED, java.util.Set.of(AppointmentStatus.CHECKED_IN, AppointmentStatus.IN_PROGRESS, AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW),
+                AppointmentStatus.CHECKED_IN, java.util.Set.of(AppointmentStatus.IN_PROGRESS, AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW),
                 AppointmentStatus.IN_PROGRESS, java.util.Set.of(AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED),
                 AppointmentStatus.COMPLETED, java.util.Set.of(),
                 AppointmentStatus.CANCELLED, java.util.Set.of(),
@@ -247,11 +248,41 @@ public class AppointmentService {
             }
         }
 
+        if (newStatus == AppointmentStatus.CHECKED_IN && appointment.getCheckedInAt() == null) {
+            appointment.setCheckedInAt(LocalDateTime.now());
+        }
+
         appointment.setStatus(newStatus);
         Appointment updated = appointmentRepository.save(appointment);
 
         log.info("ℹ️ Appointment {} status updated to {} by user {}", appointment.getAppointmentCode(), newStatus, userId);
         return toDto(updated);
+    }
+
+    @Transactional
+    public AppointmentDto checkInPatient(UUID appointmentId, UUID doctorUserId) {
+        Appointment appt = appointmentRepository.findByIdWithUsers(appointmentId)
+                .or(() -> appointmentRepository.findById(appointmentId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy thông tin cuộc hẹn"));
+
+        if (!appt.getDoctor().getId().equals(doctorUserId)) {
+            User user = userRepository.findById(doctorUserId).orElse(null);
+            if (user == null || user.getRole() != Role.ADMIN) {
+                throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Chỉ bác sĩ phụ trách hoặc quản trị viên mới có quyền check-in ca khám này");
+            }
+        }
+
+        if (appt.getStatus() != AppointmentStatus.SCHEDULED && appt.getStatus() != AppointmentStatus.CHECKED_IN) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_STATUS", "Không thể check-in cuộc hẹn có trạng thái " + appt.getStatus());
+        }
+
+        appt.setStatus(AppointmentStatus.CHECKED_IN);
+        if (appt.getCheckedInAt() == null) {
+            appt.setCheckedInAt(LocalDateTime.now());
+        }
+        Appointment saved = appointmentRepository.save(appt);
+        log.info("🏥 Patient checked in for appointment {} by user {}", appt.getAppointmentCode(), doctorUserId);
+        return toDto(saved);
     }
 
     @Transactional

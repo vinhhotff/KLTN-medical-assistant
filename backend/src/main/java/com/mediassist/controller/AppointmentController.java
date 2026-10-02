@@ -123,4 +123,14 @@ public class AppointmentController {
         AppointmentDto dto = appointmentService.getAppointmentTicket(id, principal.getId(), principal.getRole());
         return ResponseEntity.ok(ApiResponse.success(dto));
     }
+
+    @PatchMapping("/{id}/check-in")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @Operation(summary = "Check-in bệnh nhân khi đến phòng khám")
+    public ResponseEntity<ApiResponse<AppointmentDto>> checkIn(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        AppointmentDto dto = appointmentService.checkInPatient(id, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success(dto));
+    }
 }

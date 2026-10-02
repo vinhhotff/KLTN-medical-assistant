@@ -873,4 +873,27 @@ graph TD
   5. **Hỗ Trợ In Ấn Bản Giấy (One-Click Print):**
      - Tích hợp phong cách CSS `@media print` giúp người bệnh hoặc thân nhân lớn tuổi có thể in trực tiếp phiếu khám rõ ràng, loại bỏ toàn bộ khung điều hướng thừa.
 
+---
+
+### UC-27: Trạm Bác Sĩ Màn Hình Đôi & Tiếp Đón Check-In (Doctor Split-Screen Workstation & Clinic Check-In)
+
+* **Mã Use Case:** `UC-CLIN-27`
+* **Tác nhân chính:** Doctor (Bác sĩ chuyên khoa), Admin (Quản trị viên phòng khám), Patient (Bệnh nhân).
+* **Mục tiêu:** Cung cấp không gian làm việc lâm sàng tối ưu công thái học (Ergonomics) với màn hình đôi 50/50: Xem tài liệu cận lâm sàng/PDF trực tiếp song song với phân tích AI Triage SBAR và bệnh án điện tử (EMR); hỗ trợ tiếp đón check-in bệnh nhân và quản lý lịch trực dạng lưới tuần.
+* **REST Endpoints:**
+  - `PATCH /api/v1/appointments/{id}/check-in`: Tiếp nhận yêu cầu check-in của bệnh nhân khi có mặt tại phòng khám (`SCHEDULED -> CHECKED_IN`), ghi nhận mốc thời gian `checkedInAt`. Yêu cầu phân quyền `hasAnyRole('DOCTOR', 'ADMIN')`.
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Quy Trình Tiếp Đón Check-In O2O (Patient Clinic Check-In):**
+     - Khi người bệnh xuất trình phiếu khám tại bàn khám, bác sĩ hoặc trợ lý nhấn nút "Check-in Bệnh Nhân". Ca khám chuyển sang trạng thái `CHECKED_IN` với nhãn màu tím nhận diện trực quan.
+  2. **Trạm Bác Sĩ Màn Hình Đôi (Split-Screen Clinical Workstation 50/50):**
+     - **Cột Trái (50%): Document Viewer:** Bác sĩ chọn và xem tức thì các tệp kết quả xét nghiệm, siêu âm, X-quang, PDF nội tuyến thông qua trình xem `<iframe>`, hoặc ảnh y khoa độ phân giải cao kèm tính năng tải về.
+     - **Cột Phải (50%): Điều Hướng 3 Phân Khu Lâm Sàng:**
+       - `[🤖 Phân Tích AI]`: Hiển thị cấp độ nguy cơ (Urgency Badge 🟢/🟡/🔴/🚨), tóm tắt phân luồng Triage theo cấu trúc lâm sàng SBAR (Situation, Background, Assessment, Recommendation), tiện ích 1-click nạp vào phiếu khám, và nút Làm mới phân tích AI.
+       - `[✍️ Ghi Chú Khám (EMR)]`: Nhập lý do khám, ghi chép lâm sàng, chỉ số sinh hiệu (Huyết áp, Mạch, BMI, SpO2), chẩn đoán mã bệnh ICD-10, kê đơn thuốc tự động kiểm tra xung đột dị ứng thuốc với tiền sử bệnh nhân, nút Check-in và Hoàn tất ca khám.
+       - `[📜 Bệnh Sử Cũ]`: Lịch sử các lần khám trước đó của bệnh nhân tại hệ thống.
+  3. **Chế Độ Xem Lịch Tuần (Weekly Calendar Grid View):**
+     - Chuyển đổi giữa chế độ `Danh Sách` và `Lịch Tuần` (7 ngày × khung giờ 07:00 - 17:00).
+     - Khối lịch mã màu theo trạng thái (Xanh dương: Chờ khám, Tím: Đã check-in, Hổ phách: Đang khám, Xanh lá: Đã khám xong).
+     - 1-click vào khối lịch mở thẳng Trạm Bác sĩ Màn hình đôi cho ca khám đó.
+
 
