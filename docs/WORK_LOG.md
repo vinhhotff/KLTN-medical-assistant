@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#082** | 02/10/2026 | Lưu Trữ Tài Liệu Y Tế Riêng Tư (Private Document Storage): (1) Flyway V18 đổi `storage_url` thành `storage_path` (object key) và chuyển URL public cũ về key, (2) Endpoint `GET /documents/{id}/signed-url` cấp signed URL 15 phút sau `PatientAccessGuard`, audit `DOCUMENT_SIGNED_URL_ISSUED` cho mọi role, rate limit 30/phút, (3) `/documents/{id}/file` redirect 302, **xóa fallback sinh PDF giả**, (4) DTO bỏ `storageUrl` thay bằng `hasFile`, (5) Frontend helper signed URL + modal có trạng thái 403/404/503/hết hạn, (6) Xóa service_role key và OpenRouter key khỏi file đã commit, (7) 188/188 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#081** | 29/09/2026 | Vá Lỗ Hổng IDOR Hồ Sơ Bệnh Nhân (Patient Record Access Guard): (1) `PatientAccessGuard` phân quyền PATIENT tự xem / DOCTOR cần quan hệ điều trị (lịch hẹn SCHEDULED/IN_PROGRESS/COMPLETED) / ADMIN bắt buộc audit, (2) Áp guard cho 6 endpoint hồ sơ, vi phạm trả 403 `FORBIDDEN_PATIENT_ACCESS`, (3) AuditLog `VIEW_PATIENT_RECORD` kèm IP, (4) `MedicalDocumentDto` & `TriageSessionDto` thay entity, (5) Thông báo 403 thân thiện trên DoctorDashboard, DoctorPatientRecordsPage, DocumentAnalysisModal, (6) 157/157 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#079** | 28/09/2026 | Hiện Thực Hóa Toàn Diện Hệ Thống Đánh Giá & Chấm Sao Bác Sĩ (Rating & Review System) Khép Kín Vòng Phản Hồi Lâm Sàng & Đưa Điểm Thực Tế Vào Thuật Toán WHRF: (1) Flyway V17 tạo bảng `doctor_reviews` và cột `review_count`, (2) Ràng buộc 1 ca khám hoàn tất (`COMPLETED`) 1 đánh giá duy nhất (idempotent), (3) Tự động tái tính điểm trung bình và cập nhật số lượt đánh giá, (4) Invalidate Two-Layer Cache (Caffeine L1 + Redis L2) và WHRF search cache, (5) Tích hợp điểm thực tế vào thuật toán WHRF ($O(M \log K)$ Min-Heap) với hệ số suy giảm độ tin cậy (Credibility Damper) cho bác sĩ ít review, (6) Bảo vệ riêng tư Nghị định 13/2023/NĐ-CP & HIPAA bằng mặt nạ họ tên bệnh nhân, (7) Frontend Modal chấm sao tương tác, xem danh sách đánh giá chi tiết, hiển thị sao và số lượt đánh giá trên DoctorSearch, PatientDashboard, DoctorDashboard, Triage, DocumentSummarizer, (8) 143/143 Backend Tests PASS (100%), Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#078** | 28/09/2026 | Tích Hợp Toàn Diện 2 Nhánh Đồng Nghiệp Vào Nhánh develop (Integration Merge: fix/critical-bugs & feature/fuction): (1) Merge nhánh fix/critical-bugs của Bảo: Thu hẹp Vite proxy tránh cướp route /oauth2/callback SPA, nâng cấp logging lỗi OAuth2, untrack các tệp .env và cấu hình nạp qua spring.config.import, (2) Merge nhánh feature/fuction của Khương: Chuông thông báo in-app NotificationBell, Quên/Đặt lại mật khẩu PasswordResetToken, Rào chắn hoàn tiền hủy khám & Dời lịch hẹn, Flyway V15 & V16, (3) Xác thực toàn diện: 136/136 Backend Tests PASS (100%), Frontend build 0 lỗi TypeScript (1683 modules), và bảo toàn các tệp .env cục bộ cho môi trường phát triển | AI Assistant | 🟢 Sẵn sàng Review |
@@ -20,6 +21,99 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#082] Lưu Trữ Tài Liệu Y Tế Riêng Tư: Bucket Supabase PRIVATE, Signed URL 15 Phút, Kiểm Tra Quyền & Audit Mọi Lượt Xem Tệp (Private Document Storage)
+* **Thời gian:** 2026-10-02 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code
+* **Mã Use Cases:** UC-SEC-28 (mới), cập nhật UC-DOC-22 và UC-SEC-27
+* **Nhánh:** `feature/private-document-storage`. **Ghi chú:** tách từ `feature/patient-access-guard` @ `55ec78d` (KHÔNG tách từ `develop`) vì `develop` (@ `ae3ad52`) chưa có commit `PatientAccessGuard` (55ec78d). Khi merge cần merge `feature/patient-access-guard` vào `develop` trước (hoặc merge cả hai cùng lúc).
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend: **188/188 Unit Tests PASS** (`mvn test`, BUILD SUCCESS). Số test mới thêm trong phiên này: 31 (`MedicalDocumentFileAccessServiceTest` 11, `SupabaseStorageServiceTest` 13, `MedicalDocumentFileEndpointTest` 7). `PatientAccessGuardTest` 6/6 PASS sau khi tách `ClientRequestInfo`. `MedicalDocumentAnalysisServiceTest` 26/26 và `PatientRecordAccessControllerTest` 8/8 PASS sau khi sửa.
+  - Frontend: **0 TypeScript Errors, 1687 modules transformed** (`npm run build` = `tsc && vite build`).
+  - Migration V18: đã chạy thử trên **PostgreSQL 16 (embedded, scratch, không đụng DB dev)** với 3 kịch bản: (a) chỉ có `storage_url`; (b) có cả `storage_url` và `storage_path` (Hibernate `ddl-auto=update` tạo trước); (c) chạy V18 hai lần. Cả 3 đều cho `patients/u1/ab12_a.pdf | patients/u2/cd34_b.pdf | patients/u3/c.pdf | /uploads/medical_documents/u4/ef_d.pdf | NULL | NULL | NULL` và không còn cột `storage_url`. **Chưa** chạy trên DB dev thật vì Docker Desktop không chạy trong phiên này.
+
+#### 1. Bối cảnh:
+`SupabaseStorageService.uploadDocument()` trả về URL PUBLIC (`/storage/v1/object/public/...`). URL này được lưu vào `medical_documents.storage_url` và trả ra qua `MedicalDocumentDto` và `DocumentAnalysisResponse`. Ai có link là tải được phiếu xét nghiệm, bỏ qua `PatientAccessGuard` (WORK_LOG #081 mục 5). Ngoài ra, `GET /documents/{id}/file` khi không tải được file sẽ **tự sinh một PDF xét nghiệm ngẫu nhiên** rồi trả về như file thật. Khi bucket chuyển sang private, nhánh này sẽ luôn chạy, nên bác sĩ sẽ thấy kết quả giả. Cuối cùng, service_role key bị hard-code làm giá trị mặc định trong 3 file properties đã commit.
+
+#### 2. Danh sách tệp tin:
+**Backend**
+- `[NEW]` `backend/src/main/resources/db/migration/V18__private_document_storage_path.sql`. Đổi tên `storage_url` thành `storage_path` (idempotent, xử lý cả trường hợp cột đã tồn tại sẵn). Chuyển URL cũ (`public/`, không `public/`, `sign/?token=`) về object key. `default_emr.pdf` và chuỗi rỗng thành `NULL`.
+- `[NEW]` `backend/.../common/ClientRequestInfo.java`: lấy IP (`X-Forwarded-For` → `X-Real-IP` → remote) và User-Agent. Dùng chung cho guard và service mới.
+- `[NEW]` `backend/.../service/SupabaseStorageUrls.java`: các hàm thuần dựng endpoint, `buildSignedUrl` (gộp `{url}/storage/v1` + `signedURL`, `&download=` đã encode), `parseSignedUrlPath`, `parseBucketPublic`, `isObjectNotFound`, `toObjectKey`.
+- `[NEW]` `backend/.../service/MedicalDocumentFileAccessService.java`: `loadAuthorizedDocument` (404 → guard 403 → 404 `FILE_NOT_AVAILABLE`), `issueAccess`, `issueSignedAccess`. Ghi audit `DOCUMENT_SIGNED_URL_ISSUED` cho mọi role, **chỉ sau khi** đã ký được URL.
+- `[NEW]` `backend/.../dto/DocumentFileAccessDto.java`: `url`, `expiresAt`, `expiresInSeconds`, `fileName`, `contentType`.
+- `[MOD]` `backend/.../service/StorageService.java`: `uploadDocument` trả object key hoặc `null`. Thêm `createSignedUrl`, `getSignedUrlTtlSeconds`, record `SignedUrl` (`toString` không in URL), hằng số mã lỗi.
+- `[MOD]` `backend/.../service/SupabaseStorageService.java`: viết lại.
+  + Constructor injection, HTTP transport inject được (`java.net.http.HttpClient` mặc định).
+  + Upload trả key; khi ghi local lỗi thì trả `null`.
+  + `createSignedUrl`: lỗi 404 / 400 `not_found` trả 404 `FILE_NOT_AVAILABLE`; lỗi 5xx, timeout, thiếu `signedURL`, key rỗng hoặc disabled trả 503 `STORAGE_UNAVAILABLE`.
+  + `deleteDocument` nhận cả key lẫn URL cũ.
+  + `verifyBucketIsPrivate()` chạy khi `ApplicationReadyEvent`.
+  + Bỏ log URL/token. Đổi log "Bật Public bucket" thành hướng dẫn tạo bucket **PRIVATE**.
+- `[MOD]` `backend/.../controller/MedicalDocumentController.java`:
+  + Thêm `GET /{id}/signed-url` (`Cache-Control: no-store`).
+  + `GET /{id}/file`: file Supabase trả **302** tới signed URL mới; file local thì stream (`no-store`); không có file trả 404.
+  + **Xóa hoàn toàn fallback sinh PDF ngẫu nhiên.**
+  + Thêm rate limit `allowDocumentFileAccess` cho cả 2 endpoint.
+- `[MOD]` `backend/.../service/SecurityRateLimiterService.java`: thêm `allowDocumentFileAccess(userKey)` (30 lần/phút).
+- `[MOD]` `backend/.../service/PatientAccessGuard.java`: chỉ refactor sang `ClientRequestInfo`, logic và audit giữ nguyên.
+- `[MOD]` `backend/.../model/entity/MedicalDocument.java`: `storagePath` (`@Column(name="storage_path")`), `hasStoredFile()`, `isLocalFile()`, `LOCAL_PREFIX`.
+- `[MOD]` `backend/.../dto/MedicalDocumentDto.java`, `DocumentAnalysisResponse.java`: bỏ `storageUrl`, thêm `hasFile`.
+- `[MOD]` `backend/.../service/MedicalDocumentAnalysisService.java`: chỉ đổi tên `storageUrl` thành `storagePath` và `setHasFile`. Không đổi OCR/AI, quota, dedupe.
+- `[MOD]` `backend/src/main/resources/application.properties`, `application-dev.properties`, `application-supabase.properties`: `supabase.key=${SUPABASE_KEY:}`. Thêm `app.storage.signed-url-ttl-seconds=${APP_STORAGE_SIGNED_URL_TTL_SECONDS:900}`.
+- `[MOD]` `backend/.env.example`, `.env.example` (thư mục gốc): `OPENROUTER_API_KEY` và `SUPABASE_KEY` đổi thành placeholder/rỗng, kèm hướng dẫn service_role và bucket private.
+- `[NEW]` `backend/src/test/.../service/MedicalDocumentFileAccessServiceTest.java`, `.../service/SupabaseStorageServiceTest.java`, `.../MedicalDocumentFileEndpointTest.java`.
+- `[MOD]` `backend/src/test/.../MedicalDocumentAnalysisServiceTest.java` (fixture dùng object key, assert `hasFile`), `PatientRecordAccessControllerTest.java` (constructor mới, stub rate limiter).
+
+**Frontend**
+- `[NEW]` `frontend/src/services/documentFileService.ts`: `getDocumentFileAccess`, `openDocumentFile` (mở cửa sổ trống ngay trong click, `opener=null`, rồi gán `location`), `downloadDocumentFile`, `isFileAccessExpired`, `toDocumentFileError` (403/404/429/503 sang thông báo tiếng Việt), `SIGNED_URL_NOTE`.
+- `[MOD]` `frontend/src/services/api.ts`: `isPatientAccessDenied` chỉ nhận 403 có `error.code === 'FORBIDDEN_PATIENT_ACCESS'`.
+- `[MOD]` `frontend/src/components/common/DocumentAnalysisModal.tsx`:
+  + Tab tệp gốc lấy signed URL khi mở, có đủ trạng thái loading / 403 / 404 / 503 / hết hạn.
+  + Thêm nút "Tải lại liên kết" và ghi chú "Liên kết tạm thời, hết hạn sau 15 phút".
+  + Nút "Mở Cửa Sổ Mới" và "Tải Về" dùng helper.
+  + Bỏ prop `initialStorageUrl`.
+- `[MOD]` `frontend/src/pages/doctor/DoctorDashboard.tsx`, `DoctorPatientRecordsPage.tsx`: "Mở Tệp" chuyển thành button dùng helper, có toast lỗi. Bỏ `storageUrl` và `docModalStorageUrl`.
+- `[MOD]` `frontend/src/pages/patient/DocumentSummarizerPage.tsx`: link "Supabase Cloud EMR" thay bằng nút "Xem tệp gốc" (`analysis.documentId`), có banner lỗi.
+- `[MOD]` `frontend/src/pages/patient/PatientDashboard.tsx`: interface `storageUrl` đổi thành `hasFile`.
+- `[MOD]` `frontend/src/pages/admin/AuditLogPage.tsx`: chip lọc "Xem Tệp Y Tế" (`DOCUMENT_SIGNED_URL_ISSUED`), badge màu cho action xem hồ sơ/tệp.
+
+**Tài liệu:** `[MOD]` `README.md` (hướng dẫn đặt `SUPABASE_KEY` service_role trong `backend/.env`, bucket private).
+
+#### 3. Tài liệu đã đồng bộ:
+- `docs/DATABASE_DESIGN.md` ✅: cột `storage_path`, mục 13 (V18 + kết quả kiểm chứng), action audit `DOCUMENT_SIGNED_URL_ISSUED`, mục 7.2 bỏ "Public Access URL".
+- `docs/USE_CASES.md` ✅: thêm **UC-28**; cập nhật UC-22 (endpoint mới, bỏ fallback PDF, UI signed URL, `hasFile`) và UC-27 (endpoint signed-url, `isPatientAccessDenied` theo `error.code`, quan hệ 2 dòng audit).
+- `docs/DOCUMENT_SCAN_PIPELINE.md` ✅: sequence diagram trả object key, bảng cột `storage_path`, phụ lục UC-28. Bỏ toàn bộ mô tả URL public.
+- `docs/CAPSTONE_DEFENSE.md` ✅:
+  + Thêm **Câu hỏi 16**: vì sao dùng signed URL 15 phút, rủi ro link bị chia sẻ trong 15 phút, vì sao audit cả bệnh nhân, bằng chứng test và kịch bản demo.
+  + Sửa phần "hạn chế" của Câu hỏi 15.
+- `docs/WORK_LOG.md` ✅
+
+#### 4. Điểm nóng Tech Lead cần Review:
+1. **Nhánh gốc:** tách từ `feature/patient-access-guard`, không phải `develop` (xem dòng "Nhánh").
+2. **Hai dòng audit cho DOCTOR/ADMIN** mỗi lần xem tệp: `VIEW_PATIENT_RECORD` (guard) + `DOCUMENT_SIGNED_URL_ISSUED`. Đúng theo quyết định của anh/chị; `PatientAccessGuard` không đổi logic.
+3. **Audit chỉ ghi khi đã cấp được URL.** 403/404/503 không sinh dòng `DOCUMENT_SIGNED_URL_ISSUED` (403 cũng không có `VIEW_PATIENT_RECORD`, như #081).
+4. **Tệp local (fallback dev):** `/signed-url` vẫn ghi audit (`Storage: LOCAL, TtlSeconds: 0`) và trả `/api/v1/documents/{id}/file`. Khi stream local, `/file` **không** ghi thêm audit `DOCUMENT_SIGNED_URL_ISSUED` (chỉ guard ghi `VIEW_PATIENT_RECORD` cho DOCTOR/ADMIN). Mở trực tiếp `/file` cho file local thì bệnh nhân không có audit. Cần thì bổ sung.
+5. **Nút "Tải Về"** dùng `<a>` tạm với signed URL `&download=` (Content-Disposition: attachment) thay vì mở cửa sổ trống. Tải về không mở tab nên không bị popup blocker, và tránh để lại tab trắng. Nút "Mở Cửa Sổ Mới" theo đúng cơ chế mở cửa sổ trống rồi gán `location`.
+6. **`/file` đổi hành vi:** Supabase thì trả **302** thay vì proxy bytes. Frontend không còn nhúng `/file` cho file Supabase (iframe dùng signed URL trực tiếp), nên không vướng CORS. Content-Type mặc định của file local đổi từ `application/pdf` sang `application/octet-stream` khi DB không có `contentType`.
+7. **`isPatientAccessDenied` chặt hơn:** 403 khác (ví dụ sai role ở `@PreAuthorize`) không còn hiển thị thông báo Nghị định 13 mà rơi vào nhánh lỗi chung của từng trang.
+8. **`supabase.key` rỗng mặc định:** máy dev nào chưa có `SUPABASE_KEY` trong `backend/.env` sẽ lưu tệp mới ở local. Tài liệu cũ trên Supabase lúc đó trả 503 `STORAGE_UNAVAILABLE`, có chủ đích, không sinh dữ liệu giả.
+9. **Signed URL là bearer token trong 15 phút.** Đã giảm thiểu bằng `no-store`, `referrerPolicy="no-referrer"`, không log và có audit người phát hành. TTL chỉnh được qua `APP_STORAGE_SIGNED_URL_TTL_SECONDS`.
+
+#### 5. Việc thủ công cần làm (Tech Lead):
+1. **Chuyển bucket sang PRIVATE:** Supabase Dashboard → Storage → bucket `medical-documents` → Edit bucket → **tắt "Public bucket"** → Save. Sau khi khởi động backend, log phải là `🔒 Supabase bucket 'medical-documents' là PRIVATE` (không còn WARN `[SECURITY]`).
+2. **Rotate service_role key của Supabase:** key cũ đã nằm trong lịch sử git (3 file `application*.properties`). Xóa khỏi file chưa đủ. Vào Project Settings → API → tạo lại key (hoặc rotate JWT secret), rồi đặt key mới **chỉ** trong `backend/.env` (`SUPABASE_KEY=...`).
+3. **Rotate OpenRouter API key:** key `sk-or-v1-…` đã nằm trong lịch sử git (`.env.example` và `backend/.env.example`). Xóa khỏi file chưa đủ. Vào https://openrouter.ai/keys, thu hồi key cũ, tạo key mới và đặt vào `backend/.env`.
+4. (Tùy chọn) Dọn lịch sử git bằng `git filter-repo` / BFG nếu repo sẽ public. Việc này chỉ có ý nghĩa **sau khi** đã rotate key.
+5. Chạy backend trên DB dev để Flyway áp dụng V18, rồi kiểm tra `SELECT storage_path FROM medical_documents LIMIT 20;` không còn giá trị `https://`.
+
+#### 6. Checklist kiểm thử tay sau khi chuyển bucket sang private:
+- [ ] **Link public cũ không mở được:** mở một URL dạng `https://<project>.supabase.co/storage/v1/object/public/medical-documents/patients/...` (lấy trong lịch sử, hoặc ghép từ `storage_path` trong DB). Kỳ vọng Supabase trả lỗi (400/404 "Bucket not found" / "not public"), không tải được tệp.
+- [ ] **Signed URL mở được và hết hạn sau 15 phút:** đăng nhập bệnh nhân, vào Tóm Tắt Hồ Sơ, bấm "Xem tệp gốc" → tab mới hiển thị PDF. Copy URL, chờ hơn 15 phút rồi mở lại; kỳ vọng Supabase trả lỗi token hết hạn. Trong `DocumentAnalysisModal`, sau 15 phút giao diện hiện "Liên kết xem tệp đã hết hạn", và nút "Tải lại liên kết" hoạt động.
+- [ ] **Bác sĩ không có lịch hẹn nhận 403:** đăng nhập một bác sĩ chưa từng có lịch với bệnh nhân X, gọi `GET /api/v1/documents/{docId của X}/signed-url`. Kỳ vọng `403 FORBIDDEN_PATIENT_ACCESS`; UI hiển thị `PatientAccessDeniedNotice`.
+- [ ] **Dòng audit hiện trên AuditLogPage:** đăng nhập admin, vào Nhật Ký Kiểm Toán, bấm chip **"Xem Tệp Y Tế"**. Kỳ vọng thấy dòng `DOCUMENT_SIGNED_URL_ISSUED` vừa tạo với `resource = medical_documents/{id}`, IP, User-Agent, metadata `Role / PatientId / Download / TtlSeconds: 900`, và **không** chứa token.
+
+---
 
 ### [WORK-LOG-#081] Vá Lỗ Hổng IDOR Hồ Sơ Bệnh Nhân: Rào Chắn Quan Hệ Điều Trị & Nhật Ký Xem Hồ Sơ (Patient Record Access Guard)
 * **Thời gian:** 2026-09-29 (GMT+7)
@@ -603,7 +697,9 @@ Tech Lead bấm vào nút đăng nhập nhanh của Bác sĩ trên giao diện `
 
 #### 2. Giải Pháp Xử Lý:
 1. **Chuẩn Hóa Alias Trong `AuthService.java`:**
-   - Bổ sung cơ chế map alias thông minh: nếu người dùng nhập `dr.an@mediassist.local` $ightarrow$ tự động ánh xạ sang `doctor@mediassist.local`; nếu nhập `patient.nam@mediassist.local` $ightarrow$ tự động ánh xạ sang `patient@mediassist.local`.
+   - Bổ sung cơ chế map alias thông minh: nếu người dùng nhập `dr.an@mediassist.local` $
+ightarrow$ tự động ánh xạ sang `doctor@mediassist.local`; nếu nhập `patient.nam@mediassist.local` $
+ightarrow$ tự động ánh xạ sang `patient@mediassist.local`.
    - Đảm bảo người dùng gõ bất kỳ định dạng nào (`dr.an` hay `doctor`) đều đăng nhập thành công 100%.
 2. **Cập Nhật Toàn Bộ Nút 1-Click Fill Trên `LoginPage.tsx`:**
    - Bác Sĩ (TS.BS Nguyễn Văn An - Tim Mạch): `doctor@mediassist.local` / `Doctor@SecurePass2026!`
