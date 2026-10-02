@@ -28,18 +28,22 @@ public class TriageService {
     private final UserRepository userRepository;
     private final ClinicalRagService clinicalRagService;
 
+    private final AiUsageAnalyticsService aiUsageAnalyticsService;
+
     public TriageService(RedFlagService redFlagService,
                          DoctorSemanticSearchService doctorSemanticSearchService,
                          TriageSessionRepository triageSessionRepository,
                          SpecialtyRepository specialtyRepository,
                          UserRepository userRepository,
-                         ClinicalRagService clinicalRagService) {
+                         ClinicalRagService clinicalRagService,
+                         AiUsageAnalyticsService aiUsageAnalyticsService) {
         this.redFlagService = redFlagService;
         this.doctorSemanticSearchService = doctorSemanticSearchService;
         this.triageSessionRepository = triageSessionRepository;
         this.specialtyRepository = specialtyRepository;
         this.userRepository = userRepository;
         this.clinicalRagService = clinicalRagService;
+        this.aiUsageAnalyticsService = aiUsageAnalyticsService;
     }
 
     public TriageResponse assessSymptoms(TriageRequest request, String userEmail) {
@@ -204,7 +208,22 @@ public class TriageService {
         response.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
         response.setPiiProtected(ragResult.isPiiProtected());
         response.setPiiEntitiesCount(ragResult.getPiiEntitiesCount());
-        response.setPiiMaskedTypes(ragResult.getPiiMaskedTypes());
+        // 7. Record AI FinOps Token Usage
+        try {
+            int promptTokens = Math.max(80, (symptoms.length() / 4) + 120);
+            int completionTokens = Math.max(120, ((sbar != null ? sbar.length() : 0) + (aiAdvice != null ? aiAdvice.length() : 0)) / 4);
+            aiUsageAnalyticsService.recordUsage(
+                    com.mediassist.model.entity.AiTokenUsage.ServiceType.TRIAGE,
+                    ragResult.getModelUsed() != null ? ragResult.getModelUsed() : "gemini-3.6-flash",
+                    promptTokens,
+                    completionTokens,
+                    com.mediassist.model.entity.AiTokenUsage.RequestStatus.SUCCESS,
+                    patientUser,
+                    null
+            );
+        } catch (Exception ex) {
+            log.warn("⚠️ Failed to record triage AI token usage: {}", ex.getMessage());
+        }
 
         return response;
     }

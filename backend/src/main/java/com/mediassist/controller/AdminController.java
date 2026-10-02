@@ -22,9 +22,20 @@ import java.util.UUID;
 public class AdminController {
 
     private final AdminVettingService adminVettingService;
+    private final com.mediassist.service.AiUsageAnalyticsService aiUsageAnalyticsService;
 
-    public AdminController(AdminVettingService adminVettingService) {
+    public AdminController(AdminVettingService adminVettingService,
+                           com.mediassist.service.AiUsageAnalyticsService aiUsageAnalyticsService) {
         this.adminVettingService = adminVettingService;
+        this.aiUsageAnalyticsService = aiUsageAnalyticsService;
+    }
+
+    @GetMapping("/ai-usage")
+    @Operation(summary = "Get AI token usage and FinOps analytics", description = "Returns aggregated tokens, USD/VND costs, error rate, daily trend, and service breakdown.")
+    public ResponseEntity<ApiResponse<AiUsageStatsDto>> getAiUsageStats(
+            @RequestParam(name = "days", defaultValue = "30") int days) {
+        AiUsageStatsDto stats = aiUsageAnalyticsService.getUsageStats(days);
+        return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
     @GetMapping("/doctors")

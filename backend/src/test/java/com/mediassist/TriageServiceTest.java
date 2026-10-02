@@ -50,6 +50,9 @@ class TriageServiceTest {
     @Mock
     private com.mediassist.service.ClinicalRagService clinicalRagService;
 
+    @Mock
+    private com.mediassist.service.AiUsageAnalyticsService aiUsageAnalyticsService;
+
     @InjectMocks
     private TriageService triageService;
 

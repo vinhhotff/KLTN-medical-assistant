@@ -896,4 +896,29 @@ graph TD
      - Khối lịch mã màu theo trạng thái (Xanh dương: Chờ khám, Tím: Đã check-in, Hổ phách: Đang khám, Xanh lá: Đã khám xong).
      - 1-click vào khối lịch mở thẳng Trạm Bác sĩ Màn hình đôi cho ca khám đó.
 
+---
+
+### UC-28: Giám Sát Chi Phí & Tài Nguyên AI Toàn Viện (Admin AI Token & FinOps Cost Analytics)
+
+* **Mã Use Case:** `UC-FIN-28`
+* **Tác nhân chính:** Admin (Ban quản trị / Giám đốc công nghệ), Hệ Thống AI Gateway (Gemini 1.5 Pro / Flash).
+* **Mục tiêu:** Cung cấp bảng điều khiển FinOps trực quan giúp theo dõi chi phí gọi AI, lượng tiêu thụ token, tỷ lệ lỗi và phân bổ ngân sách theo thời gian thực để báo cáo ban lãnh đạo bệnh viện.
+* **REST Endpoints:**
+  - `GET /api/v1/admin/ai-usage?days={N}`: Trả về dữ liệu thống kê tổng hợp token, chi phí USD, chi phí VNĐ (tỷ giá 25.000 VNĐ/USD), tỷ lệ lỗi API, chuỗi dữ liệu theo ngày cho Line Chart, và phân bổ theo dịch vụ cho Pie Chart. Phân quyền `@PreAuthorize("hasRole('ADMIN')")`.
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Tự Động Ghi Nhận Lượng Tiêu Thụ Token (Automated FinOps Ingestion):**
+     - Sau mỗi lượt suy luận AI trong Triage Triệu chứng (`TRIAGE`) hoặc Phân tích Cận lâm sàng (`DOCUMENT_ANALYSIS`), hệ thống tự động lưu trữ bản ghi vào bảng `ai_token_usage` bao gồm: loại dịch vụ, mô hình, prompt tokens, completion tokens, tổng tokens, chi phí USD tính theo bảng giá chuẩn Gemini, và trạng thái `SUCCESS`/`ERROR`/`TIMEOUT`.
+  2. **Bộ Chỉ Số Hiệu Năng Cốt Lõi (5 KPI Cards):**
+     - Tổng số lượt gọi AI (Requests).
+     - Tổng số lượng Tokens (Prompt + Completion).
+     - Tổng chi phí tính bằng USD (chuẩn xác 4 chữ số thập phân).
+     - Tổng chi phí quy đổi VNĐ theo tỷ giá cấu hình doanh nghiệp (25.000₫/USD).
+     - Tỷ lệ lỗi API (Error Rate %) kèm thanh tiến trình cảnh báo trực quan khi vượt quá 5% hoặc 10%.
+  3. **Biểu Đồ Xu Hướng & Phân Bổ Trực Quan (Recharts Integration):**
+     - **Line Chart:** Xu hướng tiêu thụ theo từng ngày qua 7, 30 hoặc 90 ngày; cho phép bật tắt xem theo Lượng Token hoặc Chi Phí ($).
+     - **Pie Chart & Bảng Chi Tiết:** Tỷ trọng chi phí và token giữa Phân luồng triệu chứng (Triage) và Đọc hồ sơ cận lâm sàng (Document Analysis).
+  4. **Bộ Lọc Khoảng Thời Gian Linh Hoạt:**
+     - Cho phép chọn nhanh 7 ngày, 30 ngày hoặc 90 ngày với khả năng re-fetch dữ liệu tức thời và cơ chế tự động đồng bộ theo chu kỳ.
+
+
 

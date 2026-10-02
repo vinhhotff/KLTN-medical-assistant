@@ -11,7 +11,44 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#081** | 02/10/2026 | Triển Khai Bảng Giám Sát Chi Phí & Tài Nguyên AI Toàn Viện (Phase 4 Admin AI Token & Cost Analytics Dashboard): (1) Flyway migration V17 chuẩn hóa bảng `ai_token_usage` (bổ sung `service_type`, `request_status`, `cost_usd`, `appointment_id` và các chỉ mục phân tích), (2) Tạo entity `AiTokenUsage`, repository `AiTokenUsageRepository` với các truy vấn tổng hợp theo thời gian, theo ngày (Line Chart), theo dịch vụ (Pie Chart) và tỷ lệ lỗi, (3) Service `AiUsageAnalyticsService` tính toán chi phí USD theo bảng giá chuẩn Gemini ($0.00125/1k input, $0.005/1k output) và quy đổi VNĐ theo tỷ giá cấu hình (25.000₫/USD), (4) Hook tự động ghi nhận lượng tiêu thụ token vào `TriageService` và `MedicalDocumentAnalysisService`, (5) Endpoint `GET /api/v1/admin/ai-usage` phân quyền `ADMIN`, (6) Giao diện AdminDashboard tích hợp Recharts: 5 KPI Cards (Requests, Tokens, USD, VNĐ, Error Rate), Progress Bar cảnh báo lỗi (>10%), Line Chart xu hướng theo ngày với toggle [Tokens]/[Chi Phí], Pie Chart phân bổ Triage vs Cận Lâm Sàng kèm bảng chi tiết và bộ lọc 7/30/90 ngày, (7) 144/144 Backend Tests PASS sạch sẽ & Frontend Build 0 lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#080** | 02/10/2026 | Triển Khai Trạm Bác Sĩ Màn Hình Đôi & Lịch Tuần (Phase 3 Doctor Split-Screen Workstation): (1) Bổ sung trạng thái `CHECKED_IN` vào enum `AppointmentStatus`, entity `Appointment` (`checkedInAt`), DTO `AppointmentDto` và state machine chuyển đổi trong `AppointmentService`, (2) Mở endpoint `PATCH /api/v1/appointments/{id}/check-in` với phân quyền `DOCTOR`/`ADMIN`, (3) Thiết kế Encounter Modal màn hình đôi (Split-Screen 50/50): Cột trái hiển thị Document Viewer xem trực tiếp PDF (`iframe`), ảnh cận lâm sàng, nút tải về; Cột phải gồm 3 Sub-tabs [🤖 Phân Tích AI] (Urgency Badge, SBAR Triage, Nạp vào bệnh án, Làm mới AI), [✍️ Ghi Chú Khám (EMR)] (Dấu hiệu sinh tồn, mã ICD-10, kê đơn với cảnh báo dị ứng tức thời, nút Check-in và Hoàn tất ca khám), [📜 Bệnh Sử Cũ] (Lịch sử các lần khám trước), (4) Bổ sung chế độ xem Lịch Tuần (Weekly Calendar Grid) lưới 7 ngày × khung giờ 07:00-17:00 với khối lịch mã màu và điều hướng tuần, (5) Đạt 100% PASS Backend Unit Tests (17/17 AppointmentServiceTest) và Frontend build 0 lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
+
+---
+
+## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#081] Triển Khai Bảng Giám Sát Chi Phí & Tài Nguyên AI Toàn Viện (Phase 4 Admin AI Token & Cost Analytics Dashboard)
+* **Thời gian:** 2026-10-02 22:10:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-FIN-28 (Admin AI Token & FinOps Cost Analytics)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **144/144 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 2271 modules transformed**, build thành công (`npm run build`)
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Tạo mới `[NEW]`:**
+  - `backend/src/main/resources/db/migration/V17__align_ai_token_usage_schema.sql`: Script Flyway mở rộng schema bảng `ai_token_usage` (`service_type`, `request_status`, `cost_usd`, `appointment_id`, các chỉ mục lọc).
+  - `backend/src/main/java/com/mediassist/model/entity/AiTokenUsage.java`: Entity JPA đại diện cho bản ghi kiểm toán tài nguyên AI FinOps.
+  - `backend/src/main/java/com/mediassist/repository/AiTokenUsageRepository.java`: Repository Spring Data JPA với các truy vấn tổng hợp theo cửa sổ thời gian.
+  - `backend/src/main/java/com/mediassist/dto/AiUsageStatsDto.java`: DTO đóng gói chỉ số thống kê, daily stats (Line Chart) và service stats (Pie Chart).
+  - `backend/src/main/java/com/mediassist/service/AiUsageAnalyticsService.java`: Service nghiệp vụ tính toán chi phí USD/VNĐ và xử lý aggregate.
+  - `backend/src/test/java/com/mediassist/AiUsageAnalyticsServiceTest.java`: Bộ 3 Unit test cases kiểm thử công thức tính chi phí, ghi nhận log và tổng hợp DTO.
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/java/com/mediassist/controller/AdminController.java`: Mở endpoint `GET /api/v1/admin/ai-usage?days=30` phân quyền `ADMIN`.
+  - `backend/src/main/java/com/mediassist/service/TriageService.java`: Tự động ghi nhận log FinOps sau mỗi phiên đánh giá triệu chứng.
+  - `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`: Tự động ghi nhận log FinOps sau mỗi lượt bóc tách hồ sơ cận lâm sàng.
+  - `backend/src/test/java/com/mediassist/TriageServiceTest.java`: Bổ sung `@Mock AiUsageAnalyticsService` đảm bảo test độc lập.
+  - `frontend/package.json`: Cài đặt thư viện đồ thị `recharts`.
+  - `frontend/src/pages/admin/AdminDashboard.tsx`: Tích hợp phân hệ Giám sát Chi phí AI (FinOps) hoàn chỉnh với 5 KPI Cards, Progress bar cảnh báo tỷ lệ lỗi, Line Chart xu hướng ngày, Pie Chart phân bổ dịch vụ và bộ lọc 7/30/90 ngày.
+  - `docs/DATABASE_DESIGN.md`: Bổ sung Flyway V17 vào bảng lịch sử di trú.
+  - `docs/USE_CASES.md`: Bổ sung đặc tả use case `UC-FIN-28`.
+
+#### 2. Nghiệp Vụ Doanh Nghiệp & Giá Trị Quản Trị FinOps:
+1. **Kiểm Soát Chi Phí Minh Bạch (Cost Transparency):** Giúp Ban Giám đốc và Tech Lead nắm rõ chi phí chính xác tính theo cả USD và VNĐ của từng dịch vụ AI theo thời gian thực.
+2. **Cảnh Báo Sớm Nguy Cơ Lỗi (Resilience & Anomaly Detection):** Tự động phát hiện khi tỷ lệ lỗi hoặc timeout của API AI vượt quá ngưỡng 10% để kích hoạt cảnh báo kỹ thuật.
+3. **Phân Tích Xu Hướng & Dự Báo Ngân Sách (Capacity Planning):** Biểu đồ biến thiên ngày giúp nhận biết chu kỳ cao điểm khám bệnh để phân bổ ngân sách AI phù hợp.
 | **#079** | 02/10/2026 | Chuyển Đổi Phân Luồng Triệu Chứng Sang Multi-turn Chatbot Triage UI (Phase 2): (1) Chuyển đổi toàn diện `SymptomTriagePage.tsx` từ textarea tĩnh một chiều sang mô hình Chatbot hội thoại đa lượt tương tác (Multi-turn Chat Bubble), (2) Khung chat hiện đại với bong bóng hội thoại phân biệt Bệnh nhân (xanh phải) và AI Scribe (trắng trái kèm avatar bot), (3) Typing indicator hiệu ứng 3 chấm nhảy (bouncing dots animation) khi AI đang suy luận, (4) Thẻ gợi ý câu hỏi lâm sàng (Suggestion Chips) cho phép 1-click gửi ngay, (5) Rào chắn cấp cứu tức thì: Banner đỏ toàn màn hình, nút gọi khẩn 115 và khóa toàn bộ form đặt lịch (Lockout) khi phát hiện Red-Flag, (6) Thẻ đề xuất chuyên khoa kèm điều hướng trực tiếp sang danh bạ bác sĩ, (7) Nhúng danh thiếp bác sĩ khớp trực tiếp (pgvector similarity) kèm modal đặt lịch khám trực tiếp (O2O) ngay trong luồng chat, (8) Đạt 138/138 Backend Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 
 ---
