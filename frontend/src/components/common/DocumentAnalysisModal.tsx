@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   X,
   FileText,
@@ -15,10 +15,23 @@ import {
   PlusCircle,
   Eye,
   Activity,
-  Layers
+  Layers,
+  RefreshCw,
+  Lock,
+  ShieldAlert,
+  FileX
 } from 'lucide-react';
 import { api, isPatientAccessDenied } from '../../services/api';
 import { PatientAccessDeniedNotice } from './PatientAccessDeniedNotice';
+import {
+  DocumentFileAccess,
+  DocumentFileAccessError,
+  SIGNED_URL_NOTE,
+  downloadDocumentFile,
+  getDocumentFileAccess,
+  isFileAccessExpired,
+  openDocumentFile
+} from '../../services/documentFileService';
 
 export interface AbnormalIndicator {
   indicatorName: string;
@@ -34,7 +47,7 @@ export interface DocumentAnalysisDetail {
   fileName: string;
   fileSizeBytes: number;
   contentType: string;
-  storageUrl?: string;
+  hasFile?: boolean;
   clinicalSummary: string;
   plainLanguageExplanation?: string;
   indicators: AbnormalIndicator[];
@@ -57,7 +70,6 @@ export interface DocumentAnalysisModalProps {
   onClose: () => void;
   documentId: string | null;
   initialFileName?: string;
-  initialStorageUrl?: string;
   onInsertToEncounter?: (data: {
     clinicalSummary: string;
     abnormalIndicatorsText: string;
@@ -69,7 +81,6 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
   onClose,
   documentId,
   initialFileName,
-  initialStorageUrl,
   onInsertToEncounter
 }) => {
   const [activeTab, setActiveTab] = useState<'ANALYSIS' | 'FILE'>('ANALYSIS');
@@ -77,6 +88,47 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [data, setData] = useState<DocumentAnalysisDetail | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [fileAccess, setFileAccess] = useState<DocumentFileAccess | null>(null);
+  const [fileLoading, setFileLoading] = useState(false);
+  const [fileError, setFileError] = useState<DocumentFileAccessError | null>(null);
+  const [fileExpired, setFileExpired] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState<'OPEN' | 'DOWNLOAD' | null>(null);
+
+  const loadFileAccess = useCallback(async () => {
+    if (!documentId) return;
+    setFileLoading(true);
+    setFileError(null);
+    setFileExpired(false);
+    try {
+      setFileAccess(await getDocumentFileAccess(documentId, false));
+    } catch (err) {
+      setFileAccess(null);
+      setFileError(err as DocumentFileAccessError);
+    } finally {
+      setFileLoading(false);
+    }
+  }, [documentId]);
+
+  // Lấy signed URL mới khi mở tab tệp gốc (chưa có liên kết hoặc liên kết cũ đã hết hạn)
+  useEffect(() => {
+    if (isOpen && activeTab === 'FILE' && !fileLoading && !fileError && (!fileAccess || isFileAccessExpired(fileAccess))) {
+      void loadFileAccess();
+    }
+    // Cố ý chỉ chạy lại khi đổi tab / tài liệu: lỗi hoặc hết hạn được người dùng chủ động "Tải lại liên kết"
+  }, [isOpen, activeTab, documentId]);
+
+  // Đánh dấu hết hạn đúng thời điểm expiresAt để hiện nút "Tải lại liên kết"
+  useEffect(() => {
+    if (!fileAccess?.expiresAt) return;
+    const remaining = new Date(fileAccess.expiresAt).getTime() - Date.now();
+    if (remaining <= 0) {
+      setFileExpired(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setFileExpired(true), remaining);
+    return () => window.clearTimeout(timer);
+  }, [fileAccess]);
 
   useEffect(() => {
     if (isOpen && documentId) {
@@ -85,6 +137,10 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
       setData(null);
       setCopied(false);
       setAccessDenied(false);
+      setFileAccess(null);
+      setFileError(null);
+      setFileExpired(false);
+      setActionError(null);
 
       api.get(`/documents/${documentId}/analysis`)
         .then((res: { data?: { data?: DocumentAnalysisDetail } }) => {
@@ -103,7 +159,6 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
             fileName: initialFileName || 'Phiếu Xét Nghiệm / Hồ Sơ Cận Lâm Sàng',
             fileSizeBytes: 0,
             contentType: 'application/pdf',
-            storageUrl: initialStorageUrl,
             clinicalSummary: 'Tài liệu cận lâm sàng được lưu trữ an toàn trên hệ thống MediAssist-AI.',
             indicators: []
           });
@@ -112,12 +167,26 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
           setLoading(false);
         });
     }
-  }, [isOpen, documentId, initialFileName, initialStorageUrl]);
+  }, [isOpen, documentId, initialFileName]);
 
   if (!isOpen || !documentId) return null;
 
-  const fileUrl = `/api/v1/documents/${documentId}/file`;
-  const downloadUrl = `/api/v1/documents/${documentId}/file?download=true`;
+  const handleOpenInNewWindow = () => {
+    // Gọi đồng bộ trong click handler: helper mở cửa sổ trống ngay để tránh popup blocker
+    setActionError(null);
+    setActionBusy('OPEN');
+    openDocumentFile(documentId)
+      .catch((err: DocumentFileAccessError) => setActionError(err.message))
+      .finally(() => setActionBusy(null));
+  };
+
+  const handleDownload = () => {
+    setActionError(null);
+    setActionBusy('DOWNLOAD');
+    downloadDocumentFile(documentId)
+      .catch((err: DocumentFileAccessError) => setActionError(err.message))
+      .finally(() => setActionBusy(null));
+  };
 
   const abnormalIndicators = data?.indicators?.filter(
     (ind) => ind.status === 'HIGH' || ind.status === 'LOW'
@@ -227,27 +296,44 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
               </button>
             )}
 
-            <a
-              href={fileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition flex items-center gap-1 shadow-2xs"
-              title="Mở tệp trong tab trình duyệt mới"
+            <button
+              type="button"
+              onClick={handleOpenInNewWindow}
+              disabled={actionBusy !== null || accessDenied}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition flex items-center gap-1 shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title={`Mở tệp trong tab trình duyệt mới (${SIGNED_URL_NOTE.toLowerCase()})`}
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Mở Cửa Sổ Mới</span>
-            </a>
+              <span className="hidden sm:inline">{actionBusy === 'OPEN' ? 'Đang mở...' : 'Mở Cửa Sổ Mới'}</span>
+            </button>
 
-            <a
-              href={downloadUrl}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition flex items-center gap-1 shadow-2xs"
+            <button
+              type="button"
+              onClick={handleDownload}
+              disabled={actionBusy !== null || accessDenied}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition flex items-center gap-1 shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               title="Tải tệp xét nghiệm về máy"
             >
               <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Tải Về</span>
-            </a>
+              <span className="hidden sm:inline">{actionBusy === 'DOWNLOAD' ? 'Đang tải...' : 'Tải Về'}</span>
+            </button>
           </div>
         </div>
+
+        {actionError && (
+          <div className="px-6 py-2 bg-rose-50 border-b border-rose-200 text-xs text-rose-700 flex items-start gap-2 flex-shrink-0" role="alert">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="flex-1">{actionError}</span>
+            <button
+              type="button"
+              onClick={() => setActionError(null)}
+              className="text-rose-500 hover:text-rose-700 cursor-pointer"
+              title="Ẩn thông báo"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* MODAL BODY */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
@@ -435,24 +521,105 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
               )}
             </div>
           ) : (
-            /* TAB 2: ORIGINAL FILE VIEWER */
+            /* TAB 2: ORIGINAL FILE VIEWER (signed URL ngắn hạn) */
             <div className="space-y-4">
-              <div className="flex items-center justify-between bg-slate-100 p-3 rounded-2xl text-xs text-slate-600">
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-100 p-3 rounded-2xl text-xs text-slate-600">
                 <span className="flex items-center gap-1.5 font-medium">
-                  <Eye className="w-4 h-4 text-sky-600" />
-                  Đang xem trực tiếp tệp gốc được lưu trữ tại MediAssist-AI
+                  <Lock className="w-4 h-4 text-sky-600" />
+                  {SIGNED_URL_NOTE}
+                  {fileAccess?.expiresAt && !fileExpired && (
+                    <span className="text-slate-400">
+                      (hết hạn lúc {new Date(fileAccess.expiresAt).toLocaleTimeString('vi-VN')})
+                    </span>
+                  )}
                 </span>
-                <span className="text-[11px] text-slate-400 font-mono">
-                  Content-Type: {data?.contentType || 'application/pdf'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    Content-Type: {fileAccess?.contentType || data?.contentType || 'application/pdf'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void loadFileAccess()}
+                    disabled={fileLoading}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer disabled:opacity-50 ${
+                      fileExpired
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                        : 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200'
+                    }`}
+                    title="Tạo liên kết xem tệp mới"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${fileLoading ? 'animate-spin' : ''}`} />
+                    Tải lại liên kết
+                  </button>
+                </div>
               </div>
 
-              <div className="w-full h-[62vh] rounded-2xl border border-slate-200 overflow-hidden bg-slate-900 shadow-inner flex flex-col">
-                <iframe
-                  src={`${fileUrl}#toolbar=1`}
-                  className="w-full h-full border-0 bg-white"
-                  title={data?.fileName || 'Tệp xét nghiệm gốc'}
-                />
+              <div className="w-full h-[62vh] rounded-2xl border border-slate-200 overflow-hidden bg-slate-50 shadow-inner flex flex-col">
+                {fileLoading ? (
+                  <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-600">
+                    <div className="w-8 h-8 border-4 border-sky-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-sm font-semibold">Đang tạo liên kết bảo mật để xem tệp gốc...</p>
+                  </div>
+                ) : fileError?.kind === 'FORBIDDEN' ? (
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <PatientAccessDeniedNotice />
+                  </div>
+                ) : fileError ? (
+                  <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-center">
+                    {fileError.kind === 'NOT_FOUND' ? (
+                      <FileX className="w-10 h-10 text-slate-400" />
+                    ) : (
+                      <ShieldAlert className="w-10 h-10 text-amber-500" />
+                    )}
+                    <p className="text-sm font-bold text-slate-800">
+                      {fileError.kind === 'NOT_FOUND'
+                        ? 'Không tìm thấy tệp gốc'
+                        : fileError.kind === 'STORAGE_UNAVAILABLE'
+                          ? 'Kho lưu trữ tạm thời gián đoạn'
+                          : 'Không thể mở tệp gốc'}
+                    </p>
+                    <p className="text-xs text-slate-600 max-w-md">{fileError.message}</p>
+                    {fileError.kind !== 'NOT_FOUND' && (
+                      <button
+                        type="button"
+                        onClick={() => void loadFileAccess()}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white transition flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Thử lại
+                      </button>
+                    )}
+                  </div>
+                ) : fileExpired ? (
+                  <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-center">
+                    <Lock className="w-10 h-10 text-amber-500" />
+                    <p className="text-sm font-bold text-slate-800">Liên kết xem tệp đã hết hạn</p>
+                    <p className="text-xs text-slate-600">
+                      Vì lý do bảo mật, liên kết chỉ có hiệu lực 15 phút. Nhấn "Tải lại liên kết" để xem tiếp.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void loadFileAccess()}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Tải lại liên kết
+                    </button>
+                  </div>
+                ) : fileAccess ? (
+                  <iframe
+                    key={fileAccess.url}
+                    src={fileAccess.url}
+                    className="w-full h-full border-0 bg-white"
+                    title={data?.fileName || 'Tệp xét nghiệm gốc'}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="flex-1 flex items-center justify-center gap-1.5 text-xs text-slate-500">
+                    <Eye className="w-4 h-4" />
+                    Nhấn "Tải lại liên kết" để xem tệp gốc.
+                  </div>
+                )}
               </div>
             </div>
           )}

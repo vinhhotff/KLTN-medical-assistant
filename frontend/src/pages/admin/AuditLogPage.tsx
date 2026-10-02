@@ -96,6 +96,13 @@ export const AuditLogPage: React.FC = () => {
         </span>
       );
     }
+    if (action === 'DOCUMENT_SIGNED_URL_ISSUED' || action === 'VIEW_PATIENT_RECORD') {
+      return (
+        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+          {action}
+        </span>
+      );
+    }
     if (action.includes('APPOINTMENT')) {
       return (
         <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
@@ -165,6 +172,7 @@ export const AuditLogPage: React.FC = () => {
             { key: 'ADMIN_CANCEL_APPOINTMENT', label: 'Hủy Cuộc Hẹn' },
             { key: 'UPDATE_USER_STATUS', label: 'Khóa/Mở TK' },
             { key: 'CREATE_SPECIALTY', label: 'Chuyên Khoa' },
+            { key: 'DOCUMENT_SIGNED_URL_ISSUED', label: 'Xem Tệp Y Tế' },
           ].map((act) => (
             <button
               key={act.key}

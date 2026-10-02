@@ -109,7 +109,7 @@ interface PatientDocumentItem {
   fileSizeBytes: number;
   contentType: string;
   status: string;
-  storageUrl?: string;
+  hasFile?: boolean;
   isValidMedical: boolean;
   createdAt: string;
 }
