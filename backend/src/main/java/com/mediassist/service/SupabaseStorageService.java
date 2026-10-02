@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -86,11 +87,21 @@ public class SupabaseStorageService implements StorageService {
         return supabaseEnabled && supabaseKey != null && !supabaseKey.isBlank() && !supabaseKey.contains("mock");
     }
 
-    private Map<String, String> authHeaders(String contentType) {
-        if (contentType == null) {
-            return Map.of("Authorization", "Bearer " + supabaseKey, "apikey", supabaseKey);
+    /**
+     * Header xác thực Supabase:
+     * - Secret key mới (sb_secret_...): CHỈ gửi qua header apikey (không phải JWT, không được gửi làm Bearer).
+     * - service_role JWT kiểu cũ (eyJ...): gửi cả Authorization: Bearer lẫn apikey.
+     */
+    Map<String, String> authHeaders(String contentType) {
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("apikey", supabaseKey);
+        if (!supabaseKey.startsWith("sb_secret_")) {
+            headers.put("Authorization", "Bearer " + supabaseKey);
         }
-        return Map.of("Authorization", "Bearer " + supabaseKey, "apikey", supabaseKey, "Content-Type", contentType);
+        if (contentType != null) {
+            headers.put("Content-Type", contentType);
+        }
+        return headers;
     }
 
     @Override

@@ -65,6 +65,40 @@ class SupabaseStorageServiceTest {
     }
 
     @Test
+    @DisplayName("Secret key mới sb_secret_... → CHỈ gửi header apikey, KHÔNG gửi Authorization: Bearer")
+    void secretKey_SendsOnlyApikeyHeader() {
+        String secret = "sb_secret_test_0123456789";
+        SupabaseStorageService svc = service(secret, true, (m, u, h, b) ->
+                new SupabaseStorageService.HttpResult(200, "{\"signedURL\":\"/object/sign/medical-documents/" + KEY + "?token=t\"}"));
+
+        svc.createSignedUrl(KEY, false, "a.pdf");
+        svc.uploadDocument("pdf".getBytes(), "a.pdf", "application/pdf", UUID.randomUUID());
+        svc.deleteDocument(KEY);
+
+        assertEquals(3, calls.size());
+        for (Call call : calls) {
+            assertEquals(secret, call.headers().get("apikey"), call.method());
+            assertFalse(call.headers().containsKey("Authorization"), call.method() + " must not send Bearer for sb_secret_ keys");
+        }
+        assertEquals("application/json", calls.get(0).headers().get("Content-Type"));
+    }
+
+    @Test
+    @DisplayName("service_role JWT kiểu cũ (eyJ...) → gửi cả Authorization: Bearer lẫn apikey")
+    void legacyJwtKey_SendsBearerAndApikey() {
+        String jwt = "eyJhbGciOiJIUzI1NiJ9.test-payload.test-signature";
+        SupabaseStorageService svc = service(jwt, true, (m, u, h, b) ->
+                new SupabaseStorageService.HttpResult(200, "{\"signedURL\":\"/object/sign/medical-documents/" + KEY + "?token=t\"}"));
+
+        svc.createSignedUrl(KEY, false, "a.pdf");
+
+        Map<String, String> headers = calls.get(0).headers();
+        assertEquals(jwt, headers.get("apikey"));
+        assertEquals("Bearer " + jwt, headers.get("Authorization"));
+        assertEquals(Map.of("apikey", jwt, "Authorization", "Bearer " + jwt), svc.authHeaders(null));
+    }
+
+    @Test
     @DisplayName("TTL mặc định lấy từ cấu hình = 900 giây")
     void ttl_Is900() {
         assertEquals(900, signingService(200, "{}").getSignedUrlTtlSeconds());
