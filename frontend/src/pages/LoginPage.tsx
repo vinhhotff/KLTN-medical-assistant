@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   ShieldCheck,
   Lock,
@@ -25,9 +25,11 @@ import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const passwordJustReset = searchParams.get('reset') === 'success';
 
   // Mode: 'REGISTER' (default per target UI) or 'LOGIN'
-  const [activeTab, setActiveTab] = useState<'REGISTER' | 'LOGIN'>('REGISTER');
+  const [activeTab, setActiveTab] = useState<'REGISTER' | 'LOGIN'>(passwordJustReset ? 'LOGIN' : 'REGISTER');
   const [roleType, setRoleType] = useState<'PATIENT' | 'DOCTOR'>('PATIENT');
 
   // Register state
@@ -50,13 +52,12 @@ export const LoginPage: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(
+    passwordJustReset ? 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới.' : null
+  );
   const [isLocked, setIsLocked] = useState(false);
 
   // Interactive Modals State (Eliminate all alerts)
-  const [showForgotModal, setShowForgotModal] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotSubmitted, setForgotSubmitted] = useState(false);
   const [ssoModalType, setSsoModalType] = useState<'GOOGLE' | 'VNEID' | null>(null);
   const [complianceModalType, setComplianceModalType] = useState<'PRIVACY' | 'SECURITY' | 'DISCLAIMER' | null>(null);
 
@@ -839,18 +840,12 @@ export const LoginPage: React.FC = () => {
                     <label className="text-xs font-bold text-slate-700">
                       Mật khẩu <span className="text-rose-500">*</span>
                     </label>
-                    <a
-                      href="#forgot"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setForgotEmail(loginEmail || '');
-                        setForgotSubmitted(false);
-                        setShowForgotModal(true);
-                      }}
+                    <Link
+                      to="/forgot-password"
                       className="text-[11px] text-teal-700 hover:underline cursor-pointer"
                     >
                       Quên mật khẩu?
-                    </a>
+                    </Link>
                   </div>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -1078,106 +1073,6 @@ export const LoginPage: React.FC = () => {
           </a>
         </div>
       </footer>
-
-      {/* Forgot Password Modal */}
-      {showForgotModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center">
-                  <Lock className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Khôi Phục Mật Khẩu Y Tế</h3>
-                  <p className="text-xs text-slate-500">Bảo mật cấp độ xác thực 2 lớp EMR</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowForgotModal(false)}
-                className="p-1 rounded-xl text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {!forgotSubmitted ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (forgotEmail.trim()) setForgotSubmitted(true);
-                }}
-                className="space-y-4"
-              >
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Nhập địa chỉ email đăng ký hồ sơ bệnh án hoặc tài khoản bác sĩ. Hệ thống sẽ cấp mã xác thực OTP khôi phục quyền truy cập an toàn.
-                </p>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Email tài khoản <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="name@mediassist.local"
-                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
-                  />
-                </div>
-
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-800 space-y-1">
-                  <p className="font-semibold">Lưu ý bảo vệ dữ liệu sức khỏe (HIPAA):</p>
-                  <p>Mã OTP có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này cho bất kỳ ai kể cả nhân viên y tế.</p>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotModal(false)}
-                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
-                  >
-                    Hủy bỏ
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl transition shadow-xs cursor-pointer"
-                  >
-                    Gửi Mã Xác Thực OTP
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="space-y-4 text-center py-2">
-                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">Yêu Cầu Khôi Phục Đã Được Ghi Nhận!</h4>
-                  <p className="text-xs text-slate-600 mt-1">
-                    Hệ thống đã gửi liên kết xác minh đến hòm thư <strong className="text-slate-900">{forgotEmail}</strong>.
-                  </p>
-                </div>
-
-                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-left text-xs space-y-1.5 font-mono">
-                  <p className="text-slate-500 text-[11px]">DEMO / STAGING OTP CODE:</p>
-                  <p className="text-lg font-black text-teal-700 tracking-widest text-center">882 941</p>
-                  <p className="text-[11px] text-slate-400 text-center">Tài khoản mặc định: patient@mediassist.local / password123</p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowForgotModal(false)}
-                  className="w-full py-2.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl transition shadow-xs cursor-pointer"
-                >
-                  Đóng & Đăng Nhập Ngay
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* SSO Federation Modal */}
       {ssoModalType && (

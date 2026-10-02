@@ -17,6 +17,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/**
+ * Trang công khai không được bị đá về /login khi gặp 401
+ * (người dùng mở link trong email khi chưa đăng nhập hoặc phiên đã hết hạn).
+ */
+const PUBLIC_AUTH_PATHS = ['/login', '/forgot-password', '/reset-password', '/verify-email'];
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -24,13 +30,24 @@ api.interceptors.response.use(
       // Clear localStorage on unauthorized
       localStorage.removeItem('mediassist_token');
       localStorage.removeItem('mediassist_user');
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      const path = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (path && !PUBLIC_AUTH_PATHS.some((p) => path.startsWith(p))) {
         window.location.href = '/login?expired=true';
       }
     }
     return Promise.reject(error);
   }
 );
+
+/** Lấy message lỗi tiếng Việt từ ApiResponse của backend, hoặc trả về câu dự phòng. */
+export const getApiErrorMessage = (error: unknown, fallback: string): string => {
+  if (axios.isAxiosError(error)) {
+    const body = error.response?.data as { error?: { message?: string } } | undefined;
+    if (body?.error?.message) return body.error.message;
+    if (!error.response) return 'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.';
+  }
+  return fallback;
+};
 
 export const PATIENT_ACCESS_DENIED_MESSAGE =
   'Hồ sơ sức khỏe được bảo vệ theo Nghị định 13/2023/NĐ-CP. Bạn chỉ xem được hồ sơ của bệnh nhân đã có lịch hẹn khám với mình (đã đặt, đang khám hoặc đã hoàn tất). Nếu cần hội chẩn, vui lòng liên hệ Quản trị viên.';

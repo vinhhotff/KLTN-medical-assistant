@@ -11,7 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
-| **#083** | 02/10/2026 | Hệ Thống Email (Email Notifications), đang thực hiện theo 4 phần A–D. **Phần A (xong):** (1) `spring-boot-starter-mail` + Thymeleaf, template HTML tiếng Việt auto-escape trong `templates/email/`, (2) Mailpit trong `docker-compose.yml` (SMTP 1025, UI 8025), (3) `EmailService` nuốt lỗi SMTP + log WARN không lộ token, (4) 7 domain event (record, chỉ dữ liệu hành chính) + `MailNotificationListener` `@TransactionalEventListener(AFTER_COMMIT, fallbackExecution)` + `@Async("mailExecutor")`, (5) 209/209 Backend Tests PASS | AI Assistant | 🟡 Đang thực hiện |
+| **#083** | 02/10/2026 | Hệ Thống Email (Email Notifications), đang thực hiện theo 4 phần A–D. **Phần A (xong):** (1) `spring-boot-starter-mail` + Thymeleaf, template HTML tiếng Việt auto-escape trong `templates/email/`, (2) Mailpit trong `docker-compose.yml` (SMTP 1025, UI 8025), (3) `EmailService` nuốt lỗi SMTP + log WARN không lộ token, (4) 7 domain event (record, chỉ dữ liệu hành chính) + `MailNotificationListener` `@TransactionalEventListener(AFTER_COMMIT, fallbackExecution)` + `@Async("mailExecutor")`, **Phần B (xong):** V19 `token_hash` SHA-256, TTL 30 phút, rate limit IP + email, `GET /auth/reset-password/validate`, trang `/forgot-password` & `/reset-password`, xóa modal OTP giả. 227/227 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟡 Đang thực hiện |
 | **#082** | 02/10/2026 | Lưu Trữ Tài Liệu Y Tế Riêng Tư (Private Document Storage): (1) Flyway V18 đổi `storage_url` thành `storage_path` (object key) và chuyển URL public cũ về key, (2) Endpoint `GET /documents/{id}/signed-url` cấp signed URL 15 phút sau `PatientAccessGuard`, audit `DOCUMENT_SIGNED_URL_ISSUED` cho mọi role, rate limit 30/phút, (3) `/documents/{id}/file` redirect 302, **xóa fallback sinh PDF giả**, (4) DTO bỏ `storageUrl` thay bằng `hasFile`, (5) Frontend helper signed URL + modal có trạng thái 403/404/503/hết hạn, (6) Xóa service_role key và OpenRouter key khỏi file đã commit, hỗ trợ secret key `sb_secret_...` (chỉ header `apikey`), (7) 190/190 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#081** | 29/09/2026 | Vá Lỗ Hổng IDOR Hồ Sơ Bệnh Nhân (Patient Record Access Guard): (1) `PatientAccessGuard` phân quyền PATIENT tự xem / DOCTOR cần quan hệ điều trị (lịch hẹn SCHEDULED/IN_PROGRESS/COMPLETED) / ADMIN bắt buộc audit, (2) Áp guard cho 6 endpoint hồ sơ, vi phạm trả 403 `FORBIDDEN_PATIENT_ACCESS`, (3) AuditLog `VIEW_PATIENT_RECORD` kèm IP, (4) `MedicalDocumentDto` & `TriageSessionDto` thay entity, (5) Thông báo 403 thân thiện trên DoctorDashboard, DoctorPatientRecordsPage, DocumentAnalysisModal, (6) 157/157 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#079** | 28/09/2026 | Hiện Thực Hóa Toàn Diện Hệ Thống Đánh Giá & Chấm Sao Bác Sĩ (Rating & Review System) Khép Kín Vòng Phản Hồi Lâm Sàng & Đưa Điểm Thực Tế Vào Thuật Toán WHRF: (1) Flyway V17 tạo bảng `doctor_reviews` và cột `review_count`, (2) Ràng buộc 1 ca khám hoàn tất (`COMPLETED`) 1 đánh giá duy nhất (idempotent), (3) Tự động tái tính điểm trung bình và cập nhật số lượt đánh giá, (4) Invalidate Two-Layer Cache (Caffeine L1 + Redis L2) và WHRF search cache, (5) Tích hợp điểm thực tế vào thuật toán WHRF ($O(M \log K)$ Min-Heap) với hệ số suy giảm độ tin cậy (Credibility Damper) cho bác sĩ ít review, (6) Bảo vệ riêng tư Nghị định 13/2023/NĐ-CP & HIPAA bằng mặt nạ họ tên bệnh nhân, (7) Frontend Modal chấm sao tương tác, xem danh sách đánh giá chi tiết, hiển thị sao và số lượt đánh giá trên DoctorSearch, PatientDashboard, DoctorDashboard, Triage, DocumentSummarizer, (8) 143/143 Backend Tests PASS (100%), Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
@@ -50,6 +50,34 @@
 **Quyết định thiết kế**
 - **Không có dữ liệu y tế trong email theo thiết kế:** `AppointmentMailInfo` chỉ có mã lịch, giờ, tên bệnh nhân/bác sĩ, chuyên khoa, phòng khám. Event không có trường lý do khám, ghi chú hay lý do hủy, nên template không thể vô tình hiển thị.
 - **Snapshot dữ liệu trong transaction:** event là record dữ liệu nguyên thủy, không chứa entity, nên luồng async không gặp `LazyInitializationException`.
+
+#### Phần B — Quên mật khẩu chạy thật
+**Trạng thái kiểm thử:** Backend **227/227 Unit Tests PASS**. 18 test mới: `AuthServicePasswordResetTest` 10, `AuthControllerPasswordResetTest` 5, `SecurityRateLimiterEmailFlowTest` 3. Frontend **0 TypeScript Errors, 1690 modules transformed** (`npm run build`).
+
+**Danh sách tệp tin**
+- `[NEW]` `backend/src/main/resources/db/migration/V19__password_reset_token_hash.sql`: xóa token cũ, `token` → `token_hash` VARCHAR(64), gỡ mọi UNIQUE cũ, tạo `idx_prt_token_hash` UNIQUE. Idempotent.
+- `[NEW]` `backend/.../security/SecureTokens.java`: `generate()` (32 byte `SecureRandom`, Base64 URL-safe không padding), `sha256Hex()`. Dùng chung cho phần C.
+- `[NEW]` `backend/.../dto/TokenValidationResponse.java` (`{valid}`).
+- `[MOD]` `backend/.../model/entity/PasswordResetToken.java`: `tokenHash` (`token_hash`), `isUsable(now)`.
+- `[MOD]` `backend/.../repository/PasswordResetTokenRepository.java`: `findByTokenHash`, `deleteByUserIdAndIdNot`.
+- `[MOD]` `backend/.../service/AuthService.java`:
+  + Constructor injection (bỏ `@Autowired(required=false)`), thêm `AuditLogRepository`, `ApplicationEventPublisher`.
+  + `requestPasswordReset`: bỏ qua SUSPENDED, xóa token cũ, lưu hash, TTL 30 phút, audit `PASSWORD_RESET_REQUESTED`, phát `PasswordResetRequestedEvent`.
+  + `isPasswordResetTokenValid` (mới), `resetPassword`: tối thiểu 8 ký tự, `used=true`, xóa token khác, mở khóa tài khoản, audit `PASSWORD_RESET_COMPLETED`, phát `PasswordChangedEvent`.
+  + Log chỉ ghi email đã che, không ghi token.
+- `[MOD]` `backend/.../controller/AuthController.java`: `forgot-password` rate limit IP (429) + email (im lặng, cùng message); `GET /reset-password/validate` (`no-store`); rate limit cho validate/reset.
+- `[MOD]` `backend/.../service/SecurityRateLimiterService.java`: `allowForgotPasswordByIp` (5/15 phút), `allowForgotPasswordByEmail` (3/giờ, key là SHA-256 của email), `allowResetTokenAttempt` (20/10 phút). **Sửa lỗi fallback in-memory:** trước đây luôn dùng cửa sổ 1 phút bất kể `windowMinutes`; giờ dùng đúng độ dài cửa sổ, cache giữ entry 61 phút.
+- `[MOD]` `backend/.../dto/ResetPasswordRequest.java`: `@Size(min = 8)`.
+- `[MOD]` `backend/.../config/SecurityConfig.java`: permitAll `/api/v1/auth/reset-password/validate`.
+- `[MOD]` `backend/src/test/.../SecurityHardeningTest.java`: constructor `AuthService` mới.
+- `[NEW]` `backend/src/test/.../service/AuthServicePasswordResetTest.java`, `.../controller/AuthControllerPasswordResetTest.java`, `.../service/SecurityRateLimiterEmailFlowTest.java`.
+- `[NEW]` `frontend/src/components/auth/AuthCard.tsx`: khung chung cho các trang mở từ email.
+- `[NEW]` `frontend/src/pages/auth/ForgotPasswordPage.tsx`, `ResetPasswordPage.tsx` (đọc token rồi `history.replaceState` xóa khỏi URL; gọi `validate`; trạng thái hết hạn có nút "Yêu cầu liên kết mới"; thành công về `/login?reset=success`).
+- `[MOD]` `frontend/src/App.tsx`: route public `/forgot-password`, `/reset-password`.
+- `[MOD]` `frontend/src/pages/LoginPage.tsx`: "Quên mật khẩu?" là `<Link to="/forgot-password">`; **xóa modal giả, OTP "882 941" và dòng mật khẩu demo**; `?reset=success` mở tab Đăng nhập kèm thông báo.
+- `[MOD]` `frontend/src/services/api.ts`: interceptor 401 không redirect trên `/login`, `/forgot-password`, `/reset-password`, `/verify-email`; thêm `getApiErrorMessage`.
+
+**Tài liệu đã đồng bộ (phần B):** `docs/USE_CASES.md` (viết lại UC-24), `docs/DATABASE_DESIGN.md` (mục 12.1 ghi chú, mục 14.1 V19), `docs/CAPSTONE_DEFENSE.md` (Câu hỏi 17).
 
 ---
 

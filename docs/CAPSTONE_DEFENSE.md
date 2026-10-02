@@ -305,6 +305,13 @@
   - **Bằng chứng:** `MedicalDocumentFileAccessServiceTest` (chủ tài liệu OK + audit; bệnh nhân khác 403 và không gọi hàm ký; bác sĩ không lịch hẹn 403; bác sĩ có lịch hẹn và admin OK + audit; 404/503 không audit), `SupabaseStorageServiceTest` (dựng URL từ `signedURL`, TTL 900, tham số `download` được encode, chuyển URL public cũ về key), `MedicalDocumentFileEndpointTest` (`/file` không bao giờ trả PDF giả, JSON DTO không còn `storageUrl`).
   - **Demo trực tiếp:** Mở một link public cũ → Supabase trả lỗi (bucket private). Mở tệp từ giao diện → iframe hiển thị, ghi chú "Liên kết tạm thời, hết hạn sau 15 phút"; vào Nhật ký kiểm toán, lọc chip "Xem Tệp Y Tế" → thấy dòng `DOCUMENT_SIGNED_URL_ISSUED` vừa tạo.
 
+### Câu hỏi 17: Vì sao token đặt lại mật khẩu chỉ được lưu dạng SHA-256 hash mà không lưu nguyên văn? Mật khẩu đã băm bằng BCrypt rồi, sao token không băm BCrypt luôn?
+* **Trả lời mẫu:**
+  - **Token chính là "chìa khóa tạm thời" của tài khoản:** ai có token còn hạn thì đặt được mật khẩu mới, tức chiếm được hồ sơ sức khỏe. Nếu lưu nguyên văn, chỉ cần lộ bảng `password_reset_tokens` (file backup, SQL injection, công cụ xem DB như pgweb, nhân viên vận hành tò mò) là kẻ tấn công dựng được liên kết và chiếm mọi tài khoản đang có yêu cầu reset. Lưu hash thì DB bị lộ cũng vô dụng: không thể suy ngược từ hash ra token.
+  - **Vì sao SHA-256 mà không phải BCrypt:** BCrypt cố ý chậm để chống dò mật khẩu người dùng đặt (entropy thấp, có thể đoán theo từ điển). Token của hệ thống là 32 byte ngẫu nhiên từ `SecureRandom` (256 bit entropy), dò vét cạn là bất khả thi, nên không cần hàm băm chậm. SHA-256 còn cho phép tra cứu trực tiếp bằng index `UNIQUE` (BCrypt có salt ngẫu nhiên nên không tra cứu được, phải quét toàn bảng).
+  - **Các lớp bảo vệ khác:** hiệu lực 30 phút, dùng một lần, yêu cầu mới vô hiệu liên kết cũ; trang đặt lại mật khẩu xóa token khỏi thanh địa chỉ ngay khi đọc; token và liên kết không bao giờ ghi vào log; `forgot-password` luôn trả cùng một thông báo (không lộ email có tồn tại hay không) và có rate limit theo IP lẫn theo email.
+  - **Bằng chứng:** `AuthServicePasswordResetTest.tokenIsStoredHashed` khẳng định giá trị lưu DB khác token gửi qua email và bằng `SHA-256(token)`; `AuthControllerPasswordResetTest.sameResponseForExistingAndUnknownEmail` khẳng định hai response giống hệt nhau.
+
 ---
 
 ## 5. Bảng Tiêu Chí Đánh Giá Xuất Sắc Của Hội Đồng (Evaluation Rubric)

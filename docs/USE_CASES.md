@@ -828,14 +828,35 @@ graph TD
 
 ---
 
-### UC-24: Khôi Phục & Đặt Lại Mật Khẩu Tài Khoản (Secure Password Reset Flow)
+### UC-24: Khôi Phục & Đặt Lại Mật Khẩu Qua Liên Kết Email (Secure Password Reset Flow)
 
-* **Mã Use Case:** `UC-SEC-24`
-* **Tác nhân chính:** Người dùng (User / Patient / Doctor), AuthService, PasswordResetTokenRepository.
-* **Mục tiêu:** Cung cấp quy trình tự phục hồi mật khẩu bảo mật qua mã xác thực an toàn, tuân thủ nguyên tắc Zero-Knowledge và chống lạm dụng enumeration.
-* **REST Endpoints:**
-  - `POST /api/v1/auth/forgot-password`: Tiếp nhận email, phát sinh token UUIDv4 lưu trong bảng `password_reset_tokens` (thời hạn 60 phút). Luôn trả về phản hồi thành công chung để bảo vệ quyền riêng tư người dùng (không làm lộ việc email có tồn tại hay không).
-  - `POST /api/v1/auth/reset-password`: Tiếp nhận `token` và `newPassword`, kiểm tra tính hợp lệ và thời hạn (`expiryDate > now`, `isUsed == false`), băm mật khẩu qua BCrypt (`BCryptPasswordEncoder(12)`) và vô hiệu hóa token ngay lập tức (`isUsed = true`).
+* **Mã Use Case:** `UC-SEC-24` (viết lại ở WORK_LOG #083: trước đây token chưa từng được gửi đi, modal "Quên mật khẩu" hiển thị OTP giả "882 941")
+* **Tác nhân chính:** Người dùng (Bệnh nhân / Bác sĩ / Quản trị viên), `AuthService`, `PasswordResetTokenRepository`, `MailNotificationListener`, SMTP (Mailpit ở môi trường dev).
+* **Mục tiêu:** Người dùng quên mật khẩu tự tạo mật khẩu mới qua liên kết gửi đến email đã đăng ký, không lộ việc email có tồn tại trong hệ thống hay không.
+* **Tiền điều kiện:** Người dùng truy cập được hộp thư của email đăng ký. Tài khoản không ở trạng thái `SUSPENDED`.
+* **Hậu điều kiện (thành công):** `users.password_hash` được thay; `failed_login_attempts = 0`, `locked_until = NULL`; token đã dùng có `used = true`, mọi token khác của người dùng bị xóa; có 2 dòng audit `PASSWORD_RESET_REQUESTED` và `PASSWORD_RESET_COMPLETED`; người dùng nhận email "Mật khẩu của bạn vừa được thay đổi".
+* **REST Endpoints (đều public):**
+  - `POST /api/v1/auth/forgot-password` body `{email}`. **Luôn** trả 200 với cùng một thông báo: *"Nếu email tồn tại trong hệ thống, chúng tôi đã gửi liên kết đặt lại mật khẩu..."*. Rate limit: 5 lần / 15 phút / IP (vượt → 429) và 3 lần / giờ / email (vượt → **im lặng bỏ qua, vẫn trả 200 cùng thông báo**; key Redis là SHA-256 của email).
+  - `GET /api/v1/auth/reset-password/validate?token=...` trả `{valid: boolean}`, header `Cache-Control: no-store`. Rate limit 20 lần / 10 phút / IP (dùng chung với endpoint dưới).
+  - `POST /api/v1/auth/reset-password` body `{token, newPassword}`. `newPassword` tối thiểu **8 ký tự** (đồng bộ với đăng ký).
+* **Luồng chính (Happy Path):**
+  1. Tại `/login`, người dùng bấm "Quên mật khẩu?" → chuyển sang trang `/forgot-password`, nhập email.
+  2. `AuthService.requestPasswordReset`: tìm user theo email (lowercase, trim); xóa mọi token cũ của user; sinh token gốc 32 byte `SecureRandom` (Base64 URL-safe); lưu **chỉ** `token_hash = SHA-256(token)` với `expires_at = now + 30 phút`; ghi audit `PASSWORD_RESET_REQUESTED`; phát `PasswordResetRequestedEvent`.
+  3. Sau khi transaction commit, `MailNotificationListener` (luồng `mailExecutor`) gửi email chứa nút và liên kết `{app.client-base-url}/reset-password?token=<token gốc>`.
+  4. Người dùng mở liên kết. Trang `/reset-password` đọc token rồi **xóa token khỏi thanh địa chỉ** (`history.replaceState`), gọi `validate` → hiển thị form mật khẩu mới + xác nhận.
+  5. Gửi form → `resetPassword`: băm token, tìm bản ghi, kiểm tra `used = false`, `expires_at > now`, tài khoản không bị đình chỉ, mật khẩu ≥ 8 ký tự → cập nhật mật khẩu (BCrypt), mở khóa tài khoản, `used = true`, xóa token khác, audit `PASSWORD_RESET_COMPLETED`, phát `PasswordChangedEvent`.
+  6. Frontend chuyển về `/login?reset=success` (mở sẵn tab Đăng nhập, hiện "Đặt lại mật khẩu thành công"). Người dùng nhận email cảnh báo đổi mật khẩu.
+* **Luồng thay thế (Alternative Flow):**
+  - **A1 - Email không tồn tại:** không tạo token, không gửi mail, không ghi audit; response giống hệt Happy Path.
+  - **A2 - Tài khoản SUSPENDED:** không tạo token, không gửi mail; vẫn ghi audit `PASSWORD_RESET_REQUESTED` với metadata `Email sent: false (account SUSPENDED)`; response giống hệt Happy Path.
+  - **A3 - Yêu cầu nhiều lần:** mỗi lần yêu cầu mới vô hiệu các liên kết trước; chỉ liên kết mới nhất dùng được.
+* **Luồng ngoại lệ (Exception Flow):**
+  - **E1 - Liên kết hết hạn (> 30 phút), đã dùng, hoặc tài khoản bị đình chỉ sau khi yêu cầu:** `validate` trả `valid=false`; trang hiển thị *"Liên kết đã hết hạn hoặc không hợp lệ"* kèm nút "Yêu cầu liên kết mới". Nếu gửi form, backend trả 400 `TOKEN_EXPIRED`.
+  - **E2 - Token không tồn tại / bị sửa:** 400 `INVALID_TOKEN`, UI xử lý như E1.
+  - **E3 - Mật khẩu < 8 ký tự:** 400 (validation hoặc `WEAK_PASSWORD`); token **không** bị tiêu thụ.
+  - **E4 - Vượt rate limit theo IP:** 429 `RATE_LIMIT_EXCEEDED`.
+  - **E5 - SMTP lỗi / Mailpit không chạy:** nghiệp vụ vẫn thành công (token đã lưu), email không đến; backend chỉ log WARN (không ghi token/link). Người dùng có thể yêu cầu lại.
+* **Bảo mật:** DB chỉ chứa hash nên kẻ đọc được DB không dùng được liên kết; token và liên kết không bao giờ xuất hiện trong log. Hạn chế đã biết: JWT đã cấp trước khi đổi mật khẩu vẫn hợp lệ tối đa 15 phút (xem WORK_LOG #083).
 
 ---
 
