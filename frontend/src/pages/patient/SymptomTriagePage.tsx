@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  MessageSquare,
   AlertTriangle,
   PhoneCall,
   Sparkles,
   CheckCircle2,
-  Calendar,
   Clock,
   Send,
   UserCheck,
@@ -13,7 +12,11 @@ import {
   Stethoscope,
   X,
   HelpCircle,
-  Info
+  RotateCcw,
+  Bot,
+  User,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -68,6 +71,24 @@ interface AppointmentConfirmation {
   feeAmount: number;
 }
 
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'ai';
+  content: string;
+  timestamp: Date;
+  clarifyingQuestions?: string[];
+  recommendedSpecialty?: string;
+  recommendedSpecialtySlug?: string;
+  isEmergency?: boolean;
+  emergencyAlert?: string;
+  medicalRelated?: boolean;
+  matchedDoctors?: DoctorMatch[];
+  sbarSummary?: string;
+  urgencyLevel?: 'ROUTINE' | 'URGENT' | 'EMERGENCY';
+  modelUsed?: string;
+  sessionId?: string;
+}
+
 // Helper to format local date YYYY-MM-DD
 function formatLocalDate(d: Date): string {
   const year = d.getFullYear();
@@ -78,10 +99,34 @@ function formatLocalDate(d: Date): string {
 
 export const SymptomTriagePage: React.FC = () => {
   const { user } = useAuthStore();
-  const [symptoms, setSymptoms] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<TriageResponseData | null>(null);
+  const navigate = useNavigate();
+
+  // Multi-turn Chatbot State
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome',
+      role: 'ai',
+      content:
+        'Xin chào! Tôi là Trợ lý Y tế AI của MediAssist. Bạn đang gặp vấn đề sức khỏe hay có triệu chứng khó chịu gì? Hãy mô tả chi tiết để tôi phân tích và gợi ý chuyên khoa phù hợp.',
+      timestamp: new Date(),
+      clarifyingQuestions: [
+        'Tôi bị đau thắt ngực dữ dội lan ra tay trái và khó thở',
+        'Tôi hay bị hồi hộp, đánh trống ngực khi vận động mạnh',
+        'Tôi thường xuyên bị đau đầu âm ỉ kèm chóng mặt và mất ngủ',
+        'Tôi bị đau quặn vùng thượng vị, đầy bụng ợ chua sau ăn',
+        'Da tôi nổi nhiều nốt mẩn đỏ ngứa ngáy sau khi ăn hải sản'
+      ]
+    }
+  ]);
+  const [inputText, setInputText] = useState('');
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const [isEmergencyLocked, setIsEmergencyLocked] = useState(false);
+  const [latestEmergencyAlert, setLatestEmergencyAlert] = useState<string | null>(null);
+  const [expandedSbars, setExpandedSbars] = useState<Record<string, boolean>>({});
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Booking Modal State
   const [bookingDoctor, setBookingDoctor] = useState<DoctorMatch | null>(null);
@@ -99,44 +144,129 @@ export const SymptomTriagePage: React.FC = () => {
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [confirmedAppt, setConfirmedAppt] = useState<AppointmentConfirmation | null>(null);
 
-  const sampleSymptoms = [
-    { label: 'Cấp cứu: Đau thắt ngực lan ra tay trái', text: 'Tôi bị đau thắt ngực dữ dội lan ra cánh tay trái và khó thở' },
-    { label: 'Tim mạch: Hồi hộp & đánh trống ngực', text: 'Tôi hay bị hồi hộp, đánh trống ngực và choáng váng khi vận động mạnh' },
-    { label: 'Thần kinh: Đau đầu & chóng mặt tiền đình', text: 'Tôi thường xuyên bị đau nửa đầu âm ỉ kèm chóng mặt hoa mắt mất ngủ' },
-    { label: 'Tiêu hóa: Đau thượng vị & ợ chua', text: 'Tôi bị đau quặn vùng thượng vị, đầy bụng ợ chua sau mỗi bữa ăn' },
-    { label: 'Da liễu: Mẩn đỏ & ngứa dị ứng', text: 'Da tôi bị nổi nhiều nốt mẩn đỏ ngứa ngáy và phát ban sau khi ăn hải sản' }
-  ];
+  // Auto-scroll on new message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping]);
 
-  const handleAssess = async (textToAssess?: string) => {
-    const text = textToAssess || symptoms;
-    if (!text.trim()) {
-      setError('Vui lòng nhập mô tả triệu chứng của bạn.');
-      return;
-    }
+  const toggleSbar = (msgId: string) => {
+    setExpandedSbars((prev) => ({ ...prev, [msgId]: !prev[msgId] }));
+  };
 
-    setError(null);
-    setLoading(true);
-    setResult(null);
+  const handleResetChat = () => {
+    setMessages([
+      {
+        id: 'welcome',
+        role: 'ai',
+        content:
+          'Xin chào! Tôi là Trợ lý Y tế AI của MediAssist. Bạn đang gặp vấn đề sức khỏe hay có triệu chứng khó chịu gì? Hãy mô tả chi tiết để tôi phân tích và gợi ý chuyên khoa phù hợp.',
+        timestamp: new Date(),
+        clarifyingQuestions: [
+          'Tôi bị đau thắt ngực dữ dội lan ra tay trái và khó thở',
+          'Tôi hay bị hồi hộp, đánh trống ngực khi vận động mạnh',
+          'Tôi thường xuyên bị đau đầu âm ỉ kèm chóng mặt và mất ngủ',
+          'Tôi bị đau quặn vùng thượng vị, đầy bụng ợ chua sau ăn',
+          'Da tôi nổi nhiều nốt mẩn đỏ ngứa ngáy sau khi ăn hải sản'
+        ]
+      }
+    ]);
+    setInputText('');
+    setSessionId(null);
+    setIsEmergencyLocked(false);
+    setLatestEmergencyAlert(null);
+  };
+
+  const handleSend = async (textToSend?: string) => {
+    const text = (textToSend !== undefined ? textToSend : inputText).trim();
+    if (!text || isTyping || isEmergencyLocked) return;
+
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: text,
+      timestamp: new Date()
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setInputText('');
+    setIsTyping(true);
 
     try {
-      const res = await api.post('/triage/assess', { symptoms: text });
+      // Build conversation history for multi-turn clinical context
+      const historyStrings = messages
+        .filter((m) => m.id !== 'welcome')
+        .slice(-6)
+        .map((m) => `${m.role === 'user' ? 'Bệnh nhân' : 'Bác sĩ AI'}: ${m.content}`);
+
+      const res = await api.post('/triage/assess', {
+        symptoms: text,
+        conversationHistory: historyStrings.length > 0 ? historyStrings : undefined
+      });
+
       if (res.data?.data) {
-        setResult(res.data.data);
+        const data: TriageResponseData = res.data.data;
+        if (!sessionId && data.sessionId) {
+          setSessionId(data.sessionId);
+        }
+
+        const emergencyTriggered = !!data.emergency;
+        if (emergencyTriggered) {
+          setIsEmergencyLocked(true);
+          setLatestEmergencyAlert(data.emergencyAlert || 'CẢNH BÁO Y TẾ NGUY KỊCH');
+        }
+
+        const aiMsg: ChatMessage = {
+          id: `ai-${Date.now()}`,
+          role: 'ai',
+          content: data.aiAdvice || data.sbarSummary || 'Hệ thống đã hoàn tất phân tích triệu chứng của bạn.',
+          timestamp: new Date(),
+          clarifyingQuestions: data.clarifyingQuestions || [],
+          recommendedSpecialty: data.primarySpecialtyName,
+          recommendedSpecialtySlug: data.primarySpecialtySlug,
+          isEmergency: emergencyTriggered,
+          emergencyAlert: data.emergencyAlert || undefined,
+          medicalRelated: data.medicalRelated,
+          matchedDoctors: data.matchedDoctors || [],
+          sbarSummary: data.sbarSummary,
+          urgencyLevel: data.urgencyLevel,
+          modelUsed: data.modelUsed,
+          sessionId: data.sessionId
+        };
+
+        setMessages((prev) => [...prev, aiMsg]);
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
-      setError(axiosErr.response?.data?.error?.message || 'Không thể kết nối đến Trợ lý Triage. Vui lòng thử lại.');
+      const errorMessage =
+        axiosErr.response?.data?.error?.message ||
+        'Không thể kết nối đến Trợ lý Triage AI. Vui lòng kiểm tra kết nối mạng và thử lại.';
+
+      const errorMsg: ChatMessage = {
+        id: `err-${Date.now()}`,
+        role: 'ai',
+        content: `⚠️ ${errorMessage}`,
+        timestamp: new Date()
+      };
+      setMessages((prev) => [...prev, errorMsg]);
     } finally {
-      setLoading(false);
+      setIsTyping(false);
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  // Booking Modal handlers
   const handleOpenBooking = (doc: DoctorMatch) => {
     setBookingDoctor(doc);
     setSelectedSlot(null);
     setBookingError(null);
     setConfirmedAppt(null);
-    setBookingNotes(symptoms ? `Triage AI: ${symptoms}` : '');
+    setBookingNotes(`Triage AI Session: ${sessionId ? sessionId.slice(0, 8) : 'Khám chuyên khoa'}`);
     loadSlots(doc.doctorId, selectedDate);
   };
 
@@ -151,7 +281,10 @@ export const SymptomTriagePage: React.FC = () => {
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
-      setSlotsError(axiosErr.response?.data?.error?.message || 'Không thể tải lịch khám của bác sĩ. Vui lòng kiểm tra lại kết nối mạng.');
+      setSlotsError(
+        axiosErr.response?.data?.error?.message ||
+          'Không thể tải lịch khám của bác sĩ. Vui lòng kiểm tra lại kết nối.'
+      );
     } finally {
       setSlotsLoading(false);
     }
@@ -204,368 +337,340 @@ export const SymptomTriagePage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-16">
-      {/* Header */}
-      <div>
+    <div className="max-w-4xl mx-auto flex flex-col h-[calc(100vh-100px)] min-h-[550px] pb-4">
+      {/* 🤖 Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-white rounded-2xl border border-slate-200 shadow-2xs mb-3">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-indigo-600 text-white rounded-xl shadow-xs">
-            <MessageSquare className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center shadow-xs">
+            <Bot className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Phân Luồng Triệu Chứng & Khớp Bác Sĩ Bằng AI (Symptom Triage)
-            </h1>
-            <p className="text-slate-500 text-sm mt-0.5">
-              Nhận diện rào chắn cấp cứu tức thì, phân loại mức độ khẩn cấp SBAR và tìm kiếm bác sĩ chuyên khoa sâu qua vector ngữ nghĩa.
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-bold text-slate-900 tracking-tight">
+                🤖 Trợ lý Triệu chứng AI
+              </h1>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Online
+              </span>
+            </div>
+            <p className="text-xs text-slate-500">
+              Mô tả triệu chứng để được tư vấn chuyên khoa phù hợp (O2O In-Person Visit)
             </p>
           </div>
         </div>
+
+        <button
+          onClick={handleResetChat}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-xl transition cursor-pointer"
+          title="Bắt đầu phiên phân tích mới"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>Làm mới hội thoại</span>
+        </button>
       </div>
 
-      {/* Input Box */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4">
-        <label className="block text-sm font-semibold text-slate-800">
-          Mô Tả Triệu Chứng Hoặc Cảm Giác Khó Chịu Của Bạn
-        </label>
-        <textarea
-          rows={3}
-          value={symptoms}
-          onChange={(e) => setSymptoms(e.target.value)}
-          placeholder="Ví dụ: Tôi bị đau thắt ngực dữ dội, hồi hộp đánh trống ngực... Hoặc: Tôi hay bị đau đầu âm ỉ kèm chóng mặt và mất ngủ kéo dài..."
-          className="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none"
-        />
-
-        {/* Sample Symptoms Quick Chips */}
-        <div>
-          <p className="text-xs font-medium text-slate-500 mb-2">Thử nhanh các triệu chứng lâm sàng mẫu:</p>
-          <div className="flex flex-wrap gap-2">
-            {sampleSymptoms.map((chip, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => {
-                  setSymptoms(chip.text);
-                  handleAssess(chip.text);
-                }}
-                className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 transition border border-slate-200"
-              >
-                {chip.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {error && (
-          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium">
-            {error}
-          </div>
-        )}
-
-        <div className="flex justify-end pt-2">
-          <button
-            onClick={() => handleAssess()}
-            disabled={loading || !symptoms.trim()}
-            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl text-sm font-semibold shadow-xs transition flex items-center gap-2"
-          >
-            {loading ? (
-              <>
-                <Sparkles className="w-4 h-4 animate-spin" /> Đang Phân Tích...
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4" /> Bắt Đầu Đánh Giá Triage
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* 🚨 Red-Flag Emergency Alert Card */}
-      {result && result.emergency && (
-        <div className="bg-rose-50 border-2 border-rose-500 rounded-3xl p-6 md:p-8 space-y-6 animate-fadeIn shadow-md">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-rose-600 text-white rounded-2xl animate-pulse flex-shrink-0">
-              <AlertTriangle className="w-8 h-8" />
-            </div>
-            <div className="space-y-2">
-              <span className="inline-block px-3 py-1 bg-rose-600 text-white text-xs font-extrabold uppercase tracking-wider rounded-full">
-                Mức Độ Nguy Kịch: Cấp Cứu 115
-              </span>
-              <h2 className="text-xl md:text-2xl font-black text-rose-900 leading-snug">
-                {result.emergencyAlert || 'CẢNH BÁO Y TẾ NGUY KỊCH'}
-              </h2>
-              <p className="text-sm text-rose-800 leading-relaxed">
-                Hệ thống nhận diện triệu chứng của bạn mang đặc điểm của tình trạng cấp cứu khẩn cấp (Hội chứng mạch vành cấp, nhồi máu cơ tim hoặc đột quỵ não). 
-                <strong> TUYỆT ĐỐI KHÔNG CHỜ ĐỢI TƯ VẤN TRỰC TUYẾN.</strong>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4 pt-2">
-            <a
-              href="tel:115"
-              className="inline-flex items-center gap-2 px-6 py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-base rounded-2xl shadow-lg transition"
-            >
-              <PhoneCall className="w-5 h-5 animate-bounce" />
-              Gọi Ngay Cấp Cứu 115
-            </a>
-            <span className="text-xs text-rose-700">
-              Hoặc nhờ người thân đưa ngay đến khoa Cấp cứu bệnh viện gần nhất!
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* ℹ️ Non-Medical / Off-Topic Notice Card */}
-      {result && !result.emergency && result.medicalRelated === false && (
-        <div className="bg-amber-50/70 border border-amber-200 rounded-3xl p-6 md:p-8 space-y-6 animate-fadeIn shadow-xs">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-amber-500 text-white rounded-2xl flex-shrink-0">
-              <HelpCircle className="w-7 h-7" />
-            </div>
-            <div className="space-y-2 flex-1">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold uppercase tracking-wider rounded-full border border-amber-300">
-                  Yêu Cầu Ngoài Phạm Vi Y Tế
-                </span>
-                <span className="text-xs text-slate-500">Mã phiên Triage: {result.sessionId.slice(0, 8)}</span>
+      {/* 🚨 Full-Width Persistent Emergency Banner (when emergency is triggered) */}
+      {isEmergencyLocked && (
+        <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-lg border-2 border-rose-700 mb-3 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-xl animate-pulse">
+                <AlertTriangle className="w-6 h-6 text-white" />
               </div>
-              <h2 className="text-lg md:text-xl font-bold text-amber-950">
-                Hệ Thống Phân Luồng Lâm Sàng MediAssist-AI
-              </h2>
-              <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-line">
-                {result.aiAdvice}
-              </p>
-            </div>
-          </div>
-
-          {/* AI Model Badge */}
-          {result.modelUsed && (
-            <div className="p-3 bg-white/80 border border-amber-200 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-600" />
-                <span className="font-semibold text-amber-900">Mô hình phân tích: </span>
-                <span className="font-mono px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">
-                  {result.modelUsed}
-                </span>
-              </div>
-              <span className="text-amber-700 text-[11px] font-medium">
-                🛡️ Rào chắn an toàn y tế: Không tạo liên kết bác sĩ giả định cho câu hỏi ngoài ngành
-              </span>
-            </div>
-          )}
-
-          {/* Guiding Questions */}
-          {result.clarifyingQuestions && result.clarifyingQuestions.length > 0 && (
-            <div className="bg-white/80 border border-amber-200 rounded-2xl p-4 space-y-2">
-              <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Info className="w-3.5 h-3.5 text-amber-600" /> Hướng Dẫn Để Nhận Phân Luồng Y Tế Chính Xác
-              </h4>
-              <ul className="space-y-1.5 text-xs text-amber-900 list-disc list-inside">
-                {result.clarifyingQuestions.map((q, idx) => (
-                  <li key={idx}>{q}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 🟢 Routine / Urgent Triage Assessment Card */}
-      {result && !result.emergency && result.medicalRelated !== false && (
-        <div className="space-y-6 animate-fadeIn">
-          {/* SBAR & Clinical Evaluation Card */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-                  <Stethoscope className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-lg">Bản Đánh Giá Phân Luồng Lâm Sàng (SBAR)</h3>
-                  <p className="text-xs text-slate-500">Mã phiên Triage: {result.sessionId.slice(0, 8)}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
-                  result.urgencyLevel === 'URGENT'
-                    ? 'bg-amber-50 text-amber-700 border-amber-300'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                }`}>
-                  Mức độ: {result.urgencyLevel === 'URGENT' ? 'CẦN KHÁM ƯU TIÊN' : 'THĂM KHÁM TIÊU CHUẨN'}
-                </span>
-                <span className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold border border-indigo-200">
-                  {result.primarySpecialtyName}
-                </span>
-              </div>
-            </div>
-
-            {/* 🤖 OpenRouter AI Model Badge */}
-            {result.modelUsed && (
-              <div className="p-3 bg-gradient-to-r from-indigo-50 via-purple-50 to-blue-50 border border-indigo-200 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-indigo-600 text-white rounded-lg">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="font-bold text-indigo-900">Động cơ Phân Luồng & Triage Lâm Sàng: </span>
-                    <span className="font-mono font-semibold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-md border border-indigo-300">
-                      {result.modelUsed}
-                    </span>
-                  </div>
-                </div>
-                <span className="px-2.5 py-0.5 bg-white text-indigo-800 font-medium rounded-full text-[11px] border border-indigo-300">
-                  OpenRouter 0đ Gateway • Tự động Xoay Tua Model
-                </span>
-              </div>
-            )}
-
-            {/* SBAR Text Block */}
-            <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 font-mono text-xs text-slate-800 whitespace-pre-line leading-relaxed">
-              {result.sbarSummary}
-            </div>
-
-            {/* AI Advice */}
-            <div className="p-4 bg-indigo-50/60 rounded-2xl border border-indigo-100 space-y-1">
-              <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Lời Khuyên Ban Đầu Từ AI Scribe
-              </h4>
-              <p className="text-xs text-indigo-950 leading-relaxed">{result.aiAdvice}</p>
-            </div>
-
-            {/* Clarifying Questions */}
-            {result.clarifyingQuestions && result.clarifyingQuestions.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Gợi Ý Chuẩn Bị Cho Buổi Khám Với Bác Sĩ
-                </h4>
-                <ul className="space-y-1.5 text-xs text-slate-600 list-disc list-inside">
-                  {result.clarifyingQuestions.map((q, idx) => (
-                    <li key={idx}>{q}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-
-          {/* 🧑‍⚕️ Matched Doctors Section (Semantic Search by pgvector) */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-indigo-600" />
-                  Bác Sĩ Chuyên Khoa Được AI Đề Xuất (pgvector Match)
+                <h3 className="font-extrabold text-sm uppercase tracking-wide">
+                  🚨 TÌNH TRẠNG KHẨN CẤP — Gọi ngay 115 hoặc đến phòng cấp cứu gần nhất!
                 </h3>
-                <p className="text-xs text-slate-500">
-                  Thuật toán Cosine Similarity khớp triệu chứng của bạn với hồ sơ chuyên môn của các bác sĩ đã xác minh.
+                <p className="text-xs text-rose-100 mt-0.5 font-medium">
+                  {latestEmergencyAlert ||
+                    'Hệ thống nhận diện triệu chứng của bạn mang đặc điểm nguy kịch. Tuyệt đối không chờ đặt lịch hẹn thông thường!'}
                 </p>
               </div>
-              <span className="text-xs text-slate-400">
-                Tìm thấy {result.matchedDoctors.length} bác sĩ phù hợp
-              </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {result.matchedDoctors.map((doc) => {
-                const matchPct = Math.round(doc.similarityScore * 100);
-                return (
-                  <div
-                    key={doc.doctorId}
-                    className={`rounded-2xl transition p-5 flex flex-col justify-between space-y-4 ${
-                      doc.aiRecommended
-                        ? 'bg-gradient-to-b from-indigo-50/50 to-white border-2 border-indigo-500 shadow-md ring-2 ring-indigo-500/20'
-                        : 'bg-white border border-slate-200 shadow-xs hover:shadow-md'
-                    }`}
-                  >
-                    {doc.aiRecommended && (
-                      <div className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600 text-white text-[11px] font-bold rounded-lg shadow-xs -mt-1">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Được AI Lựa Chọn Ưu Tiên Cho Ca Bệnh Này</span>
-                      </div>
-                    )}
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <h4 className="font-bold text-slate-900 text-base">{doc.fullName}</h4>
-                            <span title="Đã thẩm định CCHN">
-                              <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-400 mt-0.5">CCHN: {doc.licenseNumber}</p>
-                        </div>
+            <a
+              href="tel:115"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-rose-700 hover:bg-rose-50 font-black text-sm rounded-xl shadow-md transition shrink-0 cursor-pointer"
+            >
+              <PhoneCall className="w-4 h-4 animate-bounce" />
+              <span>📞 Gọi 115</span>
+            </a>
+          </div>
+        </div>
+      )}
 
-                        {/* Match Score Badge */}
-                        <div className="flex flex-col items-end">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                            matchPct >= 80
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
-                              : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                          }`}>
-                            Độ khớp: {matchPct}%
-                          </span>
-                        </div>
-                      </div>
+      {/* 💬 Chat Area Container */}
+      <div className="flex-1 bg-slate-50/80 rounded-2xl border border-slate-200 overflow-y-auto p-4 md:p-6 space-y-4 shadow-inner">
+        {messages.map((msg) => {
+          const isUser = msg.role === 'user';
 
-                      {/* Specialties */}
-                      <div className="flex flex-wrap gap-1.5">
-                        {doc.specialties.map((spec, i) => (
-                          <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-md">
-                            {spec}
-                          </span>
-                        ))}
-                      </div>
+          return (
+            <div
+              key={msg.id}
+              className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1 animate-in fade-in duration-200`}
+            >
+              <div className={`flex items-start gap-2.5 max-w-[90%] md:max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                {/* Avatar Icon */}
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold shadow-2xs ${
+                    isUser
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white border border-slate-200 text-indigo-600'
+                  }`}
+                >
+                  {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                </div>
 
-                      {/* Bio */}
-                      <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
-                        {doc.bio}
+                {/* Bubble Container */}
+                <div
+                  className={`px-4 py-3 text-sm leading-relaxed shadow-xs ${
+                    isUser
+                      ? 'bg-blue-600 text-white rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl rounded-br-xs'
+                      : 'bg-white border border-slate-200 text-gray-800 rounded-tr-2xl rounded-br-2xl rounded-tl-2xl rounded-bl-xs'
+                  }`}
+                >
+                  {/* Text Content */}
+                  <div className="whitespace-pre-line font-normal">{msg.content}</div>
+
+                  {/* 🚨 Emergency Alert inside AI message */}
+                  {msg.isEmergency && (
+                    <div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs space-y-2">
+                      <div className="flex items-center gap-2 text-rose-800 font-bold">
+                        <AlertTriangle className="w-4 h-4 text-rose-600" />
+                        <span>CẢNH BÁO NGUY HIỂM TÍNH MẠNG</span>
+                      </div>
+                      <p className="text-rose-700">
+                        {msg.emergencyAlert || 'Triệu chứng có thể liên quan đến đột quỵ, nhồi máu cơ tim hoặc sốc phản vệ.'}
                       </p>
+                      <a
+                        href="tel:115"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 text-white rounded-lg font-bold text-xs hover:bg-rose-700 transition"
+                      >
+                        <PhoneCall className="w-3.5 h-3.5" /> Gọi 115 Ngay
+                      </a>
+                    </div>
+                  )}
 
-                      {doc.aiRecommendationReason && (
-                        <div className="p-3 bg-indigo-50/80 rounded-xl border border-indigo-200 text-xs text-indigo-950 flex items-start gap-2">
-                          <span className="font-bold text-indigo-800 flex-shrink-0">Lý do đề xuất:</span>
-                          <span className="leading-relaxed">{doc.aiRecommendationReason}</span>
+                  {/* ℹ️ Non-Medical Notice */}
+                  {msg.medicalRelated === false && (
+                    <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center gap-2">
+                      <HelpCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Câu hỏi ngoài phạm vi y tế. Hệ thống chỉ tư vấn cho các vấn đề sức khỏe lâm sàng.</span>
+                    </div>
+                  )}
+
+                  {/* 📋 Collapsible SBAR Clinical Summary */}
+                  {msg.sbarSummary && (
+                    <div className="mt-3 border-t border-slate-100 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleSbar(msg.id)}
+                        className="flex items-center justify-between w-full text-xs font-semibold text-slate-500 hover:text-indigo-600 transition cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1">
+                          <Stethoscope className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Chi tiết Phân luồng SBAR</span>
+                        </span>
+                        {expandedSbars[msg.id] ? (
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+
+                      {expandedSbars[msg.id] && (
+                        <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs font-mono text-slate-700 whitespace-pre-line leading-relaxed">
+                          {msg.sbarSummary}
                         </div>
                       )}
                     </div>
+                  )}
 
-                    {/* Footer / Booking Action */}
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <div>
-                        <span className="text-xs text-slate-400">Giá khám tư vấn:</span>
-                        <p className="text-sm font-bold text-indigo-700">
-                          {doc.consultationFee.toLocaleString('vi-VN')} đ
-                        </p>
+                  {/* ✅ Recommendation Card */}
+                  {msg.recommendedSpecialty && (
+                    <div className="mt-3 p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                      <div className="flex items-center gap-2 text-emerald-900 font-bold">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>AI gợi ý chuyên khoa: <strong className="text-emerald-950 font-black">{msg.recommendedSpecialty}</strong></span>
                       </div>
+
                       <button
-                        onClick={() => handleOpenBooking(doc)}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
+                        type="button"
+                        onClick={() =>
+                          navigate(
+                            `/patient/doctors?specialty=${encodeURIComponent(
+                              msg.recommendedSpecialtySlug || msg.recommendedSpecialty || ''
+                            )}`
+                          )
+                        }
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition shadow-2xs shrink-0 cursor-pointer"
                       >
-                        <Calendar className="w-3.5 h-3.5" /> Đặt Khám Ngay
+                        <span>🔍 Tìm bác sĩ {msg.recommendedSpecialty}</span>
                       </button>
                     </div>
-                  </div>
-                );
-              })}
+                  )}
+
+                  {/* 🧑‍⚕️ Matched Doctors (Inline booking cards) */}
+                  {msg.matchedDoctors && msg.matchedDoctors.length > 0 && (
+                    <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                        <span className="flex items-center gap-1.5">
+                          <UserCheck className="w-4 h-4 text-indigo-600" /> Bác sĩ phù hợp tại bệnh viện ({msg.matchedDoctors.length})
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {msg.matchedDoctors.slice(0, 3).map((doc) => {
+                          const matchPct = Math.round(doc.similarityScore * 100);
+                          return (
+                            <div
+                              key={doc.doctorId}
+                              className="p-3 bg-white rounded-xl border border-slate-200 hover:border-indigo-300 transition shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                            >
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                                  <span>{doc.fullName}</span>
+                                  <span title="Đã thẩm định CCHN">
+                                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                  </span>
+                                  <span className="font-normal text-[11px] text-indigo-600 bg-indigo-50 px-2 py-0.2 rounded-full border border-indigo-200">
+                                    Độ khớp {matchPct}%
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-500">
+                                  {doc.specialties?.join(', ') || 'Chuyên khoa Nội'} • {doc.yearsOfExperience} năm kinh nghiệm
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2 self-end sm:self-auto">
+                                <span className="font-bold text-indigo-700">
+                                  {Number(doc.consultationFee || 350000).toLocaleString('vi-VN')} đ
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenBooking(doc)}
+                                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition shadow-2xs cursor-pointer"
+                                >
+                                  Đặt Khám
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Timestamp */}
+              <span className={`text-[10px] text-slate-400 px-10 ${isUser ? 'text-right' : 'text-left'}`}>
+                {msg.timestamp.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+
+              {/* 💡 Suggestion Chips (Rendered under AI message) */}
+              {!isUser && msg.clarifyingQuestions && msg.clarifyingQuestions.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1 pl-10 pr-2 max-w-[90%] md:max-w-[85%]">
+                  {msg.clarifyingQuestions.map((chip, chipIdx) => (
+                    <button
+                      key={chipIdx}
+                      type="button"
+                      disabled={isEmergencyLocked || isTyping}
+                      onClick={() => handleSend(chip)}
+                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-full text-xs font-semibold transition cursor-pointer shadow-2xs disabled:opacity-50"
+                    >
+                      💡 {chip}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* ⏳ Typing Indicator (3 bouncing dots) */}
+        {isTyping && (
+          <div className="flex items-start gap-2.5 animate-in fade-in duration-200">
+            <div className="w-8 h-8 rounded-full bg-white border border-slate-200 text-indigo-600 flex items-center justify-center shrink-0 shadow-2xs">
+              <Bot className="w-4 h-4" />
+            </div>
+            <div className="px-4 py-3 bg-white border border-slate-200 rounded-tr-2xl rounded-br-2xl rounded-tl-2xl rounded-bl-xs shadow-xs flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '0ms' }}></span>
+              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '150ms' }}></span>
+              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '300ms' }}></span>
+              <span className="text-xs text-slate-400 font-medium ml-1.5">AI đang phân tích triệu chứng...</span>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* 📅 Interactive Slot Booking Modal (Integrated from Milestone 2) */}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* ⌨️ Sticky Bottom Input Area */}
+      <div className="mt-3 bg-white rounded-2xl border border-slate-200 shadow-sm p-3 space-y-2">
+        {isEmergencyLocked ? (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 font-bold flex items-center justify-between">
+            <span>⛔ Phiên phân luồng đã khóa để bảo đảm tính mạng. Vui lòng liên hệ cấp cứu hoặc gọi 115 ngay.</span>
+            <button
+              onClick={handleResetChat}
+              className="px-3 py-1 bg-white border border-rose-300 rounded-lg text-rose-700 text-xs font-bold hover:bg-rose-100 cursor-pointer"
+            >
+              Mở phiên mới
+            </button>
+          </div>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSend();
+            }}
+            className="flex items-end gap-2"
+          >
+            <textarea
+              ref={textareaRef}
+              rows={2}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isTyping}
+              placeholder="Nhập triệu chứng của bạn (ví dụ: Tôi bị đau thắt ngực khi gắng sức, khó thở về đêm...)..."
+              className="flex-1 px-3.5 py-2 text-xs md:text-sm rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none disabled:bg-slate-100"
+            />
+
+            <button
+              type="submit"
+              disabled={!inputText.trim() || isTyping}
+              className="p-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-xl shadow-xs transition cursor-pointer disabled:cursor-not-allowed shrink-0"
+              title="Gửi triệu chứng (Enter)"
+            >
+              {isTyping ? <Sparkles className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            </button>
+          </form>
+        )}
+
+        <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
+          <span>
+            Nhấn <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] text-slate-600 font-mono">Enter</kbd> để gửi, <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] text-slate-600 font-mono">Shift + Enter</kbd> xuống dòng.
+          </span>
+          <span className="hidden sm:inline italic">
+            * Khuyến cáo: Phân luồng AI hỗ trợ định hướng chuyên khoa, không thay thế chẩn đoán bác sĩ.
+          </span>
+        </div>
+      </div>
+
+      {/* 📅 Interactive Slot Booking Modal */}
       {bookingDoctor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
-            {/* Header */}
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="font-bold text-slate-900 text-base">Đặt Lịch Khám Chuyên Khoa</h3>
+                <h3 className="font-bold text-slate-900 text-base">Đặt Lịch Khám Trực Tiếp</h3>
                 <p className="text-xs text-slate-500">với {bookingDoctor.fullName}</p>
               </div>
               <button
                 onClick={() => setBookingDoctor(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg"
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -602,7 +707,7 @@ export const SymptomTriagePage: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setBookingDoctor(null)}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold"
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold cursor-pointer"
                 >
                   Đóng
                 </button>
@@ -617,18 +722,18 @@ export const SymptomTriagePage: React.FC = () => {
                     min={formatLocalDate(new Date())}
                     value={selectedDate}
                     onChange={(e) => handleDateChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
 
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1.5">
-                    Chọn Khung Giờ Tư Vấn (30 phút/ca)
+                    Chọn Khung Giờ Khám (30 phút/ca)
                   </label>
                   {slotsLoading ? (
                     <div className="py-6 text-center text-slate-400">Đang tải lịch trống...</div>
                   ) : slotsError ? (
-                    <div className="p-3 bg-red-50 text-red-600 rounded-xl text-center text-sm border border-red-200">
+                    <div className="p-3 bg-rose-50 text-rose-600 rounded-xl text-center text-xs border border-rose-200">
                       {slotsError}
                     </div>
                   ) : slots.length === 0 ? (
@@ -639,11 +744,11 @@ export const SymptomTriagePage: React.FC = () => {
                     <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto pr-1">
                       {slots.map((slot) => (
                         <button
-                          key={slot.slotId}
+                          key={slot.slotId || slot.startTime}
                           type="button"
                           disabled={!slot.available}
                           onClick={() => setSelectedSlot(slot)}
-                          className={`p-2 rounded-lg border text-center transition ${
+                          className={`p-2 rounded-lg border text-center transition cursor-pointer ${
                             !slot.available
                               ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through'
                               : selectedSlot?.slotId === slot.slotId
@@ -666,7 +771,7 @@ export const SymptomTriagePage: React.FC = () => {
                     value={bookingNotes}
                     onChange={(e) => setBookingNotes(e.target.value)}
                     placeholder="Mô tả cụ thể để bác sĩ chuẩn bị trước buổi khám..."
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
 
@@ -680,7 +785,7 @@ export const SymptomTriagePage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setBookingDoctor(null)}
-                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-semibold"
+                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-semibold cursor-pointer hover:bg-slate-50"
                   >
                     Hủy
                   </button>
@@ -688,7 +793,7 @@ export const SymptomTriagePage: React.FC = () => {
                     type="button"
                     disabled={!selectedSlot || bookingSubmitting}
                     onClick={handleConfirmBooking}
-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-semibold transition"
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-semibold transition cursor-pointer"
                   >
                     {bookingSubmitting ? 'Đang Đặt...' : 'Xác Nhận Đặt Khám'}
                   </button>

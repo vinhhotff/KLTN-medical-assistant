@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#079** | 02/10/2026 | Chuyển Đổi Phân Luồng Triệu Chứng Sang Multi-turn Chatbot Triage UI (Phase 2): (1) Chuyển đổi toàn diện `SymptomTriagePage.tsx` từ textarea tĩnh một chiều sang mô hình Chatbot hội thoại đa lượt tương tác (Multi-turn Chat Bubble), (2) Khung chat hiện đại với bong bóng hội thoại phân biệt Bệnh nhân (xanh phải) và AI Scribe (trắng trái kèm avatar bot), (3) Typing indicator hiệu ứng 3 chấm nhảy (bouncing dots animation) khi AI đang suy luận, (4) Thẻ gợi ý câu hỏi lâm sàng (Suggestion Chips) cho phép 1-click gửi ngay, (5) Rào chắn cấp cứu tức thì: Banner đỏ toàn màn hình, nút gọi khẩn 115 và khóa toàn bộ form đặt lịch (Lockout) khi phát hiện Red-Flag, (6) Thẻ đề xuất chuyên khoa kèm điều hướng trực tiếp sang danh bạ bác sĩ, (7) Nhúng danh thiếp bác sĩ khớp trực tiếp (pgvector similarity) kèm modal đặt lịch khám trực tiếp (O2O) ngay trong luồng chat, (8) Đạt 138/138 Backend Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#078** | 30/09/2026 | Triển Khai Phiếu Khám Bệnh Điện Tử O2O (E-Admission Ticket with QR, STT, Google Maps & Print): (1) Bổ sung trường E-Admission Ticket vào `AppointmentDto` (clinicRoom, clinicFloor, clinicBuilding, clinicAddress, clinicMapUrl, qrCodeData, sttNumber, preVisitInstructions), (2) Bổ sung logic trích xuất thông tin phòng khám, số thứ tự hàng chờ (STT), sinh payload QR code chuẩn JSON và lời dặn chuẩn bị lâm sàng trong `AppointmentService`, (3) Mở endpoint `GET /api/v1/appointments/{id}/ticket`, (4) Cài đặt `qrcode.react` và tạo mới component `AdmissionTicketModal.tsx` với mã QR SVG sắc nét, STT nổi bật, tích hợp chỉ đường Google Maps, nút thêm lịch vào Google Calendar và chế độ in phiếu (`window.print()`), (5) Tích hợp nút '📋 Xem Phiếu Khám' vào danh sách lịch khám trên `PatientDashboard.tsx`, (6) Đạt 138/138 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#077** | 23/09/2026 | Hoàn Thiện Toàn Diện Nghiệp Vụ Doanh Nghiệp, Rào Chắn Lịch Khám, Tính Nguyên Tử Thanh Toán & Chuông Thông Báo (Enterprise Flows & Safeguards Hardening): (1) Flyway V15 & V16 bổ sung `triage_session_id`, `password_reset_tokens`, `notifications`, (2) Rào chắn đặt lịch: Bác sĩ active/verified, giờ hành chính (8-12h, 13h30-17h, nghỉ Chủ Nhật), số thứ tự tiếp đón (STT), state machine chuyển đổi trạng thái, API Dời lịch hẹn (`PATCH /appointments/{id}/reschedule`), tự động hoàn tiền khi hủy ca khám đã thanh toán, (3) Tính nguyên tử thanh toán: Chống duplicate checkout race condition, `@Transactional(REQUIRES_NEW)` cho fulfillOrder, kiểm toán giao dịch mồ côi, (4) Lịch làm việc bác sĩ động từ `DoctorScheduleSlot` & DB aggregation cho thống kê, hàng đợi khóa bi quan (pessimistic lock), (5) Sanitization đầu vào Triage, CCCD 12 số & SĐT Việt Nam, chu trình Quên mật khẩu an toàn, (6) Hệ thống chuông thông báo nội bộ thời gian thực cho Bệnh nhân & Bác sĩ, (7) Frontend wire-up: Dời lịch hẹn modal, liên kết xem tài liệu `focusId`, banner cảnh báo CCCD/nhóm máu chưa hoàn thiện, chọn giờ tái khám bác sĩ, (8) Đạt 136/136 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#076** | 18/09/2026 | Bác Sĩ Truy Cập Hồ Sơ Cận Lâm Sàng & Kết Quả Bóc Tách AI OCR Từ Lịch Khám (Doctor Medical Document & AI OCR Analysis Viewer): (1) Khắc phục điểm khuyết Bác sĩ không thể click xem lại tài liệu bệnh nhân gửi từ phân hệ Tóm tắt hồ sơ, (2) Flyway V14 liên kết `medical_document_id` vào bảng `appointments`, (3) Backend API streaming tệp an toàn (`GET /documents/{id}/file`) & trích xuất phân tích chi tiết (`GET /documents/{id}/analysis`), (4) Frontend Modal 2 tab `DocumentAnalysisModal.tsx` (AI Scribe & Bảng chỉ số xét nghiệm + Trình xem tệp gốc PDF/Ảnh nội tuyến) kèm tiện ích 1-click chèn vào Bệnh án, (5) Tích hợp liền mạch vào Dashboard Bác sĩ và Danh bạ Hồ sơ Bệnh nhân 360°, (6) Đạt 128/128 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
@@ -18,6 +19,30 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#079] Chuyển Đổi Phân Luồng Triệu Chứng Sang Multi-turn Chatbot Triage UI (Phase 2)
+* **Thời gian:** 2026-10-02 20:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-CLIN-02 (Conversational Symptom Triage & Red-Flag Safeguard)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **138/138 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1685 modules transformed**, build thành công trong 14.37s (`npm run build`)
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Chỉnh sửa `[MOD]`:**
+  - `frontend/src/pages/patient/SymptomTriagePage.tsx`: Tái cấu trúc toàn bộ giao diện phân luồng triệu chứng từ dạng textarea một chiều sang giao diện Chatbot hội thoại đa lượt (Multi-turn Chat Bubble):
+    1. Bong bóng chat phân màu người dùng (xanh phải) và AI Scribe (trắng trái kèm biểu tượng bot và thời gian thực).
+    2. Hiệu ứng gõ phím Typing Indicator (3 chấm nảy sinh động) trong lúc gọi OpenRouter/Gemini API.
+    3. Thẻ gợi ý câu hỏi lâm sàng tương tác (Suggestion Chips) giúp bệnh nhân phản hồi nhanh bằng 1 click.
+    4. Rào chắn Red-Flag cấp cứu: Banner đỏ toàn màn hình, nút bấm gọi thẳng `115`, và khóa tự động khung nhập liệu để ngăn chặn người bệnh nguy kịch đặt lịch khám định kỳ.
+    5. Thẻ khuyến nghị chuyên khoa lâm sàng liên kết trực tiếp tới Danh bạ Bác sĩ (`/patient/doctors`).
+    6. Danh thiếp bác sĩ khớp trực tiếp (pgvector similarity) kèm modal đặt lịch khám tại chỗ (O2O) ngay trong luồng chat.
+
+#### 2. Nghiệp Vụ Doanh Nghiệp & Giá Trị O2O (Online-to-Offline):
+1. **Trải Nghiệm Hội Thoại Tự Nhiên (Empathetic AI):** Người bệnh không còn phải viết một đoạn văn dài phức tạp. AI sẽ chủ động hỏi thêm các câu hỏi định hướng (Clarifying Questions) để làm rõ mức độ nghiêm trọng của bệnh cảnh.
+2. **Khóa An Toàn Cấp Cứu Tuyệt Đối (Emergency Lockout):** Rào chắn nhận diện các từ khóa nguy kịch (nhồi máu cơ tim, đột quỵ, khó thở cấp) sẽ lập tức kích hoạt banner khẩn và khóa chức năng đặt lịch thông thường, đảm bảo an toàn y khoa theo tiêu chuẩn Bộ Y Tế.
+3. **Chuyển Đổi Liền Mạch Từ Trực Tuyến Sang Trực Tiếp (O2O Booking Flow):** Khi chuyên khoa được xác định, hệ thống gợi ý ngay các bác sĩ có chứng chỉ hành nghề phù hợp và cho phép chọn ngày, chọn khung giờ 30 phút để đến khám trực tiếp tại bệnh viện.
 
 ### [WORK-LOG-#078] Triển Khai Phiếu Khám Bệnh Điện Tử O2O (E-Admission Ticket with QR, STT, Google Maps & Print)
 * **Thời gian:** 2026-09-30 23:10:00 (GMT+7)
