@@ -72,6 +72,7 @@ Trong các ứng dụng y tế thông thường, nhà phát triển thường m�
 * **Bối cảnh:** Làm việc 12 tiếng/ngày, thường xuyên áp lực deadline. Gần đây chị bị hồi hộp, tim đập nhanh từng cơn, mất ngủ.
 * **Suy nghĩ & Cảm xúc:** *"Mình rất bận, không thể xin nghỉ cả buổi sáng để đi bốc số ở viện tim được. Lên mạng tra thì bảo có thể bị hở van tim hoặc rối loạn lo âu. Cực kỳ stress."*
 * **Điểm chạm MediAssist-AI:** Chị mở trợ lý AI lúc 23h đêm. Trợ lý trò chuyện nhẹ nhàng, khai thác các triệu chứng đi kèm (không khó thở nặng, không đau thắt ngực lan vai) và phân loại nguy cơ ở mức *ROUTINE*. AI gợi ý chị nên gặp bác sĩ Tâm lý hoặc Tim mạch, đồng thời sắp xếp lịch tư vấn video vào tối thứ Bảy thuận tiện.
+* **Hộp thư là "trợ lý hành chính" (WORK_LOG #083):** Ngay sau khi đặt lịch, chị nhận email xác nhận chỉ gồm mã lịch hẹn, giờ khám, tên bác sĩ, chuyên khoa và phòng khám. Email **không nhắc gì đến triệu chứng**, nên chị yên tâm dù hộp thư công ty có trợ lý đọc giúp. Thanh toán xong có biên nhận để gửi phòng kế toán; nếu bác sĩ phải hủy lịch, email báo rõ ai hủy và khoản tiền đã được ghi nhận hoàn, còn lý do chi tiết chị xem khi đăng nhập. Quên mật khẩu lúc nửa đêm, chị tự đặt lại qua liên kết trong email trong 1 phút, không cần gọi tổng đài.
 
 ### Persona 3: TS. BS. Nguyễn Văn An (Bác sĩ Tim Mạch, BV Đại học Y Dược TP.HCM)
 * **Bối cảnh:** Thăm khám trung bình 60 - 80 bệnh nhân mỗi ngày tại phòng khám công. Bác sĩ luôn mong muốn có thêm thời gian lắng nghe bệnh nhân nhưng quá tải.
@@ -107,3 +108,14 @@ Trong các ứng dụng y tế thông thường, nhà phát triển thường m�
 > Đề tài **MediAssist-AI** của nhóm chúng em ra đời để trả lời câu hỏi: *Làm thế nào để công nghệ AI hiện đại và nền tảng Web hiệu năng cao có thể giải quyết được nghịch lý quá tải y tế và trao quyền hiểu biết cho người bệnh một cách an toàn nhất?*  
 > 
 > Bằng việc kết hợp kiến trúc backend doanh nghiệp **Java Spring Boot 3** vững chắc, cơ chế **Cache 2 lớp L1/L2 chịu tải cao**, cơ sở dữ liệu **PostgreSQL với pgvector** tìm kiếm bác sĩ theo ngữ nghĩa triệu chứng, và đặc biệt là hệ thống **AI Triage & Document Summarizer có rào chắn đạo đức nghiêm ngặt**, MediAssist-AI không chỉ là một bài toán kỹ thuật phần mềm xuất sắc, mà còn là một sản phẩm mang đậm tính nhân văn sâu sắc vì cộng đồng y tế Việt Nam."*
+
+---
+
+## 6. Lòng Tin Qua Hộp Thư: Email An Toàn Cho Bệnh Nhân Việt (WORK_LOG #083)
+
+Ở Việt Nam, nhiều bệnh nhân dùng chung email với người thân hoặc dùng email công ty; thư "nhắc lịch khám chuyên khoa X vì triệu chứng Y" có thể làm lộ bệnh tình ngoài ý muốn. MediAssist-AI chọn nguyên tắc: **email lo việc hành chính, ứng dụng lo việc lâm sàng.**
+
+* **Xác thực email khi đăng ký:** bệnh nhân vẫn dùng thử ngay (trợ lý triệu chứng, xem bác sĩ), nhưng phải xác thực email trước khi đặt lịch hoặc thanh toán, vì đây là kênh duy nhất nhận xác nhận lịch, thông báo hủy, biên nhận và liên kết khôi phục tài khoản. Bác Ba (Persona 1) dùng email của cháu nội: cháu chỉ cần bấm một liên kết, sau đó mọi email lịch khám của bác đều tới đúng người.
+* **Quên mật khẩu không cần tổng đài:** liên kết đặt lại có hiệu lực 30 phút, dùng một lần; hệ thống không tiết lộ email có tồn tại hay không.
+* **Không bao giờ có dữ liệu y tế trong email:** không lý do khám, không triệu chứng, không kết quả xét nghiệm, không lý do hủy. Bệnh nhân đăng nhập để xem chi tiết, nơi mọi lượt xem đều được kiểm soát quyền và ghi nhật ký.
+* **Bác sĩ An (Persona 3)** nhận email "Lịch hẹn mới" để chủ động sắp xếp thời gian, nhưng thông tin lâm sàng của bệnh nhân chỉ mở được trong hệ thống, đúng quan hệ điều trị (UC-27).

@@ -364,6 +364,7 @@ graph TD
 #### Luồng xung đột (Conflict Exception Flow):
 * **3a. Người khác đã đặt slot trước đó (Pre-check):** `existsConflict` phát hiện trùng giờ $\rightarrow$ Ném ngoại lệ `AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", ...)`. Backend trả về HTTP 409: *"Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác."*
 * **3b. Xung đột đặt lịch song song (Concurrent Race Condition Shield):** Trường hợp hai bệnh nhân cùng bấm xác nhận tại cùng một microsecond và cùng vượt qua bước `existsConflict()`, Database Partial Unique Index `idx_appointment_unique_active_slot` trên `appointments(doctor_id, scheduled_start) WHERE status != 'CANCELLED'` sẽ chặn transaction thứ hai. Lệnh `saveAndFlush()` kích hoạt `DataIntegrityViolationException`, được bắt và chuyển đổi thành HTTP 409 `SLOT_CONFLICT` an toàn, loại bỏ 100% rủi ro Double-booking.
+* **Email sau khi đặt lịch (WORK_LOG #083, UC-30):** sau khi transaction commit, bệnh nhân nhận email "Xác nhận lịch hẹn" và bác sĩ nhận email "Lịch hẹn mới". Lỗi slot/rollback thì không gửi.
 * **3c. Bệnh nhân chưa xác thực email (WORK_LOG #083):** `EmailVerificationGuard` chạy ngay sau khi nạp bệnh nhân, trước mọi kiểm tra khác → 403 `EMAIL_NOT_VERIFIED` *"Vui lòng xác thực email trước khi đặt lịch khám hoặc thanh toán..."*. Không tạo lịch, không ghi audit. Frontend (DoctorSearchPage, SymptomTriagePage, DocumentSummarizerPage) vô hiệu hóa nút "Xác Nhận Đặt Khám" kèm tooltip, và hiển thị thông báo rõ ràng nếu vẫn nhận lỗi này (`isEmailNotVerified`).
 
 ---
@@ -616,6 +617,7 @@ graph TD
   - `GET /api/v1/admin/stats`: Trả về `AdminSystemStatsDto` tổng hợp số lượng Người dùng, Bác sĩ, Bệnh nhân, Lịch khám, Hồ sơ EMR, Phiên Triage, Sức khỏe hạ tầng DB/Redis/Thread Pool và 10 hoạt động gần nhất.
   - `GET /api/v1/admin/appointments`: Lấy toàn bộ danh sách cuộc hẹn khám bệnh toàn viện kèm thông tin Bác sĩ, Bệnh nhân, Chuyên khoa, Chẩn đoán ICD-10, Đơn thuốc điện tử.
   - `PATCH /api/v1/admin/appointments/{id}/cancel`: Quyền can thiệp của Quản trị viên hủy cuộc hẹn vì lý do điều phối lâm sàng kèm ghi nhận Audit Log.
+    + **WORK_LOG #083:** chỉ hủy được lịch `SCHEDULED` / `IN_PROGRESS`; lịch `COMPLETED` / `CANCELLED` / `NO_SHOW` → 400 `APPOINTMENT_NOT_CANCELLABLE` (thông báo tiếng Việt, không lưu, không hoàn tiền, không gửi email). Lịch đã thanh toán được **tự động hoàn tiền** qua `AppointmentRefundService` (dùng chung với bệnh nhân/bác sĩ hủy). Bệnh nhân và bác sĩ nhận email hủy ghi người hủy là "Quản trị viên" (UC-30). Giao diện chỉ hiện nút hủy cho lịch hủy được và hiển thị lỗi từ backend ngay trong hộp thoại.
   - `GET /api/v1/admin/triage-sessions`: Giám sát toàn bộ phiên phân luồng triệu chứng AI, mức độ khẩn cấp (Emergency / Urgent / Routine), báo cáo lâm sàng chuẩn SBAR và khuyến nghị bác sĩ.
   - `GET /api/v1/admin/audit-logs?action=...`: Truy xuất nhật ký kiểm toán hệ thống theo từng nhóm hành vi hoặc thời gian thực.
 * **Quy Trình Nghiệp Vụ Chính:**
@@ -881,6 +883,7 @@ graph TD
 * **Quy Trình Hoàn Tiền Tự Động (Auto-Refund on Cancellation):**
   - Khi ca khám có trạng thái `paymentStatus == 'PAID'` bị hủy bởi bệnh nhân hoặc bác sĩ, `AppointmentService.updateStatus()` tự động kích hoạt phương thức hoàn tiền `paymentService.refundPayment(appointmentId)`.
   - Trạng thái thanh toán của ca khám chuyển từ `PAID` sang `REFUNDED`, tạo bản ghi thông báo xác nhận hoàn tiền cho bệnh nhân.
+  - **Cập nhật WORK_LOG #083:** logic hoàn tiền được tách thành `AppointmentRefundService.refundIfPaid()` dùng chung cho **cả hai đường hủy**: `AppointmentService.updateAppointmentStatus(CANCELLED)` (bệnh nhân / bác sĩ / admin) và `AdminVettingService.adminCancelAppointment` (trước đây đường admin **không** hoàn tiền). Giao dịch `COMPLETED` tương ứng → `REFUNDED`, lịch hẹn → `REFUNDED`. Đây là ghi nhận trong hệ thống, chưa gọi API refund của cổng thanh toán. Thông tin hoàn tiền được đưa vào email hủy lịch (UC-30).
 
 ---
 
@@ -1006,3 +1009,23 @@ graph TD
   - **E3 - Gửi lại quá nhanh / quá nhiều:** 429 `RATE_LIMIT_EXCEEDED` với thông báo chờ 60 giây hoặc thử lại sau.
   - **E4 - Bệnh nhân chưa xác thực đặt lịch / dời lịch / thanh toán / mua gói:** `EmailVerificationGuard.requireVerifiedPatient` ở **tầng service** (`bookAppointment`, `rescheduleAppointment` khi người dời là bệnh nhân, `PaymentService.createCheckoutSession`, `MedicalDocumentAnalysisService.purchaseQuota`) ném **403 `EMAIL_NOT_VERIFIED`**. Bác sĩ/quản trị viên không bị chặn. Frontend vô hiệu hóa nút kèm tooltip; nếu vẫn nhận lỗi (ví dụ user trong localStorage cũ), `isEmailNotVerified()` hiển thị thông báo rõ ràng. `isPatientAccessDenied()` chỉ nhận `FORBIDDEN_PATIENT_ACCESS` nên không bắt nhầm lỗi này.
 * **Liên kết Google vào tài khoản chưa xác thực (chống pre-hijacking):** xóa `password_hash`, đặt `emailVerified=true`, xóa token xác thực còn lại, audit `ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED`. Chủ thật đăng nhập tiếp bằng Google hoặc dùng "Quên mật khẩu" để đặt mật khẩu mới.
+
+---
+
+### UC-30: Thông Báo Email Nghiệp Vụ: Đặt Lịch, Hủy Lịch & Biên Nhận Thanh Toán (Transactional Email Notifications)
+
+* **Mã Use Case:** `UC-SYS-30` (WORK_LOG #083)
+* **Tác nhân chính:** Bệnh nhân, Bác sĩ, Quản trị viên, `AppointmentService`, `AdminVettingService`, `PaymentService`, `MailNotificationListener`, SMTP (Mailpit ở dev: http://localhost:8025).
+* **Mục tiêu:** Bệnh nhân và bác sĩ nhận email xác nhận cho các sự kiện quan trọng mà không cần mở ứng dụng, đồng thời email **không bao giờ chứa thông tin y tế**.
+* **Cơ chế chung:**
+  - Service phát domain event (record chỉ có dữ liệu hành chính, chụp sẵn trong transaction): `AppointmentBookedEvent`, `AppointmentCancelledEvent`, `PaymentCompletedEvent`.
+  - `MailNotificationListener` xử lý bằng `@TransactionalEventListener(phase = AFTER_COMMIT, fallbackExecution = true)` + `@Async("mailExecutor")`: transaction rollback thì không gửi; SMTP chậm/lỗi không ảnh hưởng thời gian phản hồi hay kết quả nghiệp vụ (chỉ log WARN).
+  - Nội dung email chỉ gồm: mã lịch hẹn, thời gian (`HH:mm dd/MM/yyyy`), tên bác sĩ, chuyên khoa, phòng khám, tên bệnh nhân (email cho bác sĩ), số tiền (`350.000 ₫`), mã giao dịch và liên kết về hệ thống. **Không có** lý do khám, triệu chứng, chẩn đoán, kết quả xét nghiệm, ghi chú khám hay lý do hủy dạng tự gõ.
+* **Luồng 1 - Đặt lịch:** `bookAppointment` (bệnh nhân đặt) và `createFollowUpAppointment` (bác sĩ tạo lịch tái khám) → bệnh nhân nhận "Xác nhận lịch hẹn {mã}" (hoặc "Lịch tái khám {mã}"), bác sĩ nhận "Lịch hẹn mới {mã}".
+* **Luồng 2 - Hủy lịch:** `updateAppointmentStatus(CANCELLED)` và `adminCancelAppointment` → cả bệnh nhân và bác sĩ nhận "Lịch hẹn {mã} đã bị hủy", ghi người hủy ("Bệnh nhân" / "Bác sĩ {tên}" / "Quản trị viên"), kèm *"Khoản thanh toán 350.000 ₫ ... đã được ghi nhận hoàn tiền"* nếu trạng thái thanh toán chuyển sang `REFUNDED`, và câu *"Xem chi tiết lý do sau khi đăng nhập"* + liên kết. Lý do hủy vẫn hiển thị trong ứng dụng như cũ.
+* **Luồng 3 - Thanh toán thành công:** `verifyAndFulfillPayment` và `handleStripeWebhook`, **chỉ** khi giao dịch chuyển `PENDING → COMPLETED` → biên nhận "Biên nhận thanh toán {mã GD}": mã giao dịch, số tiền, phương thức, thời gian, nội dung (phí khám kèm mã + giờ lịch hẹn, hoặc tên gói quota/VIP).
+* **Ngoại lệ / bảo đảm:**
+  - **E1 - Gọi verify lặp lại / webhook đến sau verify:** giao dịch đã `COMPLETED` → không phát event, không gửi email lần hai. Hai lượt verify song song: `@Version` của `PaymentTransaction` làm lượt sau rollback nên `AFTER_COMMIT` không chạy.
+  - **E2 - Lỗi nghiệp vụ (trùng slot, thanh toán thất bại, admin hủy lịch đã kết thúc):** không phát event.
+  - **E3 - SMTP/Mailpit không chạy:** nghiệp vụ vẫn thành công; email bị bỏ, log WARN (chưa có outbox/retry - xem WORK_LOG #083).
+  - **Không gửi email khi dời lịch** (để làm sau). `POST /documents/quota/purchase` cộng quota trực tiếp, không qua cổng thanh toán, nên không có biên nhận.

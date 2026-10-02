@@ -17,8 +17,11 @@ import {
   Activity,
   RefreshCw
 } from 'lucide-react';
-import { api } from '../../services/api';
+import { api, getApiErrorMessage } from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
+
+/** Chỉ lịch đang chờ khám / đang khám mới hủy được (đồng bộ với backend: APPOINTMENT_NOT_CANCELLABLE). */
+const CANCELLABLE_STATUSES: AppointmentItem['status'][] = ['SCHEDULED', 'IN_PROGRESS'];
 
 interface AppointmentItem {
   id: string;
@@ -59,6 +62,7 @@ export const AppointmentSupervisionPage: React.FC = () => {
   const [cancelModalItem, setCancelModalItem] = useState<AppointmentItem | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const fetchAppointments = async (silent = false) => {
     try {
@@ -89,6 +93,7 @@ export const AppointmentSupervisionPage: React.FC = () => {
     if (!cancelModalItem) return;
     try {
       setCancelling(true);
+      setCancelError(null);
       await api.patch(`/admin/appointments/${cancelModalItem.id}/cancel`, {
         reason: cancelReason || 'Quản trị viên can thiệp hủy lịch hẹn vì lý do điều phối lâm sàng'
       });
@@ -97,7 +102,8 @@ export const AppointmentSupervisionPage: React.FC = () => {
       fetchAppointments();
     } catch (err) {
       console.error('Failed to cancel appointment:', err);
-      alert('Không thể hủy cuộc hẹn. Vui lòng thử lại.');
+      // Hiển thị đúng lý do từ backend (ví dụ lịch đã hoàn tất / đã hủy / vắng mặt)
+      setCancelError(getApiErrorMessage(err, 'Không thể hủy cuộc hẹn. Vui lòng thử lại.'));
     } finally {
       setCancelling(false);
     }
@@ -290,9 +296,12 @@ export const AppointmentSupervisionPage: React.FC = () => {
                         >
                           <FileText className="w-3.5 h-3.5 text-slate-600" /> Chi Tiết
                         </button>
-                        {app.status !== 'CANCELLED' && app.status !== 'COMPLETED' && (
+                        {CANCELLABLE_STATUSES.includes(app.status) && (
                           <button
-                            onClick={() => setCancelModalItem(app)}
+                            onClick={() => {
+                              setCancelError(null);
+                              setCancelModalItem(app);
+                            }}
                             className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-semibold transition flex items-center gap-1"
                             title="Hủy khẩn cấp"
                           >
@@ -423,6 +432,12 @@ export const AppointmentSupervisionPage: React.FC = () => {
             <p className="text-xs text-slate-600 leading-relaxed">
               Bạn đang thực hiện quyền Quản trị viên để hủy lịch hẹn giữa bác sĩ <strong>{cancelModalItem.doctorName}</strong> và bệnh nhân <strong>{cancelModalItem.patientName}</strong>. Hành động này sẽ được ghi vào Nhật ký kiểm toán (Audit Log).
             </p>
+            <ul className="text-[11px] text-slate-500 list-disc pl-4 space-y-0.5">
+              {cancelModalItem.paymentStatus === 'PAID' && (
+                <li>Lịch hẹn đã thanh toán: hệ thống sẽ tự động ghi nhận <strong>hoàn tiền</strong> cho bệnh nhân.</li>
+              )}
+              <li>Bệnh nhân và bác sĩ nhận email thông báo hủy. Email <strong>không</strong> kèm lý do; lý do chỉ xem được trong hệ thống.</li>
+            </ul>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -436,6 +451,13 @@ export const AppointmentSupervisionPage: React.FC = () => {
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition"
               />
             </div>
+
+            {cancelError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{cancelError}</span>
+              </div>
+            )}
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <button

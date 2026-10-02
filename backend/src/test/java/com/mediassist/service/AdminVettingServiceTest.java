@@ -69,6 +69,12 @@ class AdminVettingServiceTest {
     @Mock
     private com.mediassist.repository.DocumentAnalysisRepository documentAnalysisRepository;
 
+    @Mock
+    private AppointmentRefundService refundService;
+
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     private AdminVettingService adminVettingService;
 
@@ -350,11 +356,66 @@ class AdminVettingServiceTest {
 
         when(appointmentRepository.findByIdWithUsers(app.getId())).thenReturn(Optional.of(app));
         when(appointmentRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(refundService.refundIfPaid(any())).thenReturn(AppointmentRefundService.RefundResult.NONE);
 
         var dto = adminVettingService.adminCancelAppointment(app.getId(), adminId, "Doctor emergency leave");
         assertNotNull(dto);
         assertEquals(com.mediassist.model.entity.AppointmentStatus.CANCELLED, dto.getStatus());
         assertTrue(dto.getCancellationReason().contains("Doctor emergency leave"));
         verify(auditLogRepository).save(any(AuditLog.class));
+    }
+
+    // ===== Quan tri vien huy lich: hoan tien dung chung + email (WORK_LOG #083 phan D) =====
+
+    @Test
+    @DisplayName("Admin huy lich da thanh toan: hoan tien qua service dung chung va phat event huy (ADMIN, refunded)")
+    void testAdminCancel_Paid_RefundsAndPublishes() {
+        com.mediassist.model.entity.Appointment app = new com.mediassist.model.entity.Appointment();
+        app.setId(UUID.randomUUID());
+        app.setAppointmentCode("AP-2026-ADMIN-PAID");
+        app.setStatus(com.mediassist.model.entity.AppointmentStatus.SCHEDULED);
+        app.setPaymentStatus(com.mediassist.model.entity.PaymentStatus.PAID);
+        app.setDoctor(doctorUser);
+        app.setPatient(doctorUser);
+
+        when(appointmentRepository.findByIdWithUsers(app.getId())).thenReturn(Optional.of(app));
+        when(appointmentRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(refundService.refundIfPaid(app)).thenReturn(
+                new AppointmentRefundService.RefundResult(true, new java.math.BigDecimal("350000")));
+
+        adminVettingService.adminCancelAppointment(app.getId(), adminId, "Bác sĩ nghỉ đột xuất");
+
+        verify(refundService).refundIfPaid(app);
+        org.mockito.ArgumentCaptor<com.mediassist.event.AppointmentCancelledEvent> captor =
+                org.mockito.ArgumentCaptor.forClass(com.mediassist.event.AppointmentCancelledEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertEquals(com.mediassist.event.AppointmentCancelledEvent.CancelledBy.ADMIN, captor.getValue().cancelledBy());
+        assertTrue(captor.getValue().refunded());
+        assertFalse(captor.getValue().toString().contains("nghỉ đột xuất"));
+    }
+
+    @Test
+    @DisplayName("Admin KHONG duoc huy lich da COMPLETED / CANCELLED / NO_SHOW: 400, khong luu, khong hoan tien, khong email")
+    void testAdminCancel_FinishedAppointment_Rejected() {
+        for (com.mediassist.model.entity.AppointmentStatus status : java.util.List.of(
+                com.mediassist.model.entity.AppointmentStatus.COMPLETED,
+                com.mediassist.model.entity.AppointmentStatus.CANCELLED,
+                com.mediassist.model.entity.AppointmentStatus.NO_SHOW)) {
+            com.mediassist.model.entity.Appointment app = new com.mediassist.model.entity.Appointment();
+            app.setId(UUID.randomUUID());
+            app.setAppointmentCode("AP-2026-" + status);
+            app.setStatus(status);
+            app.setDoctor(doctorUser);
+            app.setPatient(doctorUser);
+            when(appointmentRepository.findByIdWithUsers(app.getId())).thenReturn(Optional.of(app));
+
+            com.mediassist.common.AppException ex = assertThrows(com.mediassist.common.AppException.class,
+                    () -> adminVettingService.adminCancelAppointment(app.getId(), adminId, "Thử hủy"));
+            assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getStatus());
+            assertEquals("APPOINTMENT_NOT_CANCELLABLE", ex.getCode());
+            assertEquals(status, app.getStatus());
+        }
+        verify(appointmentRepository, never()).save(any());
+        verifyNoInteractions(refundService, eventPublisher);
     }
 }
