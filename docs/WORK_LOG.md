@@ -11,7 +11,34 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#082** | 05/10/2026 | Khắc Phục Lỗi Google OAuth2 401 invalid_client & Sửa Native Query đếm Vector Bác Sĩ: (1) Cấu hình Google Client ID và Client Secret thực tế từ Google Cloud Console vào `application-local.properties` (được bảo vệ bởi `.gitignore`), đồng thời đồng bộ fallback trong `application-dev.properties`, (2) Khắc phục lỗi `DoctorProfileRepository.countByBioEmbeddingIsNotNull` bằng Native SQL Query do `bio_embedding` là cột pgvector thuần không map thành thuộc tính String trong JPA, (3) Kiểm tra URL điều hướng ủy quyền OAuth2 `/oauth2/authorization/google` hoạt động chính xác với Client ID mới (`741178716405-...`), (4) Backend & Frontend đang chạy thông suốt trên cổng 5001 & 5173 | AI Assistant | 🟢 Sẵn sàng Review |
 | **#081** | 02/10/2026 | Triển Khai Bảng Giám Sát Chi Phí & Tài Nguyên AI Toàn Viện (Phase 4 Admin AI Token & Cost Analytics Dashboard): (1) Flyway migration V17 chuẩn hóa bảng `ai_token_usage` (bổ sung `service_type`, `request_status`, `cost_usd`, `appointment_id` và các chỉ mục phân tích), (2) Tạo entity `AiTokenUsage`, repository `AiTokenUsageRepository` với các truy vấn tổng hợp theo thời gian, theo ngày (Line Chart), theo dịch vụ (Pie Chart) và tỷ lệ lỗi, (3) Service `AiUsageAnalyticsService` tính toán chi phí USD theo bảng giá chuẩn Gemini ($0.00125/1k input, $0.005/1k output) và quy đổi VNĐ theo tỷ giá cấu hình (25.000₫/USD), (4) Hook tự động ghi nhận lượng tiêu thụ token vào `TriageService` và `MedicalDocumentAnalysisService`, (5) Endpoint `GET /api/v1/admin/ai-usage` phân quyền `ADMIN`, (6) Giao diện AdminDashboard tích hợp Recharts: 5 KPI Cards (Requests, Tokens, USD, VNĐ, Error Rate), Progress Bar cảnh báo lỗi (>10%), Line Chart xu hướng theo ngày với toggle [Tokens]/[Chi Phí], Pie Chart phân bổ Triage vs Cận Lâm Sàng kèm bảng chi tiết và bộ lọc 7/30/90 ngày, (7) 144/144 Backend Tests PASS sạch sẽ & Frontend Build 0 lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
+
+---
+
+## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#082] Khắc Phục Lỗi Google OAuth2 401 invalid_client & Sửa Native Query đếm Vector Bác Sĩ
+* **Thời gian:** 2026-10-05 23:55:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-SEC-01 (Dual-Transport Authentication & Social Sign-In)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend: Port `5001` UP & Healthy (`/oauth2/authorization/google` chuyển hướng 302 chính xác sang Google Accounts)
+  - Frontend: Port `5173` UP & Ready
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Tạo mới `[NEW]`:**
+  - `backend/src/main/resources/application-local.properties`: Chứa Client ID và Secret thực tế từ Google Cloud Console (được bảo vệ bởi `.gitignore`).
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/resources/application-dev.properties`: Cập nhật giá trị mặc định cho biến placeholder `GOOGLE_CLIENT_ID` và `GOOGLE_CLIENT_SECRET`.
+  - `backend/src/main/java/com/mediassist/repository/DoctorProfileRepository.java`: Chuyển `countByBioEmbeddingIsNotNull()` sang Native Query SQL thuần để tương thích với cột `bio_embedding` (pgvector).
+  - `docs/WORK_LOG.md`: Ghi nhật ký cập nhật `#082`.
+
+#### 2. Kết Quả Xác Nhận:
+- Gửi request đến `http://localhost:5001/oauth2/authorization/google` trả về HTTP 302 Redirect đến:
+  `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=741178716405-t1efef9ih4pedm6iombf80qi71es30g1.apps.googleusercontent.com&...`
+- Lỗi `Error 401: invalid_client` đã được xử lý triệt để.
 | **#080** | 02/10/2026 | Triển Khai Trạm Bác Sĩ Màn Hình Đôi & Lịch Tuần (Phase 3 Doctor Split-Screen Workstation): (1) Bổ sung trạng thái `CHECKED_IN` vào enum `AppointmentStatus`, entity `Appointment` (`checkedInAt`), DTO `AppointmentDto` và state machine chuyển đổi trong `AppointmentService`, (2) Mở endpoint `PATCH /api/v1/appointments/{id}/check-in` với phân quyền `DOCTOR`/`ADMIN`, (3) Thiết kế Encounter Modal màn hình đôi (Split-Screen 50/50): Cột trái hiển thị Document Viewer xem trực tiếp PDF (`iframe`), ảnh cận lâm sàng, nút tải về; Cột phải gồm 3 Sub-tabs [🤖 Phân Tích AI] (Urgency Badge, SBAR Triage, Nạp vào bệnh án, Làm mới AI), [✍️ Ghi Chú Khám (EMR)] (Dấu hiệu sinh tồn, mã ICD-10, kê đơn với cảnh báo dị ứng tức thời, nút Check-in và Hoàn tất ca khám), [📜 Bệnh Sử Cũ] (Lịch sử các lần khám trước), (4) Bổ sung chế độ xem Lịch Tuần (Weekly Calendar Grid) lưới 7 ngày × khung giờ 07:00-17:00 với khối lịch mã màu và điều hướng tuần, (5) Đạt 100% PASS Backend Unit Tests (17/17 AppointmentServiceTest) và Frontend build 0 lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 
 ---
