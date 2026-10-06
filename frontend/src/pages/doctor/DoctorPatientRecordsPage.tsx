@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   Eye
 } from 'lucide-react';
-import { api } from '../../services/api';
+import { api, isPatientAccessDenied } from '../../services/api';
+import { PatientAccessDeniedNotice } from '../../components/common/PatientAccessDeniedNotice';
 import { Pagination } from '../../components/common/Pagination';
 import { useDebounce } from '../../hooks/useDebounce';
 import { DocumentAnalysisModal } from '../../components/common/DocumentAnalysisModal';
@@ -140,6 +141,7 @@ export const DoctorPatientRecordsPage: React.FC = () => {
   const [patientTriage, setPatientTriage] = useState<PatientTriageItem[]>([]);
   const [patientDocs, setPatientDocs] = useState<PatientDocItem[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [patientAccessDenied, setPatientAccessDenied] = useState(false);
   const [detailTab, setDetailTab] = useState<'VISITS' | 'TRIAGE' | 'DOCS' | 'PASSPORT'>('VISITS');
   const [selectedEmrAppointment, setSelectedEmrAppointment] = useState<PatientAppointmentHistory | null>(null);
 
@@ -192,12 +194,16 @@ export const DoctorPatientRecordsPage: React.FC = () => {
     setSelectedPatient(p);
     setDetailTab('VISITS');
     setLoadingDetails(true);
+    setPatientAccessDenied(false);
     try {
       const [resAppt, resTriage, resDocs] = await Promise.allSettled([
         api.get(`/appointments/patient/${p.patientId}`),
         api.get(`/triage/patient/${p.patientId}`),
         api.get(`/documents/patient/${p.patientId}`),
       ]);
+      setPatientAccessDenied(
+        [resAppt, resTriage, resDocs].some((r) => r.status === 'rejected' && isPatientAccessDenied(r.reason))
+      );
       if (resAppt.status === 'fulfilled' && resAppt.value.data?.data) {
         setPatientHistory(resAppt.value.data.data);
       } else {
@@ -626,6 +632,8 @@ export const DoctorPatientRecordsPage: React.FC = () => {
                   <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-teal-600" />
                   Đang tải dữ liệu hồ sơ lâm sàng...
                 </div>
+              ) : patientAccessDenied ? (
+                <PatientAccessDeniedNotice />
               ) : (
                 <>
                   {/* TAB 1: VISITS */}

@@ -799,7 +799,7 @@ graph TD
      - Trong Bàn khám EMR (`DoctorDashboard.tsx` - Tab 3 `DOCUMENTS`): Các tài liệu lưu trữ nội bộ nay được bổ sung nút bấm hành động `[Xem Bóc Tách AI & Chỉ Số]` và `[Mở Tệp Gốc]`.
      - Trong Ngăn kéo Hồ sơ Bệnh nhân 360° (`DoctorPatientRecordsPage.tsx` - Tab 3 `DOCS`): Bác sĩ có thể bấm xem chi tiết phân tích AI và tệp gốc của mọi tài liệu bệnh nhân từng gửi trong quá khứ.
   5. **Kiểm Soát Phân Quyền & Bảo Mật Chuẩn Y Tế (HIPAA & RBAC Guard):**
-     - Chỉ Bác sĩ được chỉ định, Bệnh nhân sở hữu tài liệu, hoặc Admin hệ thống mới được phép gọi API tải tệp và xem bóc tách. Mọi truy cập trái phép bị chặn đứng với mã lỗi `403 FORBIDDEN`.
+     - Chỉ Bác sĩ có quan hệ điều trị với chủ sở hữu tài liệu, Bệnh nhân sở hữu tài liệu, hoặc Admin hệ thống (có ghi audit) mới được phép gọi API tải tệp và xem bóc tách. Mọi truy cập trái phép bị chặn với mã lỗi `403 FORBIDDEN_PATIENT_ACCESS`. Chi tiết xem **UC-27**.
 
 ---
 
@@ -876,4 +876,41 @@ graph TD
   5. Trên `DocumentSummarizerPage` và `SymptomTriagePage`, các thẻ bác sĩ được gợi ý qua AI Vector Search hiển thị kèm số sao và số lượt đánh giá thực tế.
   6. Trên `DoctorDashboard`, số lượt đánh giá thực tế hiển thị ngay tại thanh tiêu đề bàn làm việc lâm sàng cạnh điểm đánh giá trung bình.
 
+---
 
+### UC-27: Rào Chắn Quyền Truy Cập Hồ Sơ Bệnh Nhân Theo Quan Hệ Điều Trị & Nhật Ký Xem Hồ Sơ (Patient Record Access Guard & View Audit Trail)
+
+* **Mã Use Case:** `UC-SEC-27`
+* **Tác nhân chính:** Doctor (Bác sĩ), Patient (Bệnh nhân), Admin (Quản trị viên), `PatientAccessGuard`, `AuditLogRepository`.
+* **Mục tiêu:** Khắc phục lỗ hổng IDOR (Insecure Direct Object Reference): trước đây bất kỳ tài khoản `DOCTOR` nào biết UUID bệnh nhân đều đọc được toàn bộ hồ sơ. Nay quyền đọc hồ sơ phụ thuộc vào **quan hệ điều trị thực tế** (nguyên tắc tối thiểu cần thiết - Need-to-know, Nghị định 13/2023/NĐ-CP).
+* **REST Endpoints được bảo vệ:**
+  - `GET /api/v1/patient/profile/by-user/{userId}`
+  - `GET /api/v1/documents/patient/{patientId}`
+  - `GET /api/v1/documents/{id}/file` và `GET /api/v1/documents/{id}/analysis` (tra chủ sở hữu tài liệu `medical_documents.user_id` rồi kiểm tra quyền)
+  - `GET /api/v1/triage/patient/{patientId}`
+  - `GET /api/v1/appointments/patient/{patientId}`
+* **Quy tắc phân quyền (`PatientAccessGuard.assertCanAccessPatient(actorUserId, role, patientId)`):**
+
+| Vai trò | Điều kiện được xem | Ghi audit `VIEW_PATIENT_RECORD` |
+| :--- | :--- | :--- |
+| `PATIENT` | `actorUserId == patientId` (chỉ hồ sơ của chính mình) | Không |
+| `DOCTOR` | Tồn tại ≥ 1 lịch hẹn giữa bác sĩ và bệnh nhân ở trạng thái `SCHEDULED` / `IN_PROGRESS` / `COMPLETED` (`AppointmentRepository.existsByDoctorIdAndPatientIdAndStatusIn`) | Có |
+| `ADMIN` | Luôn được xem | **Bắt buộc** |
+
+  - Lịch hẹn `CANCELLED` / `NO_SHOW` **không** tạo quan hệ điều trị.
+  - Tài liệu không có chủ sở hữu (`user_id IS NULL`) chỉ Admin xem được.
+* **Tiền điều kiện (Pre-condition):** Người dùng đã đăng nhập (JWT Bearer hoặc HttpOnly Cookie); các endpoint danh sách vẫn giữ `@PreAuthorize("hasAnyRole('DOCTOR','ADMIN')")` làm lớp phòng thủ thứ nhất.
+* **Hậu điều kiện (Post-condition):** Nếu được cấp quyền và actor là DOCTOR/ADMIN, một bản ghi `audit_logs` được tạo với `action = VIEW_PATIENT_RECORD`, `user_id = actor`, `resource` (ví dụ `medical_documents/{id}/file`), `ip_address` (ưu tiên `X-Forwarded-For` → `X-Real-IP` → remote address), `user_agent`, `metadata = "Role: DOCTOR, PatientId: {uuid}"`.
+* **Luồng sự kiện chính (Happy Path):**
+  1. Bác sĩ mở ca khám trên `DoctorDashboard` hoặc mở ngăn kéo hồ sơ trên `DoctorPatientRecordsPage`.
+  2. Frontend gọi song song các endpoint hồ sơ (hộ chiếu y tế, triage, tài liệu, lịch sử khám).
+  3. Mỗi endpoint gọi `PatientAccessGuard` → xác nhận quan hệ điều trị → ghi audit → trả dữ liệu dạng DTO (`PatientProfileDto`, `TriageSessionDto`, `MedicalDocumentDto`, `AppointmentDto`) — không trả JPA entity.
+* **Luồng ngoại lệ 403 (Exception Flow - FORBIDDEN_PATIENT_ACCESS):**
+  1. Bác sĩ không có lịch hẹn hợp lệ với bệnh nhân (hoặc bệnh nhân A dò UUID tài liệu của bệnh nhân B) gọi endpoint.
+  2. `PatientAccessGuard` ném `AppException(403, "FORBIDDEN_PATIENT_ACCESS")`; `GlobalExceptionHandler` trả:
+     ```json
+     { "success": false, "error": { "code": "FORBIDDEN_PATIENT_ACCESS", "message": "Bạn không có quyền xem hồ sơ của bệnh nhân này. ..." } }
+     ```
+  3. Dữ liệu hồ sơ **không** được truy vấn; không ghi audit `VIEW_PATIENT_RECORD` (chỉ ghi log cảnh báo phía server).
+  4. Frontend (`isPatientAccessDenied` trong `services/api.ts`) nhận diện 403 và hiển thị `PatientAccessDeniedNotice`: *"Không thể mở hồ sơ bệnh nhân này"* kèm giải thích theo Nghị định 13/2023/NĐ-CP, thay vì hiện hồ sơ trống hoặc dữ liệu giả. `DocumentAnalysisModal` cũng hiển thị thông báo này thay cho dữ liệu dự phòng.
+* **Luồng thay thế:** Admin cần hội chẩn → được xem nhưng mọi lượt xem đều có dấu vết trong Nhật ký kiểm toán (UC-17).

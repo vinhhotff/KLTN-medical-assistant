@@ -103,6 +103,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
             org.springframework.data.domain.Pageable pageable
     );
 
+    boolean existsByDoctorIdAndPatientIdAndStatusIn(UUID doctorId, UUID patientId, java.util.Collection<AppointmentStatus> statuses);
+
     long countByDoctorId(UUID doctorId);
 
     long countByDoctorIdAndStatus(UUID doctorId, AppointmentStatus status);

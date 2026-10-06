@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#081** | 29/09/2026 | Vá Lỗ Hổng IDOR Hồ Sơ Bệnh Nhân (Patient Record Access Guard): (1) `PatientAccessGuard` phân quyền PATIENT tự xem / DOCTOR cần quan hệ điều trị (lịch hẹn SCHEDULED/IN_PROGRESS/COMPLETED) / ADMIN bắt buộc audit, (2) Áp guard cho 6 endpoint hồ sơ, vi phạm trả 403 `FORBIDDEN_PATIENT_ACCESS`, (3) AuditLog `VIEW_PATIENT_RECORD` kèm IP, (4) `MedicalDocumentDto` & `TriageSessionDto` thay entity, (5) Thông báo 403 thân thiện trên DoctorDashboard, DoctorPatientRecordsPage, DocumentAnalysisModal, (6) 157/157 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#079** | 28/09/2026 | Hiện Thực Hóa Toàn Diện Hệ Thống Đánh Giá & Chấm Sao Bác Sĩ (Rating & Review System) Khép Kín Vòng Phản Hồi Lâm Sàng & Đưa Điểm Thực Tế Vào Thuật Toán WHRF: (1) Flyway V17 tạo bảng `doctor_reviews` và cột `review_count`, (2) Ràng buộc 1 ca khám hoàn tất (`COMPLETED`) 1 đánh giá duy nhất (idempotent), (3) Tự động tái tính điểm trung bình và cập nhật số lượt đánh giá, (4) Invalidate Two-Layer Cache (Caffeine L1 + Redis L2) và WHRF search cache, (5) Tích hợp điểm thực tế vào thuật toán WHRF ($O(M \log K)$ Min-Heap) với hệ số suy giảm độ tin cậy (Credibility Damper) cho bác sĩ ít review, (6) Bảo vệ riêng tư Nghị định 13/2023/NĐ-CP & HIPAA bằng mặt nạ họ tên bệnh nhân, (7) Frontend Modal chấm sao tương tác, xem danh sách đánh giá chi tiết, hiển thị sao và số lượt đánh giá trên DoctorSearch, PatientDashboard, DoctorDashboard, Triage, DocumentSummarizer, (8) 143/143 Backend Tests PASS (100%), Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#078** | 28/09/2026 | Tích Hợp Toàn Diện 2 Nhánh Đồng Nghiệp Vào Nhánh develop (Integration Merge: fix/critical-bugs & feature/fuction): (1) Merge nhánh fix/critical-bugs của Bảo: Thu hẹp Vite proxy tránh cướp route /oauth2/callback SPA, nâng cấp logging lỗi OAuth2, untrack các tệp .env và cấu hình nạp qua spring.config.import, (2) Merge nhánh feature/fuction của Khương: Chuông thông báo in-app NotificationBell, Quên/Đặt lại mật khẩu PasswordResetToken, Rào chắn hoàn tiền hủy khám & Dời lịch hẹn, Flyway V15 & V16, (3) Xác thực toàn diện: 136/136 Backend Tests PASS (100%), Frontend build 0 lỗi TypeScript (1683 modules), và bảo toàn các tệp .env cục bộ cho môi trường phát triển | AI Assistant | 🟢 Sẵn sàng Review |
 | **#077** | 23/09/2026 | Hoàn Thiện Toàn Diện Nghiệp Vụ Doanh Nghiệp, Rào Chắn Lịch Khám, Tính Nguyên Tử Thanh Toán & Chuông Thông Báo (Enterprise Flows & Safeguards Hardening): (1) Flyway V15 & V16 bổ sung `triage_session_id`, `password_reset_tokens`, `notifications`, (2) Rào chắn đặt lịch: Bác sĩ active/verified, giờ hành chính (8-12h, 13h30-17h, nghỉ Chủ Nhật), số thứ tự tiếp đón (STT), state machine chuyển đổi trạng thái, API Dời lịch hẹn (`PATCH /appointments/{id}/reschedule`), tự động hoàn tiền khi hủy ca khám đã thanh toán, (3) Tính nguyên tử thanh toán: Chống duplicate checkout race condition, `@Transactional(REQUIRES_NEW)` cho fulfillOrder, kiểm toán giao dịch mồ côi, (4) Lịch làm việc bác sĩ động từ `DoctorScheduleSlot` & DB aggregation cho thống kê, hàng đợi khóa bi quan (pessimistic lock), (5) Sanitization đầu vào Triage, CCCD 12 số & SĐT Việt Nam, chu trình Quên mật khẩu an toàn, (6) Hệ thống chuông thông báo nội bộ thời gian thực cho Bệnh nhân & Bác sĩ, (7) Frontend wire-up: Dời lịch hẹn modal, liên kết xem tài liệu `focusId`, banner cảnh báo CCCD/nhóm máu chưa hoàn thiện, chọn giờ tái khám bác sĩ, (8) Đạt 136/136 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
@@ -19,6 +20,43 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#081] Vá Lỗ Hổng IDOR Hồ Sơ Bệnh Nhân: Rào Chắn Quan Hệ Điều Trị & Nhật Ký Xem Hồ Sơ (Patient Record Access Guard)
+* **Thời gian:** 2026-09-29 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code
+* **Mã Use Cases:** UC-SEC-27 (mới), cập nhật UC-DOC-22
+* **Nhánh:** `feature/patient-access-guard` (tách từ `develop` @ `ae3ad52`)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend: **157/157 Unit Tests PASS** (`mvn test`, 143 cũ + 14 mới), BUILD SUCCESS
+  - Frontend: **0 TypeScript Errors, 1686 modules transformed** (`npm run build` = `tsc && vite build`)
+
+#### 1. Bối cảnh:
+Bất kỳ tài khoản `DOCTOR` nào biết UUID bệnh nhân đều đọc được hộ chiếu y tế, tài liệu xét nghiệm, tệp gốc, kết quả OCR, lịch sử Triage và lịch sử khám (lỗ hổng IDOR). `/documents/{id}/file` và `/analysis` chỉ chặn PATIENT, còn DOCTOR thì không kiểm tra gì.
+
+#### 2. Danh sách tệp tin:
+- `[NEW]` `backend/.../service/PatientAccessGuard.java` — `assertCanAccessPatient(actorUserId, role, patientId[, resource])`; ghi AuditLog `VIEW_PATIENT_RECORD` (actor, resource, IP từ `X-Forwarded-For`/`X-Real-IP`/remote, User-Agent, metadata có patientId) cho DOCTOR/ADMIN.
+- `[NEW]` `backend/.../dto/MedicalDocumentDto.java`, `backend/.../dto/TriageSessionDto.java` — thay thế entity trong response, JSON giữ tên field `isValidMedical` / `isEmergency` mà frontend đang đọc, bỏ `fileHash`.
+- `[MOD]` `backend/.../repository/AppointmentRepository.java` — thêm `existsByDoctorIdAndPatientIdAndStatusIn`.
+- `[MOD]` `PatientProfileController`, `AppointmentController`, `TriageController`, `MedicalDocumentController` — áp guard; `/documents/{id}/file|analysis` tra chủ sở hữu tài liệu rồi kiểm tra; `/documents/my`, `/documents/patient/{id}`, `/triage/history`, `/triage/patient/{id}` trả DTO.
+- `[NEW]` `backend/src/test/.../service/PatientAccessGuardTest.java` (6 test), `backend/src/test/.../PatientRecordAccessControllerTest.java` (8 test).
+- `[NEW]` `frontend/src/components/common/PatientAccessDeniedNotice.tsx`
+- `[MOD]` `frontend/src/services/api.ts` (`isPatientAccessDenied`, `PATIENT_ACCESS_DENIED_MESSAGE`), `DoctorDashboard.tsx`, `DoctorPatientRecordsPage.tsx`, `DocumentAnalysisModal.tsx`.
+
+#### 3. Tài liệu đã đồng bộ:
+- `docs/USE_CASES.md` ✅ — thêm UC-27 (bảng phân quyền, pre/post-condition, happy path, luồng ngoại lệ 403); sửa UC-22 mục 5 cho đúng thực tế.
+- `docs/CAPSTONE_DEFENSE.md` ✅ — Câu hỏi 15 về quyền riêng tư theo Nghị định 13/2023/NĐ-CP (kèm kịch bản demo và hạn chế thừa nhận).
+- `docs/DATABASE_DESIGN.md` ✅ — ghi chú action `VIEW_PATIENT_RECORD` và truy vấn quan hệ điều trị (không đổi schema, không migration).
+- `docs/WORK_LOG.md` ✅
+
+#### 4. Điểm nóng Tech Lead cần Review:
+1. **Định nghĩa quan hệ điều trị:** ≥ 1 lịch hẹn `SCHEDULED`/`IN_PROGRESS`/`COMPLETED`, không giới hạn thời gian. Bác sĩ đã khám xong vẫn xem được vĩnh viễn — cân nhắc thêm cửa sổ thời gian.
+2. **Hành vi thay đổi:** Bác sĩ mở ca khám `CANCELLED`/`NO_SHOW` (không còn lịch hợp lệ nào khác) giờ sẽ thấy thông báo 403 thay vì hồ sơ.
+3. **Audit volume:** Mở 1 ca khám trên DoctorDashboard gọi 4 endpoint → 4 bản ghi `VIEW_PATIENT_RECORD` (mỗi bản ghi một `resource` khác nhau).
+4. **Tên field JSON:** Trước đây entity serialize thành `emergency`/`validMedical` trong khi frontend đọc `isEmergency`/`isValidMedical` (luôn `undefined`). DTO mới trả đúng `isEmergency`/`isValidMedical` → badge cấp cứu và nhãn "hợp lệ y khoa" trên PatientDashboard/DoctorDashboard nay hiển thị đúng dữ liệu.
+5. **Chưa xử lý (ngoài phạm vi):** `storageUrl` Supabase công khai vẫn trả về trong DTO (frontend đang dùng) — ai có URL có thể tải tệp bỏ qua guard; đề xuất chuyển sang Signed URL.
+6. `/documents/{id}/file|analysis` nay yêu cầu user tồn tại trong DB (trước đây user không tìm thấy vẫn được đi tiếp).
+
+---
 
 ### [WORK-LOG-#079] Hiện Thực Hóa Toàn Diện Hệ Thống Đánh Giá & Chấm Sao Bác Sĩ (Rating & Review System) Khép Kín Vòng Phản Hồi Lâm Sàng & Đưa Điểm Thực Tế Vào Thuật Toán WHRF
 * **Thời gian:** 2026-09-28 20:30:00 (GMT+7)
