@@ -16,7 +16,7 @@ public class DocumentAnalysisResponse {
     private String recommendedSpecialtyName;
     private List<String> suggestedQuestions;
     private List<DoctorMatchDto> matchedDoctors;
-    private String storageUrl;
+    private boolean hasFile;
     private boolean cachedResult;
     private String modelUsed;
     private String doctorRecommendationReason;
@@ -103,8 +103,9 @@ public class DocumentAnalysisResponse {
     public List<DoctorMatchDto> getMatchedDoctors() { return matchedDoctors; }
     public void setMatchedDoctors(List<DoctorMatchDto> matchedDoctors) { this.matchedDoctors = matchedDoctors; }
 
-    public String getStorageUrl() { return storageUrl; }
-    public void setStorageUrl(String storageUrl) { this.storageUrl = storageUrl; }
+    @com.fasterxml.jackson.annotation.JsonProperty("hasFile")
+    public boolean isHasFile() { return hasFile; }
+    public void setHasFile(boolean hasFile) { this.hasFile = hasFile; }
 
     public boolean isCachedResult() { return cachedResult; }
     public void setCachedResult(boolean cachedResult) { this.cachedResult = cachedResult; }

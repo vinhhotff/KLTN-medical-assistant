@@ -12,7 +12,7 @@ public class MedicalDocumentDto {
     private long fileSizeBytes;
     private String contentType;
     private String status;
-    private String storageUrl;
+    private boolean hasFile;
     private boolean validMedical;
     private LocalDateTime createdAt;
 
@@ -25,7 +25,7 @@ public class MedicalDocumentDto {
         dto.setFileSizeBytes(doc.getFileSizeBytes());
         dto.setContentType(doc.getContentType());
         dto.setStatus(doc.getStatus());
-        dto.setStorageUrl(doc.getStorageUrl());
+        dto.setHasFile(doc.hasStoredFile());
         dto.setValidMedical(doc.isValidMedical());
         dto.setCreatedAt(doc.getCreatedAt());
         return dto;
@@ -46,8 +46,9 @@ public class MedicalDocumentDto {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
-    public String getStorageUrl() { return storageUrl; }
-    public void setStorageUrl(String storageUrl) { this.storageUrl = storageUrl; }
+    @JsonProperty("hasFile")
+    public boolean isHasFile() { return hasFile; }
+    public void setHasFile(boolean hasFile) { this.hasFile = hasFile; }
 
     @JsonProperty("isValidMedical")
     public boolean isValidMedical() { return validMedical; }

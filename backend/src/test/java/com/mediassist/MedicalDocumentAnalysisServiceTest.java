@@ -101,7 +101,7 @@ class MedicalDocumentAnalysisServiceTest {
             return 1;
         });
         lenient().when(storageService.uploadDocument(any(), any(), any(), any()))
-                .thenReturn("https://supabase.co/storage/v1/object/public/medical-documents/test.pdf");
+                .thenReturn("patients/test-user/abcd1234_test.pdf");
 
         lenient().when(medicalDocumentRepository.save(any(MedicalDocument.class)))
                 .thenAnswer(inv -> {
@@ -239,7 +239,7 @@ class MedicalDocumentAnalysisServiceTest {
         existingDoc.setFileName("Deduplicated.pdf");
         existingDoc.setFileSizeBytes((long) fileBytes.length);
         existingDoc.setContentType("application/pdf");
-        existingDoc.setStorageUrl("https://supabase.co/storage/v1/object/public/medical-documents/cached.pdf");
+        existingDoc.setStoragePath("patients/test-user/cached.pdf");
 
         DocumentAnalysis existingAnalysis = new DocumentAnalysis();
         existingAnalysis.setId(UUID.randomUUID());
@@ -259,7 +259,7 @@ class MedicalDocumentAnalysisServiceTest {
 
         assertNotNull(response);
         assertTrue(response.isCachedResult(), "Response must be marked as cachedResult");
-        assertEquals("https://supabase.co/storage/v1/object/public/medical-documents/cached.pdf", response.getStorageUrl());
+        assertTrue(response.isHasFile(), "Cached response must expose hasFile=true without leaking the storage path");
         assertEquals("cardiology", response.getRecommendedSpecialtySlug());
         assertTrue(response.getModelUsed().contains("Deduplication"));
 
@@ -508,7 +508,7 @@ class MedicalDocumentAnalysisServiceTest {
         byte[] fileBytes = "%PDF-1.4 glucose cholesterol".getBytes();
         MockMultipartFile file = new MockMultipartFile("file", "lab_test.pdf", "application/pdf", fileBytes);
 
-        String uploadedUrl = "https://supabase.co/storage/v1/object/public/medical-documents/test.pdf";
+        String uploadedUrl = "patients/test-user/abcd1234_test.pdf";
         when(storageService.uploadDocument(any(), any(), any(), any())).thenReturn(uploadedUrl);
         when(medicalDocumentRepository.save(any())).thenThrow(new RuntimeException("DB Disk Full / Connection Lost"));
 
@@ -654,7 +654,7 @@ class MedicalDocumentAnalysisServiceTest {
         winnerDoc.setFileName("blood_race.pdf");
         winnerDoc.setFileSizeBytes(mockDoc.length());
         winnerDoc.setContentType("application/pdf");
-        winnerDoc.setStorageUrl("https://supabase.co/storage/v1/object/public/medical-documents/winner.pdf");
+        winnerDoc.setStoragePath("patients/test-user/winner.pdf");
 
         DocumentAnalysis winnerAnalysis = new DocumentAnalysis();
         winnerAnalysis.setId(UUID.randomUUID());
@@ -763,7 +763,7 @@ class MedicalDocumentAnalysisServiceTest {
         staleDoc.setId(existingDocId);
         staleDoc.setUser(testUser);
         staleDoc.setFileName("Phieu_Xet_Nghiem_Le_Thi_Lan.pdf");
-        staleDoc.setStorageUrl("https://supabase.co/storage/v1/object/public/medical-documents/stale.pdf");
+        staleDoc.setStoragePath("patients/test-user/stale.pdf");
 
         DocumentAnalysis staleAnalysis = new DocumentAnalysis();
         staleAnalysis.setId(UUID.randomUUID());
@@ -795,7 +795,7 @@ class MedicalDocumentAnalysisServiceTest {
         blankDoc.setId(existingDocId);
         blankDoc.setUser(testUser);
         blankDoc.setFileName("blank.pdf");
-        blankDoc.setStorageUrl("https://supabase.co/storage/v1/object/public/medical-documents/blank.pdf");
+        blankDoc.setStoragePath("patients/test-user/blank.pdf");
 
         DocumentAnalysis blankAnalysis = new DocumentAnalysis();
         blankAnalysis.setId(UUID.randomUUID());
@@ -1105,7 +1105,7 @@ class MedicalDocumentAnalysisServiceTest {
         doc.setFileName("xet_nghiem_mau.pdf");
         doc.setFileSizeBytes(102400);
         doc.setContentType("application/pdf");
-        doc.setStorageUrl("https://storage.mediassist.local/doc.pdf");
+        doc.setStoragePath("patients/test-user/doc.pdf");
 
         DocumentAnalysis da = new DocumentAnalysis();
         da.setId(UUID.randomUUID());

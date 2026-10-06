@@ -35,6 +35,7 @@ import {
   Star
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { DocumentFileAccessError, openDocumentFile } from '../../services/documentFileService';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useSearchParams } from 'react-router-dom';
 
@@ -98,7 +99,7 @@ interface AnalysisResult {
   recommendedSpecialtyName: string;
   suggestedQuestions: string[];
   matchedDoctors: DoctorMatch[];
-  storageUrl?: string;
+  hasFile?: boolean;
   cachedResult?: boolean;
   modelUsed?: string;
   doctorRecommendationReason?: string;
@@ -274,6 +275,13 @@ export const DocumentSummarizerPage: React.FC = () => {
   };
   const [downloadSuccessToast, setDownloadSuccessToast] = useState<string | null>(null);
   const [downloadPdfError, setDownloadPdfError] = useState<string | null>(null);
+  const [originalFileError, setOriginalFileError] = useState<string | null>(null);
+
+  // Mở tệp gốc qua signed URL 15 phút (backend kiểm tra quyền + ghi audit). Gọi trực tiếp trong click handler.
+  const handleViewOriginalFile = (documentId: string) => {
+    setOriginalFileError(null);
+    openDocumentFile(documentId).catch((err: DocumentFileAccessError) => setOriginalFileError(err.message));
+  };
   const downloadToastTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -1493,18 +1501,17 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      {analysis.storageUrl && (
-                        <a
-                          href={analysis.storageUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-xs font-semibold transition"
-                          title="Xem tệp gốc trên Cloud Storage"
+                      {analysis.hasFile && analysis.documentId && (
+                        <button
+                          type="button"
+                          onClick={() => handleViewOriginalFile(analysis.documentId)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-xs font-semibold transition cursor-pointer"
+                          title="Mở tệp gốc bằng liên kết tạm thời (hết hạn sau 15 phút)"
                         >
                           <UploadCloud className="w-3.5 h-3.5 text-sky-600" />
-                          <span>Supabase Cloud EMR</span>
+                          <span>Xem tệp gốc</span>
                           <ExternalLink className="w-3 h-3 text-sky-500" />
-                        </a>
+                        </button>
                       )}
                       <button
                         type="button"
@@ -1520,6 +1527,23 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                       </span>
                     </div>
                   </div>
+
+                  {originalFileError && (
+                    <div className="p-3 bg-rose-50 border border-rose-300 text-rose-900 rounded-xl text-xs font-medium flex items-center justify-between gap-2" role="alert">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                        <span>{originalFileError}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setOriginalFileError(null)}
+                        className="text-rose-700 hover:text-rose-900 p-0.5 rounded cursor-pointer transition"
+                        title="Đóng thông báo"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
 
                   {/* Medical Safety Alert Banner when document has NO indicators (blank order form or blurry) */}
                   {displayIndicators.length === 0 && (

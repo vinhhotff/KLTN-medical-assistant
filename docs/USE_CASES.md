@@ -774,7 +774,8 @@ graph TD
 * **Tác nhân chính:** Bác sĩ điều trị (Doctor), Người bệnh sở hữu (Patient Owner), Hệ thống lưu trữ kép (Local Fallback & Supabase Storage).
 * **Mục tiêu:** Cho phép bác sĩ click vào xem lại trực tiếp tệp xét nghiệm gốc (PDF / Hình ảnh) và bản báo cáo bóc tách chỉ số sinh hóa/huyết học AI OCR kèm tóm tắt SBAR khi tiếp nhận bệnh nhân đã đặt lịch từ phân hệ Tóm Tắt Hồ Sơ (`DocumentSummarizerPage.tsx`).
 * **REST Endpoints Liên Quan:**
-  - `GET /api/v1/documents/{id}/file`: Trích xuất file nhị phân (binary stream) hiển thị nội tuyến (`Content-Disposition: inline`) hoặc tải về (`attachment`). Hỗ trợ đường dẫn cục bộ (`uploads/...`), proxy tệp Supabase Cloud Storage, hoặc tự động tạo tài liệu lâm sàng PDF dự phòng an toàn (Zero-Crash Fallback).
+  - `GET /api/v1/documents/{id}/signed-url?download=false` **(UC-28)**: Cấp signed URL 15 phút để xem / tải tệp gốc trên bucket Supabase PRIVATE (kiểm tra quyền + ghi audit `DOCUMENT_SIGNED_URL_ISSUED`). Frontend dùng endpoint này cho mọi nút xem tệp.
+  - `GET /api/v1/documents/{id}/file`: Tệp trên Supabase → ghi audit rồi **redirect 302** tới một signed URL mới; tệp local (`/uploads/...`, fallback dev) → stream nhị phân (`inline` / `attachment`); không có tệp → `404 FILE_NOT_AVAILABLE`. **Đã xóa hoàn toàn** cơ chế tự sinh PDF xét nghiệm ngẫu nhiên khi không tải được tệp (trước đây bác sĩ có thể thấy kết quả giả).
   - `GET /api/v1/documents/{id}/analysis`: Truy xuất toàn bộ dữ liệu bóc tách AI OCR, danh sách chỉ số xét nghiệm (`name`, `value`, `unit`, `referenceRange`, `status`, `clinicalSignificance`), siêu dữ liệu hành chính (`hospitalName`, `orderingDoctor`, `testDate`, `sidCode`, `deviceModel`), tóm tắt lâm sàng SBAR và gợi ý câu hỏi tư vấn.
   - `POST /api/v1/appointments`: Nhận thêm trường tùy chọn `medicalDocumentId` để liên kết vĩnh viễn ca khám với tài liệu xét nghiệm.
 * **Quy Trình Nghiệp Vụ Chính:**
@@ -793,13 +794,15 @@ graph TD
        + Phân loại trạng thái chỉ số bằng badge màu y khoa: Đỏ rực (`ELEVATED` / `HIGH`), Xanh dương (`LOW`), Xanh lá (`NORMAL`).
        + Nút tiện ích y khoa: **"1-Click Chèn Vào Bệnh Án"** (`onInsertToEncounter`), tự động nạp tóm tắt và danh sách chỉ số bất thường vào Lý do khám và Kế hoạch điều trị của ca khám hiện tại.
      - **Tab 2 - Xem Tệp Gốc (Original File Viewer):**
-       + Tích hợp khung xem trực tiếp nội tuyến (`<iframe src="/api/v1/documents/{id}/file#toolbar=1">` cho PDF và `<img>` kèm zoom cho tệp hình ảnh).
-       + Hỗ trợ nút *"Mở tab mới"* và *"Tải xuống tệp"* cho bác sĩ lưu trữ hoặc hội chẩn liên viện.
+       + Khi mở tab, frontend gọi `GET /documents/{id}/signed-url` (helper `services/documentFileService.ts`) rồi hiển thị `<iframe src={signedUrl}>`. Có đủ trạng thái: đang tạo liên kết / 403 (`PatientAccessDeniedNotice`) / 404 "Không tìm thấy tệp gốc" / 503 "Kho lưu trữ tạm thời gián đoạn".
+       + Dòng ghi chú cố định *"Liên kết tạm thời, hết hạn sau 15 phút"* và nút **"Tải lại liên kết"** (tự chuyển màu cảnh báo khi tới `expiresAt`).
+       + Nút *"Mở Cửa Sổ Mới"* (mở cửa sổ trống ngay trong click handler rồi gán `location` = signed URL, tránh popup blocker) và *"Tải Về"* (signed URL kèm `&download=<tên tệp>`).
   4. **Tích Hợp Trong Tab Cận Lâm Sàng & Hồ Sơ Bệnh Nhân 360°:**
-     - Trong Bàn khám EMR (`DoctorDashboard.tsx` - Tab 3 `DOCUMENTS`): Các tài liệu lưu trữ nội bộ nay được bổ sung nút bấm hành động `[Xem Bóc Tách AI & Chỉ Số]` và `[Mở Tệp Gốc]`.
+     - Trong Bàn khám EMR (`DoctorDashboard.tsx` - Tab 3 `DOCUMENTS`): Các tài liệu lưu trữ nội bộ nay được bổ sung nút bấm hành động `[Xem Bóc Tách AI & Chỉ Số]` và `[Mở Tệp]` (nút "Mở Tệp" gọi helper signed URL, không còn link trực tiếp).
      - Trong Ngăn kéo Hồ sơ Bệnh nhân 360° (`DoctorPatientRecordsPage.tsx` - Tab 3 `DOCS`): Bác sĩ có thể bấm xem chi tiết phân tích AI và tệp gốc của mọi tài liệu bệnh nhân từng gửi trong quá khứ.
   5. **Kiểm Soát Phân Quyền & Bảo Mật Chuẩn Y Tế (HIPAA & RBAC Guard):**
      - Chỉ Bác sĩ có quan hệ điều trị với chủ sở hữu tài liệu, Bệnh nhân sở hữu tài liệu, hoặc Admin hệ thống (có ghi audit) mới được phép gọi API tải tệp và xem bóc tách. Mọi truy cập trái phép bị chặn với mã lỗi `403 FORBIDDEN_PATIENT_ACCESS`. Chi tiết xem **UC-27**.
+     - API **không bao giờ** trả đường dẫn lưu trữ: `MedicalDocumentDto` và `DocumentAnalysisResponse` chỉ có cờ `hasFile: boolean`. Chi tiết xem **UC-28**.
 
 ---
 
@@ -886,7 +889,7 @@ graph TD
 * **REST Endpoints được bảo vệ:**
   - `GET /api/v1/patient/profile/by-user/{userId}`
   - `GET /api/v1/documents/patient/{patientId}`
-  - `GET /api/v1/documents/{id}/file` và `GET /api/v1/documents/{id}/analysis` (tra chủ sở hữu tài liệu `medical_documents.user_id` rồi kiểm tra quyền)
+  - `GET /api/v1/documents/{id}/file`, `GET /api/v1/documents/{id}/signed-url` (UC-28) và `GET /api/v1/documents/{id}/analysis` (tra chủ sở hữu tài liệu `medical_documents.user_id` rồi kiểm tra quyền)
   - `GET /api/v1/triage/patient/{patientId}`
   - `GET /api/v1/appointments/patient/{patientId}`
 * **Quy tắc phân quyền (`PatientAccessGuard.assertCanAccessPatient(actorUserId, role, patientId)`):**
@@ -912,5 +915,36 @@ graph TD
      { "success": false, "error": { "code": "FORBIDDEN_PATIENT_ACCESS", "message": "Bạn không có quyền xem hồ sơ của bệnh nhân này. ..." } }
      ```
   3. Dữ liệu hồ sơ **không** được truy vấn; không ghi audit `VIEW_PATIENT_RECORD` (chỉ ghi log cảnh báo phía server).
-  4. Frontend (`isPatientAccessDenied` trong `services/api.ts`) nhận diện 403 và hiển thị `PatientAccessDeniedNotice`: *"Không thể mở hồ sơ bệnh nhân này"* kèm giải thích theo Nghị định 13/2023/NĐ-CP, thay vì hiện hồ sơ trống hoặc dữ liệu giả. `DocumentAnalysisModal` cũng hiển thị thông báo này thay cho dữ liệu dự phòng.
+  4. Frontend (`isPatientAccessDenied` trong `services/api.ts`) nhận diện **đúng** lỗi này — chỉ khi HTTP 403 **và** `error.code === 'FORBIDDEN_PATIENT_ACCESS'` (403 khác như sai role không bị hiểu nhầm) — và hiển thị `PatientAccessDeniedNotice`: *"Không thể mở hồ sơ bệnh nhân này"* kèm giải thích theo Nghị định 13/2023/NĐ-CP, thay vì hiện hồ sơ trống hoặc dữ liệu giả. `DocumentAnalysisModal` cũng hiển thị thông báo này thay cho dữ liệu dự phòng.
 * **Luồng thay thế:** Admin cần hội chẩn → được xem nhưng mọi lượt xem đều có dấu vết trong Nhật ký kiểm toán (UC-17).
+* **Liên quan UC-28:** Khi xem tệp gốc, ngoài `VIEW_PATIENT_RECORD` (do guard ghi cho DOCTOR/ADMIN) hệ thống ghi thêm `DOCUMENT_SIGNED_URL_ISSUED` cho **mọi role** (kể cả bệnh nhân tự xem). Đây là thiết kế có chủ đích: một dòng ghi nhận "mở hồ sơ", một dòng ghi nhận "đã phát hành link tệp".
+
+---
+
+### UC-28: Xem Tệp Y Tế Gốc Qua Signed URL Ngắn Hạn Trên Bucket Riêng Tư (Private Document Storage & 15-Minute Signed URL)
+
+* **Mã Use Case:** `UC-SEC-28`
+* **Tác nhân chính:** Patient (chủ tài liệu), Doctor (có quan hệ điều trị), Admin, `MedicalDocumentFileAccessService`, `SupabaseStorageService`, Supabase Storage (bucket PRIVATE `medical-documents`).
+* **Mục tiêu:** Khắc phục lỗ hổng "ai có link là tải được phiếu xét nghiệm": trước đây `storageUrl` public được trả ra API, bỏ qua hoàn toàn `PatientAccessGuard` (WORK_LOG #081 mục 5). Nay tệp nằm trong bucket PRIVATE, CSDL chỉ lưu object key (`medical_documents.storage_path`), và chỉ được xem qua **signed URL hết hạn sau 15 phút** sau khi đã kiểm tra quyền và ghi audit.
+* **REST Endpoints:**
+  - `GET /api/v1/documents/{id}/signed-url?download=false` → `ApiResponse<DocumentFileAccessDto>` `{ url, expiresAt, expiresInSeconds, fileName, contentType }`, header `Cache-Control: no-store`.
+  - `GET /api/v1/documents/{id}/file?download=false` → `302 Location: <signed URL mới>` (Supabase) hoặc stream tệp (local).
+* **Tiền điều kiện (Pre-condition):** Người dùng đã đăng nhập; chưa vượt rate limit `allowDocumentFileAccess` (30 lần/phút/người dùng).
+* **Hậu điều kiện (Post-condition):** Khi cấp được URL: một dòng `audit_logs` với `action = DOCUMENT_SIGNED_URL_ISSUED`, `resource = medical_documents/{id}`, `ip_address`, `user_agent`, `metadata = "Role: …, PatientId: …, Download: …, TtlSeconds: 900, Storage: SUPABASE|LOCAL"`. Signed URL/token **không** được ghi vào log hay audit.
+* **Luồng sự kiện chính (Happy Path):**
+  1. Người dùng bấm "Trình Xem Tệp Gốc" / "Mở Tệp" / "Xem tệp gốc" (frontend helper `services/documentFileService.ts`).
+  2. Backend kiểm tra đăng nhập → rate limit → tìm tài liệu (`404 NOT_FOUND` nếu không có).
+  3. `PatientAccessGuard` kiểm tra quyền theo chủ sở hữu tài liệu (`403 FORBIDDEN_PATIENT_ACCESS` nếu không có quyền; **không** gọi hàm ký URL).
+  4. Tài liệu không có `storage_path` → `404 FILE_NOT_AVAILABLE`.
+  5. `SupabaseStorageService.createSignedUrl` gửi `POST {supabase.url}/storage/v1/object/sign/{bucket}/{key}` body `{"expiresIn": 900}` (header `Authorization: Bearer` + `apikey` = service_role key); URL đầy đủ = `{supabase.url}/storage/v1` + `signedURL`; khi tải về thêm `&download=<tên tệp đã URL-encode>`.
+  6. Ghi audit `DOCUMENT_SIGNED_URL_ISSUED` cho **mọi role**, trả DTO. Frontend hiển thị iframe / mở cửa sổ mới / tải về.
+* **Luồng thay thế (Alternative Flow):**
+  - **A1 - Tệp local (fallback dev, `storage_path` bắt đầu bằng `/uploads/`):** trả `url = /api/v1/documents/{id}/file`, `expiresAt = null`; tệp được stream qua backend (vẫn kiểm tra quyền). Audit ghi `Storage: LOCAL, TtlSeconds: 0`.
+  - **A2 - Liên kết hết hạn:** UI tự chuyển sang trạng thái "Liên kết xem tệp đã hết hạn" đúng thời điểm `expiresAt`; người dùng bấm "Tải lại liên kết" để lấy signed URL mới (một dòng audit mới).
+* **Luồng ngoại lệ (Exception Flow):**
+  - **E1 - 403 FORBIDDEN_PATIENT_ACCESS:** bệnh nhân khác / bác sĩ không có lịch hẹn → UI hiển thị `PatientAccessDeniedNotice`.
+  - **E2 - 404 FILE_NOT_AVAILABLE:** tài liệu không có tệp, hoặc Supabase báo object không tồn tại (HTTP 404, hoặc 400 kèm `not_found`) → UI "Không tìm thấy tệp gốc". **Không ghi audit.**
+  - **E3 - 503 STORAGE_UNAVAILABLE:** Supabase lỗi / timeout / response thiếu `signedURL`, hoặc tài liệu là object Supabase nhưng `SUPABASE_KEY` rỗng / `supabase.enabled=false` → *"Hệ thống lưu trữ tệp y tế tạm thời không khả dụng. Vui lòng thử lại sau ít phút."* kèm nút "Thử lại". **Không ghi audit.**
+  - **E4 - 429 RATE_LIMIT_EXCEEDED:** vượt 30 lần/phút → thông báo chờ 1 phút.
+  - **Tuyệt đối không** sinh PDF xét nghiệm giả thay cho tệp thật trong bất kỳ nhánh lỗi nào.
+* **Bảo mật cấu hình:** `SUPABASE_KEY` (service_role) chỉ đặt trong `backend/.env` (không commit). Khi khởi động, nếu bucket đang `"public": true` hệ thống log WARN `[SECURITY]`.

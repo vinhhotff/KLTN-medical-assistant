@@ -110,8 +110,13 @@ docker compose up -d
 ### Bước 2: Khởi động Backend Spring Boot
 ```bash
 cd backend
+cp .env.example .env   # rồi điền các khóa bí mật vào backend/.env (file đã được .gitignore)
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
+*Lưu trữ tài liệu y tế (Supabase Storage - bucket PRIVATE):*
+- Đặt `SUPABASE_KEY=<secret key>` trong `backend/.env`. **Khuyến nghị dùng Secret key mới dạng `sb_secret_...`** (Supabase Dashboard → Project Settings → API Keys → Secret keys) thay cho `service_role` JWT kiểu cũ (`eyJ...`). Backend tự chọn header: `sb_secret_...` chỉ gửi qua `apikey`; JWT cũ gửi cả `Authorization: Bearer` lẫn `apikey`. **Không** ghi key thật vào `application*.properties` hay bất kỳ file nào được git theo dõi.
+- Bucket `medical-documents` phải để **PRIVATE** (tắt "Public bucket"). Tệp chỉ được xem qua signed URL hết hạn sau 15 phút (`APP_STORAGE_SIGNED_URL_TTL_SECONDS=900`), cấp sau khi kiểm tra quyền và ghi audit. Khi khởi động, backend log WARN nếu bucket đang Public.
+- Để trống `SUPABASE_KEY` → tệp được lưu local tại `backend/uploads/medical_documents/` (fallback cho môi trường dev).
 *Backend API chạy tại:* `http://localhost:5000`  
 *Kiểm tra trạng thái sức khỏe:* `http://localhost:5000/api/v1/health/ready`
 

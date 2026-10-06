@@ -38,6 +38,7 @@ import { PatientAccessDeniedNotice } from '../../components/common/PatientAccess
 import { Pagination } from '../../components/common/Pagination';
 import { useDebounce } from '../../hooks/useDebounce';
 import { DocumentAnalysisModal } from '../../components/common/DocumentAnalysisModal';
+import { DocumentFileAccessError, openDocumentFile } from '../../services/documentFileService';
 import {
   evaluateBloodPressure,
   evaluateBmiAsia,
@@ -82,7 +83,7 @@ interface PatientDocumentItem {
   fileSizeBytes: number;
   contentType: string;
   status: string;
-  storageUrl?: string;
+  hasFile?: boolean;
   isValidMedical: boolean;
   extractedIndicators?: string;
   createdAt: string;
@@ -253,13 +254,18 @@ export const DoctorDashboard: React.FC = () => {
   const [docModalOpen, setDocModalOpen] = useState(false);
   const [docModalId, setDocModalId] = useState<string | null>(null);
   const [docModalFileName, setDocModalFileName] = useState<string | undefined>(undefined);
-  const [docModalStorageUrl, setDocModalStorageUrl] = useState<string | undefined>(undefined);
+  const [fileOpenError, setFileOpenError] = useState<string | null>(null);
 
-  const handleOpenDocumentModal = (docId: string, fileName?: string, storageUrl?: string) => {
+  const handleOpenDocumentModal = (docId: string, fileName?: string) => {
     setDocModalId(docId);
     setDocModalFileName(fileName);
-    setDocModalStorageUrl(storageUrl);
     setDocModalOpen(true);
+  };
+
+  // Mở tệp gốc qua signed URL ngắn hạn (backend kiểm tra quyền + ghi audit). Gọi trực tiếp trong click handler.
+  const handleOpenOriginalFile = (docId: string) => {
+    setFileOpenError(null);
+    openDocumentFile(docId).catch((err: DocumentFileAccessError) => setFileOpenError(err.message));
   };
 
   const handleInsertDocumentAnalysisToEncounter = (data: { clinicalSummary: string; abnormalIndicatorsText: string }) => {
@@ -2680,21 +2686,21 @@ export const DoctorDashboard: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => handleOpenDocumentModal(doc.id, doc.fileName, doc.storageUrl)}
+                            onClick={() => handleOpenDocumentModal(doc.id, doc.fileName)}
                             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs transition shadow-xs cursor-pointer"
                           >
                             <Eye className="w-3.5 h-3.5" />
                             <span>Xem Bóc Tách AI & Chỉ Số</span>
                           </button>
-                          <a
-                            href={`/api/v1/documents/${doc.id}/file`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl text-xs transition"
+                          <button
+                            type="button"
+                            onClick={() => handleOpenOriginalFile(doc.id)}
+                            title="Mở tệp gốc bằng liên kết tạm thời (hết hạn sau 15 phút)"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl text-xs transition cursor-pointer"
                           >
                             <span>Mở Tệp</span>
                             <ExternalLink className="w-3 h-3" />
-                          </a>
+                          </button>
                         </div>
                       </div>
                     );
@@ -3001,13 +3007,28 @@ export const DoctorDashboard: React.FC = () => {
           setDocModalOpen(false);
           setDocModalId(null);
           setDocModalFileName(undefined);
-          setDocModalStorageUrl(undefined);
         }}
         documentId={docModalId}
         initialFileName={docModalFileName}
-        initialStorageUrl={docModalStorageUrl}
         onInsertToEncounter={activeEncounterAppointment ? handleInsertDocumentAnalysisToEncounter : undefined}
       />
+
+      {fileOpenError && (
+        <div
+          role="alert"
+          className="fixed bottom-6 right-6 z-[60] max-w-sm p-4 rounded-2xl bg-rose-50 border border-rose-200 shadow-lg text-xs text-rose-800 flex items-start gap-2"
+        >
+          <span className="flex-1">{fileOpenError}</span>
+          <button
+            type="button"
+            onClick={() => setFileOpenError(null)}
+            className="font-bold text-rose-500 hover:text-rose-700 cursor-pointer"
+            title="Đóng thông báo"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 };

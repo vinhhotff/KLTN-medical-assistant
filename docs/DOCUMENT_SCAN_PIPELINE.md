@@ -59,9 +59,9 @@ sequenceDiagram
 
     rect rgb(255, 240, 245)
         note over Svc,DB: GIAI ĐOẠN 4: LƯU TRỮ AN TOÀN (PERSISTENCE)
-        Svc->>Store: • Lazy Cloud Upload: Tải tệp lên Supabase Storage (medical-documents)
-        Store-->>Svc: Trả về storage_url
-        Svc->>DB: • INSERT vào medical_documents (file_name, file_hash, storage_url)<br>• INSERT vào document_analyses (metadata_json, indicators, summary)
+        Svc->>Store: • Lazy Cloud Upload: Tải tệp lên Supabase Storage bucket PRIVATE (medical-documents)
+        Store-->>Svc: Trả về object key (patients/{userId}/{random}_{tên}) - KHÔNG có URL public
+        Svc->>DB: • INSERT vào medical_documents (file_name, file_hash, storage_path)<br>• INSERT vào document_analyses (metadata_json, indicators, summary)
     end
 
     Svc-->>Patient: Trả về kết quả phân tích toàn diện DocumentAnalysisResponse
@@ -85,7 +85,7 @@ Kiến trúc áp dụng nguyên lý **Tách rời Tệp nhị phân và Dữ li�
 | `content_type` | `VARCHAR(255)` | `NOT NULL` | MIME type (`application/pdf`, `image/jpeg`,...). |
 | `status` | `VARCHAR(30)` | `NOT NULL` | Trạng thái: `PROCESSED`, `FAILED`, `PENDING`. |
 | `file_hash` | `VARCHAR(64)` | Index | **Mã băm SHA-256:** Chuỗi 64 ký tự hex. Nếu tệp gửi lên trùng mã băm của bệnh nhân, hệ thống trả cache ngay mà không tốn token AI. |
-| `storage_url` | `TEXT` | Nullable | **Đường dẫn Cloud Storage:** URL an toàn trên Supabase S3. Tệp nhị phân thực tế lưu trên S3, không lưu trong DB để chống phình dữ liệu. |
+| `storage_path` | `TEXT` | Nullable | **Khóa lưu trữ (V18):** object key trong bucket Supabase **PRIVATE** (ví dụ `patients/{userId}/{random}_{tên}`) hoặc đường dẫn local `/uploads/...` (fallback dev). Không phải URL, không bao giờ trả ra API (API chỉ trả `hasFile`). Tệp chỉ xem được qua signed URL 15 phút sau khi kiểm tra quyền (UC-28). |
 | `is_valid_medical` | `BOOLEAN` | `DEFAULT TRUE` | Đánh dấu tài liệu hợp lệ qua bước sàng lọc y tế. |
 | `created_at` | `TIMESTAMP` | `NOT NULL` | Thời điểm tải lên hệ thống. |
 
@@ -160,6 +160,15 @@ Khi anh cần tra cứu chi tiết từng dòng code:
 | **4. Lắp Ráp Prompt RAG** | [`ClinicalRagService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/ClinicalRagService.java) | • `performDocumentRagAnalysis`: System Prompt, JSON Schema |
 | **5. Khử Định Danh PII** | [`MedicalPiiService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/MedicalPiiService.java) | • `maskPii` và `reidentify` theo Nghị định 13 |
 | **6. Tìm Kiếm Bác Sĩ pgvector** | [`DoctorSemanticSearchService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/DoctorSemanticSearchService.java) | • Thuật toán WHRF & Min-Heap Bounded PriorityQueue |
-| **7. Lưu Trữ Supabase** | [`SupabaseStorageService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/SupabaseStorageService.java) | • `uploadDocument`, `deleteDocument` |
+| **7. Lưu Trữ Supabase (bucket PRIVATE)** | [`SupabaseStorageService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/SupabaseStorageService.java)<br>`MedicalDocumentFileAccessService.java` | • `uploadDocument` (trả object key), `deleteDocument`, `createSignedUrl` (15 phút)<br>• `issueAccess`: kiểm tra quyền + audit `DOCUMENT_SIGNED_URL_ISSUED` |
 | **8. Thực Thể Database** | [`MedicalDocument.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/model/entity/MedicalDocument.java)<br>[`DocumentAnalysis.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/model/entity/DocumentAnalysis.java) | • Các trường mapping bảng CSDL |
 | **9. Giao Diện Người Dùng** | [`DocumentSummarizerPage.tsx`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/pages/patient/DocumentSummarizerPage.tsx) | • Kéo thả đa tệp, hiển thị bảng chỉ số, xem PDF mẫu Meddies |
+
+---
+
+## Phụ lục: Xem Tệp Gốc Sau Khi Lưu Trữ (UC-28)
+
+* Pipeline chỉ lưu **object key**; không còn sinh "Public Access URL" (`/storage/v1/object/public/...`).
+* Khi người dùng muốn xem tệp: `GET /api/v1/documents/{id}/signed-url` → `PatientAccessGuard` → `POST /storage/v1/object/sign/{bucket}/{key}` (`expiresIn: 900`) → audit → trả signed URL hết hạn sau 15 phút.
+* `GET /api/v1/documents/{id}/file` không còn tự sinh PDF xét nghiệm ngẫu nhiên khi không tải được tệp: tệp Supabase → 302 tới signed URL; tệp local → stream; không có tệp → `404 FILE_NOT_AVAILABLE`; Supabase lỗi → `503 STORAGE_UNAVAILABLE`.
+* Khi ghi tệp local thất bại, `uploadDocument` trả `null` (trước đây trả đường dẫn giả `/uploads/medical_documents/default_emr.pdf`) → tài liệu có `hasFile = false`.

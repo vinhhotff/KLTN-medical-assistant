@@ -216,8 +216,8 @@ CREATE TABLE medical_documents (
     file_name VARCHAR(255) NOT NULL,
     file_size_bytes BIGINT NOT NULL,
     content_type VARCHAR(100) NOT NULL,
-    storage_path VARCHAR(500),                   -- Đường dẫn lưu trữ nội bộ
-    storage_url TEXT,                            -- Đường dẫn công khai / presigned Supabase Storage Cloud EMR
+    storage_path TEXT,                           -- [V18] Object key trong bucket Supabase PRIVATE (patients/{userId}/{random}_{tên})
+                                                 --       hoặc đường dẫn local '/uploads/...' (fallback dev). KHÔNG BAO GIỜ trả ra API.
     file_hash VARCHAR(64),                       -- Mã băm SHA-256 chống trùng lặp và lãng phí token
     is_valid_medical BOOLEAN NOT NULL DEFAULT TRUE, -- Cờ xác thực tài liệu y khoa từ Gatekeeper Sieve
     status VARCHAR(50) NOT NULL DEFAULT 'PROCESSED', -- PENDING, PROCESSING, PROCESSED, FAILED
@@ -385,6 +385,8 @@ CREATE INDEX idx_audit_action ON audit_logs(action);
 CREATE INDEX idx_audit_created ON audit_logs(created_at DESC);
 ```
 
+> **Action `DOCUMENT_SIGNED_URL_ISSUED` (UC-28, V18):** Được ghi mỗi khi backend cấp liên kết xem / tải tệp y tế gốc (`GET /documents/{id}/signed-url` hoặc redirect 302 của `GET /documents/{id}/file`) cho **MỌI role**, kể cả bệnh nhân tự xem. Chỉ ghi **sau khi** đã ký được URL (Supabase lỗi 404/503 thì không ghi). Các cột: `user_id` (người xem), `resource` = `medical_documents/{id}`, `ip_address`, `user_agent`, `metadata` = `Role: PATIENT, PatientId: {uuid}, Download: false, TtlSeconds: 900, Storage: SUPABASE|LOCAL`. Không bao giờ lưu signed URL/token. Với DOCTOR/ADMIN, một lần xem tệp sinh 2 dòng: `VIEW_PATIENT_RECORD` (mở hồ sơ) + `DOCUMENT_SIGNED_URL_ISSUED` (cấp link tệp).
+>
 > **Action `VIEW_PATIENT_RECORD` (UC-27):** Được ghi mỗi khi `DOCTOR`/`ADMIN` được `PatientAccessGuard` cấp quyền mở hồ sơ bệnh nhân. Các cột sử dụng: `user_id` (người xem), `resource` (ví dụ `medical_documents/{id}/file`, `triage_sessions/patient/{patientId}`), `ip_address`, `user_agent`, `metadata` (`Role: DOCTOR, PatientId: {uuid}`). Không thay đổi schema.
 >
 > Kiểm tra quan hệ điều trị dùng truy vấn dẫn xuất `AppointmentRepository.existsByDoctorIdAndPatientIdAndStatusIn(doctorId, patientId, [SCHEDULED, IN_PROGRESS, COMPLETED])` trên bảng `appointments` (tận dụng chỉ mục có tiền tố `doctor_id`), không cần migration mới.
@@ -456,7 +458,7 @@ spring.flyway.table=flyway_schema_history
 | **2** | `1` | `V1__initial_schema.sql` | SQL | Khởi tạo đầy đủ 12 bảng thực thể cốt lõi, extensions (`uuid-ossp`, `vector`, `pg_trgm`), HNSW cosine index `idx_doctor_bio_hnsw` (vector 1536 chiều), các chỉ mục hiệu năng cao và RBAC constraints. | **SUCCESS** |
 | **3** | `2` | `V2__seed_rich_hospital_data.sql` | SQL | Nạp tập dữ liệu thực tế chuẩn bệnh viện tuyến trung ương (12 chuyên khoa, 1 Admin, 12 bác sĩ chuyên khoa đầu ngành kèm CCHN và bệnh viện công tác, 630 slots lịch khám định kỳ, 5 hồ sơ bệnh án điện tử EMR, 8 ca khám lâm sàng thực thụ có ICD-10 & phác đồ thuốc, 3 bản ghi audit trail). | **SUCCESS** |
 | **4** | `3` | `V3__account_lockout_and_security_hardening.sql` | SQL | Bổ sung cột `failed_login_attempts` (mặc định 0), `locked_until` (timestamp) và chỉ mục `idx_users_locked_until` trên bảng `users` phục vụ phòng thủ Brute-force và khóa tài khoản tự động 15 phút sau 5 lần sai mật khẩu liên tiếp. | **SUCCESS** |
-| **5** | `4` | `V4__cloud_storage_and_quota_management.sql` | SQL | Bổ sung cột `storage_url` vào bảng `medical_documents`, các trường `scan_quota`, `subscription_tier`, `vip_valid_until` vào bảng `users` phục vụ quản lý hạn mức phân tích tài liệu và gói VIP. | **SUCCESS** |
+| **5** | `4` | `V4__cloud_storage_and_quota_management.sql` | SQL | Bổ sung cột `storage_url` (đã đổi tên thành `storage_path` ở V18) vào bảng `medical_documents`, các trường `scan_quota`, `subscription_tier`, `vip_valid_until` vào bảng `users` phục vụ quản lý hạn mức phân tích tài liệu và gói VIP. | **SUCCESS** |
 | **6** | `5` | `V5__add_document_analysis_metadata.sql` | SQL | Bổ sung cột `metadata_json TEXT` vào bảng `document_analyses` phục vụ lưu trữ siêu dữ liệu lâm sàng/hành chính động (bệnh viện, khoa, bác sĩ, ngày XN, SID, bệnh nhân, thiết bị phân tích). | **SUCCESS** |
 | **7** | `6` | `V6__fix_user_status_and_audit_logs.sql` | SQL | Đồng bộ ràng buộc enum `UserStatus` (hỗ trợ `PENDING_VERIFICATION`), bổ sung cột `version BIGINT` vào bảng `users` cho JPA `@Version` optimistic locking, chuẩn hóa bảng `audit_logs` (thêm `user_id`, `user_agent`, `metadata`, gỡ `NOT NULL` actor), và tạo chỉ mục `idx_appointment_schedule` trên `appointments(doctor_id, scheduled_start)`. | **SUCCESS** |
 | **8** | `7` | `V7__slot_collision_guard_and_dedup_constraints.sql` | SQL | Chốt chặn xung đột đặt lịch đồng thời (Race Condition Shield): Partial Unique Index `idx_appointment_unique_active_slot` trên `appointments(doctor_id, scheduled_start) WHERE status != 'CANCELLED'`; và Unique Index chống gian lận/trùng lặp file song song `idx_med_doc_user_hash_unique` trên `medical_documents(user_id, file_hash) WHERE file_hash IS NOT NULL`. | **SUCCESS** |
@@ -496,9 +498,11 @@ Supabase cung cấp PostgreSQL 16 tích hợp sẵn `pgvector`. Do mạng IPv4/I
 Tài liệu y tế (đơn thuốc, hình ảnh triệu chứng, phiếu xét nghiệm PDF, ảnh đại diện bác sĩ) được upload đa tầng:
 1. **Cloud Tier:** Supabase Storage Bucket `medical-documents`.
    - **Endpoint:** `https://wakgzrzchmqdqyrgxlaq.supabase.co/storage/v1/object/medical-documents/`
-   - **Public Access URL:** `https://wakgzrzchmqdqyrgxlaq.supabase.co/storage/v1/object/public/medical-documents/{filename}`
-   - **Chính sách phân quyền RLS / Bucket:** Public Read cho bệnh nhân và bác sĩ xem ảnh đơn thuốc/xét nghiệm; Authenticated Write cho backend service upload.
-2. **Local Fallback Tier:** Khi `supabase.enabled=false` hoặc khi bucket chưa khởi tạo / mạng cloud timeout, `SupabaseStorageService` tự động chuyển tiếp an toàn sang lưu trữ cục bộ tại `backend/uploads/medical_documents/` kèm log hướng dẫn quản trị viên khởi tạo bucket mà không làm gián đoạn trải nghiệm người dùng hay làm sập giao diện.
+   - **Bucket PRIVATE (từ V18 / UC-28):** KHÔNG có Public Access URL. CSDL chỉ lưu **object key** (`patients/{userId}/{random}_{tên}`) trong cột `medical_documents.storage_path`.
+   - **Xem tệp:** Backend kiểm tra `PatientAccessGuard` → gọi `POST /storage/v1/object/sign/{bucket}/{key}` (body `{"expiresIn": 900}`, header `Authorization: Bearer` + `apikey` = service_role key) → trả **signed URL hết hạn sau 15 phút** (`app.storage.signed-url-ttl-seconds=900`) và ghi audit `DOCUMENT_SIGNED_URL_ISSUED`.
+   - **Service key:** `SUPABASE_KEY` (service_role) chỉ đặt trong `backend/.env` (đã `.gitignore`); các file `application*.properties` dùng `${SUPABASE_KEY:}` — rỗng thì tự động dùng Local Fallback Tier.
+   - **Kiểm tra khi khởi động:** `SupabaseStorageService.verifyBucketIsPrivate()` gọi `GET /storage/v1/bucket/{bucket}`; nếu `"public": true` thì log WARN `[SECURITY]`.
+2. **Local Fallback Tier:** Khi `supabase.enabled=false` hoặc khi bucket chưa khởi tạo / mạng cloud timeout, `SupabaseStorageService` tự động chuyển tiếp an toàn sang lưu trữ cục bộ tại `backend/uploads/medical_documents/` kèm log hướng dẫn quản trị viên khởi tạo bucket **PRIVATE** mà không làm gián đoạn trải nghiệm người dùng hay làm sập giao diện.
 
 ### 7.3. Phân Trang Limit / Offset Tránh Quá Tải Bộ Nhớ (Zero Layout Shift Pagination)
 Hệ thống chuẩn hóa DTO `PageResponse<T>` và tích hợp phân trang limit/offset ở tất cả các danh sách:
@@ -652,5 +656,21 @@ CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created
   - `DOCTOR_VERIFIED` / `DOCTOR_REJECTED`: Thông báo kết quả kiểm duyệt chứng chỉ hành nghề từ Quản trị viên.
   - `SYSTEM`: Cảnh báo bảo mật và nâng cấp hệ thống.
 
+---
 
+## 13. Lưu Trữ Tài Liệu Y Tế Riêng Tư - Bucket PRIVATE & Signed URL 15 Phút (Flyway V18)
 
+Bản di trú `V18__private_document_storage_path.sql` khép lại lỗ hổng "ai có link public là tải được phiếu xét nghiệm" (WORK_LOG #081 mục 5):
+
+| Bước | Câu lệnh | Ghi chú |
+| :--- | :--- | :--- |
+| 1 | `ALTER TABLE medical_documents RENAME COLUMN storage_url TO storage_path` | Bọc trong khối `DO $$` kiểm tra `information_schema`: nếu Hibernate `ddl-auto=update` đã tạo sẵn `storage_path` thì gộp dữ liệu (`COALESCE`) rồi `DROP storage_url`; chạy lại không lỗi (idempotent). |
+| 2 | `regexp_replace(storage_path, '^https?://[^/]+/storage/v1/object/(public/\|sign/\|authenticated/)?[^/]+/([^?#]*).*$', '\2')` | Chuyển URL cũ (có hoặc không có `public/`, kể cả query `?token=`) về object key. Giá trị local `/uploads/...` giữ nguyên. |
+| 3 | `UPDATE ... SET storage_path = NULL WHERE storage_path = '/uploads/medical_documents/default_emr.pdf'` | Xóa đường dẫn giả mà fallback local cũ trả về khi ghi file lỗi → tài liệu có `hasFile=false`. |
+| 4 | `UPDATE ... SET storage_path = NULL WHERE btrim(storage_path) = ''` | Chuẩn hóa chuỗi rỗng. |
+
+**Quy ước giá trị `storage_path`:** bắt đầu bằng `/uploads/` → tệp local (stream qua `GET /documents/{id}/file` có kiểm tra quyền); còn lại → object key trên bucket Supabase PRIVATE (chỉ xem qua signed URL). `NULL` → không có tệp (API trả `hasFile: false`, endpoint xem tệp trả `404 FILE_NOT_AVAILABLE`).
+
+**Kiểm chứng:** chạy V18 trên PostgreSQL 16 (embedded) với 3 kịch bản — chỉ có `storage_url`; có cả `storage_url` lẫn `storage_path`; chạy V18 hai lần — đều cho kết quả `patients/u1/ab12_a.pdf | patients/u2/cd34_b.pdf | patients/u3/c.pdf | /uploads/medical_documents/u4/ef_d.pdf | NULL | NULL | NULL` và không còn cột `storage_url`.
+
+**Audit:** action mới `DOCUMENT_SIGNED_URL_ISSUED` trên bảng `audit_logs` (không đổi schema) — xem mục Bảng `audit_logs`.
