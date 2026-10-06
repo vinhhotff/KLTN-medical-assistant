@@ -90,6 +90,9 @@ public class Appointment {
     @Column(name = "triage_session_id")
     private UUID triageSessionId;
 
+    @Column
+    private LocalDateTime checkedInAt;
+
     @Version
     private Long version = 0L;
 
@@ -187,6 +190,9 @@ public class Appointment {
 
     public UUID getTriageSessionId() { return triageSessionId; }
     public void setTriageSessionId(UUID triageSessionId) { this.triageSessionId = triageSessionId; }
+
+    public LocalDateTime getCheckedInAt() { return checkedInAt; }
+    public void setCheckedInAt(LocalDateTime checkedInAt) { this.checkedInAt = checkedInAt; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

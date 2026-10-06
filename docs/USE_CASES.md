@@ -876,4 +876,72 @@ graph TD
   5. Trên `DocumentSummarizerPage` và `SymptomTriagePage`, các thẻ bác sĩ được gợi ý qua AI Vector Search hiển thị kèm số sao và số lượt đánh giá thực tế.
   6. Trên `DoctorDashboard`, số lượt đánh giá thực tế hiển thị ngay tại thanh tiêu đề bàn làm việc lâm sàng cạnh điểm đánh giá trung bình.
 
+---
 
+### UC-27: Xem Phiếu Khám Bệnh Điện Tử O2O (E-Admission Ticket with QR & STT)
+
+* **Mã Use Case:** `UC-CLIN-27`
+* **Tác nhân chính:** Patient (Bệnh nhân), Lễ Tân / Bác Sĩ (Receptionist / Doctor), Kiosk Check-in Tự Động.
+* **Mục tiêu:** Cung cấp cho bệnh nhân phiếu tiếp đón lâm sàng điện tử ngay sau khi đặt lịch khám trực tiếp (O2O) thành công, chứa mã QR tiêu chuẩn, số thứ tự (STT), định vị phòng khám, tích hợp Google Maps, Google Calendar và tiện ích in ấn giấy.
+* **REST Endpoints:**
+  - `GET /api/v1/appointments/{id}/ticket`: Trả về dữ liệu chi tiết của phiếu khám (`clinicRoom`, `clinicFloor`, `clinicBuilding`, `clinicAddress`, `clinicMapUrl`, `qrCodeData`, `sttNumber`, `preVisitInstructions`).
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Tạo Mã QR Check-in Chuẩn Hóa:**
+     - Mã QR chứa chuỗi JSON mã hóa: `appointmentId`, `code`, `stt`, `patient`, `doctor`, `datetime`, `room`.
+     - Phục vụ máy quét mã vạch 2D hoặc Kiosk thông minh tại sảnh bệnh viện để check-in tức thì, không cần xếp hàng khai báo thủ công.
+  2. **Hiển Thị Thông Tin Định Vị Phòng Khám (O2O Navigation):**
+     - Hiển thị rõ số phòng khám, số tầng, tòa nhà và địa chỉ cơ sở y tế.
+     - Cung cấp nút liên kết sâu (Deep Link) "Chỉ Đường Google Maps" mở ngay ứng dụng bản đồ dẫn đường cho người bệnh.
+  3. **Đồng Bộ Lịch Hẹn Với Google Calendar:**
+     - Nút "Thêm vào Google Calendar" phát sinh đường dẫn tạo sự kiện với đầy đủ tiêu đề, vị trí, giờ khám và lời nhắc có mặt trước 15 phút.
+  4. **Hướng Dẫn Chuẩn Bị Trước Khi Đến Khám (Pre-visit Clinical Compliance):**
+     - Nhắc nhở mang CCCD bản gốc, thẻ BHYT, lời dặn nhịn ăn xét nghiệm máu/nội soi, giảm thiểu nguy cơ phải hoãn lịch khám.
+  5. **Hỗ Trợ In Ấn Bản Giấy (One-Click Print):**
+     - Tích hợp phong cách CSS `@media print` giúp người bệnh hoặc thân nhân lớn tuổi có thể in trực tiếp phiếu khám rõ ràng, loại bỏ toàn bộ khung điều hướng thừa.
+
+---
+
+### UC-28: Trạm Bác Sĩ Màn Hình Đôi & Tiếp Đón Check-In (Doctor Split-Screen Workstation & Clinic Check-In)
+
+* **Mã Use Case:** `UC-CLIN-28`
+* **Tác nhân chính:** Doctor (Bác sĩ chuyên khoa), Admin (Quản trị viên phòng khám), Patient (Bệnh nhân).
+* **Mục tiêu:** Cung cấp không gian làm việc lâm sàng tối ưu công thái học (Ergonomics) với màn hình đôi 50/50: Xem tài liệu cận lâm sàng/PDF trực tiếp song song với phân tích AI Triage SBAR và bệnh án điện tử (EMR); hỗ trợ tiếp đón check-in bệnh nhân và quản lý lịch trực dạng lưới tuần.
+* **REST Endpoints:**
+  - `PATCH /api/v1/appointments/{id}/check-in`: Tiếp nhận yêu cầu check-in của bệnh nhân khi có mặt tại phòng khám (`SCHEDULED -> CHECKED_IN`), ghi nhận mốc thời gian `checkedInAt`. Yêu cầu phân quyền `hasAnyRole('DOCTOR', 'ADMIN')`.
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Quy Trình Tiếp Đón Check-In O2O (Patient Clinic Check-In):**
+     - Khi người bệnh xuất trình phiếu khám tại bàn khám, bác sĩ hoặc trợ lý nhấn nút "Check-in Bệnh Nhân". Ca khám chuyển sang trạng thái `CHECKED_IN` với nhãn màu tím nhận diện trực quan.
+  2. **Trạm Bác Sĩ Màn Hình Đôi (Split-Screen Clinical Workstation 50/50):**
+     - **Cột Trái (50%): Document Viewer:** Bác sĩ chọn và xem tức thì các tệp kết quả xét nghiệm, siêu âm, X-quang, PDF nội tuyến thông qua trình xem `<iframe>`, hoặc ảnh y khoa độ phân giải cao kèm tính năng tải về.
+     - **Cột Phải (50%): Điều Hướng 3 Phân Khu Lâm Sàng:**
+       - `[🤖 Phân Tích AI]`: Hiển thị cấp độ nguy cơ (Urgency Badge 🟢/🟡/🔴/🚨), tóm tắt phân luồng Triage theo cấu trúc lâm sàng SBAR (Situation, Background, Assessment, Recommendation), tiện ích 1-click nạp vào phiếu khám, và nút Làm mới phân tích AI.
+       - `[✍️ Ghi Chú Khám (EMR)]`: Nhập lý do khám, ghi chép lâm sàng, chỉ số sinh hiệu (Huyết áp, Mạch, BMI, SpO2), chẩn đoán mã bệnh ICD-10, kê đơn thuốc tự động kiểm tra xung đột dị ứng thuốc với tiền sử bệnh nhân, nút Check-in và Hoàn tất ca khám.
+       - `[📜 Bệnh Sử Cũ]`: Lịch sử các lần khám trước đó của bệnh nhân tại hệ thống.
+  3. **Chế Độ Xem Lịch Tuần (Weekly Calendar Grid View):**
+     - Chuyển đổi giữa chế độ `Danh Sách` và `Lịch Tuần` (7 ngày × khung giờ 07:00 - 17:00).
+     - Khối lịch mã màu theo trạng thái (Xanh dương: Chờ khám, Tím: Đã check-in, Hổ phách: Đang khám, Xanh lá: Đã khám xong).
+     - 1-click vào khối lịch mở thẳng Trạm Bác sĩ Màn hình đôi cho ca khám đó.
+
+---
+
+### UC-29: Giám Sát Chi Phí & Tài Nguyên AI Toàn Viện (Admin AI Token & FinOps Cost Analytics)
+
+* **Mã Use Case:** `UC-FIN-29`
+* **Tác nhân chính:** Admin (Ban quản trị / Giám đốc công nghệ), Hệ Thống AI Gateway (Gemini 1.5 Pro / Flash).
+* **Mục tiêu:** Cung cấp bảng điều khiển FinOps trực quan giúp theo dõi chi phí gọi AI, lượng tiêu thụ token, tỷ lệ lỗi và phân bổ ngân sách theo thời gian thực để báo cáo ban lãnh đạo bệnh viện.
+* **REST Endpoints:**
+  - `GET /api/v1/admin/ai-usage?days={N}`: Trả về dữ liệu thống kê tổng hợp token, chi phí USD, chi phí VNĐ (tỷ giá 25.000 VNĐ/USD), tỷ lệ lỗi API, chuỗi dữ liệu theo ngày cho Line Chart, và phân bổ theo dịch vụ cho Pie Chart. Phân quyền `@PreAuthorize("hasRole('ADMIN')")`.
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Tự Động Ghi Nhận Lượng Tiêu Thụ Token (Automated FinOps Ingestion):**
+     - Sau mỗi lượt suy luận AI trong Triage Triệu chứng (`TRIAGE`) hoặc Phân tích Cận lâm sàng (`DOCUMENT_ANALYSIS`), hệ thống tự động lưu trữ bản ghi vào bảng `ai_token_usage` bao gồm: loại dịch vụ, mô hình, prompt tokens, completion tokens, tổng tokens, chi phí USD tính theo bảng giá chuẩn Gemini, và trạng thái `SUCCESS`/`ERROR`/`TIMEOUT`.
+  2. **Bộ Chỉ Số Hiệu Năng Cốt Lõi (5 KPI Cards):**
+     - Tổng số lượt gọi AI (Requests).
+     - Tổng số lượng Tokens (Prompt + Completion).
+     - Tổng chi phí tính bằng USD (chuẩn xác 4 chữ số thập phân).
+     - Tổng chi phí quy đổi VNĐ theo tỷ giá cấu hình doanh nghiệp (25.000₫/USD).
+     - Tỷ lệ lỗi API (Error Rate %) kèm thanh tiến trình cảnh báo trực quan khi vượt quá 5% hoặc 10%.
+  3. **Biểu Đồ Xu Hướng & Phân Bổ Trực Quan (Recharts Integration):**
+     - **Line Chart:** Xu hướng tiêu thụ theo từng ngày qua 7, 30 hoặc 90 ngày; cho phép bật tắt xem theo Lượng Token hoặc Chi Phí ($).
+     - **Pie Chart & Bảng Chi Tiết:** Tỷ trọng chi phí và token giữa Phân luồng triệu chứng (Triage) và Đọc hồ sơ cận lâm sàng (Document Analysis).
+  4. **Bộ Lọc Khoảng Thời Gian Linh Hoạt:**
+     - Cho phép chọn nhanh 7 ngày, 30 ngày hoặc 90 ngày với khả năng re-fetch dữ liệu tức thời và cơ chế tự động đồng bộ theo chu kỳ.

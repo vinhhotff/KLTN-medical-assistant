@@ -377,4 +377,128 @@ class AppointmentServiceTest {
         assertEquals(AppointmentStatus.CANCELLED, result.getStatus());
         assertEquals(PaymentStatus.REFUNDED, result.getPaymentStatus());
     }
+
+    @Test
+    void testGetAppointmentTicket_Success() {
+        UUID apptId = UUID.randomUUID();
+        LocalDateTime start = LocalDateTime.now().plusDays(1).withHour(9).withMinute(0);
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-TICKET")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .scheduledStart(start)
+                .scheduledEnd(start.plusMinutes(30))
+                .status(AppointmentStatus.SCHEDULED)
+                .paymentStatus(PaymentStatus.PAID)
+                .build();
+        appt.setQueueNumber("STT 05");
+        appt.setClinicRoom("Phòng Khám 205");
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+
+        AppointmentDto ticket = appointmentService.getAppointmentTicket(apptId, patientId, Role.PATIENT);
+
+        assertNotNull(ticket);
+        assertEquals("STT 05", ticket.getSttNumber());
+        assertEquals("Phòng Khám 205", ticket.getClinicRoom());
+        assertEquals("Tầng 2", ticket.getClinicFloor());
+        assertEquals("Tòa A - Bệnh viện Đa Khoa MediAssist FPT", ticket.getClinicBuilding());
+        assertNotNull(ticket.getClinicAddress());
+        assertNotNull(ticket.getClinicMapUrl());
+        assertNotNull(ticket.getQrCodeData());
+        assertTrue(ticket.getQrCodeData().contains("AP-2026-TICKET"));
+        assertNotNull(ticket.getPreVisitInstructions());
+        assertFalse(ticket.getPreVisitInstructions().isEmpty());
+    }
+
+    @Test
+    void testGetAppointmentTicket_Forbidden_OtherPatient() {
+        UUID apptId = UUID.randomUUID();
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-TICKET")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .build();
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+
+        UUID otherUserId = UUID.randomUUID();
+        AppException ex = assertThrows(AppException.class, () ->
+                appointmentService.getAppointmentTicket(apptId, otherUserId, Role.PATIENT));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
+        assertEquals("FORBIDDEN", ex.getCode());
+    }
+
+    @Test
+    void testCheckInPatient_Success() {
+        UUID apptId = UUID.randomUUID();
+        LocalDateTime start = LocalDateTime.now().plusDays(1).withHour(9).withMinute(0);
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-CHECKIN")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .scheduledStart(start)
+                .scheduledEnd(start.plusMinutes(30))
+                .status(AppointmentStatus.SCHEDULED)
+                .paymentStatus(PaymentStatus.PAID)
+                .build();
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AppointmentDto result = appointmentService.checkInPatient(apptId, doctorId);
+
+        assertNotNull(result);
+        assertEquals(AppointmentStatus.CHECKED_IN, result.getStatus());
+        assertNotNull(result.getCheckedInAt());
+        verify(appointmentRepository).save(appt);
+    }
+
+    @Test
+    void testCheckInPatient_Forbidden_NotDoctorOrAdmin() {
+        UUID apptId = UUID.randomUUID();
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-CHECKIN")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .build();
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+
+        UUID randomUserId = UUID.randomUUID();
+        when(userRepository.findById(randomUserId)).thenReturn(Optional.empty());
+
+        AppException ex = assertThrows(AppException.class, () ->
+                appointmentService.checkInPatient(apptId, randomUserId));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
+        assertEquals("FORBIDDEN", ex.getCode());
+    }
+
+    @Test
+    void testCheckInPatient_InvalidStatus() {
+        UUID apptId = UUID.randomUUID();
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-CHECKIN")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.COMPLETED)
+                .build();
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+
+        AppException ex = assertThrows(AppException.class, () ->
+                appointmentService.checkInPatient(apptId, doctorId));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals("INVALID_STATUS", ex.getCode());
+    }
 }

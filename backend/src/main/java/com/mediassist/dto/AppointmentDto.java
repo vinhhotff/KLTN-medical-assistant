@@ -6,6 +6,7 @@ import com.mediassist.model.entity.PaymentStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public class AppointmentDto {
@@ -28,6 +29,13 @@ public class AppointmentDto {
     private String cancellationReason;
     private String queueNumber;
     private String clinicRoom;
+    private String clinicFloor;
+    private String clinicBuilding;
+    private String clinicAddress;
+    private String clinicMapUrl;
+    private String qrCodeData;
+    private String sttNumber;
+    private List<String> preVisitInstructions;
     private String chiefComplaint;
     private String vitalSignsJson;
     private String icd10Code;
@@ -41,6 +49,7 @@ public class AppointmentDto {
     private UUID triageSessionId;
     private String triageSbarSummary;
     private String triageUrgencyLevel;
+    private LocalDateTime checkedInAt;
 
     public AppointmentDto() {}
 
@@ -78,6 +87,7 @@ public class AppointmentDto {
         dto.setCreatedAt(a.getCreatedAt());
         dto.setMedicalDocumentId(a.getMedicalDocumentId());
         dto.setTriageSessionId(a.getTriageSessionId());
+        dto.setCheckedInAt(a.getCheckedInAt());
         return dto;
     }
 
@@ -173,4 +183,28 @@ public class AppointmentDto {
 
     public String getTriageUrgencyLevel() { return triageUrgencyLevel; }
     public void setTriageUrgencyLevel(String triageUrgencyLevel) { this.triageUrgencyLevel = triageUrgencyLevel; }
+
+    public String getClinicFloor() { return clinicFloor; }
+    public void setClinicFloor(String clinicFloor) { this.clinicFloor = clinicFloor; }
+
+    public String getClinicBuilding() { return clinicBuilding; }
+    public void setClinicBuilding(String clinicBuilding) { this.clinicBuilding = clinicBuilding; }
+
+    public String getClinicAddress() { return clinicAddress; }
+    public void setClinicAddress(String clinicAddress) { this.clinicAddress = clinicAddress; }
+
+    public String getClinicMapUrl() { return clinicMapUrl; }
+    public void setClinicMapUrl(String clinicMapUrl) { this.clinicMapUrl = clinicMapUrl; }
+
+    public String getQrCodeData() { return qrCodeData; }
+    public void setQrCodeData(String qrCodeData) { this.qrCodeData = qrCodeData; }
+
+    public String getSttNumber() { return sttNumber; }
+    public void setSttNumber(String sttNumber) { this.sttNumber = sttNumber; }
+
+    public List<String> getPreVisitInstructions() { return preVisitInstructions; }
+    public void setPreVisitInstructions(List<String> preVisitInstructions) { this.preVisitInstructions = preVisitInstructions; }
+
+    public LocalDateTime getCheckedInAt() { return checkedInAt; }
+    public void setCheckedInAt(LocalDateTime checkedInAt) { this.checkedInAt = checkedInAt; }
 }

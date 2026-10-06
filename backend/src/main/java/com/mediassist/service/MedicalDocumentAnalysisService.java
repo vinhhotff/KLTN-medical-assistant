@@ -41,6 +41,12 @@ public class MedicalDocumentAnalysisService {
     private final StorageService storageService;
     private final ClinicalRagService clinicalRagService;
     private final SecurityRateLimiterService rateLimiterService;
+    private com.mediassist.service.AiUsageAnalyticsService aiUsageAnalyticsService;
+
+    @Autowired(required = false)
+    public void setAiUsageAnalyticsService(com.mediassist.service.AiUsageAnalyticsService aiUsageAnalyticsService) {
+        this.aiUsageAnalyticsService = aiUsageAnalyticsService;
+    }
 
     @org.springframework.beans.factory.annotation.Value("${app.pdf.max-pages:10}")
     private int maxPdfPages = 10;
@@ -998,8 +1004,24 @@ public class MedicalDocumentAnalysisService {
             response.setPiiProtected(ragResult.isPiiProtected());
             response.setPiiEntitiesCount(ragResult.getPiiEntitiesCount());
             response.setPiiMaskedTypes(ragResult.getPiiMaskedTypes());
-            response.setMultiPatientDetected(false);
-            response.setPatientAnalyses(new java.util.ArrayList<>());
+            // 13. Record AI FinOps Token Usage
+            if (aiUsageAnalyticsService != null) {
+                try {
+                    int promptTokens = Math.max(150, (clinicalContext.length() / 4) + 200);
+                    int completionTokens = Math.max(150, ((clinicalSummary != null ? clinicalSummary.length() : 0) + (plainExplanation != null ? plainExplanation.length() : 0)) / 4);
+                    aiUsageAnalyticsService.recordUsage(
+                            com.mediassist.model.entity.AiTokenUsage.ServiceType.DOCUMENT_ANALYSIS,
+                            ragResult.getModelUsed() != null ? ragResult.getModelUsed() : "gemini-3.6-flash",
+                            promptTokens,
+                            completionTokens,
+                            com.mediassist.model.entity.AiTokenUsage.RequestStatus.SUCCESS,
+                            user,
+                            null
+                    );
+                } catch (Exception ex) {
+                    log.warn("⚠️ Failed to record document analysis AI token usage: {}", ex.getMessage());
+                }
+            }
 
             return response;
 

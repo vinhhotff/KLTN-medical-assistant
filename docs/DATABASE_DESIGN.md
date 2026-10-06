@@ -342,8 +342,8 @@ CREATE INDEX idx_doctor_reviews_patient ON doctor_reviews(patient_id);
 
 ### 2.6. Nhóm Bảng Giám Sát Chi Phí & Kiểm Toán (FinOps & Audit Security)
 
-#### Bảng `ai_token_usage`
-Theo dõi sát sao từng request gọi sang OpenAI/Gemini để kiểm soát chi phí thực tế và phát hiện lạm dụng.
+#### Bảng `ai_token_usage` [V18]
+Theo dõi sát sao từng request gọi sang OpenRouter/Gemini để kiểm soát chi phí thực tế và phát hiện lạm dụng (FinOps Cost Analytics).
 
 ```sql
 CREATE TABLE ai_token_usage (
@@ -355,12 +355,18 @@ CREATE TABLE ai_token_usage (
     completion_tokens INT NOT NULL DEFAULT 0,
     total_tokens INT NOT NULL DEFAULT 0,
     estimated_cost_usd NUMERIC(10, 6) NOT NULL DEFAULT 0.000000,
+    cost_usd NUMERIC(10, 6) DEFAULT 0.000000,    -- [V18] Chi phí tính toán USD chính xác
     latency_ms INT NOT NULL DEFAULT 0,
+    service_type VARCHAR(50) DEFAULT 'TRIAGE',   -- [V18] Phân loại dịch vụ AI (TRIAGE, DOCUMENT_OCR, RAG)
+    request_status VARCHAR(30) DEFAULT 'SUCCESS',-- [V18] Trạng thái request (SUCCESS, ERROR, RATE_LIMITED)
+    appointment_id UUID REFERENCES appointments(id) ON DELETE SET NULL, -- [V18] Ca khám gắn liền
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_ai_token_feature ON ai_token_usage(feature);
 CREATE INDEX idx_ai_token_created ON ai_token_usage(created_at);
+CREATE INDEX idx_ai_token_service_type ON ai_token_usage(service_type);
+CREATE INDEX idx_ai_token_request_status ON ai_token_usage(request_status);
 ```
 
 #### Bảng `audit_logs`
@@ -463,6 +469,10 @@ spring.flyway.table=flyway_schema_history
 | **13** | `12` | `V12__supervision_and_realtime_performance_indexes.sql` | SQL | Tối ưu hóa truy vấn giám sát & realtime: Bổ sung chỉ mục `idx_appointments_scheduled_start_desc`, `idx_triage_sessions_created_desc`, partial index `idx_triage_emergency_partial`, partial index `idx_doc_analysis_abnormal_partial` và `idx_doc_analyses_created_desc`. | **SUCCESS** |
 | **14** | `13` | `V13__create_payment_transactions.sql` | SQL | Thiết lập bảng sổ cái `payment_transactions` hỗ trợ cổng thanh toán đa kênh (Stripe Sandbox, VietQR, VNPAY, MoMo, Mock), bảo đảm kiểm toán tài chính, chống trùng lặp và khóa lạc quan `@Version`. | **SUCCESS** |
 | **15** | `14` | `V14__add_medical_document_to_appointments.sql` | SQL | Bổ sung khóa ngoại `medical_document_id UUID REFERENCES medical_documents(id) ON DELETE SET NULL` và chỉ mục `idx_appointments_medical_document_id` vào bảng `appointments`, liên kết trực tiếp ca khám với hồ sơ xét nghiệm bệnh nhân đã tải lên & phân tích AI. | **SUCCESS** |
+| **16** | `15` | `V15__add_triage_session_and_refund_to_appointments.sql` | SQL | Bổ sung cột `triage_session_id UUID REFERENCES triage_sessions(id)` và trạng thái `REFUNDED` vào bảng `appointments`. | **SUCCESS** |
+| **17** | `16` | `V16__create_password_reset_and_notifications.sql` | SQL | Thiết lập bảng `password_reset_tokens` và `notifications` cho chuông thông báo nội bộ và phục hồi mật khẩu. | **SUCCESS** |
+| **18** | `17` | `V17__create_doctor_reviews_and_rating_system.sql` | SQL | Thiết lập hệ thống Đánh giá & Chấm sao Bác sĩ: Bảng `doctor_reviews` liên kết ca khám `COMPLETED`, cột `review_count` trong `doctor_profiles`, tự động tái tính điểm và cập nhật WHRF ranking. | **SUCCESS** |
+| **19** | `18` | `V18__align_ai_token_usage_schema.sql` | SQL | Đồng bộ hóa bảng `ai_token_usage` với FinOps Analytics: Thêm `service_type`, `request_status`, `cost_usd`, `appointment_id`, và các chỉ mục phân tích hiệu năng cao. | **SUCCESS** |
 
 ### 6.3. Chi Tiết Tập Dữ Liệu Bệnh Viện Mẫu (Enterprise Hospital Seed Data)
 1. **12 Chuyên Khoa Toàn Diện:** Tim mạch, Thần kinh, Tiêu hóa - Gan mật, Da liễu, Nhi khoa, Nội tổng quát, Hô hấp & Phổi, Cơ Xương Khớp, Thận & Tiết niệu, Sản Phụ Khoa, Nội tiết & Đái tháo đường, Tai Mũi Họng.

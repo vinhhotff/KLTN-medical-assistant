@@ -16,12 +16,14 @@ import {
   Phone,
   Sparkles,
   CreditCard,
-  Star
+  Star,
+  QrCode
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api, DoctorReviewDto } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
 import { DoctorReviewModal } from '../../components/common/DoctorReviewModal';
+import { AdmissionTicketModal } from '../../components/patient/AdmissionTicketModal';
 
 interface PatientProfileData {
   id: string;
@@ -69,6 +71,13 @@ interface AppointmentItem {
   triageSessionId?: string;
   triageSbarSummary?: string;
   triageUrgencyLevel?: string;
+  clinicFloor?: string;
+  clinicBuilding?: string;
+  clinicAddress?: string;
+  clinicMapUrl?: string;
+  qrCodeData?: string;
+  sttNumber?: string;
+  preVisitInstructions?: string[];
 }
 
 interface VitalSigns {
@@ -134,6 +143,9 @@ export const PatientDashboard: React.FC = () => {
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [submittingReschedule, setSubmittingReschedule] = useState(false);
+
+  // Admission Ticket Modal State
+  const [selectedTicketAppointment, setSelectedTicketAppointment] = useState<AppointmentItem | null>(null);
 
   const handleConfirmReschedule = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -807,6 +819,18 @@ export const PatientDashboard: React.FC = () => {
                         </span>
 
                         <div className="flex items-center gap-2">
+                          {apt.status !== 'CANCELLED' && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedTicketAppointment(apt)}
+                              className="px-3 py-1.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                              title="Xem phiếu khám điện tử có mã QR và số thứ tự"
+                            >
+                              <QrCode className="w-3.5 h-3.5 text-indigo-600" />
+                              <span>📋 Xem Phiếu Khám</span>
+                            </button>
+                          )}
+
                           {isScheduled && (
                             <>
                               <button
@@ -1567,6 +1591,15 @@ export const PatientDashboard: React.FC = () => {
         existingReview={reviewingAppointment ? reviewsMap[reviewingAppointment.id] : null}
         onReviewSubmitted={handleReviewSubmitted}
       />
+
+      {/* Admission Ticket Modal */}
+      {selectedTicketAppointment && (
+        <AdmissionTicketModal
+          appointment={selectedTicketAppointment}
+          isOpen={!!selectedTicketAppointment}
+          onClose={() => setSelectedTicketAppointment(null)}
+        />
+      )}
     </div>
   );
 };

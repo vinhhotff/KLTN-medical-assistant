@@ -11,14 +11,119 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#083** | 06/10/2026 | Tích Hợp Toàn Diện 5 Giai Đoạn Từ Nhánh feature/fuction Vào develop: (1) Dung hợp Vé khám O2O (E-Admission Ticket) với QR Code, STT và Google Maps, (2) Chuyển đổi Chatbot Triage nhiều lượt kết hợp chấm sao Bác sĩ WHRF, (3) Trạm Bác sĩ Màn hình đôi (Split-Screen 50/50: PDF Viewer + EMR Notes) kết hợp phân độ sinh hiệu VNHA/ESC & WHO Asia, (4) Admin FinOps AI Cost & Token Analytics Dashboard với Recharts, (5) Flyway migration V18 chuẩn hóa ai_token_usage, (6) Native Query tối ưu pgvector count trong DoctorProfileRepository | AI Assistant | 🟢 Sẵn sàng Review |
+| **#082** | 05/10/2026 | Khắc Phục Lỗi Google OAuth2 401 invalid_client & Sửa Native Query đếm Vector Bác Sĩ: (1) Cấu hình Google Client ID và Client Secret thực tế từ Google Cloud Console vào `application-local.properties`, (2) Khắc phục lỗi `DoctorProfileRepository.countByBioEmbeddingIsNotNull` bằng Native SQL Query do `bio_embedding` là cột pgvector thuần, (3) Xác thực điều hướng OAuth2 302 thông suốt | AI Assistant | 🟢 Sẵn sàng Review |
+| **#081** | 02/10/2026 | Triển Khai Bảng Giám Sát Chi Phí & Tài Nguyên AI Toàn Viện (Phase 4 Admin AI Token & Cost Analytics Dashboard): (1) Flyway migration V18 chuẩn hóa bảng `ai_token_usage`, (2) Entity `AiTokenUsage`, repository `AiTokenUsageRepository`, service `AiUsageAnalyticsService`, DTO `AiUsageStatsDto`, (3) Hook tự động ghi nhận lượng tiêu thụ token, (4) Giao diện AdminDashboard tích hợp Recharts với 5 KPI Cards, Line Chart và Pie Chart | AI Assistant | 🟢 Sẵn sàng Review |
+| **#080** | 02/10/2026 | Triển Khai Trạm Bác Sĩ Màn Hình Đôi & Lịch Tuần (Phase 3 Doctor Split-Screen Workstation): (1) Bổ sung trạng thái `CHECKED_IN` và API check-in, (2) Thiết kế Bàn khám Bác sĩ màn hình đôi 50/50 (Document Viewer + EMR Notes), (3) Chế độ xem Lịch Tuần (Weekly Calendar Grid) 7 ngày × khung giờ 07:00-17:00 | AI Assistant | 🟢 Sẵn sàng Review |
 | **#079** | 28/09/2026 | Hiện Thực Hóa Toàn Diện Hệ Thống Đánh Giá & Chấm Sao Bác Sĩ (Rating & Review System) Khép Kín Vòng Phản Hồi Lâm Sàng & Đưa Điểm Thực Tế Vào Thuật Toán WHRF: (1) Flyway V17 tạo bảng `doctor_reviews` và cột `review_count`, (2) Ràng buộc 1 ca khám hoàn tất (`COMPLETED`) 1 đánh giá duy nhất (idempotent), (3) Tự động tái tính điểm trung bình và cập nhật số lượt đánh giá, (4) Invalidate Two-Layer Cache (Caffeine L1 + Redis L2) và WHRF search cache, (5) Tích hợp điểm thực tế vào thuật toán WHRF ($O(M \log K)$ Min-Heap) với hệ số suy giảm độ tin cậy (Credibility Damper) cho bác sĩ ít review, (6) Bảo vệ riêng tư Nghị định 13/2023/NĐ-CP & HIPAA bằng mặt nạ họ tên bệnh nhân, (7) Frontend Modal chấm sao tương tác, xem danh sách đánh giá chi tiết, hiển thị sao và số lượt đánh giá trên DoctorSearch, PatientDashboard, DoctorDashboard, Triage, DocumentSummarizer, (8) 143/143 Backend Tests PASS (100%), Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
-| **#078** | 28/09/2026 | Tích Hợp Toàn Diện 2 Nhánh Đồng Nghiệp Vào Nhánh develop (Integration Merge: fix/critical-bugs & feature/fuction): (1) Merge nhánh fix/critical-bugs của Bảo: Thu hẹp Vite proxy tránh cướp route /oauth2/callback SPA, nâng cấp logging lỗi OAuth2, untrack các tệp .env và cấu hình nạp qua spring.config.import, (2) Merge nhánh feature/fuction của Khương: Chuông thông báo in-app NotificationBell, Quên/Đặt lại mật khẩu PasswordResetToken, Rào chắn hoàn tiền hủy khám & Dời lịch hẹn, Flyway V15 & V16, (3) Xác thực toàn diện: 136/136 Backend Tests PASS (100%), Frontend build 0 lỗi TypeScript (1683 modules), và bảo toàn các tệp .env cục bộ cho môi trường phát triển | AI Assistant | 🟢 Sẵn sàng Review |
-| **#077** | 23/09/2026 | Hoàn Thiện Toàn Diện Nghiệp Vụ Doanh Nghiệp, Rào Chắn Lịch Khám, Tính Nguyên Tử Thanh Toán & Chuông Thông Báo (Enterprise Flows & Safeguards Hardening): (1) Flyway V15 & V16 bổ sung `triage_session_id`, `password_reset_tokens`, `notifications`, (2) Rào chắn đặt lịch: Bác sĩ active/verified, giờ hành chính (8-12h, 13h30-17h, nghỉ Chủ Nhật), số thứ tự tiếp đón (STT), state machine chuyển đổi trạng thái, API Dời lịch hẹn (`PATCH /appointments/{id}/reschedule`), tự động hoàn tiền khi hủy ca khám đã thanh toán, (3) Tính nguyên tử thanh toán: Chống duplicate checkout race condition, `@Transactional(REQUIRES_NEW)` cho fulfillOrder, kiểm toán giao dịch mồ côi, (4) Lịch làm việc bác sĩ động từ `DoctorScheduleSlot` & DB aggregation cho thống kê, hàng đợi khóa bi quan (pessimistic lock), (5) Sanitization đầu vào Triage, CCCD 12 số & SĐT Việt Nam, chu trình Quên mật khẩu an toàn, (6) Hệ thống chuông thông báo nội bộ thời gian thực cho Bệnh nhân & Bác sĩ, (7) Frontend wire-up: Dời lịch hẹn modal, liên kết xem tài liệu `focusId`, banner cảnh báo CCCD/nhóm máu chưa hoàn thiện, chọn giờ tái khám bác sĩ, (8) Đạt 136/136 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
-| **#076** | 18/09/2026 | Bác Sĩ Truy Cập Hồ Sơ Cận Lâm Sàng & Kết Quả Bóc Tách AI OCR Từ Lịch Khám (Doctor Medical Document & AI OCR Analysis Viewer): (1) Khắc phục điểm khuyết Bác sĩ không thể click xem lại tài liệu bệnh nhân gửi từ phân hệ Tóm tắt hồ sơ, (2) Flyway V14 liên kết `medical_document_id` vào bảng `appointments`, (3) Backend API streaming tệp an toàn (`GET /documents/{id}/file`) & trích xuất phân tích chi tiết (`GET /documents/{id}/analysis`), (4) Frontend Modal 2 tab `DocumentAnalysisModal.tsx` (AI Scribe & Bảng chỉ số xét nghiệm + Trình xem tệp gốc PDF/Ảnh nội tuyến) kèm tiện ích 1-click chèn vào Bệnh án, (5) Tích hợp liền mạch vào Dashboard Bác sĩ và Danh bạ Hồ sơ Bệnh nhân 360°, (6) Đạt 128/128 Tests PASS & Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
+| **#078-C** | 02/10/2026 | Chuyển Đổi Phân Luồng Triệu Chứng Sang Multi-turn Chatbot Triage UI (Phase 2): (1) Chuyển đổi toàn diện `SymptomTriagePage.tsx` sang mô hình Chatbot hội thoại đa lượt tương tác, (2) Bong bóng chat, (3) Typing indicator, (4) Thẻ gợi ý lâm sàng (Suggestion Chips), (5) Rào chắn Red-Flag cấp cứu và khóa tự động (Lockout) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#078-B** | 30/09/2026 | Triển Khai Phiếu Khám Bệnh Điện Tử O2O (E-Admission Ticket with QR, STT, Google Maps & Print) (Phase 1): (1) Bổ sung trường E-Admission Ticket vào `AppointmentDto`, (2) Logic trích xuất thông tin phòng khám, số STT, sinh payload QR code chuẩn JSON trong `AppointmentService`, (3) Mở endpoint `GET /api/v1/appointments/{id}/ticket`, (4) Component `AdmissionTicketModal.tsx` mã QR SVG, STT nổi bật, chỉ đường Google Maps, in vé | AI Assistant | 🟢 Sẵn sàng Review |
+| **#078** | 28/09/2026 | Tích Hợp Toàn Diện 2 Nhánh Đồng Nghiệp Vào Nhánh develop (Integration Merge: fix/critical-bugs & feature/fuction): (1) Merge nhánh fix/critical-bugs của Bảo: Thu hẹp Vite proxy tránh cướp route /oauth2/callback SPA, nâng cấp logging lỗi OAuth2, untrack các tệp .env và cấu hình nạp qua spring.config.import, (2) Merge nhánh feature/fuction của Khương: Chuông thông báo in-app NotificationBell, Quên/Đặt lại mật khẩu PasswordResetToken, Rào chắn hoàn tiền hủy khám & Dời lịch hẹn, Flyway V15 & V16, (3) Xác thực toàn diện: 136/136 Backend Tests PASS (100%), Frontend build 0 lỗi TypeScript (1683 modules) | AI Assistant | 🟢 Sẵn sàng Review |
+| **#077** | 23/09/2026 | Hoàn Thiện Toàn Diện Nghiệp Vụ Doanh Nghiệp, Rào Chắn Lịch Khám, Tính Nguyên Tử Thanh Toán & Chuông Thông Báo (Enterprise Flows & Safeguards Hardening): (1) Flyway V15 & V16 bổ sung `triage_session_id`, `password_reset_tokens`, `notifications`, (2) Rào chắn đặt lịch: Bác sĩ active/verified, giờ hành chính, STT, Dời lịch hẹn, tự động hoàn tiền khi hủy, (3) Tính nguyên tử thanh toán, (4) Chuông thông báo in-app | AI Assistant | 🟢 Sẵn sàng Review |
+| **#076** | 18/09/2026 | Bác Sĩ Truy Cập Hồ Sơ Cận Lâm Sàng & Kết Quả Bóc Tách AI OCR Từ Lịch Khám (Doctor Medical Document & AI OCR Analysis Viewer): (1) Khắc phục điểm khuyết Bác sĩ không thể click xem lại tài liệu bệnh nhân gửi từ phân hệ Tóm tắt hồ sơ, (2) Flyway V14 liên kết `medical_document_id` vào bảng `appointments`, (3) Backend API streaming tệp an toàn & trích xuất phân tích chi tiết, (4) Frontend Modal 2 tab `DocumentAnalysisModal.tsx` | AI Assistant | 🟢 Sẵn sàng Review |
 
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#083] Tích Hợp Toàn Diện 5 Giai Đoạn Từ Nhánh feature/fuction Vào develop
+* **Thời gian:** 2026-10-06 13:40:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-CLIN-27 (E-Admission Ticket), UC-CLIN-28 (Doctor Split-Screen Workstation), UC-FIN-29 (Admin FinOps AI Analytics)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend: Toàn bộ Unit Tests PASS 100%
+  - Frontend: 0 Lỗi TypeScript (`npm run build`)
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Quyết Định Kiến Trúc:
+Sau khi hoàn thành rà soát mã nguồn nhánh `origin/feature/fuction` của bạn Khương, Tech Lead duyệt lệnh tích hợp vào nhánh tích hợp chung `develop`. Quá trình giải quyết xung đột đạt các chuẩn mực kiến trúc:
+1. **Khử xung đột phiên bản Flyway V18:** Chuyển đổi tệp migration của Khương từ `V17` thành `V18__align_ai_token_usage_schema.sql` để bảo toàn tính toàn vẹn với `V17__create_doctor_reviews_and_rating_system.sql` của hệ thống chấm sao.
+2. **Dung hợp Vé Khám O2O & Đánh Giá Bác Sĩ trên `PatientDashboard.tsx`:** Cho phép bệnh nhân vừa xem vé khám điện tử (QR Code + STT) vừa gửi đánh giá bác sĩ sau ca khám hoàn tất.
+3. **Dung hợp Chatbot Triage & Thuật Toán WHRF trên `SymptomTriagePage.tsx`:** Tích hợp giao diện Chatbot hội thoại nhiều lượt kèm hiển thị đầy đủ điểm đánh giá sao thực tế và số lượt review của từng bác sĩ trong thẻ gợi ý.
+4. **Dung hợp Trạm Bác Sĩ Màn Hình Đôi & Đánh Giá Sinh Hiệu VNHA/ESC:** Bảo toàn toàn bộ thuật toán phân độ Huyết áp & BMI Châu Á trong trạm khám Split-Screen 50/50 mới.
+5. **Cài đặt thư viện phụ thuộc:** Tích hợp `qrcode.react` (^4.2.0) và `recharts` (^3.10.1).
+
+---
+
+### [WORK-LOG-#082] Khắc Phục Lỗi Google OAuth2 401 invalid_client & Sửa Native Query đếm Vector Bác Sĩ
+* **Thời gian:** 2026-10-05 23:55:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-SEC-01 (Dual-Transport Authentication & Social Sign-In)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend: Port `5001` UP & Healthy (`/oauth2/authorization/google` chuyển hướng 302 chính xác sang Google Accounts)
+  - Frontend: Port `5173` UP & Ready
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Tạo mới `[NEW]`:**
+  - `backend/src/main/resources/application-local.properties`: Chứa Client ID và Secret thực tế từ Google Cloud Console (được bảo vệ bởi `.gitignore`).
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/resources/application-dev.properties`: Cập nhật giá trị mặc định cho biến placeholder `GOOGLE_CLIENT_ID` và `GOOGLE_CLIENT_SECRET`.
+  - `backend/src/main/java/com/mediassist/repository/DoctorProfileRepository.java`: Chuyển `countByBioEmbeddingIsNotNull()` sang Native Query SQL thuần để tương thích với cột `bio_embedding` (pgvector).
+  - `docs/WORK_LOG.md`: Ghi nhật ký cập nhật `#082`.
+
+#### 2. Kết Quả Xác Nhận:
+- Gửi request đến `http://localhost:5001/oauth2/authorization/google` trả về HTTP 302 Redirect đến:
+  `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=741178716405-t1efef9ih4pedm6iombf80qi71es30g1.apps.googleusercontent.com&...`
+- Lỗi `Error 401: invalid_client` đã được xử lý triệt để.
+
+---
+
+### [WORK-LOG-#081] Triển Khai Bảng Giám Sát Chi Phí & Tài Nguyên AI Toàn Viện (Phase 4 Admin AI Token & Cost Analytics Dashboard)
+* **Thời gian:** 2026-10-02 22:10:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-FIN-29 (Admin AI Token & FinOps Cost Analytics)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **144/144 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 2271 modules transformed**, build thành công (`npm run build`)
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Tạo mới `[NEW]`:**
+  - `backend/src/main/resources/db/migration/V18__align_ai_token_usage_schema.sql`: Script Flyway mở rộng schema bảng `ai_token_usage` (`service_type`, `request_status`, `cost_usd`, `appointment_id`, các chỉ mục lọc).
+  - `backend/src/main/java/com/mediassist/model/entity/AiTokenUsage.java`: Entity JPA đại diện cho bản ghi kiểm toán tài nguyên AI FinOps.
+  - `backend/src/main/java/com/mediassist/repository/AiTokenUsageRepository.java`: Repository Spring Data JPA với các truy vấn tổng hợp theo cửa sổ thời gian.
+  - `backend/src/main/java/com/mediassist/dto/AiUsageStatsDto.java`: DTO đóng gói chỉ số thống kê, daily stats (Line Chart) và service stats (Pie Chart).
+  - `backend/src/main/java/com/mediassist/service/AiUsageAnalyticsService.java`: Service nghiệp vụ tính toán chi phí USD/VNĐ và xử lý aggregate.
+  - `backend/src/test/java/com/mediassist/AiUsageAnalyticsServiceTest.java`: Bộ 3 Unit test cases kiểm thử công thức tính chi phí, ghi nhận log và tổng hợp DTO.
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/java/com/mediassist/controller/AdminController.java`: Mở endpoint `GET /api/v1/admin/ai-usage?days=30` phân quyền `ADMIN`.
+  - `backend/src/main/java/com/mediassist/service/TriageService.java`: Tự động ghi nhận log FinOps sau mỗi phiên đánh giá triệu chứng.
+  - `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`: Tự động ghi nhận log FinOps sau mỗi lượt bóc tách hồ sơ cận lâm sàng.
+  - `backend/src/test/java/com/mediassist/TriageServiceTest.java`: Bổ sung `@Mock AiUsageAnalyticsService` đảm bảo test độc lập.
+  - `frontend/package.json`: Cài đặt thư viện đồ thị `recharts`.
+  - `frontend/src/pages/admin/AdminDashboard.tsx`: Tích hợp phân hệ Giám sát Chi phí AI (FinOps) hoàn chỉnh với 5 KPI Cards, Progress bar cảnh báo tỷ lệ lỗi, Line Chart xu hướng ngày, Pie Chart phân bổ dịch vụ và bộ lọc 7/30/90 ngày.
+  - `docs/DATABASE_DESIGN.md`: Bổ sung Flyway V18 vào bảng lịch sử di trú.
+  - `docs/USE_CASES.md`: Bổ sung đặc tả use case `UC-FIN-29`.
+
+---
+
+### [WORK-LOG-#080] Triển Khai Trạm Bác Sĩ Màn Hình Đôi & Lịch Tuần (Phase 3 Doctor Split-Screen Workstation)
+* **Thời gian:** 2026-10-02 21:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-CLIN-28 (Doctor Split-Screen Workstation & Clinic Check-in)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **17/17 AppointmentServiceTest Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1685 modules transformed**, build thành công (`npm run build`)
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/java/com/mediassist/model/entity/AppointmentStatus.java`: Thêm trạng thái `CHECKED_IN` phục vụ quy trình bệnh nhân check-in tại quầy trước khi vào phòng khám.
+  - `backend/src/main/java/com/mediassist/model/entity/Appointment.java`: Bổ sung trường `checkedInAt` (LocalDateTime) kèm getter & setter.
+  - `backend/src/main/java/com/mediassist/dto/AppointmentDto.java`: Bổ sung trường `checkedInAt` vào DTO và mapping trong `fromEntity()`.
+  - `backend/src/main/java/com/mediassist/service/AppointmentService.java`: Cập nhật ma trận chuyển đổi trạng thái `validTransitions` hỗ trợ `SCHEDULED -> CHECKED_IN` và `CHECKED_IN -> IN_PROGRESS / COMPLETED / CANCELLED / NO_SHOW`; hiện thực method `checkInPatient(UUID appointmentId, UUID doctorUserId)`.
+  - `backend/src/main/java/com/mediassist/controller/AppointmentController.java`: Mở endpoint `PATCH /api/v1/appointments/{id}/check-in` với `@PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")`.
+  - `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`: Bổ sung 3 unit tests (`testCheckInPatient_Success`, `testCheckInPatient_Forbidden_NotDoctorOrAdmin`, `testCheckInPatient_InvalidStatus`).
+  - `frontend/src/pages/doctor/DoctorDashboard.tsx`:
+    1. Cập nhật `DoctorAppointment` interface hỗ trợ `'CHECKED_IN'` và `checkedInAt`.
+    2. Cập nhật hàm `renderStatusBadge` và bộ lọc danh sách hỗ trợ badge `CHECKED_IN` màu tím nổi bật (`bg-purple-100 text-purple-800`).
+    3. Thêm chế độ xem Lịch Tuần (Weekly Calendar Grid) 7 ngày (Thứ 2 - Chủ Nhật) × khung giờ 07:00-17:00 với khối lịch mã màu tương tác và điều hướng tuần.
+    4. Tái cấu trúc Encounter Modal thành Trạm Bác sĩ Màn hình đôi (Split-Screen Clinical Workstation 50/50):
+       - Cột trái: Trình xem tài liệu xét nghiệm / cận lâm sàng trực quan (Document Viewer) hỗ trợ xem PDF nhúng `iframe`, ảnh, và nút tải về trực tiếp.
+       - Cột phải: 3 Phân nhóm con chuyên biệt: `[🤖 Phân Tích AI]`, `[✍️ Ghi Chú Khám (EMR)]`, `[📜 Bệnh Sử Cũ]`.
+
+---
 
 ### [WORK-LOG-#079] Hiện Thực Hóa Toàn Diện Hệ Thống Đánh Giá & Chấm Sao Bác Sĩ (Rating & Review System) Khép Kín Vòng Phản Hồi Lâm Sàng & Đưa Điểm Thực Tế Vào Thuật Toán WHRF
 * **Thời gian:** 2026-09-28 20:30:00 (GMT+7)
@@ -51,39 +156,59 @@ Trước đây, điểm `rating` của bác sĩ trong `doctor_profiles` chỉ l�
 
 #### 2. Danh Sách Tệp Tin Tạo Mới & Sửa Đổi:
 * **Tạo mới `[NEW]`:**
-  - `V17__create_doctor_reviews_and_rating_system.sql`: Migration Flyway tạo bảng `doctor_reviews`, thêm cột `review_count` cho `doctor_profiles`, và chèn dữ liệu đánh giá mẫu cho các ca khám đã hoàn thành.
+  - `V17__create_doctor_reviews_and_rating_system.sql`: Migration Flyway tạo bảng `doctor_reviews`, thêm cột `review_count` cho `doctor_profiles`.
   - `DoctorReview.java`: JPA Entity cho đánh giá lâm sàng với các getter/setter tường minh (Java 25 compatible).
   - `DoctorReviewRepository.java`: Repository truy vấn đánh giá theo ca khám, bác sĩ, bệnh nhân, tính điểm trung bình và đếm số lượng.
   - `DoctorReviewRequest.java`: DTO tiếp nhận đánh giá từ phía client kèm validation (`@NotNull`, `@Min(1)`, `@Max(5)`).
   - `DoctorReviewDto.java`: DTO phản hồi dữ liệu đánh giá kèm tiện ích ẩn danh hóa tên bệnh nhân (`anonymizePatientName`).
   - `DoctorReviewService.java`: Service xử lý nghiệp vụ gửi đánh giá, tính lại rating/count, xóa cache L1+L2+WHRF, phát thông báo chuông in-app cho bác sĩ và ghi Audit Log.
   - `DoctorReviewController.java`: REST Controller cung cấp các endpoint đánh giá ca khám, xem đánh giá của bác sĩ, và lịch sử đánh giá cá nhân.
-  - `DoctorReviewServiceTest.java`: 7 bài kiểm thử đơn vị chuyên sâu (gửi review thành công, kiểm tra 404, 403, 400 ca khám chưa hoàn tất, 409 duplicate review, kiểm tra ẩn danh hóa).
+  - `DoctorReviewServiceTest.java`: 7 bài kiểm thử đơn vị chuyên sâu.
   - `DoctorReviewModal.tsx`: Component Modal chấm sao tương tác, chọn tag nhanh, nhập nhận xét, đếm ký tự, và chế độ xem lại đánh giá đã gửi.
   - `DoctorReviewsListModal.tsx`: Component Modal hiển thị chi tiết danh sách đánh giá của bác sĩ, biểu đồ phân bổ số sao (5★ - 1★), và bộ lọc theo số sao.
-* **Sửa đổi `[MOD]`:**
-  - `DoctorProfile.java`: Bổ sung trường `reviewCount` kèm getter/setter.
-  - `DoctorMatchDto.java`: Bổ sung `rating` và `reviewCount` cho đối tượng kết quả WHRF.
-  - `DoctorDetailDto.java`: Bổ sung `reviewCount` cho đối tượng chi tiết bác sĩ.
-  - `DoctorStatsDto.java`: Bổ sung `reviewCount` cho thống kê bàn làm việc lâm sàng bác sĩ.
-  - `DoctorSemanticSearchService.java`: Nạp `dp.rating` và `dp.review_count` từ database, áp dụng công thức WHRF cải tiến với Credibility Damper.
-  - `DoctorService.java`: Nạp `reviewCount` trong thống kê `getDoctorStats`.
-  - `SecurityConfig.java`: Cho phép truy cập công khai endpoint xem review bác sĩ `/api/v1/doctors/{doctorId}/reviews`.
-  - `frontend/src/services/api.ts`: Bổ sung các DTO và API calls `submitReview`, `getAppointmentReview`, `getDoctorReviews`, `getMyReviews`.
-  - `PatientDashboard.tsx`: Bổ sung nạp danh sách đánh giá của bệnh nhân, hiển thị nút *"⭐ Đánh Giá Bác Sĩ"* hoặc *"Đã Đánh Giá ({rating}★)"* cho ca khám `COMPLETED`, mở `DoctorReviewModal`.
-  - `DoctorSearchPage.tsx`: Hiển thị số sao và số lượt đánh giá, nhấp vào mở `DoctorReviewsListModal` xem chi tiết.
-  - `DoctorDashboard.tsx`: Hiển thị số lượt đánh giá thực tế trên thanh tiêu đề bàn làm việc bác sĩ.
-  - `DocumentSummarizerPage.tsx` & `SymptomTriagePage.tsx`: Hiển thị số sao và số lượt đánh giá trên các thẻ bác sĩ được AI gợi ý.
-  - `docs/DATABASE_DESIGN.md`: Bổ sung tài liệu bảng `doctor_reviews` và trường `review_count`.
-  - `docs/USE_CASES.md`: Bổ sung tài liệu ca sử dụng `UC-DOC-26`.
 
-#### 3. Bằng Chứng Kiểm Thử Đạt Chuẩn:
-* **Backend:** `mvn test` $\rightarrow$ **Tests run: 143, Failures: 0, Errors: 0, Skipped: 0** — **`BUILD SUCCESS`** (100% tests PASS).
-* **Frontend:** `npm run build` $\rightarrow$ **0 TypeScript errors, 1685 modules transformed** thành công trong 3.22s.
+---
 
-#### 4. Điểm Nóng Tech Lead Cần Review:
-- **Hệ số Credibility Damper trong WHRF:** Bác sĩ có ít hơn 5 review sẽ chịu hệ số phạt nhẹ ($0.70 + 0.06 \times \text{count}$), bảo đảm tính công bằng y tế.
-- **Quy tắc ẩn danh hóa:** Họ và tên bệnh nhân được rút gọn phần đệm thành chữ cái đầu kèm dấu chấm (VD: "Nguyễn V. Bình") trước khi hiển thị cho công chúng.
+### [WORK-LOG-#078-C] Chuyển Đổi Phân Luồng Triệu Chứng Sang Multi-turn Chatbot Triage UI (Phase 2)
+* **Thời gian:** 2026-10-02 20:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-CLIN-02 (Conversational Symptom Triage & Red-Flag Safeguard)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **138/138 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1685 modules transformed**, build thành công trong 14.37s (`npm run build`)
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Chỉnh sửa `[MOD]`:**
+  - `frontend/src/pages/patient/SymptomTriagePage.tsx`: Tái cấu trúc toàn bộ giao diện phân luồng triệu chứng từ dạng textarea một chiều sang giao diện Chatbot hội thoại đa lượt (Multi-turn Chat Bubble):
+    1. Bong bóng chat phân màu người dùng (xanh phải) và AI Scribe (trắng trái kèm biểu tượng bot và thời gian thực).
+    2. Hiệu ứng gõ phím Typing Indicator (3 chấm nảy sinh động) trong lúc gọi OpenRouter/Gemini API.
+    3. Thẻ gợi ý câu hỏi lâm sàng tương tác (Suggestion Chips) giúp bệnh nhân phản hồi nhanh bằng 1 click.
+    4. Rào chắn Red-Flag cấp cứu: Banner đỏ toàn màn hình, nút bấm gọi thẳng `115`, và khóa tự động khung nhập liệu để ngăn chặn người bệnh nguy kịch đặt lịch khám định kỳ.
+    5. Thẻ khuyến nghị chuyên khoa lâm sàng liên kết trực tiếp tới Danh bạ Bác sĩ (`/patient/doctors`).
+    6. Danh thiếp bác sĩ khớp trực tiếp (pgvector similarity) kèm modal đặt lịch khám tại chỗ (O2O) ngay trong luồng chat.
+
+---
+
+### [WORK-LOG-#078-B] Triển Khai Phiếu Khám Bệnh Điện Tử O2O (E-Admission Ticket with QR, STT, Google Maps & Print)
+* **Thời gian:** 2026-09-30 23:10:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-CLIN-27 (O2O E-Admission Ticket)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **138/138 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors)
+  - Frontend (Vite 6.4.3 React): **0 TypeScript Errors, 1685 modules transformed**, build thành công trong 7.52s (`npm run build`)
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Tạo mới `[NEW]`:**
+  - `frontend/src/components/patient/AdmissionTicketModal.tsx`: Component phiếu khám điện tử O2O hoàn chỉnh với mã QR SVG chuẩn hoá, số STT khổ lớn, thông tin bác sĩ/phòng khám, đường dẫn Google Maps chỉ đường, nút thêm sự kiện Google Calendar và phong cách CSS `@media print` in ấn tự động.
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/java/com/mediassist/dto/AppointmentDto.java`: Bổ sung 7 trường thông tin phục vụ E-Admission Ticket (`clinicFloor`, `clinicBuilding`, `clinicAddress`, `clinicMapUrl`, `qrCodeData`, `sttNumber`, `preVisitInstructions`) kèm getters & setters.
+  - `backend/src/main/java/com/mediassist/service/AppointmentService.java`: Bổ sung method `getAppointmentTicket()`, logic `populateTicketInfo()` trích xuất phòng khám, số thứ tự (STT), sinh payload QR code chuẩn JSON cho máy quét lễ tân và danh mục 4 chỉ dẫn lâm sàng trước khi khám.
+  - `backend/src/main/java/com/mediassist/controller/AppointmentController.java`: Mở endpoint `GET /api/v1/appointments/{id}/ticket` bảo vệ phân quyền cho Bệnh nhân, Bác sĩ và Quản trị viên.
+  - `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`: Bổ sung 2 unit tests (`testGetAppointmentTicket_Success` và `testGetAppointmentTicket_Forbidden_OtherPatient`), nâng tổng số test lên 138/138 PASS.
+  - `frontend/package.json` & `package-lock.json`: Cài đặt thư viện `qrcode.react`.
+  - `frontend/src/pages/patient/PatientDashboard.tsx`: Bổ sung nút '📋 Xem Phiếu Khám' trên mỗi thẻ lịch khám đã được tiếp nhận/thanh toán, quản lý trạng thái mở modal `AdmissionTicketModal`.
 
 ---
 
@@ -102,22 +227,6 @@ Tech Lead chỉ đạo merge các nhánh phát triển độc lập của 2 thà
 2. Nhánh `feature/fuction` của bạn Khương (`HoangKhuong`): Hoàn thiện quả chuông thông báo in-app, chu trình quên mật khẩu, hoàn tiền và dời lịch khám, cùng 2 Flyway migrations V15 & V16.
 
 Quá trình tích hợp diễn ra hoàn hảo theo chiến lược Git merge tiêu chuẩn, **không có bất kỳ xung đột mã nguồn (zero merge conflict)** nào.
-
-#### 2. Danh Sách Tệp Tin Tích Hợp:
-* **Từ `fix/critical-bugs`:**
-  - `[MOD]` `frontend/vite.config.ts`: Thu hẹp proxy từ `/oauth2` sang `/oauth2/authorization` giải phóng route SPA `/oauth2/callback`.
-  - `[MOD]` `backend/src/main/java/com/mediassist/security/OAuth2AuthenticationFailureHandler.java`: Ghi log chẩn đoán context khi OAuth2 fail.
-  - `[MOD]` `.gitignore` & `backend/src/main/resources/application.properties`: Untrack `.env`, nạp config qua `spring.config.import=optional:file:.env`.
-* **Từ `feature/fuction`:**
-  - `[NEW]` `V15__add_triage_session_and_refund_to_appointments.sql` & `V16__create_password_reset_and_notifications.sql`.
-  - `[NEW]` `Notification.java`, `PasswordResetToken.java`, `NotificationService.java`, `NotificationController.java`.
-  - `[NEW]` `NotificationBell.tsx`, `notificationService.ts`.
-  - `[MOD]` `AppointmentService.java`, `AuthService.java`, `PatientDashboard.tsx`, `DoctorDashboard.tsx`.
-  - `[NEW]` `NotificationServiceTest.java`.
-
-#### 3. Bằng Chứng Kiểm Thử Đạt Chuẩn:
-* **Backend:** `mvn test` $\rightarrow$ **Tests run: 136, Failures: 0, Errors: 0, Skipped: 0** — **`BUILD SUCCESS`**.
-* **Frontend:** `npm run build` $\rightarrow$ **0 TypeScript errors, 1683 modules transformed** thành công.
 
 ---
 
@@ -565,7 +674,9 @@ Tech Lead bấm vào nút đăng nhập nhanh của Bác sĩ trên giao diện `
 
 #### 2. Giải Pháp Xử Lý:
 1. **Chuẩn Hóa Alias Trong `AuthService.java`:**
-   - Bổ sung cơ chế map alias thông minh: nếu người dùng nhập `dr.an@mediassist.local` $ightarrow$ tự động ánh xạ sang `doctor@mediassist.local`; nếu nhập `patient.nam@mediassist.local` $ightarrow$ tự động ánh xạ sang `patient@mediassist.local`.
+   - Bổ sung cơ chế map alias thông minh: nếu người dùng nhập `dr.an@mediassist.local` $
+ightarrow$ tự động ánh xạ sang `doctor@mediassist.local`; nếu nhập `patient.nam@mediassist.local` $
+ightarrow$ tự động ánh xạ sang `patient@mediassist.local`.
    - Đảm bảo người dùng gõ bất kỳ định dạng nào (`dr.an` hay `doctor`) đều đăng nhập thành công 100%.
 2. **Cập Nhật Toàn Bộ Nút 1-Click Fill Trên `LoginPage.tsx`:**
    - Bác Sĩ (TS.BS Nguyễn Văn An - Tim Mạch): `doctor@mediassist.local` / `Doctor@SecurePass2026!`
