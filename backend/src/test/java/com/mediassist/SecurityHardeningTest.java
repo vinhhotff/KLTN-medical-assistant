@@ -8,6 +8,9 @@ import com.mediassist.model.entity.PatientProfile;
 import com.mediassist.model.entity.Role;
 import com.mediassist.model.entity.User;
 import com.mediassist.model.entity.UserStatus;
+import com.mediassist.repository.AuditLogRepository;
+import com.mediassist.repository.EmailVerificationTokenRepository;
+import com.mediassist.repository.PasswordResetTokenRepository;
 import com.mediassist.repository.PatientProfileRepository;
 import com.mediassist.repository.UserRepository;
 import com.mediassist.security.JwtTokenProvider;
@@ -18,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
@@ -45,7 +49,9 @@ class SecurityHardeningTest {
         patientProfileRepository = mock(PatientProfileRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
         tokenProvider = mock(JwtTokenProvider.class);
-        authService = new AuthService(userRepository, patientProfileRepository, passwordEncoder, tokenProvider);
+        authService = new AuthService(userRepository, patientProfileRepository, passwordEncoder, tokenProvider,
+                mock(PasswordResetTokenRepository.class), mock(AuditLogRepository.class), mock(ApplicationEventPublisher.class),
+                mock(EmailVerificationTokenRepository.class), mock(SecurityRateLimiterService.class));
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.mediassist.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.mediassist.security.SecureTokens;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -29,8 +30,9 @@ public class SecurityRateLimiterService {
     private final StringRedisTemplate redisTemplate;
 
     // Layer 1 In-Memory Fallbacks with Bounded Capacity and Auto-Eviction (No Memory Leaks)
+    // Giu entry du lau cho cua so dai nhat (60 phut), neu khong counter bi xoa giua cua so va gioi han "x lan/gio" bi ro ri
     private final Cache<String, WindowCounter> fallbackCache = Caffeine.newBuilder()
-            .expireAfterWrite(5, TimeUnit.MINUTES)
+            .expireAfterWrite(61, TimeUnit.MINUTES)
             .maximumSize(10_000)
             .build();
 
@@ -104,6 +106,47 @@ public class SecurityRateLimiterService {
         return checkLimit("doc_file_access:" + userKey, 30, 1);
     }
 
+    /**
+     * Rate limiter for forgot-password requests per client IP (Anti email-bombing / enumeration scan)
+     * Limit: 5 requests per 15 minutes per IP address
+     */
+    public boolean allowForgotPasswordByIp(String ipAddress) {
+        return checkLimit("forgot_ip:" + ipAddress, 5, 15);
+    }
+
+    /**
+     * Rate limiter for forgot-password requests per target email (Anti mailbox flooding).
+     * Key la SHA-256 cua email de khong luu dia chi email dang ro trong Redis.
+     * Limit: 3 requests per 60 minutes per email
+     */
+    public boolean allowForgotPasswordByEmail(String email) {
+        return checkLimit("forgot_email:" + SecureTokens.sha256Hex(email), 3, 60);
+    }
+
+    /**
+     * Rate limiter for public reset-token validation and password reset submissions
+     * Limit: 20 requests per 10 minutes per IP address
+     */
+    public boolean allowResetTokenAttempt(String ipAddress) {
+        return checkLimit("reset_token:" + ipAddress, 20, 10);
+    }
+
+    /**
+     * Rate limiter for resending the email verification link (Anti mailbox flooding)
+     * Limit: 1 request per 60 seconds per user
+     */
+    public boolean allowVerificationResendBurst(String userKey) {
+        return checkLimit("verify_resend_burst:" + userKey, 1, 1);
+    }
+
+    /**
+     * Rate limiter for resending the email verification link
+     * Limit: 5 requests per 60 minutes per user
+     */
+    public boolean allowVerificationResendHourly(String userKey) {
+        return checkLimit("verify_resend_hourly:" + userKey, 5, 60);
+    }
+
     private boolean checkLimit(String key, int maxRequests, int windowMinutes) {
         String redisKey = "ratelimit:" + key;
         try {
@@ -125,15 +168,16 @@ public class SecurityRateLimiterService {
             return count != null && count <= maxRequests;
         } catch (Exception e) {
             log.warn("Redis unavailable for rate limiter (key: {}), using bounded in-memory fallback: {}", key, e.getMessage());
-            return allowInMemory(key, maxRequests);
+            return allowInMemory(key, maxRequests, windowMinutes);
         }
     }
 
-    private boolean allowInMemory(String key, int maxRequests) {
-        long currentMinute = System.currentTimeMillis() / 60000;
+    private boolean allowInMemory(String key, int maxRequests, int windowMinutes) {
+        // Cua so co dinh dung bang windowMinutes (truoc day luon la 1 phut, lam gioi han 10 phut/60 phut bi long)
+        long currentWindow = System.currentTimeMillis() / (windowMinutes * 60_000L);
         WindowCounter counter = fallbackCache.asMap().compute(key, (k, existing) -> {
-            if (existing == null || existing.minute != currentMinute) {
-                return new WindowCounter(currentMinute, new AtomicInteger(1));
+            if (existing == null || existing.window != currentWindow) {
+                return new WindowCounter(currentWindow, new AtomicInteger(1));
             }
             existing.counter.incrementAndGet();
             return existing;
@@ -141,7 +185,7 @@ public class SecurityRateLimiterService {
         return counter != null && counter.counter.get() <= maxRequests;
     }
 
-    private record WindowCounter(long minute, AtomicInteger counter) {}
+    private record WindowCounter(long window, AtomicInteger counter) {}
 
     /**
      * Checks if user is in upload cooldown penalty due to consecutive invalid/malicious files.

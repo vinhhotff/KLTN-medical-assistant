@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#083** | 02/10/2026 | Hệ Thống Email (Email Notifications), 4 phần A–D + kiểm thử E2E. **Phần A (xong):** (1) `spring-boot-starter-mail` + Thymeleaf, template HTML tiếng Việt auto-escape trong `templates/email/`, (2) Mailpit trong `docker-compose.yml` (SMTP 1025, UI 8025), (3) `EmailService` nuốt lỗi SMTP + log WARN không lộ token, (4) 7 domain event (record, chỉ dữ liệu hành chính) + `MailNotificationListener` `@TransactionalEventListener(AFTER_COMMIT, fallbackExecution)` + `@Async("mailExecutor")`, **Phần B (xong):** V19 `token_hash` SHA-256, TTL 30 phút, rate limit IP + email, `GET /auth/reset-password/validate`, trang `/forgot-password` & `/reset-password`, xóa modal OTP giả. **Phần C (xong):** V20 `email_verified` (đổi tên cột V1 chưa dùng, backfill TRUE) + `email_verification_tokens`, `POST /auth/verify-email`, `POST /auth/resend-verification`, guard 403 `EMAIL_NOT_VERIFIED` ở tầng service (đặt/dời lịch, checkout, mua gói), chống pre-hijacking khi liên kết Google, banner + trang `/verify-email`. **Phần D (xong):** email đặt lịch (bệnh nhân + bác sĩ, kể cả tái khám), hủy lịch (cả 2 đường, ghi người hủy + hoàn tiền, không kèm lý do), biên nhận thanh toán đúng 1 lần (verify + Stripe webhook); hoàn tiền dùng chung, admin không hủy được lịch đã kết thúc. **E2E (xong):** Flyway V17–V20 áp dụng trên DB dev thật, kịch bản curl + Mailpit **38/38 PASS** (8 mail đúng kỳ vọng); sửa lỗi khởi động có sẵn từ #077 (`countByBioEmbeddingIsNotNull`). 264/264 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#082** | 02/10/2026 | Lưu Trữ Tài Liệu Y Tế Riêng Tư (Private Document Storage): (1) Flyway V18 đổi `storage_url` thành `storage_path` (object key) và chuyển URL public cũ về key, (2) Endpoint `GET /documents/{id}/signed-url` cấp signed URL 15 phút sau `PatientAccessGuard`, audit `DOCUMENT_SIGNED_URL_ISSUED` cho mọi role, rate limit 30/phút, (3) `/documents/{id}/file` redirect 302, **xóa fallback sinh PDF giả**, (4) DTO bỏ `storageUrl` thay bằng `hasFile`, (5) Frontend helper signed URL + modal có trạng thái 403/404/503/hết hạn, (6) Xóa service_role key và OpenRouter key khỏi file đã commit, hỗ trợ secret key `sb_secret_...` (chỉ header `apikey`), (7) 190/190 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#081** | 29/09/2026 | Vá Lỗ Hổng IDOR Hồ Sơ Bệnh Nhân (Patient Record Access Guard): (1) `PatientAccessGuard` phân quyền PATIENT tự xem / DOCTOR cần quan hệ điều trị (lịch hẹn SCHEDULED/IN_PROGRESS/COMPLETED) / ADMIN bắt buộc audit, (2) Áp guard cho 6 endpoint hồ sơ, vi phạm trả 403 `FORBIDDEN_PATIENT_ACCESS`, (3) AuditLog `VIEW_PATIENT_RECORD` kèm IP, (4) `MedicalDocumentDto` & `TriageSessionDto` thay entity, (5) Thông báo 403 thân thiện trên DoctorDashboard, DoctorPatientRecordsPage, DocumentAnalysisModal, (6) 157/157 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#079** | 28/09/2026 | Hiện Thực Hóa Toàn Diện Hệ Thống Đánh Giá & Chấm Sao Bác Sĩ (Rating & Review System) Khép Kín Vòng Phản Hồi Lâm Sàng & Đưa Điểm Thực Tế Vào Thuật Toán WHRF: (1) Flyway V17 tạo bảng `doctor_reviews` và cột `review_count`, (2) Ràng buộc 1 ca khám hoàn tất (`COMPLETED`) 1 đánh giá duy nhất (idempotent), (3) Tự động tái tính điểm trung bình và cập nhật số lượt đánh giá, (4) Invalidate Two-Layer Cache (Caffeine L1 + Redis L2) và WHRF search cache, (5) Tích hợp điểm thực tế vào thuật toán WHRF ($O(M \log K)$ Min-Heap) với hệ số suy giảm độ tin cậy (Credibility Damper) cho bác sĩ ít review, (6) Bảo vệ riêng tư Nghị định 13/2023/NĐ-CP & HIPAA bằng mặt nạ họ tên bệnh nhân, (7) Frontend Modal chấm sao tương tác, xem danh sách đánh giá chi tiết, hiển thị sao và số lượt đánh giá trên DoctorSearch, PatientDashboard, DoctorDashboard, Triage, DocumentSummarizer, (8) 143/143 Backend Tests PASS (100%), Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
@@ -21,6 +22,151 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#083] Hệ Thống Email: Quên Mật Khẩu Chạy Thật, Xác Thực Email, Email Đặt/Hủy Lịch & Biên Nhận Thanh Toán (Email Notifications)
+* **Thời gian:** 2026-10-02 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code
+* **Nhánh:** `feature/email-notifications`, tách từ `feature/private-document-storage` @ `f1dcec6` (KHÔNG tách từ `develop`) vì nhánh đó chứa migration V18 và chưa merge. Migration của phiên này bắt đầu từ **V19**. Khi merge: merge `feature/patient-access-guard` → `feature/private-document-storage` → nhánh này theo thứ tự.
+* **Cách chia commit:** mỗi phần A/B/C/D là một commit Conventional Commits riêng.
+
+#### Phần A — Hạ tầng email
+**Trạng thái kiểm thử:** Backend **209/209 Unit Tests PASS** (`mvn test`, BUILD SUCCESS). 19 test mới: `EmailServiceTest` 6, `MailNotificationListenerTest` 10, `MailTransactionPhaseTest` 3. Frontend không đổi ở phần này.
+
+**Danh sách tệp tin**
+- `[MOD]` `backend/pom.xml`: thêm `spring-boot-starter-mail`, `spring-boot-starter-thymeleaf`.
+- `[MOD]` `docker-compose.yml`: service `mailpit` (`axllent/mailpit`), cổng `1025` (SMTP) và `8025` (UI), network `mediassist_net`.
+- `[MOD]` `backend/src/main/resources/application.properties`: `app.client-base-url` (`APP_CLIENT_BASE_URL`, mặc định `http://localhost:5173`); `app.payment.client-base-url` trỏ về giá trị này. Thêm `app.mail.enabled`, `app.mail.from`, `spring.mail.*` (timeout connection/read/write 5000 ms), `management.health.mail.enabled=false`, `spring.thymeleaf.check-template-location=false`.
+- `[MOD]` `application-dev.properties` (Mailpit `localhost:1025`, không auth, không TLS), `application-prod.properties` (`SMTP_HOST/PORT/USERNAME/PASSWORD`, STARTTLS required), `application-test.properties` (`app.mail.enabled=false`).
+- `[MOD]` `backend/.env.example`: biến `APP_CLIENT_BASE_URL`, `APP_MAIL_*`, `SMTP_*`.
+- `[MOD]` `backend/.../config/AsyncConfig.java`: bean `mailExecutor` (core 2, max 4, queue 100). Khi đầy thì **bỏ email + log WARN**, không dùng CallerRuns để luồng request không bị SMTP chặn.
+- `[NEW]` `backend/.../event/`: `PasswordResetRequestedEvent`, `PasswordChangedEvent`, `EmailVerificationRequestedEvent`, `AppointmentMailInfo`, `AppointmentBookedEvent`, `AppointmentCancelledEvent` (enum `CancelledBy`), `PaymentCompletedEvent`. Event chứa token override `toString()` để che token.
+- `[NEW]` `backend/.../mail/EmailService.java`: render Thymeleaf → `MimeMessageHelper` UTF-8 HTML. Mọi lỗi bị nuốt, trả `false`. Log WARN chỉ gồm tên template, email đã che (`p***@gmail.com`) và tên lỗi; lỗi SMTP kèm nguyên nhân gốc, lỗi render **không** ghi message (có thể chứa link token).
+- `[NEW]` `backend/.../mail/MailFormat.java`: giờ `HH:mm dd/MM/yyyy`, tiền `350.000 ₫`, che email, nhãn phương thức thanh toán và gói dịch vụ.
+- `[NEW]` `backend/.../mail/MailNotificationListener.java`: 6 handler `@Async("mailExecutor") @TransactionalEventListener(phase = AFTER_COMMIT, fallbackExecution = true)`. Dựng link `{app.client-base-url}/reset-password?token=...`, `/verify-email?token=...`, `/patient`, `/doctor`.
+- `[NEW]` `backend/src/main/resources/templates/email/`: `_layout.html` (header, footer "email không chứa thông tin sức khỏe", số 115), `_parts.html` (button, dòng bảng, link dự phòng), `password-reset`, `password-changed`, `verify-email`, `appointment-booked-patient`, `appointment-booked-doctor`, `appointment-cancelled`, `payment-receipt`. Chỉ dùng `th:text`/`th:href` (auto-escape), không có `th:utext`.
+- `[NEW]` `backend/src/test/.../mail/MailTestSupport.java`, `EmailServiceTest.java`, `MailNotificationListenerTest.java`, `MailTransactionPhaseTest.java` (context Spring tối giản + transaction manager in-memory: commit → gửi, rollback → không gửi, ngoài transaction → vẫn gửi).
+- `[MOD]` `README.md`: Mailpit trong `docker compose up -d`, xem mail tại http://localhost:8025, biến SMTP production.
+
+**Quyết định thiết kế**
+- **Không có dữ liệu y tế trong email theo thiết kế:** `AppointmentMailInfo` chỉ có mã lịch, giờ, tên bệnh nhân/bác sĩ, chuyên khoa, phòng khám. Event không có trường lý do khám, ghi chú hay lý do hủy, nên template không thể vô tình hiển thị.
+- **Snapshot dữ liệu trong transaction:** event là record dữ liệu nguyên thủy, không chứa entity, nên luồng async không gặp `LazyInitializationException`.
+
+#### Phần B — Quên mật khẩu chạy thật
+**Trạng thái kiểm thử:** Backend **227/227 Unit Tests PASS**. 18 test mới: `AuthServicePasswordResetTest` 10, `AuthControllerPasswordResetTest` 5, `SecurityRateLimiterEmailFlowTest` 3. Frontend **0 TypeScript Errors, 1690 modules transformed** (`npm run build`).
+
+**Danh sách tệp tin**
+- `[NEW]` `backend/src/main/resources/db/migration/V19__password_reset_token_hash.sql`: xóa token cũ, `token` → `token_hash` VARCHAR(64), gỡ mọi UNIQUE cũ, tạo `idx_prt_token_hash` UNIQUE. Idempotent.
+- `[NEW]` `backend/.../security/SecureTokens.java`: `generate()` (32 byte `SecureRandom`, Base64 URL-safe không padding), `sha256Hex()`. Dùng chung cho phần C.
+- `[NEW]` `backend/.../dto/TokenValidationResponse.java` (`{valid}`).
+- `[MOD]` `backend/.../model/entity/PasswordResetToken.java`: `tokenHash` (`token_hash`), `isUsable(now)`.
+- `[MOD]` `backend/.../repository/PasswordResetTokenRepository.java`: `findByTokenHash`, `deleteByUserIdAndIdNot`.
+- `[MOD]` `backend/.../service/AuthService.java`:
+  + Constructor injection (bỏ `@Autowired(required=false)`), thêm `AuditLogRepository`, `ApplicationEventPublisher`.
+  + `requestPasswordReset`: bỏ qua SUSPENDED, xóa token cũ, lưu hash, TTL 30 phút, audit `PASSWORD_RESET_REQUESTED`, phát `PasswordResetRequestedEvent`.
+  + `isPasswordResetTokenValid` (mới), `resetPassword`: tối thiểu 8 ký tự, `used=true`, xóa token khác, mở khóa tài khoản, audit `PASSWORD_RESET_COMPLETED`, phát `PasswordChangedEvent`.
+  + Log chỉ ghi email đã che, không ghi token.
+- `[MOD]` `backend/.../controller/AuthController.java`: `forgot-password` rate limit IP (429) + email (im lặng, cùng message); `GET /reset-password/validate` (`no-store`); rate limit cho validate/reset.
+- `[MOD]` `backend/.../service/SecurityRateLimiterService.java`: `allowForgotPasswordByIp` (5/15 phút), `allowForgotPasswordByEmail` (3/giờ, key là SHA-256 của email), `allowResetTokenAttempt` (20/10 phút). **Sửa lỗi fallback in-memory:** trước đây luôn dùng cửa sổ 1 phút bất kể `windowMinutes`; giờ dùng đúng độ dài cửa sổ, cache giữ entry 61 phút.
+- `[MOD]` `backend/.../dto/ResetPasswordRequest.java`: `@Size(min = 8)`.
+- `[MOD]` `backend/.../config/SecurityConfig.java`: permitAll `/api/v1/auth/reset-password/validate`.
+- `[MOD]` `backend/src/test/.../SecurityHardeningTest.java`: constructor `AuthService` mới.
+- `[NEW]` `backend/src/test/.../service/AuthServicePasswordResetTest.java`, `.../controller/AuthControllerPasswordResetTest.java`, `.../service/SecurityRateLimiterEmailFlowTest.java`.
+- `[NEW]` `frontend/src/components/auth/AuthCard.tsx`: khung chung cho các trang mở từ email.
+- `[NEW]` `frontend/src/pages/auth/ForgotPasswordPage.tsx`, `ResetPasswordPage.tsx` (đọc token rồi `history.replaceState` xóa khỏi URL; gọi `validate`; trạng thái hết hạn có nút "Yêu cầu liên kết mới"; thành công về `/login?reset=success`).
+- `[MOD]` `frontend/src/App.tsx`: route public `/forgot-password`, `/reset-password`.
+- `[MOD]` `frontend/src/pages/LoginPage.tsx`: "Quên mật khẩu?" là `<Link to="/forgot-password">`; **xóa modal giả, OTP "882 941" và dòng mật khẩu demo**; `?reset=success` mở tab Đăng nhập kèm thông báo.
+- `[MOD]` `frontend/src/services/api.ts`: interceptor 401 không redirect trên `/login`, `/forgot-password`, `/reset-password`, `/verify-email`; thêm `getApiErrorMessage`.
+
+**Tài liệu đã đồng bộ (phần B):** `docs/USE_CASES.md` (viết lại UC-24), `docs/DATABASE_DESIGN.md` (mục 12.1 ghi chú, mục 14.1 V19), `docs/CAPSTONE_DEFENSE.md` (Câu hỏi 17).
+
+#### Phần C — Xác thực email khi đăng ký
+**Trạng thái kiểm thử:** Backend **248/248 Unit Tests PASS**. 21 test mới: `AuthServiceEmailVerificationTest` 12, `AppointmentServiceTest` +3, `PaymentServiceTest` +1, `MedicalDocumentAnalysisServiceTest` +2, `OAuth2SecurityTest` +3. Frontend **0 TypeScript Errors, 1695 modules transformed**. **Migration V19 + V20** chạy trên PostgreSQL 16.4 embedded (scratch) với 3 kịch bản đều PASS (chi tiết: `docs/DATABASE_DESIGN.md` mục 14.3).
+
+**Phát hiện khi làm:** V1 đã tạo `users.is_email_verified` nhưng entity chưa từng map (mọi dòng FALSE). V20 **đổi tên** cột này thành `email_verified` thay vì thêm cột thứ hai cùng ý nghĩa; kết quả cuối vẫn đúng như yêu cầu (`email_verified BOOLEAN NOT NULL DEFAULT FALSE`, backfill TRUE cho user hiện có).
+
+**Danh sách tệp tin**
+- `[NEW]` `backend/src/main/resources/db/migration/V20__email_verification.sql`: đổi tên/thêm `email_verified`, backfill TRUE một lần, `email_verified_at`, bảng `email_verification_tokens` (`token_hash` UNIQUE, hết hạn 24 giờ, `used_at`). Idempotent.
+- `[NEW]` `backend/.../model/entity/EmailVerificationToken.java`, `backend/.../repository/EmailVerificationTokenRepository.java`.
+- `[NEW]` `backend/.../service/EmailVerificationGuard.java`: `requireVerifiedPatient(User)` → 403 `EMAIL_NOT_VERIFIED`, chỉ áp dụng PATIENT.
+- `[NEW]` `backend/.../dto/VerifyEmailRequest.java`.
+- `[MOD]` `backend/.../model/entity/User.java`: `emailVerified` (mặc định `false`, fail-closed), `emailVerifiedAt`, `markEmailVerified()`, builder `emailVerified(boolean)`.
+- `[MOD]` `backend/.../dto/UserDto.java`: thêm `emailVerified`.
+- `[MOD]` `backend/.../service/AuthService.java`: `register()` đặt `emailVerified=false` + phát `EmailVerificationRequestedEvent`; `verifyEmail()` (idempotent khi đã xác thực, audit `EMAIL_VERIFIED`); `resendVerificationEmail()` (trả `ALREADY_VERIFIED` không tốn lượt; rate limit 60 giây + 5 lần/giờ); `resetPassword()` đặt `emailVerified=true`. Constructor thêm `EmailVerificationTokenRepository`, `SecurityRateLimiterService`.
+- `[MOD]` `backend/.../controller/AuthController.java`: `POST /auth/verify-email` (public, rate limit theo IP), `POST /auth/resend-verification` (cần đăng nhập).
+- `[MOD]` `backend/.../config/SecurityConfig.java`: permitAll `/api/v1/auth/verify-email`.
+- `[MOD]` `backend/.../service/SecurityRateLimiterService.java`: `allowVerificationResendBurst` (1/60 giây), `allowVerificationResendHourly` (5/giờ).
+- `[MOD]` `backend/.../service/AppointmentService.java` (`bookAppointment`; `rescheduleAppointment` khi người dời là bệnh nhân), `PaymentService.java` (`createCheckoutSession`), `MedicalDocumentAnalysisService.java` (`purchaseQuota`): gọi `EmailVerificationGuard`.
+- `[MOD]` `backend/.../security/CustomOAuth2UserService.java`: user Google mới `emailVerified=true`; liên kết Google vào tài khoản chưa xác thực → xóa `password_hash`, đặt verified, xóa token xác thực, audit `ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED`; `findOrCreateUser` thêm `@Transactional`.
+- `[MOD]` `backend/.../service/AdminVettingService.java` (`createDoctorByAdmin` → verified), `backend/.../config/DataInitializer.java` (4 tài khoản seed → verified).
+- `[NEW]` `backend/src/test/.../service/AuthServiceEmailVerificationTest.java`. `[MOD]` `AppointmentServiceTest`, `PaymentServiceTest`, `MedicalDocumentAnalysisServiceTest`, `OAuth2SecurityTest`, `SecurityHardeningTest`, `AuthServicePasswordResetTest` (fixture verified + constructor mới + test guard).
+- `[NEW]` `frontend/src/pages/auth/VerifyEmailPage.tsx` (đọc token, `history.replaceState` xóa token khỏi URL, chặn gọi API 2 lần khi StrictMode, làm mới user nếu đang đăng nhập).
+- `[NEW]` `frontend/src/hooks/useUrlToken.ts` (`readTokenFromUrl` thuần + `useStripTokenFromUrl`), dùng cho cả `ResetPasswordPage` (sửa: trước đó đọc và xóa token trong initializer của `useState`, StrictMode gọi 2 lần nên lần sau có thể đọc `null`).
+- `[NEW]` `frontend/src/hooks/useEmailVerification.ts` (chỉ `PATIENT` và `emailVerified === false`), `frontend/src/components/common/EmailVerificationBanner.tsx` (nút gửi lại, đếm ngược 60 giây), `frontend/src/components/common/EmailNotVerifiedHint.tsx`.
+- `[MOD]` `frontend/src/store/useAuthStore.ts`: `UserProfile.emailVerified?`, `refreshCurrentUser()` (không xóa phiên khi lỗi mạng, khác `fetchCurrentUser`).
+- `[MOD]` `frontend/src/layouts/PatientLayout.tsx`: gọi `refreshCurrentUser()` khi mount; banner xác thực dưới `MedicalDisclaimerBanner` (giữ nguyên banner y tế).
+- `[MOD]` `frontend/src/services/api.ts`: `isEmailNotVerified`, `EMAIL_NOT_VERIFIED_MESSAGE`, `EMAIL_NOT_VERIFIED_TOOLTIP`. `isPatientAccessDenied` giữ nguyên (chỉ `FORBIDDEN_PATIENT_ACCESS`).
+- `[MOD]` `frontend/src/pages/patient/DoctorSearchPage.tsx`, `SymptomTriagePage.tsx`, `DocumentSummarizerPage.tsx` (đặt lịch + thanh toán gói), `PatientDashboard.tsx` (dời lịch + thanh toán phí khám): nút bị vô hiệu hóa kèm tooltip, dòng gợi ý, xử lý 403 `EMAIL_NOT_VERIFIED`.
+- `[MOD]` `frontend/src/App.tsx` (route public `/verify-email`), `frontend/src/pages/LoginPage.tsx` (thông báo đã gửi email xác thực sau đăng ký).
+
+**Tài liệu đã đồng bộ (phần C):** `docs/USE_CASES.md` (thêm **UC-29**; cập nhật UC-01, UC-05, UC-14, UC-19, UC-23), `docs/DATABASE_DESIGN.md` (bảng `users`, action audit mới, mục 14.2 V20, 14.3 kiểm chứng), `docs/CAPSTONE_DEFENSE.md` (Câu hỏi 18).
+
+#### Phần D — Email nghiệp vụ (đặt lịch, hủy lịch, thanh toán)
+**Trạng thái kiểm thử:** Backend **264/264 Unit Tests PASS**. 16 test mới: `AppointmentServiceTest` +6, `AdminVettingServiceTest` +2, `PaymentServiceTest` +4 (và bổ sung assert event cho 2 test verify sẵn có), `AppointmentMailPrivacyTest` 4. Frontend **0 TypeScript Errors, 1695 modules transformed**.
+
+**Danh sách tệp tin**
+- `[MOD]` `backend/.../event/AppointmentMailInfo.java`: thêm `from(Appointment, DoctorProfile)` chụp dữ liệu hành chính trong transaction (chuyên khoa ghép tên các `Specialty`, sắp xếp).
+- `[NEW]` `backend/.../service/AppointmentRefundService.java`: `refundIfPaid()` trả `RefundResult(refunded, amount)`, dùng chung cho mọi đường hủy. Bỏ `try/catch` nuốt lỗi của code cũ (lỗi DB trong transaction đằng nào cũng làm rollback).
+- `[MOD]` `backend/.../service/AppointmentService.java`: constructor thêm `AppointmentRefundService`, `ApplicationEventPublisher`; bỏ field `@Lazy @Autowired(required=false) PaymentTransactionRepository`. Phát `AppointmentBookedEvent` ở `bookAppointment` (followUp=false) và `createFollowUpAppointment` (followUp=true); phát `AppointmentCancelledEvent` khi `updateAppointmentStatus(CANCELLED)` với người hủy ADMIN > DOCTOR > PATIENT.
+- `[MOD]` `backend/.../service/AdminVettingService.java`: `adminCancelAppointment` chặn `COMPLETED`/`CANCELLED`/`NO_SHOW` (400 `APPOINTMENT_NOT_CANCELLABLE`, tiếng Việt), hoàn tiền qua `AppointmentRefundService`, phát `AppointmentCancelledEvent(ADMIN)`.
+- `[MOD]` `backend/.../service/PaymentService.java`: constructor thêm `ApplicationEventPublisher`; `publishPaymentCompleted()` chỉ gọi ở nhánh `PENDING → COMPLETED` của `verifyAndFulfillPayment` và `handleStripeWebhook`.
+- `[MOD]` `backend/.../mail/MailNotificationListener.java`: số tiền hoàn không xác định → ghi "phí khám" thay vì để trống.
+- `[NEW]` `backend/src/test/.../mail/AppointmentMailPrivacyTest.java`. `[MOD]` `AppointmentServiceTest`, `service/AdminVettingServiceTest`, `service/PaymentServiceTest` (constructor + test event).
+- `[MOD]` `frontend/src/pages/admin/AppointmentSupervisionPage.tsx`: chỉ hiện nút hủy cho `SCHEDULED`/`IN_PROGRESS`; lỗi backend hiển thị trong hộp thoại (thay `alert` chung chung); ghi chú hoàn tiền tự động và "email không kèm lý do".
+
+**Tài liệu đã đồng bộ (phần D):** `docs/USE_CASES.md` (thêm **UC-30**; cập nhật UC-05, UC-17, UC-25), `docs/CAPSTONE_DEFENSE.md` (Câu hỏi 19, Bước 7 kịch bản demo Mailpit), `docs/STORYTELLING.md` (Persona 2, mục 6 "Lòng tin qua hộp thư").
+
+#### Kiểm thử E2E trên DB dev thật + Mailpit (02/10/2026)
+**Môi trường:** Docker Desktop (engine 29.8.0), `docker compose up -d` (postgres pgvector:pg16 cổng 5433, redis, pgweb, **mailpit** cổng 1025/8025), backend `mvn spring-boot:run -Dspring-boot.run.profiles=dev` (cổng 5001). Kịch bản tự động bằng Python (urllib) gọi API + Mailpit API `http://localhost:8025/api/v1/messages`, xóa hộp thư Mailpit trước khi chạy.
+
+**1. Sao lưu trước migration:** `docker exec mediassist_postgres pg_dump -U postgres mediassist_db > backup_truoc_V18.sql` (325 KB), lưu **ngoài repo** tại `C:\Users\DELL\Desktop\KLTN-db-backups\`. Thêm `backup_*.sql`, `*.dump` vào `.gitignore` để phòng commit nhầm. Trạng thái trước: Flyway **V16** (V17 doctor reviews cũng chưa từng chạy trên DB dev), 22 user (1 ADMIN, 14 DOCTOR, 7 PATIENT), cột `users.is_email_verified`, 1 tài liệu còn URL `https://`.
+
+**2. Flyway trên DB dev:** `Migrating schema "public" to version 17 → 18 → 19 → 20`, `Successfully applied 4 migrations ... now at version v20 (00:00.315s)`, tất cả `success = t`. V19 có 1 WARN vô hại `relation "idx_prt_user_id" already exists, skipping` (`CREATE INDEX IF NOT EXISTS`). Kiểm tra SQL sau migration:
+- `medical_documents`: `still_https = 0` / 1 tài liệu, `storage_path = patients/f9cc0765-.../f14b8f0c_Phieu...` (object key).
+- `users`: 22/22 `email_verified = true`, 0 dòng thiếu `email_verified_at`; cột `email_verified boolean NOT NULL DEFAULT false`; không còn `is_email_verified`.
+- `password_reset_tokens`: cột `id, user_id, token_hash, expires_at, used, created_at`; index `idx_prt_token_hash` (UNIQUE), `idx_prt_user_id`; `email_verification_tokens` có `idx_evt_token_hash`, `idx_evt_user_id`.
+
+**Lỗi chặn khởi động phát hiện trong lúc E2E (đã sửa, commit `fix(admin)` riêng):** sau khi migrate xong, ApplicationContext không lên được: `DoctorProfileRepository.countByBioEmbeddingIsNotNull()` là derived query trên cột `bio_embedding` (pgvector) **không được map** trong entity, Spring Data hiểu thành `bio.embedding` → `No property 'embedding' found for type 'String'`. Lỗi có từ commit `1dab02d` (#077) và **có cả trên `develop`** (unit test dùng mock nên không phát hiện). Sửa bằng `@Query(nativeQuery = true) SELECT count(*) FROM doctor_profiles WHERE bio_embedding IS NOT NULL`. Sau khi sửa: `Started MediAssistApplication in 27.7 seconds`, `Schema "public" is up to date`.
+
+**3. Kịch bản E2E — 38/38 PASS** (bệnh nhân mới `e2e.patient.170619@example.com`, bác sĩ `dr.lan@mediassist.local`, phí khám 280.000 ₫):
+
+| Bước | Kiểm tra | Kết quả |
+| :--- | :--- | :--- |
+| a | Đăng ký → 201, `emailVerified=false`; đúng 1 mail "Xác thực địa chỉ email" có link `http://localhost:5173/verify-email?token=...`; đặt lịch ngay → **403 `EMAIL_NOT_VERIFIED`** (thông báo tiếng Việt); sau 3 giây **không** có mail mới | ✅ 6/6 |
+| b | `verify-email` → 200; `/auth/me` `emailVerified=true`; bấm lại link → 200 (idempotent); đặt lịch → 201 `AP-20261002-12D1BA` (05/10/2026 09:00); mail "Xác nhận lịch hẹn" cho bệnh nhân + "Lịch hẹn mới" cho bác sĩ; **không** chứa lý do khám đã nhập; giờ dạng `HH:mm dd/MM/yyyy` | ✅ 8/8 |
+| c | Checkout `APPOINTMENT_FEE` qua `VIETQR` (gateway `LOCAL_MOCK`) → `PENDING` `TX-20261002-ED16D7`; verify → `COMPLETED`; **đúng 1** mail "Biên nhận thanh toán" có `280.000 ₫`, "Chuyển khoản ngân hàng", mã lịch hẹn; verify lần 2 → 200 idempotent, sau 4 giây vẫn **1** biên nhận | ✅ 6/6 |
+| d | Bệnh nhân hủy (lý do có nội dung y tế) → `CANCELLED` / `REFUNDED`; 2 mail "đã bị hủy" (bệnh nhân + bác sĩ); mail bệnh nhân ghi người hủy "Bệnh nhân", "280.000 ₫ ... đã được ghi nhận hoàn tiền"; **không** chứa lý do hủy, có "Xem chi tiết lý do sau khi đăng nhập". DB: giao dịch → `REFUNDED` | ✅ 4/4 |
+| e | Admin đăng nhập; hủy `AP-20260910-CLIN01` (COMPLETED) → **400 `APPOINTMENT_NOT_CANCELLABLE`** "Không thể hủy lịch hẹn AP-20260910-CLIN01 vì lịch đã hoàn tất."; không có mail | ✅ 3/3 |
+| f | Forgot-password email thật → 200 + 1 mail "Đặt lại mật khẩu" (link `/reset-password?token=...`, "30 phút"); email không tồn tại → status + body **giống hệt** (`200`, cùng message); không có mail | ✅ 4/4 |
+| g | `validate` → `valid=true`; reset-password → 200; mail "Mật khẩu của bạn vừa được thay đổi"; dùng lại link → `valid=false` và 400 `TOKEN_EXPIRED`; đăng nhập mật khẩu mới → 200; mật khẩu cũ → 401 | ✅ 7/7 |
+
+**Hộp thư Mailpit sau kịch bản (đúng 8 mail, không thừa không thiếu):** Xác thực địa chỉ email · Xác nhận lịch hẹn AP-20261002-12D1BA · Lịch hẹn mới AP-20261002-12D1BA (bác sĩ) · Biên nhận thanh toán TX-20261002-ED16D7 · Lịch hẹn ... đã bị hủy ×2 (bệnh nhân + bác sĩ) · Đặt lại mật khẩu · Mật khẩu của bạn vừa được thay đổi.
+
+**Kiểm tra bổ sung:** log backend có **0** chuỗi `token=` và **0** link reset/verify; mail ghi log dạng `Mail 'payment-receipt' sent to e***@example.com` trên luồng `mail-1`/`mail-2` (xác nhận gửi async). `audit_logs` có `PASSWORD_RESET_REQUESTED`, `PASSWORD_RESET_COMPLETED`, `EMAIL_VERIFIED`, `APPOINTMENT_BOOKED`, `PAYMENT_COMPLETED`. `password_reset_tokens.token_hash` dài 64 ký tự. Sau kiểm thử: `mvn test` **264/264 PASS**; backend đã dừng, container Docker vẫn chạy. Dữ liệu E2E (1 bệnh nhân, 1 lịch đã hủy, 1 giao dịch REFUNDED) còn trong DB dev; khôi phục bằng bản backup nếu cần.
+
+#### Điểm nóng Tech Lead cần Review
+1. **Chưa có outbox/retry cho email.** Email gửi `@Async` sau commit; nếu SMTP lỗi hoặc ứng dụng tắt giữa chừng thì email mất (chỉ có log WARN). Hàng đợi `mailExecutor` đầy (100) cũng bỏ email. Hướng nâng cấp: bảng `email_outbox` ghi cùng transaction nghiệp vụ + job gửi lại có backoff.
+2. **JWT cũ vẫn dùng được tối đa 15 phút sau khi đổi mật khẩu.** Đặt lại mật khẩu không thu hồi access token đã cấp (JWT stateless, hết hạn 15 phút). Kẻ đã chiếm phiên vẫn thao tác được đến khi token hết hạn. Hướng nâng cấp: cột `password_changed_at` / `token_version` trong `users`, `JwtAuthenticationFilter` từ chối token phát hành trước mốc đó.
+3. **Pre-hijacking khi liên kết Google:** đã giảm thiểu theo quyết định của anh/chị (liên kết Google vào tài khoản chưa xác thực → xóa mật khẩu, verified, xóa token, audit `ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED`). Rủi ro còn lại: (a) phiên JWT kẻ tấn công đang giữ vẫn sống tối đa 15 phút (như mục 2); (b) chủ thật đăng ký bằng mật khẩu nhưng chưa kịp xác thực, rồi đăng nhập Google, sẽ mất mật khẩu và phải dùng Google hoặc "Quên mật khẩu".
+4. **V20 đổi tên `is_email_verified` của V1** thay vì thêm cột mới (cột cũ chưa từng được map). Kết quả cuối giống yêu cầu; nếu có script/báo cáo ngoài đọc `is_email_verified` thì cần sửa.
+5. **Backfill V20 = TRUE cho mọi user hiện có**, kể cả tài khoản bệnh nhân thật đã đăng ký trước V20 bằng email chưa kiểm chứng. Đúng yêu cầu (không chặn tài khoản cũ), nhưng nghĩa là tài khoản cũ không được "xác thực thật".
+6. **Hoàn tiền vẫn chỉ là ghi nhận trạng thái** `REFUNDED`, chưa gọi API refund của Stripe. Email viết "đã được ghi nhận hoàn tiền", không hứa tiền đã về tài khoản.
+7. **Hành vi admin hủy lịch thay đổi:** trước đây admin hủy được cả lịch `COMPLETED` và không hoàn tiền; giờ bị chặn 400 và có hoàn tiền tự động.
+8. **`forgot-password` vẫn có chênh lệch thời gian nhỏ** giữa email tồn tại (ghi DB) và không tồn tại. Response giống hệt nhau; gửi mail đã async nên chênh lệch chỉ vài ms truy vấn DB.
+9. **Ngoài phạm vi, phát hiện khi khảo sát (chưa sửa):** `verifyAndFulfillPayment` không kiểm tra giao dịch thuộc người gọi (`userEmail` không được dùng; email biên nhận vẫn đi đúng chủ giao dịch). `POST /documents/quota/purchase` cộng quota/VIP **miễn phí**, không qua cổng thanh toán (đã gắn guard xác thực email nhưng chưa xử lý việc bỏ qua thanh toán).
+10. **Lỗi khởi động có sẵn trên `develop` (#077):** `countByBioEmbeddingIsNotNull` làm backend không lên được trên DB thật; đã sửa ở commit `fix(admin)` riêng trên nhánh này. Nên cherry-pick sớm vào `develop` nếu nhánh này chưa merge ngay.
+11. **Việc có thể làm sau:** email khi dời lịch (anh/chị đã quyết định chưa gửi); nhắc lịch trước 24 giờ; đẩy cùng event vào chuông thông báo in-app (`NotificationService`).
+
+---
 
 ### [WORK-LOG-#082] Lưu Trữ Tài Liệu Y Tế Riêng Tư: Bucket Supabase PRIVATE, Signed URL 15 Phút, Kiểm Tra Quyền & Audit Mọi Lượt Xem Tệp (Private Document Storage)
 * **Thời gian:** 2026-10-02 (GMT+7)

@@ -11,6 +11,8 @@ import com.mediassist.dto.CreateSpecialtyRequest;
 import com.mediassist.dto.DoctorDetailDto;
 import com.mediassist.dto.SpecialtyDto;
 import com.mediassist.dto.UserDto;
+import com.mediassist.event.AppointmentCancelledEvent;
+import com.mediassist.event.AppointmentMailInfo;
 import com.mediassist.model.entity.Appointment;
 import com.mediassist.model.entity.AppointmentStatus;
 import com.mediassist.model.entity.AuditLog;
@@ -26,6 +28,7 @@ import com.mediassist.repository.SpecialtyRepository;
 import com.mediassist.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -67,6 +70,9 @@ public class AdminVettingService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
 
+    private final AppointmentRefundService refundService;
+    private final ApplicationEventPublisher eventPublisher;
+
     public AdminVettingService(DoctorProfileRepository doctorProfileRepository,
                                UserRepository userRepository,
                                SpecialtyRepository specialtyRepository,
@@ -77,7 +83,9 @@ public class AdminVettingService {
                                com.mediassist.repository.AppointmentRepository appointmentRepository,
                                com.mediassist.repository.TriageSessionRepository triageSessionRepository,
                                com.mediassist.repository.MedicalDocumentRepository medicalDocumentRepository,
-                               com.mediassist.repository.DocumentAnalysisRepository documentAnalysisRepository) {
+                               com.mediassist.repository.DocumentAnalysisRepository documentAnalysisRepository,
+                               AppointmentRefundService refundService,
+                               ApplicationEventPublisher eventPublisher) {
         this.doctorProfileRepository = doctorProfileRepository;
         this.userRepository = userRepository;
         this.specialtyRepository = specialtyRepository;
@@ -89,6 +97,8 @@ public class AdminVettingService {
         this.triageSessionRepository = triageSessionRepository;
         this.medicalDocumentRepository = medicalDocumentRepository;
         this.documentAnalysisRepository = documentAnalysisRepository;
+        this.refundService = refundService;
+        this.eventPublisher = eventPublisher;
     }
 
     public List<DoctorDetailDto> getAllDoctors() {
@@ -246,6 +256,8 @@ public class AdminVettingService {
         user.setPhone(req.getPhone() != null ? req.getPhone().trim() : null);
         user.setRole(Role.DOCTOR);
         user.setStatus(UserStatus.ACTIVE);
+        // Admin tao tai khoan voi email do bac si cung cap qua kenh tham dinh -> coi la da xac thuc
+        user.markEmailVerified(LocalDateTime.now());
         User savedUser = userRepository.save(user);
 
         // 2. Create DoctorProfile
@@ -615,6 +627,20 @@ public class AdminVettingService {
                 .or(() -> appointmentRepository.findById(appointmentId))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "APPOINTMENT_NOT_FOUND", "Không tìm thấy thông tin cuộc hẹn"));
 
+        // Chi huy duoc lich dang cho kham / dang kham; lich da ket thuc khong the huy (dong bo state machine cua AppointmentService)
+        AppointmentStatus current = appointment.getStatus();
+        if (current != AppointmentStatus.SCHEDULED && current != AppointmentStatus.IN_PROGRESS) {
+            String label = switch (current) {
+                case COMPLETED -> "đã hoàn tất";
+                case CANCELLED -> "đã bị hủy trước đó";
+                case NO_SHOW -> "đã được đánh dấu vắng mặt";
+                default -> "không còn hiệu lực";
+            };
+            throw new AppException(HttpStatus.BAD_REQUEST, "APPOINTMENT_NOT_CANCELLABLE",
+                    "Không thể hủy lịch hẹn " + appointment.getAppointmentCode() + " vì lịch " + label + ".");
+        }
+
+        AppointmentRefundService.RefundResult refund = refundService.refundIfPaid(appointment);
         appointment.setStatus(AppointmentStatus.CANCELLED);
         String cancelNote = "[ADMIN CANCELLED] " + (reason != null && !reason.isBlank() ? reason.trim() : "Quản trị viên can thiệp hủy lịch hẹn vì lý do vận hành");
         appointment.setCancellationReason(cancelNote);
@@ -627,6 +653,10 @@ public class AdminVettingService {
         audit.setResource("appointments/" + saved.getId());
         audit.setMetadata("Code: " + saved.getAppointmentCode() + ", Reason: " + cancelNote);
         auditLogRepository.save(audit);
+
+        DoctorProfile doctorProfile = doctorProfileRepository.findByUserId(saved.getDoctor().getId()).orElse(null);
+        eventPublisher.publishEvent(new AppointmentCancelledEvent(AppointmentMailInfo.from(saved, doctorProfile),
+                AppointmentCancelledEvent.CancelledBy.ADMIN, refund.refunded(), refund.amount()));
 
         log.info("🛡️ Admin {} cancelled appointment {}. Reason: {}", adminUserId, saved.getAppointmentCode(), cancelNote);
         return AppointmentDto.fromEntity(saved);

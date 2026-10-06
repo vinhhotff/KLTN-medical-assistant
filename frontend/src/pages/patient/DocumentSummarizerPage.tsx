@@ -34,7 +34,9 @@ import {
   User,
   Star
 } from 'lucide-react';
-import { api } from '../../services/api';
+import { api, EMAIL_NOT_VERIFIED_MESSAGE, EMAIL_NOT_VERIFIED_TOOLTIP, isEmailNotVerified } from '../../services/api';
+import { useEmailVerification } from '../../hooks/useEmailVerification';
+import { EmailNotVerifiedHint } from '../../components/common/EmailNotVerifiedHint';
 import { DocumentFileAccessError, openDocumentFile } from '../../services/documentFileService';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useSearchParams } from 'react-router-dom';
@@ -154,6 +156,7 @@ function formatLocalDate(d: Date): string {
 
 export const DocumentSummarizerPage: React.FC = () => {
   const { user } = useAuthStore();
+  const { isUnverified } = useEmailVerification();
   const [searchParams] = useSearchParams();
   const focusId = searchParams.get('focusId');
   const [loadingFocusDoc, setLoadingFocusDoc] = useState(false);
@@ -267,6 +270,10 @@ export const DocumentSummarizerPage: React.FC = () => {
         }
       }
     } catch (err: unknown) {
+      if (isEmailNotVerified(err)) {
+        setPaymentError(EMAIL_NOT_VERIFIED_MESSAGE);
+        return;
+      }
       const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
       setPaymentError(axiosError.response?.data?.error?.message || 'Giao dịch thanh toán không thành công.');
     } finally {
@@ -626,7 +633,9 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: { code?: string; message?: string } } } };
-      if (axiosErr.response?.data?.error?.code === 'SLOT_CONFLICT') {
+      if (isEmailNotVerified(err)) {
+        setBookingError(EMAIL_NOT_VERIFIED_MESSAGE);
+      } else if (axiosErr.response?.data?.error?.code === 'SLOT_CONFLICT') {
         setBookingError('Khung giờ này vừa có người khác đặt trước. Vui lòng chọn một khung giờ khác.');
       } else {
         setBookingError(axiosErr.response?.data?.error?.message || 'Không thể tạo lịch khám. Vui lòng thử lại.');
@@ -1944,6 +1953,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   </div>
                 )}
 
+                <EmailNotVerifiedHint className="justify-end pt-2" />
                 <div className="pt-2 flex justify-end gap-2">
                   <button
                     type="button"
@@ -1954,7 +1964,8 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   </button>
                   <button
                     type="button"
-                    disabled={!selectedSlot || bookingSubmitting}
+                    disabled={!selectedSlot || bookingSubmitting || isUnverified}
+                    title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
                     onClick={handleConfirmBooking}
                     className="px-5 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white rounded-xl font-semibold transition"
                   >
@@ -2263,6 +2274,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             )}
 
             {/* Actions */}
+            <EmailNotVerifiedHint className="justify-end" />
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
@@ -2274,8 +2286,9 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
               <button
                 type="button"
                 onClick={handleConfirmPayment}
-                disabled={processingPayment}
-                className={`px-5 py-2.5 text-sm font-bold text-white rounded-xl transition shadow-xs flex items-center gap-2 cursor-pointer ${
+                disabled={processingPayment || isUnverified}
+                title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
+                className={`px-5 py-2.5 text-sm font-bold text-white rounded-xl transition shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                   paymentMethod === 'STRIPE'
                     ? 'bg-indigo-600 hover:bg-indigo-700'
                     : 'bg-teal-600 hover:bg-teal-700'

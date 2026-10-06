@@ -5,6 +5,9 @@ import com.mediassist.dto.AppointmentDto;
 import com.mediassist.dto.ClinicalEncounterRequest;
 import com.mediassist.dto.CreateAppointmentRequest;
 import com.mediassist.dto.RescheduleAppointmentRequest;
+import com.mediassist.event.AppointmentBookedEvent;
+import com.mediassist.event.AppointmentCancelledEvent;
+import com.mediassist.event.AppointmentMailInfo;
 import com.mediassist.model.entity.*;
 import com.mediassist.repository.AppointmentRepository;
 import com.mediassist.repository.AuditLogRepository;
@@ -13,6 +16,7 @@ import com.mediassist.repository.MedicalDocumentRepository;
 import com.mediassist.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -43,26 +47,30 @@ public class AppointmentService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.mediassist.repository.TriageSessionRepository triageSessionRepository;
 
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    @org.springframework.context.annotation.Lazy
-    private com.mediassist.repository.PaymentTransactionRepository paymentTransactionRepository;
+    private final AppointmentRefundService refundService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AppointmentService(AppointmentRepository appointmentRepository,
                               UserRepository userRepository,
                               DoctorProfileRepository doctorProfileRepository,
                               AuditLogRepository auditLogRepository,
-                              TwoLayerCacheService cacheService) {
+                              TwoLayerCacheService cacheService,
+                              AppointmentRefundService refundService,
+                              ApplicationEventPublisher eventPublisher) {
         this.appointmentRepository = appointmentRepository;
         this.userRepository = userRepository;
         this.doctorProfileRepository = doctorProfileRepository;
         this.auditLogRepository = auditLogRepository;
         this.cacheService = cacheService;
+        this.refundService = refundService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ)
     public AppointmentDto bookAppointment(UUID patientId, CreateAppointmentRequest request) {
         User patient = userRepository.findById(patientId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Bệnh nhân không tồn tại"));
+        EmailVerificationGuard.requireVerifiedPatient(patient);
 
         User doctor = userRepository.findById(request.getDoctorId())
                 .or(() -> doctorProfileRepository.findById(request.getDoctorId()).map(DoctorProfile::getUser))
@@ -164,6 +172,9 @@ public class AppointmentService {
         audit.setMetadata("Code: " + appointmentCode + ", Doctor: " + doctor.getFullName());
         auditLogRepository.save(audit);
 
+        // Email xac nhan (benh nhan) + bao lich moi (bac si) - gui sau khi transaction commit
+        eventPublisher.publishEvent(new AppointmentBookedEvent(AppointmentMailInfo.from(saved, doctorProfile), false));
+
         log.info("✅ Appointment booked: {} for patient {} with doctor {}", appointmentCode, patient.getEmail(), doctor.getEmail());
         return toDto(saved);
     }
@@ -227,26 +238,22 @@ public class AppointmentService {
             }
         }
 
-        // Auto-refund when cancelled and paid
-        if (newStatus == AppointmentStatus.CANCELLED && appointment.getPaymentStatus() == PaymentStatus.PAID) {
-            try {
-                if (paymentTransactionRepository != null) {
-                    paymentTransactionRepository
-                            .findFirstByReferenceIdAndStatus(appointment.getId().toString(), TransactionStatus.COMPLETED)
-                            .ifPresent(tx -> {
-                                tx.setStatus(TransactionStatus.REFUNDED);
-                                paymentTransactionRepository.save(tx);
-                            });
-                }
-                appointment.setPaymentStatus(PaymentStatus.REFUNDED);
-                log.info("💸 [AUTO-REFUND] Appointment {} refunded due to cancellation", appointment.getAppointmentCode());
-            } catch (Exception e) {
-                log.warn("Refund trigger warning for appointment {}: {}", appointment.getAppointmentCode(), e.getMessage());
-            }
-        }
+        // Auto-refund when cancelled and paid (logic dung chung voi quan tri vien huy lich)
+        AppointmentRefundService.RefundResult refund = newStatus == AppointmentStatus.CANCELLED
+                ? refundService.refundIfPaid(appointment)
+                : AppointmentRefundService.RefundResult.NONE;
 
         appointment.setStatus(newStatus);
         Appointment updated = appointmentRepository.save(appointment);
+
+        if (newStatus == AppointmentStatus.CANCELLED) {
+            AppointmentCancelledEvent.CancelledBy cancelledBy = isAdmin
+                    ? AppointmentCancelledEvent.CancelledBy.ADMIN
+                    : isDoctor ? AppointmentCancelledEvent.CancelledBy.DOCTOR : AppointmentCancelledEvent.CancelledBy.PATIENT;
+            DoctorProfile profile = doctorProfileRepository.findByUserId(updated.getDoctor().getId()).orElse(null);
+            eventPublisher.publishEvent(new AppointmentCancelledEvent(
+                    AppointmentMailInfo.from(updated, profile), cancelledBy, refund.refunded(), refund.amount()));
+        }
 
         log.info("ℹ️ Appointment {} status updated to {} by user {}", appointment.getAppointmentCode(), newStatus, userId);
         return toDto(updated);
@@ -343,9 +350,10 @@ public class AppointmentService {
 
         LocalDateTime scheduledEnd = scheduledStart.plusMinutes(30);
 
-        BigDecimal fee = doctorProfileRepository.findByUserId(doctor.getId())
-                .map(DoctorProfile::getConsultationFee)
-                .orElse(BigDecimal.valueOf(300000.00));
+        DoctorProfile doctorProfile = doctorProfileRepository.findByUserId(doctor.getId()).orElse(null);
+        BigDecimal fee = doctorProfile != null && doctorProfile.getConsultationFee() != null
+                ? doctorProfile.getConsultationFee()
+                : BigDecimal.valueOf(300000.00);
 
         String datePrefix = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String randomSuffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
@@ -380,6 +388,8 @@ public class AppointmentService {
         audit.setMetadata("Follow-up: " + appointmentCode + " for patient " + patient.getEmail());
         auditLogRepository.save(audit);
 
+        eventPublisher.publishEvent(new AppointmentBookedEvent(AppointmentMailInfo.from(saved, doctorProfile), true));
+
         log.info("🩺 Doctor {} scheduled follow-up: {} for patient {}", doctor.getEmail(), appointmentCode, patient.getEmail());
         return toDto(saved);
     }
@@ -396,6 +406,11 @@ public class AppointmentService {
 
         if (!isDoctor && !isPatient && !isAdmin) {
             throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền đổi lịch hẹn này");
+        }
+
+        // Benh nhan tu doi lich phai co email da xac thuc (bac si/admin doi lich thi khong chan)
+        if (isPatient && !isDoctor && !isAdmin) {
+            EmailVerificationGuard.requireVerifiedPatient(appointment.getPatient());
         }
 
         if (appointment.getStatus() != AppointmentStatus.SCHEDULED) {

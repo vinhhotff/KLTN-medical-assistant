@@ -4,18 +4,24 @@ import com.mediassist.common.AppException;
 import com.mediassist.dto.AppointmentDto;
 import com.mediassist.dto.CreateAppointmentRequest;
 import com.mediassist.dto.RescheduleAppointmentRequest;
+import com.mediassist.event.AppointmentBookedEvent;
+import com.mediassist.event.AppointmentCancelledEvent;
 import com.mediassist.model.entity.*;
 import com.mediassist.repository.AppointmentRepository;
 import com.mediassist.repository.AuditLogRepository;
 import com.mediassist.repository.DoctorProfileRepository;
+import com.mediassist.repository.PaymentTransactionRepository;
 import com.mediassist.repository.UserRepository;
+import com.mediassist.service.AppointmentRefundService;
 import com.mediassist.service.AppointmentService;
 import com.mediassist.service.TwoLayerCacheService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
@@ -46,6 +52,12 @@ class AppointmentServiceTest {
     @Mock
     private TwoLayerCacheService cacheService;
 
+    @Mock
+    private PaymentTransactionRepository paymentTransactionRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private AppointmentService appointmentService;
 
     private UUID patientId;
@@ -61,7 +73,9 @@ class AppointmentServiceTest {
                 userRepository,
                 doctorProfileRepository,
                 auditLogRepository,
-                cacheService
+                cacheService,
+                new AppointmentRefundService(paymentTransactionRepository),
+                eventPublisher
         );
 
         patientId = UUID.randomUUID();
@@ -73,6 +87,7 @@ class AppointmentServiceTest {
                 .fullName("Trần Thị Bình")
                 .role(Role.PATIENT)
                 .status(UserStatus.ACTIVE)
+                .emailVerified(true)
                 .build();
 
         doctorUser = User.builder()
@@ -376,5 +391,201 @@ class AppointmentServiceTest {
         assertNotNull(result);
         assertEquals(AppointmentStatus.CANCELLED, result.getStatus());
         assertEquals(PaymentStatus.REFUNDED, result.getPaymentStatus());
+    }
+
+    // ===== Rao chan EMAIL_NOT_VERIFIED (WORK_LOG #083 phan C) =====
+
+    @Test
+    void testBookAppointment_UnverifiedPatient_BlockedBeforeAnySave() {
+        patientUser.setEmailVerified(false);
+        LocalDateTime futureTime = getNextWeekdaySlot(2, 9, 0);
+        CreateAppointmentRequest request = new CreateAppointmentRequest(doctorId, futureTime, "Khám tổng quát");
+        when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
+
+        AppException ex = assertThrows(AppException.class, () -> appointmentService.bookAppointment(patientId, request));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
+        assertEquals("EMAIL_NOT_VERIFIED", ex.getCode());
+        verify(appointmentRepository, never()).saveAndFlush(any());
+        verify(auditLogRepository, never()).save(any());
+    }
+
+    @Test
+    void testRescheduleAppointment_UnverifiedPatient_Blocked() {
+        patientUser.setEmailVerified(false);
+        UUID apptId = UUID.randomUUID();
+        LocalDateTime oldStart = getNextWeekdaySlot(2, 9, 0);
+        Appointment appt = Appointment.builder()
+                .id(apptId).appointmentCode("AP-2026-UNVERIFIED")
+                .doctor(doctorUser).patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .scheduledStart(oldStart).scheduledEnd(oldStart.plusMinutes(30))
+                .build();
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+
+        RescheduleAppointmentRequest req = new RescheduleAppointmentRequest(getNextWeekdaySlot(3, 10, 0), "Bận");
+        AppException ex = assertThrows(AppException.class,
+                () -> appointmentService.rescheduleAppointment(apptId, patientId, Role.PATIENT, req));
+
+        assertEquals("EMAIL_NOT_VERIFIED", ex.getCode());
+        verify(appointmentRepository, never()).save(any());
+    }
+
+    @Test
+    void testRescheduleAppointment_ByDoctor_UnverifiedPatient_Allowed() {
+        patientUser.setEmailVerified(false);
+        UUID apptId = UUID.randomUUID();
+        LocalDateTime oldStart = getNextWeekdaySlot(2, 9, 0);
+        LocalDateTime newStart = getNextWeekdaySlot(3, 10, 0);
+        Appointment appt = Appointment.builder()
+                .id(apptId).appointmentCode("AP-2026-DOC-RESCHED")
+                .doctor(doctorUser).patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .scheduledStart(oldStart).scheduledEnd(oldStart.plusMinutes(30))
+                .build();
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+        when(appointmentRepository.existsConflictExcluding(eq(doctorId), eq(newStart), eq(apptId))).thenReturn(false);
+        when(appointmentRepository.countActiveAppointmentsByDoctorAndDateRange(eq(doctorId), any(), any())).thenReturn(0L);
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AppointmentDto result = appointmentService.rescheduleAppointment(apptId, doctorId, Role.DOCTOR,
+                new RescheduleAppointmentRequest(newStart, "Bác sĩ đổi ca"));
+
+        assertEquals(newStart, result.getScheduledStart());
+    }
+
+    // ===== Email nghiep vu: event dat lich / huy lich (WORK_LOG #083 phan D) =====
+
+    @Test
+    void testBookAppointment_PublishesBookedEvent_WithoutClinicalData() {
+        LocalDateTime futureTime = getNextWeekdaySlot(2, 9, 0);
+        CreateAppointmentRequest request = new CreateAppointmentRequest(doctorId, futureTime, "Đau ngực trái lan xuống cánh tay");
+        when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
+        when(userRepository.findById(doctorId)).thenReturn(Optional.of(doctorUser));
+        when(appointmentRepository.existsConflict(doctorId, futureTime)).thenReturn(false);
+        when(doctorProfileRepository.findByUserId(doctorId)).thenReturn(Optional.of(doctorProfile));
+        when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(inv -> {
+            Appointment saved = inv.getArgument(0);
+            saved.setId(UUID.randomUUID());
+            return saved;
+        });
+
+        AppointmentDto result = appointmentService.bookAppointment(patientId, request);
+
+        ArgumentCaptor<AppointmentBookedEvent> captor = ArgumentCaptor.forClass(AppointmentBookedEvent.class);
+        verify(eventPublisher, times(1)).publishEvent(captor.capture());
+        AppointmentBookedEvent event = captor.getValue();
+        assertFalse(event.followUp());
+        assertEquals(result.getAppointmentCode(), event.appointment().appointmentCode());
+        assertEquals(futureTime, event.appointment().scheduledStart());
+        assertEquals(patientUser.getEmail(), event.appointment().patientEmail());
+        assertEquals(doctorUser.getEmail(), event.appointment().doctorEmail());
+        assertEquals(doctorUser.getFullName(), event.appointment().doctorName());
+        // Ly do kham (chiefComplaint / consultationNotes) KHONG nam trong event
+        assertFalse(event.toString().contains("Đau ngực"));
+    }
+
+    @Test
+    void testBookAppointment_SlotConflict_DoesNotPublish() {
+        LocalDateTime futureTime = getNextWeekdaySlot(1, 10, 0);
+        CreateAppointmentRequest request = new CreateAppointmentRequest(doctorId, futureTime, "Khám tổng quát");
+        when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
+        when(userRepository.findById(doctorId)).thenReturn(Optional.of(doctorUser));
+        when(doctorProfileRepository.findByUserId(doctorId)).thenReturn(Optional.of(doctorProfile));
+        when(appointmentRepository.existsConflict(doctorId, futureTime)).thenReturn(true);
+
+        assertThrows(AppException.class, () -> appointmentService.bookAppointment(patientId, request));
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void testCreateFollowUp_PublishesBookedEvent_FollowUpFlag() {
+        LocalDateTime futureTime = getNextWeekdaySlot(3, 9, 0);
+        com.mediassist.dto.FollowUpAppointmentRequest req = new com.mediassist.dto.FollowUpAppointmentRequest();
+        req.setPatientId(patientId);
+        req.setScheduledStart(futureTime);
+        req.setNotes("Theo dõi huyết áp sau điều chỉnh thuốc");
+        when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
+        when(userRepository.findById(doctorId)).thenReturn(Optional.of(doctorUser));
+        when(appointmentRepository.existsConflict(doctorId, futureTime)).thenReturn(false);
+        when(doctorProfileRepository.findByUserId(doctorId)).thenReturn(Optional.of(doctorProfile));
+        when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        appointmentService.createFollowUpAppointment(doctorId, req);
+
+        ArgumentCaptor<AppointmentBookedEvent> captor = ArgumentCaptor.forClass(AppointmentBookedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertTrue(captor.getValue().followUp());
+        assertFalse(captor.getValue().toString().contains("huyết áp"));
+    }
+
+    @Test
+    void testCancelByPatient_Paid_PublishesCancelledEventWithRefund() {
+        UUID apptId = UUID.randomUUID();
+        Appointment appt = Appointment.builder()
+                .id(apptId).appointmentCode("AP-2026-CANCEL-PAID")
+                .doctor(doctorUser).patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .scheduledStart(getNextWeekdaySlot(2, 9, 0))
+                .paymentStatus(PaymentStatus.PAID)
+                .feeAmount(new BigDecimal("350000.00"))
+                .build();
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setAmount(new BigDecimal("350000.00"));
+        tx.setStatus(TransactionStatus.COMPLETED);
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(paymentTransactionRepository.findFirstByReferenceIdAndStatus(apptId.toString(), TransactionStatus.COMPLETED))
+                .thenReturn(Optional.of(tx));
+
+        appointmentService.updateAppointmentStatus(apptId, patientId, Role.PATIENT, AppointmentStatus.CANCELLED, "Bị sốt cao không đi được");
+
+        assertEquals(TransactionStatus.REFUNDED, tx.getStatus());
+        ArgumentCaptor<AppointmentCancelledEvent> captor = ArgumentCaptor.forClass(AppointmentCancelledEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        AppointmentCancelledEvent event = captor.getValue();
+        assertEquals(AppointmentCancelledEvent.CancelledBy.PATIENT, event.cancelledBy());
+        assertTrue(event.refunded());
+        assertEquals(0, new BigDecimal("350000").compareTo(event.refundAmount()));
+        // Ly do huy tu go KHONG nam trong event
+        assertFalse(event.toString().contains("sốt cao"));
+    }
+
+    @Test
+    void testCancelByDoctor_Unpaid_PublishesCancelledEventWithoutRefund() {
+        UUID apptId = UUID.randomUUID();
+        Appointment appt = Appointment.builder()
+                .id(apptId).appointmentCode("AP-2026-CANCEL-DOC")
+                .doctor(doctorUser).patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .scheduledStart(getNextWeekdaySlot(2, 9, 0))
+                .paymentStatus(PaymentStatus.UNPAID)
+                .build();
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        appointmentService.updateAppointmentStatus(apptId, doctorId, Role.DOCTOR, AppointmentStatus.CANCELLED, "Bác sĩ đi hội chẩn");
+
+        ArgumentCaptor<AppointmentCancelledEvent> captor = ArgumentCaptor.forClass(AppointmentCancelledEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertEquals(AppointmentCancelledEvent.CancelledBy.DOCTOR, captor.getValue().cancelledBy());
+        assertFalse(captor.getValue().refunded());
+        verifyNoInteractions(paymentTransactionRepository);
+    }
+
+    @Test
+    void testUpdateStatus_NonCancel_DoesNotPublish() {
+        UUID apptId = UUID.randomUUID();
+        Appointment appt = Appointment.builder()
+                .id(apptId).appointmentCode("AP-2026-START")
+                .doctor(doctorUser).patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .build();
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        appointmentService.updateAppointmentStatus(apptId, doctorId, Role.DOCTOR, AppointmentStatus.IN_PROGRESS, null);
+
+        verify(eventPublisher, never()).publishEvent(any());
     }
 }

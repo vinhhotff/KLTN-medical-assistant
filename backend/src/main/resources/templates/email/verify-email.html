@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi" th:replace="~{email/_layout :: layout(~{::mailContent})}">
+<body>
+<div th:fragment="mailContent">
+    <p>Xin chào <strong th:text="${recipientName}">bạn</strong>,</p>
+    <p>Cảm ơn bạn đã đăng ký MediAssist AI. Vui lòng xác thực địa chỉ email để có thể đặt lịch khám và thanh toán trực tuyến.</p>
+    <p style="text-align:center;margin:24px 0;">
+        <a th:replace="~{email/_parts :: button(${actionUrl}, 'Xác thực email')}">Xác thực email</a>
+    </p>
+    <p th:replace="~{email/_parts :: fallbackLink(${actionUrl})}"></p>
+    <p>Liên kết có hiệu lực trong <strong th:text="|${expiresInHours} giờ|">24 giờ</strong>.
+        Nếu bạn không đăng ký tài khoản, hãy bỏ qua email này.</p>
+</div>
+</body>
+</html>

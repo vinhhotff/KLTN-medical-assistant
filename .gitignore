@@ -46,3 +46,7 @@ backend/uploads/
 # Keep env templates tracked
 !.env.example
 !**/.env.example
+
+# Ban sao luu CSDL (pg_dump) - khong bao gio commit
+backup_*.sql
+*.dump

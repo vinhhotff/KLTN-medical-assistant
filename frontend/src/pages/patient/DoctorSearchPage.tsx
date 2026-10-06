@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Calendar, Clock, MapPin, CheckCircle2, AlertCircle, X, Building2, Star, Filter, Sparkles, Loader2 } from 'lucide-react';
-import { api } from '../../services/api';
+import { api, EMAIL_NOT_VERIFIED_MESSAGE, EMAIL_NOT_VERIFIED_TOOLTIP, isEmailNotVerified } from '../../services/api';
+import { useEmailVerification } from '../../hooks/useEmailVerification';
+import { EmailNotVerifiedHint } from '../../components/common/EmailNotVerifiedHint';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Pagination } from '../../components/common/Pagination';
 import { DoctorReviewsListModal } from '../../components/common/DoctorReviewsListModal';
@@ -55,6 +57,7 @@ const formatLocalDate = (d: Date): string => {
 
 export const DoctorSearchPage: React.FC = () => {
   const { user } = useAuthStore();
+  const { isUnverified } = useEmailVerification();
   const [searchParams] = useSearchParams();
   const queryDoctorId = searchParams.get('doctorId');
 
@@ -214,6 +217,10 @@ export const DoctorSearchPage: React.FC = () => {
         });
       }
     } catch (err: unknown) {
+      if (isEmailNotVerified(err)) {
+        setBookingError(EMAIL_NOT_VERIFIED_MESSAGE);
+        return;
+      }
       const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
       const message = axiosError.response?.data?.error?.message || 'Không thể đặt lịch khám. Vui lòng thử lại.';
       setBookingError(message);
@@ -554,6 +561,8 @@ export const DoctorSearchPage: React.FC = () => {
                         {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedDoctor.consultationFee || 300000)}
                       </span>
                     </div>
+                    <div className="flex flex-col items-end gap-1.5">
+                    <EmailNotVerifiedHint />
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -564,16 +573,18 @@ export const DoctorSearchPage: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        disabled={!selectedSlot || bookingSubmitting}
+                        disabled={!selectedSlot || bookingSubmitting || isUnverified}
+                        title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
                         onClick={handleConfirmBooking}
                         className={`px-5 py-2 rounded-xl text-xs font-semibold text-white transition ${
-                          !selectedSlot || bookingSubmitting
+                          !selectedSlot || bookingSubmitting || isUnverified
                             ? 'bg-slate-300 cursor-not-allowed'
                             : 'bg-indigo-600 hover:bg-indigo-700 shadow-xs'
                         }`}
                       >
                         {bookingSubmitting ? 'Đang Xử Lý...' : 'Xác Nhận Đặt Khám'}
                       </button>
+                    </div>
                     </div>
                   </div>
                 </>

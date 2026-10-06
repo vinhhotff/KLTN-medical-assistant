@@ -1134,4 +1134,33 @@ class MedicalDocumentAnalysisServiceTest {
         assertEquals("Glucose", response.getIndicators().get(0).getName());
         assertEquals("HIGH", response.getIndicators().get(0).getStatus());
     }
+
+    @Test
+    @DisplayName("purchaseQuota: benh nhan chua xac thuc email bi chan, quota/VIP khong doi")
+    void purchaseQuota_UnverifiedPatient_Blocked() {
+        testUser.setRole(com.mediassist.model.entity.Role.PATIENT);
+        testUser.setEmailVerified(false);
+
+        com.mediassist.common.AppException ex = assertThrows(com.mediassist.common.AppException.class,
+                () -> analysisService.purchaseQuota("patient@mediassist.local",
+                        new com.mediassist.dto.PurchaseQuotaRequest("VIP_MONTHLY", "STRIPE")));
+
+        assertEquals("EMAIL_NOT_VERIFIED", ex.getCode());
+        assertEquals("FREE", testUser.getSubscriptionTier());
+        assertNull(testUser.getVipValidUntil());
+    }
+
+    @Test
+    @DisplayName("purchaseQuota: benh nhan da xac thuc email van mua goi binh thuong")
+    void purchaseQuota_VerifiedPatient_Allowed() {
+        testUser.setRole(com.mediassist.model.entity.Role.PATIENT);
+        testUser.markEmailVerified(java.time.LocalDateTime.now());
+        lenient().when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        analysisService.purchaseQuota("patient@mediassist.local",
+                new com.mediassist.dto.PurchaseQuotaRequest("VIP_MONTHLY", "STRIPE"));
+
+        assertEquals("VIP_MONTHLY", testUser.getSubscriptionTier());
+        assertNotNull(testUser.getVipValidUntil());
+    }
 }

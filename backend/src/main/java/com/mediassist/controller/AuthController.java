@@ -1,9 +1,13 @@
 package com.mediassist.controller;
 
 import com.mediassist.common.ApiResponse;
+import com.mediassist.common.AppException;
+import com.mediassist.common.ClientRequestInfo;
 import com.mediassist.dto.AuthResponse;
 import com.mediassist.dto.LoginRequest;
+import com.mediassist.dto.TokenValidationResponse;
 import com.mediassist.dto.UserDto;
+import com.mediassist.dto.VerifyEmailRequest;
 import com.mediassist.security.UserPrincipal;
 import com.mediassist.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +16,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -25,6 +30,9 @@ import java.time.Duration;
 @RequestMapping("/api/v1/auth")
 @Tag(name = "Authentication", description = "Endpoints đăng nhập, đăng xuất và thông tin người dùng")
 public class AuthController {
+
+    static final String FORGOT_PASSWORD_MESSAGE =
+            "Nếu email tồn tại trong hệ thống, chúng tôi đã gửi liên kết đặt lại mật khẩu. Vui lòng kiểm tra hộp thư (kể cả thư rác).";
 
     private final AuthService authService;
     private final com.mediassist.service.SecurityRateLimiterService rateLimiterService;
@@ -139,16 +147,75 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    @Operation(summary = "Yêu cầu mã đặt lại mật khẩu qua email")
-    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody com.mediassist.dto.ForgotPasswordRequest request) {
-        authService.requestPasswordReset(request.getEmail());
-        return ResponseEntity.ok(ApiResponse.success(null, "Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được xử lý."));
+    @Operation(summary = "Yêu cầu liên kết đặt lại mật khẩu qua email")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(
+            @Valid @RequestBody com.mediassist.dto.ForgotPasswordRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        if (!rateLimiterService.allowForgotPasswordByIp(ClientRequestInfo.clientIp(servletRequest))) {
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
+                    "Bạn đã gửi quá nhiều yêu cầu khôi phục mật khẩu. Vui lòng thử lại sau 15 phút.");
+        }
+        String email = request.getEmail().trim().toLowerCase();
+        // Vuot gioi han theo email: im lang bo qua va van tra CUNG thong bao, khong de lo email co ton tai hay khong
+        if (rateLimiterService.allowForgotPasswordByEmail(email)) {
+            authService.requestPasswordReset(email);
+        }
+        return ResponseEntity.ok(ApiResponse.success(null, FORGOT_PASSWORD_MESSAGE));
+    }
+
+    @GetMapping("/reset-password/validate")
+    @Operation(summary = "Kiểm tra liên kết đặt lại mật khẩu còn hiệu lực")
+    public ResponseEntity<ApiResponse<TokenValidationResponse>> validateResetToken(
+            @RequestParam(value = "token", required = false) String token,
+            HttpServletRequest servletRequest
+    ) {
+        requireTokenAttemptRateLimit(servletRequest);
+        boolean valid = authService.isPasswordResetTokenValid(token);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(ApiResponse.success(new TokenValidationResponse(valid)));
     }
 
     @PostMapping("/reset-password")
-    @Operation(summary = "Xác nhận đặt lại mật khẩu mới với mã token")
-    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody com.mediassist.dto.ResetPasswordRequest request) {
+    @Operation(summary = "Đặt mật khẩu mới bằng liên kết trong email")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody com.mediassist.dto.ResetPasswordRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        requireTokenAttemptRateLimit(servletRequest);
         authService.resetPassword(request.getToken(), request.getNewPassword());
-        return ResponseEntity.ok(ApiResponse.success(null, "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay."));
+        return ResponseEntity.ok(ApiResponse.success(null, "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới."));
+    }
+
+    @PostMapping("/verify-email")
+    @Operation(summary = "Xác thực địa chỉ email bằng liên kết trong email")
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(
+            @Valid @RequestBody VerifyEmailRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        requireTokenAttemptRateLimit(servletRequest);
+        authService.verifyEmail(request.getToken());
+        return ResponseEntity.ok(ApiResponse.success(null, "Xác thực email thành công! Bạn đã có thể đặt lịch khám và thanh toán."));
+    }
+
+    @PostMapping("/resend-verification")
+    @Operation(summary = "Gửi lại email xác thực cho tài khoản đang đăng nhập")
+    public ResponseEntity<ApiResponse<Void>> resendVerification(@AuthenticationPrincipal UserPrincipal principal) {
+        if (principal == null) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập tài khoản");
+        }
+        AuthService.ResendVerificationResult result = authService.resendVerificationEmail(principal.getId());
+        String message = result == AuthService.ResendVerificationResult.ALREADY_VERIFIED
+                ? "Email của bạn đã được xác thực trước đó."
+                : "Đã gửi lại email xác thực. Vui lòng kiểm tra hộp thư (kể cả thư rác).";
+        return ResponseEntity.ok(ApiResponse.success(null, message));
+    }
+
+    private void requireTokenAttemptRateLimit(HttpServletRequest servletRequest) {
+        if (!rateLimiterService.allowResetTokenAttempt(ClientRequestInfo.clientIp(servletRequest))) {
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
+                    "Bạn đã thử quá nhiều lần. Vui lòng thử lại sau 10 phút.");
+        }
     }
 }

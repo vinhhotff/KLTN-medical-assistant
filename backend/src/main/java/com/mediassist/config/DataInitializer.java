@@ -89,6 +89,7 @@ public class DataInitializer implements CommandLineRunner {
                     .passwordHash(passwordEncoder.encode(adminPassword))
                     .role(Role.ADMIN)
                     .status(UserStatus.ACTIVE)
+                    .emailVerified(true)
                     .build();
             userRepository.save(admin);
             log.info("✅ Seeded Admin: {}", adminEmail);
@@ -105,6 +106,7 @@ public class DataInitializer implements CommandLineRunner {
                     .passwordHash(passwordEncoder.encode("Doctor@SecurePass2026!"))
                     .role(Role.DOCTOR)
                     .status(UserStatus.ACTIVE)
+                    .emailVerified(true)
                     .build();
             docUser = userRepository.save(docUser);
 
@@ -139,6 +141,7 @@ public class DataInitializer implements CommandLineRunner {
                     .passwordHash(passwordEncoder.encode("Doctor@SecurePass2026!"))
                     .role(Role.DOCTOR)
                     .status(UserStatus.ACTIVE)
+                    .emailVerified(true)
                     .build();
             pendingDocUser = userRepository.save(pendingDocUser);
 
@@ -198,6 +201,7 @@ public class DataInitializer implements CommandLineRunner {
                     .passwordHash(passwordEncoder.encode("Patient@SecurePass2026!"))
                     .role(Role.PATIENT)
                     .status(UserStatus.ACTIVE)
+                    .emailVerified(true)
                     .build();
             patientUser = userRepository.save(patientUser);
             log.info("✅ Seeded Patient: {}", patientEmail);

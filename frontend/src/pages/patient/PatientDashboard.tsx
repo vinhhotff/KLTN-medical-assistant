@@ -19,7 +19,9 @@ import {
   Star
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { api, DoctorReviewDto } from '../../services/api';
+import { api, DoctorReviewDto, EMAIL_NOT_VERIFIED_MESSAGE, EMAIL_NOT_VERIFIED_TOOLTIP, isEmailNotVerified } from '../../services/api';
+import { useEmailVerification } from '../../hooks/useEmailVerification';
+import { EmailNotVerifiedHint } from '../../components/common/EmailNotVerifiedHint';
 import { Pagination } from '../../components/common/Pagination';
 import { DoctorReviewModal } from '../../components/common/DoctorReviewModal';
 
@@ -134,6 +136,7 @@ export const PatientDashboard: React.FC = () => {
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [submittingReschedule, setSubmittingReschedule] = useState(false);
+  const { isUnverified } = useEmailVerification();
 
   const handleConfirmReschedule = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,6 +158,10 @@ export const PatientDashboard: React.FC = () => {
       setRescheduleReason('');
       alert('Dời lịch hẹn thành công!');
     } catch (err: unknown) {
+      if (isEmailNotVerified(err)) {
+        alert(EMAIL_NOT_VERIFIED_MESSAGE);
+        return;
+      }
       const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
       alert(axiosError.response?.data?.error?.message || 'Không thể dời lịch hẹn. Vui lòng thử lại với khung giờ khác.');
     } finally {
@@ -177,6 +184,10 @@ export const PatientDashboard: React.FC = () => {
         window.location.href = res.data.data.checkoutUrl;
       }
     } catch (err: unknown) {
+      if (isEmailNotVerified(err)) {
+        alert(EMAIL_NOT_VERIFIED_MESSAGE);
+        return;
+      }
       const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
       alert(axiosError.response?.data?.error?.message || 'Không thể khởi tạo phiên thanh toán cho cuộc hẹn.');
     } finally {
@@ -695,7 +706,8 @@ export const PatientDashboard: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handlePayAppointment(apt)}
-                              disabled={payingApptId === apt.id}
+                              disabled={payingApptId === apt.id || isUnverified}
+                              title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
                               className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
                             >
                               <CreditCard className="w-3.5 h-3.5" />
@@ -822,7 +834,9 @@ export const PatientDashboard: React.FC = () => {
                                   setRescheduleTime(currentStart.toTimeString().slice(0, 5));
                                   setRescheduleReason('');
                                 }}
-                                className="px-3 py-1.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer"
+                                disabled={isUnverified}
+                                title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
+                                className="px-3 py-1.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <Calendar className="w-3.5 h-3.5" /> Dời Lịch Hẹn
                               </button>
@@ -1522,6 +1536,7 @@ export const PatientDashboard: React.FC = () => {
               <p className="text-[11px] text-slate-500 italic">
                 * Giờ làm việc: Sáng 08:00 - 12:00, Chiều 13:30 - 17:00 (Thứ 2 - Thứ 7).
               </p>
+              <EmailNotVerifiedHint />
 
               <div className="flex justify-end gap-2 pt-2">
                 <button
@@ -1533,7 +1548,8 @@ export const PatientDashboard: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={submittingReschedule || !rescheduleDate || !rescheduleTime}
+                  disabled={submittingReschedule || !rescheduleDate || !rescheduleTime || isUnverified}
+                  title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
                 >
                   {submittingReschedule ? 'Đang cập nhật...' : 'Xác Nhận Dời Lịch'}

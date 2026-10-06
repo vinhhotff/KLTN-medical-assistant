@@ -101,11 +101,15 @@ Dự án được tài liệu hóa toàn diện chuẩn doanh nghiệp và đáp
 - Apache Maven 3.9+
 - Node.js v20+ & npm
 
-### Bước 1: Khởi động Hạ tầng Docker (PostgreSQL pgvector & Redis)
+### Bước 1: Khởi động Hạ tầng Docker (PostgreSQL pgvector, Redis & Mailpit)
 ```bash
 docker compose up -d
 ```
 *Ghi chú:* PostgreSQL lắng nghe trên cổng nội bộ `5433` (tránh xung đột với Postgres gốc trên máy), Redis lắng nghe trên `6379`.
+
+*Email (môi trường dev):* `docker compose up -d` đã gồm **Mailpit**, một SMTP server giả lập: nhận mail ở cổng `1025` và **không gửi ra Internet**. Mọi email hệ thống (xác thực email, đặt lại mật khẩu, xác nhận/hủy lịch hẹn, biên nhận thanh toán) được xem tại **http://localhost:8025**. API kiểm tra tự động: `curl http://localhost:8025/api/v1/messages`.
+- Thiếu Mailpit thì nghiệp vụ vẫn chạy bình thường: gửi mail thất bại chỉ log WARN, `/actuator/health` không báo DOWN.
+- Production: đặt `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` (bắt buộc STARTTLS), `APP_MAIL_FROM` và `APP_CLIENT_BASE_URL` (dùng dựng link trong email). Tắt hẳn gửi mail bằng `APP_MAIL_ENABLED=false`.
 
 ### Bước 2: Khởi động Backend Spring Boot
 ```bash

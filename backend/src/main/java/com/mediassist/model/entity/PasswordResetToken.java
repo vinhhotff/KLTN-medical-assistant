@@ -8,7 +8,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "password_reset_tokens", indexes = {
-        @Index(name = "idx_prt_token", columnList = "token", unique = true),
+        @Index(name = "idx_prt_token_hash", columnList = "token_hash", unique = true),
         @Index(name = "idx_prt_user_id", columnList = "user_id")
 })
 public class PasswordResetToken {
@@ -21,8 +21,9 @@ public class PasswordResetToken {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, unique = true, length = 64)
-    private String token;
+    /** SHA-256 hex cua token goc - token goc chi nam trong email, khong luu DB. */
+    @Column(name = "token_hash", nullable = false, length = 64)
+    private String tokenHash;
 
     @Column(nullable = false)
     private LocalDateTime expiresAt;
@@ -36,9 +37,9 @@ public class PasswordResetToken {
 
     public PasswordResetToken() {}
 
-    public PasswordResetToken(User user, String token, LocalDateTime expiresAt) {
+    public PasswordResetToken(User user, String tokenHash, LocalDateTime expiresAt) {
         this.user = user;
-        this.token = token;
+        this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
         this.used = false;
     }
@@ -49,14 +50,18 @@ public class PasswordResetToken {
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
 
-    public String getToken() { return token; }
-    public void setToken(String token) { this.token = token; }
+    public String getTokenHash() { return tokenHash; }
+    public void setTokenHash(String tokenHash) { this.tokenHash = tokenHash; }
 
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
 
     public boolean isUsed() { return used; }
     public void setUsed(boolean used) { this.used = used; }
+
+    public boolean isUsable(LocalDateTime now) {
+        return !used && expiresAt != null && expiresAt.isAfter(now);
+    }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

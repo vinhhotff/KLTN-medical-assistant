@@ -15,6 +15,7 @@ public class UserDto {
     private String avatarUrl;
     private String phone;
     private java.time.LocalDateTime createdAt;
+    private boolean emailVerified;
 
     public UserDto() {}
 
@@ -30,7 +31,7 @@ public class UserDto {
     }
 
     public static UserDto from(User user) {
-        return new UserDto(
+        UserDto dto = new UserDto(
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
@@ -40,6 +41,8 @@ public class UserDto {
                 user.getPhone(),
                 user.getCreatedAt()
         );
+        dto.emailVerified = user.isEmailVerified();
+        return dto;
     }
 
     public static UserDto fromEntity(User user) {
@@ -54,4 +57,5 @@ public class UserDto {
     public String getAvatarUrl() { return avatarUrl; }
     public String getPhone() { return phone; }
     public java.time.LocalDateTime getCreatedAt() { return createdAt; }
+    public boolean isEmailVerified() { return emailVerified; }
 }

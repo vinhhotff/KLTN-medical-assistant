@@ -5,6 +5,7 @@ import com.mediassist.common.AppException;
 import com.mediassist.dto.payment.CreatePaymentRequest;
 import com.mediassist.dto.payment.PaymentResponseDto;
 import com.mediassist.dto.payment.VerifyPaymentRequest;
+import com.mediassist.event.PaymentCompletedEvent;
 import com.mediassist.model.entity.*;
 import com.mediassist.payment.*;
 import com.mediassist.repository.AppointmentRepository;
@@ -44,6 +45,9 @@ class PaymentServiceTest {
     @Mock
     private AuditLogRepository auditLogRepository;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     private PaymentGatewayRouter gatewayRouter;
     private StripePaymentGateway stripePaymentGateway;
     private MockPaymentGateway mockPaymentGateway;
@@ -73,7 +77,8 @@ class PaymentServiceTest {
                 userRepository,
                 appointmentRepository,
                 auditLogRepository,
-                objectMapper
+                objectMapper,
+                eventPublisher
         );
         ReflectionTestUtils.setField(paymentService, "clientBaseUrl", "http://localhost:5173");
 
@@ -83,6 +88,8 @@ class PaymentServiceTest {
         testPatient.setFullName("Nguyen Van Benh Nhan");
         testPatient.setScanQuota(1);
         testPatient.setSubscriptionTier("FREE");
+        testPatient.setRole(Role.PATIENT);
+        testPatient.markEmailVerified(LocalDateTime.now());
 
         testDoctor = new User();
         testDoctor.setId(UUID.randomUUID());
@@ -210,6 +217,18 @@ class PaymentServiceTest {
         assertEquals("VIP_MONTHLY", testPatient.getSubscriptionTier());
         assertNotNull(testPatient.getVipValidUntil());
         verify(auditLogRepository, times(1)).save(any(AuditLog.class));
+
+        // Bien nhan email: dung 1 event khi PENDING -> COMPLETED
+        org.mockito.ArgumentCaptor<PaymentCompletedEvent> captor = org.mockito.ArgumentCaptor.forClass(PaymentCompletedEvent.class);
+        verify(eventPublisher, times(1)).publishEvent(captor.capture());
+        PaymentCompletedEvent event = captor.getValue();
+        assertEquals("TX-20260916-VIP001", event.transactionCode());
+        assertEquals(testPatient.getEmail(), event.userEmail());
+        assertEquals("QUOTA_PURCHASE", event.orderType());
+        assertEquals("VIP_MONTHLY", event.packageId());
+        assertEquals("STRIPE", event.paymentMethod());
+        assertEquals(0, new BigDecimal("99000").compareTo(event.amount()));
+        assertNull(event.appointmentCode());
     }
 
     @Test
@@ -237,6 +256,13 @@ class PaymentServiceTest {
         assertNotNull(response);
         assertEquals("COMPLETED", response.getStatus());
         assertEquals(PaymentStatus.PAID, testAppointment.getPaymentStatus());
+
+        org.mockito.ArgumentCaptor<PaymentCompletedEvent> captor = org.mockito.ArgumentCaptor.forClass(PaymentCompletedEvent.class);
+        verify(eventPublisher, times(1)).publishEvent(captor.capture());
+        assertEquals("APPOINTMENT_FEE", captor.getValue().orderType());
+        assertEquals("AP-2026-TEST01", captor.getValue().appointmentCode());
+        assertEquals(testAppointment.getScheduledStart(), captor.getValue().appointmentStart());
+        assertNull(captor.getValue().packageId());
     }
 
     @Test
@@ -262,5 +288,115 @@ class PaymentServiceTest {
         assertEquals("COMPLETED", response.getStatus());
         // Verify that user was NOT saved again (no double fulfillment)
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Benh nhan chua xac thuc email: checkout bi chan 403 EMAIL_NOT_VERIFIED, khong tao giao dich")
+    void testCreateCheckout_UnverifiedPatient_Blocked() {
+        testPatient.setEmailVerified(false);
+        when(userRepository.findByEmail(testPatient.getEmail())).thenReturn(Optional.of(testPatient));
+
+        CreatePaymentRequest request = new CreatePaymentRequest("QUOTA_PURCHASE", "VIP_MONTHLY", null, "STRIPE");
+        AppException ex = assertThrows(AppException.class,
+                () -> paymentService.createCheckoutSession(testPatient.getEmail(), request));
+
+        assertEquals("EMAIL_NOT_VERIFIED", ex.getCode());
+        assertEquals(org.springframework.http.HttpStatus.FORBIDDEN, ex.getStatus());
+        verify(paymentTransactionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Verify lap lai tren giao dich da COMPLETED: KHONG phat event bien nhan lan 2")
+    void testVerifyAgain_DoesNotPublishTwice() {
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setTransactionCode("TX-20261002-TWICE1");
+        tx.setUser(testPatient);
+        tx.setOrderType(OrderType.QUOTA_PURCHASE);
+        tx.setStatus(TransactionStatus.COMPLETED);
+        when(paymentTransactionRepository.findByTransactionCode(tx.getTransactionCode())).thenReturn(Optional.of(tx));
+
+        paymentService.verifyAndFulfillPayment(testPatient.getEmail(), new VerifyPaymentRequest(tx.getTransactionCode(), "x"));
+        paymentService.verifyAndFulfillPayment(testPatient.getEmail(), new VerifyPaymentRequest(tx.getTransactionCode(), "x"));
+
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("Cong thanh toan bao chua tra tien: giao dich FAILED, KHONG phat event bien nhan")
+    void testVerifyUnpaid_DoesNotPublish() {
+        PaymentGateway failingGateway = mock(PaymentGateway.class);
+        when(failingGateway.verifyPayment(any())).thenReturn(PaymentVerificationResult.unpaid("Thẻ bị từ chối"));
+        PaymentGatewayRouter router = mock(PaymentGatewayRouter.class);
+        when(router.resolveGateway(any())).thenReturn(failingGateway);
+        PaymentService service = new PaymentService(paymentTransactionRepository, router, stripePaymentGateway,
+                userRepository, appointmentRepository, auditLogRepository, objectMapper, eventPublisher);
+
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setTransactionCode("TX-20261002-FAIL01");
+        tx.setUser(testPatient);
+        tx.setOrderType(OrderType.QUOTA_PURCHASE);
+        tx.setPaymentMethod("STRIPE");
+        tx.setStatus(TransactionStatus.PENDING);
+        when(paymentTransactionRepository.findByTransactionCode(tx.getTransactionCode())).thenReturn(Optional.of(tx));
+
+        assertThrows(AppException.class,
+                () -> service.verifyAndFulfillPayment(testPatient.getEmail(), new VerifyPaymentRequest(tx.getTransactionCode(), "x")));
+        assertEquals(TransactionStatus.FAILED, tx.getStatus());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    private PaymentService serviceWithWebhook(String txCode) {
+        StripePaymentGateway stripe = mock(StripePaymentGateway.class);
+        com.stripe.model.Event event = mock(com.stripe.model.Event.class);
+        com.stripe.model.EventDataObjectDeserializer deserializer = mock(com.stripe.model.EventDataObjectDeserializer.class);
+        com.stripe.model.checkout.Session session = mock(com.stripe.model.checkout.Session.class);
+        when(stripe.constructWebhookEvent(any(), any())).thenReturn(event);
+        when(event.getType()).thenReturn("checkout.session.completed");
+        when(event.getDataObjectDeserializer()).thenReturn(deserializer);
+        when(deserializer.getObject()).thenReturn(Optional.of(session));
+        when(session.getMetadata()).thenReturn(java.util.Map.of("transaction_code", txCode));
+        org.mockito.Mockito.lenient().when(session.getId()).thenReturn("cs_live_webhook");
+        return new PaymentService(paymentTransactionRepository, gatewayRouter, stripe,
+                userRepository, appointmentRepository, auditLogRepository, objectMapper, eventPublisher);
+    }
+
+    @Test
+    @DisplayName("Stripe webhook PENDING -> COMPLETED: phat dung 1 event bien nhan")
+    void testWebhook_PendingToCompleted_PublishesOnce() {
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setTransactionCode("TX-20261002-HOOK01");
+        tx.setUser(testPatient);
+        tx.setOrderType(OrderType.QUOTA_PURCHASE);
+        tx.setReferenceId("BASIC_5");
+        tx.setAmount(new BigDecimal("29000.00"));
+        tx.setPaymentMethod("STRIPE");
+        tx.setStatus(TransactionStatus.PENDING);
+        when(paymentTransactionRepository.findByTransactionCode(tx.getTransactionCode())).thenReturn(Optional.of(tx));
+        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        serviceWithWebhook(tx.getTransactionCode()).handleStripeWebhook("{}", "sig");
+
+        assertEquals(TransactionStatus.COMPLETED, tx.getStatus());
+        org.mockito.ArgumentCaptor<PaymentCompletedEvent> captor = org.mockito.ArgumentCaptor.forClass(PaymentCompletedEvent.class);
+        verify(eventPublisher, times(1)).publishEvent(captor.capture());
+        assertEquals("TX-20261002-HOOK01", captor.getValue().transactionCode());
+        assertEquals("BASIC_5", captor.getValue().packageId());
+    }
+
+    @Test
+    @DisplayName("Stripe webhook den sau khi verify da COMPLETED: KHONG phat event lan 2")
+    void testWebhook_AlreadyCompleted_DoesNotPublish() {
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setTransactionCode("TX-20261002-HOOK02");
+        tx.setUser(testPatient);
+        tx.setOrderType(OrderType.QUOTA_PURCHASE);
+        tx.setStatus(TransactionStatus.COMPLETED);
+        when(paymentTransactionRepository.findByTransactionCode(tx.getTransactionCode())).thenReturn(Optional.of(tx));
+
+        serviceWithWebhook(tx.getTransactionCode()).handleStripeWebhook("{}", "sig");
+
+        verify(eventPublisher, never()).publishEvent(any());
+        verify(paymentTransactionRepository, never()).save(any());
     }
 }

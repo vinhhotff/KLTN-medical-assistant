@@ -135,6 +135,9 @@ graph TD
 * **2d. Quá tải tần suất đăng ký từ 1 IP (Anti-Spam Bot):** Khi 1 IP gửi quá 5 lượt đăng ký trong 10 phút, hệ thống từ chối với `HTTP 429 Too Many Requests`.
 * **2e. Tài khoản bị đình chỉ (Suspended User Rejection):** Khi tài khoản mang trạng thái `SUSPENDED` (do Admin khóa), `JwtAuthenticationFilter` chặn ngay lập tức với `HTTP 403 Forbidden` (`ACCOUNT_SUSPENDED`), vô hiệu hóa tức thời quyền truy cập kể cả khi token JWT của phiên trước vẫn còn hiệu lực.
 * **2f. Người dùng hủy bỏ xác thực Google hoặc lỗi Token:** Google hoặc backend chuyển hướng về `/login?error=oauth2_failed`, Frontend hiển thị thông báo lỗi thân thiện.
+* **Cập nhật WORK_LOG #083 (xác thực email, xem UC-29):**
+  - `UserDto` có thêm `emailVerified`. Đăng ký email/mật khẩu tạo tài khoản PATIENT `emailVerified=false` (vẫn đăng nhập ngay) và gửi email xác thực.
+  - Tài khoản tạo mới bằng Google có `emailVerified=true`. Liên kết Google vào tài khoản **đã** xác thực: giữ mật khẩu. Liên kết Google vào tài khoản **chưa** xác thực: **xóa mật khẩu**, đặt `emailVerified=true`, xóa token xác thực còn lại, ghi audit `ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED` (chống pre-hijacking).
 
 ---
 
@@ -361,6 +364,8 @@ graph TD
 #### Luồng xung đột (Conflict Exception Flow):
 * **3a. Người khác đã đặt slot trước đó (Pre-check):** `existsConflict` phát hiện trùng giờ $\rightarrow$ Ném ngoại lệ `AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", ...)`. Backend trả về HTTP 409: *"Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác."*
 * **3b. Xung đột đặt lịch song song (Concurrent Race Condition Shield):** Trường hợp hai bệnh nhân cùng bấm xác nhận tại cùng một microsecond và cùng vượt qua bước `existsConflict()`, Database Partial Unique Index `idx_appointment_unique_active_slot` trên `appointments(doctor_id, scheduled_start) WHERE status != 'CANCELLED'` sẽ chặn transaction thứ hai. Lệnh `saveAndFlush()` kích hoạt `DataIntegrityViolationException`, được bắt và chuyển đổi thành HTTP 409 `SLOT_CONFLICT` an toàn, loại bỏ 100% rủi ro Double-booking.
+* **Email sau khi đặt lịch (WORK_LOG #083, UC-30):** sau khi transaction commit, bệnh nhân nhận email "Xác nhận lịch hẹn" và bác sĩ nhận email "Lịch hẹn mới". Lỗi slot/rollback thì không gửi.
+* **3c. Bệnh nhân chưa xác thực email (WORK_LOG #083):** `EmailVerificationGuard` chạy ngay sau khi nạp bệnh nhân, trước mọi kiểm tra khác → 403 `EMAIL_NOT_VERIFIED` *"Vui lòng xác thực email trước khi đặt lịch khám hoặc thanh toán..."*. Không tạo lịch, không ghi audit. Frontend (DoctorSearchPage, SymptomTriagePage, DocumentSummarizerPage) vô hiệu hóa nút "Xác Nhận Đặt Khám" kèm tooltip, và hiển thị thông báo rõ ràng nếu vẫn nhận lỗi này (`isEmailNotVerified`).
 
 ---
 
@@ -545,6 +550,7 @@ graph TD
   3. Bệnh nhân nhấn "Xác Nhận Đã Chuyển Khoản (Sandbox Auto-Verify)".
   4. Backend xử lý cộng ngay hạn ngạch (ví dụ: +5 lượt quét cho gói `BASIC_5`, hoặc kích hoạt 30 ngày VIP cho gói `VIP_MONTHLY`) và cập nhật cơ sở dữ liệu `users`.
   5. Giao diện frontend cập nhật trực tiếp huy hiệu VIP / số lượt quét trên thanh trạng thái mà không cần tải lại trang.
+* **Ngoại lệ (WORK_LOG #083):** bệnh nhân chưa xác thực email gọi `POST /payments/checkout` hoặc `POST /documents/quota/purchase` → 403 `EMAIL_NOT_VERIFIED`; không tạo giao dịch, quota/VIP không đổi. Nút thanh toán trong DocumentSummarizerPage bị vô hiệu hóa kèm tooltip.
 
 ---
 
@@ -611,6 +617,7 @@ graph TD
   - `GET /api/v1/admin/stats`: Trả về `AdminSystemStatsDto` tổng hợp số lượng Người dùng, Bác sĩ, Bệnh nhân, Lịch khám, Hồ sơ EMR, Phiên Triage, Sức khỏe hạ tầng DB/Redis/Thread Pool và 10 hoạt động gần nhất.
   - `GET /api/v1/admin/appointments`: Lấy toàn bộ danh sách cuộc hẹn khám bệnh toàn viện kèm thông tin Bác sĩ, Bệnh nhân, Chuyên khoa, Chẩn đoán ICD-10, Đơn thuốc điện tử.
   - `PATCH /api/v1/admin/appointments/{id}/cancel`: Quyền can thiệp của Quản trị viên hủy cuộc hẹn vì lý do điều phối lâm sàng kèm ghi nhận Audit Log.
+    + **WORK_LOG #083:** chỉ hủy được lịch `SCHEDULED` / `IN_PROGRESS`; lịch `COMPLETED` / `CANCELLED` / `NO_SHOW` → 400 `APPOINTMENT_NOT_CANCELLABLE` (thông báo tiếng Việt, không lưu, không hoàn tiền, không gửi email). Lịch đã thanh toán được **tự động hoàn tiền** qua `AppointmentRefundService` (dùng chung với bệnh nhân/bác sĩ hủy). Bệnh nhân và bác sĩ nhận email hủy ghi người hủy là "Quản trị viên" (UC-30). Giao diện chỉ hiện nút hủy cho lịch hủy được và hiển thị lỗi từ backend ngay trong hộp thoại.
   - `GET /api/v1/admin/triage-sessions`: Giám sát toàn bộ phiên phân luồng triệu chứng AI, mức độ khẩn cấp (Emergency / Urgent / Routine), báo cáo lâm sàng chuẩn SBAR và khuyến nghị bác sĩ.
   - `GET /api/v1/admin/audit-logs?action=...`: Truy xuất nhật ký kiểm toán hệ thống theo từng nhóm hành vi hoặc thời gian thực.
 * **Quy Trình Nghiệp Vụ Chính:**
@@ -681,6 +688,7 @@ graph TD
      - Sau khi thanh toán thành công, trạng thái ca hẹn chuyển thành `Đã Thanh Toán (PAID)`, đồng thời số tiền được tự động cộng vào Doanh thu hôm nay trên Trạm làm việc của Bác sĩ.
   3. **Độ Bền Vững & Dự Phòng Cục Bộ (Sandbox Resilience):**
      - Nếu môi trường chạy offline hoặc không có API key Stripe thật, hệ thống tự động kích hoạt chế độ Stripe Sandbox mô phỏng nội bộ, bảo đảm toàn bộ kịch bản demo và bảo vệ đồ án luôn thành công 100% không bị gián đoạn.
+  4. **Rào chắn xác thực email (WORK_LOG #083):** `PaymentService.createCheckoutSession` gọi `EmailVerificationGuard` ngay sau khi nạp người dùng → bệnh nhân chưa xác thực nhận 403 `EMAIL_NOT_VERIFIED`, không có giao dịch PENDING nào được tạo. Nút "Thanh Toán Online (Stripe)" trên PatientDashboard bị vô hiệu hóa kèm tooltip.
 
 ---
 
@@ -825,17 +833,40 @@ graph TD
   4. **Cập Nhật & Thông Báo Tự Động:**
      - Lưu lại thời gian khám mới, giữ nguyên mã ca khám `appointmentCode` và thông tin thanh toán.
      - Phát sinh bản ghi thông báo nội bộ cho bác sĩ phụ trách biết bệnh nhân đã dời lịch.
+* **Rào chắn xác thực email (WORK_LOG #083):** khi **người dời lịch là bệnh nhân** mà email chưa xác thực → 403 `EMAIL_NOT_VERIFIED`. Bác sĩ hoặc quản trị viên dời lịch giúp bệnh nhân thì không bị chặn. Nút "Dời Lịch Hẹn" và "Xác Nhận Dời Lịch" trên PatientDashboard bị vô hiệu hóa kèm tooltip.
+* **Email:** dời lịch hiện **không** gửi email (ghi nhận là việc có thể làm sau, WORK_LOG #083).
 
 ---
 
-### UC-24: Khôi Phục & Đặt Lại Mật Khẩu Tài Khoản (Secure Password Reset Flow)
+### UC-24: Khôi Phục & Đặt Lại Mật Khẩu Qua Liên Kết Email (Secure Password Reset Flow)
 
-* **Mã Use Case:** `UC-SEC-24`
-* **Tác nhân chính:** Người dùng (User / Patient / Doctor), AuthService, PasswordResetTokenRepository.
-* **Mục tiêu:** Cung cấp quy trình tự phục hồi mật khẩu bảo mật qua mã xác thực an toàn, tuân thủ nguyên tắc Zero-Knowledge và chống lạm dụng enumeration.
-* **REST Endpoints:**
-  - `POST /api/v1/auth/forgot-password`: Tiếp nhận email, phát sinh token UUIDv4 lưu trong bảng `password_reset_tokens` (thời hạn 60 phút). Luôn trả về phản hồi thành công chung để bảo vệ quyền riêng tư người dùng (không làm lộ việc email có tồn tại hay không).
-  - `POST /api/v1/auth/reset-password`: Tiếp nhận `token` và `newPassword`, kiểm tra tính hợp lệ và thời hạn (`expiryDate > now`, `isUsed == false`), băm mật khẩu qua BCrypt (`BCryptPasswordEncoder(12)`) và vô hiệu hóa token ngay lập tức (`isUsed = true`).
+* **Mã Use Case:** `UC-SEC-24` (viết lại ở WORK_LOG #083: trước đây token chưa từng được gửi đi, modal "Quên mật khẩu" hiển thị OTP giả "882 941")
+* **Tác nhân chính:** Người dùng (Bệnh nhân / Bác sĩ / Quản trị viên), `AuthService`, `PasswordResetTokenRepository`, `MailNotificationListener`, SMTP (Mailpit ở môi trường dev).
+* **Mục tiêu:** Người dùng quên mật khẩu tự tạo mật khẩu mới qua liên kết gửi đến email đã đăng ký, không lộ việc email có tồn tại trong hệ thống hay không.
+* **Tiền điều kiện:** Người dùng truy cập được hộp thư của email đăng ký. Tài khoản không ở trạng thái `SUSPENDED`.
+* **Hậu điều kiện (thành công):** `users.password_hash` được thay; `failed_login_attempts = 0`, `locked_until = NULL`; token đã dùng có `used = true`, mọi token khác của người dùng bị xóa; có 2 dòng audit `PASSWORD_RESET_REQUESTED` và `PASSWORD_RESET_COMPLETED`; người dùng nhận email "Mật khẩu của bạn vừa được thay đổi".
+* **REST Endpoints (đều public):**
+  - `POST /api/v1/auth/forgot-password` body `{email}`. **Luôn** trả 200 với cùng một thông báo: *"Nếu email tồn tại trong hệ thống, chúng tôi đã gửi liên kết đặt lại mật khẩu..."*. Rate limit: 5 lần / 15 phút / IP (vượt → 429) và 3 lần / giờ / email (vượt → **im lặng bỏ qua, vẫn trả 200 cùng thông báo**; key Redis là SHA-256 của email).
+  - `GET /api/v1/auth/reset-password/validate?token=...` trả `{valid: boolean}`, header `Cache-Control: no-store`. Rate limit 20 lần / 10 phút / IP (dùng chung với endpoint dưới).
+  - `POST /api/v1/auth/reset-password` body `{token, newPassword}`. `newPassword` tối thiểu **8 ký tự** (đồng bộ với đăng ký).
+* **Luồng chính (Happy Path):**
+  1. Tại `/login`, người dùng bấm "Quên mật khẩu?" → chuyển sang trang `/forgot-password`, nhập email.
+  2. `AuthService.requestPasswordReset`: tìm user theo email (lowercase, trim); xóa mọi token cũ của user; sinh token gốc 32 byte `SecureRandom` (Base64 URL-safe); lưu **chỉ** `token_hash = SHA-256(token)` với `expires_at = now + 30 phút`; ghi audit `PASSWORD_RESET_REQUESTED`; phát `PasswordResetRequestedEvent`.
+  3. Sau khi transaction commit, `MailNotificationListener` (luồng `mailExecutor`) gửi email chứa nút và liên kết `{app.client-base-url}/reset-password?token=<token gốc>`.
+  4. Người dùng mở liên kết. Trang `/reset-password` đọc token rồi **xóa token khỏi thanh địa chỉ** (`history.replaceState`), gọi `validate` → hiển thị form mật khẩu mới + xác nhận.
+  5. Gửi form → `resetPassword`: băm token, tìm bản ghi, kiểm tra `used = false`, `expires_at > now`, tài khoản không bị đình chỉ, mật khẩu ≥ 8 ký tự → cập nhật mật khẩu (BCrypt), mở khóa tài khoản, `used = true`, xóa token khác, audit `PASSWORD_RESET_COMPLETED`, phát `PasswordChangedEvent`.
+  6. Frontend chuyển về `/login?reset=success` (mở sẵn tab Đăng nhập, hiện "Đặt lại mật khẩu thành công"). Người dùng nhận email cảnh báo đổi mật khẩu.
+* **Luồng thay thế (Alternative Flow):**
+  - **A1 - Email không tồn tại:** không tạo token, không gửi mail, không ghi audit; response giống hệt Happy Path.
+  - **A2 - Tài khoản SUSPENDED:** không tạo token, không gửi mail; vẫn ghi audit `PASSWORD_RESET_REQUESTED` với metadata `Email sent: false (account SUSPENDED)`; response giống hệt Happy Path.
+  - **A3 - Yêu cầu nhiều lần:** mỗi lần yêu cầu mới vô hiệu các liên kết trước; chỉ liên kết mới nhất dùng được.
+* **Luồng ngoại lệ (Exception Flow):**
+  - **E1 - Liên kết hết hạn (> 30 phút), đã dùng, hoặc tài khoản bị đình chỉ sau khi yêu cầu:** `validate` trả `valid=false`; trang hiển thị *"Liên kết đã hết hạn hoặc không hợp lệ"* kèm nút "Yêu cầu liên kết mới". Nếu gửi form, backend trả 400 `TOKEN_EXPIRED`.
+  - **E2 - Token không tồn tại / bị sửa:** 400 `INVALID_TOKEN`, UI xử lý như E1.
+  - **E3 - Mật khẩu < 8 ký tự:** 400 (validation hoặc `WEAK_PASSWORD`); token **không** bị tiêu thụ.
+  - **E4 - Vượt rate limit theo IP:** 429 `RATE_LIMIT_EXCEEDED`.
+  - **E5 - SMTP lỗi / Mailpit không chạy:** nghiệp vụ vẫn thành công (token đã lưu), email không đến; backend chỉ log WARN (không ghi token/link). Người dùng có thể yêu cầu lại.
+* **Bảo mật:** DB chỉ chứa hash nên kẻ đọc được DB không dùng được liên kết; token và liên kết không bao giờ xuất hiện trong log. Hạn chế đã biết: JWT đã cấp trước khi đổi mật khẩu vẫn hợp lệ tối đa 15 phút (xem WORK_LOG #083).
 
 ---
 
@@ -852,6 +883,7 @@ graph TD
 * **Quy Trình Hoàn Tiền Tự Động (Auto-Refund on Cancellation):**
   - Khi ca khám có trạng thái `paymentStatus == 'PAID'` bị hủy bởi bệnh nhân hoặc bác sĩ, `AppointmentService.updateStatus()` tự động kích hoạt phương thức hoàn tiền `paymentService.refundPayment(appointmentId)`.
   - Trạng thái thanh toán của ca khám chuyển từ `PAID` sang `REFUNDED`, tạo bản ghi thông báo xác nhận hoàn tiền cho bệnh nhân.
+  - **Cập nhật WORK_LOG #083:** logic hoàn tiền được tách thành `AppointmentRefundService.refundIfPaid()` dùng chung cho **cả hai đường hủy**: `AppointmentService.updateAppointmentStatus(CANCELLED)` (bệnh nhân / bác sĩ / admin) và `AdminVettingService.adminCancelAppointment` (trước đây đường admin **không** hoàn tiền). Giao dịch `COMPLETED` tương ứng → `REFUNDED`, lịch hẹn → `REFUNDED`. Đây là ghi nhận trong hệ thống, chưa gọi API refund của cổng thanh toán. Thông tin hoàn tiền được đưa vào email hủy lịch (UC-30).
 
 ---
 
@@ -948,3 +980,52 @@ graph TD
   - **E4 - 429 RATE_LIMIT_EXCEEDED:** vượt 30 lần/phút → thông báo chờ 1 phút.
   - **Tuyệt đối không** sinh PDF xét nghiệm giả thay cho tệp thật trong bất kỳ nhánh lỗi nào.
 * **Bảo mật cấu hình:** `SUPABASE_KEY` (service_role) chỉ đặt trong `backend/.env` (không commit). Khi khởi động, nếu bucket đang `"public": true` hệ thống log WARN `[SECURITY]`.
+
+---
+
+### UC-29: Xác Thực Địa Chỉ Email Khi Đăng Ký & Rào Chắn Đặt Lịch/Thanh Toán (Email Verification Gate)
+
+* **Mã Use Case:** `UC-SEC-29` (WORK_LOG #083)
+* **Tác nhân chính:** Bệnh nhân mới đăng ký, `AuthService`, `EmailVerificationGuard`, `MailNotificationListener`, SMTP (Mailpit ở dev).
+* **Mục tiêu:** Bảo đảm email của bệnh nhân là thật và thuộc về họ trước khi cho phép đặt lịch, dời lịch và thanh toán, vì email là kênh duy nhất nhận xác nhận lịch hẹn, thông báo hủy, biên nhận và liên kết khôi phục tài khoản.
+* **Tiền điều kiện:** Bệnh nhân vừa đăng ký bằng email/mật khẩu (`POST /auth/register`).
+* **Hậu điều kiện (thành công):** `users.email_verified = true`, `users.email_verified_at` được ghi; token đã dùng có `used_at`, các token khác bị xóa; có audit `EMAIL_VERIFIED`; banner vàng biến mất và các nút đặt lịch/thanh toán hoạt động.
+* **REST Endpoints:**
+  - `POST /api/v1/auth/verify-email` (public) body `{token}`. Rate limit 20 lần / 10 phút / IP.
+  - `POST /api/v1/auth/resend-verification` (cần đăng nhập). Rate limit 1 lần / 60 giây và 5 lần / giờ mỗi tài khoản. Đã xác thực thì trả 200 *"Email của bạn đã được xác thực trước đó."* và không tốn lượt.
+  - `GET /api/v1/auth/me` trả thêm `emailVerified`.
+* **Luồng chính (Happy Path):**
+  1. Bệnh nhân đăng ký → tài khoản `ACTIVE`, `emailVerified=false`, được đăng nhập ngay. Backend sinh token 32 byte, lưu `SHA-256(token)` vào `email_verification_tokens` (hết hạn 24 giờ), phát `EmailVerificationRequestedEvent`.
+  2. Sau commit, email "Xác thực địa chỉ email" được gửi với liên kết `{app.client-base-url}/verify-email?token=...`. Trang đăng ký hiện *"Chúng tôi đã gửi email xác thực tới ..."*.
+  3. Trong khu vực bệnh nhân, `PatientLayout` gọi lại `/auth/me` khi mount (user cũ trong localStorage có thể thiếu field), hiển thị banner *"Email chưa được xác thực..."* kèm nút "Gửi lại email xác thực" ngay dưới `MedicalDisclaimerBanner`.
+  4. Bệnh nhân mở liên kết → trang `/verify-email` (public) đọc token rồi xóa token khỏi URL (`history.replaceState`), gọi `POST /auth/verify-email`.
+  5. Backend tìm token theo hash, kiểm tra còn hạn và chưa dùng → `markEmailVerified`, `used_at = now`, xóa token khác, audit `EMAIL_VERIFIED`. Trang hiển thị thành công; nếu đang đăng nhập thì làm mới user (banner biến mất).
+* **Luồng thay thế (Alternative Flow):**
+  - **A1 - Bấm lại liên kết sau khi đã xác thực:** trả thành công (idempotent), không ghi audit lần hai.
+  - **A2 - Gửi lại email:** token cũ bị xóa, chỉ liên kết mới nhất dùng được. Nút gửi lại có đếm ngược 60 giây.
+  - **A3 - Tài khoản xác thực bằng cách khác:** đặt lại mật khẩu thành công (UC-24), đăng nhập/liên kết Google, bác sĩ do admin tạo, dữ liệu seed và **mọi tài khoản tồn tại trước Flyway V20** (backfill) đều có `emailVerified=true`.
+* **Luồng ngoại lệ (Exception Flow):**
+  - **E1 - Token sai / đã bị thay bằng liên kết mới:** 400 `INVALID_TOKEN`. **E2 - Token hết hạn (> 24 giờ):** 400 `TOKEN_EXPIRED`. Trang hiển thị lỗi và hướng dẫn đăng nhập để gửi lại.
+  - **E3 - Gửi lại quá nhanh / quá nhiều:** 429 `RATE_LIMIT_EXCEEDED` với thông báo chờ 60 giây hoặc thử lại sau.
+  - **E4 - Bệnh nhân chưa xác thực đặt lịch / dời lịch / thanh toán / mua gói:** `EmailVerificationGuard.requireVerifiedPatient` ở **tầng service** (`bookAppointment`, `rescheduleAppointment` khi người dời là bệnh nhân, `PaymentService.createCheckoutSession`, `MedicalDocumentAnalysisService.purchaseQuota`) ném **403 `EMAIL_NOT_VERIFIED`**. Bác sĩ/quản trị viên không bị chặn. Frontend vô hiệu hóa nút kèm tooltip; nếu vẫn nhận lỗi (ví dụ user trong localStorage cũ), `isEmailNotVerified()` hiển thị thông báo rõ ràng. `isPatientAccessDenied()` chỉ nhận `FORBIDDEN_PATIENT_ACCESS` nên không bắt nhầm lỗi này.
+* **Liên kết Google vào tài khoản chưa xác thực (chống pre-hijacking):** xóa `password_hash`, đặt `emailVerified=true`, xóa token xác thực còn lại, audit `ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED`. Chủ thật đăng nhập tiếp bằng Google hoặc dùng "Quên mật khẩu" để đặt mật khẩu mới.
+
+---
+
+### UC-30: Thông Báo Email Nghiệp Vụ: Đặt Lịch, Hủy Lịch & Biên Nhận Thanh Toán (Transactional Email Notifications)
+
+* **Mã Use Case:** `UC-SYS-30` (WORK_LOG #083)
+* **Tác nhân chính:** Bệnh nhân, Bác sĩ, Quản trị viên, `AppointmentService`, `AdminVettingService`, `PaymentService`, `MailNotificationListener`, SMTP (Mailpit ở dev: http://localhost:8025).
+* **Mục tiêu:** Bệnh nhân và bác sĩ nhận email xác nhận cho các sự kiện quan trọng mà không cần mở ứng dụng, đồng thời email **không bao giờ chứa thông tin y tế**.
+* **Cơ chế chung:**
+  - Service phát domain event (record chỉ có dữ liệu hành chính, chụp sẵn trong transaction): `AppointmentBookedEvent`, `AppointmentCancelledEvent`, `PaymentCompletedEvent`.
+  - `MailNotificationListener` xử lý bằng `@TransactionalEventListener(phase = AFTER_COMMIT, fallbackExecution = true)` + `@Async("mailExecutor")`: transaction rollback thì không gửi; SMTP chậm/lỗi không ảnh hưởng thời gian phản hồi hay kết quả nghiệp vụ (chỉ log WARN).
+  - Nội dung email chỉ gồm: mã lịch hẹn, thời gian (`HH:mm dd/MM/yyyy`), tên bác sĩ, chuyên khoa, phòng khám, tên bệnh nhân (email cho bác sĩ), số tiền (`350.000 ₫`), mã giao dịch và liên kết về hệ thống. **Không có** lý do khám, triệu chứng, chẩn đoán, kết quả xét nghiệm, ghi chú khám hay lý do hủy dạng tự gõ.
+* **Luồng 1 - Đặt lịch:** `bookAppointment` (bệnh nhân đặt) và `createFollowUpAppointment` (bác sĩ tạo lịch tái khám) → bệnh nhân nhận "Xác nhận lịch hẹn {mã}" (hoặc "Lịch tái khám {mã}"), bác sĩ nhận "Lịch hẹn mới {mã}".
+* **Luồng 2 - Hủy lịch:** `updateAppointmentStatus(CANCELLED)` và `adminCancelAppointment` → cả bệnh nhân và bác sĩ nhận "Lịch hẹn {mã} đã bị hủy", ghi người hủy ("Bệnh nhân" / "Bác sĩ {tên}" / "Quản trị viên"), kèm *"Khoản thanh toán 350.000 ₫ ... đã được ghi nhận hoàn tiền"* nếu trạng thái thanh toán chuyển sang `REFUNDED`, và câu *"Xem chi tiết lý do sau khi đăng nhập"* + liên kết. Lý do hủy vẫn hiển thị trong ứng dụng như cũ.
+* **Luồng 3 - Thanh toán thành công:** `verifyAndFulfillPayment` và `handleStripeWebhook`, **chỉ** khi giao dịch chuyển `PENDING → COMPLETED` → biên nhận "Biên nhận thanh toán {mã GD}": mã giao dịch, số tiền, phương thức, thời gian, nội dung (phí khám kèm mã + giờ lịch hẹn, hoặc tên gói quota/VIP).
+* **Ngoại lệ / bảo đảm:**
+  - **E1 - Gọi verify lặp lại / webhook đến sau verify:** giao dịch đã `COMPLETED` → không phát event, không gửi email lần hai. Hai lượt verify song song: `@Version` của `PaymentTransaction` làm lượt sau rollback nên `AFTER_COMMIT` không chạy.
+  - **E2 - Lỗi nghiệp vụ (trùng slot, thanh toán thất bại, admin hủy lịch đã kết thúc):** không phát event.
+  - **E3 - SMTP/Mailpit không chạy:** nghiệp vụ vẫn thành công; email bị bỏ, log WARN (chưa có outbox/retry - xem WORK_LOG #083).
+  - **Không gửi email khi dời lịch** (để làm sau). `POST /documents/quota/purchase` cộng quota trực tiếp, không qua cổng thanh toán, nên không có biên nhận.

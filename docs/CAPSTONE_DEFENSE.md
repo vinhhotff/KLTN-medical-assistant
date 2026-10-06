@@ -95,6 +95,14 @@
    - Hệ thống tự động truy vấn ngẫu nhiên ca bệnh thực tế từ Hugging Face Server API, format thành tệp PDF phiếu xét nghiệm bệnh viện chuẩn (đầy đủ logo/tiêu đề bệnh viện, CCCD, BHYT, địa chỉ, bảng chỉ số cận lâm sàng tương ứng bệnh cảnh lâm sàng, chữ ký bác sĩ) và tải ngay về máy.
    - Kéo-thả trực tiếp tệp PDF vừa tải vào ô quét: Hệ thống tự động phân tích chỉ số sinh hóa, khử định danh PII an toàn và đề xuất bác sĩ chuyên khoa phù hợp tức thì.
    - Chứng minh: Khả năng thích ứng mạnh mẽ của AI Scanner trên dữ liệu ngẫu nhiên phong phú, có Fallback Pool nội bộ 5 ca bệnh đa khoa đảm bảo 100% không trục trặc kể cả khi mạng hội đồng chập chờn.
+7. **Bước 7: Hệ Thống Email Qua Mailpit (WORK_LOG #083, ~3 phút)**
+   - **Chuẩn bị:** `docker compose up -d` (đã gồm Mailpit), mở sẵn tab http://localhost:8025 bên cạnh ứng dụng. Xóa hộp thư Mailpit trước buổi demo để dễ nhìn.
+   - **Đăng ký:** tạo bệnh nhân mới bằng email chưa từng dùng → trang báo "đã gửi email xác thực", khu vực bệnh nhân hiện banner vàng *"Email chưa được xác thực"*; nút "Xác Nhận Đặt Khám" bị vô hiệu hóa kèm tooltip. Gọi thẳng API đặt lịch (Swagger/curl) → **403 `EMAIL_NOT_VERIFIED`**, chứng minh rào chắn nằm ở backend.
+   - **Xác thực:** mở Mailpit → email "Xác thực địa chỉ email" → bấm nút → trang "Xác thực email thành công", banner biến mất. Chỉ cho hội đồng thấy thanh địa chỉ không còn `?token=`.
+   - **Đặt lịch:** đặt một lịch khám → Mailpit có ngay 2 email: bệnh nhân "Xác nhận lịch hẹn AP-..." và bác sĩ "Lịch hẹn mới AP-...". Mở email: chỉ có mã lịch, giờ, bác sĩ, chuyên khoa, phòng; **không có lý do khám** dù đã nhập lý do khi đặt.
+   - **Hủy lịch:** hủy lịch vừa đặt với lý do có nội dung y tế → 2 email "đã bị hủy" ghi người hủy, câu "Xem chi tiết lý do sau khi đăng nhập", không chứa lý do.
+   - **Quên mật khẩu:** `/forgot-password` → nhập email → thông báo chung → Mailpit có email "Đặt lại mật khẩu" (liên kết hết hạn sau 30 phút) → đặt mật khẩu mới → email "Mật khẩu của bạn vừa được thay đổi". Thử lại liên kết cũ → *"Liên kết đã hết hạn hoặc không hợp lệ"*. Nhập một email không tồn tại → thông báo **y hệt**, Mailpit không có thư mới.
+   - **Phương án dự phòng:** nếu Mailpit không chạy, nghiệp vụ vẫn thành công (chỉ có log WARN); dùng `curl http://localhost:8025/api/v1/messages` để kiểm tra nhanh.
 
 ---
 
@@ -304,6 +312,31 @@
   - **Không bao giờ hiển thị dữ liệu giả:** Nhóm đã xóa cơ chế cũ tự sinh PDF xét nghiệm ngẫu nhiên khi không tải được tệp. Nếu tệp mất → 404 "Không tìm thấy tệp gốc"; kho lưu trữ lỗi → 503 kèm nút "Thử lại". Trong y tế, hiển thị kết quả giả nguy hiểm hơn nhiều so với báo lỗi.
   - **Bằng chứng:** `MedicalDocumentFileAccessServiceTest` (chủ tài liệu OK + audit; bệnh nhân khác 403 và không gọi hàm ký; bác sĩ không lịch hẹn 403; bác sĩ có lịch hẹn và admin OK + audit; 404/503 không audit), `SupabaseStorageServiceTest` (dựng URL từ `signedURL`, TTL 900, tham số `download` được encode, chuyển URL public cũ về key), `MedicalDocumentFileEndpointTest` (`/file` không bao giờ trả PDF giả, JSON DTO không còn `storageUrl`).
   - **Demo trực tiếp:** Mở một link public cũ → Supabase trả lỗi (bucket private). Mở tệp từ giao diện → iframe hiển thị, ghi chú "Liên kết tạm thời, hết hạn sau 15 phút"; vào Nhật ký kiểm toán, lọc chip "Xem Tệp Y Tế" → thấy dòng `DOCUMENT_SIGNED_URL_ISSUED` vừa tạo.
+
+### Câu hỏi 17: Vì sao token đặt lại mật khẩu chỉ được lưu dạng SHA-256 hash mà không lưu nguyên văn? Mật khẩu đã băm bằng BCrypt rồi, sao token không băm BCrypt luôn?
+* **Trả lời mẫu:**
+  - **Token chính là "chìa khóa tạm thời" của tài khoản:** ai có token còn hạn thì đặt được mật khẩu mới, tức chiếm được hồ sơ sức khỏe. Nếu lưu nguyên văn, chỉ cần lộ bảng `password_reset_tokens` (file backup, SQL injection, công cụ xem DB như pgweb, nhân viên vận hành tò mò) là kẻ tấn công dựng được liên kết và chiếm mọi tài khoản đang có yêu cầu reset. Lưu hash thì DB bị lộ cũng vô dụng: không thể suy ngược từ hash ra token.
+  - **Vì sao SHA-256 mà không phải BCrypt:** BCrypt cố ý chậm để chống dò mật khẩu người dùng đặt (entropy thấp, có thể đoán theo từ điển). Token của hệ thống là 32 byte ngẫu nhiên từ `SecureRandom` (256 bit entropy), dò vét cạn là bất khả thi, nên không cần hàm băm chậm. SHA-256 còn cho phép tra cứu trực tiếp bằng index `UNIQUE` (BCrypt có salt ngẫu nhiên nên không tra cứu được, phải quét toàn bảng).
+  - **Các lớp bảo vệ khác:** hiệu lực 30 phút, dùng một lần, yêu cầu mới vô hiệu liên kết cũ; trang đặt lại mật khẩu xóa token khỏi thanh địa chỉ ngay khi đọc; token và liên kết không bao giờ ghi vào log; `forgot-password` luôn trả cùng một thông báo (không lộ email có tồn tại hay không) và có rate limit theo IP lẫn theo email.
+  - **Bằng chứng:** `AuthServicePasswordResetTest.tokenIsStoredHashed` khẳng định giá trị lưu DB khác token gửi qua email và bằng `SHA-256(token)`; `AuthControllerPasswordResetTest.sameResponseForExistingAndUnknownEmail` khẳng định hai response giống hệt nhau.
+
+### Câu hỏi 18: Vì sao bệnh nhân chưa xác thực email vẫn đăng nhập được nhưng lại không được đặt lịch và thanh toán? Sao không chặn ngay từ lúc đăng nhập?
+* **Trả lời mẫu:**
+  - **Email là kênh vận hành, không chỉ là tên đăng nhập:** xác nhận lịch hẹn, thông báo hủy lịch kèm hoàn tiền, biên nhận thanh toán và liên kết khôi phục mật khẩu đều đi qua email. Nếu email gõ sai, bệnh nhân không nhận được thông tin về lịch khám và tiền của mình. Nếu là email của người khác, người lạ nhận thông tin lịch khám và có thể dùng "Quên mật khẩu" để chiếm tài khoản.
+  - **Chặn đúng chỗ, không chặn thừa:** chỉ các hành động tạo nghĩa vụ hoặc giao dịch (đặt lịch, bệnh nhân tự dời lịch, thanh toán, mua gói) mới bị chặn. Bệnh nhân vẫn đăng nhập, xem hướng dẫn, dùng Trợ lý triệu chứng AI để không mất trải nghiệm ban đầu; việc xác thực chỉ mất một cú bấm trong email.
+  - **Chặn ở tầng service, không chỉ giao diện:** `EmailVerificationGuard.requireVerifiedPatient` được gọi trong `bookAppointment`, `rescheduleAppointment`, `createCheckoutSession`, `purchaseQuota`. Gọi API trực tiếp bằng curl/Postman vẫn nhận 403 `EMAIL_NOT_VERIFIED`. Giao diện chỉ vô hiệu hóa nút để trải nghiệm rõ ràng.
+  - **Không làm hỏng tài khoản cũ:** Flyway V20 backfill `email_verified = true` cho mọi tài khoản tồn tại trước migration; tài khoản Google, bác sĩ do admin tạo và người đã đặt lại mật khẩu qua email được coi là đã chứng minh sở hữu email.
+  - **Pre-hijacking:** kẻ xấu có thể đăng ký trước bằng email của nạn nhân. Khi nạn nhân đăng nhập Google lần đầu, hệ thống liên kết tài khoản nhưng **xóa mật khẩu do người đăng ký trước đặt** và ghi audit `ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED`, nên kẻ xấu mất quyền truy cập.
+  - **Bằng chứng:** `AuthServiceEmailVerificationTest` (token đúng/sai/hết hạn, idempotent, resend bị rate limit 60 giây và 5 lần/giờ, guard chỉ chặn PATIENT), `AppointmentServiceTest` (đặt lịch và dời lịch bị chặn, bác sĩ dời lịch vẫn được), `PaymentServiceTest` (checkout bị chặn, không tạo giao dịch), `MedicalDocumentAnalysisServiceTest` (mua gói bị chặn / được phép), `OAuth2SecurityTest` (xóa mật khẩu khi liên kết Google vào tài khoản chưa xác thực).
+
+### Câu hỏi 19: Vì sao email của hệ thống không chứa bất kỳ thông tin y tế nào, kể cả lý do khám hay lý do hủy lịch? Bệnh nhân muốn biết chi tiết thì sao?
+* **Trả lời mẫu:**
+  - **Email không phải kênh an toàn cho dữ liệu sức khỏe:** email đi qua nhiều máy chủ trung gian, nằm lại vĩnh viễn trong hộp thư, hiện trên màn hình khóa điện thoại, có thể bị chuyển tiếp nhầm hoặc nằm trong hộp thư công ty mà người khác cùng đọc. Theo Nghị định 13/2023/NĐ-CP, dữ liệu sức khỏe là dữ liệu cá nhân **nhạy cảm**, phải có biện pháp bảo vệ tương xứng; trong ứng dụng, mọi lượt xem đều qua kiểm soát quyền và audit (UC-27, UC-28), còn email thì không kiểm soát được sau khi gửi.
+  - **Thiết kế "không thể lộ" thay vì "cố gắng không lộ":** event dùng để gửi mail (`AppointmentMailInfo`) **không có trường** lý do khám, ghi chú khám hay lý do hủy. Template email chỉ dùng `th:text` (auto-escape) và chỉ đọc được dữ liệu có trong event, nên kể cả khi ai đó sửa template sai cũng không thể hiển thị dữ liệu y tế.
+  - **Lý do hủy cũng bị loại:** lý do do bệnh nhân hoặc bác sĩ tự gõ có thể chứa thông tin bệnh (ví dụ "đang điều trị bệnh X ở viện khác"). Email chỉ ghi **ai hủy** và câu *"Xem chi tiết lý do sau khi đăng nhập"* kèm liên kết; lý do vẫn hiển thị đầy đủ trong ứng dụng.
+  - **Email vẫn đủ hữu ích:** mã lịch hẹn, thời gian, bác sĩ, chuyên khoa, phòng khám, số tiền hoàn/biên nhận đủ để bệnh nhân sắp xếp lịch và đối soát tài chính; muốn xem chi tiết lâm sàng thì đăng nhập.
+  - **Bằng chứng:** `AppointmentMailPrivacyTest` tạo lịch hẹn thật có lý do khám, ghi chú khám và lý do hủy chứa chuỗi đánh dấu, đi qua đúng đường `AppointmentMailInfo.from → MailNotificationListener → Thymeleaf`, rồi khẳng định tiêu đề và HTML của **cả 4 email** (đặt lịch + hủy lịch, bệnh nhân + bác sĩ) không chứa các chuỗi đó. `AppointmentServiceTest` / `AdminVettingServiceTest` khẳng định event không mang lý do khám/lý do hủy.
+  - **Hạn chế thừa nhận:** email vẫn lộ một thông tin gián tiếp là **chuyên khoa** của bác sĩ (ví dụ "Tim mạch"). Nhóm giữ lại vì bệnh nhân cần biết khám ở khoa nào và đây là thông tin hành chính, nhưng có thể tắt nếu bệnh viện yêu cầu chặt hơn.
 
 ---
 

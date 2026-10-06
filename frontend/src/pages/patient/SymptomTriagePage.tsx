@@ -16,7 +16,9 @@ import {
   Info,
   Star
 } from 'lucide-react';
-import { api } from '../../services/api';
+import { api, EMAIL_NOT_VERIFIED_MESSAGE, EMAIL_NOT_VERIFIED_TOOLTIP, isEmailNotVerified } from '../../services/api';
+import { useEmailVerification } from '../../hooks/useEmailVerification';
+import { EmailNotVerifiedHint } from '../../components/common/EmailNotVerifiedHint';
 import { useAuthStore } from '../../store/useAuthStore';
 
 interface DoctorMatch {
@@ -81,6 +83,7 @@ function formatLocalDate(d: Date): string {
 
 export const SymptomTriagePage: React.FC = () => {
   const { user } = useAuthStore();
+  const { isUnverified } = useEmailVerification();
   const [symptoms, setSymptoms] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -196,7 +199,9 @@ export const SymptomTriagePage: React.FC = () => {
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: { code?: string; message?: string } } } };
-      if (axiosErr.response?.data?.error?.code === 'SLOT_CONFLICT') {
+      if (isEmailNotVerified(err)) {
+        setBookingError(EMAIL_NOT_VERIFIED_MESSAGE);
+      } else if (axiosErr.response?.data?.error?.code === 'SLOT_CONFLICT') {
         setBookingError('Khung giờ này vừa có người khác đặt trước. Vui lòng chọn một khung giờ khác.');
       } else {
         setBookingError(axiosErr.response?.data?.error?.message || 'Không thể tạo lịch khám. Vui lòng thử lại.');
@@ -704,6 +709,7 @@ export const SymptomTriagePage: React.FC = () => {
                   </div>
                 )}
 
+                <EmailNotVerifiedHint className="justify-end pt-2" />
                 <div className="pt-2 flex justify-end gap-2">
                   <button
                     type="button"
@@ -714,7 +720,8 @@ export const SymptomTriagePage: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    disabled={!selectedSlot || bookingSubmitting}
+                    disabled={!selectedSlot || bookingSubmitting || isUnverified}
+                    title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
                     onClick={handleConfirmBooking}
                     className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-semibold transition"
                   >

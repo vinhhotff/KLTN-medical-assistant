@@ -1,9 +1,12 @@
 package com.mediassist.security;
 
+import com.mediassist.model.entity.AuditLog;
 import com.mediassist.model.entity.PatientProfile;
 import com.mediassist.model.entity.Role;
 import com.mediassist.model.entity.User;
 import com.mediassist.model.entity.UserStatus;
+import com.mediassist.repository.AuditLogRepository;
+import com.mediassist.repository.EmailVerificationTokenRepository;
 import com.mediassist.repository.PatientProfileRepository;
 import com.mediassist.repository.UserRepository;
 import org.slf4j.Logger;
@@ -16,6 +19,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 
@@ -26,7 +30,8 @@ import java.util.Optional;
  *   1. Google tra ve OAuth2User chua: sub (googleId), email, name, picture
  *   2. Kiem tra tinh hop le cua email & trang thai SUSPENDED cua tai khoan
  *   3. Tim User theo googleId -> neu co, cap nhat avatar va tra ve
- *   4. Tim User theo email -> neu co, lien ket googleId va tra ve (login lan dau bang Google)
+ *   4. Tim User theo email -> neu co, lien ket googleId va tra ve (login lan dau bang Google).
+ *      Tai khoan chua xac thuc email: XOA mat khau (chong pre-hijacking), danh dau da xac thuc.
  *   5. Tao User moi Role.PATIENT + PatientProfile (dang ky tu dong)
  */
 @Service
@@ -36,11 +41,17 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
     private final PatientProfileRepository patientProfileRepository;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
+    private final AuditLogRepository auditLogRepository;
 
     public CustomOAuth2UserService(UserRepository userRepository,
-                                   PatientProfileRepository patientProfileRepository) {
+                                   PatientProfileRepository patientProfileRepository,
+                                   EmailVerificationTokenRepository emailVerificationTokenRepository,
+                                   AuditLogRepository auditLogRepository) {
         this.userRepository = userRepository;
         this.patientProfileRepository = patientProfileRepository;
+        this.emailVerificationTokenRepository = emailVerificationTokenRepository;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @Override
@@ -60,6 +71,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return OAuth2UserPrincipal.create(user, attributes);
     }
 
+    @Transactional
     public User findOrCreateUser(String googleId, String email, String name, String picture) {
         // Validation: Bat buoc phai co email hop le tu Google
         if (email == null || email.isBlank()) {
@@ -116,6 +128,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 );
             }
 
+            if (!existing.isEmailVerified()) {
+                clearUnverifiedPassword(existing);
+            }
             existing.setGoogleId(googleId);
             if (picture != null) existing.setAvatarUrl(picture);
             userRepository.save(existing);
@@ -125,6 +140,28 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         // Case 3: Nguoi dung moi - tao tai khoan PATIENT tu dong
         return createNewPatientFromGoogle(googleId, normalizedEmail, name, picture);
+    }
+
+    /**
+     * Chong pre-hijacking: ke tan cong co the dang ky truoc bang email cua nan nhan voi mat khau cua ho
+     * (khong xac thuc duoc vi khong vao duoc hop thu). Khi chu that dang nhap Google lan dau, tai khoan
+     * duoc lien ket - neu giu mat khau cu thi ke tan cong van dang nhap duoc. Vi vay: xoa mat khau,
+     * danh dau email da xac thuc (Google da chung minh so huu), xoa token xac thuc con lai, ghi audit.
+     * Chu that dang nhap tiep bang Google, hoac dung "Quen mat khau" de dat mat khau moi.
+     */
+    private void clearUnverifiedPassword(User user) {
+        boolean hadPassword = user.getPasswordHash() != null;
+        user.setPasswordHash(null);
+        user.markEmailVerified(LocalDateTime.now());
+        emailVerificationTokenRepository.deleteByUserId(user.getId());
+
+        AuditLog audit = new AuditLog();
+        audit.setUserId(user.getId());
+        audit.setAction("ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED");
+        audit.setResource("users/" + user.getId());
+        audit.setMetadata("Google linked to unverified account; password cleared: " + hadPassword);
+        auditLogRepository.save(audit);
+        log.warn("OAuth2: Linked Google to UNVERIFIED account {} - password cleared (anti pre-hijacking)", user.getId());
     }
 
     private User createNewPatientFromGoogle(String googleId, String email, String name, String picture) {
@@ -137,6 +174,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 .googleId(googleId)
                 .role(Role.PATIENT)
                 .status(UserStatus.ACTIVE)
+                .emailVerified(true) // Google da xac minh so huu email
                 .build();
 
         User saved = userRepository.save(newUser);

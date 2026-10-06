@@ -3,6 +3,7 @@ package com.mediassist.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mediassist.common.AppException;
 import com.mediassist.dto.payment.*;
+import com.mediassist.event.PaymentCompletedEvent;
 import com.mediassist.model.entity.*;
 import com.mediassist.payment.PaymentGateway;
 import com.mediassist.payment.PaymentGatewayRouter;
@@ -18,6 +19,7 @@ import com.stripe.model.checkout.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +43,7 @@ public class PaymentService {
     private final AppointmentRepository appointmentRepository;
     private final AuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${app.payment.client-base-url:http://localhost:5173}")
     private String clientBaseUrl;
@@ -51,7 +54,8 @@ public class PaymentService {
                           UserRepository userRepository,
                           AppointmentRepository appointmentRepository,
                           AuditLogRepository auditLogRepository,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          ApplicationEventPublisher eventPublisher) {
         this.paymentTransactionRepository = paymentTransactionRepository;
         this.gatewayRouter = gatewayRouter;
         this.stripePaymentGateway = stripePaymentGateway;
@@ -59,12 +63,14 @@ public class PaymentService {
         this.appointmentRepository = appointmentRepository;
         this.auditLogRepository = auditLogRepository;
         this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
     public PaymentResponseDto createCheckoutSession(String userEmail, CreatePaymentRequest request) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Người dùng không tồn tại."));
+        EmailVerificationGuard.requireVerifiedPatient(user);
 
         OrderType orderType;
         try {
@@ -229,6 +235,9 @@ public class PaymentService {
         audit.setMetadata("Method: " + tx.getPaymentMethod() + ", Amount: " + tx.getAmount() + " " + tx.getCurrency());
         auditLogRepository.save(audit);
 
+        // Bien nhan email: chi phat o nhanh PENDING -> COMPLETED (goi verify lap lai da return som o tren)
+        publishPaymentCompleted(saved);
+
         log.info("🎉 [PAYMENT FULFILLED] Transaction {} successfully fulfilled for user {}", tx.getTransactionCode(), tx.getUser().getEmail());
 
         return toDto(saved, "Thanh toán thành công! Dịch vụ y tế đã được kích hoạt.");
@@ -253,7 +262,8 @@ public class PaymentService {
                             fulfillOrder(tx);
                             tx.setStatus(TransactionStatus.COMPLETED);
                             tx.setGatewayReference(session.getId());
-                            paymentTransactionRepository.save(tx);
+                            PaymentTransaction saved = paymentTransactionRepository.save(tx);
+                            publishPaymentCompleted(saved);
                             log.info("🎉 [STRIPE WEBHOOK FULFILLED] Transaction {} fulfilled via webhook.", txCode);
                         }
                     });
@@ -333,6 +343,39 @@ public class PaymentService {
                 throw new RuntimeException("Fulfill appointment payment failed: " + e.getMessage(), e);
             }
         }
+    }
+
+    /**
+     * Phat event bien nhan thanh toan (gui email sau khi transaction commit).
+     * Chi chua du lieu tai chinh/hanh chinh: ma giao dich, so tien, phuong thuc, ma + gio lich hen hoac ten goi.
+     */
+    private void publishPaymentCompleted(PaymentTransaction tx) {
+        String appointmentCode = null;
+        LocalDateTime appointmentStart = null;
+        if (tx.getOrderType() == OrderType.APPOINTMENT_FEE && tx.getReferenceId() != null) {
+            try {
+                Appointment appt = appointmentRepository.findById(UUID.fromString(tx.getReferenceId())).orElse(null);
+                if (appt != null) {
+                    appointmentCode = appt.getAppointmentCode();
+                    appointmentStart = appt.getScheduledStart();
+                }
+            } catch (IllegalArgumentException ignored) {
+                // referenceId khong phai UUID: bien nhan van gui, chi thieu thong tin lich hen
+            }
+        }
+        eventPublisher.publishEvent(new PaymentCompletedEvent(
+                tx.getTransactionCode(),
+                tx.getUser().getEmail(),
+                tx.getUser().getFullName(),
+                tx.getAmount(),
+                tx.getCurrency(),
+                tx.getPaymentMethod(),
+                LocalDateTime.now(),
+                tx.getOrderType().name(),
+                tx.getOrderType() == OrderType.QUOTA_PURCHASE ? tx.getReferenceId() : null,
+                appointmentCode,
+                appointmentStart
+        ));
     }
 
     private PaymentResponseDto toDto(PaymentTransaction tx, String message) {

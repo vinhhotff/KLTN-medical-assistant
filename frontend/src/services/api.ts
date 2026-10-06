@@ -17,6 +17,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/**
+ * Trang công khai không được bị đá về /login khi gặp 401
+ * (người dùng mở link trong email khi chưa đăng nhập hoặc phiên đã hết hạn).
+ */
+const PUBLIC_AUTH_PATHS = ['/login', '/forgot-password', '/reset-password', '/verify-email'];
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -24,13 +30,24 @@ api.interceptors.response.use(
       // Clear localStorage on unauthorized
       localStorage.removeItem('mediassist_token');
       localStorage.removeItem('mediassist_user');
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      const path = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (path && !PUBLIC_AUTH_PATHS.some((p) => path.startsWith(p))) {
         window.location.href = '/login?expired=true';
       }
     }
     return Promise.reject(error);
   }
 );
+
+/** Lấy message lỗi tiếng Việt từ ApiResponse của backend, hoặc trả về câu dự phòng. */
+export const getApiErrorMessage = (error: unknown, fallback: string): string => {
+  if (axios.isAxiosError(error)) {
+    const body = error.response?.data as { error?: { message?: string } } | undefined;
+    if (body?.error?.message) return body.error.message;
+    if (!error.response) return 'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.';
+  }
+  return fallback;
+};
 
 export const PATIENT_ACCESS_DENIED_MESSAGE =
   'Hồ sơ sức khỏe được bảo vệ theo Nghị định 13/2023/NĐ-CP. Bạn chỉ xem được hồ sơ của bệnh nhân đã có lịch hẹn khám với mình (đã đặt, đang khám hoặc đã hoàn tất). Nếu cần hội chẩn, vui lòng liên hệ Quản trị viên.';
@@ -43,6 +60,21 @@ export const isPatientAccessDenied = (error: unknown): boolean => {
   if (!axios.isAxiosError(error) || error.response?.status !== 403) return false;
   const body = error.response.data as { error?: { code?: string } } | undefined;
   return body?.error?.code === 'FORBIDDEN_PATIENT_ACCESS';
+};
+
+export const EMAIL_NOT_VERIFIED_MESSAGE =
+  'Bạn cần xác thực email trước khi đặt lịch khám hoặc thanh toán. Vui lòng mở email xác thực MediAssist gửi tới hộp thư của bạn, hoặc bấm "Gửi lại email xác thực" ở đầu trang.';
+
+/** Tooltip cho nút bị vô hiệu hóa khi bệnh nhân chưa xác thực email. */
+export const EMAIL_NOT_VERIFIED_TOOLTIP = 'Cần xác thực email trước khi đặt lịch hoặc thanh toán';
+
+/**
+ * Nhận diện lỗi 403 do bệnh nhân chưa xác thực email (backend trả error.code === 'EMAIL_NOT_VERIFIED').
+ */
+export const isEmailNotVerified = (error: unknown): boolean => {
+  if (!axios.isAxiosError(error) || error.response?.status !== 403) return false;
+  const body = error.response.data as { error?: { code?: string } } | undefined;
+  return body?.error?.code === 'EMAIL_NOT_VERIFIED';
 };
 
 export interface DoctorReviewDto {

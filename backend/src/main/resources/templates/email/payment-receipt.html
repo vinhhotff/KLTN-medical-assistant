@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi" th:replace="~{email/_layout :: layout(~{::mailContent})}">
+<body>
+<div th:fragment="mailContent">
+    <p>Xin chào <strong th:text="${recipientName}">bạn</strong>,</p>
+    <p>MediAssist AI xác nhận đã nhận thanh toán thành công. Đây là biên nhận của bạn:</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0;font-size:14px;">
+        <tr th:replace="~{email/_parts :: row('Mã giao dịch', ${transactionCode})}"></tr>
+        <tr th:replace="~{email/_parts :: row('Nội dung', ${orderLabel})}"></tr>
+        <th:block th:if="${appointmentFee}">
+            <tr th:replace="~{email/_parts :: row('Mã lịch hẹn', ${appointmentCode})}"></tr>
+            <tr th:replace="~{email/_parts :: row('Thời gian khám', ${appointmentTime})}"></tr>
+        </th:block>
+        <tr th:replace="~{email/_parts :: row('Số tiền', ${amount})}"></tr>
+        <tr th:replace="~{email/_parts :: row('Phương thức', ${paymentMethod})}"></tr>
+        <tr th:replace="~{email/_parts :: row('Thời gian thanh toán', ${completedAt})}"></tr>
+    </table>
+    <p style="text-align:center;margin:24px 0;">
+        <a th:replace="~{email/_parts :: button(${portalUrl}, 'Xem lịch sử thanh toán')}">Xem lịch sử thanh toán</a>
+    </p>
+</div>
+</body>
+</html>
