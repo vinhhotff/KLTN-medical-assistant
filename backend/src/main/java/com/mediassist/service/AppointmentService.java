@@ -49,6 +49,10 @@ public class AppointmentService {
     @org.springframework.context.annotation.Lazy
     private com.mediassist.repository.PaymentTransactionRepository paymentTransactionRepository;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private PaymentService paymentService;
+
     public AppointmentService(AppointmentRepository appointmentRepository,
                               UserRepository userRepository,
                               DoctorProfileRepository doctorProfileRepository,
@@ -241,10 +245,14 @@ public class AppointmentService {
             }
         }
 
-        // Auto-refund when cancelled and paid
+        // FIN-01: Auto-refund when cancelled and paid via PaymentService
         if (newStatus == AppointmentStatus.CANCELLED && appointment.getPaymentStatus() == PaymentStatus.PAID) {
             try {
-                if (paymentTransactionRepository != null) {
+                boolean refunded = false;
+                if (paymentService != null) {
+                    refunded = paymentService.refundPayment(appointment.getId());
+                }
+                if (!refunded && paymentTransactionRepository != null) {
                     paymentTransactionRepository
                             .findFirstByReferenceIdAndStatus(appointment.getId().toString(), TransactionStatus.COMPLETED)
                             .ifPresent(tx -> {

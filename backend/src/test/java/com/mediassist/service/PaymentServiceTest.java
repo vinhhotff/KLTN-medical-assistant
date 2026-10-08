@@ -198,6 +198,7 @@ class PaymentServiceTest {
         tx.setGatewayReference("cs_test_mock_12345");
         tx.setStatus(TransactionStatus.PENDING);
 
+        when(userRepository.findByEmail(testPatient.getEmail())).thenReturn(Optional.of(testPatient));
         when(paymentTransactionRepository.findByTransactionCode(tx.getTransactionCode())).thenReturn(Optional.of(tx));
         when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -227,6 +228,7 @@ class PaymentServiceTest {
         tx.setGatewayReference("mock_ref_123");
         tx.setStatus(TransactionStatus.PENDING);
 
+        when(userRepository.findByEmail(testPatient.getEmail())).thenReturn(Optional.of(testPatient));
         when(paymentTransactionRepository.findByTransactionCode(tx.getTransactionCode())).thenReturn(Optional.of(tx));
         when(appointmentRepository.findById(testAppointment.getId())).thenReturn(Optional.of(testAppointment));
         when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -253,6 +255,7 @@ class PaymentServiceTest {
         tx.setPaymentGateway("STRIPE");
         tx.setStatus(TransactionStatus.COMPLETED);
 
+        when(userRepository.findByEmail(testPatient.getEmail())).thenReturn(Optional.of(testPatient));
         when(paymentTransactionRepository.findByTransactionCode(tx.getTransactionCode())).thenReturn(Optional.of(tx));
 
         VerifyPaymentRequest verifyRequest = new VerifyPaymentRequest(tx.getTransactionCode(), "cs_test_mock_already");
@@ -262,5 +265,85 @@ class PaymentServiceTest {
         assertEquals("COMPLETED", response.getStatus());
         // Verify that user was NOT saved again (no double fulfillment)
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("SEC-02: verifyPayment chặn người dùng khác xác thực giao dịch không phải của mình (403 FORBIDDEN)")
+    void testVerifyPayment_DifferentUser_ThrowsForbidden() {
+        User attacker = new User();
+        attacker.setId(UUID.randomUUID());
+        attacker.setEmail("attacker@mediassist.local");
+        attacker.setRole(Role.PATIENT);
+
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setId(UUID.randomUUID());
+        tx.setTransactionCode("TX-20260916-SEC001");
+        tx.setUser(testPatient);
+        tx.setStatus(TransactionStatus.PENDING);
+
+        when(paymentTransactionRepository.findByTransactionCode(tx.getTransactionCode())).thenReturn(Optional.of(tx));
+        when(userRepository.findByEmail("attacker@mediassist.local")).thenReturn(Optional.of(attacker));
+
+        VerifyPaymentRequest verifyRequest = new VerifyPaymentRequest(tx.getTransactionCode(), "dummy_session");
+        AppException ex = assertThrows(AppException.class, () ->
+                paymentService.verifyAndFulfillPayment("attacker@mediassist.local", verifyRequest));
+
+        assertEquals("FORBIDDEN", ex.getCode());
+    }
+
+    @Test
+    @DisplayName("SEC-02: getTransactionStatus chặn người dùng khác tra cứu giao dịch không phải của mình")
+    void testGetTransactionStatus_DifferentUser_ThrowsForbidden() {
+        User stranger = new User();
+        stranger.setId(UUID.randomUUID());
+        stranger.setEmail("stranger@mediassist.local");
+        stranger.setRole(Role.PATIENT);
+
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setId(UUID.randomUUID());
+        tx.setTransactionCode("TX-20260916-SEC002");
+        tx.setUser(testPatient);
+        tx.setOrderType(OrderType.QUOTA_PURCHASE);
+        tx.setStatus(TransactionStatus.COMPLETED);
+        tx.setAmount(new BigDecimal("99000.00"));
+        tx.setPaymentMethod("STRIPE");
+        tx.setPaymentGateway("STRIPE");
+
+        when(paymentTransactionRepository.findByTransactionCode(tx.getTransactionCode())).thenReturn(Optional.of(tx));
+        when(userRepository.findByEmail("stranger@mediassist.local")).thenReturn(Optional.of(stranger));
+
+        AppException ex = assertThrows(AppException.class, () ->
+                paymentService.getTransactionStatus("stranger@mediassist.local", tx.getTransactionCode()));
+
+        assertEquals("FORBIDDEN", ex.getCode());
+    }
+
+    @Test
+    @DisplayName("FIN-01: refundPayment hoàn tiền thành công cho lịch hẹn đã hoàn tất thanh toán")
+    void testRefundPayment_Success() {
+        UUID apptId = UUID.randomUUID();
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setId(UUID.randomUUID());
+        tx.setTransactionCode("TX-20260916-REFUND01");
+        tx.setUser(testPatient);
+        tx.setOrderType(OrderType.APPOINTMENT_FEE);
+        tx.setReferenceId(apptId.toString());
+        tx.setAmount(new BigDecimal("350000.00"));
+        tx.setCurrency("VND");
+        tx.setPaymentMethod("STRIPE");
+        tx.setPaymentGateway("STRIPE");
+        tx.setGatewayReference("cs_test_mock_refund");
+        tx.setStatus(TransactionStatus.COMPLETED);
+
+        when(paymentTransactionRepository.findFirstByReferenceIdAndStatus(apptId.toString(), TransactionStatus.COMPLETED))
+                .thenReturn(Optional.of(tx));
+        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        boolean result = paymentService.refundPayment(apptId);
+
+        assertTrue(result);
+        assertEquals(TransactionStatus.REFUNDED, tx.getStatus());
+        verify(paymentTransactionRepository).save(tx);
+        verify(auditLogRepository).save(any(AuditLog.class));
     }
 }

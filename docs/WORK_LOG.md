@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#085** | 08/10/2026 | Vá Lỗi Nhóm 3 từ Báo Cáo Kiểm Toán Production (Google IDP Email Verification, Payment IDOR Protection, Real Payment Gateway Refund, Atomic Fulfillment with @Version, Zero-Trust Logging): (1) Sửa SEC-01: Trong `CustomOAuth2UserService.java`, kiểm tra `email_verified` từ Google IDP; từ chối và ném `OAuth2AuthenticationException` nếu email chưa được xác thực, (2) Sửa SEC-02: Trong `PaymentController.java` & `PaymentService.java`, thực thi kiểm tra quyền sở hữu IDOR trong `verifyPayment` và `getTransaction`: người gọi phải là chủ giao dịch hoặc có role `ADMIN`, ném lỗi 403 `FORBIDDEN` nếu truy cập trái phép, (3) Sửa FIN-01: Trong `AppointmentService.java` (khi hủy lịch hẹn đã thanh toán), tích hợp gọi `PaymentService.refundPayment` kích hoạt API hoàn tiền thực tế qua cổng thanh toán (`StripePaymentGateway.refundPayment`), (4) Sửa FIN-03: Trong `PaymentService.java` (`fulfillOrder`, `verifyAndFulfillPayment`, `handleStripeWebhook`), đảm bảo tính nguyên tử chống xử lý đúp giữa Webhook và Polling client bằng kiểm tra trạng thái kép và xử lý xung đột đồng thời qua `@Version` Optimistic Locking, (5) Sửa SEC-03: Rà soát `AuthController.java` và toàn bộ luồng Auth, đảm bảo tuyệt đối không log chuỗi JWT token ra stdout/logger, (6) 156/156 backend unit tests PASS 100% & TypeScript 0 lỗi. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#084** | 08/10/2026 | Vá Lỗi Nhóm 2 từ Báo Cáo Kiểm Toán Production (Call Next Patient Prioritization, Accurate Revenue Filtering, Interval Overlap Slot Collision, Reschedule Lead Time & Pagination): (1) Sửa DOC-02: Trong `DoctorService.java` (`callNextPatient`), ưu tiên tìm và khóa bi quan ca `CHECKED_IN` sớm nhất hôm nay trước, chỉ khi không còn ca `CHECKED_IN` mới tiếp nhận ca `SCHEDULED`, (2) Sửa DOC-05: Trong `AppointmentRepository.java` (`sumTodayRevenue` & `sumLifetimeRevenue`), siết điều kiện tính doanh thu chỉ tính các ca có `status = COMPLETED` VÀ `paymentStatus = PAID`, loại trừ triệt để ca hủy hoặc vắng mặt, (3) Sửa DOC-07: Trong `DoctorService.java` (`getAvailableSlots`), kiểm tra va chạm thời gian bằng điều kiện giao thoa khoảng `slotStart.isBefore(apptEnd) && slotEnd.isAfter(apptStart)` thay vì so sánh điểm thời gian bắt đầu, (4) Sửa PAT-01: Trong `AppointmentService.java` (`rescheduleAppointment`), chặn đổi lịch nếu thời gian hẹn mới không cách hiện tại ít nhất 2 giờ (`plusHours(2)` ném `PAST_DATE`), đồng thời bọc `saveAndFlush` bắt `DataIntegrityViolationException` ném `SLOT_CONFLICT` chống race condition, (5) Sửa PERF-01: Trong `AppointmentRepository.java` & `AppointmentService.java`, bổ sung hỗ trợ `Pageable` phân trang cho `getMyAppointments` nhằm ngăn ngừa N+1 và tràn bộ nhớ, (6) 152/152 backend unit tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#083** | 08/10/2026 | Vá Lỗi Nhóm 1 từ Báo Cáo Kiểm Toán Production (STT Overflow, FinOps Isolation, State Machine Guards & E-Ticket Protection): (1) Sửa CLIN-01: Ngăn chặn tràn số nguyên dẫn đến STT âm bằng phép toán bitwise mask `rawHash & 0x7FFFFFFF` trong `AppointmentService.java`, (2) Sửa FIN-02: Đánh dấu `@Transactional(propagation = Propagation.REQUIRES_NEW)` cho `recordUsage` trong `AiUsageAnalyticsService.java` nhằm cô lập giao dịch log token, tránh rollback lan truyền sang nghiệp vụ chính, (3) Sửa DOC-01 & DOC-03: Ràng buộc `completeClinicalEncounter` chỉ hoàn tất khi trạng thái là `CHECKED_IN` hoặc `IN_PROGRESS` (ném `INVALID_STATUS_TRANSITION`), ràng buộc `checkInPatient` chỉ tiếp nhận khi ở trạng thái `SCHEDULED` (ném `INVALID_CHECKIN`), (4) Sửa O2O-01 & PAT-02: Chặn xuất vé khám `getAppointmentTicket` nếu lịch đã hủy hoặc vắng mặt (`CANCELLED` / `NO_SHOW`, ném `TICKET_INVALID`); chặn bệnh nhân hủy lịch nếu ca khám đã `CHECKED_IN`, `IN_PROGRESS` hoặc `COMPLETED` (ném `CANNOT_CANCEL`), (5) Toàn bộ 147/147 backend unit tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#082** | 05/10/2026 | Khắc Phục Lỗi Google OAuth2 401 invalid_client & Sửa Native Query đếm Vector Bác Sĩ: (1) Cấu hình Google Client ID và Client Secret thực tế từ Google Cloud Console vào `application-local.properties` (được bảo vệ bởi `.gitignore`), đồng thời đồng bộ fallback trong `application-dev.properties`, (2) Khắc phục lỗi `DoctorProfileRepository.countByBioEmbeddingIsNotNull` bằng Native SQL Query do `bio_embedding` là cột pgvector thuần không map thành thuộc tính String trong JPA, (3) Kiểm tra URL điều hướng ủy quyền OAuth2 `/oauth2/authorization/google` hoạt động chính xác với Client ID mới (`741178716405-...`), (4) Backend & Frontend đang chạy thông suốt trên cổng 5001 & 5173 | AI Assistant | 🟢 Sẵn sàng Review |
@@ -19,6 +20,66 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#085] Vá Lỗi Nhóm 3 từ Báo Cáo Kiểm Toán Production (Google IDP Email Verification, Payment IDOR Protection, Real Payment Gateway Refund, Atomic Fulfillment with @Version, Zero-Trust Logging)
+* **Thời gian:** 2026-10-08 19:15:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-SEC-01, UC-SEC-02, UC-FIN-01, UC-FIN-03, UC-SEC-03
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **156/156 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors, 0 skipped).
+  - Frontend: `npx tsc --noEmit` **0 lỗi TypeScript**.
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/java/com/mediassist/security/CustomOAuth2UserService.java`:
+    - SEC-01: Kiểm tra thuộc tính `email_verified` trả về từ Google IDP: nếu `null` hoặc `false`, từ chối phiên và ném `OAuth2AuthenticationException("Email chưa được xác thực bởi Google IDP")`.
+    - Trích xuất method `fetchOAuth2User` để hỗ trợ kiểm thử đơn vị độc lập.
+  - `backend/src/main/java/com/mediassist/controller/PaymentController.java`:
+    - SEC-02: Truyền `authentication.getName()` vào `paymentService.getTransactionStatus` để thực thi ủy quyền IDOR.
+  - `backend/src/main/java/com/mediassist/service/PaymentService.java`:
+    - SEC-02: Trong `verifyAndFulfillPayment` và `getTransactionStatus`, kiểm tra quyền sở hữu IDOR: người gọi phải là chủ giao dịch (`tx.getUser().getId().equals(currentUser.getId())`) hoặc có role `ADMIN`, ném 403 `FORBIDDEN` nếu cố ý truy cập giao dịch người khác.
+    - FIN-01: Bổ sung method `refundPayment(UUID appointmentId)`: tìm giao dịch `COMPLETED`, gọi cổng thanh toán thực tế (hoặc sandbox), cập nhật trạng thái `REFUNDED` và ghi nhật ký kiểm toán `AuditLog`.
+    - FIN-03: Trong `fulfillOrder`, kiểm tra trạng thái kép và đồng bộ hóa `synchronized` để tránh xử lý đúp; trong `verifyAndFulfillPayment` và `handleStripeWebhook`, bắt `OptimisticLockingFailureException` (nhờ `@Version` trên entity `PaymentTransaction`) để đảm bảo tính nguyên tử chống xung đột Webhook & Polling client.
+  - `backend/src/main/java/com/mediassist/payment/StripePaymentGateway.java`:
+    - FIN-01: Bổ sung `refundPayment(String gatewayReference)`: khi có API key thực tế, gọi `Refund.create` với `payment_intent`; trong môi trường Sandbox/Mock, mô phỏng hoàn tiền an toàn không gây sập ứng dụng.
+  - `backend/src/main/java/com/mediassist/service/AppointmentService.java`:
+    - FIN-01: Khi hủy lịch hẹn đã thanh toán (`CANCELLED` & `PAID`), inject `@Lazy PaymentService` và gọi `paymentService.refundPayment(appointment.getId())` để kích hoạt API hoàn tiền thực sự thay vì chỉ ghi log giả lập.
+  - `backend/src/main/java/com/mediassist/controller/AuthController.java`:
+    - SEC-03: Rà soát và xác nhận toàn bộ controller và filter không in chuỗi JWT token hoặc dữ liệu định danh nhạy cảm ra System.out/logger.
+  - `backend/src/test/java/com/mediassist/OAuth2SecurityTest.java`:
+    - Thêm unit test xác minh chặn đăng nhập khi `email_verified` false/null từ Google IDP (SEC-01).
+  - `backend/src/test/java/com/mediassist/service/PaymentServiceTest.java`:
+    - Thêm unit test kiểm tra 403 `FORBIDDEN` khi người dùng khác verify hoặc tra cứu giao dịch không phải của mình (SEC-02).
+    - Thêm unit test xác minh `refundPayment` thành công cho lịch hẹn đã thanh toán (FIN-01).
+    - Cập nhật mock cho các test case sẵn có.
+  - `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`:
+    - Thêm mock và xác minh lệnh gọi `paymentService.refundPayment` khi hủy lịch hẹn đã thanh toán.
+  - `docs/WORK_LOG.md`: Ghi nhận phiên làm việc `#085`.
+
+#### 2. Kết Quả Kiểm Thử (Maven Test & TypeScript Verification):
+```text
+[INFO] Running com.mediassist.OAuth2SecurityTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Running com.mediassist.service.PaymentServiceTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Running com.mediassist.AppointmentServiceTest
+[INFO] Tests run: 23, Failures: 0, Errors: 0, Skipped: 0
+...
+[INFO] Results:
+[INFO] Tests run: 156, Failures: 0, Errors: 0, Skipped: 0
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] Total time: 26.873 s
+```
+
+#### 3. Điểm Nóng Tech Lead Cần Review:
+1. **SEC-01 Google IDP Email Verification:** Bệnh nhân sử dụng tài khoản Google chưa verify email sẽ nhận ngay ngoại lệ `email_not_verified`, chặn đứng nguy cơ giả mạo email trước khi cấp JWT.
+2. **SEC-02 Ngăn Chặn Lỗ Hổng IDOR Trên Thanh Toán:** Cả `POST /api/v1/payments/verify` và `GET /api/v1/payments/transactions/{code}` đều đối chiếu ID của caller với chủ sở hữu giao dịch trong DB. Chỉ ADMIN mới có quyền truy cập chéo.
+3. **FIN-01 Hoàn Tiền Thật Sự:** Tích hợp liên kết `AppointmentService` $\rightarrow$ `PaymentService` $\rightarrow$ `StripePaymentGateway.refundPayment`, đảm bảo khi bệnh nhân hủy lịch khám đã thanh toán, hệ thống sẽ kích hoạt hoàn tiền trên cổng và chuyển trạng thái giao dịch sang `REFUNDED` cùng AuditLog minh bạch.
+4. **FIN-03 Chống Double-Credit Giữa Webhook & Polling:** Cơ chế bảo vệ 3 lớp: (1) Kiểm tra trạng thái kép trước khi vào `fulfillOrder`, (2) Phương thức `fulfillOrder` đồng bộ `synchronized`, (3) JPA `@Version` Optimistic Locking bắt và giải quyết race condition giữa client polling và Stripe webhook callback.
+
+---
 
 ### [WORK-LOG-#084] Vá Lỗi Nhóm 2 từ Báo Cáo Kiểm Toán Production (Call Next Patient Prioritization, Accurate Revenue Filtering, Interval Overlap Slot Collision, Reschedule Lead Time & Pagination)
 * **Thời gian:** 2026-10-08 19:00:00 (GMT+7)

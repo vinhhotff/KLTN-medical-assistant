@@ -43,11 +43,24 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         this.patientProfileRepository = patientProfileRepository;
     }
 
+    public OAuth2User fetchOAuth2User(OAuth2UserRequest userRequest) {
+        return super.loadUser(userRequest);
+    }
+
     @Override
     @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
-        OAuth2User oauth2User = super.loadUser(userRequest);
+        OAuth2User oauth2User = fetchOAuth2User(userRequest);
         Map<String, Object> attributes = oauth2User.getAttributes();
+
+        Boolean emailVerified = (Boolean) attributes.get("email_verified");
+        if (emailVerified == null || !emailVerified) {
+            log.warn("OAuth2 Login REJECTED: Email not verified by Google IDP for attributes: {}", attributes);
+            throw new OAuth2AuthenticationException(
+                    new OAuth2Error("email_not_verified"),
+                    "Email chưa được xác thực bởi Google IDP"
+            );
+        }
 
         String googleId = (String) attributes.get("sub");
         String email    = (String) attributes.get("email");

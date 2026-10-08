@@ -10,6 +10,7 @@ import com.mediassist.repository.AuditLogRepository;
 import com.mediassist.repository.DoctorProfileRepository;
 import com.mediassist.repository.UserRepository;
 import com.mediassist.service.AppointmentService;
+import com.mediassist.service.PaymentService;
 import com.mediassist.service.TwoLayerCacheService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,9 @@ class AppointmentServiceTest {
     @Mock
     private TwoLayerCacheService cacheService;
 
+    @Mock
+    private PaymentService paymentService;
+
     private AppointmentService appointmentService;
 
     private UUID patientId;
@@ -64,6 +68,7 @@ class AppointmentServiceTest {
                 auditLogRepository,
                 cacheService
         );
+        org.springframework.test.util.ReflectionTestUtils.setField(appointmentService, "paymentService", paymentService);
 
         patientId = UUID.randomUUID();
         doctorId = UUID.randomUUID();
@@ -448,12 +453,14 @@ class AppointmentServiceTest {
 
         when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
         when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(paymentService.refundPayment(apptId)).thenReturn(true);
 
         AppointmentDto result = appointmentService.updateAppointmentStatus(apptId, patientId, Role.PATIENT, AppointmentStatus.CANCELLED, "Bệnh nhân hủy");
 
         assertNotNull(result);
         assertEquals(AppointmentStatus.CANCELLED, result.getStatus());
         assertEquals(PaymentStatus.REFUNDED, result.getPaymentStatus());
+        verify(paymentService).refundPayment(apptId);
     }
 
     @Test

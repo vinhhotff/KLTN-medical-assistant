@@ -79,7 +79,7 @@ public class PaymentController {
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
             throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập để xem thông tin giao dịch.");
         }
-        PaymentResponseDto response = paymentService.getTransactionStatus(code);
+        PaymentResponseDto response = paymentService.getTransactionStatus(authentication.getName(), code);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

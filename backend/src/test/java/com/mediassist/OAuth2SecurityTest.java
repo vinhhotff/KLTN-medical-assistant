@@ -342,4 +342,27 @@ class OAuth2SecurityTest {
         assertTrue(principal.isEnabled());
         assertTrue(principal.isAccountNonLocked());
     }
+
+    @Test
+    @DisplayName("SEC-01: loadUser nem OAuth2AuthenticationException neu email chua duoc xac thuc boi Google IDP")
+    void testLoadUser_UnverifiedEmail_ThrowsException() {
+        org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest userRequest =
+                mock(org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest.class);
+        org.springframework.security.oauth2.core.user.OAuth2User oauth2User =
+                mock(org.springframework.security.oauth2.core.user.OAuth2User.class);
+        when(oauth2User.getAttributes()).thenReturn(Map.of(
+                "sub", "google-unverified",
+                "email", "unverified@gmail.com",
+                "email_verified", false
+        ));
+
+        CustomOAuth2UserService spyService = spy(customOAuth2UserService);
+        doReturn(oauth2User).when(spyService).fetchOAuth2User(userRequest);
+
+        OAuth2AuthenticationException ex = assertThrows(OAuth2AuthenticationException.class, () ->
+                spyService.loadUser(userRequest)
+        );
+        assertEquals("email_not_verified", ex.getError().getErrorCode());
+        assertTrue(ex.getMessage().contains("Email chưa được xác thực"));
+    }
 }

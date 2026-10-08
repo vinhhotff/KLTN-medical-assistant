@@ -157,6 +157,42 @@ public class StripePaymentGateway implements PaymentGateway {
         }
     }
 
+    public boolean refundPayment(String gatewayReference) {
+        if (gatewayReference == null || gatewayReference.isBlank() || gatewayReference.startsWith("cs_test_mock_")) {
+            log.info("💳 [STRIPE SANDBOX REFUND] Refund simulated for sandbox session: {}", gatewayReference);
+            return true;
+        }
+
+        boolean isRealKey = secretKey != null && !secretKey.isBlank()
+                && !secretKey.contains("mock")
+                && (secretKey.startsWith("sk_test_") || secretKey.startsWith("sk_live_"));
+
+        if (!isRealKey) {
+            log.info("💳 [STRIPE REFUND MOCK] Mock key configured. Simulated refund for session: {}", gatewayReference);
+            return true;
+        }
+
+        try {
+            Stripe.apiKey = secretKey;
+            Session session = Session.retrieve(gatewayReference);
+            String paymentIntentId = session.getPaymentIntent();
+            if (paymentIntentId != null && !paymentIntentId.isBlank()) {
+                com.stripe.param.RefundCreateParams params = com.stripe.param.RefundCreateParams.builder()
+                        .setPaymentIntent(paymentIntentId)
+                        .build();
+                com.stripe.model.Refund refund = com.stripe.model.Refund.create(params);
+                log.info("✅ [STRIPE REFUND SUCCESS] Refund created: {} for session: {}", refund.getId(), gatewayReference);
+                return true;
+            } else {
+                log.warn("⚠️ [STRIPE REFUND] No payment_intent attached to session {}", gatewayReference);
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("❌ [STRIPE REFUND ERROR] Failed to create refund for session {}: {}", gatewayReference, e.getMessage());
+            throw new RuntimeException("Stripe refund failed: " + e.getMessage(), e);
+        }
+    }
+
     public Event constructWebhookEvent(String payload, String sigHeader) {
         if (webhookSecret == null || webhookSecret.isBlank() || webhookSecret.contains("mock")) {
             log.warn("Stripe webhookSecret not configured or mock. Skipping HMAC check.");
