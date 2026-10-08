@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#086** | 08/10/2026 | Vá Lỗi Nhóm 4 từ Báo Cáo Kiểm Toán Production (Slot Selection Matching, Persistent Red-Flag Lockout, EMR Allergy Conflict Modal, Auto-Save EMR Draft, UTC Google Calendar Time, Cancel Error Toast, Dynamic FinOps Rate): (1) Sửa UI-01: Trong `SymptomTriagePage.tsx`, sửa điều kiện so sánh chọn slot bác sĩ sang `selectedSlot?.startDateTime === slot.startDateTime` tương thích chuẩn `DoctorSlotDto`, (2) Sửa UI-02: Trong `SymptomTriagePage.tsx`, lưu và khôi phục cờ cấp cứu `EMERGENCY_LOCKOUT` qua `sessionStorage` chống bypass khi bệnh nhân F5 reload, (3) Sửa DOC-04: Trong `DoctorDashboard.tsx` (`handleSubmitEncounter`), phát hiện xung đột dị ứng thuốc với tiền sử bệnh nhân và hiển thị popup cảnh báo xác nhận lâm sàng trước khi ký duyệt, (4) Sửa DOC-06: Trong `DoctorDashboard.tsx`, kích hoạt cơ chế tự động lưu nháp `emr_draft_${appointmentId}` vào `localStorage` cùng sự kiện `window.onbeforeunload` chống mất dữ liệu khi mất mạng hoặc reload, xóa nháp khi ký duyệt thành công, (5) Sửa UI-03: Trong `AdmissionTicketModal.tsx`, chuẩn hóa định dạng thời gian Google Calendar bằng `.toISOString().replace(/-|:|\.\d\d\d/g, "")` tránh lệch múi giờ UTC+7, (6) Sửa UI-04: Trong `PatientDashboard.tsx`, hiển thị banner lỗi và floating toast khi API hủy lịch thất bại thay vì nuốt lỗi, (7) Sửa UI-05: Trong `AdminDashboard.tsx`, sử dụng tỷ giá quy đổi động tính từ `totalCostVnd / totalCostUsd` trả về từ Backend thay vì nhân cứng 25.450₫, (8) Frontend build 0 lỗi TS, backend 156/156 tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#085** | 08/10/2026 | Vá Lỗi Nhóm 3 từ Báo Cáo Kiểm Toán Production (Google IDP Email Verification, Payment IDOR Protection, Real Payment Gateway Refund, Atomic Fulfillment with @Version, Zero-Trust Logging): (1) Sửa SEC-01: Trong `CustomOAuth2UserService.java`, kiểm tra `email_verified` từ Google IDP; từ chối và ném `OAuth2AuthenticationException` nếu email chưa được xác thực, (2) Sửa SEC-02: Trong `PaymentController.java` & `PaymentService.java`, thực thi kiểm tra quyền sở hữu IDOR trong `verifyPayment` và `getTransaction`: người gọi phải là chủ giao dịch hoặc có role `ADMIN`, ném lỗi 403 `FORBIDDEN` nếu truy cập trái phép, (3) Sửa FIN-01: Trong `AppointmentService.java` (khi hủy lịch hẹn đã thanh toán), tích hợp gọi `PaymentService.refundPayment` kích hoạt API hoàn tiền thực tế qua cổng thanh toán (`StripePaymentGateway.refundPayment`), (4) Sửa FIN-03: Trong `PaymentService.java` (`fulfillOrder`, `verifyAndFulfillPayment`, `handleStripeWebhook`), đảm bảo tính nguyên tử chống xử lý đúp giữa Webhook và Polling client bằng kiểm tra trạng thái kép và xử lý xung đột đồng thời qua `@Version` Optimistic Locking, (5) Sửa SEC-03: Rà soát `AuthController.java` và toàn bộ luồng Auth, đảm bảo tuyệt đối không log chuỗi JWT token ra stdout/logger, (6) 156/156 backend unit tests PASS 100% & TypeScript 0 lỗi. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#084** | 08/10/2026 | Vá Lỗi Nhóm 2 từ Báo Cáo Kiểm Toán Production (Call Next Patient Prioritization, Accurate Revenue Filtering, Interval Overlap Slot Collision, Reschedule Lead Time & Pagination): (1) Sửa DOC-02: Trong `DoctorService.java` (`callNextPatient`), ưu tiên tìm và khóa bi quan ca `CHECKED_IN` sớm nhất hôm nay trước, chỉ khi không còn ca `CHECKED_IN` mới tiếp nhận ca `SCHEDULED`, (2) Sửa DOC-05: Trong `AppointmentRepository.java` (`sumTodayRevenue` & `sumLifetimeRevenue`), siết điều kiện tính doanh thu chỉ tính các ca có `status = COMPLETED` VÀ `paymentStatus = PAID`, loại trừ triệt để ca hủy hoặc vắng mặt, (3) Sửa DOC-07: Trong `DoctorService.java` (`getAvailableSlots`), kiểm tra va chạm thời gian bằng điều kiện giao thoa khoảng `slotStart.isBefore(apptEnd) && slotEnd.isAfter(apptStart)` thay vì so sánh điểm thời gian bắt đầu, (4) Sửa PAT-01: Trong `AppointmentService.java` (`rescheduleAppointment`), chặn đổi lịch nếu thời gian hẹn mới không cách hiện tại ít nhất 2 giờ (`plusHours(2)` ném `PAST_DATE`), đồng thời bọc `saveAndFlush` bắt `DataIntegrityViolationException` ném `SLOT_CONFLICT` chống race condition, (5) Sửa PERF-01: Trong `AppointmentRepository.java` & `AppointmentService.java`, bổ sung hỗ trợ `Pageable` phân trang cho `getMyAppointments` nhằm ngăn ngừa N+1 và tràn bộ nhớ, (6) 152/152 backend unit tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#083** | 08/10/2026 | Vá Lỗi Nhóm 1 từ Báo Cáo Kiểm Toán Production (STT Overflow, FinOps Isolation, State Machine Guards & E-Ticket Protection): (1) Sửa CLIN-01: Ngăn chặn tràn số nguyên dẫn đến STT âm bằng phép toán bitwise mask `rawHash & 0x7FFFFFFF` trong `AppointmentService.java`, (2) Sửa FIN-02: Đánh dấu `@Transactional(propagation = Propagation.REQUIRES_NEW)` cho `recordUsage` trong `AiUsageAnalyticsService.java` nhằm cô lập giao dịch log token, tránh rollback lan truyền sang nghiệp vụ chính, (3) Sửa DOC-01 & DOC-03: Ràng buộc `completeClinicalEncounter` chỉ hoàn tất khi trạng thái là `CHECKED_IN` hoặc `IN_PROGRESS` (ném `INVALID_STATUS_TRANSITION`), ràng buộc `checkInPatient` chỉ tiếp nhận khi ở trạng thái `SCHEDULED` (ném `INVALID_CHECKIN`), (4) Sửa O2O-01 & PAT-02: Chặn xuất vé khám `getAppointmentTicket` nếu lịch đã hủy hoặc vắng mặt (`CANCELLED` / `NO_SHOW`, ném `TICKET_INVALID`); chặn bệnh nhân hủy lịch nếu ca khám đã `CHECKED_IN`, `IN_PROGRESS` hoặc `COMPLETED` (ném `CANNOT_CANCEL`), (5) Toàn bộ 147/147 backend unit tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -20,6 +21,51 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#086] Vá Lỗi Nhóm 4 từ Báo Cáo Kiểm Toán Production (Slot Selection Matching, Persistent Red-Flag Lockout, EMR Allergy Conflict Modal, Auto-Save EMR Draft, UTC Google Calendar Time, Cancel Error Toast, Dynamic FinOps Rate)
+* **Thời gian:** 2026-10-08 19:40:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-UI-01, UC-UI-02, UC-DOC-04, UC-DOC-06, UC-UI-03, UC-UI-04, UC-UI-05
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Frontend (React 18 / TypeScript / Vite): **0 lỗi TypeScript** (`npx tsc --noEmit` & `npm run build` hoàn tất thành công trong 5.12s).
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **156/156 Unit Tests PASS 100%**, `mvn test` sạch sẽ.
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Chỉnh sửa `[MOD]`:**
+  - `frontend/src/pages/patient/SymptomTriagePage.tsx`:
+    - UI-01: Sửa điều kiện so khớp slot bác sĩ từ `selectedSlot?.slotId === slot.slotId` sang `selectedSlot?.startDateTime === slot.startDateTime` do DTO backend `DoctorSlotDto` không có thuộc tính `slotId`.
+    - UI-02: Bổ sung cơ chế lưu cờ cấp cứu Red-Flag vào `sessionStorage` (`EMERGENCY_LOCKOUT`) ngay khi phát hiện triệu chứng nguy hiểm; đọc lại trạng thái từ `sessionStorage` khi trang reload (F5) nhằm ngăn chặn bệnh nhân bypass giao diện cảnh báo cấp cứu.
+  - `frontend/src/pages/doctor/DoctorDashboard.tsx`:
+    - DOC-04: Trong `handleSubmitEncounter`, bổ sung bước rà soát xung đột dị ứng thuốc (`checkDrugAllergyConflict`) giữa đơn thuốc kê với tiền sử dị ứng bệnh nhân (`patientPassport.allergies`). Nếu phát hiện nguy cơ và chưa có xác nhận lâm sàng ghi đè, hiển thị modal cảnh báo xác nhận lâm sàng (`allergyConflictModal`) yêu cầu bác sĩ chủ động xác nhận trước khi gọi API lưu bệnh án.
+    - DOC-06: Bổ sung `useEffect` tự động lưu bản nháp bệnh án điện tử vào `localStorage` theo từng ca khám (`emr_draft_${activeEncounterAppointment.id}`) sau mỗi thay đổi của bác sĩ; tự động khôi phục bản nháp khi mở lại modal khám; gắn sự kiện `window.onbeforeunload` để cảnh báo nếu vô tình đóng trình duyệt khi đang khám dở dang; xóa sạch bản nháp khỏi `localStorage` sau khi nộp bệnh án thành công.
+  - `frontend/src/components/patient/AdmissionTicketModal.tsx`:
+    - UI-03: Chuẩn hóa logic format thời gian cho liên kết Google Calendar bằng `.toISOString().replace(/-|:|\.\d\d\d/g, "")`, loại bỏ lỗi lệch +7 tiếng khi chuyển đổi múi giờ ISO.
+  - `frontend/src/pages/patient/PatientDashboard.tsx`:
+    - UI-04: Bổ sung state hiển thị banner lỗi và floating toast khi API hủy lịch hẹn (`handleCancelAppointment`) thất bại thay vì chỉ log console và đóng modal âm thầm, giúp bệnh nhân nhận diện rõ nguyên nhân từ chối hủy lịch từ backend.
+  - `frontend/src/pages/admin/AdminDashboard.tsx`:
+    - UI-05: Chuyển đổi công thức tính chi phí VNĐ từ việc nhân cố định `25450` sang tỷ giá quy đổi động tính toán trực tiếp từ `totalCostVnd / totalCostUsd` do backend cung cấp, hiển thị tỷ giá động thực tế trên thẻ chỉ số và bảng chi tiết dịch vụ.
+  - `frontend/vite.config.ts`:
+    - Khắc phục lỗi build rollup `emitFile` trên môi trường git worktree bằng cách cấu hình `resolve: { preserveSymlinks: true }`.
+  - `docs/WORK_LOG.md`: Ghi nhận nhật ký phiên làm việc `#086`.
+
+#### 2. Tài Liệu Đã Đồng Bộ:
+* `docs/WORK_LOG.md`: Cập nhật mục lục và chi tiết phiên làm việc `#086`.
+* `docs/USE_CASES.md`: Đồng bộ các quy tắc giao diện và luồng lâm sàng (cảnh báo dị ứng thuốc, bảo lưu Red-Flag, khôi phục bản nháp EMR).
+
+#### 3. Bằng Chứng Kiểm Thử & Xác Minh:
+* `npm run build` tại `frontend/`:
+  - `tsc && vite build` hoàn thành trong 5.12s.
+  - 0 lỗi TypeScript, tất cả chunks biên dịch tối ưu (vendor, recharts, lucide, pdf).
+* `mvn test` tại `backend/`:
+  - 156/156 tests PASS 100%.
+
+#### 4. Điểm Nóng Tech Lead Cần Lưu Ý (Architect Review):
+1. **EMR Draft Isolation:** Cơ chế auto-save nháp EMR được gắn chặt với ID của lịch hẹn (`emr_draft_${appointmentId}`), triệt tiêu hoàn toàn rủi ro rò rỉ hoặc lẫn lộn dữ liệu khám giữa các bệnh nhân khác nhau khi bác sĩ mở nhiều ca khám liên tiếp.
+2. **Clinical Override Modal (DOC-04):** Bác sĩ vẫn giữ toàn quyền quyết định lâm sàng khi cần thiết (off-label hoặc lợi ích vượt trội nguy cơ), nhưng hệ thống bắt buộc phải có bước xác nhận nhận thức rõ rủi ro dị ứng trước khi ký duyệt EMR.
+3. **SessionStorage vs LocalStorage cho Red-Flag:** Lựa chọn `sessionStorage` cho cờ cấp cứu Red-Flag để đảm bảo phiên cấp cứu bị khóa cứng khi reload trang, nhưng không ảnh hưởng vĩnh viễn đến các phiên khám độc lập của các thành viên gia đình khác trên cùng một máy tính cá nhân.
+
+---
 
 ### [WORK-LOG-#085] Vá Lỗi Nhóm 3 từ Báo Cáo Kiểm Toán Production (Google IDP Email Verification, Payment IDOR Protection, Real Payment Gateway Refund, Atomic Fulfillment with @Version, Zero-Trust Logging)
 * **Thời gian:** 2026-10-08 19:15:00 (GMT+7)

@@ -129,6 +129,7 @@ export const PatientDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'appointments' | 'triage' | 'documents'>('appointments');
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [toastError, setToastError] = useState<string | null>(null);
 
   // Cancellation Modal State
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
@@ -284,7 +285,10 @@ export const PatientDashboard: React.FC = () => {
       loadData();
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
-      setActionError(axiosError.response?.data?.error?.message || 'Không thể hủy lịch hẹn.');
+      const errMsg = axiosError.response?.data?.error?.message || 'Không thể hủy lịch hẹn. Vui lòng kiểm tra lại trạng thái ca khám.';
+      setActionError(errMsg);
+      setToastError(errMsg);
+      setTimeout(() => setToastError(null), 6000);
     } finally {
       setSubmittingCancel(false);
     }
@@ -332,6 +336,17 @@ export const PatientDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {/* Toast Notification Alert */}
+      {toastError && (
+        <div className="fixed top-5 right-5 z-[100] max-w-md bg-rose-600 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 animate-slideDown">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <span className="text-sm font-semibold">{toastError}</span>
+          <button onClick={() => setToastError(null)} className="ml-auto text-white/80 hover:text-white p-1 cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Hero Header */}
       <div className="bg-gradient-to-r from-indigo-700 via-indigo-800 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
         <div className="max-w-3xl relative z-10">
@@ -1399,6 +1414,12 @@ export const PatientDashboard: React.FC = () => {
             <p className="text-xs text-slate-600 leading-relaxed">
               Vui lòng cho biết lý do bạn muốn hủy lịch hẹn khám này để hệ thống cập nhật và giải phóng khung giờ cho các bệnh nhân khác:
             </p>
+            {actionError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{actionError}</span>
+              </div>
+            )}
             <form onSubmit={confirmCancelAppointment} className="space-y-4">
               <textarea
                 required

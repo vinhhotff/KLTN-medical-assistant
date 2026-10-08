@@ -121,8 +121,30 @@ export const SymptomTriagePage: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
-  const [isEmergencyLocked, setIsEmergencyLocked] = useState(false);
-  const [latestEmergencyAlert, setLatestEmergencyAlert] = useState<string | null>(null);
+  const [isEmergencyLocked, setIsEmergencyLocked] = useState<boolean>(() => {
+    try {
+      const saved = sessionStorage.getItem('EMERGENCY_LOCKOUT');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.locked) return true;
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  });
+  const [latestEmergencyAlert, setLatestEmergencyAlert] = useState<string | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('EMERGENCY_LOCKOUT');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.locked && parsed?.alert) return parsed.alert;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
   const [expandedSbars, setExpandedSbars] = useState<Record<string, boolean>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -174,6 +196,7 @@ export const SymptomTriagePage: React.FC = () => {
     setSessionId(null);
     setIsEmergencyLocked(false);
     setLatestEmergencyAlert(null);
+    sessionStorage.removeItem('EMERGENCY_LOCKOUT');
   };
 
   const handleSend = async (textToSend?: string) => {
@@ -212,7 +235,9 @@ export const SymptomTriagePage: React.FC = () => {
         const emergencyTriggered = !!data.emergency;
         if (emergencyTriggered) {
           setIsEmergencyLocked(true);
-          setLatestEmergencyAlert(data.emergencyAlert || 'CẢNH BÁO Y TẾ NGUY KỊCH');
+          const alertMsg = data.emergencyAlert || 'CẢNH BÁO Y TẾ NGUY KỊCH';
+          setLatestEmergencyAlert(alertMsg);
+          sessionStorage.setItem('EMERGENCY_LOCKOUT', JSON.stringify({ locked: true, at: Date.now(), alert: alertMsg }));
         }
 
         const aiMsg: ChatMessage = {
@@ -744,14 +769,14 @@ export const SymptomTriagePage: React.FC = () => {
                     <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto pr-1">
                       {slots.map((slot) => (
                         <button
-                          key={slot.slotId || slot.startTime}
+                          key={slot.startDateTime || slot.slotId || slot.startTime}
                           type="button"
                           disabled={!slot.available}
                           onClick={() => setSelectedSlot(slot)}
                           className={`p-2 rounded-lg border text-center transition cursor-pointer ${
                             !slot.available
                               ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through'
-                              : selectedSlot?.slotId === slot.slotId
+                              : selectedSlot?.startDateTime === slot.startDateTime
                               ? 'bg-indigo-600 text-white border-indigo-600 font-bold'
                               : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-400'
                           }`}

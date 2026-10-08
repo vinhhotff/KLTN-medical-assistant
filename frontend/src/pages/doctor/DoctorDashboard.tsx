@@ -205,6 +205,12 @@ export const DoctorDashboard: React.FC = () => {
   // Multi-drug prescription items
   const [prescriptionItems, setPrescriptionItems] = useState<PrescriptionItem[]>([]);
 
+  // DOC-04: Allergy Conflict Clinical Confirmation Modal State
+  const [allergyConflictModal, setAllergyConflictModal] = useState<{
+    open: boolean;
+    conflicts: string[];
+  }>({ open: false, conflicts: [] });
+
   // Selected EMR view modal for completed appointments
   const [selectedViewEmr, setSelectedViewEmr] = useState<DoctorAppointment | null>(null);
 
@@ -354,6 +360,69 @@ export const DoctorDashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // DOC-06: Auto-save EMR draft into localStorage whenever encounter fields change
+  useEffect(() => {
+    if (!activeEncounterAppointment?.id) return;
+    const draftKey = `emr_draft_${activeEncounterAppointment.id}`;
+    const draftData = {
+      bpSystolic,
+      bpDiastolic,
+      heartRate,
+      temperature,
+      respiratoryRate,
+      height,
+      weight,
+      spO2,
+      chiefComplaint,
+      icd10Code,
+      icd10Name,
+      consultationNotes,
+      treatmentPlan,
+      followUpDate,
+      followUpTime,
+      clinicRoom,
+      prescriptionItems,
+      updatedAt: Date.now()
+    };
+    try {
+      localStorage.setItem(draftKey, JSON.stringify(draftData));
+    } catch {
+      // ignore
+    }
+  }, [
+    activeEncounterAppointment?.id,
+    bpSystolic,
+    bpDiastolic,
+    heartRate,
+    temperature,
+    respiratoryRate,
+    height,
+    weight,
+    spO2,
+    chiefComplaint,
+    icd10Code,
+    icd10Name,
+    consultationNotes,
+    treatmentPlan,
+    followUpDate,
+    followUpTime,
+    clinicRoom,
+    prescriptionItems
+  ]);
+
+  // DOC-06: Prevent accidental tab closing/reloading while encounter is in progress
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (activeEncounterAppointment) {
+        e.preventDefault();
+        e.returnValue = 'Bạn có ca khám chưa hoàn tất. Bạn có chắc muốn rời đi?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [activeEncounterAppointment]);
+
   // Open Examination Modal - Reset form or load existing clinical state
   const openEncounterModal = (apt: DoctorAppointment) => {
     setActiveEncounterAppointment(apt);
@@ -406,6 +475,37 @@ export const DoctorDashboard: React.FC = () => {
       }
     } else {
       setPrescriptionItems([]);
+    }
+
+    // DOC-06: Check if an EMR draft exists in localStorage
+    const savedDraftStr = localStorage.getItem(`emr_draft_${apt.id}`);
+    if (savedDraftStr) {
+      try {
+        const draft = JSON.parse(savedDraftStr);
+        if (draft) {
+          if (draft.chiefComplaint !== undefined) setChiefComplaint(draft.chiefComplaint);
+          if (draft.clinicRoom !== undefined) setClinicRoom(draft.clinicRoom);
+          if (draft.consultationNotes !== undefined) setConsultationNotes(draft.consultationNotes);
+          if (draft.treatmentPlan !== undefined) setTreatmentPlan(draft.treatmentPlan);
+          if (draft.followUpDate !== undefined) setFollowUpDate(draft.followUpDate);
+          if (draft.followUpTime !== undefined) setFollowUpTime(draft.followUpTime);
+          if (draft.icd10Code !== undefined) setIcd10Code(draft.icd10Code);
+          if (draft.icd10Name !== undefined) setIcd10Name(draft.icd10Name);
+          if (draft.bpSystolic !== undefined) setBpSystolic(draft.bpSystolic);
+          if (draft.bpDiastolic !== undefined) setBpDiastolic(draft.bpDiastolic);
+          if (draft.heartRate !== undefined) setHeartRate(draft.heartRate);
+          if (draft.temperature !== undefined) setTemperature(draft.temperature);
+          if (draft.respiratoryRate !== undefined) setRespiratoryRate(draft.respiratoryRate);
+          if (draft.height !== undefined) setHeight(draft.height);
+          if (draft.weight !== undefined) setWeight(draft.weight);
+          if (draft.spO2 !== undefined) setSpO2(draft.spO2);
+          if (Array.isArray(draft.prescriptionItems)) setPrescriptionItems(draft.prescriptionItems);
+          setNotificationToast('📝 Đã khôi phục bản nháp bệnh án tự lưu (EMR Draft) của ca khám!');
+          setTimeout(() => setNotificationToast(null), 3500);
+        }
+      } catch {
+        // Ignored
+      }
     }
 
     // 360-Degree Clinical Synergy: Fetch Patient Medical Passport, Triage & Lab Documents
@@ -683,9 +783,29 @@ export const DoctorDashboard: React.FC = () => {
   };
 
   // Submit complete clinical encounter
-  const handleSubmitEncounter = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitEncounter = async (e?: React.FormEvent, skipAllergyCheck = false) => {
+    if (e) e.preventDefault();
     if (!activeEncounterAppointment) return;
+
+    // DOC-04: Check if any prescription item has allergy conflicts
+    if (!skipAllergyCheck) {
+      const conflicts: string[] = [];
+      prescriptionItems.forEach((item) => {
+        const conflict = checkDrugAllergyConflict(item.drugName, patientPassport?.allergies) ||
+                         checkDrugAllergyConflict(item.activeIngredient, patientPassport?.allergies);
+        if (conflict) {
+          conflicts.push(`${item.drugName || 'Thuốc'} (Cảnh báo dị ứng: "${conflict}")`);
+        }
+      });
+
+      if (conflicts.length > 0) {
+        setAllergyConflictModal({
+          open: true,
+          conflicts
+        });
+        return;
+      }
+    }
 
     try {
       setSubmittingEncounter(true);
@@ -718,6 +838,14 @@ export const DoctorDashboard: React.FC = () => {
         clinicRoom
       });
 
+      // DOC-06: Remove EMR draft on successful submission
+      try {
+        localStorage.removeItem(`emr_draft_${activeEncounterAppointment.id}`);
+      } catch {
+        // ignore
+      }
+
+      setAllergyConflictModal({ open: false, conflicts: [] });
       setActiveEncounterAppointment(null);
       setNotificationToast(`Đã ký duyệt và hoàn tất ca khám cho bệnh nhân ${activeEncounterAppointment.patientName}!`);
       setTimeout(() => setNotificationToast(null), 5000);
@@ -3533,6 +3661,58 @@ export const DoctorDashboard: React.FC = () => {
                   Đóng
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DOC-04: ALLERGY CONFLICT CLINICAL CONFIRMATION MODAL */}
+      {allergyConflictModal.open && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white w-full max-w-lg rounded-3xl border border-rose-300 shadow-2xl overflow-hidden p-6 space-y-4 animate-scaleUp">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="p-2.5 bg-rose-100 rounded-2xl">
+                <ShieldAlert className="w-6 h-6 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-slate-900">Cảnh Báo Lâm Sàng: Dị Ứng Thuốc</h3>
+                <p className="text-xs text-rose-600 font-medium">Phát hiện thuốc trùng với tiền sử dị ứng đã ghi nhận của bệnh nhân</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl space-y-2 text-xs">
+              <p className="font-bold text-rose-900">Các hoạt chất/thuốc sau đây có nguy cơ phản vệ hoặc dị ứng:</p>
+              <ul className="list-disc list-inside space-y-1 text-rose-800 font-medium pl-1">
+                {allergyConflictModal.conflicts.map((c, i) => (
+                  <li key={i}>{c}</li>
+                ))}
+              </ul>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Bác sĩ vui lòng cân nhắc và xác nhận trước khi tiếp tục ký duyệt đơn thuốc này. Bạn có muốn tiếp tục lưu bệnh án hay quay lại chỉnh sửa đơn thuốc?
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setAllergyConflictModal({ open: false, conflicts: [] })}
+                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Quay Lại Sửa Đơn Thuốc
+              </button>
+              <button
+                type="button"
+                disabled={submittingEncounter}
+                onClick={() => handleSubmitEncounter(undefined, true)}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer flex items-center gap-1.5"
+              >
+                {submittingEncounter ? (
+                  <span>Đang xử lý...</span>
+                ) : (
+                  <span>Xác Nhận Kê Đơn (Đã Cân Nhắc Nguy Cơ)</span>
+                )}
+              </button>
             </div>
           </div>
         </div>
