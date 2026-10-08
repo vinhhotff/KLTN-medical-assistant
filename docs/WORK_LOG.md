@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#087** | 08/10/2026 | Chuẩn Hóa Cấu Hình FinOps Tỷ Giá Ngoại Tệ & Rà Soát Tích Hợp Cổng Thanh Toán / Google OAuth2: (1) Cấu hình thuộc tính `app.ai.cost.vnd-per-usd=${AI_COST_VND_PER_USD:25450}` trong `application.properties` và `application-dev.properties` để đồng bộ tỷ giá 25.450₫/USD cho dịch vụ `AiUsageAnalyticsService`, (2) Kiểm tra toàn diện hiện trạng khóa bí mật Stripe, Google OAuth2 Redirect URI và tỷ giá hệ thống, lập tài liệu hướng dẫn chi tiết từng bước cho Tech Lead, (3) 156/156 backend tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#086** | 08/10/2026 | Vá Lỗi Nhóm 4 từ Báo Cáo Kiểm Toán Production (Slot Selection Matching, Persistent Red-Flag Lockout, EMR Allergy Conflict Modal, Auto-Save EMR Draft, UTC Google Calendar Time, Cancel Error Toast, Dynamic FinOps Rate): (1) Sửa UI-01: Trong `SymptomTriagePage.tsx`, sửa điều kiện so sánh chọn slot bác sĩ sang `selectedSlot?.startDateTime === slot.startDateTime` tương thích chuẩn `DoctorSlotDto`, (2) Sửa UI-02: Trong `SymptomTriagePage.tsx`, lưu và khôi phục cờ cấp cứu `EMERGENCY_LOCKOUT` qua `sessionStorage` chống bypass khi bệnh nhân F5 reload, (3) Sửa DOC-04: Trong `DoctorDashboard.tsx` (`handleSubmitEncounter`), phát hiện xung đột dị ứng thuốc với tiền sử bệnh nhân và hiển thị popup cảnh báo xác nhận lâm sàng trước khi ký duyệt, (4) Sửa DOC-06: Trong `DoctorDashboard.tsx`, kích hoạt cơ chế tự động lưu nháp `emr_draft_${appointmentId}` vào `localStorage` cùng sự kiện `window.onbeforeunload` chống mất dữ liệu khi mất mạng hoặc reload, xóa nháp khi ký duyệt thành công, (5) Sửa UI-03: Trong `AdmissionTicketModal.tsx`, chuẩn hóa định dạng thời gian Google Calendar bằng `.toISOString().replace(/-|:|\.\d\d\d/g, "")` tránh lệch múi giờ UTC+7, (6) Sửa UI-04: Trong `PatientDashboard.tsx`, hiển thị banner lỗi và floating toast khi API hủy lịch thất bại thay vì nuốt lỗi, (7) Sửa UI-05: Trong `AdminDashboard.tsx`, sử dụng tỷ giá quy đổi động tính từ `totalCostVnd / totalCostUsd` trả về từ Backend thay vì nhân cứng 25.450₫, (8) Frontend build 0 lỗi TS, backend 156/156 tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#085** | 08/10/2026 | Vá Lỗi Nhóm 3 từ Báo Cáo Kiểm Toán Production (Google IDP Email Verification, Payment IDOR Protection, Real Payment Gateway Refund, Atomic Fulfillment with @Version, Zero-Trust Logging): (1) Sửa SEC-01: Trong `CustomOAuth2UserService.java`, kiểm tra `email_verified` từ Google IDP; từ chối và ném `OAuth2AuthenticationException` nếu email chưa được xác thực, (2) Sửa SEC-02: Trong `PaymentController.java` & `PaymentService.java`, thực thi kiểm tra quyền sở hữu IDOR trong `verifyPayment` và `getTransaction`: người gọi phải là chủ giao dịch hoặc có role `ADMIN`, ném lỗi 403 `FORBIDDEN` nếu truy cập trái phép, (3) Sửa FIN-01: Trong `AppointmentService.java` (khi hủy lịch hẹn đã thanh toán), tích hợp gọi `PaymentService.refundPayment` kích hoạt API hoàn tiền thực tế qua cổng thanh toán (`StripePaymentGateway.refundPayment`), (4) Sửa FIN-03: Trong `PaymentService.java` (`fulfillOrder`, `verifyAndFulfillPayment`, `handleStripeWebhook`), đảm bảo tính nguyên tử chống xử lý đúp giữa Webhook và Polling client bằng kiểm tra trạng thái kép và xử lý xung đột đồng thời qua `@Version` Optimistic Locking, (5) Sửa SEC-03: Rà soát `AuthController.java` và toàn bộ luồng Auth, đảm bảo tuyệt đối không log chuỗi JWT token ra stdout/logger, (6) 156/156 backend unit tests PASS 100% & TypeScript 0 lỗi. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#084** | 08/10/2026 | Vá Lỗi Nhóm 2 từ Báo Cáo Kiểm Toán Production (Call Next Patient Prioritization, Accurate Revenue Filtering, Interval Overlap Slot Collision, Reschedule Lead Time & Pagination): (1) Sửa DOC-02: Trong `DoctorService.java` (`callNextPatient`), ưu tiên tìm và khóa bi quan ca `CHECKED_IN` sớm nhất hôm nay trước, chỉ khi không còn ca `CHECKED_IN` mới tiếp nhận ca `SCHEDULED`, (2) Sửa DOC-05: Trong `AppointmentRepository.java` (`sumTodayRevenue` & `sumLifetimeRevenue`), siết điều kiện tính doanh thu chỉ tính các ca có `status = COMPLETED` VÀ `paymentStatus = PAID`, loại trừ triệt để ca hủy hoặc vắng mặt, (3) Sửa DOC-07: Trong `DoctorService.java` (`getAvailableSlots`), kiểm tra va chạm thời gian bằng điều kiện giao thoa khoảng `slotStart.isBefore(apptEnd) && slotEnd.isAfter(apptStart)` thay vì so sánh điểm thời gian bắt đầu, (4) Sửa PAT-01: Trong `AppointmentService.java` (`rescheduleAppointment`), chặn đổi lịch nếu thời gian hẹn mới không cách hiện tại ít nhất 2 giờ (`plusHours(2)` ném `PAST_DATE`), đồng thời bọc `saveAndFlush` bắt `DataIntegrityViolationException` ném `SLOT_CONFLICT` chống race condition, (5) Sửa PERF-01: Trong `AppointmentRepository.java` & `AppointmentService.java`, bổ sung hỗ trợ `Pageable` phân trang cho `getMyAppointments` nhằm ngăn ngừa N+1 và tràn bộ nhớ, (6) 152/152 backend unit tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -21,6 +22,28 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#087] Chuẩn Hóa Cấu Hình FinOps Tỷ Giá Ngoại Tệ & Rà Soát Tích Hợp Cổng Thanh Toán / Google OAuth2
+* **Thời gian:** 2026-10-08 22:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-FIN-01, UC-AI-FINOPS, UC-SEC-01
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend: **156/156 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors).
+  - Frontend: **0 lỗi TypeScript**.
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/resources/application.properties`: Bổ sung cấu hình `app.ai.cost.vnd-per-usd=${AI_COST_VND_PER_USD:25450}` cho toàn hệ thống.
+  - `backend/src/main/resources/application-dev.properties`: Cố định tỷ giá chuẩn 25.450₫/USD cho môi trường phát triển cục bộ (`dev`).
+  - `docs/WORK_LOG.md`: Ghi nhận nhật ký phiên làm việc `#087`.
+
+#### 2. Kết Quả Kiểm Tra Tự Động & Đánh Giá Hiện Trạng Cho Tech Lead:
+1. **Khóa Bí Mật & Cổng Hoàn Tiền Thật (Stripe / VietQR):** Đang chạy ở chế độ **Sandbox Mock Nội Bộ**. `StripePaymentGateway` tự động nhận diện và mô phỏng hoàn tiền an toàn nếu không có API key thực tế.
+2. **Google Cloud Console OAuth2:** Backend đã cấu hình đầy đủ `Client ID`, `Client Secret` và redirect URI `{baseUrl}/login/oauth2/code/{registrationId}` trỏ vào port `5001`. Cần Tech Lead xác nhận trên Google Cloud Console UI đã có `http://localhost:5001/login/oauth2/code/google`.
+3. **Tỷ Giá Ngoại Tệ FinOps:** Đã tự động cập nhật vào cấu hình mã nguồn với tỷ giá `25450` VNĐ/USD.
+
+---
 
 ### [WORK-LOG-#086] Vá Lỗi Nhóm 4 từ Báo Cáo Kiểm Toán Production (Slot Selection Matching, Persistent Red-Flag Lockout, EMR Allergy Conflict Modal, Auto-Save EMR Draft, UTC Google Calendar Time, Cancel Error Toast, Dynamic FinOps Rate)
 * **Thời gian:** 2026-10-08 19:40:00 (GMT+7)
