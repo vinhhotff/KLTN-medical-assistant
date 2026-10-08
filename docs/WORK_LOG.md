@@ -11,12 +11,45 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#083** | 08/10/2026 | Vá Lỗi Nhóm 1 từ Báo Cáo Kiểm Toán Production (STT Overflow, FinOps Isolation, State Machine Guards & E-Ticket Protection): (1) Sửa CLIN-01: Ngăn chặn tràn số nguyên dẫn đến STT âm bằng phép toán bitwise mask `rawHash & 0x7FFFFFFF` trong `AppointmentService.java`, (2) Sửa FIN-02: Đánh dấu `@Transactional(propagation = Propagation.REQUIRES_NEW)` cho `recordUsage` trong `AiUsageAnalyticsService.java` nhằm cô lập giao dịch log token, tránh rollback lan truyền sang nghiệp vụ chính, (3) Sửa DOC-01 & DOC-03: Ràng buộc `completeClinicalEncounter` chỉ hoàn tất khi trạng thái là `CHECKED_IN` hoặc `IN_PROGRESS` (ném `INVALID_STATUS_TRANSITION`), ràng buộc `checkInPatient` chỉ tiếp nhận khi ở trạng thái `SCHEDULED` (ném `INVALID_CHECKIN`), (4) Sửa O2O-01 & PAT-02: Chặn xuất vé khám `getAppointmentTicket` nếu lịch đã hủy hoặc vắng mặt (`CANCELLED` / `NO_SHOW`, ném `TICKET_INVALID`); chặn bệnh nhân hủy lịch nếu ca khám đã `CHECKED_IN`, `IN_PROGRESS` hoặc `COMPLETED` (ném `CANNOT_CANCEL`), (5) Toàn bộ 147/147 backend unit tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#082** | 05/10/2026 | Khắc Phục Lỗi Google OAuth2 401 invalid_client & Sửa Native Query đếm Vector Bác Sĩ: (1) Cấu hình Google Client ID và Client Secret thực tế từ Google Cloud Console vào `application-local.properties` (được bảo vệ bởi `.gitignore`), đồng thời đồng bộ fallback trong `application-dev.properties`, (2) Khắc phục lỗi `DoctorProfileRepository.countByBioEmbeddingIsNotNull` bằng Native SQL Query do `bio_embedding` là cột pgvector thuần không map thành thuộc tính String trong JPA, (3) Kiểm tra URL điều hướng ủy quyền OAuth2 `/oauth2/authorization/google` hoạt động chính xác với Client ID mới (`741178716405-...`), (4) Backend & Frontend đang chạy thông suốt trên cổng 5001 & 5173 | AI Assistant | 🟢 Sẵn sàng Review |
 | **#081** | 02/10/2026 | Triển Khai Bảng Giám Sát Chi Phí & Tài Nguyên AI Toàn Viện (Phase 4 Admin AI Token & Cost Analytics Dashboard): (1) Flyway migration V17 chuẩn hóa bảng `ai_token_usage` (bổ sung `service_type`, `request_status`, `cost_usd`, `appointment_id` và các chỉ mục phân tích), (2) Tạo entity `AiTokenUsage`, repository `AiTokenUsageRepository` với các truy vấn tổng hợp theo thời gian, theo ngày (Line Chart), theo dịch vụ (Pie Chart) và tỷ lệ lỗi, (3) Service `AiUsageAnalyticsService` tính toán chi phí USD theo bảng giá chuẩn Gemini ($0.00125/1k input, $0.005/1k output) và quy đổi VNĐ theo tỷ giá cấu hình (25.000₫/USD), (4) Hook tự động ghi nhận lượng tiêu thụ token vào `TriageService` và `MedicalDocumentAnalysisService`, (5) Endpoint `GET /api/v1/admin/ai-usage` phân quyền `ADMIN`, (6) Giao diện AdminDashboard tích hợp Recharts: 5 KPI Cards (Requests, Tokens, USD, VNĐ, Error Rate), Progress Bar cảnh báo lỗi (>10%), Line Chart xu hướng theo ngày với toggle [Tokens]/[Chi Phí], Pie Chart phân bổ Triage vs Cận Lâm Sàng kèm bảng chi tiết và bộ lọc 7/30/90 ngày, (7) 144/144 Backend Tests PASS sạch sẽ & Frontend Build 0 lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#083] Vá Lỗi Nhóm 1 từ Báo Cáo Kiểm Toán Production (STT Overflow, FinOps Isolation, State Machine Guards & E-Ticket Protection)
+* **Thời gian:** 2026-10-08 18:38:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-CLIN-01, UC-FIN-02, UC-DOC-01, UC-DOC-03, UC-O2O-01, UC-PAT-02
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **147/147 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors, 0 skipped).
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/java/com/mediassist/service/AppointmentService.java`:
+    - CLIN-01: Phép tính STT sử dụng bitwise mask `int codeHash = rawHash & 0x7FFFFFFF` loại trừ hoàn toàn nguy cơ số âm khi hashCode là `Integer.MIN_VALUE`.
+    - DOC-01 & DOC-03: Bổ sung guard cho `completeClinicalEncounter` chỉ chấp nhận `CHECKED_IN` hoặc `IN_PROGRESS` (ném `AppException` mã `INVALID_STATUS_TRANSITION`), siết chặt `checkInPatient` chỉ tiếp nhận trạng thái ban đầu `SCHEDULED` (ném `AppException` mã `INVALID_CHECKIN`).
+    - O2O-01 & PAT-02: Bổ sung guard trong `getAppointmentTicket` từ chối xuất vé đối với ca hẹn đã hủy hoặc vắng mặt (`CANCELLED`, `NO_SHOW` ném `TICKET_INVALID`); siết chặt chặn bệnh nhân tự hủy lịch nếu ca khám đã `CHECKED_IN`, `IN_PROGRESS` hoặc `COMPLETED` (ném `CANNOT_CANCEL`).
+  - `backend/src/main/java/com/mediassist/service/AiUsageAnalyticsService.java`:
+    - FIN-02: Đánh dấu `recordUsage(...)` với `@Transactional(propagation = Propagation.REQUIRES_NEW)` nhằm cô lập hoàn toàn giao dịch ghi nhận số lượng token và chi phí AI, không làm ảnh hưởng hoặc rollback nghiệp vụ mẹ nếu phát sinh lỗi DB thứ cấp.
+  - `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`:
+    - Cập nhật và bổ sung 3 test case kiểm thử xác minh chính xác các guard condition (`INVALID_STATUS_TRANSITION`, `INVALID_CHECKIN`, `TICKET_INVALID`, `CANNOT_CANCEL`).
+  - `docs/WORK_LOG.md`: Ghi nhận phiên làm việc `#083`.
+
+#### 2. Kết Quả Kiểm Thử (Maven Test Verification):
+```text
+[INFO] Running com.mediassist.AppointmentServiceTest
+[INFO] Tests run: 20, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.722 s -- in com.mediassist.AppointmentServiceTest
+...
+[INFO] Results:
+[INFO] Tests run: 147, Failures: 0, Errors: 0, Skipped: 0
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+```
 
 ### [WORK-LOG-#082] Khắc Phục Lỗi Google OAuth2 401 invalid_client & Sửa Native Query đếm Vector Bác Sĩ
 * **Thời gian:** 2026-10-05 23:55:00 (GMT+7)

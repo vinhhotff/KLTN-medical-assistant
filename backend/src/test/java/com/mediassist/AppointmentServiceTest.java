@@ -183,7 +183,7 @@ class AppointmentServiceTest {
                 .appointmentCode("AP-20260911-TEST01")
                 .doctor(doctorUser)
                 .patient(patientUser)
-                .status(AppointmentStatus.SCHEDULED)
+                .status(AppointmentStatus.CHECKED_IN)
                 .build();
 
         when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.of(appointment));
@@ -204,6 +204,28 @@ class AppointmentServiceTest {
         assertEquals("I10", result.getIcd10Code());
         assertEquals("Tăng huyết áp nguyên phát", result.getIcd10Name());
         verify(auditLogRepository, times(1)).save(any(AuditLog.class));
+    }
+
+    @Test
+    void testCompleteClinicalEncounter_InvalidStatus_ThrowsException() {
+        UUID appointmentId = UUID.randomUUID();
+        Appointment appointment = Appointment.builder()
+                .id(appointmentId)
+                .appointmentCode("AP-20260911-INVALID-STATUS")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .build();
+
+        when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.of(appointment));
+
+        com.mediassist.dto.ClinicalEncounterRequest req = new com.mediassist.dto.ClinicalEncounterRequest();
+
+        AppException ex = assertThrows(AppException.class, () ->
+                appointmentService.completeClinicalEncounter(appointmentId, doctorId, req));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals("INVALID_STATUS_TRANSITION", ex.getCode());
     }
 
     @Test
@@ -499,6 +521,46 @@ class AppointmentServiceTest {
                 appointmentService.checkInPatient(apptId, doctorId));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
-        assertEquals("INVALID_STATUS", ex.getCode());
+        assertEquals("INVALID_CHECKIN", ex.getCode());
+    }
+
+    @Test
+    void testGetAppointmentTicket_CancelledOrNoShow_ThrowsTicketInvalid() {
+        UUID apptId = UUID.randomUUID();
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-CANCELLED")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.CANCELLED)
+                .build();
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+
+        AppException ex = assertThrows(AppException.class, () ->
+                appointmentService.getAppointmentTicket(apptId, patientId, Role.PATIENT));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals("TICKET_INVALID", ex.getCode());
+    }
+
+    @Test
+    void testCancelAppointment_WhenCheckedInOrCompleted_ThrowsCannotCancel() {
+        UUID apptId = UUID.randomUUID();
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-CHECKEDIN")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.CHECKED_IN)
+                .build();
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+
+        AppException ex = assertThrows(AppException.class, () ->
+                appointmentService.updateAppointmentStatus(apptId, patientId, Role.PATIENT, AppointmentStatus.CANCELLED, "Hủy khi đã check-in"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals("CANNOT_CANCEL", ex.getCode());
     }
 }

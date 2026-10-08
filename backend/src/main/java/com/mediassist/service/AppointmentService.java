@@ -216,8 +216,9 @@ public class AppointmentService {
             if (newStatus != AppointmentStatus.CANCELLED) {
                 throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_STATUS", "Bệnh nhân chỉ có thể hủy lịch hẹn");
             }
-            if (currentStatus == AppointmentStatus.IN_PROGRESS) {
-                throw new AppException(HttpStatus.FORBIDDEN, "CANNOT_CANCEL_IN_PROGRESS", "Không thể hủy ca khám đang diễn ra. Vui lòng liên hệ bác sĩ.");
+            if (currentStatus == AppointmentStatus.CHECKED_IN || currentStatus == AppointmentStatus.IN_PROGRESS || currentStatus == AppointmentStatus.COMPLETED) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "CANNOT_CANCEL",
+                        "Không thể hủy cuộc hẹn khi trạng thái là " + currentStatus + ". Vui lòng liên hệ quầy tiếp đón hoặc bác sĩ.");
             }
             appointment.setCancellationReason(notes);
         }
@@ -272,8 +273,8 @@ public class AppointmentService {
             }
         }
 
-        if (appt.getStatus() != AppointmentStatus.SCHEDULED && appt.getStatus() != AppointmentStatus.CHECKED_IN) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_STATUS", "Không thể check-in cuộc hẹn có trạng thái " + appt.getStatus());
+        if (appt.getStatus() != AppointmentStatus.SCHEDULED) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_CHECKIN", "Không thể check-in cuộc hẹn có trạng thái " + appt.getStatus() + ". Chỉ các cuộc hẹn ở trạng thái SCHEDULED mới được phép check-in.");
         }
 
         appt.setStatus(AppointmentStatus.CHECKED_IN);
@@ -293,6 +294,11 @@ public class AppointmentService {
 
         if (!appointment.getDoctor().getId().equals(doctorUserId)) {
             throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Chỉ bác sĩ phụ trách mới có quyền hoàn thành ca khám lâm sàng này");
+        }
+
+        if (appointment.getStatus() != AppointmentStatus.CHECKED_IN && appointment.getStatus() != AppointmentStatus.IN_PROGRESS) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_STATUS_TRANSITION",
+                    "Không thể hoàn thành ca khám từ trạng thái " + appointment.getStatus() + ". Ca khám phải ở trạng thái CHECKED_IN hoặc IN_PROGRESS.");
         }
 
         appointment.setStatus(AppointmentStatus.COMPLETED);
@@ -495,6 +501,11 @@ public class AppointmentService {
             throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập phiếu khám này");
         }
 
+        if (appointment.getStatus() == AppointmentStatus.CANCELLED || appointment.getStatus() == AppointmentStatus.NO_SHOW) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "TICKET_INVALID",
+                    "Không thể xuất vé khám cho cuộc hẹn đã bị hủy hoặc vắng mặt (Trạng thái: " + appointment.getStatus() + ").");
+        }
+
         return toDto(appointment);
     }
 
@@ -527,7 +538,8 @@ public class AppointmentService {
         // 1. STT Number
         String stt = a.getQueueNumber();
         if (stt == null || stt.isBlank()) {
-            int codeHash = Math.abs(a.getId() != null ? a.getId().hashCode() : a.getAppointmentCode().hashCode());
+            int rawHash = a.getId() != null ? a.getId().hashCode() : a.getAppointmentCode().hashCode();
+            int codeHash = rawHash & 0x7FFFFFFF;
             stt = "STT-" + String.format("%03d", (codeHash % 999) + 1);
         }
         dto.setSttNumber(stt);
