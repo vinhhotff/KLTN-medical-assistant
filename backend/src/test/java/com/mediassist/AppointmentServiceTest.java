@@ -21,6 +21,7 @@ import org.springframework.http.HttpStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -320,7 +321,7 @@ class AppointmentServiceTest {
         when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
         when(appointmentRepository.existsConflictExcluding(eq(doctorId), eq(newStart), eq(apptId))).thenReturn(false);
         when(appointmentRepository.countActiveAppointmentsByDoctorAndDateRange(eq(doctorId), any(), any())).thenReturn(1L);
-        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
 
         RescheduleAppointmentRequest req = new RescheduleAppointmentRequest(newStart, "Bận việc đột xuất");
         AppointmentDto result = appointmentService.rescheduleAppointment(apptId, patientId, Role.PATIENT, req);
@@ -329,6 +330,61 @@ class AppointmentServiceTest {
         assertEquals(newStart, result.getScheduledStart());
         assertEquals("STT 02", result.getQueueNumber());
         assertTrue(result.getConsultationNotes().contains("Bận việc đột xuất"));
+    }
+
+    @Test
+    void testRescheduleAppointment_LeadTimeLessThan2Hours_ThrowsPastDate() {
+        UUID apptId = UUID.randomUUID();
+        LocalDateTime oldStart = getNextWeekdaySlot(2, 9, 0);
+        LocalDateTime tooSoon = LocalDateTime.now().plusMinutes(60);
+
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-RESCHED-SOON")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .scheduledStart(oldStart)
+                .scheduledEnd(oldStart.plusMinutes(30))
+                .build();
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+
+        RescheduleAppointmentRequest req = new RescheduleAppointmentRequest(tooSoon, "Đổi gấp");
+        AppException ex = assertThrows(AppException.class, () ->
+                appointmentService.rescheduleAppointment(apptId, patientId, Role.PATIENT, req));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals("PAST_DATE", ex.getCode());
+    }
+
+    @Test
+    void testRescheduleAppointment_ConcurrentCollision_DataIntegrityViolation_ThrowsSlotConflict() {
+        UUID apptId = UUID.randomUUID();
+        LocalDateTime oldStart = getNextWeekdaySlot(2, 9, 0);
+        LocalDateTime newStart = getNextWeekdaySlot(3, 10, 0);
+
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-RESCHED-RACE")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .scheduledStart(oldStart)
+                .scheduledEnd(oldStart.plusMinutes(30))
+                .build();
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+        when(appointmentRepository.existsConflictExcluding(eq(doctorId), eq(newStart), eq(apptId))).thenReturn(false);
+        when(appointmentRepository.saveAndFlush(any(Appointment.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("Unique slot constraint violation"));
+
+        RescheduleAppointmentRequest req = new RescheduleAppointmentRequest(newStart, "Bận việc đột xuất");
+        AppException ex = assertThrows(AppException.class, () ->
+                appointmentService.rescheduleAppointment(apptId, patientId, Role.PATIENT, req));
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+        assertEquals("SLOT_CONFLICT", ex.getCode());
     }
 
     @Test
@@ -562,5 +618,32 @@ class AppointmentServiceTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
         assertEquals("CANNOT_CANCEL", ex.getCode());
+    }
+
+    @Test
+    void testGetMyAppointments_WithPageable() {
+        Appointment appt = Appointment.builder()
+                .id(UUID.randomUUID())
+                .appointmentCode("AP-PAGE-01")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .scheduledStart(LocalDateTime.now().plusDays(1))
+                .scheduledEnd(LocalDateTime.now().plusDays(1).plusMinutes(30))
+                .build();
+
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        org.springframework.data.domain.Page<Appointment> pageResult = new org.springframework.data.domain.PageImpl<>(
+                List.of(appt), pageable, 1
+        );
+
+        when(appointmentRepository.findByPatientIdWithUsersOrderByScheduledStartDesc(eq(patientId), eq(pageable)))
+                .thenReturn(pageResult);
+
+        org.springframework.data.domain.Page<AppointmentDto> result = appointmentService.getMyAppointments(patientId, Role.PATIENT, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals("AP-PAGE-01", result.getContent().get(0).getAppointmentCode());
     }
 }

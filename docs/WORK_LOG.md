@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#084** | 08/10/2026 | Vá Lỗi Nhóm 2 từ Báo Cáo Kiểm Toán Production (Call Next Patient Prioritization, Accurate Revenue Filtering, Interval Overlap Slot Collision, Reschedule Lead Time & Pagination): (1) Sửa DOC-02: Trong `DoctorService.java` (`callNextPatient`), ưu tiên tìm và khóa bi quan ca `CHECKED_IN` sớm nhất hôm nay trước, chỉ khi không còn ca `CHECKED_IN` mới tiếp nhận ca `SCHEDULED`, (2) Sửa DOC-05: Trong `AppointmentRepository.java` (`sumTodayRevenue` & `sumLifetimeRevenue`), siết điều kiện tính doanh thu chỉ tính các ca có `status = COMPLETED` VÀ `paymentStatus = PAID`, loại trừ triệt để ca hủy hoặc vắng mặt, (3) Sửa DOC-07: Trong `DoctorService.java` (`getAvailableSlots`), kiểm tra va chạm thời gian bằng điều kiện giao thoa khoảng `slotStart.isBefore(apptEnd) && slotEnd.isAfter(apptStart)` thay vì so sánh điểm thời gian bắt đầu, (4) Sửa PAT-01: Trong `AppointmentService.java` (`rescheduleAppointment`), chặn đổi lịch nếu thời gian hẹn mới không cách hiện tại ít nhất 2 giờ (`plusHours(2)` ném `PAST_DATE`), đồng thời bọc `saveAndFlush` bắt `DataIntegrityViolationException` ném `SLOT_CONFLICT` chống race condition, (5) Sửa PERF-01: Trong `AppointmentRepository.java` & `AppointmentService.java`, bổ sung hỗ trợ `Pageable` phân trang cho `getMyAppointments` nhằm ngăn ngừa N+1 và tràn bộ nhớ, (6) 152/152 backend unit tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#083** | 08/10/2026 | Vá Lỗi Nhóm 1 từ Báo Cáo Kiểm Toán Production (STT Overflow, FinOps Isolation, State Machine Guards & E-Ticket Protection): (1) Sửa CLIN-01: Ngăn chặn tràn số nguyên dẫn đến STT âm bằng phép toán bitwise mask `rawHash & 0x7FFFFFFF` trong `AppointmentService.java`, (2) Sửa FIN-02: Đánh dấu `@Transactional(propagation = Propagation.REQUIRES_NEW)` cho `recordUsage` trong `AiUsageAnalyticsService.java` nhằm cô lập giao dịch log token, tránh rollback lan truyền sang nghiệp vụ chính, (3) Sửa DOC-01 & DOC-03: Ràng buộc `completeClinicalEncounter` chỉ hoàn tất khi trạng thái là `CHECKED_IN` hoặc `IN_PROGRESS` (ném `INVALID_STATUS_TRANSITION`), ràng buộc `checkInPatient` chỉ tiếp nhận khi ở trạng thái `SCHEDULED` (ném `INVALID_CHECKIN`), (4) Sửa O2O-01 & PAT-02: Chặn xuất vé khám `getAppointmentTicket` nếu lịch đã hủy hoặc vắng mặt (`CANCELLED` / `NO_SHOW`, ném `TICKET_INVALID`); chặn bệnh nhân hủy lịch nếu ca khám đã `CHECKED_IN`, `IN_PROGRESS` hoặc `COMPLETED` (ném `CANNOT_CANCEL`), (5) Toàn bộ 147/147 backend unit tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#082** | 05/10/2026 | Khắc Phục Lỗi Google OAuth2 401 invalid_client & Sửa Native Query đếm Vector Bác Sĩ: (1) Cấu hình Google Client ID và Client Secret thực tế từ Google Cloud Console vào `application-local.properties` (được bảo vệ bởi `.gitignore`), đồng thời đồng bộ fallback trong `application-dev.properties`, (2) Khắc phục lỗi `DoctorProfileRepository.countByBioEmbeddingIsNotNull` bằng Native SQL Query do `bio_embedding` là cột pgvector thuần không map thành thuộc tính String trong JPA, (3) Kiểm tra URL điều hướng ủy quyền OAuth2 `/oauth2/authorization/google` hoạt động chính xác với Client ID mới (`741178716405-...`), (4) Backend & Frontend đang chạy thông suốt trên cổng 5001 & 5173 | AI Assistant | 🟢 Sẵn sàng Review |
 | **#081** | 02/10/2026 | Triển Khai Bảng Giám Sát Chi Phí & Tài Nguyên AI Toàn Viện (Phase 4 Admin AI Token & Cost Analytics Dashboard): (1) Flyway migration V17 chuẩn hóa bảng `ai_token_usage` (bổ sung `service_type`, `request_status`, `cost_usd`, `appointment_id` và các chỉ mục phân tích), (2) Tạo entity `AiTokenUsage`, repository `AiTokenUsageRepository` với các truy vấn tổng hợp theo thời gian, theo ngày (Line Chart), theo dịch vụ (Pie Chart) và tỷ lệ lỗi, (3) Service `AiUsageAnalyticsService` tính toán chi phí USD theo bảng giá chuẩn Gemini ($0.00125/1k input, $0.005/1k output) và quy đổi VNĐ theo tỷ giá cấu hình (25.000₫/USD), (4) Hook tự động ghi nhận lượng tiêu thụ token vào `TriageService` và `MedicalDocumentAnalysisService`, (5) Endpoint `GET /api/v1/admin/ai-usage` phân quyền `ADMIN`, (6) Giao diện AdminDashboard tích hợp Recharts: 5 KPI Cards (Requests, Tokens, USD, VNĐ, Error Rate), Progress Bar cảnh báo lỗi (>10%), Line Chart xu hướng theo ngày với toggle [Tokens]/[Chi Phí], Pie Chart phân bổ Triage vs Cận Lâm Sàng kèm bảng chi tiết và bộ lọc 7/30/90 ngày, (7) 144/144 Backend Tests PASS sạch sẽ & Frontend Build 0 lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
@@ -18,6 +19,49 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#084] Vá Lỗi Nhóm 2 từ Báo Cáo Kiểm Toán Production (Call Next Patient Prioritization, Accurate Revenue Filtering, Interval Overlap Slot Collision, Reschedule Lead Time & Pagination)
+* **Thời gian:** 2026-10-08 19:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-DOC-02, UC-DOC-05, UC-DOC-07, UC-PAT-01, UC-PERF-01
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **152/152 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors, 0 skipped).
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/java/com/mediassist/repository/AppointmentRepository.java`:
+    - DOC-05: Cập nhật `@Query` cho `sumTodayRevenue` và `sumLifetimeRevenue` thêm điều kiện `a.paymentStatus = com.mediassist.model.entity.PaymentStatus.PAID` cùng `a.status = COMPLETED`, loại trừ các ca chưa thanh toán, hủy hoặc vắng mặt.
+    - DOC-02: Bổ sung method `@Lock(PESSIMISTIC_WRITE)` `findNextByStatusWithLock(...)` để khóa ca theo trạng thái cụ thể (`CHECKED_IN` hoặc `SCHEDULED`).
+    - PERF-01: Bổ sung các phương thức truy vấn có phân trang `Page<Appointment> findByPatientIdWithUsersOrderByScheduledStartDesc(...)` và `findByDoctorIdWithUsersOrderByScheduledStartDesc(...)` kèm `countQuery`.
+  - `backend/src/main/java/com/mediassist/service/DoctorService.java`:
+    - DOC-02: Trong `callNextPatient`, sửa logic ưu tiên tiếp nhận ca `CHECKED_IN` sớm nhất hôm nay sang `IN_PROGRESS`; nếu không có ca `CHECKED_IN` mới tiếp nhận ca `SCHEDULED`.
+    - DOC-07: Trong `getAvailableSlots` và `addTimeSlots`, thay thế kiểm tra so sánh điểm thời gian bắt đầu đơn lẻ bằng logic kiểm tra giao thoa khoảng thời gian thực tế `slotStartDt.isBefore(apptEnd) && slotEndDt.isAfter(apptStart)`.
+  - `backend/src/main/java/com/mediassist/service/AppointmentService.java`:
+    - PAT-01: Trong `rescheduleAppointment`, kiểm tra thời gian hẹn mới phải cách hiện tại tối thiểu 2 giờ `if (newStart.isBefore(LocalDateTime.now().plusHours(2)))` ném `PAST_DATE`; bọc `saveAndFlush` xử lý `DataIntegrityViolationException` ném lỗi `SLOT_CONFLICT` ngăn ngừa xung đột đồng thời.
+    - PERF-01: Thêm overload `getMyAppointments(UUID userId, Role role, Pageable pageable)` trả về `Page<AppointmentDto>` hỗ trợ phân trang hiệu năng cao, tránh tràn bộ nhớ.
+  - `backend/src/test/java/com/mediassist/DoctorServiceTest.java`:
+    - Thêm test case xác minh ưu tiên `CHECKED_IN` trước `SCHEDULED` trong `callNextPatient`.
+    - Thêm test case kiểm tra va chạm giao thoa khoảng thời gian `testGetAvailableSlots_IntervalOverlap`.
+  - `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`:
+    - Thêm test case kiểm tra lead time đổi lịch dưới 2 giờ ném `PAST_DATE`.
+    - Thêm test case kiểm tra `DataIntegrityViolationException` ném `SLOT_CONFLICT`.
+    - Thêm test case kiểm tra `getMyAppointments` với `Pageable`.
+  - `docs/WORK_LOG.md`: Ghi nhận phiên làm việc `#084`.
+
+#### 2. Kết Quả Kiểm Thử (Maven Test Verification):
+```text
+[INFO] Running com.mediassist.DoctorServiceTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Running com.mediassist.AppointmentServiceTest
+[INFO] Tests run: 23, Failures: 0, Errors: 0, Skipped: 0
+...
+[INFO] Results:
+[INFO] Tests run: 152, Failures: 0, Errors: 0, Skipped: 0
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+```
 
 ### [WORK-LOG-#083] Vá Lỗi Nhóm 1 từ Báo Cáo Kiểm Toán Production (STT Overflow, FinOps Isolation, State Machine Guards & E-Ticket Protection)
 * **Thời gian:** 2026-10-08 18:38:00 (GMT+7)

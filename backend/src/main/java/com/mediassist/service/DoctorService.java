@@ -100,9 +100,6 @@ public class DoctorService {
         LocalDateTime dayStart = date.atStartOfDay();
         LocalDateTime dayEnd = date.atTime(23, 59, 59);
         List<Appointment> bookedAppointments = appointmentRepository.findActiveAppointmentsByDoctorAndRange(doctorUserId, dayStart, dayEnd);
-        Set<LocalTime> bookedTimes = bookedAppointments.stream()
-                .map(a -> a.getScheduledStart().toLocalTime())
-                .collect(Collectors.toSet());
 
         DayOfWeek targetDow = date.getDayOfWeek();
         List<DoctorScheduleSlot> slotConfigs = doctorScheduleSlotRepository
@@ -120,26 +117,33 @@ public class DoctorService {
 
         for (DoctorScheduleSlot slotConfig : slotConfigs) {
             int duration = slotConfig.getSlotDurationMinutes() > 0 ? slotConfig.getSlotDurationMinutes() : 30;
-            addTimeSlots(date, slotConfig.getStartTime(), slotConfig.getEndTime(), duration, bookedTimes, slots, isToday, nowTime);
+            addTimeSlots(date, slotConfig.getStartTime(), slotConfig.getEndTime(), duration, bookedAppointments, slots, isToday, nowTime);
         }
 
         slots.sort(Comparator.comparing(DoctorSlotDto::getStartTime));
         return slots;
     }
 
-    private void addTimeSlots(LocalDate date, LocalTime start, LocalTime end, int durationMinutes, Set<LocalTime> bookedTimes, List<DoctorSlotDto> slots, boolean isToday, LocalTime nowTime) {
+    private void addTimeSlots(LocalDate date, LocalTime start, LocalTime end, int durationMinutes, List<Appointment> bookedAppointments, List<DoctorSlotDto> slots, boolean isToday, LocalTime nowTime) {
         LocalTime current = start;
         while (current.plusMinutes(durationMinutes).isBefore(end) || current.plusMinutes(durationMinutes).equals(end)) {
             LocalTime slotEnd = current.plusMinutes(durationMinutes);
-            boolean isBooked = bookedTimes.contains(current);
+            LocalDateTime slotStartDt = date.atTime(current);
+            LocalDateTime slotEndDt = date.atTime(slotEnd);
+
+            boolean isBooked = bookedAppointments != null && bookedAppointments.stream().anyMatch(a -> {
+                LocalDateTime apptStart = a.getScheduledStart();
+                LocalDateTime apptEnd = a.getScheduledEnd() != null ? a.getScheduledEnd() : apptStart.plusMinutes(30);
+                return slotStartDt.isBefore(apptEnd) && slotEndDt.isAfter(apptStart);
+            });
             boolean isPastToday = isToday && current.isBefore(nowTime);
             boolean available = !isBooked && !isPastToday;
 
             slots.add(new DoctorSlotDto(
                     current,
                     slotEnd,
-                    date.atTime(current),
-                    date.atTime(slotEnd),
+                    slotStartDt,
+                    slotEndDt,
                     available
             ));
             current = slotEnd;
@@ -408,27 +412,43 @@ public class DoctorService {
             return AppointmentDto.fromEntity(inProgressOpt.get());
         }
 
-        // Khóa bi quan và lấy ca SCHEDULED sớm nhất trong ngày
-        List<Appointment> locked = appointmentRepository.findNextScheduledWithLock(
-                doctorUserId, dayStart, dayEnd, org.springframework.data.domain.PageRequest.of(0, 1)
+        // 1. Ưu tiên lấy ca CHECKED_IN sớm nhất trước bằng khóa bi quan
+        List<Appointment> locked = appointmentRepository.findNextByStatusWithLock(
+                doctorUserId, AppointmentStatus.CHECKED_IN, dayStart, dayEnd, org.springframework.data.domain.PageRequest.of(0, 1)
         );
 
         if (locked == null || locked.isEmpty()) {
             locked = todayAppointments.stream()
-                    .filter(a -> a.getStatus() == AppointmentStatus.SCHEDULED)
+                    .filter(a -> a.getStatus() == AppointmentStatus.CHECKED_IN)
                     .findFirst()
                     .map(List::of)
                     .orElse(Collections.emptyList());
+        }
+
+        // 2. Nếu không có ca CHECKED_IN nào trong ngày mới lấy ca SCHEDULED
+        if (locked.isEmpty()) {
+            locked = appointmentRepository.findNextScheduledWithLock(
+                    doctorUserId, dayStart, dayEnd, org.springframework.data.domain.PageRequest.of(0, 1)
+            );
+
+            if (locked == null || locked.isEmpty()) {
+                locked = todayAppointments.stream()
+                        .filter(a -> a.getStatus() == AppointmentStatus.SCHEDULED)
+                        .findFirst()
+                        .map(List::of)
+                        .orElse(Collections.emptyList());
+            }
         }
 
         if (locked.isEmpty()) {
             throw new AppException(HttpStatus.NOT_FOUND, "QUEUE_EMPTY", "Đã phục vụ hết tất cả bệnh nhân trong hàng đợi hôm nay.");
         }
 
-        Appointment nextScheduled = locked.get(0);
-        nextScheduled.setStatus(AppointmentStatus.IN_PROGRESS);
-        Appointment saved = appointmentRepository.save(nextScheduled);
-        log.info("🔔 Doctor {} called next patient: {} (Code: {})", doctorUserId, saved.getPatient().getFullName(), saved.getAppointmentCode());
+        Appointment nextAppointment = locked.get(0);
+        nextAppointment.setStatus(AppointmentStatus.IN_PROGRESS);
+        Appointment saved = appointmentRepository.save(nextAppointment);
+        log.info("🔔 Doctor {} called next patient: {} (Code: {}, PrevStatus: {})",
+                doctorUserId, saved.getPatient().getFullName(), saved.getAppointmentCode(), nextAppointment.getStatus());
         return AppointmentDto.fromEntity(saved);
     }
 }

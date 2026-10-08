@@ -170,6 +170,16 @@ public class AppointmentService {
         return toDto(saved);
     }
 
+    public org.springframework.data.domain.Page<AppointmentDto> getMyAppointments(UUID userId, Role role, org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.domain.Page<Appointment> page;
+        if (role == Role.DOCTOR) {
+            page = appointmentRepository.findByDoctorIdWithUsersOrderByScheduledStartDesc(userId, pageable);
+        } else {
+            page = appointmentRepository.findByPatientIdWithUsersOrderByScheduledStartDesc(userId, pageable);
+        }
+        return page.map(this::toDto);
+    }
+
     public List<AppointmentDto> getMyAppointments(UUID userId, Role role) {
         List<Appointment> list;
         if (role == Role.DOCTOR) {
@@ -442,8 +452,8 @@ public class AppointmentService {
         }
 
         LocalDateTime newStart = req.getNewScheduledStart();
-        if (newStart.isBefore(LocalDateTime.now().plusMinutes(5))) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "PAST_DATE", "Thời gian hẹn mới phải lớn hơn thời điểm hiện tại");
+        if (newStart.isBefore(LocalDateTime.now().plusHours(2))) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "PAST_DATE", "Thời gian hẹn mới phải cách thời điểm hiện tại ít nhất 2 giờ");
         }
 
         if (newStart.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
@@ -474,7 +484,12 @@ public class AppointmentService {
             appointment.setConsultationNotes(note);
         }
 
-        Appointment saved = appointmentRepository.save(appointment);
+        Appointment saved;
+        try {
+            saved = appointmentRepository.saveAndFlush(appointment);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", "Khung giờ mới này đã có ca khám khác được đặt.");
+        }
 
         AuditLog audit = new AuditLog();
         audit.setUserId(userId);

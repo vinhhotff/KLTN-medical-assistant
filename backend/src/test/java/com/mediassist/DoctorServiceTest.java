@@ -200,6 +200,39 @@ class DoctorServiceTest {
     }
 
     @Test
+    @DisplayName("getAvailableSlots uses interval overlap to disable slots spanning an appointment")
+    void testGetAvailableSlots_IntervalOverlap() {
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        when(doctorProfileRepository.findByUserIdWithDetails(doctorUserId)).thenReturn(Optional.of(doctorProfile));
+
+        // Cuộc hẹn kéo dài 45 phút từ 08:15 đến 09:00 -> giao thoa cả slot 08:00-08:30 và 08:30-09:00
+        Appointment overlappingAppt = Appointment.builder()
+                .patient(doctorUser)
+                .doctor(doctorUser)
+                .scheduledStart(tomorrow.atTime(8, 15))
+                .scheduledEnd(tomorrow.atTime(9, 0))
+                .status(AppointmentStatus.SCHEDULED)
+                .build();
+
+        when(appointmentRepository.findActiveAppointmentsByDoctorAndRange(eq(doctorUserId), any(), any()))
+                .thenReturn(List.of(overlappingAppt));
+
+        List<DoctorSlotDto> slots = doctorService.getAvailableSlots(doctorUserId, tomorrow);
+
+        assertNotNull(slots);
+        DoctorSlotDto slot800 = slots.stream().filter(s -> s.getStartTime().equals(LocalTime.of(8, 0))).findFirst().orElse(null);
+        DoctorSlotDto slot830 = slots.stream().filter(s -> s.getStartTime().equals(LocalTime.of(8, 30))).findFirst().orElse(null);
+        DoctorSlotDto slot900 = slots.stream().filter(s -> s.getStartTime().equals(LocalTime.of(9, 0))).findFirst().orElse(null);
+
+        assertNotNull(slot800);
+        assertFalse(slot800.isAvailable(), "Slot 08:00-08:30 should be unavailable due to overlap with 08:15-09:00");
+        assertNotNull(slot830);
+        assertFalse(slot830.isAvailable(), "Slot 08:30-09:00 should be unavailable due to overlap with 08:15-09:00");
+        assertNotNull(slot900);
+        assertTrue(slot900.isAvailable(), "Slot 09:00-09:30 should be available");
+    }
+
+    @Test
     @DisplayName("updateDoctorProfile updates details, evicts verified cache, and syncs vector embedding")
     void testUpdateDoctorProfile_VerifiedDoctorSyncsVector() {
         when(doctorProfileRepository.findByUserIdWithDetails(doctorUserId)).thenReturn(Optional.of(doctorProfile));
@@ -351,7 +384,7 @@ class DoctorServiceTest {
     }
 
     @Test
-    @DisplayName("callNextPatient advances earliest SCHEDULED appointment to IN_PROGRESS")
+    @DisplayName("callNextPatient advances earliest SCHEDULED appointment to IN_PROGRESS when no CHECKED_IN")
     void testCallNextPatient_AdvancesScheduled() {
         UUID patientId = UUID.randomUUID();
         User patientUser = User.builder()
@@ -381,5 +414,47 @@ class DoctorServiceTest {
         assertEquals(AppointmentStatus.IN_PROGRESS, result.getStatus());
         assertEquals("Lê Văn Cường", result.getPatientName());
         verify(appointmentRepository, times(1)).save(any(Appointment.class));
+    }
+
+    @Test
+    @DisplayName("callNextPatient prioritizes CHECKED_IN appointment over SCHEDULED")
+    void testCallNextPatient_PrioritizesCheckedInOverScheduled() {
+        UUID p1 = UUID.randomUUID();
+        UUID p2 = UUID.randomUUID();
+        User patient1 = User.builder().id(p1).fullName("Bệnh Nhân Đến Trước (Chưa Check-in)").email("p1@gmail.com").role(Role.PATIENT).build();
+        User patient2 = User.builder().id(p2).fullName("Bệnh Nhân Đã Check-in").email("p2@gmail.com").role(Role.PATIENT).build();
+
+        Appointment scheduledAppt = Appointment.builder()
+                .id(UUID.randomUUID())
+                .appointmentCode("AP-SCHEDULED")
+                .patient(patient1)
+                .doctor(doctorUser)
+                .status(AppointmentStatus.SCHEDULED)
+                .scheduledStart(java.time.LocalDateTime.now().plusMinutes(10))
+                .scheduledEnd(java.time.LocalDateTime.now().plusMinutes(40))
+                .build();
+
+        Appointment checkedInAppt = Appointment.builder()
+                .id(UUID.randomUUID())
+                .appointmentCode("AP-CHECKEDIN")
+                .patient(patient2)
+                .doctor(doctorUser)
+                .status(AppointmentStatus.CHECKED_IN)
+                .scheduledStart(java.time.LocalDateTime.now().plusMinutes(20))
+                .scheduledEnd(java.time.LocalDateTime.now().plusMinutes(50))
+                .build();
+
+        when(appointmentRepository.findTodayAppointmentsByDoctorWithUsers(eq(doctorUserId), any(), any()))
+                .thenReturn(List.of(scheduledAppt, checkedInAppt));
+        when(appointmentRepository.findNextByStatusWithLock(eq(doctorUserId), eq(AppointmentStatus.CHECKED_IN), any(), any(), any()))
+                .thenReturn(List.of(checkedInAppt));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(i -> i.getArgument(0));
+
+        com.mediassist.dto.AppointmentDto result = doctorService.callNextPatient(doctorUserId);
+
+        assertNotNull(result);
+        assertEquals(AppointmentStatus.IN_PROGRESS, result.getStatus());
+        assertEquals("Bệnh Nhân Đã Check-in", result.getPatientName());
+        assertEquals("AP-CHECKEDIN", result.getAppointmentCode());
     }
 }
