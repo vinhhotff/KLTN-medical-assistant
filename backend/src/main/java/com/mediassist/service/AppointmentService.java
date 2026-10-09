@@ -24,9 +24,12 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class AppointmentService {
@@ -48,6 +51,9 @@ public class AppointmentService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     @org.springframework.context.annotation.Lazy
     private com.mediassist.repository.PaymentTransactionRepository paymentTransactionRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ObjectMapper objectMapper;
 
     public AppointmentService(AppointmentRepository appointmentRepository,
                               UserRepository userRepository,
@@ -276,11 +282,26 @@ public class AppointmentService {
             throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_STATUS", "Không thể check-in cuộc hẹn có trạng thái " + appt.getStatus());
         }
 
+        boolean isFirstCheckIn = appt.getStatus() != AppointmentStatus.CHECKED_IN;
         appt.setStatus(AppointmentStatus.CHECKED_IN);
         if (appt.getCheckedInAt() == null) {
             appt.setCheckedInAt(LocalDateTime.now());
         }
         Appointment saved = appointmentRepository.save(appt);
+
+        if (isFirstCheckIn && auditLogRepository != null) {
+            try {
+                AuditLog audit = new AuditLog();
+                audit.setUserId(doctorUserId);
+                audit.setAction("PATIENT_CHECKED_IN");
+                audit.setResource("appointments/" + saved.getId());
+                audit.setMetadata("Checked-in appointment: " + saved.getAppointmentCode());
+                auditLogRepository.save(audit);
+            } catch (Exception ex) {
+                log.warn("⚠️ Failed to record check-in audit log: {}", ex.getMessage());
+            }
+        }
+
         log.info("🏥 Patient checked in for appointment {} by user {}", appt.getAppointmentCode(), doctorUserId);
         return toDto(saved);
     }
@@ -562,17 +583,32 @@ public class AppointmentService {
                 ? a.getDoctor().getFullName() : (dto.getDoctorName() != null ? dto.getDoctorName() : "Bác sĩ");
         String startStr = a.getScheduledStart() != null ? a.getScheduledStart().toString() : "";
 
-        String qrJson = String.format(
-                "{\"appointmentId\":\"%s\",\"code\":\"%s\",\"stt\":\"%s\",\"patient\":\"%s\",\"doctor\":\"%s\",\"datetime\":\"%s\",\"room\":\"%s\"}",
-                a.getId() != null ? a.getId().toString() : "",
-                a.getAppointmentCode() != null ? a.getAppointmentCode() : "",
-                stt,
-                escapeJson(patientName),
-                escapeJson(doctorName),
-                startStr,
-                escapeJson(room)
-        );
-        dto.setQrCodeData(qrJson);
+        try {
+            Map<String, Object> qrMap = new LinkedHashMap<>();
+            qrMap.put("appointmentId", a.getId() != null ? a.getId().toString() : "");
+            qrMap.put("code", a.getAppointmentCode() != null ? a.getAppointmentCode() : "");
+            qrMap.put("stt", stt);
+            qrMap.put("patient", patientName);
+            qrMap.put("doctor", doctorName);
+            qrMap.put("datetime", startStr);
+            qrMap.put("room", room);
+
+            ObjectMapper mapper = this.objectMapper != null ? this.objectMapper : new ObjectMapper();
+            dto.setQrCodeData(mapper.writeValueAsString(qrMap));
+        } catch (Exception ex) {
+            log.warn("⚠️ Error serializing QR JSON via ObjectMapper, using fallback: {}", ex.getMessage());
+            String qrJson = String.format(
+                    "{\"appointmentId\":\"%s\",\"code\":\"%s\",\"stt\":\"%s\",\"patient\":\"%s\",\"doctor\":\"%s\",\"datetime\":\"%s\",\"room\":\"%s\"}",
+                    a.getId() != null ? a.getId().toString() : "",
+                    a.getAppointmentCode() != null ? a.getAppointmentCode() : "",
+                    stt,
+                    escapeJson(patientName),
+                    escapeJson(doctorName),
+                    startStr,
+                    escapeJson(room)
+            );
+            dto.setQrCodeData(qrJson);
+        }
     }
 
     private String escapeJson(String raw) {
