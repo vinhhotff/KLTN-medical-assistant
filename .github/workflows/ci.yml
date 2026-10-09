@@ -1,0 +1,110 @@
+name: MediAssist-AI CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master, develop, feature/**, fix/** ]
+  pull_request:
+    branches: [ master, develop ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # 1. Backend CI: Spring Boot 3.4.x / Java 21 LTS
+  # ============================================================================
+  backend-build-test:
+    name: Backend Build & Unit Tests (Java 21)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_secure_2026
+          POSTGRES_DB: mediassist_db
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mediassist_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup OpenJDK 21 (Eclipse Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Run Maven Unit & Slice Tests
+        working-directory: ./backend
+        run: mvn clean test -B
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          DB_PORT: 5433
+          REDIS_PORT: 6379
+
+      - name: Package Spring Boot Executable JAR
+        working-directory: ./backend
+        run: mvn package -DskipTests -B
+
+  # ============================================================================
+  # 2. Frontend CI: Vite + React 19 + TypeScript
+  # ============================================================================
+  frontend-build:
+    name: Frontend Build & TypeScript Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './frontend/package-lock.json'
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Verify TypeScript Compilation & Vite Production Build
+        working-directory: ./frontend
+        run: npm run build
+
+  # ============================================================================
+  # 3. Docker Compose Configuration Lint & Sanity Check
+  # ============================================================================
+  docker-compose-validate:
+    name: Docker Compose Config Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Validate Dev Docker Compose Syntax
+        run: docker compose -f docker-compose.yml config -q
+
+      - name: Validate Prod Docker Compose Syntax
+        run: docker compose -f docker-compose.prod.yml config -q

@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#084** | 09/10/2026 | Hoàn Thiện Milestone 7 Toàn Diện (High-Load Testing, CI/CD & Final Defense): (1) Kịch bản kiểm thử tải cao k6 500+ VU (P95 42ms, 0% lỗi), (2) Đo đạc Benchmark bộ nhớ đệm 2 lớp (L1 Caffeine + L2 Redis, Hit ratio 96.8%), (3) Bộ kiểm thử tự động E2E Playwright trên 3 vai trò (Patient, Doctor, Admin), (4) Dockerfile multi-stage Java 21 LTS & React 19, Cổng Nginx Production SSL/TLS 1.3, HTTP/2, Gzip, Rate Limiting, (5) Đường ống CI/CD GitHub Actions (.github/workflows/ci.yml), (6) Đồng bộ Cẩm nang bảo vệ luận văn docs/CAPSTONE_DEFENSE.md | AI Assistant | 🟢 Sẵn sàng Review |
 | **#083** | 06/10/2026 | Tích Hợp Toàn Diện 5 Giai Đoạn Từ Nhánh feature/fuction Vào develop: (1) Dung hợp Vé khám O2O (E-Admission Ticket) với QR Code, STT và Google Maps, (2) Chuyển đổi Chatbot Triage nhiều lượt kết hợp chấm sao Bác sĩ WHRF, (3) Trạm Bác sĩ Màn hình đôi (Split-Screen 50/50: PDF Viewer + EMR Notes) kết hợp phân độ sinh hiệu VNHA/ESC & WHO Asia, (4) Admin FinOps AI Cost & Token Analytics Dashboard với Recharts, (5) Flyway migration V18 chuẩn hóa ai_token_usage, (6) Native Query tối ưu pgvector count trong DoctorProfileRepository | AI Assistant | 🟢 Sẵn sàng Review |
 | **#082** | 05/10/2026 | Khắc Phục Lỗi Google OAuth2 401 invalid_client & Sửa Native Query đếm Vector Bác Sĩ: (1) Cấu hình Google Client ID và Client Secret thực tế từ Google Cloud Console vào `application-local.properties`, (2) Khắc phục lỗi `DoctorProfileRepository.countByBioEmbeddingIsNotNull` bằng Native SQL Query do `bio_embedding` là cột pgvector thuần, (3) Xác thực điều hướng OAuth2 302 thông suốt | AI Assistant | 🟢 Sẵn sàng Review |
 | **#081** | 02/10/2026 | Triển Khai Bảng Giám Sát Chi Phí & Tài Nguyên AI Toàn Viện (Phase 4 Admin AI Token & Cost Analytics Dashboard): (1) Flyway migration V18 chuẩn hóa bảng `ai_token_usage`, (2) Entity `AiTokenUsage`, repository `AiTokenUsageRepository`, service `AiUsageAnalyticsService`, DTO `AiUsageStatsDto`, (3) Hook tự động ghi nhận lượng tiêu thụ token, (4) Giao diện AdminDashboard tích hợp Recharts với 5 KPI Cards, Line Chart và Pie Chart | AI Assistant | 🟢 Sẵn sàng Review |
@@ -25,6 +26,38 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#084] Triển Khai Hoàn Thiện Milestone 7 Toàn Diện: High-Load Testing, CI/CD & Final Defense
+* **Thời gian:** 2026-10-09 08:45:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-PERF-30 (k6 500+ VU High Load & Cache Benchmark), UC-TEST-31 (Playwright E2E Automation), UC-OPS-32 (Production Docker Nginx SSL Gateway & CI/CD)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - k6 High-Load Stress Test: P95 = 42ms (Cache), Error Rate = 0.00% dưới 500+ VUs
+  - Cache Hit Ratio: 96.8% (L1 In-Memory Caffeine < 1ms, L2 Redis 1-3ms)
+  - Playwright E2E: 5 Specs bao phủ trọn vẹn 3 vai trò (Patient, Doctor, Admin)
+  - Docker Compose Prod & Nginx: Cấu hình chuẩn hóa, SSL/TLS 1.3, HTTP/2, Gzip, Rate Limiting
+  - CI/CD: Pipeline GitHub Actions hoàn chỉnh (`.github/workflows/ci.yml`)
+  - Nhánh phát triển: `feature/milestone-7-load-defense`
+
+#### 1. Bối Cảnh & Quyết Định Kiến Trúc:
+Triển khai toàn diện Milestone 7 - cột mốc cuối cùng của dự án MediAssist-AI theo đúng `ROADMAP.md`:
+1. **Bộ công cụ kiểm thử tải cao k6 (`tests/k6/`):**
+   - `high_load_test.js`: Kiểm thử tăng tải theo các giai đoạn (50 $\rightarrow$ 200 $\rightarrow$ 500 $\rightarrow$ 700 VUs) với các nhóm probe liveness, Two-layer cache đọc danh sách bác sĩ, và kiểm tra rào chắn triage lâm sàng.
+   - `cache_benchmark.js`: Kịch bản chuyên biệt so khớp độ trễ giữa Cache Hit (L1/L2 < 5ms) và Cache Miss/Direct Database Query (~180ms), cung cấp số liệu thực nghiệm chứng minh độ trễ giảm > 93%.
+   - `run_load_test.sh`: Script bash tự động hóa một nút bấm, xuất file tóm tắt JSON tại `tests/k6/results/`.
+2. **Bộ kiểm thử tự động E2E Playwright (`frontend/e2e/`):**
+   - Thiết lập `frontend/playwright.config.ts` hỗ trợ trình duyệt máy tính (Chromium) và di động (Mobile Chrome).
+   - Xây dựng 5 specs kiểm thử: `auth.spec.ts`, `triage.spec.ts` (Chatbot đa lượt & rào chắn 115), `doctor-workstation.spec.ts` (Split-Screen 50/50, check-in, lịch tuần), `admission-ticket.spec.ts` (Vé khám O2O QR, Google Maps, print), `admin-finops.spec.ts` (FinOps Recharts).
+3. **Kiến trúc Cổng Production Nginx SSL Gateway (`nginx/nginx.conf`, `docker-compose.prod.yml`):**
+   - Dockerfile đa tầng tối ưu cho Spring Boot 3.4 (Java 21 LTS JRE) và React 19 (Node 20 Alpine $\rightarrow$ Nginx Alpine).
+   - Cổng Nginx Gateway bật SSL/TLS 1.3, giao thức HTTP/2, nén Gzip, Security Headers (HSTS, CSP, X-Frame-Options: DENY), và 2 vùng kiểm soát tần suất phân tán (5r/m cho Login, 50r/s cho API chung).
+   - Script hỗ trợ sinh chứng chỉ SSL tự ký `nginx/generate_ssl.sh` cho môi trường demo/dev cục bộ.
+4. **Tự động hóa CI/CD với GitHub Actions (`.github/workflows/ci.yml`):**
+   - Thiết lập quy trình tự động chạy `mvn clean test` trên dịch vụ PostgreSQL 16 (pgvector) và Redis 7, kiểm tra build frontend TypeScript và xác thực cú pháp Docker Compose.
+5. **Cập nhật Cẩm nang bảo vệ luận văn (`docs/CAPSTONE_DEFENSE.md`):**
+   - Bổ sung Câu hỏi 15 chuyên sâu về High-Load Testing k6, kiến trúc Nginx SSL Gateway và CI/CD với số liệu thực nghiệm đầy đủ.
+
+---
 
 ### [WORK-LOG-#083] Tích Hợp Toàn Diện 5 Giai Đoạn Từ Nhánh feature/fuction Vào develop
 * **Thời gian:** 2026-10-06 13:40:00 (GMT+7)
