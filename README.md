@@ -69,13 +69,15 @@ Dự án được tài liệu hóa toàn diện chuẩn doanh nghiệp và đáp
 
 | Tài Liệu | Nội Dung Trọng Tâm | Đường Dẫn |
 | :--- | :--- | :---: |
+| **⭐ Sổ Tra Cứu & Ma Trận Truy Vết (RTM)** | Điểm neo thông tin duy nhất: Truy vết 33 Use Cases, Code, DB, Thuật toán, Tests & Cheatsheet | [`docs/MASTER_TRACEABILITY_INDEX.md`](./docs/MASTER_TRACEABILITY_INDEX.md) |
+| **Thuật Toán Độc Quyền Doanh Nghiệp** | Đặc tả 5 thuật toán cấp cao: Hedged Requests P99, Progressive Sieve, XFetch, Cân bằng hàng đợi | [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md) |
 | **Kiến Trúc Tổng Thể** | Đặc tả kiến trúc Modular Monolith, hạ tầng, SLA, cấu hình phân tán | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| **Thiết Kế Cơ Sở Dữ Liệu** | DDL đầy đủ 8 bảng, sơ đồ Mermaid ERD, HNSW vector search, HikariCP pool | [`docs/DATABASE_DESIGN.md`](./docs/DATABASE_DESIGN.md) |
+| **Thiết Kế Cơ Sở Dữ Liệu** | DDL đầy đủ 19 Flyway migrations, ERD, HNSW vector search, HikariCP pool | [`docs/DATABASE_DESIGN.md`](./docs/DATABASE_DESIGN.md) |
 | **Bối Cảnh & Storytelling** | Nỗi đau thực tế y tế VN, chân dung người dùng (Personas), đạo đức AI | [`docs/STORYTELLING.md`](./docs/STORYTELLING.md) |
-| **Đặc Tả Use Cases** | 7 Use Cases chuẩn RUP/IEEE 830, luồng sự kiện chính, luồng cấp cứu | [`docs/USE_CASES.md`](./docs/USE_CASES.md) |
-| **Cẩm Nang Bảo Vệ Luận Văn** | Đề cương 5 chương, kịch bản thuyết trình 15p, live demo checklist, Top 10 Q&A | [`docs/CAPSTONE_DEFENSE.md`](./docs/CAPSTONE_DEFENSE.md) |
+| **Đặc Tả Use Cases** | 33 Use Cases chuẩn RUP/IEEE 830, luồng sự kiện chính, luồng cấp cứu | [`docs/USE_CASES.md`](./docs/USE_CASES.md) |
+| **Cẩm Nang Bảo Vệ Luận Văn** | Đề cương 5 chương, kịch bản thuyết trình 15p, live demo checklist, Top 15 Q&A | [`docs/CAPSTONE_DEFENSE.md`](./docs/CAPSTONE_DEFENSE.md) |
 | **Quy Chế Làm Việc Nhóm** | Phân chia 3 vai trò, ma trận trách nhiệm RACI, tiêu chuẩn DoD | [`docs/TEAM_WORKFLOW.md`](./docs/TEAM_WORKFLOW.md) |
-| **Nhật Ký Review Tech Lead** | Lịch sử cập nhật từng phiên làm việc, file thay đổi & bằng chứng test | [`docs/WORK_LOG.md`](./docs/WORK_LOG.md) |
+| **Nhật Ký Review Tech Lead** | Lịch sử cập nhật 85 phiên làm việc, file thay đổi & bằng chứng test | [`docs/WORK_LOG.md`](./docs/WORK_LOG.md) |
 | **Chỉ Thị AI Coding** | Quy tắc bắt buộc AI phải bám sát kiến trúc và tự động cập nhật tài liệu | [`AGENTS.md`](./AGENTS.md) |
 
 ---
