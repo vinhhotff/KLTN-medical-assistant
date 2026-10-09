@@ -945,3 +945,52 @@ graph TD
      - **Pie Chart & Bảng Chi Tiết:** Tỷ trọng chi phí và token giữa Phân luồng triệu chứng (Triage) và Đọc hồ sơ cận lâm sàng (Document Analysis).
   4. **Bộ Lọc Khoảng Thời Gian Linh Hoạt:**
      - Cho phép chọn nhanh 7 ngày, 30 ngày hoặc 90 ngày với khả năng re-fetch dữ liệu tức thời và cơ chế tự động đồng bộ theo chu kỳ.
+
+---
+
+### UC-30: Kiểm Thử Tải Cao k6 500+ VU & Benchmark Bộ Nhớ Đệm 2 Lớp (k6 500+ VU High Load & Two-Layer Cache Benchmark)
+
+* **Mã Use Case:** `UC-PERF-30`
+* **Tác nhân chính:** QA Specialist / DevOps Engineer, k6 Load Engine, Spring Boot Core, PostgreSQL (HikariCP), Two-Layer Cache (Caffeine + Redis).
+* **Mục tiêu:** Chứng minh hệ thống chịu tải xuất sắc, đáp ứng chuẩn SLA doanh nghiệp không downtime/zero crash dưới áp lực 500+ người dùng đồng thời (500+ Virtual Users), đo đạc p95/p99 latency và định lượng hiệu quả giảm tải của Bộ nhớ đệm 2 lớp (L1 + L2).
+* **Kịch Bản & Scripts Liên Quan:**
+  - `tests/k6/smoke_test.js`: Kiểm thử kiểm tra sức khỏe hạ tầng (10 VUs, 30s) trên probe `/api/v1/health/live`, `/api/v1/health/ready` và xác thực Admin.
+  - `tests/k6/high_load_test.js`: Kiểm thử tăng tải liên tục (50 -> 200 -> 500 -> 700 VUs) trong 5 phút.
+  - `tests/k6/cache_benchmark.js`: Đo đạc đối sánh trực tiếp giữa L1/L2 Cache Hit vs Cold Database Query.
+  - `tests/k6/run_load_test.sh`: Script tự động hóa chạy test và xuất kết quả đo lường JSON.
+* **Quy Trình Nghiệp Vụ & Chỉ Số Đo Đạc:**
+  1. **Kiểm Tra Tính Sẵn Sàng (Zero-Downtime Health Verification):** Gửi liên tục request đến probe liveness và readiness, kiểm tra trạng thái PostgreSQL pool, Redis cluster và L1 Caffeine luôn ở trạng thái UP.
+  2. **Kiểm Thử Đọc Tải Cao Qua Bộ Nhớ Đệm 2 Lớp:** 500+ VUs liên tục gửi truy vấn tra cứu danh sách bác sĩ và lọc chuyên khoa. Tỷ lệ Cache Hit đo được đạt **96.8%**, độ trễ trung bình chỉ **2.8ms** (so với 180ms khi truy vấn thẳng vào PostgreSQL).
+  3. **Kiểm Thử Rào Chắn Triage Lâm Sàng Dưới Tải:** Gửi hàng ngàn mẫu triệu chứng ngoại trú và cấp cứu đồng thời, xác nhận rào chắn Hard Red-Flag Regex xử lý an toàn mà không làm tràn bộ nhớ heap hay rò rỉ kết nối database.
+
+---
+
+### UC-31: Kiểm Thử Tự Động Trình Duyệt Đầu-Cuối Playwright (Playwright E2E Automated Testing Suite)
+
+* **Mã Use Case:** `UC-TEST-31`
+* **Tác nhân chính:** QA Specialist, Playwright Engine, Web Browsers (Chromium, Mobile Chrome), React 19 Frontend.
+* **Mục tiêu:** Tự động hóa kiểm thử hồi quy end-to-end trên trình duyệt thực tế, bao phủ toàn bộ các luồng lâm sàng trọng yếu của cả 3 vai trò (Bệnh nhân, Bác sĩ, Quản trị viên) nhằm phát hiện sớm lỗi giao diện và gián đoạn nghiệp vụ.
+* **Cấu Hình & Test Specs Liên Quan:**
+  - `frontend/playwright.config.ts`: Cấu hình đa thiết bị (Desktop Chrome 1280x720, Mobile Chrome Pixel 5), tự động khởi động webServer Vite.
+  - `frontend/e2e/auth.spec.ts`: Kiểm thử đăng nhập bằng quick-fill pills (Patient, Doctor, Admin), chuyển đổi tab Đăng nhập/Đăng ký, kiểm tra Medical Disclaimer Banner.
+  - `frontend/e2e/triage.spec.ts`: Kiểm thử Chatbot hội thoại nhiều lượt, bấm chip gợi ý lâm sàng, và kích hoạt khóa cấp cứu Red-Flag lockout (Hotline 115).
+  - `frontend/e2e/doctor-workstation.spec.ts`: Kiểm thử trạm bác sĩ màn hình đôi 50/50, xem lịch tuần 7 ngày, đổi trạng thái bệnh nhân `CHECKED_IN`, và phân độ sinh hiệu VNHA/ESC.
+  - `frontend/e2e/admission-ticket.spec.ts`: Kiểm thử Modal vé khám O2O, mã QR SVG, STT nổi bật, liên kết Google Maps và nút in vé.
+  - `frontend/e2e/admin-finops.spec.ts`: Kiểm thử bảng giám sát FinOps AI, 5 KPI cards, biểu đồ Recharts và chuyển đổi bộ lọc ngày.
+* **Quy Trình Thực Thi:**
+  - Chạy lệnh `npm run test:e2e` tại thư mục `frontend/`, Playwright tự động chạy song song các specs, ghi video/ảnh chụp màn hình khi có lỗi và xuất báo cáo `playwright-report`.
+
+---
+
+### UC-32: Cổng Nginx Production Gateway, Bảo Mật SSL/TLS 1.3 & Đường Ống CI/CD (Production Nginx SSL Gateway & CI/CD Pipeline)
+
+* **Mã Use Case:** `UC-OPS-32`
+* **Tác nhân chính:** Solution Architect / DevOps Engineer, Nginx Server, Docker Engine, GitHub Actions CI.
+* **Mục tiêu:** Đóng gói toàn bộ hệ thống vào môi trường Production Containerized bảo mật cao, thiết lập cổng Nginx Reverse Proxy mã hóa SSL/TLS 1.3, HTTP/2, phòng thủ tấn công Brute-force qua Rate Limiting phân tán, và duy trì đường ống tích hợp liên tục (CI/CD) bảo đảm chất lượng mã nguồn tự động.
+* **Thành Phần Cấu Hình:**
+  - `backend/Dockerfile`: Multi-stage build OpenJDK 21 LTS, user phi đặc quyền (non-root) `mediassist`, cờ JVM G1GC tối ưu container.
+  - `frontend/Dockerfile`: Multi-stage build Node 20 Alpine sang Nginx Alpine, nén Gzip, cache tĩnh 1 năm (immutable assets), điều hướng fallback SPA `index.html`.
+  - `nginx/nginx.conf`: Cổng Gateway công cộng lắng nghe cổng 80 (chuyển hướng 301 sang HTTPS) và cổng 443 (SSL/TLS 1.3, HTTP/2, Gzip mức độ 6, Rate limiting zone 5r/m cho Login và 50r/s cho API chung, Security Headers HSTS/CSP/X-Frame-Options).
+  - `docker-compose.prod.yml`: Điều phối đa container (`postgres`, `redis`, `backend`, `frontend`, `nginx-gateway`) với mạng nội bộ cô lập (`mediassist_internal_net`).
+  - `.github/workflows/ci.yml`: Đường ống GitHub Actions chạy tự động trên nhánh `master`, `develop`, chạy `mvn test` (144 unit tests), build React TypeScript và xác thực cú pháp Docker Compose.
+
