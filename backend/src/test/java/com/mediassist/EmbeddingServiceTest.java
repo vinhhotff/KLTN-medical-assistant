@@ -36,8 +36,8 @@ class EmbeddingServiceTest {
     @Test
     @DisplayName("Should have higher cosine similarity for semantically related medical concepts (Cardio vs Derma)")
     void testSemanticCosineSimilarity_CardioVsDerma() {
-        String query = "Tôi hay bị hồi hộp và đau tức ngực khi tập thể dục";
-        String cardioDoctor = "Chuyên gia tim mạch, tầm soát bệnh mạch vành và nhịp tim";
+        String query = "Tôi hay bị hồi hộp, tim đập nhanh và đau tức ngực khi tập thể dục";
+        String cardioDoctor = "Chuyên gia tim mạch, tầm soát đau tức ngực, bệnh mạch vành và nhịp tim";
         String dermaDoctor = "Bác sĩ da liễu, điều trị mụn trứng cá và viêm da cơ địa";
 
         float[] vQuery = embeddingService.generateEmbedding(query);

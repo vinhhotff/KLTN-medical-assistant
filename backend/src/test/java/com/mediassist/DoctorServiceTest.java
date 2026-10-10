@@ -21,8 +21,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -165,21 +167,21 @@ class DoctorServiceTest {
     @Test
     @DisplayName("getAvailableSlots excludes booked appointment slots and marks available slots")
     void testGetAvailableSlots() {
-        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        LocalDate testWorkDate = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
         when(doctorProfileRepository.findByUserIdWithDetails(doctorUserId)).thenReturn(Optional.of(doctorProfile));
 
         Appointment bookedAppt = Appointment.builder()
                 .patient(doctorUser)
                 .doctor(doctorUser)
-                .scheduledStart(tomorrow.atTime(8, 0))
-                .scheduledEnd(tomorrow.atTime(8, 30))
+                .scheduledStart(testWorkDate.atTime(8, 0))
+                .scheduledEnd(testWorkDate.atTime(8, 30))
                 .status(AppointmentStatus.SCHEDULED)
                 .build();
 
         when(appointmentRepository.findActiveAppointmentsByDoctorAndRange(eq(doctorUserId), any(), any()))
                 .thenReturn(List.of(bookedAppt));
 
-        List<DoctorSlotDto> slots = doctorService.getAvailableSlots(doctorUserId, tomorrow);
+        List<DoctorSlotDto> slots = doctorService.getAvailableSlots(doctorUserId, testWorkDate);
 
         assertNotNull(slots);
         assertFalse(slots.isEmpty());

@@ -264,48 +264,6 @@ graph TD
 
 ---
 
-### UC-11: Quản Lý Hạn Ngạch Quét & Mô Hình Doanh Thu Win-Win (Commercial Scan Quota & Token Protection)
-
-* **Mã Use Case:** `UC-FIN-11`
-* **Tác nhân chính:** Patient, Doctor, System Platform Owner.
-* **Mục tiêu:** Bảo vệ tài nguyên AI chống spam tốn chi phí token, triển khai mô hình kinh tế Win-Win đôi bên cùng có lợi (Bệnh nhân tiết kiệm - Bác sĩ gia tăng thu nhập - Nền tảng bền vững).
-* **REST Endpoints:**
-  - `GET /api/v1/documents/quota`: Lấy thông tin hạn ngạch quét còn lại và trạng thái gói cước VIP.
-* **Chính sách Thương Mại Doanh Nghiệp:**
-  1. **Bệnh nhân:**
-     - Tặng **1 lượt quét miễn phí** cho tài khoản mới trải nghiệm chất lượng.
-     - **Gói lẻ:** 29.000đ / 1 lượt phân tích chuyên sâu.
-     - **Gói Tiết kiệm:** 99.000đ / 5 lượt (giảm 32%, hạn dùng 12 tháng).
-     - **MediPass VIP:** 149.000đ / tháng (Quét không giới hạn + Tư vấn ưu tiên).
-     - **Chính sách Deduplication Vĩnh Viễn:** Tải lại tài liệu đã phân tích hoàn toàn miễn phí trọn đời (0đ, 0 token).
-  2. **Bác sĩ Chuyên Khoa:**
-     - Nhận **85% phí khám** (250.000đ - 450.000đ/ca) qua cơ chế ký quỹ Escrow minh bạch.
-     - Tiếp nhận tóm tắt lâm sàng SBAR chuẩn bị sẵn, tiết kiệm 50% thời gian hội chẩn.
-  3. **Platform Owner:**
-     - Nhận 15% hoa hồng đặt khám và doanh thu gói quét.
-     - Bảo vệ 100% token LLM trước nạn bot/spam ảnh rác nhờ Gatekeeper Sieve Validation.
-
-### UC-12: Khử Định Danh Dữ Liệu Y Tế Nhạy Cảm (Medical PII De-identification & Safe Harbor Privacy Compliance)
-
-* **Mã Use Case:** `UC-SEC-12`
-* **Tác nhân chính:** Patient, MedicalPiiService, External LLMs (Google Gemini / OpenRouter).
-* **Mục tiêu:** Tự động phát hiện và che giấu toàn bộ thông tin nhận dạng cá nhân (PII) trong lời khai triệu chứng và tài liệu cận lâm sàng trước khi truyền qua mạng Internet đến các mô hình AI đám mây, tuân thủ nghiêm ngặt **Nghị định 13/2023/NĐ-CP** về bảo vệ dữ liệu cá nhân tại Việt Nam và quy chuẩn **HIPAA Safe Harbor Privacy Rule** (45 CFR § 164.514). Đồng thời tương thích 100% với cấu trúc gán nhãn của tập dữ liệu nghiên cứu y khoa tiếng Việt nổi tiếng `Meddies/meddies-pii` trên Hugging Face.
-* **REST Endpoints:**
-  - `POST /api/v1/pii/deidentify`: Endpoint công khai / nghiên cứu cho phép kiểm tra, demo trực tiếp cơ chế khử định danh văn bản y tế. Nhận request `{ "text": "..." }` và trả về kết quả gồm `maskedText`, `meddiesTaggedText`, danh sách thực thể `entities` và thống kê số lượng.
-* **Danh mục Thực thể PII Nhận diện:**
-  1. **`human_name` (Họ và tên người bệnh):** Nhận diện qua nhãn hành chính (`Họ và tên:`, `Bệnh nhân:`, `Tên BN:`, `Người bệnh:`) và văn cảnh xưng hô tự nhiên (`Tôi là ...`, `Tên em là ...`) với bộ lọc Unicode tiếng Việt nghiêm ngặt, chặn tràn qua dấu xuống dòng. Thay thế bằng token `[BỆNH_NHÂN_N]` (Định dạng Meddies: `[Tên]<human_name>`).
-  2. **`id_number` (Mã định danh cá nhân & Thẻ y tế):** Nhận diện CCCD 12 chữ số (`0\d{11}`), CMND 9 chữ số, Thẻ BHYT 15 ký tự (tiền tố đối tượng 2 chữ cái như `DN`, `GD`, `CH`, `TE`... + mã quyền lợi 1-5 + 12 chữ số), Mã hồ sơ bệnh án (SID, Mã BN, Mã tiếp nhận). Thay thế bằng token `[SỐ_ĐỊNH_DANH_N]` (Định dạng Meddies: `[ID]<id_number>`).
-  3. **`phone_number` (Số điện thoại liên lạc):** Nhận diện số di động và cố định Việt Nam (đầu số `+84` hoặc `0` kèm các dải mạng `03x`, `05x`, `07x`, `08x`, `09x`) qua nhãn (`SĐT:`, `Số điện thoại:`) và mẫu số 10 chữ số. Thay thế bằng token `[SĐT_N]` (Định dạng Meddies: `[SĐT]<phone_number>`).
-  4. **`address` (Địa chỉ thường trú & Nơi ở):** Nhận diện địa chỉ hành chính có cấu trúc (Số nhà, Tên đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành phố) qua nhãn (`Địa chỉ:`, `Thường trú:`, `HKTT:`) hoặc câu xưng hô tự nhiên (`ở ...`). Thay thế bằng token `[ĐỊA_CHỈ_N]` (Định dạng Meddies: `[Địa chỉ]<address>`).
-  5. **`date` (Ngày sinh / Tuổi tác cá nhân):** Nhận diện ngày tháng năm sinh qua nhãn (`Ngày sinh:`, `Sinh ngày:`, `DOB:`). Thay thế bằng token `[NGÀY_SINH_N]` (Định dạng Meddies: `[Ngày]<date>`).
-  6. **`email` (Thư điện tử):** Nhận diện RFC 5322 email. Thay thế bằng token `[EMAIL_N]` (Định dạng Meddies: `[Email]<email>`).
-* **Luồng tích hợp tự động (Automated Pipeline Flow):**
-  1. *Tiền xử lý (Pre-processing):* Khi người bệnh gửi triệu chứng hoặc quét phiếu xét nghiệm, `ClinicalRagService` gọi `MedicalPiiService.maskPii()`.
-  2. *Bảo vệ trên đường truyền (In-Transit Privacy):* Toàn bộ prompt gửi đến Google Gemini / OpenRouter chỉ chứa các token ẩn danh. LLM hoàn toàn không biết người bệnh là ai, ở đâu, số điện thoại nào.
-  3. *Hậu xử lý (Post-processing):* Khi LLM sinh phản hồi tư vấn y tế chứa các token ẩn danh, hệ thống tự động hoàn nguyên (`unmaskPii()`) để hiển thị thông tin thân mật, chính xác cho riêng bệnh nhân trên giao diện cá nhân.
-
----
-
 ### UC-04: Tìm Kiếm Bác Sĩ Bằng Vector Similarity Search (Semantic Doctor Discovery)
 
 * **Mã Use Case:** `UC-CLIN-04`
@@ -459,27 +417,33 @@ graph TD
 
 ---
 
-### UC-10: Bảo Mật Zero-Trust, Phòng Thủ Brute-Force & Kiểm Soát Tải Tần Suất Cao (Zero-Trust Security & Rate Limiting Hardening)
+### UC-10: Bảo Mật Zero-Trust, Phòng Thủ Brute-Force, Rate Limiting & Khử Định Danh PII Y Tế (Zero-Trust Security, Anti-Brute Force & Medical PII De-identification)
 
 * **Mã Use Case:** `UC-SEC-10`
-* **Tác nhân chính:** Attacker/Botnet, Valid User, SecurityRateLimiterService, AuthService, PostgreSQL.
-* **Mục tiêu:** Bảo vệ nền tảng y tế khỏi các cuộc tấn công Brute-force vét cạn mật khẩu, xâm nhập trái phép, DoS/DDoS làm sập hệ thống hoặc làm cạn kiệt chi phí API LLM.
-* **Quy tắc bảo mật bắt buộc:**
+* **Tác nhân chính:** Attacker/Botnet, Valid User, SecurityRateLimiterService, MedicalPiiService, AuthService, PostgreSQL.
+* **Mục tiêu:** Bảo vệ nền tảng y tế khỏi các cuộc tấn công Brute-force vét cạn mật khẩu, xâm nhập trái phép, DoS/DDoS làm sập hệ thống hoặc làm cạn kiệt chi phí API LLM; đồng thời tuân thủ tuyệt đối quy định bảo vệ dữ liệu cá nhân nhạy cảm y tế.
+* **Quy tắc bảo mật & Tuân thủ pháp lý bắt buộc:**
   1. **Zero-Trust Login-First:** Toàn bộ API nghiệp vụ lâm sàng (`/api/v1/triage/**`, `/api/v1/documents/**`, `/api/v1/appointments/**`) bắt buộc phải có JWT Token hợp lệ. Mọi truy cập ẩn danh (Guest) bị từ chối ngay lập tức với `HTTP 401 Unauthorized`.
   2. **Phòng thủ Brute-force & Khóa tài khoản:** Khi một tài khoản bị nhập sai mật khẩu 5 lần liên tiếp, hệ thống tự động khóa tài khoản trong 15 phút (`HTTP 423 Locked`), ghi cảnh báo bảo mật và ngăn chặn mọi nỗ lực đăng nhập tiếp theo kể cả khi kẻ tấn công xoay địa chỉ IP (Distributed Botnet Defense).
   3. **Kiểm soát tần suất IP phân tán (Redis Rate Limiting):**
      - Đăng nhập: Tối đa 5 lượt/phút trên mỗi địa chỉ IP (`HTTP 429 Too Many Requests`).
      - Phân luồng triệu chứng: Tối đa 10 lượt/phút trên mỗi người dùng.
-     - Tải tệp xét nghiệm: Tối đa 5 tệp/phút trên mỗi người dùng (kích thước $\le 15\text{MB}$).
+     - Tải tệp xét nghiệm: Tối đa 5 tệp/phút trên mỗi người dùng (kích thước $\le 10\text{MB}$).
   4. **Security Headers Chuẩn OWASP:** `X-Frame-Options: DENY` (chống Clickjacking), `X-Content-Type-Options: nosniff` (chống MIME-sniffing), `X-XSS-Protection`.
+  5. **Khử Định Danh PII Y Tế (Nghị định 13/2023/NĐ-CP & HIPAA Safe Harbor 45 CFR § 164.514):**
+     - Endpoint: `POST /api/v1/pii/deidentify` (hỗ trợ kiểm thử và gán nhãn nghiên cứu chuẩn `Meddies/meddies-pii`).
+     - Nhận diện và che giấu 6 nhóm thực thể: Tên (`[BỆNH_NHÂN_N]`), CCCD/CMND/BHYT/SID (`[SỐ_ĐỊNH_DANH_N]`), SĐT (`[SĐT_N]`), Địa chỉ (`[ĐỊA_CHỈ_N]`), Ngày sinh (`[NGÀY_SINH_N]`), Email (`[EMAIL_N]`).
+     - Tự động hoàn nguyên danh tính (`unmaskPii`) sau khi nhận kết quả từ LLM đám mây, bảo đảm Zero Cloud Data Leakage.
 
 ---
 
-### UC-11: Kế Hoạch & Kiến Trúc Thu Phí Dịch Vụ Y Tế (Commercial Monetization & Quota Enforcement Architecture)
+### UC-11: Kế Hoạch & Kiến Trúc Thu Phí Dịch Vụ Y Tế, Hạn Ngạch Quét & Quản Trị Quota (Commercial Monetization & Quota Enforcement Architecture)
 
 * **Mã Use Case:** `UC-BIZ-11`
-* **Tác nhân chính:** Patient, Doctor, Platform Admin, Payment Gateway (VietQR / VNPay Sandbox).
+* **Tác nhân chính:** Patient, Doctor, Platform Admin, Payment Gateway (VietQR / Stripe Sandbox).
 * **Mục tiêu:** Định hình mô hình doanh thu bền vững cho nền tảng MediAssist-AI, quản lý hạn ngạch dịch vụ AI và điều phối giao dịch thanh toán khám chữa bệnh trực tuyến chuẩn Doanh Nghiệp.
+* **REST Endpoints Liên Quan:**
+  - `GET /api/v1/documents/quota`: Lấy thông tin hạn ngạch quét còn lại và trạng thái gói cước VIP.
 * **Mô hình kinh doanh & Cơ cấu phí (Milestone 6 Baseline):**
   1. **Gói Hội Viên MediPass VIP Family (149.000đ/tháng hoặc 1.290.000đ/năm):**
      - Phân luồng Triage AI 24/7 không giới hạn số lượt.
@@ -493,7 +457,8 @@ graph TD
   3. **Hạn Ngạch Phân Tích OCR Báo Cáo Xét Nghiệm (Pay-as-you-go Quota):**
      - Lần đầu tiên: Miễn phí 1 lần dùng thử cho mọi tài khoản mới đăng ký.
      - Lần scan lẻ: 29.000đ / lượt phân tích tệp PDF.
-     - Gói tiết kiệm: 99.000đ / 5 lượt phân tích (tiết kiệm 32%).
+     - Gói tiết kiệm: 99.000đ / 5 lượt phân tích (tiết kiệm 32%, hạn dùng 12 tháng).
+     - **Chính sách Deduplication Vĩnh Viễn:** Tải lại tài liệu đã phân tích hoàn toàn miễn phí trọn đời (0đ, 0 token nhờ SHA-256 cache).
 
 
 

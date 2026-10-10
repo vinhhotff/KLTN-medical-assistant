@@ -1,6 +1,6 @@
 # MediAssist-AI Agent Directive & Development Rules (AGENTS.md)
 > **Single Source of Truth for AI Assistants (Antigravity, Cursor, Copilot, Claude, GPT)**  
-> **Workspace:** `c:\Users\ADmin\Documents\antigravity\resilient-fermi`  
+> **Workspace:** `MediAssist-AI (KLTN-medical-assistant)`  
 > **GitHub Remote:** `https://github.com/vinhhotff/KLTN-medical-assistant.git`
 
 ---
@@ -16,13 +16,13 @@ User trong phiên làm việc đóng vai trò là **Tech Lead & Solution Archite
 > Mỗi khi sinh mã nguồn mới (Code Generation) hoặc thay đổi logic hệ thống, AI **BẮT BUỘC PHẢI CẬP NHẬT NGAY LẬP TỨC** các tệp tương ứng trong thư mục `docs/`:
 > 
 > 1. **Khi thay đổi DB / Entity / Migration / Schema**:
->    - Bắt buộc cập nhật: [`docs/DATABASE_DESIGN.md`](file:///docs/DATABASE_DESIGN.md) (Thêm cột, bảng, HNSW vector index, trigger, connection pool).
+>    - Bắt buộc cập nhật: [`docs/DATABASE_DESIGN.md`](./docs/DATABASE_DESIGN.md) (Thêm cột, bảng, HNSW vector index, trigger, connection pool).
 > 2. **Khi thêm / sửa API Endpoint hoặc Luồng người dùng**:
->    - Bắt buộc cập nhật: [`docs/USE_CASES.md`](file:///docs/USE_CASES.md) (Pre/Post-condition, Happy Path, Alternative/Exception Flow).
+>    - Bắt buộc cập nhật: [`docs/USE_CASES.md`](./docs/USE_CASES.md) (Pre/Post-condition, Happy Path, Alternative/Exception Flow).
 > 3. **Khi thay đổi bối cảnh lâm sàng / UI / Giá trị sản phẩm**:
->    - Bắt buộc cập nhật: [`docs/STORYTELLING.md`](file:///docs/STORYTELLING.md) (Personas, Empathy map, Bối cảnh y tế VN).
+>    - Bắt buộc cập nhật: [`docs/STORYTELLING.md`](./docs/STORYTELLING.md) (Personas, Empathy map, Bối cảnh y tế VN).
 > 4. **Khi thêm kịch bản demo / câu hỏi phản biện bảo vệ luận văn**:
->    - Bắt buộc cập nhật: [`docs/CAPSTONE_DEFENSE.md`](file:///docs/CAPSTONE_DEFENSE.md) (Q&A hội đồng, kịch bản thuyết trình, live demo checklist).
+>    - Bắt buộc cập nhật: [`docs/CAPSTONE_DEFENSE.md`](./docs/CAPSTONE_DEFENSE.md) (Q&A hội đồng, kịch bản thuyết trình, live demo checklist).
 
 ### 1.2. NGUYÊN TẮC SỐ 2: TỰ CHỦ HOÀN TOÀN (NO HANDWORK FOR TECH LEAD)
 - Tech Lead không muốn phải gõ lệnh tay chân.
@@ -34,7 +34,7 @@ User trong phiên làm việc đóng vai trò là **Tech Lead & Solution Archite
 ### 1.3. NGUYÊN TẮC SỐ 3: BẮT BUỘC CẬP NHẬT NHẬT KÝ PHÁT TRIỂN (WORK_LOG.md)
 > [!IMPORTANT]
 > **MỖI LẦN CẬP NHẬT/SỬA ĐỔI MÃ NGUỒN HOẶC HỆ THỐNG**:  
-> AI **BẮT BUỘC PHẢI THÊM BẢN GHI MỚI** vào đầu mục lịch sử trong [`docs/WORK_LOG.md`](file:///docs/WORK_LOG.md):
+> AI **BẮT BUỘC PHẢI THÊM BẢN GHI MỚI** vào đầu mục lịch sử trong [`docs/WORK_LOG.md`](./docs/WORK_LOG.md):
 > 1. **Thời gian & Tiêu đề**: Ghi rõ ngày giờ và tên việc đã làm.
 > 2. **Danh sách tệp tin**: Liệt kê rõ các tệp đã tạo mới `[NEW]`, đã sửa `[MOD]`, đã xóa `[DEL]`.
 > 3. **Tài liệu đã đồng bộ**: Đánh dấu các tệp trong `docs/` đã được update theo.

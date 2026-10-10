@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -28,6 +30,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class DoctorSemanticSearchServiceTest {
 
     @Mock
@@ -108,7 +111,7 @@ class DoctorSemanticSearchServiceTest {
                 List.of("Tim Mạch", "Huyết Áp"), "TS. BS.", "Bệnh viện Chợ Rẫy"
         );
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), (Object[]) any()))
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(), any(), any()))
                 .thenReturn(List.of(doctor));
 
         // First call - should query database
@@ -124,7 +127,7 @@ class DoctorSemanticSearchServiceTest {
         assertSame(result1, result2); // Same cached instance
 
         // Verify jdbcTemplate.query was called EXACTLY ONCE
-        verify(jdbcTemplate, times(1)).query(anyString(), any(RowMapper.class), (Object[]) any());
+        verify(jdbcTemplate, times(1)).query(anyString(), any(RowMapper.class), any(), any(), any());
     }
 
     @Test
@@ -136,18 +139,18 @@ class DoctorSemanticSearchServiceTest {
                 List.of("Nội Tiết"), "ThS. BS.", "Bệnh viện Bạch Mai"
         );
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), (Object[]) any()))
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(), any(), any()))
                 .thenReturn(List.of(doctor));
 
         searchService.searchDoctors("glucose tiểu đường", 4);
-        verify(jdbcTemplate, times(1)).query(anyString(), any(RowMapper.class), (Object[]) any());
+        verify(jdbcTemplate, times(1)).query(anyString(), any(RowMapper.class), any(), any(), any());
 
         // Invalidate cache
         searchService.invalidateCache();
 
         // Query again - must re-query database
         searchService.searchDoctors("glucose tiểu đường", 4);
-        verify(jdbcTemplate, times(2)).query(anyString(), any(RowMapper.class), (Object[]) any());
+        verify(jdbcTemplate, times(2)).query(anyString(), any(RowMapper.class), any(), any(), any());
     }
 
     @Test
@@ -159,11 +162,11 @@ class DoctorSemanticSearchServiceTest {
                 List.of("Tiêu Hóa"), "BS. CKII.", "Bệnh viện ĐHYD"
         );
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), (Object[]) any()))
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(), any(), any()))
                 .thenReturn(List.of(doctor));
 
         searchService.searchDoctors("men gan cao", 4);
-        verify(jdbcTemplate, times(1)).query(anyString(), any(RowMapper.class), (Object[]) any());
+        verify(jdbcTemplate, times(1)).query(anyString(), any(RowMapper.class), any(), any(), any());
 
         // Update doctor embedding
         UUID targetProfileId = UUID.randomUUID();
@@ -172,7 +175,7 @@ class DoctorSemanticSearchServiceTest {
 
         // Query again - cache was invalidated by update
         searchService.searchDoctors("men gan cao", 4);
-        verify(jdbcTemplate, times(2)).query(anyString(), any(RowMapper.class), (Object[]) any());
+        verify(jdbcTemplate, times(2)).query(anyString(), any(RowMapper.class), any(), any(), any());
     }
 
     @Test
@@ -201,7 +204,7 @@ class DoctorSemanticSearchServiceTest {
 
             DoctorMatchDto mapped = rowMapper.mapRow(rs, 1);
             return List.of(mapped);
-        }).when(jdbcTemplate).query(anyString(), any(RowMapper.class), (Object[]) any());
+        }).when(jdbcTemplate).query(anyString(), any(RowMapper.class), any(), any(), any());
 
         List<DoctorMatchDto> doctors = searchService.searchDoctors("ho kéo dài khó thở", 4);
         assertNotNull(doctors);

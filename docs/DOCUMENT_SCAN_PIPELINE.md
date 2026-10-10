@@ -4,7 +4,7 @@
 > **Dự án:** MediAssist-AI Telehealth & Clinical AI Platform  
 > **Chức năng:** Phân Tích Hồ Sơ Cận Lâm Sàng / Tóm Tắt Phiếu Xét Nghiệm (Document Summarizer & Lab OCR)  
 > **Mã Use Case:** `UC-CLIN-03`  
-> **Tài liệu liên quan:** [`docs/USE_CASES.md`](file:///Users/thanvinh/Desktop/KLTN/docs/USE_CASES.md#L190), [`docs/DATABASE_DESIGN.md`](file:///Users/thanvinh/Desktop/KLTN/docs/DATABASE_DESIGN.md#L208)
+> **Tài liệu liên quan:** [`docs/USE_CASES.md`](./USE_CASES.md), [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md)
 
 ---
 
@@ -74,7 +74,7 @@ sequenceDiagram
 Kiến trúc áp dụng nguyên lý **Tách rời Tệp nhị phân và Dữ liệu quan hệ (Decoupled Binary Storage)**. Toàn bộ thông tin được chia thành **2 bảng quan hệ 1-1** trong PostgreSQL:
 
 ### 2.1. Bảng 1: `medical_documents` (Quản lý tệp & Mã băm chống trùng)
-Được định nghĩa tại [`backend/src/main/java/com/mediassist/model/entity/MedicalDocument.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/model/entity/MedicalDocument.java) và DDL tại [`V1__initial_schema.sql`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/resources/db/migration/V1__initial_schema.sql) kết hợp [`V4__cloud_storage_and_quota_management.sql`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/resources/db/migration/V4__cloud_storage_and_quota_management.sql):
+Được định nghĩa tại [`backend/src/main/java/com/mediassist/model/entity/MedicalDocument.java`](../backend/src/main/java/com/mediassist/model/entity/MedicalDocument.java) và DDL tại [`V1__initial_schema.sql`](../backend/src/main/resources/db/migration/V1__initial_schema.sql) kết hợp [`V4__cloud_storage_and_quota_management.sql`](../backend/src/main/resources/db/migration/V4__cloud_storage_and_quota_management.sql):
 
 | Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Ý Nghĩa Lưu Trữ |
 | :--- | :--- | :--- | :--- |
@@ -92,7 +92,7 @@ Kiến trúc áp dụng nguyên lý **Tách rời Tệp nhị phân và Dữ li�
 ---
 
 ### 2.2. Bảng 2: `document_analyses` (Lưu Metadata Y Tế, Bảng Chỉ Số & Tóm Tắt)
-Được định nghĩa tại [`backend/src/main/java/com/mediassist/model/entity/DocumentAnalysis.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/model/entity/DocumentAnalysis.java) và DDL tại [`V5__add_document_analysis_metadata.sql`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/resources/db/migration/V5__add_document_analysis_metadata.sql):
+Được định nghĩa tại [`backend/src/main/java/com/mediassist/model/entity/DocumentAnalysis.java`](../backend/src/main/java/com/mediassist/model/entity/DocumentAnalysis.java) và DDL tại [`V5__add_document_analysis_metadata.sql`](../backend/src/main/resources/db/migration/V5__add_document_analysis_metadata.sql):
 
 | Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Ý Nghĩa Lưu Trữ |
 | :--- | :--- | :--- | :--- |
@@ -154,12 +154,12 @@ Khi anh cần tra cứu chi tiết từng dòng code:
 
 | Thành Phần | Đường Dẫn Tệp Tin | Dòng Code Quan Trọng |
 | :--- | :--- | :--- |
-| **1. Service Điều Phối Chính** | [`MedicalDocumentAnalysisService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java) | • Băm SHA-256 & Dedup: dòng 248 - 280<br>• Trích xuất song song: dòng 310 - 348<br>• Gọi RAG: dòng 363 - 368<br>• Lưu `medical_documents`: dòng 545 - 555<br>• Lưu `document_analyses`: dòng 610 - 632 |
-| **2. Trích Xuất PDF Box** | [`PdfExtractionService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/PdfExtractionService.java) | • `extractTextFromPdf`: trích xuất văn bản & nén trang |
-| **3. Rào Chắn Kiểm Định** | [`MedicalDocumentValidator.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/MedicalDocumentValidator.java) | • Kiểm tra Magic Bytes & Rây lọc từ khóa y khoa |
-| **4. Lắp Ráp Prompt RAG** | [`ClinicalRagService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/ClinicalRagService.java) | • `performDocumentRagAnalysis`: System Prompt, JSON Schema |
-| **5. Khử Định Danh PII** | [`MedicalPiiService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/MedicalPiiService.java) | • `maskPii` và `reidentify` theo Nghị định 13 |
-| **6. Tìm Kiếm Bác Sĩ pgvector** | [`DoctorSemanticSearchService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/DoctorSemanticSearchService.java) | • Thuật toán WHRF & Min-Heap Bounded PriorityQueue |
-| **7. Lưu Trữ Supabase** | [`SupabaseStorageService.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/service/SupabaseStorageService.java) | • `uploadDocument`, `deleteDocument` |
-| **8. Thực Thể Database** | [`MedicalDocument.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/model/entity/MedicalDocument.java)<br>[`DocumentAnalysis.java`](file:///Users/thanvinh/Desktop/KLTN/backend/src/main/java/com/mediassist/model/entity/DocumentAnalysis.java) | • Các trường mapping bảng CSDL |
-| **9. Giao Diện Người Dùng** | [`DocumentSummarizerPage.tsx`](file:///Users/thanvinh/Desktop/KLTN/frontend/src/pages/patient/DocumentSummarizerPage.tsx) | • Kéo thả đa tệp, hiển thị bảng chỉ số, xem PDF mẫu Meddies |
+| **1. Service Điều Phối Chính** | [`MedicalDocumentAnalysisService.java`](../backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java) | • Băm SHA-256 & Dedup: dòng 248 - 280<br>• Trích xuất song song: dòng 310 - 348<br>• Gọi RAG: dòng 363 - 368<br>• Lưu `medical_documents`: dòng 545 - 555<br>• Lưu `document_analyses`: dòng 610 - 632 |
+| **2. Trích Xuất PDF Box** | [`PdfExtractionService.java`](../backend/src/main/java/com/mediassist/service/PdfExtractionService.java) | • `extractTextFromPdf`: trích xuất văn bản & nén trang |
+| **3. Rào Chắn Kiểm Định** | [`MedicalDocumentValidator.java`](../backend/src/main/java/com/mediassist/service/MedicalDocumentValidator.java) | • Kiểm tra Magic Bytes & Rây lọc từ khóa y khoa |
+| **4. Lắp Ráp Prompt RAG** | [`ClinicalRagService.java`](../backend/src/main/java/com/mediassist/service/ClinicalRagService.java) | • `performDocumentRagAnalysis`: System Prompt, JSON Schema |
+| **5. Khử Định Danh PII** | [`MedicalPiiService.java`](../backend/src/main/java/com/mediassist/service/MedicalPiiService.java) | • `maskPii` và `reidentify` theo Nghị định 13 |
+| **6. Tìm Kiếm Bác Sĩ pgvector** | [`DoctorSemanticSearchService.java`](../backend/src/main/java/com/mediassist/service/DoctorSemanticSearchService.java) | • Thuật toán WHRF & Min-Heap Bounded PriorityQueue |
+| **7. Lưu Trữ Supabase** | [`SupabaseStorageService.java`](../backend/src/main/java/com/mediassist/service/SupabaseStorageService.java) | • `uploadDocument`, `deleteDocument` |
+| **8. Thực Thể Database** | [`MedicalDocument.java`](../backend/src/main/java/com/mediassist/model/entity/MedicalDocument.java)<br>[`DocumentAnalysis.java`](../backend/src/main/java/com/mediassist/model/entity/DocumentAnalysis.java) | • Các trường mapping bảng CSDL |
+| **9. Giao Diện Người Dùng** | [`DocumentSummarizerPage.tsx`](../frontend/src/pages/patient/DocumentSummarizerPage.tsx) | • Kéo thả đa tệp, hiển thị bảng chỉ số, xem PDF mẫu Meddies |

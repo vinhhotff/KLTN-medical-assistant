@@ -98,7 +98,7 @@
 
 ---
 
-## 4. Top 10 Câu Hỏi Phản Biện Chuyên Sâu & Lời Giải Mẫu (Anticipated Defense Q&A)
+## 4. Top 16 Câu Hỏi Phản Biện Chuyên Sâu & Lời Giải Mẫu (Anticipated Defense Q&A)
 
 ### Câu hỏi 1: Tại sao nhóm chọn kiến trúc Modular Monolith với Spring Boot thay vì Microservices ngay từ đầu?
 * **Trả lời của sinh viên:**  
@@ -288,6 +288,21 @@
 
 ---
 
+### Câu hỏi 15: Làm thế nào hệ thống kiểm soát và phân tích chi phí tiêu thụ Token AI (FinOps Analytics) theo thời gian thực để bệnh viện không bị thâm hụt ngân sách khi lượng người dùng tăng đột biến?
+* **Trả lời của sinh viên:**  
+  *"Thưa Thầy Cô, đối với một nền tảng Y tế ứng dụng AI tạo sinh, quản trị tài chính đám mây (FinOps) là bài toán sống còn:
+  1. **Bảng Kiểm Toán Token Chuyên Biệt (`ai_token_usage` - Flyway V18):**
+     - Mọi cuộc gọi đến mô hình ngôn ngữ lớn (Gemini, OpenRouter) đều được dịch vụ `AiUsageAnalyticsService` ghi nhận phi đồng bộ (asynchronous audit logging) vào bảng `ai_token_usage`.
+     - Các trường dữ liệu lưu trữ: `prompt_tokens`, `completion_tokens`, `total_tokens`, `model_name`, `service_type` (TRIAGE, DOCUMENT_OCR, RAG), `cost_usd` (tính chính xác đến 6 chữ số thập phân), và `request_status` (SUCCESS, RATE_LIMITED, ERROR).
+  2. **Biểu Đồ Xu Hướng Chi Phí Thời Gian Thực Trên Admin Dashboard:**
+     - Tích hợp biểu đồ trực quan Recharts cho phép Giám đốc bệnh viện / Admin theo dõi chi phí AI theo chuỗi ngày (7 ngày, 30 ngày) và cơ cấu tiêu thụ theo từng dịch vụ.
+     - Cảnh báo sớm khi chi phí trong ngày vượt ngưỡng ngân sách định mức (Budget Threshold Alert).
+  3. **Kiểm Soát Hạn Ngạch Bệnh Nhân (Scan Quota Guard):**
+     - Mỗi tài khoản bệnh nhân được cấp hạn ngạch quét (`scan_quota`), trừ 1 lượt nguyên tử khi phân tích tệp và từ chối khi hết lượt (`HTTP 402 Payment Required`).
+     - Người dùng có thể nâng cấp gói hội viên MediPass VIP (149.000đ/tháng) hoặc nạp lượt quét lẻ qua cổng thanh toán VietQR / Stripe Sandbox, đảm bảo mô hình tài chính tự bù đắp chi phí vận hành."*
+
+---
+
 ### Câu hỏi 16: Cơ chế Vector Search của MediAssist-AI là True Neural Embedding (Mạng Nơ-ron Transformer) hay chỉ là so khớp từ khóa (keyword matching)? Làm thế nào hệ thống đạt được độ chính xác tìm kiếm vượt trội so với tìm kiếm truyền thống?
 * **Trả lời của sinh viên:**  
   *"Thưa Thầy Cô, đây là một điểm kiến trúc cốt lõi mà nhóm đã tối ưu hóa triệt để để đạt chuẩn AI thực thụ:
@@ -315,4 +330,4 @@
 | **Kiến Trúc & Thiết Kế Hệ Thống** | 25% | Kiến trúc phân tầng rõ ràng, cơ sở dữ liệu chuẩn hóa, có giải pháp chống race condition, cache chịu tải. | Đạt xuất sắc: Spring Boot 3 + PostgreSQL pgvector + Redis 2-Layer Cache + Connection Pool HikariCP. |
 | **Chất Lượng Mã Nguồn & Testing** | 20% | Mã nguồn sạch (Clean Code), không lỗi bảo mật, tuân thủ nguyên lý SOLID, unit test đầy đủ. | Đạt xuất sắc: Java 21 LTS, TypeScript nghiêm ngặt (0 lint error), build xanh 100%. |
 | **Bảo Mật & Tuân Thủ Pháp Lý** | 15% | RBAC chặt chẽ, mật khẩu mã hóa Bcrypt cost 12, token HttpOnly cookie, disclaimer y tế rõ ràng. | Đạt xuất sắc: Đạt chuẩn bảo mật OWASP, có rào chắn Red-flag khẩn cấp. |
-| **Báo Cáo & Kỹ Năng Trình Bày** | 20% | Báo cáo đầy đủ 5 chương, sơ đồ Mermaid chuẩn mực, live demo mượt mà, trả lời phản biện xuất sắc. | Đạt xuất sắc: Bộ tài liệu 4 file markdown chi tiết, kịch bản thuyết trình và Q&A toàn diện. |
+| **Báo Cáo & Kỹ Năng Trình Bày** | 20% | Báo cáo đầy đủ 5 chương, sơ đồ Mermaid chuẩn mực, live demo mượt mà, trả lời phản biện xuất sắc. | Đạt xuất sắc: Bộ tài liệu chuyên sâu toàn diện trong `docs/` (Architecture, Database Design, SRS, Use Cases, Defense Guide, Traceability Matrix...), kịch bản thuyết trình và Q&A toàn diện. |

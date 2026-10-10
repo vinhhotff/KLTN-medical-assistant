@@ -5,7 +5,7 @@
 [![Spring Boot 3.4](https://img.shields.io/badge/Spring_Boot-3.4.x-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%20%2B%20pgvector-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
 [![Redis](https://img.shields.io/badge/Redis-Two_Layer_Cache-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
-[![React 19](https://img.shields.io/badge/React-19%20%2B%20Vite%20%2B%20TS-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![React 18](https://img.shields.io/badge/React-18%20LTS%20%2B%20Vite%20%2B%20TS-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Zero_Config_Dev-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 
 > **Kho lưu trữ chính thức:** [github.com/vinhhotff/KLTN-medical-assistant](https://github.com/vinhhotff/KLTN-medical-assistant.git)  
@@ -44,7 +44,7 @@ Dự án áp dụng mô hình **Modular Monolith** kết hợp kiến trúc phâ
 [ Bệnh Nhân / Bác Sĩ / Quản Trị Viên ]
                   │
                   ▼ (HTTPS / TLS 1.3 - Dual Auth: HttpOnly Cookie + Bearer)
-[ React 19 Single Page App ] ─── Tailwind CSS + Lucide Icons + Zustand Store
+[ React 18 Single Page App ] ─── Tailwind CSS + Lucide Icons + Zustand Store
                   │
                   ▼
 [ Java 21 / Spring Boot 3.4.x Enterprise Core ]

@@ -33,7 +33,7 @@
 ### 2. Cơ Sở Dữ Liệu & Giao Dịch (Database & Transactions)
 - [ ] Các bảng mới có khóa chính UUID hoặc BigInt, có chỉ mục (Index) trên các trường `email`, `role`, `status` không?
 - [ ] Các thao tác đặt lịch hẹn (`appointments`) có cơ chế chống race condition (Unique Partial Index hoặc `@Version` Optimistic Lock) không?
-- [ ] Nếu có thay đổi bảng/cột: **Đã cập nhật vào [`docs/DATABASE_DESIGN.md`](file:///docs/DATABASE_DESIGN.md) chưa?**
+- [ ] Nếu có thay đổi bảng/cột: **Đã cập nhật vào [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md) chưa?**
 
 ### 3. Bảo Mật & Rào Chắn Y Tế (Security & Clinical Safety)
 - [ ] Các endpoint riêng tư có được bảo vệ qua `@PreAuthorize("hasRole('ADMIN')")` hoặc `hasRole('DOCTOR')` không?
@@ -47,8 +47,8 @@
 - [ ] Không có `console.log` thừa, không có API Key / Secret hardcode trong mã nguồn.
 
 ### 5. Tính Đầy Đủ Của Hồ Sơ Khóa Luận (Capstone Documentation)
-- [ ] Tệp [`docs/WORK_LOG.md`](file:///docs/WORK_LOG.md) đã được bổ sung bản ghi cho phiên làm việc này.
-- [ ] Nếu tính năng mới phục vụ bảo vệ đồ án: Đã được bổ sung vào kịch bản Live Demo hoặc Q&A trong [`docs/CAPSTONE_DEFENSE.md`](file:///docs/CAPSTONE_DEFENSE.md).
+- [ ] Tệp [`docs/WORK_LOG.md`](./WORK_LOG.md) đã được bổ sung bản ghi cho phiên làm việc này.
+- [ ] Nếu tính năng mới phục vụ bảo vệ đồ án: Đã được bổ sung vào kịch bản Live Demo hoặc Q&A trong [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md).
 
 ---
 

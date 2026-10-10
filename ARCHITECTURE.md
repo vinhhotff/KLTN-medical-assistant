@@ -70,8 +70,8 @@ MediAssist-AI adopts a **Modular Monolith** pattern with a clean 3-tier architec
 
 1. **Modular Monolith over Microservices:**
    * Do NOT split into 10 separate microservices with Kubernetes, gRPC, and Kafka. That creates operational chaos, high memory usage, and distributed transaction bugs.
-   * Maintain a **single well-structured backend codebase** with strict domain boundaries (`src/services/auth`, `src/services/medical`, `src/services/ai`, `src/services/queue`).
-   * Modules communicate via clean internal TypeScript interfaces, making future microservice extraction trivial if traffic ever demands it.
+   * Maintain a **single well-structured backend codebase** with strict domain package boundaries (`com.mediassist.controller`, `com.mediassist.service`, `com.mediassist.repository`, `com.mediassist.model`, `com.mediassist.ai`, `com.mediassist.config`).
+   * Modules communicate via clean internal Java Service interfaces and DTOs, making future microservice extraction trivial if traffic ever demands it.
 2. **Stateless App Servers for Horizontal Scalability:**
    * Backend stores zero session state in local memory (all sessions & tokens in Redis/PostgreSQL).
    * Any instance can be killed, restarted, or multiplied behind a load balancer without dropping active users.
@@ -88,51 +88,36 @@ MediAssist-AI adopts a **Modular Monolith** pattern with a clean 3-tier architec
 To guarantee the web application **does not crash or experience unexpected downtime**, the following patterns are strictly mandated:
 
 ### 3.1 Process Management & Lifecycle (Graceful Shutdown)
-```typescript
-// Standard Graceful Shutdown pattern in src/server.ts
-const signals = ['SIGTERM', 'SIGINT'];
-signals.forEach((signal) => {
-  process.on(signal, async () => {
-    logger.info(`Received ${signal}, initiating graceful shutdown...`);
-    
-    // 1. Stop accepting new HTTP requests
-    server.close(async () => {
-      logger.info('HTTP server closed.');
-      
-      // 2. Close BullMQ workers and pause queues
-      await closeQueues();
-      
-      // 3. Disconnect Redis client
-      await redisClient.quit();
-      
-      // 4. Disconnect Prisma connection pool
-      await prisma.$disconnect();
-      
-      logger.info('All resources released cleanly. Exiting.');
-      process.exit(0);
-    });
-
-    // Force shutdown if cleanup hangs > 10 seconds
-    setTimeout(() => {
-      logger.error('Graceful shutdown timed out. Forcing exit.');
-      process.exit(1);
-    }, 10000);
-  });
-});
+Spring Boot 3.4 embeds a native graceful shutdown lifecycle across embedded Tomcat, JPA, and background executor pools:
+```properties
+# Graceful Shutdown configuration in application.properties
+server.shutdown=graceful
+spring.lifecycle.timeout-per-shutdown-phase=10s
 ```
+
+Lifecycle execution:
+1. **Dừng tiếp nhận kết nối mới:** Embedded Tomcat từ chối các kết nối HTTP mới và trả về tín hiệu đóng kết nối.
+2. **Xử lý trọn vẹn request đang chạy:** Toàn bộ request đang dang dở được dành tối đa 10 giây để hoàn tất giao dịch.
+3. **Đóng thread pool ngầm:** Dừng `ThreadPoolTaskExecutor` (bao gồm `medicalOcrExecutor`), xả bộ đệm và dừng an toàn.
+4. **Ngắt kết nối bộ nhớ đệm & cơ sở dữ liệu:** Đóng kết nối Spring Data Redis và xả HikariCP Connection Pool cleanly.
 
 ### 3.2 Global Error Interception (Process Immunity)
-* **Unhandled Rejections & Uncaught Exceptions:** Captured by centralized crash handlers that log diagnostic stack traces with Pino/Winston before attempting controlled recovery, preventing container restart loops.
-* **Controller Error Wrapper:** All Express controllers are wrapped with an async error handler (`express-async-errors` or higher-order wrapper) ensuring unhandled Promise rejections always reach the centralized error middleware.
+* **Centralized RestControllerAdvice:** Mọi exception (từ validation, SQL, bảo mật đến ngoại vi AI) được chặn bắt tập trung bởi `GlobalExceptionHandler` kế thừa chuẩn `ResponseEntityExceptionHandler`.
+* **Chuẩn hóa ApiResponse:** Toàn bộ phản hồi lỗi được bọc trong đối tượng `ApiResponse<T>` với mã lỗi chuẩn mực (`timestamp`, `status`, `message`, `data`), triệt tiêu 100% hiện tượng crash container hoặc lộ stack trace nhạy cảm.
 
-### 3.3 Database Connection Pool Tuning
-PostgreSQL connection pooling is managed via Prisma with explicit limits to prevent DB exhaustion under load:
-```env
-# Connection pool configuration
-DATABASE_URL="postgresql://postgres:password@postgres:5432/mediassist?connection_limit=25&pool_timeout=10"
+### 3.3 Database Connection Pool Tuning (HikariCP)
+Cơ sở dữ liệu PostgreSQL được quản lý thông qua **HikariCP**—bộ connection pool có hiệu năng cao nhất trong hệ sinh thái Java:
+```properties
+# HikariCP production connection pool configuration
+spring.datasource.hikari.maximum-pool-size=25
+spring.datasource.hikari.minimum-idle=10
+spring.datasource.hikari.connection-timeout=10000
+spring.datasource.hikari.idle-timeout=300000
+spring.datasource.hikari.max-lifetime=1800000
+spring.datasource.hikari.pool-name=MediAssistHikariPool
 ```
 * Max connections per node: 25.
-* Timeout: 10 seconds (avoids hanging requests indefinitely during DB spikes).
+* Timeout: 10 giây (ngăn chặn tình trạng treo request vô hạn khi đột biến tải).
 
 ### 3.4 Container Restart Policies
 In `docker-compose.yml`, all critical containers must specify:
@@ -156,8 +141,8 @@ To withstand heavy traffic spikes and maintain sub-50ms read latencies, a multi-
           │
           ▼
 ┌─────────────────────────────────┐
-│ L1: In-Memory (Node.js Process) │ ─── (HIT, < 1ms) ───► Return Response
-│ - Technology: lru-cache         │
+│ L1: In-Memory (Caffeine Cache)  │ ─── (HIT, < 1ms) ───► Return Response
+│ - Technology: Caffeine Cache    │
 │ - Scope: Static reference data  │
 │   (Specialties, Configs, Appts) │
 │ - TTL: 60s - 300s               │
@@ -166,7 +151,7 @@ To withstand heavy traffic spikes and maintain sub-50ms read latencies, a multi-
                  ▼
 ┌─────────────────────────────────┐
 │ L2: Distributed Cache (Redis)   │ ─── (HIT, 1-3ms) ───► Populate L1 ──► Return
-│ - Technology: ioredis           │
+│ - Technology: Spring Data Redis │
 │ - Scope: Doctor availability,   │
 │   User profile, Session tokens  │
 │ - TTL: 5m - 30m                 │
@@ -175,6 +160,7 @@ To withstand heavy traffic spikes and maintain sub-50ms read latencies, a multi-
                  ▼
 ┌─────────────────────────────────┐
 │ PostgreSQL 16 + pgvector        │ ───► Populate L2 & L1 ──────────────► Return
+│ (HikariCP Connection Pool)      │
 └─────────────────────────────────┘
 ```
 
@@ -207,12 +193,12 @@ To withstand heavy traffic spikes and maintain sub-50ms read latencies, a multi-
 * **JSON Schema Enforcement:** System prompts use strict JSON schemas (`response_format: { type: "json_object" }`). Raw text strings that fail JSON parsing are trapped and sanitized.
 
 ### 6.2 Semantic Doctor Matching (`pgvector`)
-* Model: `text-embedding-3-small` (dimension: 1536).
-* Index: HNSW (Hierarchical Navigable Small World) index for fast approximate nearest neighbor search:
+* Model: `text-embedding-3-small` (1536 chiều, kết hợp True Neural Transformer & Dynamic Text Extraction từ CSDL).
+* Index: HNSW (Hierarchical Navigable Small World) index kết hợp Partial Indexing cho bác sĩ đã xác minh (Flyway V1, V10, V19):
   ```sql
-  CREATE INDEX doctor_embedding_idx ON "Doctor" 
-  USING hnsw (embedding vector_cosine_ops) 
-  WITH (m = 16, ef_construction = 64);
+  CREATE INDEX idx_doctor_bio_hnsw ON doctor_profiles 
+  USING hnsw (bio_embedding vector_cosine_ops) 
+  WITH (m = 24, ef_construction = 128);
   ```
 * Distance Metric: Cosine distance (`<=>`).
   $$\text{Relevance Score} = (1 - \text{cosine\_distance}) \times 100\%$$
@@ -224,6 +210,7 @@ To transition from a simple API wrapper to an enterprise-grade resilient digital
 3. **Dynamic Two-Sided Clinical Queue Balancing:** Real-time multi-objective doctor-patient queue dispatching reducing patient wait time from $45\text{ mins} \rightarrow 12\text{ mins}$.
 4. **XFetch Probabilistic Cache Renewal:** Mathematically eliminating cache stampede under $100.000\text{ CCU}$.
 5. **Bi-directional Medical Knowledge Grounding & Ontology Validator:** LOINC & ICD-10 physiological bound checks eliminating clinical hallucination.
+6. **True Neural Embedding 1536-d & WHRF Min-Heap:** Xếp hạng đa tiêu chí $O(M \log K)$ với Credibility Damper chống rating ảo.
 
 ---
 
@@ -233,10 +220,10 @@ To satisfy the non-functional requirement of handling **≥ 500 concurrent users
 
 | Metric | Target SLA | Benchmark Strategy |
 | :--- | :--- | :--- |
-| **Concurrent Users** | $\ge 500$ Virtual Users (VU) | Tested via k6 / Artillery load testing script |
+| **Concurrent Users** | $\ge 500$ Virtual Users (VU) | Tested via k6 high load testing script (`tests/k6/high_load_test.js`) |
 | **Static / L1 Cached APIs** | $p95 < 50\text{ms}$, $p99 < 100\text{ms}$ | Health checks, Specialties list, Public profiles |
 | **Database Read APIs** | $p95 < 200\text{ms}$, $p99 < 400\text{ms}$ | Doctor search, Available appointment slots |
-| **AI Multimodal Queue** | Processing complete $\le 15\text{s} - 20\text{s}$ | Handled by BullMQ worker in background |
+| **AI Multimodal Processing** | Processing complete $\le 15\text{s} - 20\text{s}$ | Handled by `medicalOcrExecutor` ThreadPoolTaskExecutor with Semaphore(5) |
 | **System Error Rate** | $< 0.1\%$ under peak load | Zero unhandled exceptions or 500 Internal Server Errors |
 
 ---
@@ -244,47 +231,51 @@ To satisfy the non-functional requirement of handling **≥ 500 concurrent users
 ## 8. Directory & Project Structure Specification
 
 ```
-resilient-fermi/
+KLTN/
 ├── .github/workflows/          # CI/CD: lint, test, docker build
-├── docker/
-│   ├── Dockerfile.backend
-│   ├── Dockerfile.frontend
-│   └── nginx.conf              # Nginx gateway with gzip, rate limit, SSL
-├── docker-compose.yml          # Postgres(pgvector) + Redis + Backend + Frontend
+├── docker-compose.yml          # Postgres 16 (pgvector) + Redis 7
+├── docker-compose.prod.yml     # Production stack (Nginx + Backend + Frontend + DB + Redis)
+├── nginx/                      # Nginx reverse proxy configuration & SSL
 ├── docs/                       # FPT Capstone SRS, Architecture Design, Diagrams
-├── backend/
-│   ├── prisma/
-│   │   ├── schema.prisma       # Database models + pgvector extension
-│   │   ├── migrations/
-│   │   └── seed.ts             # Seed admin & sample specialties
+│   ├── MASTER_TRACEABILITY_INDEX.md
+│   ├── ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md
+│   ├── DATABASE_DESIGN.md
+│   ├── USE_CASES.md
+│   ├── CAPSTONE_DEFENSE.md
+│   └── ...
+├── backend/                    # Spring Boot 3.4.x (Java 21 LTS)
+│   ├── pom.xml                 # Maven build dependencies & plugins
+│   ├── Dockerfile
 │   ├── src/
-│   │   ├── config/             # Environment, connection pools, constants
-│   │   ├── controllers/        # HTTP handlers (Request -> DTO -> Response)
-│   │   ├── middlewares/        # auth, rbac, rateLimiter, errorHandler, cache
-│   │   ├── routes/             # Route aggregators (v1)
-│   │   ├── services/
-│   │   │   ├── auth/           # OAuth, JWT, session, password
-│   │   │   ├── cache/          # L1 (LRU) + L2 (Redis) 2-tier cache service
-│   │   │   ├── medical/        # Doctor, schedule, booking management
-│   │   │   ├── ai/             # AI Orchestration, Prompt Guardrails, Fallbacks
-│   │   │   ├── storage/        # S3 / Cloudinary Pre-signed URLs
-│   │   │   └── queue/          # BullMQ queue & background workers
-│   │   ├── utils/              # Logger (Pino), response wrappers, backoff
-│   │   └── server.ts           # Server bootstrap & Graceful shutdown
-│   ├── tests/
-│   │   ├── unit/
-│   │   ├── integration/
-│   │   └── load/               # k6 load test scripts (500 VU stress test)
-│   └── tsconfig.json
-├── frontend/
+│   │   ├── main/
+│   │   │   ├── java/com/mediassist/
+│   │   │   │   ├── ai/         # AiModelRouter, GeminiAiProvider, OpenRouter, Fallback
+│   │   │   │   ├── config/     # SecurityConfig, RedisConfig, CacheConfig, AsyncConfig
+│   │   │   │   ├── controller/ # REST Endpoints (Auth, Triage, Doctor, Appointment...)
+│   │   │   │   ├── dto/        # Request/Response Data Transfer Objects
+│   │   │   │   ├── model/      # JPA Entities & Enums (User, DoctorProfile, Appointment...)
+│   │   │   │   ├── repository/ # Spring Data JPA Repositories
+│   │   │   │   ├── service/    # Domain Services, TwoLayerCacheService, PII...
+│   │   │   │   └── exception/  # GlobalExceptionHandler, Custom Exceptions
+│   │   │   └── resources/
+│   │   │       ├── application.properties
+│   │   │       ├── application-dev.properties
+│   │   │       └── db/migration/  # Flyway SQL migrations (V1 -> V19)
+│   │   └── test/               # JUnit 5 & Mockito test suites (144+ tests)
+├── frontend/                   # React 18 (Vite + TypeScript + TailwindCSS)
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── Dockerfile
 │   ├── src/
-│   │   ├── components/         # Reusable UI, MedicalDisclaimerBanner
-│   │   ├── layouts/            # AdminLayout, DoctorLayout, PatientLayout
-│   │   ├── pages/              # Role-specific views
-│   │   ├── services/           # Axios client with interceptors
+│   │   ├── components/         # Reusable UI, MedicalDisclaimerBanner, Modals
+│   │   ├── layouts/            # Role-specific layouts (Admin, Doctor, Patient)
+│   │   ├── pages/              # Role-specific views (Triage, Search, EMR, FinOps)
+│   │   ├── services/           # Axios API client & interceptors
 │   │   ├── store/              # Zustand global client state
-│   │   └── routes/             # Protected Routes with RBAC Guards
-│   └── vite.config.ts
+│   │   └── utils/              # Helper utilities & clinical staging
+│   └── e2e/                    # Playwright E2E test suites (5 suites)
+├── tests/
+│   └── k6/                     # k6 Load & Benchmark scripts (500 VU stress test)
 ├── ARCHITECTURE.md             # This document
 ├── ROADMAP.md                  # Milestone & Sprint tracker
 └── README.md

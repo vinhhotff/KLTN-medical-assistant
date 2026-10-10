@@ -15,8 +15,9 @@
 - [4. Thuật Toán 3: Cân Bằng Hàng Đợi Hai Chiều Lâm Sàng (Dynamic Two-Sided Queue Dispatcher)](#4-thuật-toán-3-cân-bằng-hàng-đợi-hai-chiều-lâm-sàng)
 - [5. Thuật Toán 4: Làm Mới Cache Xác Suất XFetch (Chống Sập Cache Stampede)](#5-thuật-toán-4-làm-mới-cache-xác-suất-xfetch)
 - [6. Thuật Toán 5: Đối Soát Thực Thể Lâm Sàng Hai Chiều (Bi-directional Medical Ontology Validator)](#6-thuật-toán-5-đối-soát-thực-thể-lâm-sàng-hai-chiều)
-- [7. Ma Trận Đối So sánh: Hệ Thống Thông Thường vs MediAssist-AI Enterprise](#7-ma-trận-đối-so-sánh)
-- [8. Kịch Bản Thuyết Minh Trả Lời Hội Đồng (Executive Defense Script)](#8-kịch-bản-thuyết-minh-trả-lời-hội-đồng)
+- [7. Kiến Trúc Tìm Kiếm Bác Sĩ Chuẩn Doanh Nghiệp (Enterprise Vector Search & Neural Matching Architecture)](#7-kiến-trúc-tìm-kiếm-bác-sĩ-chuẩn-doanh-nghiệp)
+- [8. Ma Trận Đối So Sánh: Hệ Thống Thông Thường vs MediAssist-AI Enterprise](#8-ma-trận-đối-so-sánh)
+- [9. Kịch Bản Thuyết Minh Trả Lời Hội Đồng (Executive Defense Script)](#9-kịch-bản-thuyết-minh-trả-lời-hội-đồng)
 
 ---
 
@@ -311,7 +312,7 @@ graph TD
 
 ---
 
-## 8. Kịch Bản Thuyết Minh Trả Lời Hội Đồng (Executive Defense Script)
+## 9. Kịch Bản Thuyết Minh Trả Lời Hội Đồng (Executive Defense Script)
 
 > **Hội Đồng Hỏi:**  
 > *"Dự án của em có gì khác biệt về mặt kỹ thuật so với việc một lập trình viên chỉ viết vài dòng code gọi API từ Google hoặc OpenAI?"*

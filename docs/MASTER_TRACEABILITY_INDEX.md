@@ -12,7 +12,7 @@
 - [1. Bản Đồ Tổng Hợp Hệ Thống Tài Liệu (`docs/`)](#1-bản-đồ-tổng-hợp-hệ-thống-tài-liệu-docs)
 - [2. Ma Trận Truy Vết Yêu Cầu Kỹ Thuật Toàn Diện (RTM 33 Use Cases)](#2-ma-trận-truy-vết-yêu-cầu-kỹ-thuật-toàn-diện-rtm-33-use-cases)
 - [3. Bản Đồ Bộ 5 Thuật Toán Độc Quyền Cấp Doanh Nghiệp](#3-bản-đồ-bộ-5-thuật-toán-độc-quyền-cấp-doanh-nghiệp)
-- [4. Bản Đồ Cơ Sở Dữ Liệu & 19 Bản Di Trú Flyway (V1 - V18)](#4-bản-đồ-cơ-sở-dữ-liệu--19-bản-di-trú-flyway-v1---v18)
+- [4. Bản Đồ Cơ Sở Dữ Liệu & 19 Bản Di Trú Flyway (V1 - V19)](#4-bản-đồ-cơ-sở-dữ-liệu--19-bản-di-trú-flyway-v1---v19)
 - [5. Sổ Tra Cứu Các Lỗi Tiềm Ẩn & Giải Pháp Kiến Trúc Đã Khắc Phục](#5-sổ-tra-cứu-các-lỗi-tiềm-ẩn--giải-pháp-kiến-trúc-đã-khắc-phục)
 - [6. Bản Đồ Bộ Kiểm Thử Chất Lượng (Unit Tests, Playwright E2E & k6)](#6-bản-đồ-bộ-kiểm-thử-chất-lượng-unit-tests-playwright-e2e--k6)
 - [7. Cẩm Nang Lệnh Vận Hành Nhanh (Fast Operations Cheatsheet)](#7-cẩm-nang-lệnh-vận-hành-nhanh-fast-operations-cheatsheet)
@@ -27,9 +27,9 @@ Khi cần tìm kiếm tài liệu phục vụ viết báo cáo luận văn, slid
 | :--- | :--- | :---: | :---: |
 | **`MASTER_TRACEABILITY_INDEX.md`** *(Tệp này)* | Ma trận truy vết từ Use Case $\rightarrow$ Code $\rightarrow$ DB $\rightarrow$ Test, bản đồ thuật toán, cheatsheet lệnh | Toàn bộ nhóm & Hội đồng | [`docs/MASTER_TRACEABILITY_INDEX.md`](./MASTER_TRACEABILITY_INDEX.md) |
 | **`ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`** | Đặc tả chi tiết 5 thuật toán doanh nghiệp độc quyền (Hedged Requests, Progressive Sieve, XFetch, v.v.) | Tech Lead & Giám khảo chấm điểm | [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md) |
-| **`CAPSTONE_DEFENSE.md`** | Cẩm nang bảo vệ: Đề cương 5 chương, kịch bản thuyết trình 15p, checklist live demo, Top 15 câu hỏi Q&A | Cả nhóm đi bảo vệ | [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md) |
+| **`CAPSTONE_DEFENSE.md`** | Cẩm nang bảo vệ: Đề cương 5 chương, kịch bản thuyết trình 15p, checklist live demo, Top 16 câu hỏi Q&A | Cả nhóm đi bảo vệ | [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md) |
 | **`USE_CASES.md`** | Đặc tả 33 Use Cases chi tiết chuẩn RUP/IEEE 830, luồng sự kiện, ngoại lệ, API endpoints | Dev 1 & Dev 3 | [`docs/USE_CASES.md`](./USE_CASES.md) |
-| **`DATABASE_DESIGN.md`** | Thiết kế CSDL 3NF, sơ đồ Mermaid ERD, HNSW Indexing, 19 bản di trú Flyway V1-V18 | Dev 1 & Tech Lead | [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md) |
+| **`DATABASE_DESIGN.md`** | Thiết kế CSDL 3NF, sơ đồ Mermaid ERD, HNSW Indexing, 19 bản di trú Flyway V1-V19 | Dev 1 & Tech Lead | [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md) |
 | **`STORYTELLING.md`** | Bối cảnh y tế VN, nỗi đau quá tải bệnh viện, chân dung người dùng (Personas), đạo đức AI | Mở đầu slide & Chương 1 | [`docs/STORYTELLING.md`](./STORYTELLING.md) |
 | **`CAPSTONE_SPECIFICATION.md`** | Đặc tả mô hình O2O (Online-to-Offline), 5 phân hệ lâm sàng chuẩn FPT Capstone | Báo cáo môn học | [`docs/CAPSTONE_SPECIFICATION.md`](./CAPSTONE_SPECIFICATION.md) |
 | **`WORK_LOG.md`** | Nhật ký kiểm duyệt kiến trúc 85 phiên làm việc (`#001` đến `#085`), bằng chứng test | Tech Lead Audit | [`docs/WORK_LOG.md`](./WORK_LOG.md) |
@@ -95,7 +95,7 @@ Bảng dưới đây ánh xạ toàn bộ 33 Use Cases sang mã nguồn Frontend
 
 ---
 
-## 4. Bản Đồ Cơ Sở Dữ Liệu & 19 Bản Di Trú Flyway (V1 - V18)
+## 4. Bản Đồ Cơ Sở Dữ Liệu & 19 Bản Di Trú Flyway (V1 - V19)
 
 Toàn bộ các tệp di trú nằm tại thư mục: `backend/src/main/resources/db/migration/`:
 
@@ -142,7 +142,7 @@ Bảng lưu vết kỹ thuật (Defect Resolution Trail) chứng minh năng lự
 
 ## 6. Bản Đồ Bộ Kiểm Thử Chất Lượng (Unit Tests, Playwright E2E & k6)
 
-### 🧪 6.1. Backend Unit & Slice Tests (144 Tests - 100% PASS)
+### 🧪 6.1. Backend Unit & Slice Tests (158 Tests - 100% PASS)
 * Lệnh thực thi: `cd backend && mvn test`
 * Các bộ kiểm thử trọng yếu:
   - `TwoLayerCacheServiceTest.java`: Kiểm thử đồng bộ bộ nhớ đệm L1 Caffeine + L2 Redis, kiểm thử TTL và Write-invalidate.
