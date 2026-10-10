@@ -484,10 +484,10 @@ export const AdminDashboard: React.FC = () => {
                           dataKey="date" 
                           stroke="#64748b" 
                           fontSize={11} 
-                          tickFormatter={(val) => {
+                          tickFormatter={(val: any) => {
                             if (!val) return '';
-                            const parts = val.split('-');
-                            return parts.length >= 3 ? `${parts[2]}/${parts[1]}` : val;
+                            const parts = String(val).split('-');
+                            return parts.length >= 3 ? `${parts[2]}/${parts[1]}` : String(val);
                           }} 
                         />
                         <YAxis stroke="#64748b" fontSize={11} />
@@ -496,7 +496,7 @@ export const AdminDashboard: React.FC = () => {
                             aiChartMetric === 'tokens' ? Number(value).toLocaleString() + ' tokens' : '$' + Number(value).toFixed(6),
                             aiChartMetric === 'tokens' ? 'Tokens' : 'Chi Phí USD'
                           ]}
-                          labelFormatter={(label) => `Ngày: ${label}`}
+                          labelFormatter={(label: any) => `Ngày: ${label}`}
                         />
                         <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
                         <Line

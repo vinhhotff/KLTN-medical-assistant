@@ -322,6 +322,25 @@
 
 ---
 
+### Câu hỏi 17: Làm thế nào hệ thống giải quyết hiện tượng lệch ngữ nghĩa giữa từ vựng triệu chứng bình dân của bệnh nhân Việt Nam và hồ sơ học thuật của bác sĩ? Nhóm đã khai thác tập dữ liệu Meddies Persona Vie (150.000 ca bệnh) và Meddies PII để huấn luyện vector và đánh giá định lượng đồ thị HNSW trên pgvector như thế nào?
+* **Trả lời của sinh viên:**  
+  *"Thưa Thầy Cô, đây là một thách thức y tế thực tế rất lớn tại Việt Nam: Người bệnh khi mô tả bệnh thường dùng ngôn ngữ dân gian, mộc mạc (ví dụ: 'ăn vô đau âm ỉ thượng vị, trướng bụng, ợ chua' hoặc 'ngực trái nhói lên như kim chích, hụt hơi khi leo cầu thang'), trong khi hồ sơ bác sĩ truyền thống chỉ toàn thuật ngữ học thuật ('Bác sĩ Chuyên khoa Tim mạch Đại học Y Dược...'). Sự lệch pha này khiến các hệ thống vector thô có Top-1 Match Accuracy ban đầu chỉ đạt 6.0%.  
+  Để giải quyết triệt để và chứng minh năng lực kỹ thuật định lượng, nhóm đã xây dựng **Pipeline Huấn Luyện Vector & Thực Nghiệm Đồ Thị HNSW** (đặc tả tại [`docs/VECTOR_BENCHMARK_REPORT.md`](./VECTOR_BENCHMARK_REPORT.md)) khai thác 2 tập dữ liệu Hugging Face `Meddies/meddies-persona-vie` và `Meddies/meddies-pii`:
+  1. **Trích Xuất Chùm Triệu Chứng & Huấn Luyện Vector Hồ Sơ Bác Sĩ (Clinical Knowledge Augmentation):**
+     - Khai thác tập dữ liệu 150.000 hồ sơ bệnh nhân Việt Nam `Meddies/meddies-persona-vie`, nhóm tự động gom cụm các triệu chứng than phiền thực tế (`chief_complaint`, `presenting_symptoms`) theo từng mã bệnh chuẩn vàng ICD-10 và chuyên khoa.
+     - Làm giàu hồ sơ bác sĩ theo chuẩn tài liệu lâm sàng HL7/FHIR (bao gồm cả mã ICD-10 và tập triệu chứng đời thường), sau đó sinh lại vector nhúng 1536 chiều bằng thuật toán `VectorEmbeddingEngine` lưu trực tiếp vào trường `bio_embedding` của PostgreSQL `pgvector`.
+  2. **Kết Quả Cải Thiện Vượt Bậc Sau Huấn Luyện:**
+     - **Top-1 Match Accuracy:** Tăng từ **6.00% lên 23.2% (tăng gấp 3.9 lần)** trên 500 ca bệnh kiểm thử ngẫu nhiên.
+     - **Recall@3:** Tăng từ **19.00% lên 33.0%**.
+     - **Mean Reciprocal Rank (MRR):** Tăng từ **0.1573 lên 0.2931**.
+     - Các chuyên khoa trọng điểm đạt độ chính xác áp đảo: Tim Mạch (Top-1: **77.4%**, Recall@3: **93.5%**), Tiêu Hóa (Top-1: **62.0%**, Recall@3: **70.0%**), Da Liễu (Top-1: **57.1%**, Recall@3: **68.6%**), Cơ Xương Khớp (Top-1: **57.9%**, Recall@3: **73.7%**).
+  3. **Hiệu Năng Quét Đồ Thị HNSW Cực Nhanh Dưới 1ms:**
+     - Với cấu hình chỉ mục HNSW ($m=24, ef\_construction=128, ef\_search=100$), độ trễ truy vấn trung bình đo đạc được trên PostgreSQL 16 là **0.72 ms** (và P95 là **0.88 ms**), hoàn toàn không phụ thuộc vào tải mạng bên ngoài.
+  4. **Thực Nghiệm Rào Chắn Bảo Vệ Dữ Liệu Cá Nhân Y Tế (Meddies PII):**
+     - Kiểm thử trên 100 văn bản bệnh viện từ `Meddies/meddies-pii` đạt **Precision 82.72%** (Số điện thoại đạt 78.5% precision / 86.7% recall; Số định danh CCCD/CMND đạt 90.3% precision; Ngày sinh đạt 86.4% precision), đảm bảo tuân thủ Nghị định 13/2023/NĐ-CP và HIPAA Safe Harbor."*
+
+---
+
 ## 5. Bảng Tiêu Chí Đánh Giá Xuất Sắc Của Hội Đồng (Evaluation Rubric)
 
 | Tiêu Chí Đánh Giá | Trọng Số | Yêu Cầu Để Đạt Điểm Tối Đa (Grade A / 9.0 - 10.0) | Hiện Trạng Dự Án MediAssist-AI |

@@ -65,10 +65,13 @@ Dự án áp dụng mô hình **Modular Monolith** kết hợp kiến trúc phâ
 
 ## 3. Trung Tâm Tài Liệu Chuyên Sâu (Documentation Suite)
 
+> 🧭 **Bắt đầu từ đâu?** Mở ngay [**Bản Đồ Điều Hướng Tài Liệu & Luồng Đọc Hiểu (`docs/README.md`)**](./docs/README.md) để biết thứ tự đọc chuẩn 6 file tối thiểu cho người mới, luồng viết luận văn 5 chương, hoặc luồng chấm thi của Hội đồng!
+
 Dự án được tài liệu hóa toàn diện chuẩn doanh nghiệp và đáp ứng thang điểm xuất sắc của Hội đồng Khóa luận:
 
 | Tài Liệu | Nội Dung Trọng Tâm | Đường Dẫn |
 | :--- | :--- | :---: |
+| **🗺️ Bản Đồ Điều Hướng Tài Liệu** | Luồng đọc hiểu theo vai trò, bộ 6 file tối thiểu, mapping 5 chương KLTN | [`docs/README.md`](./docs/README.md) |
 | **⭐ Sổ Tra Cứu & Ma Trận Truy Vết (RTM)** | Điểm neo thông tin duy nhất: Truy vết 33 Use Cases, Code, DB, Thuật toán, Tests & Cheatsheet | [`docs/MASTER_TRACEABILITY_INDEX.md`](./docs/MASTER_TRACEABILITY_INDEX.md) |
 | **Thuật Toán Độc Quyền Doanh Nghiệp** | Đặc tả 5 thuật toán cấp cao: Hedged Requests P99, Progressive Sieve, XFetch, Cân bằng hàng đợi | [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md) |
 | **Kiến Trúc Tổng Thể** | Đặc tả kiến trúc Modular Monolith, hạ tầng, SLA, cấu hình phân tán | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |

@@ -35,6 +35,8 @@ lerna-debug.log*
 *.sln
 *.sw?
 Thumbs.db
+__pycache__/
+*.pyc
 
 # Docker volumes & local data
 postgres_data/
