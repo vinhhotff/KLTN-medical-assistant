@@ -114,8 +114,8 @@ docker compose up -d
 cd backend
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
-*Backend API chạy tại:* `http://localhost:5000`  
-*Kiểm tra trạng thái sức khỏe:* `http://localhost:5000/api/v1/health/ready`
+*Backend API chạy tại:* `http://localhost:5001`  
+*Kiểm tra trạng thái sức khỏe:* `http://localhost:5001/api/v1/health/ready`
 
 ### Bước 3: Khởi động Frontend Vite SPA
 ```bash
