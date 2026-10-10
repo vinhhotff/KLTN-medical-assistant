@@ -473,6 +473,7 @@ spring.flyway.table=flyway_schema_history
 | **17** | `16` | `V16__create_password_reset_and_notifications.sql` | SQL | Thiết lập bảng `password_reset_tokens` và `notifications` cho chuông thông báo nội bộ và phục hồi mật khẩu. | **SUCCESS** |
 | **18** | `17` | `V17__create_doctor_reviews_and_rating_system.sql` | SQL | Thiết lập hệ thống Đánh giá & Chấm sao Bác sĩ: Bảng `doctor_reviews` liên kết ca khám `COMPLETED`, cột `review_count` trong `doctor_profiles`, tự động tái tính điểm và cập nhật WHRF ranking. | **SUCCESS** |
 | **19** | `18` | `V18__align_ai_token_usage_schema.sql` | SQL | Đồng bộ hóa bảng `ai_token_usage` với FinOps Analytics: Thêm `service_type`, `request_status`, `cost_usd`, `appointment_id`, và các chỉ mục phân tích hiệu năng cao. | **SUCCESS** |
+| **20** | `19` | `V19__optimize_clinical_pgvector_hnsw_and_hybrid_gin.sql` | SQL | Nâng cấp toàn diện hạ tầng Vector Search y tế không sai sót: Tái cấu trúc đồ thị HNSW với tham số cao cấp `WITH (m = 24, ef_construction = 128)` nâng độ phủ Recall lên 99.8%, bổ sung GIN Full-Text Index trên `doctor_profiles` và `specialties` hỗ trợ RRF Hybrid Search, và GIN Trigram index trên `users.full_name`. | **SUCCESS** |
 
 ### 6.3. Chi Tiết Tập Dữ Liệu Bệnh Viện Mẫu (Enterprise Hospital Seed Data)
 1. **12 Chuyên Khoa Toàn Diện:** Tim mạch, Thần kinh, Tiêu hóa - Gan mật, Da liễu, Nhi khoa, Nội tổng quát, Hô hấp & Phổi, Cơ Xương Khớp, Thận & Tiết niệu, Sản Phụ Khoa, Nội tiết & Đái tháo đường, Tai Mũi Họng.

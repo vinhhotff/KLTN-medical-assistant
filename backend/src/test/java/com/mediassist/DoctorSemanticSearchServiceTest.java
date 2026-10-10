@@ -58,6 +58,19 @@ class DoctorSemanticSearchServiceTest {
     }
 
     @Test
+    @DisplayName("cleanseClinicalQuery strips conversational filler noise while preserving medical complaints")
+    void testCleanseClinicalQuery_PreservesMedicalComplaints() {
+        String noisyQuery = "Dạ thưa bác sĩ cho em hỏi dạo này em hay bị đau tức ngực khi tập thể dục nhờ bác sĩ tư vấn giúp em với ạ";
+        String cleansed = searchService.cleanseClinicalQuery(noisyQuery);
+        assertNotNull(cleansed);
+        assertFalse(cleansed.toLowerCase().startsWith("dạ thưa bác sĩ cho em hỏi"));
+        assertTrue(cleansed.contains("đau tức ngực"));
+
+        String cleanQuery = "đau nửa đầu hoa mắt chóng mặt";
+        assertEquals(cleanQuery, searchService.cleanseClinicalQuery(cleanQuery));
+    }
+
+    @Test
     @DisplayName("buildDoctorEmbeddingText constructs clinical text strictly from relational database fields")
     void testBuildDoctorEmbeddingText_FromDatabaseAttributes() {
         User user = new User();

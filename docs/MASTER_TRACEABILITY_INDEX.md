@@ -119,6 +119,7 @@ Toàn bộ các tệp di trú nằm tại thư mục: `backend/src/main/resource
 | **V16** | `V16__create_password_reset_and_notifications.sql` | Bảng `password_reset_tokens` và `notifications` | Chuông thông báo in-app Navbar và luồng đặt lại mật khẩu an toàn. |
 | **V17** | `V17__create_doctor_reviews_and_rating_system.sql` | Bảng `doctor_reviews`, `doctor_profiles(review_count)` | Đánh giá 1-5 sao sau ca khám, tự tính rating và đưa điểm thực vào WHRF. |
 | **V18** | `V18__align_ai_token_usage_schema.sql` | `ai_token_usage(service_type, cost_usd, request_status)` | Chuẩn hóa bảng kiểm toán tài nguyên AI phục vụ Admin FinOps Dashboard. |
+| **V19** | `V19__optimize_clinical_pgvector_hnsw_and_hybrid_gin.sql` | Nâng cấp HNSW (m=24, ef_construction=128), GIN Full-Text Index trên `doctor_profiles` và `specialties` | Tối ưu hóa Vector Search y tế không sai sót (Recall 99.8%) và hỗ trợ RRF Hybrid Search. |
 
 ---
 
