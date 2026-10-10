@@ -117,6 +117,25 @@ class EmbeddingServiceTest {
         assertTrue(sqlStr.contains("-0.456"));
     }
 
+    @Test
+    @DisplayName("Should support interactive toggle between Online Neural and Offline Simulation modes")
+    void testForceOfflineSimulationToggle() {
+        assertFalse(embeddingService.isForceOfflineSimulation());
+
+        // Toggle to offline simulation
+        embeddingService.setForceOfflineSimulation(true);
+        assertTrue(embeddingService.isForceOfflineSimulation());
+        assertTrue(embeddingService.getActiveEngineDescription().contains("Tắt API Key"));
+
+        float[] offlineVec = embeddingService.generateEmbedding("bị đau đầu mất ngủ");
+        assertNotNull(offlineVec);
+        assertEquals(EmbeddingService.EMBEDDING_DIM, offlineVec.length);
+
+        // Toggle back to online mode
+        embeddingService.setForceOfflineSimulation(false);
+        assertFalse(embeddingService.isForceOfflineSimulation());
+    }
+
     private float cosineSimilarity(float[] v1, float[] v2) {
         float dot = 0.0f;
         for (int i = 0; i < v1.length; i++) {

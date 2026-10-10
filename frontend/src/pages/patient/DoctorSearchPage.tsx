@@ -1,10 +1,20 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Calendar, Clock, MapPin, CheckCircle2, AlertCircle, X, Building2, Star, Filter, Sparkles, Loader2 } from 'lucide-react';
+import { Search, Calendar, Clock, MapPin, CheckCircle2, AlertCircle, X, Building2, Star, Filter, Sparkles, Loader2, Zap, PowerOff } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Pagination } from '../../components/common/Pagination';
 import { DoctorReviewsListModal } from '../../components/common/DoctorReviewsListModal';
+
+interface AiModeStatus {
+  forcedOfflineSimulation: boolean;
+  onlineNeuralActive: boolean;
+  activeEngineDescription: string;
+  vectorDimensions: number;
+  modelName: string;
+  statusLabel: string;
+  message?: string;
+}
 
 interface DoctorDetail {
   id: string;
@@ -66,6 +76,10 @@ export const DoctorSearchPage: React.FC = () => {
   const [semanticResults, setSemanticResults] = useState<DoctorDetail[] | null>(null);
   const [searchingSemantic, setSearchingSemantic] = useState(false);
 
+  // Vector AI Engine Live Toggle State
+  const [aiModeStatus, setAiModeStatus] = useState<AiModeStatus | null>(null);
+  const [togglingAiMode, setTogglingAiMode] = useState(false);
+
   // Booking Modal State
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorDetail | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -82,44 +96,77 @@ export const DoctorSearchPage: React.FC = () => {
   const [confirmedAppointment, setConfirmedAppointment] = useState<AppointmentConfirmation | null>(null);
   const [viewingReviewsDoctor, setViewingReviewsDoctor] = useState<DoctorDetail | null>(null);
 
+  const executeSemanticSearch = useCallback(async (query: string) => {
+    const trimmed = query.trim();
+    if (trimmed.length < 3 || !user) {
+      setSemanticResults(null);
+      return;
+    }
+    try {
+      setSearchingSemantic(true);
+      const res = await api.get('/triage/search/semantic', {
+        params: { query: trimmed, limit: 12 }
+      });
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        setSemanticResults(res.data.data);
+      } else {
+        setSemanticResults(null);
+      }
+    } catch (err) {
+      console.warn('Semantic search fallback to keyword filter:', err);
+      setSemanticResults(null);
+    } finally {
+      setSearchingSemantic(false);
+    }
+  }, [user]);
+
+  const loadAiModeStatus = useCallback(async () => {
+    try {
+      const res = await api.get('/system/ai-mode');
+      if (res.data?.data) {
+        setAiModeStatus(res.data.data);
+      }
+    } catch (err) {
+      console.warn('Failed to load AI mode status:', err);
+    }
+  }, []);
+
+  const handleToggleAiMode = async () => {
+    try {
+      setTogglingAiMode(true);
+      const res = await api.post('/system/ai-mode/toggle');
+      if (res.data?.data) {
+        setAiModeStatus(res.data.data);
+        if (searchTerm.trim().length >= 3) {
+          executeSemanticSearch(searchTerm);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle AI mode:', err);
+    } finally {
+      setTogglingAiMode(false);
+    }
+  };
+
   // Real pgvector HNSW Cosine Similarity search when query >= 3 chars and user authenticated
   useEffect(() => {
     const trimmed = searchTerm.trim();
-    if (trimmed.length < 3) {
+    if (trimmed.length < 3 || !user) {
       setSemanticResults(null);
       return;
     }
 
-    if (!user) {
-      setSemanticResults(null);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      try {
-        setSearchingSemantic(true);
-        const res = await api.get('/triage/search/semantic', {
-          params: { query: trimmed, limit: 12 }
-        });
-        if (res.data?.data && Array.isArray(res.data.data)) {
-          setSemanticResults(res.data.data);
-        } else {
-          setSemanticResults(null);
-        }
-      } catch (err) {
-        console.warn('Semantic search fallback to keyword filter:', err);
-        setSemanticResults(null);
-      } finally {
-        setSearchingSemantic(false);
-      }
+    const timer = setTimeout(() => {
+      executeSemanticSearch(trimmed);
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [searchTerm, user]);
+  }, [searchTerm, user, executeSemanticSearch]);
 
   useEffect(() => {
     fetchInitialData();
-  }, []);
+    loadAiModeStatus();
+  }, [loadAiModeStatus]);
 
   const fetchInitialData = async () => {
     try {
@@ -268,6 +315,58 @@ export const DoctorSearchPage: React.FC = () => {
         <p className="text-slate-500 text-sm mt-1">
           Hệ thống danh bạ bác sĩ chính quy tại các Bệnh viện tuyến đầu, tích hợp công nghệ AI vector pgvector đối soát ngữ nghĩa triệu chứng.
         </p>
+      </div>
+
+      {/* Vector AI Interactive Testing Control Bar (Dành cho Hội đồng / Live Demo) */}
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-4 shadow-sm border border-indigo-900/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className={`p-2.5 rounded-xl flex-shrink-0 transition ${
+            aiModeStatus?.forcedOfflineSimulation
+              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+              : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+          }`}>
+            {aiModeStatus?.forcedOfflineSimulation ? <PowerOff className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Động cơ Vector pgvector</span>
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                aiModeStatus?.forcedOfflineSimulation
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${aiModeStatus?.forcedOfflineSimulation ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`} />
+                {aiModeStatus?.statusLabel || 'Đang nạp trạng thái AI...'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 mt-1 font-mono">
+              {aiModeStatus?.activeEngineDescription || 'Mạng Nơ-ron Transformer Trực Tuyến (text-embedding-3-small 1536-d)'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button
+            type="button"
+            onClick={handleToggleAiMode}
+            disabled={togglingAiMode}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-xs cursor-pointer whitespace-nowrap ${
+              aiModeStatus?.forcedOfflineSimulation
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                : 'bg-amber-600 hover:bg-amber-500 text-white'
+            }`}
+            title="Nhấn để chuyển đổi giữa gọi Mạng nơ-ron AI trực tuyến và chế độ kiểm thử ngắt API key"
+          >
+            {togglingAiMode ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : aiModeStatus?.forcedOfflineSimulation ? (
+              <Zap className="w-3.5 h-3.5" />
+            ) : (
+              <PowerOff className="w-3.5 h-3.5" />
+            )}
+            {aiModeStatus?.forcedOfflineSimulation ? 'Bật Lại Neural AI' : 'Tắt API Key (Test Offline)'}
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search Toolbar */}

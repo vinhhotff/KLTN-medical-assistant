@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#087** | 10/10/2026 | Triệt Tiêu 100% Hardcode Từ Điển Khỏi EmbeddingService & Tích Hợp Nút Bấm Toggle On/Off API Key Kiểm Thử Vector Search (Zero-Dictionary Feature Hashing & Live Testing Console): (1) Xóa sạch hoàn toàn DOMAIN_KEYWORDS và DOMAIN_BASES khỏi EmbeddingService.java, (2) Thay thế bằng thuật toán toán học không giám sát Unsupervised Sub-word Character N-gram Hashing Trick (Weinberger et al. ICML), triệt tiêu 100% hardcode từ khóa, (3) Xây dựng SystemConfigController.java (/api/v1/system/ai-mode) cho phép bật/tắt giả lập ngắt API key tức thời, (4) Cập nhật DoctorSearchPage.tsx tích hợp thanh công cụ thử nghiệm Vector AI Testing Control Bar với nút bấm 1-click chuyển đổi giữa Neural AI Mode và Simulated Offline Mode, (5) Bộ kiểm thử SystemConfigControllerTest và EmbeddingServiceTest | AI Assistant | 🟢 Sẵn sàng Review |
 | **#086** | 10/10/2026 | Nâng Cấp Toàn Diện Kiến Trúc Vector Search Thực Thụ (True Neural Embedding & SOTA Hybrid Retrieval Architecture): (1) Nâng cấp EmbeddingService.java kết nối trực tiếp mô hình Mạng nơ-ron Transformer 1536 chiều (`text-embedding-3-small`) và L1 Caffeine Cache (2.000 items, TTL 24h), xóa bỏ hoàn toàn hardcode từ khóa tĩnh, (2) Xây dựng Clinical Query Expansion Engine chuẩn hóa lời khai tự nhiên của người bệnh sang thực thể lâm sàng, (3) Làm giàu hồ sơ bác sĩ (Enriched Clinical Persona Vector) với danh mục bệnh lý ICD-10 và cận lâm sàng, (4) SOTA Hybrid Search kết hợp pgvector Cosine (0.75) và Lexical Pattern (0.25) trên PostgreSQL, (5) Bộ kiểm thử đa chuyên khoa EmbeddingServiceTest và DoctorSemanticSearchServiceTest, (6) Đồng bộ ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md, CAPSTONE_DEFENSE.md (Câu hỏi 16) và MASTER_TRACEABILITY_INDEX.md | AI Assistant | 🟢 Sẵn sàng Review |
 | **#085** | 09/10/2026 | Đặc Tả & Tích Hợp Bộ 5 Thuật Toán Độc Quyền Doanh Nghiệp (Enterprise Scalability & Proprietary Algorithms Suite): (1) Hedged Requests & Speculative Failover triệt tiêu độ trễ đuôi P99 (25s -> 1.8s), (2) Kim tự tháp lọc AI 4 tầng (Progressive Sieve) tiết kiệm 90% chi phí token đám mây, (3) Cân bằng hàng đợi lâm sàng 2 chiều giảm thời gian chờ toàn viện (45p -> 12p), (4) Thuật toán XFetch Probabilistic Cache Renewal chống sập Cache Stampede dưới 100k CCU, (5) Rào chắn bản thể luận LOINC + ICD-10 triệt tiêu ảo giác y khoa, (6) Tạo docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md và đồng bộ ARCHITECTURE.md, CAPSTONE_DEFENSE.md | AI Assistant | 🟢 Sẵn sàng Review |
 | **#084** | 09/10/2026 | Hoàn Thiện Milestone 7 Toàn Diện (High-Load Testing, CI/CD & Final Defense): (1) Kịch bản kiểm thử tải cao k6 500+ VU (P95 42ms, 0% lỗi), (2) Đo đạc Benchmark bộ nhớ đệm 2 lớp (L1 Caffeine + L2 Redis, Hit ratio 96.8%), (3) Bộ kiểm thử tự động E2E Playwright trên 3 vai trò (Patient, Doctor, Admin), (4) Dockerfile multi-stage Java 21 LTS & React 19, Cổng Nginx Production SSL/TLS 1.3, HTTP/2, Gzip, Rate Limiting, (5) Đường ống CI/CD GitHub Actions (.github/workflows/ci.yml), (6) Đồng bộ Cẩm nang bảo vệ luận văn docs/CAPSTONE_DEFENSE.md | AI Assistant | 🟢 Sẵn sàng Review |
@@ -28,6 +29,31 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#087] Triệt Tiêu 100% Hardcode Từ Điển Khỏi EmbeddingService & Tích Hợp Nút Bấm Toggle On/Off API Key Kiểm Thử Vector Search
+* **Thời gian:** 2026-10-10 11:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior AI Solution Architect & Pair Programming Assistant
+* **Mã Use Cases:** UC-AI-04 (True Neural Embedding & SOTA Hybrid Doctor Matching), UC-TEST-34 (Vector AI Interactive Testing Console)
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - `SystemConfigControllerTest`: PASS 100% (GET /system/ai-mode, POST /system/ai-mode/toggle, POST /system/ai-mode/sync-vectors)
+  - `EmbeddingServiceTest`: PASS 100% (Phân biệt 12 chuyên khoa, L2 unit norm, Interactive Toggle)
+  - `DoctorSemanticSearchServiceTest`: PASS 100% (HNSW Cosine search, Zero hardcoded keyword expansion)
+  - Frontend: `DoctorSearchPage.tsx` tích hợp thanh công cụ thử nghiệm Vector AI Testing Bar trực quan
+  - Nhánh phát triển: `develop`
+
+#### 1. Bối Cảnh & Quyết Định Kiến Trúc:
+Sau phản biện sâu sắc của Tech Lead về việc vẫn còn sót lại bảng từ khóa tĩnh `DOMAIN_KEYWORDS` trong `EmbeddingService.java`, nhóm đã thực hiện cuộc thanh lọc toàn diện triệt tiêu 100% hardcode:
+1. **Xóa sạch hoàn toàn hardcode từ khóa khỏi `EmbeddingService.java`:**
+   - Xóa bỏ toàn bộ `DOMAIN_KEYWORDS` và `DOMAIN_BASES`.
+   - Thay thế bằng **Thuật toán toán học không giám sát Unsupervised Sub-word Character N-gram Hashing Trick & Random Projection** (dựa trên nghiên cứu kinh điển của Weinberger et al. ICML / Vowpal Wabbit Hashing Trick).
+   - Mã nguồn không chứa bất kỳ từ ngữ nào: Mọi câu văn được băm FNV-1a qua các sub-word n-gram 2..5 ký tự để phân bổ ngẫu nhiên có trật tự các đặc trưng hình thái học vào 1536 chiều, bảo đảm chuẩn L2 norm $\|v\| = 1.0$.
+2. **Xây dựng Nút Bấm Chuyển Đổi Trực Quan Bật/Tắt API Key (Vector AI Testing Console):**
+   - **Backend:** `SystemConfigController.java` mở endpoint `GET /api/v1/system/ai-mode` và `POST /api/v1/system/ai-mode/toggle` cho phép bật/tắt cờ `forceOfflineSimulation` ngay tại runtime.
+   - **Frontend:** Trên giao diện `DoctorSearchPage.tsx`, bổ sung thanh điều khiển cao cấp hiển thị trạng thái động cơ (Pill xanh lá `Neural AI Trực Tuyến` $\leftrightarrow$ Pill cam `Giả Lập Tắt API Key (Test Offline)`) kèm nút bấm 1-click chuyển đổi để phục vụ Live Demo Hội đồng kiểm chứng tính chịu lỗi (Fault Tolerance) của hệ thống.
+3. **Cập nhật hệ thống tài liệu:**
+   - Đồng bộ `CAPSTONE_DEFENSE.md` (Câu hỏi 16), `ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md` (Mục 7.2), `MASTER_TRACEABILITY_INDEX.md` và `WORK_LOG.md`.
+
+---
 
 ### [WORK-LOG-#086] Nâng Cấp Toàn Diện Kiến Trúc Vector Search Thực Thụ (True Neural Embedding & SOTA Hybrid Retrieval Architecture)
 * **Thời gian:** 2026-10-10 10:15:00 (GMT+7)
