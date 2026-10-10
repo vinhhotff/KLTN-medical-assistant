@@ -34,8 +34,8 @@ class EmbeddingServiceTest {
     }
 
     @Test
-    @DisplayName("Should have higher cosine similarity for semantically related medical concepts")
-    void testSemanticCosineSimilarity() {
+    @DisplayName("Should have higher cosine similarity for semantically related medical concepts (Cardio vs Derma)")
+    void testSemanticCosineSimilarity_CardioVsDerma() {
         String query = "Tôi hay bị hồi hộp và đau tức ngực khi tập thể dục";
         String cardioDoctor = "Chuyên gia tim mạch, tầm soát bệnh mạch vành và nhịp tim";
         String dermaDoctor = "Bác sĩ da liễu, điều trị mụn trứng cá và viêm da cơ địa";
@@ -49,6 +49,60 @@ class EmbeddingServiceTest {
 
         assertTrue(simCardio > simDerma,
                 String.format("Expected cardio similarity (%.3f) > derma similarity (%.3f)", simCardio, simDerma));
+    }
+
+    @Test
+    @DisplayName("Should discriminate Gastroenterology from Pulmonology accurately")
+    void testSemanticCosineSimilarity_GastroVsPulmo() {
+        String query = "Bị đau vùng thượng vị dạ dày, ợ chua và trào ngược thức ăn sau khi ăn";
+        String gastroDoctor = "Bác sĩ Tiêu hóa - Gan mật, điều trị viêm loét dạ dày tá tràng và vi khuẩn HP";
+        String pulmoDoctor = "Bác sĩ Hô hấp - Phổi, điều trị hen suyễn, COPD và viêm phế quản";
+
+        float[] vQuery = embeddingService.generateEmbedding(query);
+        float[] vGastro = embeddingService.generateEmbedding(gastroDoctor);
+        float[] vPulmo = embeddingService.generateEmbedding(pulmoDoctor);
+
+        float simGastro = cosineSimilarity(vQuery, vGastro);
+        float simPulmo = cosineSimilarity(vQuery, vPulmo);
+
+        assertTrue(simGastro > simPulmo,
+                String.format("Expected gastro similarity (%.3f) > pulmo similarity (%.3f)", simGastro, simPulmo));
+    }
+
+    @Test
+    @DisplayName("Should discriminate Nephrology from ENT accurately on lab tests")
+    void testSemanticCosineSimilarity_NephroVsEnt() {
+        String query = "Xét nghiệm chỉ số Creatinine máu tăng cao 180 umol/L, tiểu đêm nhiều lần và phù chân";
+        String nephroDoctor = "Chuyên gia Thận - Tiết niệu, suy thận mạn và sỏi tiết niệu";
+        String entDoctor = "Bác sĩ Tai Mũi Họng, viêm xoang mũi và viêm amidan họng hạt";
+
+        float[] vQuery = embeddingService.generateEmbedding(query);
+        float[] vNephro = embeddingService.generateEmbedding(nephroDoctor);
+        float[] vEnt = embeddingService.generateEmbedding(entDoctor);
+
+        float simNephro = cosineSimilarity(vQuery, vNephro);
+        float simEnt = cosineSimilarity(vQuery, vEnt);
+
+        assertTrue(simNephro > simEnt,
+                String.format("Expected nephro similarity (%.3f) > ent similarity (%.3f)", simNephro, simEnt));
+    }
+
+    @Test
+    @DisplayName("Should discriminate Neurology from Orthopedics accurately")
+    void testSemanticCosineSimilarity_NeuroVsOrtho() {
+        String query = "Hay bị hoa mắt chóng mặt, rối loạn tiền đình, đau nửa đầu và mất ngủ kéo dài";
+        String neuroDoctor = "Bác sĩ Thần kinh, điều trị đau nửa đầu migraine, tai biến mạch máu não và sa sút trí tuệ";
+        String orthoDoctor = "Bác sĩ Cơ xương khớp, thoái hóa khớp gối và thoát vị đĩa đệm cột sống thắt lưng";
+
+        float[] vQuery = embeddingService.generateEmbedding(query);
+        float[] vNeuro = embeddingService.generateEmbedding(neuroDoctor);
+        float[] vOrtho = embeddingService.generateEmbedding(orthoDoctor);
+
+        float simNeuro = cosineSimilarity(vQuery, vNeuro);
+        float simOrtho = cosineSimilarity(vQuery, vOrtho);
+
+        assertTrue(simNeuro > simOrtho,
+                String.format("Expected neuro similarity (%.3f) > ortho similarity (%.3f)", simNeuro, simOrtho));
     }
 
     @Test
