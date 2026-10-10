@@ -58,34 +58,15 @@ class DoctorSemanticSearchServiceTest {
     }
 
     @Test
-    @DisplayName("Clinical Query Expansion engine enriches layman symptoms into medical synonyms")
-    void testClinicalQueryExpansion() {
-        String cardiacQuery = searchService.expandClinicalQuery("bị đau ngực và khó thở");
-        assertTrue(cardiacQuery.contains("tim mach") && cardiacQuery.contains("dau that nguc"),
-                "Expected cardiac query expansion: " + cardiacQuery);
-
-        String neuroQuery = searchService.expandClinicalQuery("chóng mặt và mất ngủ");
-        assertTrue(neuroQuery.contains("than kinh") && neuroQuery.contains("tien dinh"),
-                "Expected neuro query expansion: " + neuroQuery);
-
-        String gastroQuery = searchService.expandClinicalQuery("đau bụng ợ chua");
-        assertTrue(gastroQuery.contains("tieu hoa") && gastroQuery.contains("da day"),
-                "Expected gastro query expansion: " + gastroQuery);
-
-        String endoQuery = searchService.expandClinicalQuery("tiểu đường sụt cân");
-        assertTrue(endoQuery.contains("noi tiet") && endoQuery.contains("glucose"),
-                "Expected endo query expansion: " + endoQuery);
-    }
-
-    @Test
-    @DisplayName("buildEnrichedDoctorEmbeddingText enriches doctor bio with full specialty competencies")
-    void testBuildEnrichedDoctorEmbeddingText() {
+    @DisplayName("buildDoctorEmbeddingText constructs clinical text strictly from relational database fields")
+    void testBuildDoctorEmbeddingText_FromDatabaseAttributes() {
         User user = new User();
         user.setFullName("GS.TS.BS Nguyễn Văn An");
 
         Specialty cardio = new Specialty();
         cardio.setName("Tim Mạch");
         cardio.setSlug("cardiology");
+        cardio.setDescription("Chuyên khoa Tim mạch chẩn đoán và điều trị bệnh mạch vành, nhồi máu cơ tim và suy tim");
 
         DoctorProfile profile = new DoctorProfile();
         profile.setUser(user);
@@ -96,12 +77,12 @@ class DoctorSemanticSearchServiceTest {
         profile.setBio("Chuyên gia tim mạch hàng đầu");
         profile.setSpecialties(Set.of(cardio));
 
-        String enriched = searchService.buildEnrichedDoctorEmbeddingText(profile);
-        assertNotNull(enriched);
-        assertTrue(enriched.contains("Nguyễn Văn An"));
-        assertTrue(enriched.contains("Tim Mạch"));
-        assertTrue(enriched.contains("mach vanh") || enriched.contains("nhồi máu cơ tim") || enriched.contains("suy tim"));
-        assertTrue(enriched.contains("Troponin"));
+        String text = searchService.buildDoctorEmbeddingText(profile);
+        assertNotNull(text);
+        assertTrue(text.contains("Nguyễn Văn An"));
+        assertTrue(text.contains("Tim Mạch"));
+        assertTrue(text.contains("Chuyên khoa Tim mạch chẩn đoán và điều trị bệnh mạch vành"));
+        assertTrue(text.contains("Bệnh viện Chợ Rẫy"));
     }
 
     @Test
@@ -182,7 +163,7 @@ class DoctorSemanticSearchServiceTest {
     }
 
     @Test
-    @DisplayName("RowMapper parses aggregated specialties and fuses vector + lexical scores correctly")
+    @DisplayName("RowMapper parses aggregated specialties and maps pgvector similarity score correctly")
     @SuppressWarnings("unchecked")
     void testRowMapper_ParsesAggregatedSpecialtiesStringCorrectly() throws Exception {
         UUID docUserId = UUID.randomUUID();
@@ -202,8 +183,7 @@ class DoctorSemanticSearchServiceTest {
             when(rs.getBigDecimal("consultation_fee")).thenReturn(BigDecimal.valueOf(200000));
             when(rs.getString("academic_title")).thenReturn("BS.");
             when(rs.getString("hospital_affiliation")).thenReturn("Bệnh viện Phổi TW");
-            when(rs.getDouble("raw_vector_score")).thenReturn(0.89);
-            when(rs.getDouble("lexical_score")).thenReturn(0.80);
+            when(rs.getDouble("similarity_score")).thenReturn(0.89);
             when(rs.getString("specialties_str")).thenReturn("Hô Hấp, Dị Ứng, Miễn Dịch");
 
             DoctorMatchDto mapped = rowMapper.mapRow(rs, 1);
