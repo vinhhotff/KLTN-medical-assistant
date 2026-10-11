@@ -59,12 +59,20 @@ graph TD
 
 ## 3. Các Phân Hệ Tính Năng Cốt Lõi (Core Functional Requirements)
 
-### Phân Hệ 1: Trợ Lý Chatbot Sàng Lọc Triệu Chứng (Conversational AI Triage)
+### Phân Hệ 1: Trợ Lý Chatbot Sàng Lọc Triệu Chứng & Động Cơ Phòng Thủ "Bao Đầu Vào" (Conversational AI Triage & Clinical Defense Engine)
 - Giao diện dạng Chatbot hội thoại tự nhiên (Multi-turn conversational UI).
 - Hệ thống nhắc câu hỏi làm rõ (Clarifying Questions) để người bệnh trả lời bổ sung.
 - Hệ thống phân cấp độ khẩn cấp: `ROUTINE` (Thông thường), `URGENT` (Cần khám sớm), `EMERGENCY` (Cấp cứu khẩn cấp).
 - Cảnh báo rào chắn an toàn y khoa (Medical Disclaimer): Khẳng định AI chỉ đóng vai trò thông tin tham khảo, không thay thế chẩn đoán y tế.
-- Khớp nối danh sách bác sĩ chuyên khoa tương thích qua Vector Embeddings (`pgvector`).
+- **Động cơ phòng thủ lâm sàng 5 tầng ("Bao Đầu Vào" - `ClinicalQueryDefenseEngine`):**
+  1. *Rào chắn Red-Flag cấp cứu:* Quét đột quỵ FAST, nhồi máu cơ tim, sốc phản vệ, nôn ra máu $\rightarrow$ Ngắt tức thì và khóa 115.
+  2. *Chuẩn hóa tiếng lóng, teen-code & tiếng Việt không dấu:* Ánh xạ `ko` $\rightarrow$ `không`, `bs` $\rightarrow$ `bác sĩ`, `dau da day` $\rightarrow$ `đau dạ dày`.
+  3. *Thuật toán Vietnamese NegEx:* Bóc tách các mệnh đề phủ định (`không sốt`, `chưa từng nôn`) ra khỏi câu khẳng định, triệt tiêu bẫy định tuyến sai chuyên khoa.
+  4. *Cổng Out-of-Domain (OOD):* Nhận diện và hướng dẫn các câu hỏi hành chính (viện phí, giờ mở cửa, chào hỏi spam).
+  5. *Phân tách đa triệu chứng phức hợp:* Tách các câu liên từ ghép thành các nhánh chuyên khoa độc lập.
+- **Khớp nối Bác sĩ chuyên khoa qua Vector Embeddings (`pgvector HNSW`):**
+  - PostgreSQL 16 Session Tuning: `SET LOCAL hnsw.ef_search = 120`, `SET LOCAL enable_seqscan = off`, `SET LOCAL work_mem = '64MB'`.
+  - Tái xếp hạng WHRF-SOTA trong Bounded Min-Heap: Sigmoid Contrastive Sharpening ($S_{dense} = \frac{1}{1 + e^{-8.0(S - 0.65)}}$), Sparse Lexical Overlap, Thưởng chuyên khoa $+0.12$, Phạt phân kỳ $-0.10$ và Bộ giảm chấn gian lận Credibility Damper.
 
 ### Phân Hệ 2: Bóc Tách & Tóm Tắt Tài Liệu Đa Phương Thức (Multimodal Document Summarizer)
 - Tải lên tệp PDF hoặc Hình ảnh (PNG/JPEG) phiếu xét nghiệm, siêu âm, điện tim.
@@ -107,5 +115,5 @@ graph TD
 | **Cache & Queue** | Redis Cluster (L2 Cache, Rate Limiting, Session State) |
 | **Database Migration** | Flyway Migrations (V1 $\rightarrow$ V19) |
 | **AI Models (API Only)**| Google Gemini 1.5 Flash (Vision OCR & Scribe) / OpenAI Embeddings |
-| **Testing** | JUnit 5, Mockito, Spring Boot Test (158+ Unit Tests) |
+| **Testing** | JUnit 5, Mockito, Spring Boot Test (165/165 Unit Tests PASS 100%) |
 | **DevOps** | Docker, Docker Compose, Nginx Reverse Proxy, Enforced HTTPS |
