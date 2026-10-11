@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, CheckCheck, X, AlertCircle } from 'lucide-react';
 import { notificationService, NotificationItem } from '../../services/notificationService';
+import { devLog } from '../../utils/logger';
 
 export const NotificationBell: React.FC = () => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -46,7 +47,7 @@ export const NotificationBell: React.FC = () => {
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
-      console.error(err);
+      devLog.error(err);
     }
   };
 
@@ -56,7 +57,7 @@ export const NotificationBell: React.FC = () => {
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch (err) {
-      console.error(err);
+      devLog.error(err);
     }
   };
 

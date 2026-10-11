@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
+import { devLog } from '../../utils/logger';
 
 interface AuditLogItem {
   id: string;
@@ -48,7 +49,7 @@ export const AuditLogPage: React.FC = () => {
         setLastUpdated(new Date());
       }
     } catch (err) {
-      console.error('Failed to load audit logs:', err);
+      devLog.error('Failed to load audit logs:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
+import { devLog } from '../../utils/logger';
 
 interface AdminTriageSession {
   id: string;
@@ -49,7 +50,7 @@ export const TriageSupervisionPage: React.FC = () => {
         setLastUpdated(new Date());
       }
     } catch (err) {
-      console.error('Failed to load triage sessions:', err);
+      devLog.error('Failed to load triage sessions:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);

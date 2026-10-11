@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Activity, Stethoscope, RefreshCw, Plus, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
+import { devLog } from '../../utils/logger';
 
 interface SpecialtyItem {
   id: string;
@@ -36,7 +37,7 @@ export const SpecialtyManagementPage: React.FC = () => {
         setSpecialties(res.data.data);
       }
     } catch (err) {
-      console.error('Failed to load specialties:', err);
+      devLog.error('Failed to load specialties:', err);
     } finally {
       setLoading(false);
     }
