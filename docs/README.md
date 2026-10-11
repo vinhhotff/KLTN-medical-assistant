@@ -50,6 +50,8 @@ Toàn bộ 14 tài liệu trong thư mục `docs/` và gốc dự án được t
 ├────────────────────────────────────────────────────────────────────────┤
 │  TẦNG 3: KIỂM THỬ, VẬN HÀNH & BẢO VỆ LUẬN VĂN (OPS, QA & DEFENSE)      │
 │  • docs/MASTER_TRACEABILITY_INDEX.md  • docs/CAPSTONE_DEFENSE.md       │
+│  • docs/CAPSTONE_PRESENTATION_SLIDES.md                                │
+│  • docs/VECTOR_BENCHMARK_REPORT.md    • pgvector_scaling_16gb/         │
 │  • docs/TEAM_WORKFLOW.md              • docs/WORK_LOG.md               │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -60,7 +62,7 @@ Toàn bộ 14 tài liệu trong thư mục `docs/` và gốc dự án được t
 
 ### 2. Tầng 1: Đề Tài & Đặc Tả Nghiệp Vụ (Requirements)
 * [`docs/STORYTELLING.md`](./STORYTELLING.md): Bối cảnh lâm sàng, lý do chọn đề tài, tính nhân văn và bài toán thực tế tại các bệnh viện Việt Nam.
-* [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md): Bản đặc tả yêu cầu phần mềm đạt chuẩn quốc tế **IEEE 830** (Yêu cầu chức năng, phi chức năng, tuân thủ Nghị định 13/2023/NĐ-CP và HIPAA).
+* [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md): Bản đặc tả yêu cầu phần mềm đạt chuẩn quốc tế **IEEE 830** (Yêu cầu chức năng FR-VEC-01..07, Động cơ phòng thủ 5 tầng "Bao Đầu Vào", phi chức năng NFR, tuân thủ Nghị định 13/2023/NĐ-CP và HIPAA).
 * [`docs/USE_CASES.md`](./USE_CASES.md): Danh mục chi tiết 33 Use Cases (Pre-condition, Happy Path, Alternative Flows, Exception Flows) phân bổ cho 4 tác nhân: Bệnh nhân, Bác sĩ, Lễ tân và Quản trị viên.
 * [`docs/CAPSTONE_SPECIFICATION.md`](./CAPSTONE_SPECIFICATION.md): Bảng yêu cầu đề cương tốt nghiệp và barem chấm điểm của nhà trường.
 
@@ -75,11 +77,12 @@ Toàn bộ 14 tài liệu trong thư mục `docs/` và gốc dự án được t
   5. *Rào chắn bản thể luận LOINC + ICD-10* (Triệt tiêu ảo giác y khoa).
 * [`docs/DOCUMENT_SCAN_PIPELINE.md`](./DOCUMENT_SCAN_PIPELINE.md): Đường ống bóc tách hồ sơ y tế: Tesseract OCR đa luồng + Vision AI + Bộ khử nhiễu lâm sàng.
 
-### 4. Tầng 3: Kiểm Thử, Vận Hành & Bảo Vệ (QA & Defense)
-* [`docs/MASTER_TRACEABILITY_INDEX.md`](./MASTER_TRACEABILITY_INDEX.md): Ma trận truy vết yêu cầu 2 chiều ($33\text{ Use Cases} \leftrightarrow \text{API} \leftrightarrow \text{Database Tables} \leftrightarrow \text{Thuật Toán} \leftrightarrow \text{Câu hỏi Hội đồng}$).
+### 4. Tầng 3: Kiểm Thử, Vận Hành, Slide & Bảo Vệ (QA, Slides & Defense)
+* [`docs/CAPSTONE_PRESENTATION_SLIDES.md`](./CAPSTONE_PRESENTATION_SLIDES.md): 🌟 **Bộ khung 24 slide thuyết trình bảo vệ KLTN**: Bố cục visual Canva/PPT, nội dung súc tích, kịch bản lời thoại MC/Thuyết trình từng giây (Speaker notes) và bẫy phản biện dự phòng cho từng slide!
+* [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md): Cẩm nang bảo vệ tốt nghiệp: Kịch bản thuyết trình 15 phút, checklist live demo, và bộ **35+ câu hỏi phản biện gài bẫy kèm câu trả lời mẫu**.
 * [`docs/VECTOR_BENCHMARK_REPORT.md`](./VECTOR_BENCHMARK_REPORT.md): ⭐ **Báo cáo thực nghiệm huấn luyện vector & pgvector HNSW**: Số liệu định lượng đo trên 500 ca bệnh từ tập dữ liệu Hugging Face `Meddies/meddies-persona-vie` và `Meddies/meddies-pii` (Top-1 Accuracy tăng 3.9 lần, độ trễ $0.72\text{ms}$).
 * [`pgvector_scaling_16gb/`](../pgvector_scaling_16gb/README.md): 🚀 **Cẩm nang mở rộng pgvector trên máy 16GB RAM / 512GB SSD**: Hướng dẫn scale lên 50.000 bác sĩ / 150.000 ca Meddies, cấu hình Docker Compose 4GB shared_buffers, script SQL HNSW Siêu Phân Giải ($m=32, ef\_construction=256$) và Cheat Sheet bảo vệ KLTN.
-* [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md): Cẩm nang bảo vệ tốt nghiệp: Kịch bản thuyết trình 15 phút, checklist live demo, và bộ **35 câu hỏi phản biện gài bẫy kèm câu trả lời mẫu**.
+* [`docs/MASTER_TRACEABILITY_INDEX.md`](./MASTER_TRACEABILITY_INDEX.md): Ma trận truy vết yêu cầu 2 chiều ($33\text{ Use Cases} \leftrightarrow \text{API} \leftrightarrow \text{Database Tables} \leftrightarrow \text{Thuật Toán} \leftrightarrow \text{Câu hỏi Hội đồng}$).
 * [`docs/TEAM_WORKFLOW.md`](./TEAM_WORKFLOW.md): Ma trận phân chia trách nhiệm 3 vai trò trong nhóm (Tech Lead 30/50/20, Core Dev 80/15/5, QA & Doc 15/25/60).
 * [`docs/WORK_LOG.md`](./WORK_LOG.md): Nhật ký phát triển liên tục ghi nhận chi tiết từng file thay đổi, bằng chứng lệnh test và kết quả nghiệm thu.
 
@@ -124,6 +127,15 @@ Thầy/Cô chấm thi thường chỉ có 15 - 20 phút để thẩm định d�
 1. **Kiểm thử chức năng:** Đọc [`docs/USE_CASES.md`](./USE_CASES.md) để đối soát từng Acceptance Criteria.
 2. **Kiểm thử tải cao (k6):** Xem hướng dẫn trong [`tests/k6/`](../tests/k6/run_load_test.sh) và kết quả tại [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md).
 3. **Kiểm thử tự động E2E:** Xem các kịch bản tại [`frontend/e2e/`](../frontend/e2e/).
+
+---
+
+### 🎤 Luồng E: Dành Cho Soạn Slide Thuyết Trình & Chuẩn Bị Bảo Vệ KLTN (Defense Presentation Flow)
+Nếu bạn đang chuẩn bị cho ngày bảo vệ Khóa luận tốt nghiệp hoặc viết Slide Canva/PowerPoint, hãy làm theo đúng 4 bước sau:
+1. **Bước 1 - Lên khung Slide:** Mở [`docs/CAPSTONE_PRESENTATION_SLIDES.md`](./CAPSTONE_PRESENTATION_SLIDES.md) lấy nguyên văn bố cục 24 slide, layout visual gợi ý và kịch bản lời thoại MC từng giây.
+2. **Bước 2 - Lấy đặc tả SRS & Yêu cầu:** Mở [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md) để trích xuất các yêu cầu chức năng chuẩn IEEE 830 (FR-VEC-01..07) và ma trận kiểm thử RTM.
+3. **Bước 3 - Luyện phản biện Q&A:** Mở [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md) và [`pgvector_scaling_16gb/CAPSTONE_DEFENSE_CHEAT_SHEET.md`](../pgvector_scaling_16gb/CAPSTONE_DEFENSE_CHEAT_SHEET.md) để luyện tập 20+ câu hỏi vấn đáp hóc búa của Hội đồng.
+4. **Bước 4 - Trích dẫn số liệu khoa học:** Lấy bảng số liệu thực nghiệm Top-1 (23.2%), Recall@3 (33.0%), độ trễ 0.72ms từ [`docs/VECTOR_BENCHMARK_REPORT.md`](./VECTOR_BENCHMARK_REPORT.md).
 
 ---
 

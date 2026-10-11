@@ -4908,3 +4908,38 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
   - Triển khai dịch vụ `TwoLayerCacheService` (L1 LRU In-memory Caffeine + L2 Distributed Redis).
   - Triển khai `SecurityConfig` với stateless JWT và BCrypt (cost factor 12).
   - Triển khai Health Probes (`/api/v1/health/ready`, `/api/v1/health/live`).
+
+---
+
+### [WORK-LOG-#095] Chuẩn Hóa Toàn Diện Hệ Thống Tài Liệu KLTN, Tạo Bộ 24 Slide Thuyết Trình & Đồng Bộ SRS IEEE 830
+* **Thời gian:** 2026-10-11 16:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Tái cấu trúc và sắp xếp lại toàn bộ tài liệu Markdown phục vụ bảo vệ Khóa luận tốt nghiệp: tạo mới bộ 24 Slide thuyết trình (`docs/CAPSTONE_PRESENTATION_SLIDES.md`), đồng bộ đặc tả yêu cầu phần mềm SRS chuẩn IEEE 830 (`docs/SRS_MediAssist_AI.md`), bổ sung bộ câu hỏi phản biện chuyên sâu vào cẩm nang bảo vệ (`docs/CAPSTONE_DEFENSE.md`), và cập nhật bản đồ điều hướng (`docs/README.md`).
+* **Trạng thái Build:** Backend `165/165` Tests PASS (100%) | Frontend `npm run build` PASS (0 TS Error).
+
+#### 1. Chi Tiết Hồ Sơ Tài Liệu Được Tạo Mới & Nâng Cấp:
+1. **`[NEW]` [`docs/CAPSTONE_PRESENTATION_SLIDES.md`](./CAPSTONE_PRESENTATION_SLIDES.md):**
+   - Bộ khung hoàn chỉnh **24 Slide thuyết trình chuẩn 15-20 phút bảo vệ KLTN**.
+   - Mỗi slide bao gồm đầy đủ:
+     * *Tiêu đề & Thời lượng ước tính* từng phần.
+     * *Gợi ý thiết kế Visual / Layout:* Chi tiết sơ đồ Mermaid, layout 2-3 cột, icon và bảng số liệu cho Canva / PowerPoint.
+     * *Nội dung gạch đầu dòng (Slide Text):* Súc tích, đậm chất kỹ thuật phần mềm và khoa học dữ liệu.
+     * *Kịch bản lời thoại chi tiết (Speaker Notes):* Từng câu nói bằng tiếng Việt tự nhiên, đĩnh đạc, chuẩn phong thái kỹ sư xuất sắc.
+     * *Bẫy phản biện của Hội đồng & Câu trả lời mẫu:* Các câu hỏi hóc búa có thể gặp tại slide đó kèm câu trả lời dập tắt băn khoăn của Hội đồng.
+2. **`[MOD]` [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md):**
+   - Bổ sung các Functional Requirements mới:
+     * `FR-VEC-05`: Động cơ phòng thủ lâm sàng 5 tầng "Bao Đầu Vào" (`ClinicalQueryDefenseEngine`).
+     * `FR-VEC-06`: Tối ưu hóa phiên làm việc PostgreSQL 16 (`SET LOCAL hnsw.ef_search = 120`, `enable_seqscan = off`, `work_mem = '64MB'`).
+     * `FR-VEC-07`: Sigmoid Contrastive Sharpening & Tái xếp hạng đa nhân tố WHRF-SOTA (Thưởng chuyên khoa +0.12, phạt phân kỳ -0.10).
+   - Nâng cấp `NFR-MAINT-01`: Cập nhật bộ kiểm thử tự động đạt 100% pass rate trên $\ge 165$ tests.
+   - Cập nhật Ma trận truy vết yêu cầu (RTM Mapping Matrix) liên kết `FR-VEC-05..07` với các unit test Java.
+3. **`[MOD]` [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md):**
+   - Bổ sung **Câu hỏi 18**: Phân biệt kho 150.000 ca Meddies gốc vs 500 ca mẫu vàng benchmark ($p < 0.01$), vị trí lưu trữ vector trong PostgreSQL và kịch bản demo trước Hội đồng.
+   - Bổ sung **Câu hỏi 19**: Cơ chế "Bao Đầu Vào" xử lý tiếng lóng, teen-code, gõ không dấu và thuật toán Vietnamese NegEx bóc tách phủ định lâm sàng.
+   - Bổ sung **Câu hỏi 20**: Tối ưu hóa phiên pgvector `enable_seqscan = off`, giải quyết bẫy nén điểm Cosine bằng hàm Sigmoid và thuật toán WHRF-SOTA 5 nhân tố.
+4. **`[MOD]` [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md):**
+   - Cập nhật Mục 7: Bổ sung đặc tả toán học của Động cơ phòng thủ 5 tầng, PostgreSQL Session Tuning và hàm phân cực Sigmoid Contrastive Sharpening.
+5. **`[MOD]` [`docs/README.md`](./README.md):**
+   - Bổ sung `docs/CAPSTONE_PRESENTATION_SLIDES.md` vào Tầng 3 trong sơ đồ 4 tầng kiến trúc hồ sơ.
+   - Thêm **Luồng E: Dành Cho Soạn Slide Thuyết Trình & Chuẩn Bị Bảo Vệ KLTN** hướng dẫn quy trình 4 bước từ làm Slide $\rightarrow$ Trích xuất SRS $\rightarrow$ Luyện Q&A phản biện $\rightarrow$ Trích dẫn số liệu Benchmark.
+

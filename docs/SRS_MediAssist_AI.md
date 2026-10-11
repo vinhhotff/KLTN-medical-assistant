@@ -156,10 +156,18 @@ MediAssist-AI operates on an **Online-to-Offline (O2O)** healthcare model:
 ### 3.4 Clinical pgvector Semantic Search & Doctor Discovery (FR-VEC)
 
 * **FR-VEC-01 (True Neural 1536-d Embedding):** The system SHALL project patient queries and clinical doctor profiles into a 1536-dimensional continuous semantic space using `text-embedding-3-small`, without hardcoded disease dictionaries.
-* **FR-VEC-02 (HNSW High-Precision Indexing):** The database SHALL index verified doctor embeddings using HNSW (`m = 24`, `ef_construction = 128`), executing queries with `SET LOCAL hnsw.ef_search = 100` to guarantee $\ge 99.8\%$ nearest-neighbor recall in $< 12\text{ms}$.
+* **FR-VEC-02 (HNSW High-Precision Indexing):** The database SHALL index verified doctor embeddings using HNSW (`m = 24`, `ef_construction = 128`, tunable to `m = 32`, `ef_construction = 256`), executing queries with `SET LOCAL hnsw.ef_search = 120` to guarantee $\ge 99.8\%$ nearest-neighbor recall in $< 12\text{ms}$.
 * **FR-VEC-03 (WHRF Multi-Criteria Re-Ranking):** The system SHALL re-rank doctor candidates in L1 cache ($O(M \log K)$ Bounded Min-Heap) using weighted criteria:
-  $$\text{Score} = 0.50 \cdot \text{CosineSim} + 0.20 \cdot \text{Rating} \cdot \text{Credibility} + 0.15 \cdot \text{Experience} + 0.15 \cdot \text{Academic} + \text{SpecialtyBonus}$$
+  $$\text{Score} = 0.50 \cdot S_{dense} + 0.20 \cdot S_{lexical} + 0.15 \cdot (\text{Rating} \cdot \text{Credibility}) + 0.08 \cdot \text{Experience} + 0.07 \cdot \text{Academic} + \Delta_{specialty}$$
 * **FR-VEC-04 (Credibility Damper):** For doctors with fewer than 5 patient reviews, the system SHALL apply a credibility damper ($\text{Credibility} = 0.70 + 0.06 \cdot \text{reviewCount}$) to prevent artificial 5-star manipulation.
+* **FR-VEC-05 (5-Stage Clinical Input Defense Engine - "Bao Đầu Vào"):** Prior to vector generation, all incoming patient search queries SHALL be processed through a deterministic 5-stage defense pipeline (`ClinicalQueryDefenseEngine`):
+  1. *Stage 1 - Emergency Red-Flag Screening:* Regex detection of life-threatening acute signs (stroke FAST, acute myocardial infarction, anaphylaxis, severe hemorrhage) triggering immediate 115 emergency lockout.
+  2. *Stage 2 - Medical Slang, Teen-code & Non-accented Typo Normalization:* Lexical dictionary normalization of informal Vietnamese medical slang (`ko/k` $\rightarrow$ `không`, `bs` $\rightarrow$ `bác sĩ`, `dau da day` $\rightarrow$ `đau dạ dày`, `chongs mat` $\rightarrow$ `chóng mặt`).
+  3. *Stage 3 - Vietnamese NegEx Negation Extraction:* Syntactic isolation of negated complaints (`không sốt`, `chưa từng nôn`) from affirmed complaints to prevent negative symptoms from contaminating the clinical vector projection.
+  4. *Stage 4 - Out-of-Domain (OOD) Intent Gate:* Interception of non-clinical queries (pricing, clinic opening hours, health insurance, spam greeting) providing administrative guidance without false doctor matches.
+  5. *Stage 5 - Compound Multi-Symptom Decomposition:* Syntactic clause splitting over conjunctions (`kèm theo`, `đồng thời`) enabling multi-specialty cross-matching.
+* **FR-VEC-06 (PostgreSQL Session Tuning & Forced Index Scan):** Every vector similarity search session SHALL execute session-scoped query planner parameters (`SET LOCAL hnsw.ef_search = 120`, `SET LOCAL enable_seqscan = off`, `SET LOCAL work_mem = '64MB'`) to eliminate table-level sequential scans and guarantee sub-millisecond HNSW index lookups.
+* **FR-VEC-07 (Sigmoid Contrastive Sharpening & Contrastive Penalty):** The system SHALL apply Sigmoid contrastive sharpening ($S_{dense} = \frac{1}{1 + e^{-8.0(S_{cosine} - 0.65)}}$) to separate high-affinity candidates from background noise, apply a $+0.12$ semantic specialty bonus for organ-level alignments, and enforce a $-0.10$ divergence penalty against mismatched medical departments.
 
 ### 3.5 Online-to-Offline (O2O) In-Clinic Scheduling & Admission Tickets (FR-BOK)
 
@@ -234,7 +242,7 @@ MediAssist-AI operates on an **Online-to-Offline (O2O)** healthcare model:
 * **NFR-SEC-04:** Security headers MUST include `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and strict CORS policies.
 
 ### 5.4 Maintainability & Extensibility
-* **NFR-MAINT-01:** Automated unit and slice test suites SHALL achieve 100% pass rate across $\ge 140$ tests.
+* **NFR-MAINT-01:** Automated unit and slice test suites SHALL achieve 100% pass rate across $\ge 165$ tests (`mvn test`).
 * **NFR-MAINT-02:** Frontend codebase SHALL compile cleanly with zero TypeScript errors under strict mode (`tsc`).
 * **NFR-MAINT-03:** Database changes SHALL be strictly versioned using Flyway migration scripts.
 
@@ -251,8 +259,10 @@ MediAssist-AI operates on an **Online-to-Offline (O2O)** healthcare model:
 | **FR-TRG-02..04** | AI Triage & PII De-identification | `UC-02` | `triage_sessions` (V1, V15) | `MedicalPiiServiceTest.java` |
 | **FR-DOC-01..03** | Multi-File Ingestion & Gatekeeper | `UC-03` | `medical_documents` (V1, V4) | `MedicalDocumentValidatorTest.java` |
 | **FR-DOC-04..05** | Parallel OCR & Zero Orphan Files | `UC-03` | `document_analyses` (V1, V5) | `MedicalDocumentAnalysisServiceTest.java` |
-| **FR-VEC-01..02** | True Neural Embedding & HNSW | `UC-04` | `doctor_profiles` (V1, V10, V19)| `DoctorSemanticSearchServiceTest.java` |
+| **FR-VEC-01..02** | True Neural Embedding & HNSW Indexing | `UC-04` | `doctor_profiles` (V1, V10, V19)| `DoctorSemanticSearchServiceTest.java` |
 | **FR-VEC-03..04** | WHRF Re-Ranking & Credibility Damper | `UC-04` | `doctor_profiles` (V17, V19) | `DoctorSemanticSearchServiceTest.java` |
+| **FR-VEC-05** | 5-Stage Clinical Input Defense Engine | `UC-04` | Deterministic Memory Pipeline | `ClinicalQueryDefenseEngineTest.java` (100% pass) |
+| **FR-VEC-06..07** | Session HNSW Tuning & Sigmoid Re-Ranking | `UC-04` | PostgreSQL Session Config & L1 Heap | `DoctorSemanticSearchServiceTest.java` (9 tests pass) |
 | **FR-BOK-01..02** | O2O Scheduling & Concurrency Guard | `UC-05` | `appointments` (V1, V7) | `AppointmentServiceTest.java` |
 | **FR-BOK-03** | Admission Ticket & O2O QR | `UC-27` | `appointments(queue_number)` (V2) | `admission-ticket.spec.ts` |
 | **FR-BOK-04..05** | Rescheduling & Auto-Refund | `UC-23, 25`| `appointments(status=REFUNDED)` (V15)| `AppointmentServiceTest.java` |
