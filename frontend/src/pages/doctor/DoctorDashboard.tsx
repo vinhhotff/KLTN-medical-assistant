@@ -2000,7 +2000,7 @@ export const DoctorDashboard: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
           <div className="bg-white w-full max-w-5xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col animate-scaleUp">
             {/* Modal Header */}
-            <div className="bg-linear-to-r from-teal-900 via-slate-900 to-teal-950 text-white p-5 sm:p-6 flex items-center justify-between border-b border-teal-800/40 shrink-0">
+            <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-teal-950 text-white p-5 sm:p-6 flex items-center justify-between border-b border-teal-800/40 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-2xl bg-teal-500/20 border border-teal-400/30 flex items-center justify-center text-teal-300 shadow-inner">
                   <Calendar className="w-5 h-5" />
@@ -2205,7 +2205,7 @@ export const DoctorDashboard: React.FC = () => {
                     </div>
 
                     {/* Shift 1: Ca Sáng (08:00 - 12:00) */}
-                    <div className="rounded-2xl border border-amber-200/80 bg-linear-to-br from-amber-50/40 via-white to-white p-4 sm:p-5 space-y-3.5">
+                    <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/40 via-white to-white p-4 sm:p-5 space-y-3.5">
                       <div className="flex items-center justify-between pb-2.5 border-b border-amber-100">
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shadow-2xs">
@@ -2284,7 +2284,7 @@ export const DoctorDashboard: React.FC = () => {
                     </div>
 
                     {/* Shift 2: Ca Chiều (13:30 - 17:00) */}
-                    <div className="rounded-2xl border border-indigo-200/80 bg-linear-to-br from-indigo-50/40 via-white to-white p-4 sm:p-5 space-y-3.5">
+                    <div className="rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/40 via-white to-white p-4 sm:p-5 space-y-3.5">
                       <div className="flex items-center justify-between pb-2.5 border-b border-indigo-100">
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shadow-2xs">
@@ -3512,7 +3512,7 @@ export const DoctorDashboard: React.FC = () => {
       {selectedViewEmr && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
           <div className="bg-white w-full max-w-3xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col animate-scaleUp">
-            <div className="bg-linear-to-r from-teal-900 via-slate-900 to-teal-950 text-white p-5 sm:p-6 flex items-center justify-between border-b border-teal-800/40 shrink-0">
+            <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-teal-950 text-white p-5 sm:p-6 flex items-center justify-between border-b border-teal-800/40 shrink-0">
               <div>
                 <div className="text-[10px] uppercase font-bold text-teal-300 tracking-widest">
                   HỒ SƠ LÂM SÀNG BỆNH NHÂN (HIS / EMR)

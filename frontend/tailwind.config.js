@@ -109,8 +109,21 @@ export default {
         "full": "9999px"
       },
       boxShadow: {
+        "2xs": "0 1px 1px 0 rgba(15, 41, 66, 0.04)",
         "xs": "0 1px 2px 0 rgba(15, 41, 66, 0.05)",
-      }
+      },
+      // Utilities used across pages that Tailwind 3 does not ship by default
+      backdropBlur: {
+        xs: "2px",
+      },
+      keyframes: {
+        fadeIn: { from: { opacity: "0" }, to: { opacity: "1" } },
+        scaleUp: { from: { opacity: "0", transform: "scale(0.97)" }, to: { opacity: "1", transform: "scale(1)" } },
+      },
+      animation: {
+        fadeIn: "fadeIn 150ms ease-out",
+        scaleUp: "scaleUp 150ms ease-out",
+      },
     },
   },
   plugins: [],

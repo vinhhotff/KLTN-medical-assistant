@@ -949,7 +949,7 @@ export const DoctorPatientRecordsPage: React.FC = () => {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-900/70 backdrop-blur-xs animate-fadeIn">
           <div className="bg-white w-full max-w-3xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col animate-scaleUp">
             {/* Header with Hospital Banner */}
-            <div className="bg-linear-to-r from-teal-900 via-slate-900 to-teal-950 text-white p-5 sm:p-6 flex items-center justify-between border-b border-teal-800/40 shrink-0">
+            <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-teal-950 text-white p-5 sm:p-6 flex items-center justify-between border-b border-teal-800/40 shrink-0">
               <div>
                 <div className="text-[10px] uppercase font-bold text-teal-300 tracking-widest">
                   BỆNH VIỆN ĐA KHOA QUỐC TẾ MEDIASSIST

@@ -586,7 +586,7 @@ export const SymptomTriagePage: React.FC = () => {
               onKeyDown={handleKeyDown}
               disabled={isTyping}
               placeholder="Nhập triệu chứng của bạn (ví dụ: Tôi bị đau thắt ngực khi gắng sức, khó thở về đêm...)..."
-              className="flex-1 px-3.5 py-2 text-xs md:text-sm rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none disabled:bg-slate-100"
+              className="flex-1 px-3.5 py-2 text-xs md:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none disabled:bg-slate-100"
             />
 
             <button

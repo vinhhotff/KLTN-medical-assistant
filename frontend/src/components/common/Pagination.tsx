@@ -102,7 +102,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                 onPageSizeChange(newSize);
                 onPageChange(1); // Always reset to page 1 on page size change
               }}
-              className="px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-teal-500 focus:border-teal-500 cursor-pointer shadow-2xs"
+              className="px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 cursor-pointer shadow-2xs"
             >
               {pageSizeOptions.map((opt) => (
                 <option key={opt} value={opt}>
