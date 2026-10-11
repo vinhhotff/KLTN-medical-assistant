@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Calendar,
-  Clock,
   UserCheck,
   ShieldCheck,
   HelpCircle,
@@ -36,6 +35,46 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { BookingModal, type BookableDoctor } from '../../components/booking/BookingModal';
+import { Skeleton, useToast } from '../../components/ui';
+import { SCAN_PACKAGES, formatPackagePrice, type PackageCode } from '../../config/pricing';
+import { getApiErrorMessage, isQuotaError, isRetryableError } from '../../utils/apiError';
+import { devLog } from '../../utils/logger';
+import { formatRating, formatVnd } from '../../utils/display';
+
+/** Accepted upload types: extension → MIME types browsers report for it. */
+const ACCEPTED_TYPES: Record<string, string[]> = {
+  '.pdf': ['application/pdf'],
+  '.png': ['image/png'],
+  '.jpg': ['image/jpeg', 'image/pjpeg'],
+  '.jpeg': ['image/jpeg', 'image/pjpeg'],
+};
+const MIN_FILE_BYTES = 100;
+
+type AnalysisErrorKind = 'validation' | 'quota' | 'retryable' | 'other';
+
+/** Display copy for each package; price and duration come from config/pricing (must match PaymentService). */
+const PACKAGE_DISPLAY: Record<PackageCode, { tag: string; badge?: string; highlights: string[]; cta: string; tone: 'slate' | 'teal' | 'amber' }> = {
+  BASIC_5: {
+    tag: 'Gói lẻ',
+    highlights: ['Cộng thêm 5 lượt quét', 'Bóc tách chỉ số xét nghiệm', 'Gợi ý bác sĩ phù hợp'],
+    cta: 'Mua 5 lượt',
+    tone: 'slate',
+  },
+  VIP_MONTHLY: {
+    tag: 'VIP 30 ngày',
+    badge: 'Phổ biến',
+    highlights: ['Quét không giới hạn trong 30 ngày', 'Tóm tắt gửi kèm khi đặt lịch'],
+    cta: 'Đăng ký VIP 30 ngày',
+    tone: 'teal',
+  },
+  VIP_ENTERPRISE: {
+    tag: 'VIP 90 ngày',
+    highlights: ['Quét không giới hạn trong 90 ngày', 'Phù hợp theo dõi bệnh mạn tính'],
+    cta: 'Đăng ký VIP 90 ngày',
+    tone: 'amber',
+  },
+};
 import { useSearchParams } from 'react-router-dom';
 
 interface AbnormalIndicator {
@@ -54,7 +93,7 @@ interface DoctorMatch {
   bio: string;
   licenseNumber: string;
   yearsOfExperience: number;
-  consultationFee: number;
+  consultationFee: number | null;
   similarityScore: number;
   specialties: string[];
   academicTitle?: string;
@@ -125,34 +164,9 @@ interface UserQuota {
   hasQuota: boolean;
 }
 
-interface DoctorSlot {
-  slotId?: string;
-  dayOfWeek?: string;
-  startTime: string;
-  endTime: string;
-  scheduledStart?: string;
-  scheduledEnd?: string;
-  startDateTime?: string;
-  endDateTime?: string;
-  available: boolean;
-}
-
-interface AppointmentConfirmation {
-  appointmentCode: string;
-  doctorName: string;
-  scheduledStart: string;
-  feeAmount: number;
-}
-
-function formatLocalDate(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 export const DocumentSummarizerPage: React.FC = () => {
   const { user } = useAuthStore();
+  const toast = useToast();
   const [searchParams] = useSearchParams();
   const focusId = searchParams.get('focusId');
   const [loadingFocusDoc, setLoadingFocusDoc] = useState(false);
@@ -160,7 +174,12 @@ export const DocumentSummarizerPage: React.FC = () => {
   const file = selectedFiles[0] || null;
   const [isDragging, setIsDragging] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setErrorText] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<AnalysisErrorKind>('other');
+  const setError = (message: string | null, kind: AnalysisErrorKind = 'validation') => {
+    setErrorText(message);
+    setErrorKind(kind);
+  };
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analysisStage, setAnalysisStage] = useState(0);
   const [activePatientIndex, setActivePatientIndex] = useState<number>(0);
@@ -180,7 +199,8 @@ export const DocumentSummarizerPage: React.FC = () => {
             }, 300);
           }
         } catch (err) {
-          console.warn('Could not load analysis for focusId:', focusId, err);
+          devLog.warn('Could not load analysis for focusId:', focusId, err);
+          toast.error(getApiErrorMessage(err, 'Không mở được kết quả phân tích của tài liệu này.'));
         } finally {
           setLoadingFocusDoc(false);
         }
@@ -209,19 +229,14 @@ export const DocumentSummarizerPage: React.FC = () => {
 
   // Quota & Commercial Monetization State
   const [quota, setQuota] = useState<UserQuota | null>(null);
+  const [quotaStatus, setQuotaStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [showPricingModal, setShowPricingModal] = useState(false);
 
   // Sandbox Payment Checkout Modal State
-  const [selectedPaymentPackage, setSelectedPaymentPackage] = useState<{
-    packageId: string;
-    title: string;
-    price: string;
-    priceNum: number;
-    benefits: string;
-  } | null>(null);
+  const [selectedPackageCode, setSelectedPackageCode] = useState<PackageCode | null>(null);
+  const selectedPaymentPackage = selectedPackageCode ? SCAN_PACKAGES[selectedPackageCode] : null;
   const [paymentMethod, setPaymentMethod] = useState<'STRIPE' | 'VIETQR' | 'VNPAY' | 'MOMO'>('STRIPE');
   const [processingPayment, setProcessingPayment] = useState(false);
-  const [paymentSuccessToast, setPaymentSuccessToast] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Analysis Success Notification Banner
@@ -237,13 +252,13 @@ export const DocumentSummarizerPage: React.FC = () => {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const handleConfirmPayment = async () => {
-    if (!selectedPaymentPackage) return;
+    if (!selectedPaymentPackage || processingPayment) return;
     try {
       setProcessingPayment(true);
       setPaymentError(null);
       const res = await api.post('/payments/checkout', {
         orderType: 'QUOTA_PURCHASE',
-        packageId: selectedPaymentPackage.packageId,
+        packageId: selectedPaymentPackage.code,
         paymentMethod,
       });
 
@@ -252,22 +267,25 @@ export const DocumentSummarizerPage: React.FC = () => {
         return;
       }
 
-      if (res.data?.data?.transactionCode) {
-        const verifyRes = await api.post('/payments/verify', {
-          transactionCode: res.data.data.transactionCode,
-          sessionId: res.data.data.gatewayReference,
-        });
-        if (verifyRes.data?.success) {
-          await fetchQuota();
-          setPaymentSuccessToast(`Thanh toán thành công! Bạn đã kích hoạt thành công ${selectedPaymentPackage.title}.`);
-          setSelectedPaymentPackage(null);
-          setShowPricingModal(false);
-          setTimeout(() => setPaymentSuccessToast(null), 5000);
-        }
+      if (!res.data?.data?.transactionCode) {
+        setPaymentError('Cổng thanh toán không trả về mã giao dịch. Vui lòng thử lại sau.');
+        return;
       }
+      const verifyRes = await api.post('/payments/verify', {
+        transactionCode: res.data.data.transactionCode,
+        sessionId: res.data.data.gatewayReference,
+      });
+      if (!verifyRes.data?.success) {
+        setPaymentError(verifyRes.data?.message || 'Chưa xác nhận được thanh toán. Nếu đã chuyển khoản, vui lòng chờ vài phút rồi kiểm tra lại.');
+        return;
+      }
+      await fetchQuota();
+      toast.success(`Thanh toán thành công — đã kích hoạt ${selectedPaymentPackage.name}.`);
+      setSelectedPackageCode(null);
+      setShowPricingModal(false);
+      setError(null);
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
-      setPaymentError(axiosError.response?.data?.error?.message || 'Giao dịch thanh toán không thành công.');
+      setPaymentError(getApiErrorMessage(err, 'Giao dịch thanh toán không thành công.'));
     } finally {
       setProcessingPayment(false);
     }
@@ -345,12 +363,27 @@ export const DocumentSummarizerPage: React.FC = () => {
     try {
       const res = await api.get('/documents/quota');
       if (res.data?.data) {
-        setQuota(res.data.data);
+        const q = res.data.data;
+        // Jackson may serialise `boolean isVip` as either `vip` or `isVip`
+        setQuota({ ...q, vip: Boolean(q.vip ?? q.isVip) });
+        setQuotaStatus('loaded');
+      } else {
+        setQuotaStatus('error');
       }
     } catch (err) {
-      console.warn('Could not load user quota:', err);
+      devLog.warn('Could not load user quota:', err);
+      setQuotaStatus('error');
     }
   };
+
+  const quotaExhausted = quotaStatus === 'loaded' && quota !== null && !quota.vip && quota.scanQuota <= 0;
+  const scanBlockedReason = analyzing
+    ? 'Đang phân tích, vui lòng đợi.'
+    : quotaExhausted
+    ? 'Bạn đã hết lượt quét. Mua thêm lượt hoặc gói VIP để tiếp tục.'
+    : user && quotaStatus === 'loading'
+    ? 'Đang kiểm tra số lượt quét...'
+    : null;
 
   useEffect(() => {
     if (user) {
@@ -358,21 +391,9 @@ export const DocumentSummarizerPage: React.FC = () => {
     }
   }, [user]);
 
-  // Booking Modal State
-  const [bookingDoctor, setBookingDoctor] = useState<DoctorMatch | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return formatLocalDate(tomorrow);
-  });
-  const [slots, setSlots] = useState<DoctorSlot[]>([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
-  const [slotsError, setSlotsError] = useState<string | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<DoctorSlot | null>(null);
+  // Booking from analysis results (shared BookingModal, attaches medicalDocumentId)
+  const [bookingDoctor, setBookingDoctor] = useState<BookableDoctor | null>(null);
   const [bookingNotes, setBookingNotes] = useState('');
-  const [bookingSubmitting, setBookingSubmitting] = useState(false);
-  const [bookingError, setBookingError] = useState<string | null>(null);
-  const [confirmedAppt, setConfirmedAppt] = useState<AppointmentConfirmation | null>(null);
 
   const samplePresets = [
     {
@@ -410,15 +431,23 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
   const handleFilesSelected = (newFiles: File[]) => {
     if (!newFiles || newFiles.length === 0) return;
 
-    // Filter allowed extensions
-    const validExtensions = ['.pdf', '.png', '.jpg', '.jpeg'];
+    if (analyzing) return; // the queue is frozen while a scan is running
+
+    // Extension AND (when the browser reports it) MIME type must match
     const invalidFile = newFiles.find((f) => {
       const name = f.name.toLowerCase();
-      return !validExtensions.some((ext) => name.endsWith(ext)) && f.type !== 'text/plain';
+      const ext = Object.keys(ACCEPTED_TYPES).find((x) => name.endsWith(x));
+      if (!ext) return true;
+      return f.type !== '' && !ACCEPTED_TYPES[ext].includes(f.type.toLowerCase());
     });
-
     if (invalidFile) {
-      setError(`Tệp "${invalidFile.name}" không đúng định dạng hỗ trợ. Hệ thống chỉ tiếp nhận tài liệu chuẩn PDF, PNG, JPG, JPEG.`);
+      setError(`Tệp "${invalidFile.name}" không đúng định dạng. Chỉ nhận PDF, PNG, JPG, JPEG.`);
+      return;
+    }
+
+    const emptyFile = newFiles.find((f) => f.size < MIN_FILE_BYTES);
+    if (emptyFile) {
+      setError(`Tệp "${emptyFile.name}" rỗng hoặc bị hỏng (dưới ${MIN_FILE_BYTES} byte). Vui lòng chọn tệp khác.`);
       return;
     }
 
@@ -459,16 +488,19 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
   };
 
   const handleRemoveFile = (indexToRemove: number) => {
+    if (analyzing) return;
     setSelectedFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
     setError(null);
   };
 
   const handleClearFiles = () => {
+    if (analyzing) return;
     setSelectedFiles([]);
     setError(null);
   };
 
   const handleSelectPreset = (preset: typeof samplePresets[0]) => {
+    if (scanBlockedReason) return;
     const blob = new Blob([preset.content], { type: 'text/plain;charset=utf-8' });
     const fakeFile = new File([blob], preset.fileName.replace('.pdf', '.txt'), { type: 'text/plain' });
     setSelectedFiles([fakeFile]);
@@ -480,6 +512,11 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
 
   const executeAnalysis = async (filesToAnalyze?: File[]) => {
     const targetFiles = filesToAnalyze && filesToAnalyze.length > 0 ? filesToAnalyze : selectedFiles;
+    if (analyzing) return;
+    if (quotaExhausted) {
+      setError('Bạn đã hết lượt quét. Mua thêm lượt hoặc gói VIP để tiếp tục.', 'quota');
+      return;
+    }
     if (targetFiles.length === 0) {
       setError('Vui lòng chọn ít nhất một tệp PDF hoặc ảnh phiếu xét nghiệm để phân tích.');
       return;
@@ -531,116 +568,38 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
         }, 150);
       }
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { status?: number; data?: { error?: { code?: string; message?: string } } } };
-      const status = axiosErr.response?.status;
-      const code = axiosErr.response?.data?.error?.code;
-      const message = axiosErr.response?.data?.error?.message;
-      if (status === 402 || code === 'QUOTA_EXCEEDED') {
+      const message = getApiErrorMessage(err, 'Không thể phân tích tài liệu. Vui lòng kiểm tra tệp và thử lại.');
+      if (isQuotaError(err)) {
+        setError(message, 'quota');
         setShowPricingModal(true);
+        if (user) fetchQuota();
+      } else if (isRetryableError(err)) {
+        setError('Không kết nối được máy chủ phân tích. Vui lòng thử lại.', 'retryable');
+      } else {
+        setError(message, 'other');
       }
-      setError(message || 'Không thể phân tích tài liệu y tế. Vui lòng kiểm tra định dạng tệp.');
     } finally {
       setAnalyzing(false);
     }
   };
 
   const handleOpenBooking = (doc: DoctorMatch, customNotes?: string) => {
-    setBookingDoctor(doc);
-    setSelectedSlot(null);
-    setBookingError(null);
-    setConfirmedAppt(null);
-    if (customNotes) {
-      setBookingNotes(customNotes);
-    } else {
-      setBookingNotes(analysis ? `Phân tích tệp ${analysis.fileName}: ${analysis.clinicalSummary.slice(0, 150)}...` : '');
-    }
-    const docId = doc.doctorId || (doc as any).id;
-    if (docId) {
-      loadSlots(docId, selectedDate);
-    }
-  };
-
-  const loadSlots = async (doctorId: string, date: string) => {
-    try {
-      setSlotsLoading(true);
-      setSlotsError(null);
-      setSelectedSlot(null);
-      const res = await api.get(`/doctors/${doctorId}/slots?date=${date}`);
-      if (res.data?.data) {
-        setSlots(res.data.data);
-      }
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
-      setSlotsError(axiosErr.response?.data?.error?.message || 'Không thể tải lịch khám của bác sĩ. Vui lòng kiểm tra lại kết nối mạng.');
-    } finally {
-      setSlotsLoading(false);
-    }
-  };
-
-  const handleDateChange = (date: string) => {
-    setSelectedDate(date);
-    if (bookingDoctor) {
-      const docId = bookingDoctor.doctorId || (bookingDoctor as any).id;
-      if (docId) {
-        loadSlots(docId, date);
-      }
-    }
-  };
-
-  const handleConfirmBooking = async () => {
-    if (!bookingDoctor || !selectedSlot) return;
-
-    if (!user) {
-      setBookingError('Vui lòng đăng nhập tài khoản bệnh nhân để đặt lịch khám.');
-      return;
-    }
-
-    try {
-      setBookingSubmitting(true);
-      setBookingError(null);
-
-      const slotTime = selectedSlot.scheduledStart || selectedSlot.startDateTime;
-      const docId = bookingDoctor.doctorId || (bookingDoctor as any).id;
-      const res = await api.post('/appointments', {
-        doctorId: docId,
-        scheduledStart: slotTime,
-        notes: bookingNotes,
-        medicalDocumentId: analysis?.documentId || undefined
-      });
-
-      if (res.data?.data) {
-        setConfirmedAppt({
-          appointmentCode: res.data.data.appointmentCode,
-          doctorName: bookingDoctor.fullName,
-          scheduledStart: slotTime || selectedSlot.scheduledStart || '',
-          feeAmount: bookingDoctor.consultationFee
-        });
-      }
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error?: { code?: string; message?: string } } } };
-      if (axiosErr.response?.data?.error?.code === 'SLOT_CONFLICT') {
-        setBookingError('Khung giờ này vừa có người khác đặt trước. Vui lòng chọn một khung giờ khác.');
-      } else {
-        setBookingError(axiosErr.response?.data?.error?.message || 'Không thể tạo lịch khám. Vui lòng thử lại.');
-      }
-    } finally {
-      setBookingSubmitting(false);
-    }
+    const docId = doc.doctorId || (doc as unknown as { id?: string }).id;
+    if (!docId) return;
+    setBookingNotes(
+      customNotes || (analysis ? `Kết quả xét nghiệm (${analysis.fileName}): ${analysis.clinicalSummary.slice(0, 300)}` : '')
+    );
+    setBookingDoctor({
+      id: docId,
+      fullName: doc.fullName,
+      specialties: doc.specialties,
+      consultationFee: doc.consultationFee,
+      hospitalAffiliation: doc.hospitalAffiliation,
+    });
   };
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-16">
-      {paymentSuccessToast && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-sm font-semibold text-emerald-800 animate-fadeIn shadow-xs">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-            <span>{paymentSuccessToast}</span>
-          </div>
-          <button onClick={() => setPaymentSuccessToast(null)} className="text-slate-400 hover:text-slate-600 p-1">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       {loadingFocusDoc && (
         <div className="p-4 bg-teal-50 border border-teal-200 rounded-2xl flex items-center gap-3 text-sm font-semibold text-teal-800 animate-fadeIn shadow-xs">
@@ -671,7 +630,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 Tệp <strong>{analysisSuccessNotification.fileName}</strong> đã được trích xuất{' '}
                 <strong>{analysisSuccessNotification.indicatorsCount} chỉ số lâm sàng</strong>, định hướng chuyên khoa{' '}
                 <strong className="underline decoration-emerald-500">{analysisSuccessNotification.specialtyName}</strong>{' '}
-                và kết nối thành công <strong>{analysisSuccessNotification.matchedDoctorsCount} Bác sĩ chuyên khoa</strong> qua thuật toán tương đồng cosine PostgreSQL pgvector.
+                và gợi ý <strong>{analysisSuccessNotification.matchedDoctorsCount} bác sĩ chuyên khoa</strong> phù hợp.
               </p>
             </div>
           </div>
@@ -703,10 +662,10 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Quét PDF Bệnh Án & Đề Xuất Bác Sĩ Chuyên Khoa (Multimodal AI)
+              Đọc Kết Quả Xét Nghiệm & Gợi Ý Bác Sĩ
             </h1>
             <p className="text-slate-500 text-sm mt-0.5">
-              Tải lên phiếu xét nghiệm máu, đơn thuốc hoặc bệnh án (PDF/Ảnh). AI sẽ đối chiếu chỉ số bất thường và tự động tìm Bác sĩ chuyên khoa phù hợp qua pgvector.
+              Tải lên phiếu xét nghiệm, đơn thuốc hoặc bệnh án (PDF/ảnh). Hệ thống giải thích các chỉ số bất thường bằng lời dễ hiểu và gợi ý bác sĩ chuyên khoa phù hợp.
             </p>
           </div>
         </div>
@@ -721,13 +680,20 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
           ) : (
             <div className="flex items-center gap-2 px-3.5 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-full text-xs font-semibold shadow-xs">
               <Zap className="w-4 h-4 text-teal-600" />
-              <span>
-                Lượt quét: <strong className={quota?.scanQuota === 0 ? "text-rose-600" : "text-teal-700"}>{quota?.scanQuota ?? 1}</strong>
+              <span className="inline-flex items-center gap-1" data-testid="quota-badge">
+                Lượt quét:{' '}
+                {quotaStatus === 'loading' ? (
+                  <Skeleton className="inline-block h-3.5 w-5 align-middle" />
+                ) : quotaStatus === 'error' || !quota ? (
+                  <strong className="text-slate-500" title="Chưa tải được số lượt quét">—</strong>
+                ) : (
+                  <strong className={quota.scanQuota <= 0 ? 'text-rose-600' : 'text-teal-700'}>{quota.scanQuota}</strong>
+                )}
               </span>
               <button
                 type="button"
                 onClick={() => setShowPricingModal(true)}
-                className="ml-1 px-2.5 py-0.5 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-full text-[11px] font-bold transition border border-teal-200"
+                className="ml-1 px-2.5 py-0.5 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-full text-[11px] font-bold transition border border-teal-200 cursor-pointer"
               >
                 + Mua thêm
               </button>
@@ -738,10 +704,11 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
 
       {/* Upload Zone */}
       <div
+        aria-busy={analyzing || undefined}
         onDragOver={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          setIsDragging(true);
+          if (!analyzing) setIsDragging(true);
         }}
         onDragLeave={(e) => {
           e.preventDefault();
@@ -752,19 +719,21 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
           e.preventDefault();
           e.stopPropagation();
           setIsDragging(false);
-          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          if (!analyzing && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             handleFilesSelected(Array.from(e.dataTransfer.files));
           }
         }}
-        className={`p-8 rounded-3xl border-2 border-dashed transition text-center space-y-4 shadow-xs ${
-          isDragging
+        className={`p-5 sm:p-8 rounded-3xl border-2 border-dashed transition text-center space-y-4 shadow-xs ${
+          analyzing
+            ? 'bg-slate-50 border-slate-200 opacity-80'
+            : isDragging
             ? 'bg-teal-50/70 border-teal-500 ring-4 ring-teal-500/20'
             : 'bg-white border-slate-300 hover:border-teal-500'
         }`}
       >
         <UploadCloud
           className={`w-14 h-14 mx-auto transition-transform duration-200 ${
-            isDragging ? 'text-teal-600 scale-110' : 'text-teal-500 animate-bounce'
+            isDragging ? 'text-teal-600 scale-110' : 'text-teal-500'
           }`}
         />
         <div>
@@ -778,15 +747,19 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
 
         <label
           htmlFor="multi-file-upload-input"
-          className="inline-block px-5 py-2.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-xl text-xs font-semibold cursor-pointer transition border border-teal-200 shadow-xs"
+          aria-disabled={analyzing || undefined}
+          className={`inline-block px-5 py-2.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-xl text-sm font-semibold cursor-pointer transition border border-teal-200 shadow-xs ${
+            analyzing ? 'opacity-50 pointer-events-none' : ''
+          }`}
         >
-          Chọn Tệp PDF & Ảnh Từ Thiết Bị
+          Chọn tệp PDF hoặc ảnh
           <input
             id="multi-file-upload-input"
             type="file"
             multiple
-            accept=".pdf,.png,.jpg,.jpeg"
+            accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
             onChange={handleFileUpload}
+            disabled={analyzing}
             className="hidden"
           />
         </label>
@@ -809,7 +782,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   type="button"
                   onClick={handleClearFiles}
                   disabled={analyzing}
-                  className="text-[11px] text-slate-400 hover:text-rose-600 transition flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] text-slate-500 hover:text-rose-600 transition flex items-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Xóa toàn bộ hàng đợi"
                 >
                   <Trash2 className="w-3 h-3" /> Xóa tất cả
@@ -855,7 +828,8 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                       type="button"
                       onClick={() => handleRemoveFile(idx)}
                       disabled={analyzing}
-                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition flex-shrink-0 cursor-pointer"
+                      aria-label={`Xóa tệp ${f.name}`}
+                      className="p-1 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition flex-shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                       title="Xóa tệp này"
                     >
                       <X className="w-4 h-4" />
@@ -877,23 +851,38 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 <span>Thêm tệp (PDF/Ảnh)</span>
               </label>
 
-              <button
-                type="button"
-                onClick={() => executeAnalysis()}
-                disabled={analyzing}
-                className="px-4 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-              >
-                {analyzing ? (
-                  <>
-                    <Sparkles className="w-3.5 h-3.5 animate-spin" /> Đang Phân Tích {selectedFiles.length} Tệp...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Phân Tích {selectedFiles.length} Tệp Hồ Sơ (Đồng Thời PDF & Ảnh)
-                  </>
-                )}
-              </button>
+              {quotaExhausted && !analyzing ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-rose-700" data-testid="quota-exhausted">Hết lượt quét</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPricingModal(true)}
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Crown className="w-3.5 h-3.5" /> Xem bảng giá
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => executeAnalysis()}
+                  disabled={Boolean(scanBlockedReason)}
+                  title={scanBlockedReason || undefined}
+                  aria-busy={analyzing || undefined}
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  {analyzing ? (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 animate-spin" /> Đang phân tích {selectedFiles.length} tệp...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Phân Tích {selectedFiles.length} Tệp
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -907,11 +896,11 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
-                  <span>Lấy Ngẫu Nhiên Ca Bệnh Từ Meddies (150.000 Hồ Sơ)</span>
-                  <span className="px-1.5 py-0.5 bg-teal-100 text-teal-800 rounded-md text-[10px] font-semibold">Hugging Face</span>
+                  <span>Tải phiếu xét nghiệm mẫu (bộ dữ liệu Meddies)</span>
+                  <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded-md text-[10px] font-semibold">Dữ liệu mẫu</span>
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  Tự động sinh tệp PDF xét nghiệm bệnh viện chuẩn và tải về máy để bạn kéo-thả kiểm thử.
+                  Tạo một tệp PDF mẫu (không phải hồ sơ của bạn) để thử tính năng quét.
                 </p>
               </div>
             </div>
@@ -970,14 +959,18 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
 
         {/* Quick Sample Presets */}
         <div className="pt-4 border-t border-slate-100 text-left">
-          <p className="text-xs font-semibold text-slate-600 mb-2">Hoặc thử nhanh các phiếu xét nghiệm mẫu chuẩn:</p>
+          <p className="text-xs font-semibold text-slate-600 mb-2">
+            Hoặc thử với phiếu mẫu <span className="font-normal text-slate-500">(dữ liệu minh hoạ, mỗi lần thử dùng 1 lượt quét)</span>:
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
             {samplePresets.map((preset, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => handleSelectPreset(preset)}
-                className="p-3 bg-slate-50 hover:bg-teal-50 hover:border-teal-300 border border-slate-200 rounded-xl text-left transition flex items-center justify-between group"
+                disabled={Boolean(scanBlockedReason)}
+                title={scanBlockedReason || undefined}
+                className="p-3 bg-slate-50 hover:bg-teal-50 hover:border-teal-300 border border-slate-200 rounded-xl text-left transition flex items-center justify-between group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-50 disabled:hover:border-slate-200"
               >
                 <div className="overflow-hidden pr-2">
                   <p className="text-xs font-bold text-slate-800 group-hover:text-teal-800 truncate">{preset.title}</p>
@@ -991,29 +984,31 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-medium flex flex-wrap items-center justify-between gap-3 shadow-xs animate-fadeIn">
+        <div role="alert" data-testid="scan-error" data-kind={errorKind} className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-medium flex flex-wrap items-center justify-between gap-3 shadow-xs animate-fadeIn">
           <div className="flex items-center gap-2 max-w-2xl">
             <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
             <span>{error}</span>
           </div>
           <div className="flex items-center gap-2">
-            {selectedFiles.length > 0 && (
+            {errorKind === 'retryable' && selectedFiles.length > 0 && (
               <button
                 type="button"
                 onClick={() => executeAnalysis()}
-                disabled={analyzing}
-                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
+                disabled={Boolean(scanBlockedReason)}
+                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Thử Lại
+                <RotateCcw className="w-3.5 h-3.5" /> Thử lại
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setShowPricingModal(true)}
-              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
-            >
-              <Crown className="w-3.5 h-3.5" /> Gói Quét / VIP
-            </button>
+            {errorKind === 'quota' && (
+              <button
+                type="button"
+                onClick={() => setShowPricingModal(true)}
+                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Crown className="w-3.5 h-3.5" /> Gói quét / VIP
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1075,32 +1070,32 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             {[
               {
                 step: 0,
-                title: 'Khử Danh Tính & Bảo Mật',
-                desc: 'Masking PII & kiểm tra SHA-256',
+                title: 'Ẩn thông tin cá nhân',
+                desc: 'Che tên, số định danh trước khi phân tích',
                 icon: ShieldCheck
               },
               {
                 step: 1,
-                title: 'Trích Xuất OCR Đa Tầng',
-                desc: 'Nhận diện ma trận bảng sinh hóa',
+                title: 'Đọc nội dung tài liệu',
+                desc: 'Nhận diện bảng kết quả xét nghiệm',
                 icon: FileText
               },
               {
                 step: 2,
-                title: 'Đối Soát Chỉ Số Bất Thường',
-                desc: 'So chuẩn khoảng tham chiếu',
+                title: 'Tìm chỉ số bất thường',
+                desc: 'So với khoảng tham chiếu',
                 icon: AlertTriangle
               },
               {
                 step: 3,
-                title: 'Đối Soát Vector pgvector',
-                desc: 'HNSW Cosine khớp Bác sĩ',
+                title: 'Tìm bác sĩ phù hợp',
+                desc: 'Theo chuyên khoa liên quan',
                 icon: Stethoscope
               },
               {
                 step: 4,
-                title: 'Hội Chẩn AI Clinical RAG',
-                desc: 'Gemini tổng hợp khuyến nghị',
+                title: 'Tổng hợp giải thích',
+                desc: 'Viết lời giải thích dễ hiểu',
                 icon: Sparkles
               }
             ].map((item) => {
@@ -1185,14 +1180,14 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   <Zap className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="font-bold text-emerald-900 text-sm">⚡ SHA-256 Deduplication Hit (Tiết kiệm 100% tài nguyên)</p>
+                  <p className="font-bold text-emerald-900 text-sm">Tài liệu này bạn đã quét trước đó</p>
                   <p className="text-emerald-700 mt-0.5">
-                    Tài liệu này đã được phân tích trước đó trong hồ sơ EMR của bạn. Hệ thống trả về kết quả ngay lập tức (0ms) mà <strong>không trừ lượt quét</strong> và không tiêu hao token AI.
+                    Kết quả được lấy lại từ hồ sơ của bạn và <strong>không trừ lượt quét</strong>.
                   </p>
                 </div>
               </div>
-              <span className="px-3 py-1 bg-emerald-100 text-emerald-800 font-mono font-bold rounded-lg border border-emerald-300 text-[11px] whitespace-nowrap">
-                0 Token AI • 0đ Phí
+              <span className="px-3 py-1 bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 text-[11px] whitespace-nowrap">
+                Miễn phí
               </span>
             </div>
           )}
@@ -1209,7 +1204,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 </p>
                 <p className="text-indigo-800 mt-1 leading-relaxed">
                   Hệ thống AI đã trích xuất đồng thời toàn bộ nội dung từ{' '}
-                  <strong>{analysis.fileNames?.join(', ') || analysis.fileName}</strong> bằng cơ chế xử lý song song OCR Vision đa tầng. Các chỉ số sinh hóa, huyết học và chẩn đoán đã được tổng hợp, khử trùng lặp và đối chiếu chéo trong một bệnh án duy nhất.
+                  <strong>{analysis.fileNames?.join(', ') || analysis.fileName}</strong> và gộp các chỉ số vào một bản tóm tắt chung.
                 </p>
               </div>
             </div>
@@ -1235,14 +1230,20 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-amber-950">Trạng Thái Hệ Thống:</span>
+                      <span className="font-bold text-amber-950">Chế độ hạn chế</span>
                       <span className="font-mono font-semibold px-2 py-0.5 bg-amber-100 text-amber-900 rounded-md border border-amber-300">
                         {analysis.modelUsed}
                       </span>
                     </div>
                     <p className="text-amber-800 text-[11px] mt-0.5">
-                      ⚠️ Hệ thống đang chạy ở <strong>Chế độ Ngoại tuyến (Offline Fallback)</strong> do chưa cấu hình OPENROUTER_API_KEY hoặc mất kết nối mạng. Chỉ số được bóc tách bằng bộ phân tích cú pháp thô, <strong>không tự ý bịa bệnh</strong>. Đề xuất bác sĩ được thực hiện qua thuật toán tương đồng cosine pgvector.
+                      Trợ lý AI tạm thời không khả dụng nên kết quả chỉ gồm các chỉ số đọc được trực tiếp từ tài liệu, <strong>không có phần diễn giải</strong>. Hãy hỏi bác sĩ để được giải thích đầy đủ.
                     </p>
+                    <details className="mt-1">
+                      <summary className="text-[11px] text-amber-700 cursor-pointer">Chi tiết kỹ thuật</summary>
+                      <p className="text-[11px] text-amber-700 mt-1 font-mono">
+                        Offline fallback (thiếu OPENROUTER_API_KEY hoặc mất mạng). Parser thô + tìm bác sĩ bằng pgvector cosine.
+                      </p>
+                    </details>
                   </div>
                 </div>
                 <span className="px-3 py-1 bg-white text-amber-800 font-semibold rounded-xl border border-amber-200 text-[11px] shadow-2xs whitespace-nowrap">
@@ -1257,22 +1258,24 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-emerald-950">Động cơ RAG Phân tích Lâm sàng AI:</span>
+                      <span className="font-bold text-emerald-950">Đã phân tích bằng trợ lý AI</span>
                       <span className="font-mono font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded-md border border-emerald-300">
                         {analysis.modelUsed}
                       </span>
-                      <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-full">
-                        AI Verified
-                      </span>
+
                     </div>
                     <p className="text-emerald-800 text-[11px] mt-0.5">
-                      ✅ Phân tích bởi Trí tuệ Nhân tạo thực thụ qua OpenRouter AI Gateway. Chẩn đoán phân luồng và lựa chọn Bác sĩ được xác nhận bằng suy luận y khoa kết hợp PostgreSQL pgvector.
+                      Kết quả chỉ mang tính tham khảo, không thay thế chẩn đoán của bác sĩ.
                     </p>
+                    <details className="mt-1">
+                      <summary className="text-[11px] text-emerald-700 cursor-pointer">Chi tiết kỹ thuật</summary>
+                      <p className="text-[11px] text-emerald-700 mt-1 font-mono">
+                        OpenRouter AI Gateway · gợi ý bác sĩ bằng PostgreSQL pgvector (cosine).
+                      </p>
+                    </details>
                   </div>
                 </div>
-                <span className="px-3 py-1 bg-white text-emerald-800 font-semibold rounded-xl border border-emerald-200 text-[11px] shadow-2xs whitespace-nowrap">
-                  ✨ AI Reasoning Chuẩn Xác
-                </span>
+
               </div>
             );
           })()}
@@ -1635,8 +1638,8 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                       </h3>
                       <p className="text-xs text-slate-500">
                         {isMulti
-                          ? `PostgreSQL pgvector đã đối chiếu các bất thường trong tệp ${displayFileName} và đề xuất Bác sĩ có chuyên môn sát nhất cho ${displayPatientName}.`
-                          : 'PostgreSQL pgvector đã đối chiếu các bất thường trong tài liệu và tìm kiếm các Bác sĩ có chuyên môn sát nhất.'}
+                          ? `Dựa trên các chỉ số bất thường trong tệp ${displayFileName}, đây là những bác sĩ có chuyên môn phù hợp nhất cho ${displayPatientName}.`
+                          : 'Dựa trên các chỉ số bất thường trong tài liệu, đây là những bác sĩ có chuyên môn phù hợp nhất.'}
                       </p>
                     </div>
                     <span className="text-xs text-slate-400">
@@ -1689,17 +1692,15 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                                     )}
                                     <span>•</span>
                                     <span className="font-mono">CCHN: {doc.licenseNumber}</span>
-                                    {doc.rating !== undefined && (
-                                      <>
-                                        <span>•</span>
-                                        <span className="inline-flex items-center gap-1 text-amber-600 font-bold">
-                                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                                          {doc.rating > 0 ? doc.rating.toFixed(1) : '5.0'}
-                                          {doc.reviewCount !== undefined && (
-                                            <span className="text-slate-400 font-normal">({doc.reviewCount})</span>
-                                          )}
-                                        </span>
-                                      </>
+                                    <span>•</span>
+                                    {formatRating(doc.rating, doc.reviewCount) ? (
+                                      <span className="inline-flex items-center gap-1 text-amber-700 font-bold">
+                                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" aria-hidden />
+                                        {formatRating(doc.rating, doc.reviewCount)}
+                                        <span className="text-slate-500 font-normal">({doc.reviewCount})</span>
+                                      </span>
+                                    ) : (
+                                      <span className="italic">Chưa có đánh giá</span>
                                     )}
                                   </div>
                                 </div>
@@ -1742,9 +1743,9 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                             {/* Footer / Booking Action */}
                             <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                               <div>
-                                <span className="text-xs text-slate-400">Giá khám tư vấn:</span>
+                                <span className="text-xs text-slate-500">Phí khám:</span>
                                 <p className="text-sm font-bold text-teal-700">
-                                  {doc.consultationFee.toLocaleString('vi-VN')} đ
+                                  {formatVnd(doc.consultationFee) ?? 'Liên hệ'}
                                 </p>
                               </div>
                               <button
@@ -1797,151 +1798,21 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
         </div>
       )}
 
-      {/* 📅 Interactive Slot Booking Modal */}
-      {bookingDoctor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="font-bold text-slate-900 text-base">Đặt Lịch Khám Chuyên Khoa</h3>
-                <p className="text-xs text-slate-500">với {bookingDoctor.fullName}</p>
-              </div>
-              <button
-                onClick={() => setBookingDoctor(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Confirmed State */}
-            {confirmedAppt ? (
-              <div className="text-center py-6 space-y-4">
-                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-                <h4 className="text-lg font-bold text-slate-900">Đặt Lịch Khám Thành Công!</h4>
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-left space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Mã lịch hẹn:</span>
-                    <span className="font-mono font-bold text-teal-600">{confirmedAppt.appointmentCode}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Bác sĩ:</span>
-                    <span className="font-semibold text-slate-800">{confirmedAppt.doctorName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Thời gian:</span>
-                    <span className="font-semibold text-slate-800">
-                      {new Date(confirmedAppt.scheduledStart).toLocaleString('vi-VN')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Phí khám:</span>
-                    <span className="font-bold text-emerald-600">
-                      {confirmedAppt.feeAmount.toLocaleString('vi-VN')} đ
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setBookingDoctor(null)}
-                  className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold"
-                >
-                  Đóng
-                </button>
-              </div>
-            ) : (
-              /* Booking Form */
-              <div className="space-y-4 text-xs">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Chọn Ngày Khám</label>
-                  <input
-                    type="date"
-                    min={formatLocalDate(new Date())}
-                    value={selectedDate}
-                    onChange={(e) => handleDateChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">
-                    Chọn Khung Giờ Tư Vấn (30 phút/ca)
-                  </label>
-                  {slotsLoading ? (
-                    <div className="py-6 text-center text-slate-400">Đang tải lịch trống...</div>
-                  ) : slotsError ? (
-                    <div className="p-3 bg-red-50 text-red-600 rounded-xl text-center text-sm border border-red-200">
-                      {slotsError}
-                    </div>
-                  ) : slots.length === 0 ? (
-                    <div className="p-3 bg-slate-50 text-slate-500 rounded-xl text-center">
-                      Bác sĩ không có lịch trống trong ngày này. Vui lòng chọn ngày khác.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto pr-1">
-                      {slots.map((slot) => (
-                        <button
-                          key={slot.slotId}
-                          type="button"
-                          disabled={!slot.available}
-                          onClick={() => setSelectedSlot(slot)}
-                          className={`p-2 rounded-lg border text-center transition ${
-                            !slot.available
-                              ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through'
-                              : selectedSlot?.slotId === slot.slotId
-                              ? 'bg-teal-600 text-white border-teal-600 font-bold'
-                              : 'bg-white text-slate-700 border-slate-200 hover:border-teal-400'
-                          }`}
-                        >
-                          <Clock className="w-3 h-3 mx-auto mb-0.5" />
-                          {slot.startTime}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Ghi Chú Đính Kèm Cho Bác Sĩ</label>
-                  <textarea
-                    rows={2}
-                    value={bookingNotes}
-                    onChange={(e) => setBookingNotes(e.target.value)}
-                    placeholder="Mô tả tóm tắt kết quả xét nghiệm để bác sĩ chuẩn bị trước..."
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-
-                {bookingError && (
-                  <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl font-medium">
-                    {bookingError}
-                  </div>
-                )}
-
-                <div className="pt-2 flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setBookingDoctor(null)}
-                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-semibold"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!selectedSlot || bookingSubmitting}
-                    onClick={handleConfirmBooking}
-                    className="px-5 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white rounded-xl font-semibold transition"
-                  >
-                    {bookingSubmitting ? 'Đang Đặt...' : 'Xác Nhận Đặt Khám'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <BookingModal
+        open={bookingDoctor !== null}
+        doctor={bookingDoctor}
+        onClose={() => setBookingDoctor(null)}
+        initialNotes={bookingNotes}
+        notesLabel="Ghi chú cho bác sĩ (tóm tắt kết quả xét nghiệm — bạn có thể sửa)"
+        extra={{ medicalDocumentId: analysis?.documentId }}
+        context={
+          analysis?.documentId ? (
+            <p className="text-xs p-3 rounded-xl bg-sky-50 border border-sky-200 text-sky-900">
+              Hồ sơ <strong>{analysis.fileName}</strong> sẽ được đính kèm để bác sĩ xem trước buổi khám.
+            </p>
+          ) : undefined
+        }
+      />
 
       {/* 💳 Commercial Pricing & Scan Quota Modal */}
       {showPricingModal && (
@@ -1953,116 +1824,68 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   <Crown className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg text-slate-900">Bảng Giá Dịch Vụ & Gói Quét MediAssist-AI</h3>
-                  <p className="text-xs text-slate-500">Mô hình kinh doanh Win-Win: Bảo vệ tài nguyên AI, minh bạch chi phí cho người bệnh</p>
+                  <h3 className="font-bold text-lg text-slate-900">Bảng giá gói quét</h3>
+                  <p className="text-xs text-slate-500">Giá đã gồm VAT. Thanh toán một lần, không tự gia hạn.</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowPricingModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition"
+                aria-label="Đóng bảng giá"
+                className="p-1.5 text-slate-500 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Tier 1: Single Scan */}
-              <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50 flex flex-col justify-between space-y-4">
-                <div className="space-y-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Gói Lẻ</span>
-                  <h4 className="text-2xl font-black text-slate-900">29.000đ</h4>
-                  <p className="text-xs text-slate-600 font-medium">1 Lượt Phân Tích Chuyên Sâu</p>
-                  <ul className="text-xs text-slate-600 space-y-1.5 pt-2">
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> OCR bóc tách chỉ số sinh hóa</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> Đề xuất Bác sĩ qua pgvector</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> Lưu trữ Cloud EMR an toàn</li>
-                  </ul>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedPaymentPackage({
-                      packageId: 'BASIC_5',
-                      title: 'Gói Lẻ (+5 Lượt Phân Tích)',
-                      price: '29.000đ',
-                      priceNum: 29000,
-                      benefits: '+5 lượt quét trích xuất chỉ số sinh hóa và gợi ý bác sĩ',
-                    });
-                  }}
-                  className="w-full py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold transition cursor-pointer"
-                >
-                  Mua 1 Lượt (29k)
-                </button>
-              </div>
-
-              {/* Tier 2: 5 Scans Pack */}
-              <div className="p-5 rounded-2xl border-2 border-teal-500 bg-teal-50/40 flex flex-col justify-between space-y-4 relative shadow-xs">
-                <span className="absolute -top-2.5 right-4 px-2.5 py-0.5 bg-teal-600 text-white rounded-full text-[10px] font-bold shadow-xs">
-                  Phổ Biến Nhất
-                </span>
-                <div className="space-y-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-teal-700">Gói Tiết Kiệm</span>
-                  <h4 className="text-2xl font-black text-teal-950">99.000đ</h4>
-                  <p className="text-xs text-teal-700 font-medium">5 Lượt (Chỉ 19.800đ/lần)</p>
-                  <ul className="text-xs text-slate-600 space-y-1.5 pt-2">
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> Tiết kiệm 32% chi phí</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> Hạn sử dụng 12 tháng</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> Tóm tắt SBAR đính kèm bác sĩ</li>
-                  </ul>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedPaymentPackage({
-                      packageId: 'VIP_MONTHLY',
-                      title: 'Gói Tiết Kiệm (30 Ngày VIP)',
-                      price: '99.000đ',
-                      priceNum: 99000,
-                      benefits: 'Không giới hạn lượt quét tài liệu y tế trong 30 ngày',
-                    });
-                  }}
-                  className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
-                >
-                  Mua Gói 5 Lượt (99k)
-                </button>
-              </div>
-
-              {/* Tier 3: MediPass VIP */}
-              <div className="p-5 rounded-2xl border-2 border-amber-400 bg-gradient-to-b from-amber-50/60 to-white flex flex-col justify-between space-y-4 relative shadow-xs">
-                <span className="absolute -top-2.5 right-4 px-2.5 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-bold shadow-xs">
-                  VIP Gia Đình
-                </span>
-                <div className="space-y-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">MediPass VIP</span>
-                  <h4 className="text-2xl font-black text-slate-900">149.000đ<span className="text-xs font-normal text-slate-500">/tháng</span></h4>
-                  <p className="text-xs text-amber-800 font-medium">Quét không giới hạn</p>
-                  <ul className="text-xs text-slate-600 space-y-1.5 pt-2">
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" /> Không giới hạn lượt quét PDF/Ảnh</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" /> Ưu tiên kết nối lịch Bác sĩ</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" /> Hỗ trợ hồ sơ sức khỏe cả gia đình</li>
-                  </ul>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedPaymentPackage({
-                      packageId: 'VIP_ENTERPRISE',
-                      title: 'MediPass VIP Gia Đình (90 Ngày VIP)',
-                      price: '149.000đ',
-                      priceNum: 149000,
-                      benefits: 'Không giới hạn lượt quét trong 90 ngày cho cả gia đình',
-                    });
-                  }}
-                  className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
-                >
-                  Đăng Ký VIP (149k/tháng)
-                </button>
-              </div>
+              {(Object.keys(SCAN_PACKAGES) as PackageCode[]).map((code) => {
+                const pkg = SCAN_PACKAGES[code];
+                const display = PACKAGE_DISPLAY[code];
+                const toneCard = display.tone === 'teal'
+                  ? 'border-2 border-teal-500 bg-teal-50/40'
+                  : display.tone === 'amber'
+                  ? 'border-2 border-amber-400 bg-amber-50/40'
+                  : 'border border-slate-200 bg-slate-50';
+                const toneButton = display.tone === 'teal'
+                  ? 'bg-teal-600 hover:bg-teal-700 text-white'
+                  : display.tone === 'amber'
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                  : 'bg-slate-800 hover:bg-slate-900 text-white';
+                return (
+                  <div key={code} className={`p-5 rounded-2xl flex flex-col justify-between space-y-4 relative ${toneCard}`} data-testid={`package-${code}`}>
+                    {display.badge && (
+                      <span className="absolute -top-2.5 right-4 px-2.5 py-0.5 bg-teal-600 text-white rounded-full text-[10px] font-bold">{display.badge}</span>
+                    )}
+                    <div className="space-y-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{display.tag}</span>
+                      <h4 className="text-2xl font-black text-slate-900">{formatPackagePrice(code)}</h4>
+                      <p className="text-xs text-slate-700 font-medium">{pkg.description}</p>
+                      <ul className="text-xs text-slate-600 space-y-1.5 pt-2">
+                        {display.highlights.map((h) => (
+                          <li key={h} className="flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> {h}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentError(null);
+                        setSelectedPackageCode(code);
+                      }}
+                      className={`w-full py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${toneButton}`}
+                    >
+                      {display.cta} ({formatPackagePrice(code)})
+                    </button>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="p-4 bg-slate-50 rounded-2xl text-slate-500 text-xs text-center border border-slate-200">
-              💡 <em>Chính sách chống lãng phí token: Người bệnh tải lại cùng một tài liệu (SHA-256 Deduplication) sẽ <strong>được miễn phí 100%</strong> trọn đời và không tiêu tốn thêm lượt quét.</em>
+              💡 <em>Tải lại đúng tài liệu đã quét trước đó sẽ <strong>không bị trừ thêm lượt</strong>.</em>
             </div>
           </div>
         </div>
@@ -2070,7 +1893,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
 
       {/* Sandbox Payment & VietQR Checkout Modal */}
       {selectedPaymentPackage && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2.5">
@@ -2083,8 +1906,10 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 </div>
               </div>
               <button
-                onClick={() => setSelectedPaymentPackage(null)}
-                className="p-1 rounded-xl text-slate-400 hover:text-slate-600 transition"
+                onClick={() => setSelectedPackageCode(null)}
+                disabled={processingPayment}
+                aria-label="Đóng thanh toán"
+                className="p-1 rounded-xl text-slate-500 hover:text-slate-700 transition cursor-pointer disabled:opacity-40"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2100,12 +1925,12 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             {/* Package Summary */}
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-slate-900">{selectedPaymentPackage.title}</p>
-                <p className="text-[11px] text-teal-700 font-medium">{selectedPaymentPackage.benefits}</p>
+                <p className="text-xs font-bold text-slate-900">{selectedPaymentPackage.name}</p>
+                <p className="text-[11px] text-teal-700 font-medium">{selectedPaymentPackage.description}</p>
               </div>
               <div className="text-right">
                 <span className="text-xs text-slate-400 block">Tổng tiền</span>
-                <span className="text-lg font-black text-teal-700">{selectedPaymentPackage.price}</span>
+                <span className="text-lg font-black text-teal-700">{formatPackagePrice(selectedPaymentPackage.code)}</span>
               </div>
             </div>
 
@@ -2227,12 +2052,12 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   </svg>
                   <span className="text-[9px] font-mono font-bold text-teal-800 uppercase tracking-wider">VietQR NAPAS 247</span>
                 </div>
-                <div className="space-y-1 text-xs">
-                  <p className="font-semibold text-slate-800">Ngân hàng TMCP Quân Đội (MB Bank)</p>
-                  <p className="text-slate-600 font-mono">Số tài khoản: <strong className="text-slate-900">9999 8888 6666</strong></p>
-                  <p className="text-slate-600 font-mono">Chủ tài khoản: <strong>BENH VIEN DIEN TU MEDIASSIST</strong></p>
-                  <p className="text-[11px] text-teal-800 bg-teal-100/70 px-2.5 py-1 rounded-lg font-mono">
-                    Nội dung: NAPQUOTA {user?.email?.split('@')[0]?.toUpperCase()}
+                <div className="space-y-1.5 text-xs">
+                  <p className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold" data-testid="sandbox-warning">
+                    Môi trường thử nghiệm — mã QR minh hoạ, KHÔNG chuyển tiền thật.
+                  </p>
+                  <p className="text-slate-600">
+                    Bấm xác nhận để hệ thống mô phỏng giao dịch thành công và cộng lượt quét.
                   </p>
                 </div>
               </div>
@@ -2242,8 +2067,9 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setSelectedPaymentPackage(null)}
-                className="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                onClick={() => setSelectedPackageCode(null)}
+                disabled={processingPayment}
+                className="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer disabled:opacity-40"
               >
                 Hủy bỏ
               </button>
@@ -2251,7 +2077,8 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 type="button"
                 onClick={handleConfirmPayment}
                 disabled={processingPayment}
-                className={`px-5 py-2.5 text-sm font-bold text-white rounded-xl transition shadow-xs flex items-center gap-2 cursor-pointer ${
+                aria-busy={processingPayment || undefined}
+                className={`px-5 py-2.5 text-sm font-bold text-white rounded-xl transition shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                   paymentMethod === 'STRIPE'
                     ? 'bg-indigo-600 hover:bg-indigo-700'
                     : 'bg-teal-600 hover:bg-teal-700'
@@ -2262,12 +2089,12 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 ) : paymentMethod === 'STRIPE' ? (
                   <>
                     <CreditCard className="w-4 h-4" />
-                    <span>Thanh Toán Stripe Checkout ({selectedPaymentPackage.price})</span>
+                    <span>Thanh toán qua Stripe ({formatPackagePrice(selectedPaymentPackage.code)})</span>
                   </>
                 ) : (
                   <>
                     <BadgeCheck className="w-4 h-4" />
-                    <span>Xác Nhận Đã Chuyển Khoản (Sandbox Auto-Verify)</span>
+                    <span>Mô phỏng thanh toán thành công</span>
                   </>
                 )}
               </button>

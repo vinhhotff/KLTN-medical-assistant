@@ -1,0 +1,112 @@
+import { test, expect, type Page } from '@playwright/test';
+import { installMockApi } from './fixtures/mockApi';
+
+const QUOTA_OK = { success: true, data: { scanQuota: 3, subscriptionTier: 'BASIC', vipValidUntil: null, vip: false, hasQuota: true } };
+const QUOTA_EMPTY = { success: true, data: { scanQuota: 0, subscriptionTier: 'FREE', vipValidUntil: null, vip: false, hasQuota: false } };
+
+const pdf = (name: string, size = 2048) => ({
+  name,
+  mimeType: 'application/pdf',
+  buffer: Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(size, 0x20)]),
+});
+
+async function pick(page: Page, files: Array<{ name: string; mimeType: string; buffer: Buffer }>) {
+  await page.locator('#multi-file-upload-input').setInputFiles(files);
+}
+
+test.describe('Document scanner', () => {
+  test('quota loading shows a placeholder instead of a fake "1"', async ({ page }) => {
+    await installMockApi(page, { role: 'PATIENT', overrides: { 'GET /documents/quota': { delay: 1500, body: QUOTA_OK } } });
+    await page.goto('/patient/documents');
+    await expect(page.getByTestId('quota-badge')).not.toContainText('1');
+    await expect(page.getByTestId('quota-badge')).toContainText('3', { timeout: 5000 });
+  });
+
+  test('no quota: analyse button replaced by "Hết lượt quét" + pricing, presets disabled', async ({ page }) => {
+    await installMockApi(page, { role: 'PATIENT', overrides: { 'GET /documents/quota': { body: QUOTA_EMPTY } } });
+    await page.goto('/patient/documents');
+    await pick(page, [pdf('ket-qua.pdf')]);
+    await expect(page.getByTestId('quota-exhausted')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Phân Tích 1 Tệp/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Phiếu Xét Nghiệm Máu/ })).toBeDisabled();
+
+    await page.getByRole('button', { name: 'Xem bảng giá' }).click();
+    // Package copy must match PaymentService: BASIC_5 = +5 scans, VIP_MONTHLY = 30 days, VIP_ENTERPRISE = 90 days
+    await expect(page.getByTestId('package-BASIC_5')).toContainText('+5 lượt quét');
+    await expect(page.getByTestId('package-VIP_MONTHLY')).toContainText('30 ngày');
+    await expect(page.getByTestId('package-VIP_ENTERPRISE')).toContainText('90 ngày');
+  });
+
+  test('rejects wrong MIME type and empty files before upload', async ({ page }) => {
+    await installMockApi(page, { role: 'PATIENT', overrides: { 'GET /documents/quota': { body: QUOTA_OK } } });
+    await page.goto('/patient/documents');
+
+    await pick(page, [{ name: 'fake.pdf', mimeType: 'application/x-msdownload', buffer: Buffer.alloc(4096, 1) }]);
+    await expect(page.getByTestId('scan-error')).toContainText('không đúng định dạng');
+    await expect(page.getByTestId('scan-error').getByRole('button')).toHaveCount(0);
+
+    await pick(page, [{ name: 'empty.pdf', mimeType: 'application/pdf', buffer: Buffer.alloc(10) }]);
+    await expect(page.getByTestId('scan-error')).toContainText('rỗng hoặc bị hỏng');
+  });
+
+  test('queue and presets are frozen while analysing; double click sends one request', async ({ page }) => {
+    const calls: Array<{ method: string; path: string; body: unknown }> = [];
+    await installMockApi(page, {
+      role: 'PATIENT',
+      calls,
+      overrides: {
+        'GET /documents/quota': { body: QUOTA_OK },
+        'POST /documents/analyze': { delay: 2500, status: 500 },
+      },
+    });
+    await page.goto('/patient/documents');
+    await pick(page, [pdf('ket-qua.pdf')]);
+    const analyse = page.getByRole('button', { name: /Phân Tích 1 Tệp/ });
+    await analyse.dblclick();
+    await expect(page.getByRole('button', { name: /Đang phân tích/ })).toBeDisabled();
+    await expect(page.locator('#multi-file-upload-input')).toBeDisabled();
+    await expect(page.getByRole('button', { name: /Phiếu Xét Nghiệm Máu/ })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /Xóa tệp ket-qua.pdf/ })).toBeDisabled();
+
+    // 5xx → retry offered, no "buy package" upsell
+    const err = page.getByTestId('scan-error');
+    await expect(err).toHaveAttribute('data-kind', 'retryable', { timeout: 6000 });
+    await expect(err.getByRole('button', { name: /Thử lại/ })).toBeVisible();
+    await expect(err.getByRole('button', { name: /Gói quét/ })).toHaveCount(0);
+    expect(calls.filter((c) => c.path === '/documents/analyze')).toHaveLength(1);
+  });
+
+  test('402 quota error offers packages but not retry', async ({ page }) => {
+    await installMockApi(page, {
+      role: 'PATIENT',
+      overrides: {
+        'GET /documents/quota': { body: QUOTA_OK },
+        'POST /documents/analyze': { status: 402, body: { success: false, error: { code: 'QUOTA_EXCEEDED', message: 'Bạn đã hết lượt quét.' } } },
+      },
+    });
+    await page.goto('/patient/documents');
+    await pick(page, [pdf('ket-qua.pdf')]);
+    await page.getByRole('button', { name: /Phân Tích 1 Tệp/ }).click();
+    const err = page.getByTestId('scan-error');
+    await expect(err).toHaveAttribute('data-kind', 'quota');
+    await expect(err.getByRole('button', { name: /Thử lại/ })).toHaveCount(0);
+  });
+
+  test('payment verification failure is shown instead of silently closing', async ({ page }) => {
+    await installMockApi(page, {
+      role: 'PATIENT',
+      overrides: {
+        'GET /documents/quota': { body: QUOTA_EMPTY },
+        'POST /payments/checkout': { body: { success: true, data: { transactionCode: 'TX-1', gatewayReference: 'g-1' } } },
+        'POST /payments/verify': { body: { success: false, data: null, message: 'Giao dịch chưa được xác nhận.' } },
+      },
+    });
+    await page.goto('/patient/documents');
+    await page.getByRole('button', { name: '+ Mua thêm' }).click();
+    await page.getByTestId('package-BASIC_5').getByRole('button').click();
+    await page.getByRole('button', { name: /VietQR/ }).click();
+    await expect(page.getByTestId('sandbox-warning')).toBeVisible();
+    await page.getByRole('button', { name: /Mô phỏng thanh toán thành công/ }).click();
+    await expect(page.getByText('Giao dịch chưa được xác nhận.')).toBeVisible();
+  });
+});
