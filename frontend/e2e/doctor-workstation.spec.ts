@@ -1,47 +1,38 @@
 import { test, expect } from '@playwright/test';
+import { installMockApi } from './fixtures/mockApi';
 
-test.describe('UC-CLIN-28: Doctor Split-Screen Workstation & Clinical Ergonomics', () => {
-  test.beforeEach(async ({ page }) => {
-    // Navigate to login and authenticate as Doctor
-    await page.goto('/login');
-    await page.click('button:has-text("Doctor")');
-    await page.click('button[type="submit"]');
-    await expect(page).toHaveURL(/.*\/doctor/, { timeout: 10000 });
+test.describe('UC-CLIN-28: Doctor workstation', () => {
+  test('weekly calendar view lists the day columns', async ({ page }) => {
+    await installMockApi(page, { role: 'DOCTOR' });
+    await page.goto('/doctor');
+    await page.getByRole('button', { name: /Lịch Tuần/ }).click();
+    await expect(page.getByRole('columnheader', { name: /Thứ Hai/ })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: /Chủ Nhật/ })).toBeVisible();
   });
 
-  test('should display doctor workstation with weekly calendar tab and appointment list', async ({ page }) => {
-    // Check doctor dashboard navigation tabs
-    await expect(page.locator('text=Lịch Khám Lâm Sàng').or(page.locator('text=Danh Sách Bệnh Nhân'))).toBeVisible();
-
-    // Verify weekly calendar view toggle
-    const calendarToggle = page.locator('button:has-text("Lịch Tuần")');
-    if (await calendarToggle.isVisible()) {
-      await calendarToggle.click();
-      await expect(page.locator('text=Thứ 2').or(page.locator('text=T2'))).toBeVisible();
-    }
+  test('check-in moves a SCHEDULED patient to CHECKED_IN and blocks double clicks', async ({ page }) => {
+    const calls: Array<{ method: string; path: string; body: unknown }> = [];
+    await installMockApi(page, {
+      role: 'DOCTOR',
+      calls,
+      overrides: { 'PATCH /appointments/ap-1/check-in': { delay: 600, body: { success: true, data: { id: 'ap-1' } } } },
+    });
+    await page.goto('/doctor');
+    const checkIn = page.getByRole('button', { name: 'Check-in' }).first();
+    await checkIn.dblclick();
+    await expect(page.getByTestId('toast-success')).toContainText('check-in');
+    expect(calls.filter((c) => c.path === '/appointments/ap-1/check-in')).toHaveLength(1);
   });
 
-  test('should support patient check-in status toggle (CHECKED_IN)', async ({ page }) => {
-    // Look for check-in button in appointment rows
-    const checkInBtn = page.locator('button:has-text("Check-in")').first();
-    if (await checkInBtn.isVisible()) {
-      await checkInBtn.click();
-      // Should show checked-in badge or status
-      await expect(page.locator('text=ĐÃ ĐẾN').or(page.locator('text=Đã Check-in'))).toBeVisible({ timeout: 5000 });
-    }
-  });
-
-  test('should open 50/50 split-screen workstation with document viewer & EMR notes', async ({ page }) => {
-    const examineBtn = page.locator('button:has-text("Khám Bệnh")').first();
-    if (await examineBtn.isVisible()) {
-      await examineBtn.click();
-
-      // Verify Split-screen layout
-      await expect(page.locator('text=Hồ Sơ Cận Lâm Sàng & Phân Tích AI')).toBeVisible();
-      await expect(page.locator('text=Bệnh Án & Chỉ Định Lâm Sàng')).toBeVisible();
-
-      // Check VNHA/ESC Vital Signs classification section
-      await expect(page.locator('text=Sinh Hiệu').or(page.locator('text=Huyết áp'))).toBeVisible();
-    }
+  test('a SCHEDULED appointment opened in the workstation cannot be signed before check-in', async ({ page }) => {
+    await installMockApi(page, {
+      role: 'DOCTOR',
+      overrides: { 'PATCH /appointments/ap-1/status': { status: 400, body: { success: false, error: { code: 'INVALID_STATUS_TRANSITION', message: 'Không thể chuyển trạng thái.' } } } },
+    });
+    await page.goto('/doctor');
+    await page.getByRole('button', { name: /Bắt Đầu Khám Bệnh/ }).first().click();
+    await expect(page.getByTestId('toast-error')).toContainText('Không thể chuyển trạng thái');
+    await expect(page.getByTestId('sign-blockers')).toContainText('chưa check-in');
+    await expect(page.getByRole('button', { name: /Ký Duyệt & Hoàn Tất/ })).toBeDisabled();
   });
 });

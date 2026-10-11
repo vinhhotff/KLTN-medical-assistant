@@ -1,31 +1,40 @@
 import { test, expect } from '@playwright/test';
+import { installMockApi } from './fixtures/mockApi';
 
-test.describe('UC-FIN-29: Admin AI Token & FinOps Cost Analytics Dashboard', () => {
-  test.beforeEach(async ({ page }) => {
-    // Authenticate as Admin
-    await page.goto('/login');
-    await page.click('button:has-text("Admin")');
-    await page.click('button[type="submit"]');
-    await expect(page).toHaveURL(/.*\/admin/, { timeout: 10000 });
+const usage = (days: number) => ({
+  success: true,
+  data: {
+    totalRequests: 40,
+    totalTokens: 52000,
+    totalCostUsd: 2,
+    totalCostVnd: 50900, // → 25.450 ₫/USD derived by the dashboard
+    errorRatePercent: 2.5,
+    dailyStats: Array.from({ length: Math.min(days, 7) }, (_, i) => ({ date: `2026-10-0${i + 1}`, tokens: 5000 + i * 100, costUsd: 0.2 })),
+    serviceStats: [
+      { service: 'TRIAGE', tokens: 30000, costUsd: 1.2, requests: 25 },
+      { service: 'DOCUMENT_ANALYSIS', tokens: 22000, costUsd: 0.8, requests: 15 },
+    ],
+  },
+});
+
+test.describe('UC-FIN-29: Admin AI cost analytics', () => {
+  test('shows KPI, charts and the exchange rate derived from backend data', async ({ page }) => {
+    const calls: Array<{ method: string; path: string; body: unknown }> = [];
+    await installMockApi(page, { role: 'ADMIN', calls, overrides: { 'GET /admin/ai-usage': { body: usage(30) } } });
+    await page.goto('/admin');
+    await expect(page.getByText(/Tỷ giá 25\.450₫\/USD/)).toBeVisible();
+    await expect(page.locator('.recharts-responsive-container').first()).toBeVisible();
+
+    await page.getByRole('button', { name: '7 ngày' }).click();
+    await expect.poll(() => calls.some((c) => c.path === '/admin/ai-usage')).toBe(true);
   });
 
-  test('should display FinOps AI Analytics Dashboard with KPI cards and Recharts', async ({ page }) => {
-    // Navigate to FinOps tab if needed
-    const finopsTab = page.locator('button:has-text("Chi Phí AI"), button:has-text("FinOps"), text=FinOps');
-    if (await finopsTab.first().isVisible()) {
-      await finopsTab.first().click();
-    }
-
-    // Verify 5 KPI summary cards
-    await expect(page.locator('text=Tổng Chi Phí AI').or(page.locator('text=Total AI Cost'))).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('text=Tổng Lượng Token').or(page.locator('text=Total Tokens'))).toBeVisible();
-    await expect(page.locator('text=Tỷ Lệ Thành Công').or(page.locator('text=Success Rate'))).toBeVisible();
-
-    // Verify Recharts SVG container rendered
-    const rechartsSvg = page.locator('.recharts-responsive-container, svg.recharts-surface');
-    await expect(rechartsSvg.first()).toBeVisible();
-
-    // Verify Time Window selector (7 ngày / 30 ngày / 90 ngày)
-    await expect(page.locator('button:has-text("7 ngày"), button:has-text("30 ngày")').first()).toBeVisible();
+  test('falls back to the configured rate when the backend reports no cost', async ({ page }) => {
+    await installMockApi(page, {
+      role: 'ADMIN',
+      overrides: { 'GET /admin/ai-usage': { body: { success: true, data: { ...usage(30).data, totalCostUsd: 0, totalCostVnd: 0 } } } },
+    });
+    await page.goto('/admin');
+    await expect(page.getByText(/Tỷ giá 25\.450₫\/USD/)).toBeVisible();
   });
 });

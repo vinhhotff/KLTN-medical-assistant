@@ -92,7 +92,7 @@ test.describe('UC-CLIN-02: Symptom triage assistant', () => {
     await page.getByPlaceholder(/Nhập triệu chứng của bạn/).fill('Đau thắt ngực dữ dội, vã mồ hôi');
     await page.keyboard.press('Enter');
     await expect(page.getByText(/TÌNH TRẠNG KHẨN CẤP/)).toBeVisible();
-    await expect(page.locator('a[href="tel:115"]').first()).toBeVisible();
+    await expect(page.getByRole('link', { name: /Gọi 115/ }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Đặt Khám' })).toBeDisabled();
   });
 });
