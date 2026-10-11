@@ -3,7 +3,6 @@ import {
   CalendarCheck, 
   Search, 
   Filter, 
-  AlertCircle, 
   FileText, 
   X, 
   Ban, 
@@ -19,6 +18,11 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
+import { ConfirmDialog, ErrorState, useToast } from '../../components/ui';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { devLog } from '../../utils/logger';
+
+const ADMIN_CANCEL_MIN_REASON = 10;
 
 interface AppointmentItem {
   id: string;
@@ -57,20 +61,20 @@ export const AppointmentSupervisionPage: React.FC = () => {
   
   // Cancel Modal state
   const [cancelModalItem, setCancelModalItem] = useState<AppointmentItem | null>(null);
-  const [cancelReason, setCancelReason] = useState('');
-  const [cancelling, setCancelling] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const toast = useToast();
 
   const fetchAppointments = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(true);
       const res = await api.get('/admin/appointments');
-      if (res.data?.data) {
-        setAppointments(res.data.data);
-        setLastUpdated(new Date());
-      }
+      setAppointments(Array.isArray(res.data?.data) ? res.data.data : []);
+      setLastUpdated(new Date());
+      setLoadError(null);
     } catch (err) {
-      console.error('Failed to load appointments:', err);
+      devLog.error('Failed to load appointments:', err);
+      setLoadError(getApiErrorMessage(err, 'Không tải được danh sách lịch hẹn.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -85,21 +89,16 @@ export const AppointmentSupervisionPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleAdminCancel = async () => {
+  // Reason is mandatory (≥ 10 chars) and goes to the audit log — no default text is substituted
+  const handleAdminCancel = async (reason: string) => {
     if (!cancelModalItem) return;
     try {
-      setCancelling(true);
-      await api.patch(`/admin/appointments/${cancelModalItem.id}/cancel`, {
-        reason: cancelReason || 'Quản trị viên can thiệp hủy lịch hẹn vì lý do điều phối lâm sàng'
-      });
+      await api.patch(`/admin/appointments/${cancelModalItem.id}/cancel`, { reason });
+      toast.success(`Đã hủy lịch hẹn ${cancelModalItem.appointmentCode}.`);
       setCancelModalItem(null);
-      setCancelReason('');
-      fetchAppointments();
+      fetchAppointments(true);
     } catch (err) {
-      console.error('Failed to cancel appointment:', err);
-      alert('Không thể hủy cuộc hẹn. Vui lòng thử lại.');
-    } finally {
-      setCancelling(false);
+      toast.error(getApiErrorMessage(err, 'Không thể hủy cuộc hẹn. Vui lòng thử lại.'));
     }
   };
 
@@ -222,7 +221,9 @@ export const AppointmentSupervisionPage: React.FC = () => {
 
       {/* Appointments Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        {loading ? (
+        {loadError && appointments.length === 0 && !loading ? (
+          <ErrorState message={loadError} onRetry={() => fetchAppointments()} className="m-4" />
+        ) : loading ? (
           <div className="py-20 text-center text-slate-400 text-sm">
             Đang tải dữ liệu cuộc hẹn toàn viện...
           </div>
@@ -293,6 +294,7 @@ export const AppointmentSupervisionPage: React.FC = () => {
                         {app.status !== 'CANCELLED' && app.status !== 'COMPLETED' && (
                           <button
                             onClick={() => setCancelModalItem(app)}
+                            aria-label={`Hủy lịch hẹn ${app.appointmentCode}`}
                             className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-semibold transition flex items-center gap-1"
                             title="Hủy khẩn cấp"
                           >
@@ -406,56 +408,29 @@ export const AppointmentSupervisionPage: React.FC = () => {
         </div>
       )}
 
-      {/* Admin Cancel Modal */}
-      {cancelModalItem && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3 text-rose-600">
-              <div className="p-2.5 bg-rose-50 rounded-xl">
-                <AlertCircle className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Can Thiệp Hủy Cuộc Hẹn</h3>
-                <p className="text-xs text-slate-500 font-mono">{cancelModalItem.appointmentCode}</p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Bạn đang thực hiện quyền Quản trị viên để hủy lịch hẹn giữa bác sĩ <strong>{cancelModalItem.doctorName}</strong> và bệnh nhân <strong>{cancelModalItem.patientName}</strong>. Hành động này sẽ được ghi vào Nhật ký kiểm toán (Audit Log).
-            </p>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Lý do can thiệp hủy lịch (bắt buộc):
-              </label>
-              <textarea
-                rows={3}
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="Ví dụ: Bác sĩ xin nghỉ đột xuất vì ca cấp cứu..."
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                onClick={() => setCancelModalItem(null)}
-                disabled={cancelling}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                onClick={handleAdminCancel}
-                disabled={cancelling}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
-              >
-                {cancelling ? 'Đang xử lý...' : 'Xác Nhận Hủy Lịch'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={cancelModalItem !== null}
+        title="Can thiệp hủy cuộc hẹn"
+        tone="danger"
+        confirmLabel="Xác nhận hủy lịch"
+        cancelLabel="Đóng"
+        message={
+          cancelModalItem && (
+            <>
+              Hủy lịch hẹn <strong className="font-mono">{cancelModalItem.appointmentCode}</strong> giữa bác sĩ{' '}
+              <strong>{cancelModalItem.doctorName}</strong> và bệnh nhân <strong>{cancelModalItem.patientName}</strong>.
+              Hành động và lý do sẽ được ghi vào nhật ký kiểm toán.
+            </>
+          )
+        }
+        reason={{
+          label: 'Lý do can thiệp',
+          minLength: ADMIN_CANCEL_MIN_REASON,
+          placeholder: 'VD: Bác sĩ xin nghỉ đột xuất vì ca cấp cứu, đã báo bệnh nhân đổi lịch',
+        }}
+        onConfirm={handleAdminCancel}
+        onCancel={() => setCancelModalItem(null)}
+      />
     </div>
   );
 };

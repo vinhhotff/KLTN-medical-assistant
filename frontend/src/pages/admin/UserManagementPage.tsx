@@ -2,6 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, ShieldCheck, Mail, Phone, Calendar, RefreshCw, UserX, UserCheck, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
+import { devLog } from '../../utils/logger';
+
+const SUSPEND_MIN_REASON = 10;
 
 interface UserRecord {
   id: string;
@@ -27,8 +30,14 @@ export const UserManagementPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Suspending an account requires a reason (audit trail); re-activation keeps it optional
+  const reasonRequired = targetStatus === 'SUSPENDED';
+  const reasonError = reasonRequired && reason.trim().length < SUSPEND_MIN_REASON
+    ? `Nhập lý do khóa tài khoản (tối thiểu ${SUSPEND_MIN_REASON} ký tự).`
+    : null;
+
   const handleStatusChange = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser || reasonError || actionLoading) return;
     try {
       setActionLoading(selectedUser.id);
       setStatusMessage(null);
@@ -69,7 +78,7 @@ export const UserManagementPage: React.FC = () => {
         setUsers(res.data.data);
       }
     } catch (err) {
-      console.error('Failed to load users:', err);
+      devLog.error('Failed to load users:', err);
     } finally {
       setLoading(false);
     }
@@ -306,10 +315,10 @@ export const UserManagementPage: React.FC = () => {
                   <h3 className="text-base font-bold text-slate-900">
                     {targetStatus === 'SUSPENDED' ? 'Tạm Khóa Tài Khoản' : 'Kích Hoạt Tài Khoản'}
                   </h3>
-                  <p className="text-xs text-slate-500">Mô hình phân quyền RBAC & Kiểm soát an toàn</p>
+
                 </div>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+              <button onClick={() => setIsModalOpen(false)} aria-label="Đóng" className="text-slate-500 hover:text-slate-700 p-1 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -321,14 +330,23 @@ export const UserManagementPage: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-700">Lý do điều chỉnh trạng thái (Lưu Audit Trail):</label>
-              <input
-                type="text"
-                placeholder={targetStatus === 'SUSPENDED' ? 'Ví dụ: Vi phạm quy chế sử dụng...' : 'Ví dụ: Đã xác thực thông tin...'}
+              <label htmlFor="status-reason" className="text-xs font-semibold text-slate-700">
+                Lý do {reasonRequired ? <span className="text-rose-600">(bắt buộc)</span> : '(không bắt buộc)'} — lưu vào nhật ký kiểm toán:
+              </label>
+              <textarea
+                id="status-reason"
+                rows={2}
+                placeholder={targetStatus === 'SUSPENDED' ? 'Ví dụ: Vi phạm quy chế sử dụng, đã nhắc nhở 2 lần...' : 'Ví dụ: Đã xác thực lại thông tin...'}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
+                aria-invalid={Boolean(reasonError && reason) || undefined}
+                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
               />
+              {reasonRequired && (
+                <p className={`text-[11px] ${reasonError ? 'text-rose-600' : 'text-emerald-700'}`} role={reasonError && reason ? 'alert' : undefined}>
+                  {reasonError ?? 'Đã đủ thông tin.'} ({reason.trim().length}/{SUSPEND_MIN_REASON})
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">
@@ -342,8 +360,9 @@ export const UserManagementPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleStatusChange}
-                disabled={actionLoading === selectedUser.id}
-                className={`px-4 py-2 text-sm font-semibold text-white rounded-xl transition shadow-xs flex items-center gap-2 ${
+                disabled={actionLoading === selectedUser.id || Boolean(reasonError)}
+                title={reasonError || undefined}
+                className={`px-4 py-2 text-sm font-semibold text-white rounded-xl transition shadow-xs flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                   targetStatus === 'SUSPENDED'
                     ? 'bg-rose-600 hover:bg-rose-700'
                     : 'bg-emerald-600 hover:bg-emerald-700'
