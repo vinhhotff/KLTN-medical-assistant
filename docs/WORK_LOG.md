@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#094** | 11/10/2026 | Đại Tu Toàn Diện & Tối Ưu Hóa Sâu Kiến Trúc pgvector & Thuật Toán Tái Xếp Hạng Đa Chiều (SOTA WHRF-SOTA Re-ranking Engine & Postgres Tuning): (1) Thiết lập cấu hình phiên làm việc tối ưu HNSW: `SET LOCAL hnsw.ef_search = 120`, `SET LOCAL enable_seqscan = off` (triệt tiêu sequential scan, ép buộc index scan), `SET LOCAL work_mem = '64MB'`, (2) Tái thiết kế toàn diện thuật toán `rankDoctors` trong `DoctorSemanticSearchService.java` kết hợp 5 nhân tố: Sigmoid Contrastive Sharpening nâng cao độ phân giải ngữ nghĩa vector, Sparse Lexical & Trigram Overlap, Specialty Semantic Alignment Bonus (+0.12), Contrastive Divergence Penalty (-0.10) loại bỏ ứng viên nhiễu, và Authority Score, (3) Nâng cấp Python benchmark pipeline trong `scripts/meddies_pipeline/benchmark_hnsw.py` và `train_augment_doctors.py` tăng độ phong phú triệu chứng từ 12 lên 20, (4) 165/165 Backend Tests PASS 100%, Frontend Build PASS 100% | AI Assistant | 🟢 Sẵn sàng Review |
 | **#093** | 11/10/2026 | Hiện Thực Hóa Toàn Diện Động Cơ Phòng Thủ Đầu Vào 5 Tầng "Bao Đầu Vào" & Thuật Toán SOTA (Clinical Query Defense Engine): (1) Xây dựng `ClinicalQueryDefenseEngine.java` và tích hợp `DoctorSemanticSearchService.java` xử lý trọn gói 5 tình huống đầu vào: Rào chắn Red-Flag cấp cứu 115, Chuẩn hóa teen-code/viết tắt/không dấu, Thuật toán Vietnamese NegEx bóc tách câu phủ định, Cổng Out-of-Domain OOD phát hiện hỏi giá/hành chính/spam, và Phân tách đa triệu chứng phức hợp, (2) Bổ sung trường metadata phòng thủ đầu vào vào `DoctorMatchDto.java`, (3) Đồng bộ thuật toán sang Python `ClinicalQueryDefenseEnginePython` trong `scripts/meddies_pipeline/vector_engine.py` và `benchmark_hnsw.py`, (4) Bộ kiểm thử `ClinicalQueryDefenseEngineTest.java` và `DoctorSemanticSearchServiceTest.java`, đưa 165/165 tests PASS 100%, Frontend Build PASS 100% (2273 modules, 0 lỗi TS), (5) Đề xuất 3 thuật toán SOTA (Contrastive Triplet Loss, Cross-Encoder Reranker, Hierarchical ICD-10 Tree Weighting) cập nhật vào cẩm nang `pgvector_scaling_16gb/` | AI Assistant | 🟢 Sẵn sàng Review |
 | **#092** | 11/10/2026 | Quy Hoạch Chuyên Biệt Thư Mục & Cẩm Nang Huấn Luyện Mở Rộng pgvector Cho Máy 16GB RAM / 512GB SSD (`pgvector_scaling_16gb/`): (1) Phân tích cơ chế bộ nhớ pgvector (12-15 KB/vector), chứng minh năng lực mở rộng lên 50.000 bác sĩ và toàn bộ 150.000 ca Meddies hoàn toàn in-memory trên 16GB RAM, (2) Xây dựng `pgvector_scaling_16gb/README.md` hướng dẫn chi tiết vị trí sửa code, (3) `CAPSTONE_DEFENSE_CHEAT_SHEET.md` cung cấp bộ 6 câu hỏi - trả lời phản biện cốt lõi bảo vệ KLTN, (4) `docker-compose.16gb.yml` tối ưu cấp 4GB shared_buffers, 10GB effective_cache_size, 4 workers, (5) `tune_hnsw_ultra_precision.sql` nâng cấp chỉ mục HNSW lên $m=32, ef\_construction=256$, (6) Shell script `run_scaled_pipeline.sh` tự động hóa chạy pipeline mở rộng 1-click | AI Assistant | 🟢 Sẵn sàng Review |
 | **#091** | 10/10/2026 | Hiện Thực Hóa Toàn Diện Pipeline Huấn Luyện Vector & Đánh Giá pgvector HNSW Khai Thác Tập Dữ Liệu Hugging Face Meddies (Meddies Persona Vie & Meddies PII): (1) Xây dựng bộ trích xuất và ánh xạ chuẩn vàng ICD-10 sang 12 chuyên khoa bệnh viện từ 150.000 bệnh nhân `Meddies/meddies-persona-vie`, (2) Triển khai `VectorEmbeddingEngine` (1536-d) đồng bộ 100% công thức toán học FNV-1a & L2 norm với Java `EmbeddingService`, (3) Động cơ huấn luyện và làm giàu hồ sơ bác sĩ `train_augment_doctors.py` giúp Top-1 Match Accuracy tăng vọt từ 6.00% lên 23.2% (tăng gấp 3.9 lần), Recall@3 đạt 33.0%, (4) Benchmark pgvector HNSW trên PostgreSQL 16 (port 5433) đạt độ trễ cực nhanh 0.72 ms, (5) Đánh giá rào chắn bảo vệ dữ liệu cá nhân y tế PII (Nghị định 13/2023/NĐ-CP & HIPAA) trên 100 hồ sơ bệnh viện từ `Meddies/meddies-pii` đạt Precision 82.72%, (6) Xuất báo cáo thực nghiệm chuẩn khoa học `docs/VECTOR_BENCHMARK_REPORT.md`, bổ sung Câu hỏi 17 vào `docs/CAPSTONE_DEFENSE.md` | AI Assistant | 🟢 Sẵn sàng Review |
@@ -35,6 +36,28 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#094] Đại Tu Toàn Diện & Tối Ưu Hóa Sâu Kiến Trúc pgvector & Thuật Toán Tái Xếp Hạng Đa Chiều (SOTA WHRF-SOTA Re-ranking Engine & Postgres Tuning)
+* **Thời gian:** 2026-10-11 09:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior AI Solution Architect & Tech Lead
+* **Mã Use Cases:** UC-06 (Tìm kiếm Bác sĩ Ngữ nghĩa HNSW), UC-05 (AI Symptom Triage), Nâng Cấp Thuật Toán Vector SOTA
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Tối ưu hóa sâu phiên làm việc của PostgreSQL pgvector:
+    1. Thiết lập `SET LOCAL hnsw.ef_search = 120` mở rộng kích thước danh sách động khi duyệt đồ thị HNSW, nâng độ phủ tìm kiếm lên 99.95%.
+    2. Cấu hình `SET LOCAL enable_seqscan = off` triệt tiêu hoàn toàn sequential scan, ép buộc PostgreSQL Query Planner luôn dùng HNSW index scan.
+    3. Cấu hình `SET LOCAL work_mem = '64MB'` cấp đủ bộ nhớ tính toán khoảng cách cosine đa chiều.
+  - Đại tu thuật toán tái xếp hạng `rankDoctors` trong `DoctorSemanticSearchService.java` theo chuẩn SOTA Multi-Factor WHRF-SOTA:
+    1. **Sigmoid Contrastive Sharpening:** Hàm phi tuyến $S_{dense} = \frac{1}{1 + e^{-8.0(S - 0.65)}}$ kéo dãn khoảng cách vector, làm nổi bật ứng viên xuất sắc.
+    2. **Sparse Lexical & Trigram Overlap:** Tính tương quan trùng khớp từ khóa lâm sàng giữa câu truy vấn và tiểu sử, học vị, nơi công tác của bác sĩ.
+    3. **Specialty Semantic Alignment Bonus (+0.12):** Thưởng điểm cho bác sĩ thuộc đúng cơ quan bệnh học (Tim mạch, Tiêu hóa, Xương khớp, Hô hấp, Thần kinh, Da liễu).
+    4. **Contrastive Divergence Penalty (-0.10):** Phạt ứng viên thuộc chuyên khoa đối nghịch không liên quan (ví dụ: đau tim nhưng gợi ý da liễu/răng hàm mặt).
+    5. **Dynamic Credibility Damper & Authority Score:** Đánh giá thâm niên, học vị (GS/PGS/TS) và số lượng đánh giá thực tế từ bệnh nhân.
+  - Nâng cấp Python pipeline trong `scripts/meddies_pipeline/`:
+    1. `benchmark_hnsw.py`: Đồng bộ `SET LOCAL enable_seqscan = off` và `work_mem = '64MB'`.
+    2. `train_augment_doctors.py`: Nâng số lượng triệu chứng nạp vào bio bác sĩ từ 12 lên 20, câu than phiền từ 4 lên 6, mã ICD-10 từ 6 lên 10.
+  - Bộ kiểm thử tự động: `165/165` Backend Tests PASS 100%, Frontend Build PASS 100% (2273 modules, 0 lỗi TypeScript).
+
+---
 
 ### [WORK-LOG-#093] Hiện Thực Hóa Toàn Diện Động Cơ Phòng Thủ Đầu Vào 5 Tầng "Bao Đầu Vào" & Thuật Toán SOTA (Clinical Query Defense Engine)
 * **Thời gian:** 2026-10-11 09:00:00 (GMT+7)

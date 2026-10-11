@@ -100,9 +100,9 @@ def augment_doctor_profiles_in_db(
 
         # Get top symptoms from Meddies cluster for this specialty
         cluster = clusters.get(s_slug, {})
-        top_symptoms = [s for s, _ in cluster.get("symptoms", collections.Counter()).most_common(12)]
-        sample_complaints = cluster.get("complaints", [])[:4]
-        top_conditions = [c for c, _ in cluster.get("conditions", collections.Counter()).most_common(6)]
+        top_symptoms = [s for s, _ in cluster.get("symptoms", collections.Counter()).most_common(20)]
+        sample_complaints = cluster.get("complaints", [])[:6]
+        top_conditions = [c for c, _ in cluster.get("conditions", collections.Counter()).most_common(10)]
 
         symptom_section = ", ".join(top_symptoms) if top_symptoms else "Các bệnh lý chuyên khoa tổng quát"
         complaint_section = "; ".join(sample_complaints) if sample_complaints else ""

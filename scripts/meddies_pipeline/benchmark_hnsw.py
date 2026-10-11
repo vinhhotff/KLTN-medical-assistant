@@ -74,6 +74,8 @@ class HNSWClinicalBenchmark:
 
         query_sql = """
             SET LOCAL hnsw.ef_search = %s;
+            SET LOCAL enable_seqscan = off;
+            SET LOCAL work_mem = '64MB';
             SELECT dp.id, u.full_name, s.slug, s.name, (dp.bio_embedding <=> CAST(%s AS vector)) as cosine_dist
             FROM doctor_profiles dp
             JOIN users u ON dp.user_id = u.id

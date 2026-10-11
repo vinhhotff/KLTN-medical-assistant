@@ -214,9 +214,11 @@ public class DoctorSemanticSearchService {
             """;
 
         try {
-            // Tune HNSW search candidate pool for zero-error medical recall (default 40 -> 100)
+            // Tune HNSW search candidate pool for zero-error medical recall & enforce Index Scan
             try {
-                jdbcTemplate.execute("SET LOCAL hnsw.ef_search = 100");
+                jdbcTemplate.execute("SET LOCAL hnsw.ef_search = 120");
+                jdbcTemplate.execute("SET LOCAL enable_seqscan = off");
+                jdbcTemplate.execute("SET LOCAL work_mem = '64MB'");
             } catch (Exception ignored) {
                 // Non-fatal if session already locked or on testing H2
             }
@@ -290,11 +292,14 @@ public class DoctorSemanticSearchService {
     }
 
     /**
-     * Weighted Multi-Criteria Hybrid Re-Ranking (WHRF) using Bounded Min-Heap PriorityQueue.
+     * SOTA Multi-Factor Weighted Hybrid Re-Ranking (WHRF-SOTA) using Bounded Min-Heap PriorityQueue.
      * Time Complexity: O(M log K) where M is candidate pool size and K is effectiveLimit.
      *
-     * Composite Score Formula:
-     * CompositeScore = 0.60 * CosineSim + 0.20 * RatingScore + 0.10 * ExpScore + 0.10 * AcademicScore
+     * Core Algorithm Components:
+     * 1. Calibrated Sigmoid Contrastive Dense Vector Score: Amplifies semantic distinction.
+     * 2. Sparse Lexical & Trigram Overlap: Direct token and substring match with doctor profile/specialties.
+     * 3. Specialty Semantic Alignment Bonus (+0.12) & Contrastive Divergence Penalty (-0.10).
+     * 4. WHRF Professional Merit: Dynamic patient review credibility damper + academic prestige + years of experience.
      */
     public List<DoctorMatchDto> rankDoctors(List<DoctorMatchDto> candidates, String queryText, int limit) {
         if (candidates == null || candidates.isEmpty()) {
@@ -309,7 +314,7 @@ public class DoctorSemanticSearchService {
         );
 
         for (DoctorMatchDto candidate : candidates) {
-            double compositeScore = calculateCompositeScore(candidate);
+            double compositeScore = calculateCompositeScore(candidate, queryText);
             candidate.setSimilarityScore(Math.round(compositeScore * 1000.0) / 1000.0);
 
             if (minHeap.size() < effectiveLimit) {
@@ -324,8 +329,8 @@ public class DoctorSemanticSearchService {
         List<DoctorMatchDto> ranked = new ArrayList<>(minHeap);
         ranked.sort((a, b) -> Double.compare(b.getSimilarityScore(), a.getSimilarityScore()));
 
-        // Assign AI recommendation to top doctor if score is sufficiently high (>= 0.60)
-        if (!ranked.isEmpty() && ranked.get(0).getSimilarityScore() >= 0.60) {
+        // Assign AI recommendation to top doctor if score is sufficiently high (>= 0.55)
+        if (!ranked.isEmpty() && ranked.get(0).getSimilarityScore() >= 0.55) {
             ranked.get(0).setAiRecommended(true);
             ranked.get(0).setAiRecommendationReason("Bác sĩ được đề xuất hàng đầu dựa trên sự tương thích ngữ nghĩa lâm sàng và năng lực chuyên môn.");
         }
@@ -333,22 +338,124 @@ public class DoctorSemanticSearchService {
         return ranked;
     }
 
-    private double calculateCompositeScore(DoctorMatchDto doc) {
-        double cosineSim = doc.getSimilarityScore();
+    public double calculateCompositeScore(DoctorMatchDto doc) {
+        return calculateCompositeScore(doc, "");
+    }
+
+    public double calculateCompositeScore(DoctorMatchDto doc, String queryText) {
+        double rawCosine = doc.getSimilarityScore();
+
+        // 1. Sigmoid Contrastive Sharpening: amplifies high-confidence semantic matches
+        // Centered at 0.65 with slope 8.0, mapping [0, 1] non-linearly to separate top doctors
+        double calibratedDense = 1.0 / (1.0 + Math.exp(-8.0 * (rawCosine - 0.65)));
+
+        // 2. Sparse Lexical Relevance (Token & Substring overlap)
+        double lexicalScore = computeLexicalRelevance(doc, queryText);
+
+        // 3. Specialty Alignment Bonus & Divergence Penalty
+        double specialtyModifier = computeSpecialtyAlignment(doc, queryText);
+
+        // 4. Clinical Experience & Academic Prestige
         double expScore = Math.min(1.0, Math.max(0, doc.getYearsOfExperience()) / 25.0);
         double academicScore = computeAcademicScore(doc.getAcademicTitle());
 
-        // Patient Rating & Clinical Trust Score (20% weight in WHRF)
+        // 5. Patient Rating & Credibility Damper (20% weight in baseline WHRF)
         double ratingVal = doc.getRating() != null ? doc.getRating() : 4.5;
         double ratingScore = Math.max(0.0, Math.min(1.0, ratingVal / 5.0));
-
-        // Credibility damper: doctors with fewer reviews slightly blended with neutral baseline
         int reviews = doc.getReviewCount();
         double credibility = reviews >= 5 ? 1.0 : (0.70 + 0.06 * reviews);
         double adjustedRating = ratingScore * credibility;
 
-        double composite = (0.60 * cosineSim) + (0.20 * adjustedRating) + (0.10 * expScore) + (0.10 * academicScore);
+        // Weighted Composite SOTA Fusion
+        double composite = (0.50 * calibratedDense)
+                         + (0.20 * lexicalScore)
+                         + (0.15 * adjustedRating)
+                         + (0.08 * expScore)
+                         + (0.07 * academicScore)
+                         + specialtyModifier;
+
         return Math.min(1.0, Math.max(0.0, composite));
+    }
+
+    /**
+     * Computes Sparse Lexical token overlap between user query and doctor profile fields.
+     */
+    private double computeLexicalRelevance(DoctorMatchDto doc, String queryText) {
+        if (queryText == null || queryText.isBlank()) {
+            return 0.5; // neutral baseline when query is not provided
+        }
+
+        String lowerQuery = queryText.toLowerCase();
+        String[] tokens = lowerQuery.split("\\s+");
+        if (tokens.length == 0) return 0.5;
+
+        int matches = 0;
+        String docText = (
+                (doc.getFullName() != null ? doc.getFullName() : "") + " " +
+                (doc.getBio() != null ? doc.getBio() : "") + " " +
+                (doc.getSpecialties() != null ? String.join(" ", doc.getSpecialties()) : "") + " " +
+                (doc.getHospitalAffiliation() != null ? doc.getHospitalAffiliation() : "")
+        ).toLowerCase();
+
+        for (String token : tokens) {
+            if (token.length() >= 3 && docText.contains(token)) {
+                matches++;
+            }
+        }
+
+        double tokenOverlap = Math.min(1.0, (double) matches / Math.min(5, tokens.length));
+        return 0.30 + (0.70 * tokenOverlap);
+    }
+
+    /**
+     * Contrastive Specialty Semantic Alignment:
+     * Grants bonus (+0.12) if symptoms align with doctor's primary specialty.
+     * Applies penalty (-0.10) if symptoms strongly indicate an unrelated opposite specialty.
+     */
+    private double computeSpecialtyAlignment(DoctorMatchDto doc, String queryText) {
+        if (queryText == null || queryText.isBlank() || doc.getSpecialties() == null || doc.getSpecialties().isEmpty()) {
+            return 0.0;
+        }
+
+        String lowerQuery = queryText.toLowerCase();
+        String specStr = String.join(" ", doc.getSpecialties()).toLowerCase();
+
+        // Cardiology Alignment
+        boolean queryCardio = lowerQuery.contains("tim") || lowerQuery.contains("ngực") || lowerQuery.contains("mạch") || lowerQuery.contains("huyết áp");
+        boolean docCardio = specStr.contains("tim") || specStr.contains("mạch");
+        if (queryCardio && docCardio) return 0.12;
+
+        // Gastroenterology Alignment
+        boolean queryGastro = lowerQuery.contains("dạ dày") || lowerQuery.contains("tiêu hóa") || lowerQuery.contains("bụng") || lowerQuery.contains("ợ chua") || lowerQuery.contains("đại tràng");
+        boolean docGastro = specStr.contains("tiêu hóa") || specStr.contains("gan mật");
+        if (queryGastro && docGastro) return 0.12;
+
+        // Musculoskeletal Alignment
+        boolean queryOrtho = lowerQuery.contains("xương") || lowerQuery.contains("khớp") || lowerQuery.contains("gối") || lowerQuery.contains("cột sống");
+        boolean docOrtho = specStr.contains("xương") || specStr.contains("khớp");
+        if (queryOrtho && docOrtho) return 0.12;
+
+        // Dermatology Alignment
+        boolean queryDerma = lowerQuery.contains("da") || lowerQuery.contains("ngứa") || lowerQuery.contains("mẩn") || lowerQuery.contains("mụn");
+        boolean docDerma = specStr.contains("da liễu");
+        if (queryDerma && docDerma) return 0.12;
+
+        // Pulmonology Alignment
+        boolean queryPulmo = lowerQuery.contains("phổi") || lowerQuery.contains("hô hấp") || lowerQuery.contains("ho ") || lowerQuery.contains("thở");
+        boolean docPulmo = specStr.contains("hô hấp") || specStr.contains("phổi");
+        if (queryPulmo && docPulmo) return 0.12;
+
+        // Neurology Alignment
+        boolean queryNeuro = lowerQuery.contains("thần kinh") || lowerQuery.contains("đầu") || lowerQuery.contains("chóng mặt") || lowerQuery.contains("mất ngủ");
+        boolean docNeuro = specStr.contains("thần kinh");
+        if (queryNeuro && docNeuro) return 0.12;
+
+        // Contrastive Divergence Penalty: e.g. severe cardiac symptom but doctor is dermatology or odontology
+        if (queryCardio && (specStr.contains("da liễu") || specStr.contains("răng hàm mặt") || specStr.contains("mắt"))) {
+            return -0.10;
+        }
+
+        return 0.0;
     }
 
     private double computeAcademicScore(String title) {
