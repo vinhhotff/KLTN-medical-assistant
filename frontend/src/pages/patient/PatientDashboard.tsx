@@ -24,6 +24,14 @@ import { api, DoctorReviewDto } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
 import { DoctorReviewModal } from '../../components/common/DoctorReviewModal';
 import { AdmissionTicketModal } from '../../components/patient/AdmissionTicketModal';
+import { SlotPicker, slotStart, type DoctorSlot } from '../../components/booking/SlotPicker';
+import { Button, ErrorState, Missing, Modal, useToast } from '../../components/ui';
+import { VitalValue } from '../../components/clinical/VitalValue';
+import { hasVital, parseStoredVitals } from '../../utils/vitals';
+import { datePart, todayLocal } from '../../utils/date';
+import { formatVnd } from '../../utils/display';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { devLog } from '../../utils/logger';
 
 interface PatientProfileData {
   id: string;
@@ -54,8 +62,8 @@ interface AppointmentItem {
   doctorEmail: string;
   scheduledStart: string;
   scheduledEnd: string;
-  status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
-  feeAmount: number;
+  status: 'SCHEDULED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+  feeAmount: number | null;
   paymentStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
   consultationNotes?: string;
   cancellationReason?: string;
@@ -78,17 +86,6 @@ interface AppointmentItem {
   qrCodeData?: string;
   sttNumber?: string;
   preVisitInstructions?: string[];
-}
-
-interface VitalSigns {
-  bloodPressure?: string;
-  heartRate?: number;
-  temperature?: number;
-  respiratoryRate?: number;
-  height?: number;
-  weight?: number;
-  bmi?: number;
-  spO2?: number;
 }
 
 interface PrescriptionItem {
@@ -123,7 +120,18 @@ interface PatientDocumentItem {
   createdAt: string;
 }
 
+const STATUS_LABEL: Record<AppointmentItem['status'], { text: string; className: string }> = {
+  SCHEDULED: { text: '● Đã xếp lịch', className: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
+  CHECKED_IN: { text: '● Đã check-in', className: 'bg-purple-50 text-purple-700 border border-purple-200' },
+  IN_PROGRESS: { text: '● Đang khám', className: 'bg-amber-50 text-amber-800 border border-amber-200' },
+  COMPLETED: { text: '✓ Đã khám xong', className: 'bg-sky-50 text-sky-700 border border-sky-200' },
+  CANCELLED: { text: '✕ Đã hủy', className: 'bg-rose-50 text-rose-700 border border-rose-200' },
+  NO_SHOW: { text: '✕ Vắng mặt', className: 'bg-slate-100 text-slate-700 border border-slate-200' },
+};
+
 export const PatientDashboard: React.FC = () => {
+  const toast = useToast();
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [profile, setProfile] = useState<PatientProfileData | null>(null);
   const [triageHistory, setTriageHistory] = useState<TriageHistoryItem[]>([]);
@@ -131,7 +139,6 @@ export const PatientDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'appointments' | 'triage' | 'documents'>('appointments');
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [toastError, setToastError] = useState<string | null>(null);
 
   // Cancellation Modal State
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
@@ -141,35 +148,36 @@ export const PatientDashboard: React.FC = () => {
   // Reschedule Modal State
   const [reschedulingAppointment, setReschedulingAppointment] = useState<AppointmentItem | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
-  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [rescheduleSlot, setRescheduleSlot] = useState<DoctorSlot | null>(null);
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [submittingReschedule, setSubmittingReschedule] = useState(false);
 
   // Admission Ticket Modal State
   const [selectedTicketAppointment, setSelectedTicketAppointment] = useState<AppointmentItem | null>(null);
 
-  const handleConfirmReschedule = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reschedulingAppointment || !rescheduleDate || !rescheduleTime) {
-      alert('Vui lòng chọn ngày và giờ hẹn mới.');
-      return;
-    }
+  const openReschedule = (apt: AppointmentItem) => {
+    setReschedulingAppointment(apt);
+    const current = datePart(apt.scheduledStart);
+    setRescheduleDate(current && current >= todayLocal() ? current : todayLocal());
+    setRescheduleSlot(null);
+    setRescheduleReason('');
+  };
+
+  const handleConfirmReschedule = async () => {
+    if (!reschedulingAppointment || !rescheduleSlot || submittingReschedule) return;
     try {
       setSubmittingReschedule(true);
-      const newScheduledStart = `${rescheduleDate}T${rescheduleTime}:00`;
       await api.patch(`/appointments/${reschedulingAppointment.id}/reschedule`, {
-        newScheduledStart,
+        newScheduledStart: slotStart(rescheduleSlot, rescheduleDate),
         reason: rescheduleReason.trim() || undefined,
       });
       await loadData();
       setReschedulingAppointment(null);
-      setRescheduleDate('');
-      setRescheduleTime('');
+      setRescheduleSlot(null);
       setRescheduleReason('');
-      alert('Dời lịch hẹn thành công!');
+      toast.success('Đã dời lịch hẹn thành công.');
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
-      alert(axiosError.response?.data?.error?.message || 'Không thể dời lịch hẹn. Vui lòng thử lại với khung giờ khác.');
+      toast.error(getApiErrorMessage(err, 'Không thể dời lịch hẹn. Vui lòng chọn khung giờ khác.'));
     } finally {
       setSubmittingReschedule(false);
     }
@@ -179,6 +187,7 @@ export const PatientDashboard: React.FC = () => {
   const [payingApptId, setPayingApptId] = useState<string | null>(null);
 
   const handlePayAppointment = async (apt: AppointmentItem) => {
+    if (payingApptId) return;
     try {
       setPayingApptId(apt.id);
       const res = await api.post('/payments/checkout', {
@@ -186,12 +195,14 @@ export const PatientDashboard: React.FC = () => {
         appointmentId: apt.id,
         paymentMethod: 'STRIPE',
       });
-      if (res.data?.data?.checkoutUrl) {
-        window.location.href = res.data.data.checkoutUrl;
+      const checkoutUrl = res.data?.data?.checkoutUrl;
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+        return;
       }
+      toast.error('Cổng thanh toán không trả về đường dẫn thanh toán. Vui lòng thử lại sau hoặc thanh toán tại quầy.');
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
-      alert(axiosError.response?.data?.error?.message || 'Không thể khởi tạo phiên thanh toán cho cuộc hẹn.');
+      toast.error(getApiErrorMessage(err, 'Không thể khởi tạo phiên thanh toán cho cuộc hẹn.'));
     } finally {
       setPayingApptId(null);
     }
@@ -227,7 +238,6 @@ export const PatientDashboard: React.FC = () => {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [editForm, setEditForm] = useState<Partial<PatientProfileData>>({});
   const [savingProfile, setSavingProfile] = useState(false);
-  const [profileSuccessMsg, setProfileSuccessMsg] = useState<string | null>(null);
 
   // EMR Details Modal State
   const [selectedEmrAppointment, setSelectedEmrAppointment] = useState<AppointmentItem | null>(null);
@@ -244,28 +254,36 @@ export const PatientDashboard: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+      let failed = 0;
+      const soft = <T,>(p: Promise<T>): Promise<T | null> =>
+        p.catch((err) => {
+          failed += 1;
+          devLog.warn('Patient dashboard request failed', err);
+          return null;
+        });
       const [appRes, profRes, triageRes, docsRes, reviewsRes] = await Promise.all([
-        api.get('/appointments/my').catch(() => ({ data: { data: [] } })),
-        api.get('/patient/profile').catch(() => null),
-        api.get('/triage/history').catch(() => ({ data: { data: [] } })),
-        api.get('/documents/my').catch(() => ({ data: { data: [] } })),
-        api.get('/reviews/my').catch(() => ({ data: { data: [] } })),
+        soft(api.get('/appointments/my')),
+        soft(api.get('/patient/profile')),
+        soft(api.get('/triage/history')),
+        soft(api.get('/documents/my')),
+        soft(api.get('/reviews/my')),
       ]);
+      setLoadError(failed > 0 ? 'Một phần dữ liệu chưa tải được. Thông tin bên dưới có thể chưa đầy đủ.' : null);
 
-      if (appRes.data?.data) {
+      if (appRes?.data?.data) {
         setAppointments(appRes.data.data);
       }
       if (profRes?.data?.data) {
         setProfile(profRes.data.data);
         setEditForm(profRes.data.data);
       }
-      if (triageRes.data?.data && Array.isArray(triageRes.data.data)) {
+      if (Array.isArray(triageRes?.data?.data)) {
         setTriageHistory(triageRes.data.data);
       }
-      if (docsRes.data?.data && Array.isArray(docsRes.data.data)) {
+      if (Array.isArray(docsRes?.data?.data)) {
         setDocuments(docsRes.data.data);
       }
-      if (reviewsRes.data?.data && Array.isArray(reviewsRes.data.data)) {
+      if (Array.isArray(reviewsRes?.data?.data)) {
         const map: Record<string, DoctorReviewDto> = {};
         reviewsRes.data.data.forEach((r: DoctorReviewDto) => {
           if (r.appointmentId) {
@@ -275,7 +293,8 @@ export const PatientDashboard: React.FC = () => {
         setReviewsMap(map);
       }
     } catch (err) {
-      console.error('Failed to load patient dashboard data:', err);
+      devLog.error('Failed to load patient dashboard data:', err);
+      setLoadError('Không tải được dữ liệu. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -308,45 +327,41 @@ export const PatientDashboard: React.FC = () => {
       });
       setCancellingAppointmentId(null);
       setCancelReason('');
+      toast.success('Đã hủy lịch khám.');
       loadData();
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
-      const errMsg = axiosError.response?.data?.error?.message || 'Không thể hủy lịch hẹn. Vui lòng kiểm tra lại trạng thái ca khám.';
-      setActionError(errMsg);
-      setToastError(errMsg);
-      setTimeout(() => setToastError(null), 6000);
+      setActionError(getApiErrorMessage(err, 'Không thể hủy lịch hẹn. Vui lòng kiểm tra lại trạng thái ca khám.'));
     } finally {
       setSubmittingCancel(false);
     }
   };
 
+  const profileErrors = useMemo(() => {
+    const errs: Record<string, string> = {};
+    const cid = (editForm.citizenId || '').trim();
+    if (cid && !/^\d{12}$/.test(cid)) errs.citizenId = 'Số CCCD gồm đúng 12 chữ số.';
+    if (editForm.dateOfBirth && String(editForm.dateOfBirth) > todayLocal()) errs.dateOfBirth = 'Ngày sinh không được ở tương lai.';
+    const phone = (editForm.emergencyContactPhone || '').replace(/\s/g, '');
+    if (phone && !/^(\+?84|0)\d{9,10}$/.test(phone)) errs.emergencyContactPhone = 'Số điện thoại không hợp lệ.';
+    return errs;
+  }, [editForm]);
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingProfile || Object.keys(profileErrors).length > 0) return;
     try {
       setSavingProfile(true);
       setActionError(null);
       const res = await api.put('/patient/profile', editForm);
       if (res.data?.data) {
         setProfile(res.data.data);
-        setProfileSuccessMsg('Cập nhật hồ sơ bệnh án thành công!');
-        setTimeout(() => setProfileSuccessMsg(null), 3000);
+        toast.success('Đã cập nhật hồ sơ y tế.');
         setIsEditProfileOpen(false);
       }
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
-      setActionError(axiosError.response?.data?.error?.message || 'Không thể cập nhật hồ sơ y tế.');
+      toast.error(getApiErrorMessage(err, 'Không thể cập nhật hồ sơ y tế.'));
     } finally {
       setSavingProfile(false);
-    }
-  };
-
-  // Parse Vital Signs helper
-  const parseVitalSigns = (jsonStr?: string): VitalSigns | null => {
-    if (!jsonStr) return null;
-    try {
-      return JSON.parse(jsonStr);
-    } catch {
-      return null;
     }
   };
 
@@ -362,16 +377,7 @@ export const PatientDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Toast Notification Alert */}
-      {toastError && (
-        <div className="fixed top-5 right-5 z-[100] max-w-md bg-rose-600 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 animate-slideDown">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span className="text-sm font-semibold">{toastError}</span>
-          <button onClick={() => setToastError(null)} className="ml-auto text-white/80 hover:text-white p-1 cursor-pointer">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+      {loadError && <ErrorState message={loadError} onRetry={loadData} retrying={loading} />}
 
       {/* Hero Header */}
       <div className="bg-gradient-to-r from-indigo-700 via-indigo-800 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
@@ -419,12 +425,6 @@ export const PatientDashboard: React.FC = () => {
         </div>
       )}
 
-      {profileSuccessMsg && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-sm flex items-center gap-2">
-          <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-emerald-600" />
-          <span>{profileSuccessMsg}</span>
-        </div>
-      )}
 
       {/* Missing CCCD or Blood Group Clinical Alert */}
       {profile && (!profile.citizenId || !profile.bloodGroup) && (
@@ -451,7 +451,7 @@ export const PatientDashboard: React.FC = () => {
                 Thẻ Bệnh Án Điện Tử & Căn Cước Y Tế (EMR Medical Passport)
               </div>
               <div className="text-lg font-bold">
-                Mã Bệnh Nhân: <span className="font-mono text-emerald-400">{profile?.patientCode || 'BN-2026-CHƯA CẤP'}</span>
+                Mã Bệnh Nhân: {profile?.patientCode ? <span className="font-mono text-emerald-400">{profile.patientCode}</span> : <span className="text-sm font-normal text-slate-300 italic">Chưa được cấp</span>}
               </div>
             </div>
           </div>
@@ -488,21 +488,27 @@ export const PatientDashboard: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Số Thẻ BHYT:</span>
-                <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                  {profile?.healthInsuranceNumber || 'Chưa liên kết BHYT'}
-                </span>
+                {profile?.healthInsuranceNumber ? (
+                  <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                    {profile.healthInsuranceNumber}
+                  </span>
+                ) : (
+                  <Missing label="Chưa liên kết BHYT" />
+                )}
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Ngày sinh / Giới tính:</span>
                 <span className="font-medium text-slate-800">
-                  {profile?.dateOfBirth ? new Date(profile.dateOfBirth).toLocaleDateString('vi-VN') : 'Chưa cập nhật'} ({profile?.gender === 'FEMALE' ? 'Nữ' : profile?.gender === 'MALE' ? 'Nam' : 'Khác'})
+                  {profile?.dateOfBirth ? new Date(`${profile.dateOfBirth}T00:00:00`).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
+                  {' · '}
+                  {profile?.gender === 'FEMALE' ? 'Nữ' : profile?.gender === 'MALE' ? 'Nam' : profile?.gender === 'OTHER' ? 'Khác' : 'Chưa cập nhật'}
                 </span>
               </div>
               <div className="flex justify-between items-center pt-1">
                 <span className="text-slate-500">Nhóm Máu:</span>
                 {profile?.bloodGroup ? (
                   <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
-                    {profile.bloodGroup} (Rh Dương)
+                    {profile.bloodGroup}
                   </span>
                 ) : (
                   <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
@@ -522,13 +528,13 @@ export const PatientDashboard: React.FC = () => {
                 <ShieldAlert className="w-4 h-4 text-rose-600" /> Cảnh Báo Dị Ứng Thuốc & Thức Ăn
               </div>
               <p className="text-xs text-rose-700 font-semibold leading-relaxed">
-                {profile?.allergies || 'Dị ứng nhóm kháng sinh Beta-lactam (Penicillin, Amoxicillin), Tôm cua biển'}
+                {profile?.allergies || <span className="font-normal italic text-slate-500">Chưa khai báo dị ứng. Hãy cập nhật nếu bạn từng dị ứng thuốc hoặc thực phẩm.</span>}
               </p>
             </div>
             <div className="text-xs text-slate-600 space-y-1">
               <span className="text-slate-400 font-semibold">Tiền Sử Bệnh Lý:</span>
               <p className="font-medium text-slate-800 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                {profile?.medicalHistory || 'Tăng huyết áp nguyên phát 3 năm (đang kiểm soát thuốc), Tiền sử gia đình có bố bị đột quỵ não.'}
+                {profile?.medicalHistory || <span className="font-normal italic text-slate-500">Chưa cập nhật</span>}
               </p>
             </div>
           </div>
@@ -540,7 +546,7 @@ export const PatientDashboard: React.FC = () => {
               <div>
                 <span className="text-slate-400 font-semibold">Địa Chỉ Thường Trú:</span>
                 <p className="text-slate-800 font-medium mt-0.5">
-                  {profile?.address || 'Số 128 Nguyễn Tri Phương, Phường 9, Quận 5, TP. Hồ Chí Minh'}
+                  {profile?.address || <Missing />}
                 </p>
               </div>
               <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-1">
@@ -548,12 +554,35 @@ export const PatientDashboard: React.FC = () => {
                   <Phone className="w-3.5 h-3.5 text-indigo-600" />
                   Người Thân Cấp Cứu 24/7:
                 </div>
-                <div className="font-semibold text-slate-900">
-                  {profile?.emergencyContactName || 'Trần Văn Hùng'} ({profile?.emergencyContactRelationship || 'Chồng'})
-                </div>
-                <div className="font-mono text-indigo-700 font-bold">
-                  {profile?.emergencyContactPhone || '0909 123 888'}
-                </div>
+                {profile?.emergencyContactName || profile?.emergencyContactPhone ? (
+                  <>
+                    <div className="font-semibold text-slate-900">
+                      {profile.emergencyContactName || 'Chưa có tên'}
+                      {profile.emergencyContactRelationship && ` (${profile.emergencyContactRelationship})`}
+                    </div>
+                    {profile.emergencyContactPhone ? (
+                      <a href={`tel:${profile.emergencyContactPhone.replace(/\s/g, '')}`} className="font-mono text-indigo-700 font-bold hover:underline">
+                        {profile.emergencyContactPhone}
+                      </a>
+                    ) : (
+                      <Missing label="Chưa có số điện thoại" />
+                    )}
+                  </>
+                ) : (
+                  <div className="space-y-1.5">
+                    <p className="text-slate-500 italic">Chưa cập nhật người liên hệ khẩn cấp.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditForm(profile || {});
+                        setIsEditProfileOpen(true);
+                      }}
+                      className="text-xs font-bold text-teal-700 hover:underline cursor-pointer"
+                    >
+                      Cập nhật hồ sơ
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -646,7 +675,9 @@ export const PatientDashboard: React.FC = () => {
                 {paginatedAppointments.map((apt) => {
                   const isScheduled = apt.status === 'SCHEDULED';
                   const isCompleted = apt.status === 'COMPLETED';
-                  const vitals = parseVitalSigns(apt.vitalSignsJson);
+                  const statusInfo = STATUS_LABEL[apt.status] ?? STATUS_LABEL.SCHEDULED;
+                  const fee = formatVnd(apt.feeAmount);
+                  const vitals = parseStoredVitals(apt.vitalSignsJson);
 
                   return (
                     <div
@@ -663,16 +694,8 @@ export const PatientDashboard: React.FC = () => {
                               {apt.queueNumber}
                             </span>
                           )}
-                          <span
-                            className={`text-xs px-2.5 py-1 rounded-full font-bold ${
-                              isScheduled
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : isCompleted
-                                ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                                : 'bg-rose-50 text-rose-700 border border-rose-200'
-                            }`}
-                          >
-                            {isScheduled ? '● Đã Tiếp Nhận Xếp Lịch' : isCompleted ? '✓ Đã Hoàn Tất Khám Lâm Sàng' : '✕ Đã Hủy'}
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${statusInfo.className}`}>
+                            {statusInfo.text}
                           </span>
                         </div>
 
@@ -698,16 +721,22 @@ export const PatientDashboard: React.FC = () => {
 
                         <div>
                           <span className="text-slate-400 block font-semibold">Phòng khám / Cơ sở:</span>
-                          <span className="font-semibold text-slate-700">{apt.clinicRoom || 'Phòng Khám Nội 102 - Tòa A'}</span>
-                          <span className="text-slate-400 block text-[11px]">Bệnh viện Đa khoa Trung ương</span>
+                          {apt.clinicRoom ? (
+                            <span className="font-semibold text-slate-700">{apt.clinicRoom}</span>
+                          ) : (
+                            <span className="text-slate-500 italic">Chưa xếp phòng — sẽ thông báo khi check-in</span>
+                          )}
+                          {apt.clinicAddress && <span className="text-slate-500 block text-[11px]">{apt.clinicAddress}</span>}
                         </div>
 
                         <div>
                           <span className="text-slate-400 block font-semibold">Phí dịch vụ & Trạng thái:</span>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <span className="font-bold text-indigo-600 text-sm">
-                              {Number(apt.feeAmount || 350000).toLocaleString('vi-VN')} đ
-                            </span>
+                            {fee ? (
+                              <span className="font-bold text-indigo-600 text-sm">{fee}</span>
+                            ) : (
+                              <span className="text-slate-500 italic">Chưa có phí</span>
+                            )}
                             <span
                               className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                                 apt.paymentStatus === 'PAID'
@@ -718,11 +747,11 @@ export const PatientDashboard: React.FC = () => {
                               {apt.paymentStatus === 'PAID' ? '✓ Đã Thanh Toán' : '● Chưa Thanh Toán'}
                             </span>
                           </div>
-                          {apt.paymentStatus !== 'PAID' && apt.status !== 'CANCELLED' && (
+                          {apt.paymentStatus !== 'PAID' && apt.status !== 'CANCELLED' && apt.status !== 'NO_SHOW' && fee && (
                             <button
                               type="button"
                               onClick={() => handlePayAppointment(apt)}
-                              disabled={payingApptId === apt.id}
+                              disabled={payingApptId !== null}
                               className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
                             >
                               <CreditCard className="w-3.5 h-3.5" />
@@ -770,17 +799,17 @@ export const PatientDashboard: React.FC = () => {
                           {/* Mini Vitals */}
                           {vitals && (
                             <div className="flex flex-wrap gap-2 pt-1 border-t border-indigo-100/60 text-[11px]">
-                              {vitals.bloodPressure && (
+                              {hasVital(vitals.bloodPressure) && (
                                 <span className="bg-white px-2 py-0.5 rounded border border-indigo-100">
                                   Huyết áp: <strong>{vitals.bloodPressure}</strong> mmHg
                                 </span>
                               )}
-                              {vitals.heartRate && (
+                              {hasVital(vitals.heartRate) && (
                                 <span className="bg-white px-2 py-0.5 rounded border border-indigo-100">
                                   Mạch: <strong>{vitals.heartRate}</strong> bpm
                                 </span>
                               )}
-                              {vitals.spO2 && (
+                              {hasVital(vitals.spO2) && (
                                 <span className="bg-white px-2 py-0.5 rounded border border-indigo-100">
                                   SpO2: <strong>{vitals.spO2}%</strong>
                                 </span>
@@ -834,7 +863,7 @@ export const PatientDashboard: React.FC = () => {
                         </span>
 
                         <div className="flex items-center gap-2">
-                          {apt.status !== 'CANCELLED' && (
+                          {apt.status !== 'CANCELLED' && apt.status !== 'NO_SHOW' && (
                             <button
                               type="button"
                               onClick={() => setSelectedTicketAppointment(apt)}
@@ -850,17 +879,7 @@ export const PatientDashboard: React.FC = () => {
                             <>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setReschedulingAppointment(apt);
-                                  const currentStart = new Date(apt.scheduledStart);
-                                  // Format local YYYY-MM-DD
-                                  const year = currentStart.getFullYear();
-                                  const month = String(currentStart.getMonth() + 1).padStart(2, '0');
-                                  const day = String(currentStart.getDate()).padStart(2, '0');
-                                  setRescheduleDate(`${year}-${month}-${day}`);
-                                  setRescheduleTime(currentStart.toTimeString().slice(0, 5));
-                                  setRescheduleReason('');
-                                }}
+                                onClick={() => openReschedule(apt)}
                                 className="px-3 py-1.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer"
                               >
                                 <Calendar className="w-3.5 h-3.5" /> Dời Lịch Hẹn
@@ -1116,11 +1135,15 @@ export const PatientDashboard: React.FC = () => {
                   <label className="font-bold text-slate-700 block mb-1">Số CCCD (Định danh 12 số)</label>
                   <input
                     type="text"
+                    inputMode="numeric"
+                    maxLength={12}
                     value={editForm.citizenId || ''}
-                    onChange={(e) => setEditForm({ ...editForm, citizenId: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500"
-                    placeholder="079188002931"
+                    onChange={(e) => setEditForm({ ...editForm, citizenId: e.target.value.replace(/\D/g, '') })}
+                    aria-invalid={Boolean(profileErrors.citizenId) || undefined}
+                    className={`w-full px-3 py-2 border rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 ${profileErrors.citizenId ? 'border-rose-400' : 'border-slate-200'}`}
+                    placeholder="12 chữ số"
                   />
+                  {profileErrors.citizenId && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.citizenId}</p>}
                 </div>
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Số Thẻ Bảo Hiểm Y Tế (BHYT)</label>
@@ -1129,25 +1152,29 @@ export const PatientDashboard: React.FC = () => {
                     value={editForm.healthInsuranceNumber || ''}
                     onChange={(e) => setEditForm({ ...editForm, healthInsuranceNumber: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 uppercase"
-                    placeholder="DN4791234567890"
+                    placeholder="Mã số trên thẻ BHYT"
                   />
                 </div>
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Ngày Tháng Năm Sinh</label>
                   <input
                     type="date"
+                    max={todayLocal()}
                     value={editForm.dateOfBirth ? String(editForm.dateOfBirth) : ''}
                     onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                    aria-invalid={Boolean(profileErrors.dateOfBirth) || undefined}
+                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 ${profileErrors.dateOfBirth ? 'border-rose-400' : 'border-slate-200'}`}
                   />
+                  {profileErrors.dateOfBirth && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.dateOfBirth}</p>}
                 </div>
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Nhóm Máu & Hệ Rh</label>
                   <select
-                    value={editForm.bloodGroup || 'O+'}
+                    value={editForm.bloodGroup || ''}
                     onChange={(e) => setEditForm({ ...editForm, bloodGroup: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
                   >
+                    <option value="">Chưa xác định</option>
                     <option value="O+">O+ (Rh Dương)</option>
                     <option value="O-">O- (Rh Âm - Máu hiếm)</option>
                     <option value="A+">A+ (Rh Dương)</option>
@@ -1225,12 +1252,14 @@ export const PatientDashboard: React.FC = () => {
                   <div>
                     <label className="text-slate-500 block mb-1">Số Điện Thoại</label>
                     <input
-                      type="text"
+                      type="tel"
                       value={editForm.emergencyContactPhone || ''}
                       onChange={(e) => setEditForm({ ...editForm, emergencyContactPhone: e.target.value })}
-                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white font-mono"
+                      aria-invalid={Boolean(profileErrors.emergencyContactPhone) || undefined}
+                      className={`w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white font-mono ${profileErrors.emergencyContactPhone ? 'border-rose-400' : 'border-slate-200'}`}
                       placeholder="0909..."
                     />
+                    {profileErrors.emergencyContactPhone && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.emergencyContactPhone}</p>}
                   </div>
                 </div>
               </div>
@@ -1245,7 +1274,7 @@ export const PatientDashboard: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={savingProfile}
+                  disabled={savingProfile || Object.keys(profileErrors).length > 0}
                   className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer disabled:opacity-50"
                 >
                   {savingProfile ? 'Đang lưu...' : 'Lưu Thay Đổi Hồ Sơ'}
@@ -1264,7 +1293,7 @@ export const PatientDashboard: React.FC = () => {
             <div className="bg-slate-900 text-white p-6 border-b border-slate-800 flex items-center justify-between">
               <div>
                 <div className="text-xs uppercase font-bold text-indigo-400 tracking-widest">
-                  BỆNH VIỆN ĐA KHOA QUỐC TẾ MEDIASSIST
+                  MEDIASSIST · BỆNH ÁN ĐIỆN TỬ
                 </div>
                 <h3 className="text-xl font-black mt-1">
                   PHIẾU KHÁM BỆNH & TOA THUỐC NGOẠI TRÚ
@@ -1290,21 +1319,23 @@ export const PatientDashboard: React.FC = () => {
                 <div className="space-y-1">
                   <div className="text-xs font-bold text-slate-400 uppercase">Thông Tin Người Bệnh</div>
                   <div className="font-bold text-base text-slate-900">{profile?.fullName || selectedEmrAppointment.patientName}</div>
-                  <div className="text-xs text-slate-600">Mã BN: <span className="font-mono font-bold text-indigo-700">{profile?.patientCode || 'BN-2026-08492'}</span></div>
-                  <div className="text-xs text-slate-600">BHYT: <span className="font-mono">{profile?.healthInsuranceNumber || 'DN4791234567890'}</span></div>
+                  <div className="text-xs text-slate-600">Mã BN: {profile?.patientCode ? <span className="font-mono font-bold text-indigo-700">{profile.patientCode}</span> : <Missing label="Chưa được cấp" />}</div>
+                  <div className="text-xs text-slate-600">BHYT: {profile?.healthInsuranceNumber ? <span className="font-mono">{profile.healthInsuranceNumber}</span> : <Missing />}</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-xs font-bold text-slate-400 uppercase">Bác Sĩ Phụ Trách</div>
                   <div className="font-bold text-base text-indigo-900">{selectedEmrAppointment.doctorName}</div>
                   <div className="text-xs text-slate-600">Thời gian khám: {new Date(selectedEmrAppointment.scheduledStart).toLocaleString('vi-VN')}</div>
-                  <div className="text-xs text-emerald-700 font-semibold">Trạng thái: Đã hoàn tất & ký duyệt điện tử</div>
+                  <div className="text-xs text-emerald-700 font-semibold">Trạng thái: Đã khám xong</div>
                 </div>
               </div>
 
               {/* Vital Signs Cards */}
               {(() => {
-                const vs = parseVitalSigns(selectedEmrAppointment.vitalSignsJson);
-                if (!vs) return null;
+                const vs = parseStoredVitals(selectedEmrAppointment.vitalSignsJson);
+                if (!vs) {
+                  return <p className="text-xs text-slate-500 italic">Lần khám này không ghi nhận dấu hiệu sinh tồn.</p>;
+                }
                 return (
                   <div className="space-y-2">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
@@ -1313,19 +1344,20 @@ export const PatientDashboard: React.FC = () => {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div className="p-3 bg-rose-50/50 border border-rose-100 rounded-xl text-center">
                         <div className="text-xs text-slate-500">Huyết Áp</div>
-                        <div className="text-base font-black text-rose-700 font-mono">{vs.bloodPressure || '120/80'} <span className="text-xs font-normal">mmHg</span></div>
+                        <div className="text-base font-black text-rose-700 font-mono"><VitalValue value={vs.bloodPressure} unit="mmHg" /></div>
                       </div>
                       <div className="p-3 bg-sky-50/50 border border-sky-100 rounded-xl text-center">
                         <div className="text-xs text-slate-500">Tần Số Mạch</div>
-                        <div className="text-base font-black text-sky-700 font-mono">{vs.heartRate || 78} <span className="text-xs font-normal">bpm</span></div>
+                        <div className="text-base font-black text-sky-700 font-mono"><VitalValue value={vs.heartRate} unit="bpm" /></div>
                       </div>
                       <div className="p-3 bg-amber-50/50 border border-amber-100 rounded-xl text-center">
                         <div className="text-xs text-slate-500">Thân Nhiệt</div>
-                        <div className="text-base font-black text-amber-700 font-mono">{vs.temperature || 36.8} <span className="text-xs font-normal">°C</span></div>
+                        <div className="text-base font-black text-amber-700 font-mono"><VitalValue value={vs.temperature} unit="°C" /></div>
                       </div>
                       <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl text-center">
                         <div className="text-xs text-slate-500">SpO2 / BMI</div>
-                        <div className="text-base font-black text-emerald-700 font-mono">{vs.spO2 || 98}% <span className="text-xs font-normal">({vs.bmi || 21.3})</span></div>
+                        <div className="text-base font-black text-emerald-700 font-mono"><VitalValue value={vs.spO2} unit="%" />
+                          <span className="block text-[11px] font-normal text-slate-500">BMI: {hasVital(vs.bmi) ? vs.bmi : 'chưa tính'}</span></div>
                       </div>
                     </div>
                   </div>
@@ -1346,10 +1378,14 @@ export const PatientDashboard: React.FC = () => {
               <div className="p-4 bg-indigo-50/60 border border-indigo-200 rounded-2xl space-y-1">
                 <div className="text-xs font-bold text-indigo-900 uppercase">Chẩn Đoán Lâm Sàng Chuẩn Quốc Tế (ICD-10)</div>
                 <div className="text-base font-extrabold text-indigo-950 flex items-center gap-2">
-                  <span className="font-mono bg-indigo-700 text-white px-2 py-0.5 rounded text-xs">
-                    {selectedEmrAppointment.icd10Code || 'I20.9'}
-                  </span>
-                  <span>{selectedEmrAppointment.icd10Name || 'Cơn đau thắt ngực, không xác định (Angina pectoris)'}</span>
+                  {selectedEmrAppointment.icd10Code && (
+                    <span className="font-mono bg-indigo-700 text-white px-2 py-0.5 rounded text-xs">{selectedEmrAppointment.icd10Code}</span>
+                  )}
+                  {selectedEmrAppointment.icd10Name ? (
+                    <span>{selectedEmrAppointment.icd10Name}</span>
+                  ) : !selectedEmrAppointment.icd10Code ? (
+                    <span className="text-sm font-normal text-slate-500 italic">Bác sĩ chưa ghi chẩn đoán</span>
+                  ) : null}
                 </div>
                 {selectedEmrAppointment.consultationNotes && (
                   <p className="text-xs text-slate-700 pt-1 leading-relaxed">
@@ -1505,89 +1541,57 @@ export const PatientDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL: RESCHEDULE APPOINTMENT */}
-      {reschedulingAppointment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl overflow-hidden p-6 space-y-4 animate-scaleUp">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-indigo-600">
-                <Calendar className="w-5 h-5" />
-                <h3 className="font-bold text-base text-slate-900">Dời Lịch Hẹn Khám</h3>
-              </div>
-              <button
-                onClick={() => setReschedulingAppointment(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      {/* MODAL: RESCHEDULE APPOINTMENT — real availability from /doctors/{id}/slots */}
+      <Modal
+        open={reschedulingAppointment !== null}
+        onClose={() => setReschedulingAppointment(null)}
+        busy={submittingReschedule}
+        title="Dời lịch hẹn khám"
+        description={reschedulingAppointment ? `${reschedulingAppointment.appointmentCode} · ${reschedulingAppointment.doctorName}` : undefined}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setReschedulingAppointment(null)} disabled={submittingReschedule}>
+              Hủy bỏ
+            </Button>
+            <Button
+              onClick={handleConfirmReschedule}
+              loading={submittingReschedule}
+              loadingText="Đang cập nhật..."
+              disabledReason={!rescheduleSlot ? 'Chọn một khung giờ còn trống.' : null}
+            >
+              Xác nhận dời lịch
+            </Button>
+          </>
+        }
+      >
+        {reschedulingAppointment && (
+          <div className="space-y-4 text-sm">
+            <p className="p-3 bg-slate-50 rounded-xl text-xs text-slate-600">
+              Giờ hẹn hiện tại: <strong className="text-slate-800">{new Date(reschedulingAppointment.scheduledStart).toLocaleString('vi-VN')}</strong>
+            </p>
+            <SlotPicker
+              doctorId={reschedulingAppointment.doctorId}
+              date={rescheduleDate}
+              onDateChange={setRescheduleDate}
+              selected={rescheduleSlot}
+              onSelect={setRescheduleSlot}
+              disabled={submittingReschedule}
+              excludeStart={reschedulingAppointment.scheduledStart}
+            />
+            <div>
+              <label htmlFor="reschedule-reason" className="font-semibold text-slate-700 block mb-1 text-xs">Lý do dời lịch (không bắt buộc)</label>
+              <textarea
+                id="reschedule-reason"
+                rows={2}
+                value={rescheduleReason}
+                onChange={(e) => setRescheduleReason(e.target.value)}
+                placeholder="Ví dụ: Bận đột xuất, muốn đổi sang ngày thuận tiện hơn..."
+                className="w-full p-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 outline-none"
+              />
             </div>
-
-            <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1">
-              <p><span className="text-slate-500">Mã lịch hẹn:</span> <strong className="font-mono text-indigo-700">{reschedulingAppointment.appointmentCode}</strong></p>
-              <p><span className="text-slate-500">Bác sĩ:</span> <strong className="text-slate-800">{reschedulingAppointment.doctorName}</strong></p>
-              <p><span className="text-slate-500">Giờ hẹn cũ:</span> <span className="font-medium text-slate-700">{new Date(reschedulingAppointment.scheduledStart).toLocaleString('vi-VN')}</span></p>
-            </div>
-
-            <form onSubmit={handleConfirmReschedule} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1 text-xs">Ngày khám mới *</label>
-                  <input
-                    type="date"
-                    required
-                    min={new Date().toISOString().split('T')[0]}
-                    value={rescheduleDate}
-                    onChange={(e) => setRescheduleDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1 text-xs">Giờ khám mới *</label>
-                  <input
-                    type="time"
-                    required
-                    value={rescheduleTime}
-                    onChange={(e) => setRescheduleTime(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1 text-xs">Lý do dời lịch (tùy chọn)</label>
-                <textarea
-                  rows={2}
-                  value={rescheduleReason}
-                  onChange={(e) => setRescheduleReason(e.target.value)}
-                  placeholder="Ví dụ: Bận đột xuất, chuyển đổi ngày khám thuận tiện hơn..."
-                  className="w-full p-2.5 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <p className="text-[11px] text-slate-500 italic">
-                * Giờ làm việc: Sáng 08:00 - 12:00, Chiều 13:30 - 17:00 (Thứ 2 - Thứ 7).
-              </p>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setReschedulingAppointment(null)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Hủy Bỏ
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingReschedule || !rescheduleDate || !rescheduleTime}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
-                >
-                  {submittingReschedule ? 'Đang cập nhật...' : 'Xác Nhận Dời Lịch'}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Doctor Review & Rating Modal */}
       <DoctorReviewModal
@@ -1603,8 +1607,8 @@ export const PatientDashboard: React.FC = () => {
                 appointmentCode: reviewingAppointment.appointmentCode,
                 doctorId: reviewingAppointment.doctorId,
                 doctorName: reviewingAppointment.doctorName,
-                doctorHospital: reviewingAppointment.clinicRoom || 'Bệnh viện Đa khoa Trung ương',
-                doctorSpecialty: reviewingAppointment.icd10Name || 'Khám Chuyên Khoa',
+                doctorHospital: reviewingAppointment.clinicAddress || reviewingAppointment.clinicRoom || undefined,
+                doctorSpecialty: reviewingAppointment.icd10Name || undefined,
                 scheduledStart: reviewingAppointment.scheduledStart,
               }
             : null
