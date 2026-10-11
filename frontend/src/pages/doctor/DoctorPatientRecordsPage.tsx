@@ -30,6 +30,12 @@ import {
   evaluateSpO2,
   evaluateHeartRate
 } from '../../utils/clinicalStaging';
+import { ErrorState, Missing, useToast } from '../../components/ui';
+import { VitalValue } from '../../components/clinical/VitalValue';
+import { hasVital, parseStoredVitals } from '../../utils/vitals';
+import { todayLocal } from '../../utils/date';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { devLog } from '../../utils/logger';
 
 interface DoctorPatientItem {
   patientId: string;
@@ -68,17 +74,6 @@ interface PatientAppointmentHistory {
   followUpDate?: string;
 }
 
-interface VitalSigns {
-  bloodPressure?: string;
-  heartRate?: number;
-  temperature?: number;
-  respiratoryRate?: number;
-  height?: number;
-  weight?: number;
-  bmi?: number;
-  spO2?: number;
-}
-
 interface PrescriptionItem {
   drugName: string;
   activeIngredient?: string;
@@ -87,15 +82,6 @@ interface PrescriptionItem {
   unit: string;
   days: number;
 }
-
-const parseVitalSigns = (jsonStr?: string): VitalSigns | null => {
-  if (!jsonStr) return null;
-  try {
-    return JSON.parse(jsonStr);
-  } catch {
-    return null;
-  }
-};
 
 const parsePrescriptions = (jsonStr?: string): PrescriptionItem[] => {
   if (!jsonStr) return [];
@@ -126,8 +112,10 @@ interface PatientDocItem {
 }
 
 export const DoctorPatientRecordsPage: React.FC = () => {
+  const toast = useToast();
   const [patients, setPatients] = useState<DoctorPatientItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 250);
@@ -148,8 +136,8 @@ export const DoctorPatientRecordsPage: React.FC = () => {
   const [followUpDate, setFollowUpDate] = useState('');
   const [followUpTime, setFollowUpTime] = useState('09:00');
   const [followUpNotes, setFollowUpNotes] = useState('');
+  const [followUpRoom, setFollowUpRoom] = useState('');
   const [submittingFollowUp, setSubmittingFollowUp] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Document & AI Analysis Modal State
   const [docModalOpen, setDocModalOpen] = useState(false);
@@ -173,11 +161,11 @@ export const DoctorPatientRecordsPage: React.FC = () => {
       if (!silent) setLoading(true);
       else setRefreshing(true);
       const res = await api.get('/doctors/me/patients');
-      if (res.data?.data) {
-        setPatients(res.data.data);
-      }
+      setPatients(Array.isArray(res.data?.data) ? res.data.data : []);
+      setLoadError(null);
     } catch (err) {
-      console.error('Failed to load doctor patients:', err);
+      devLog.error('Failed to load doctor patients:', err);
+      setLoadError(getApiErrorMessage(err, 'Không tải được danh bạ bệnh nhân. Kiểm tra kết nối và thử lại.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -214,7 +202,7 @@ export const DoctorPatientRecordsPage: React.FC = () => {
         setPatientDocs([]);
       }
     } catch (err) {
-      console.error('Failed to fetch patient details:', err);
+      devLog.error('Failed to fetch patient details:', err);
     } finally {
       setLoadingDetails(false);
     }
@@ -222,34 +210,39 @@ export const DoctorPatientRecordsPage: React.FC = () => {
 
   const handleBookFollowUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPatient || !followUpDate) {
-      alert('Vui lòng chọn ngày hẹn tái khám.');
-      return;
-    }
+    if (!selectedPatient || followUpBlocker || submittingFollowUp) return;
     try {
       setSubmittingFollowUp(true);
       const scheduledStart = `${followUpDate}T${followUpTime}:00`;
       const res = await api.post('/appointments/follow-up', {
         patientId: selectedPatient.patientId,
         scheduledStart,
-        notes: followUpNotes || 'Tái khám theo lịch hẹn bác sĩ',
-        clinicRoom: 'Phòng Khám Chuyên Khoa P.102',
+        notes: followUpNotes.trim() || 'Tái khám theo lịch hẹn bác sĩ',
+        clinicRoom: followUpRoom.trim(),
       });
       if (res.data?.data) {
-        setToastMessage(`✅ Đã đặt lịch tái khám thành công cho bệnh nhân ${selectedPatient.fullName} (Mã: ${res.data.data.appointmentCode})!`);
-        setTimeout(() => setToastMessage(null), 5000);
+        toast.success(`Đã đặt lịch tái khám cho bệnh nhân ${selectedPatient.fullName} (Mã: ${res.data.data.appointmentCode}).`);
         setFollowUpModalOpen(false);
         setFollowUpNotes('');
+        setFollowUpRoom('');
         // Refresh details
         openPatientDetail(selectedPatient);
       }
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { error?: { message?: string } } } };
-      alert(axiosError.response?.data?.error?.message || 'Không thể tạo lịch hẹn tái khám.');
+      toast.error(getApiErrorMessage(err, 'Không thể tạo lịch hẹn tái khám.'));
     } finally {
       setSubmittingFollowUp(false);
     }
   };
+
+  const minFollowUpDate = todayLocal();
+  const followUpBlocker = !followUpDate
+    ? 'Chọn ngày hẹn tái khám.'
+    : followUpDate < minFollowUpDate
+    ? 'Ngày tái khám không được ở quá khứ.'
+    : !followUpRoom.trim()
+    ? 'Nhập phòng khám cho lịch tái khám.'
+    : null;
 
   // Filtered Patients
   const filteredPatients = useMemo(() => {
@@ -318,14 +311,7 @@ export const DoctorPatientRecordsPage: React.FC = () => {
         </div>
       </div>
 
-      {toastMessage && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-bold flex items-center justify-between shadow-xs animate-fadeIn">
-          <span>{toastMessage}</span>
-          <button onClick={() => setToastMessage(null)} className="text-emerald-600 hover:text-emerald-900">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+      {loadError && <ErrorState message={loadError} onRetry={() => fetchPatients(true)} retrying={refreshing} />}
 
       {/* KPI METRIC CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -423,7 +409,9 @@ export const DoctorPatientRecordsPage: React.FC = () => {
               ) : paginatedPatients.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-slate-400">
-                    Không tìm thấy bệnh nhân nào phù hợp với điều kiện lọc.
+                    {patients.length === 0
+                      ? (loadError ? 'Chưa tải được danh bạ.' : 'Bạn chưa có bệnh nhân nào. Danh bạ sẽ hiện khi có ca khám đầu tiên.')
+                      : 'Không tìm thấy bệnh nhân nào phù hợp với điều kiện lọc.'}
                   </td>
                 </tr>
               ) : (
@@ -449,7 +437,7 @@ export const DoctorPatientRecordsPage: React.FC = () => {
                       </td>
                       <td className="py-3.5 px-4">
                         <span className="px-2 py-0.5 rounded-md font-bold text-rose-700 bg-rose-50 border border-rose-200 font-mono">
-                          {p.bloodGroup || 'O+'}
+                          {p.bloodGroup || '—'}
                         </span>
                       </td>
                       <td className="py-3.5 px-4 max-w-xs">
@@ -532,7 +520,7 @@ export const DoctorPatientRecordsPage: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-3 text-xs text-teal-200 mt-1">
                   <span>SĐT: <strong className="text-white">{selectedPatient.phone || 'Chưa có'}</strong></span>
                   <span>Email: <strong className="text-white">{selectedPatient.email}</strong></span>
-                  <span>Nhóm máu: <strong className="text-rose-300 font-black">{selectedPatient.bloodGroup || 'O+'}</strong></span>
+                  <span>Nhóm máu: {selectedPatient.bloodGroup ? <strong className="text-rose-300 font-black">{selectedPatient.bloodGroup}</strong> : <em className="text-slate-400">Chưa xác định</em>}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -637,7 +625,7 @@ export const DoctorPatientRecordsPage: React.FC = () => {
                         patientHistory.map((apt) => {
                           const isCompleted = apt.status === 'COMPLETED';
                           const isScheduled = apt.status === 'SCHEDULED';
-                          const vitals = parseVitalSigns(apt.vitalSignsJson);
+                          const vitals = parseStoredVitals(apt.vitalSignsJson);
                           const drugs = parsePrescriptions(apt.prescriptionJson);
 
                           return (
@@ -836,7 +824,7 @@ export const DoctorPatientRecordsPage: React.FC = () => {
                         <div><strong>Mã bệnh nhân:</strong> <span className="font-mono font-bold text-teal-700">{selectedPatient.patientCode}</span></div>
                         <div><strong>Ngày sinh:</strong> {selectedPatient.dateOfBirth || 'Chưa cập nhật'}</div>
                         <div><strong>Giới tính:</strong> {selectedPatient.gender === 'MALE' ? 'Nam' : selectedPatient.gender === 'FEMALE' ? 'Nữ' : 'Khác'}</div>
-                        <div><strong>Nhóm máu:</strong> <span className="font-bold text-rose-700 font-mono">{selectedPatient.bloodGroup || 'O+'}</span></div>
+                        <div><strong>Nhóm máu:</strong> {selectedPatient.bloodGroup ? <span className="font-bold text-rose-700 font-mono">{selectedPatient.bloodGroup}</span> : <Missing label="Chưa xác định" />}</div>
                         <div><strong>Điện thoại:</strong> {selectedPatient.phone || 'Chưa cập nhật'}</div>
                         <div><strong>Email:</strong> {selectedPatient.email}</div>
                       </div>
@@ -885,7 +873,7 @@ export const DoctorPatientRecordsPage: React.FC = () => {
                 <input
                   type="date"
                   required
-                  min={new Date().toISOString().split('T')[0]}
+                  min={minFollowUpDate}
                   value={followUpDate}
                   onChange={(e) => setFollowUpDate(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs"
@@ -911,6 +899,19 @@ export const DoctorPatientRecordsPage: React.FC = () => {
               </div>
 
               <div>
+                <label htmlFor="followup-room" className="font-bold text-slate-700 block mb-1">
+                  Phòng Khám <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="followup-room"
+                  value={followUpRoom}
+                  onChange={(e) => setFollowUpRoom(e.target.value)}
+                  placeholder="VD: P.204 - Tầng 2"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
                 <label className="font-bold text-slate-700 block mb-1">Ghi Chú Chỉ Định Tái Khám</label>
                 <textarea
                   rows={2}
@@ -931,8 +932,9 @@ export const DoctorPatientRecordsPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={submittingFollowUp}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50"
+                  disabled={submittingFollowUp || Boolean(followUpBlocker)}
+                  title={followUpBlocker || undefined}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submittingFollowUp ? 'Đang tạo lịch...' : 'Xác Nhận Đặt Lịch'}
                 </button>
@@ -981,7 +983,7 @@ export const DoctorPatientRecordsPage: React.FC = () => {
                   <div className="font-black text-sm text-slate-900">{selectedPatient?.fullName}</div>
                   <div className="text-slate-600">Mã BN: <span className="font-mono font-bold text-teal-700">{selectedPatient?.patientCode}</span></div>
                   <div className="text-slate-600">SĐT: <span>{selectedPatient?.phone || 'Chưa cập nhật'}</span></div>
-                  <div className="text-slate-600">Nhóm máu: <span className="font-bold text-rose-700">{selectedPatient?.bloodGroup || 'O+'}</span></div>
+                  <div className="text-slate-600">Nhóm máu: {selectedPatient?.bloodGroup ? <span className="font-bold text-rose-700">{selectedPatient.bloodGroup}</span> : <Missing label="Chưa xác định" />}</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bác Sĩ Điều Trị</div>
@@ -996,11 +998,11 @@ export const DoctorPatientRecordsPage: React.FC = () => {
 
               {/* Vital Signs Cards with VNHA & WHO Asia Badges */}
               {(() => {
-                const vs = parseVitalSigns(selectedEmrAppointment.vitalSignsJson);
+                const vs = parseStoredVitals(selectedEmrAppointment.vitalSignsJson);
                 if (!vs) return null;
                 const bpParts = (vs.bloodPressure || '').split('/');
                 const bpEval = evaluateBloodPressure(bpParts[0], bpParts[1]);
-                const bmiEval = evaluateBmiAsia(vs.weight, vs.height, vs.bmi);
+                const bmiEval = evaluateBmiAsia(vs.weight, vs.height, hasVital(vs.bmi) ? Number(vs.bmi) : undefined);
                 const spo2Eval = evaluateSpO2(vs.spO2);
                 const hrEval = evaluateHeartRate(vs.heartRate);
 
@@ -1014,7 +1016,7 @@ export const DoctorPatientRecordsPage: React.FC = () => {
                         <div>
                           <div className="text-[11px] text-slate-500 font-semibold">Huyết Áp</div>
                           <div className="text-sm font-black text-rose-700 font-mono mt-0.5">
-                            {vs.bloodPressure || '120/80'} <span className="text-[10px] font-normal text-slate-400">mmHg</span>
+                            <VitalValue value={vs.bloodPressure} unit="mmHg" />
                           </div>
                         </div>
                         <div className="mt-1.5">
@@ -1027,7 +1029,7 @@ export const DoctorPatientRecordsPage: React.FC = () => {
                         <div>
                           <div className="text-[11px] text-slate-500 font-semibold">Tần Số Mạch</div>
                           <div className="text-sm font-black text-sky-700 font-mono mt-0.5">
-                            {vs.heartRate || 72} <span className="text-[10px] font-normal text-slate-400">bpm</span>
+                            <VitalValue value={vs.heartRate} unit="bpm" />
                           </div>
                         </div>
                         <div className="mt-1.5">
@@ -1040,20 +1042,23 @@ export const DoctorPatientRecordsPage: React.FC = () => {
                         <div>
                           <div className="text-[11px] text-slate-500 font-semibold">Thân Nhiệt</div>
                           <div className="text-sm font-black text-amber-700 font-mono mt-0.5">
-                            {vs.temperature || 36.6} <span className="text-[10px] font-normal text-slate-400">°C</span>
+                            <VitalValue value={vs.temperature} unit="°C" />
                           </div>
                         </div>
-                        <div className="mt-1.5">
-                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 inline-block">
-                            {Number(vs.temperature) >= 38.5 ? 'Sốt Cao' : Number(vs.temperature) >= 37.5 ? 'Sốt Nhẹ' : 'Bình Thường'}
-                          </span>
-                        </div>
+                        {hasVital(vs.temperature) && (
+                          <div className="mt-1.5">
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 inline-block">
+                              {Number(vs.temperature) >= 38.5 ? 'Sốt Cao' : Number(vs.temperature) >= 37.5 ? 'Sốt Nhẹ' : 'Bình Thường'}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl text-center flex flex-col justify-between">
                         <div>
                           <div className="text-[11px] text-slate-500 font-semibold">SpO2 / BMI</div>
                           <div className="text-sm font-black text-emerald-700 font-mono mt-0.5">
-                            {vs.spO2 || 99}% <span className="text-[10px] font-normal text-slate-400">({vs.bmi || 21.0})</span>
+                            <VitalValue value={vs.spO2} unit="%" />
+                            <span className="block text-[10px] font-normal text-slate-500">BMI: {hasVital(vs.bmi) ? vs.bmi : 'chưa tính'}</span>
                           </div>
                         </div>
                         <div className="mt-1.5 flex items-center justify-center gap-1">
