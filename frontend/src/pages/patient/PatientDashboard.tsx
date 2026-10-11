@@ -857,12 +857,12 @@ export const PatientDashboard: React.FC = () => {
                       )}
 
                       {/* Action Bar */}
-                      <div className="flex items-center justify-between pt-2 text-xs">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 text-xs">
                         <span className="text-slate-400">
                           {isScheduled ? 'Vui lòng có mặt trước 15 phút để làm thủ tục' : ''}
                         </span>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           {apt.status !== 'CANCELLED' && apt.status !== 'NO_SHOW' && (
                             <button
                               type="button"
