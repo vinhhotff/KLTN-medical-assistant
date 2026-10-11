@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#096** | 11/10/2026 | Rà Soát & Làm Cứng Frontend (`feature/frontend-ux-hardening`): (1) Ngừng bịa sinh hiệu/nhóm máu/chẩn đoán/liên hệ khẩn cấp/phòng khám/STT trong EMR, dashboard bệnh nhân & phiếu khám, (2) Nút ký duyệt ca khám có điều kiện + validate sinh hiệu, (3) Quên mật khẩu gọi API thật, (4) Ẩn công tắc AI toàn hệ thống với bệnh nhân, (5) Trang quét theo quota + bảng giá khớp `PaymentService`, (6) Gửi `triageSessionId`, dời lịch theo slot thật, (7) Bộ UI dùng chung + menu mobile + lazy route (bundle 1.063 kB → 62 kB), (8) 43 E2E pass. Chi tiết: `docs/FRONTEND_UX_AUDIT.md` | Phạm Bảo + AI | 🟢 Sẵn sàng Review |
 | **#094** | 11/10/2026 | Đại Tu Toàn Diện & Tối Ưu Hóa Sâu Kiến Trúc pgvector & Thuật Toán Tái Xếp Hạng Đa Chiều (SOTA WHRF-SOTA Re-ranking Engine & Postgres Tuning): (1) Thiết lập cấu hình phiên làm việc tối ưu HNSW: `SET LOCAL hnsw.ef_search = 120`, `SET LOCAL enable_seqscan = off` (triệt tiêu sequential scan, ép buộc index scan), `SET LOCAL work_mem = '64MB'`, (2) Tái thiết kế toàn diện thuật toán `rankDoctors` trong `DoctorSemanticSearchService.java` kết hợp 5 nhân tố: Sigmoid Contrastive Sharpening nâng cao độ phân giải ngữ nghĩa vector, Sparse Lexical & Trigram Overlap, Specialty Semantic Alignment Bonus (+0.12), Contrastive Divergence Penalty (-0.10) loại bỏ ứng viên nhiễu, và Authority Score, (3) Nâng cấp Python benchmark pipeline trong `scripts/meddies_pipeline/benchmark_hnsw.py` và `train_augment_doctors.py` tăng độ phong phú triệu chứng từ 12 lên 20, (4) 165/165 Backend Tests PASS 100%, Frontend Build PASS 100% | AI Assistant | 🟢 Sẵn sàng Review |
 | **#093** | 11/10/2026 | Hiện Thực Hóa Toàn Diện Động Cơ Phòng Thủ Đầu Vào 5 Tầng "Bao Đầu Vào" & Thuật Toán SOTA (Clinical Query Defense Engine): (1) Xây dựng `ClinicalQueryDefenseEngine.java` và tích hợp `DoctorSemanticSearchService.java` xử lý trọn gói 5 tình huống đầu vào: Rào chắn Red-Flag cấp cứu 115, Chuẩn hóa teen-code/viết tắt/không dấu, Thuật toán Vietnamese NegEx bóc tách câu phủ định, Cổng Out-of-Domain OOD phát hiện hỏi giá/hành chính/spam, và Phân tách đa triệu chứng phức hợp, (2) Bổ sung trường metadata phòng thủ đầu vào vào `DoctorMatchDto.java`, (3) Đồng bộ thuật toán sang Python `ClinicalQueryDefenseEnginePython` trong `scripts/meddies_pipeline/vector_engine.py` và `benchmark_hnsw.py`, (4) Bộ kiểm thử `ClinicalQueryDefenseEngineTest.java` và `DoctorSemanticSearchServiceTest.java`, đưa 165/165 tests PASS 100%, Frontend Build PASS 100% (2273 modules, 0 lỗi TS), (5) Đề xuất 3 thuật toán SOTA (Contrastive Triplet Loss, Cross-Encoder Reranker, Hierarchical ICD-10 Tree Weighting) cập nhật vào cẩm nang `pgvector_scaling_16gb/` | AI Assistant | 🟢 Sẵn sàng Review |
 | **#092** | 11/10/2026 | Quy Hoạch Chuyên Biệt Thư Mục & Cẩm Nang Huấn Luyện Mở Rộng pgvector Cho Máy 16GB RAM / 512GB SSD (`pgvector_scaling_16gb/`): (1) Phân tích cơ chế bộ nhớ pgvector (12-15 KB/vector), chứng minh năng lực mở rộng lên 50.000 bác sĩ và toàn bộ 150.000 ca Meddies hoàn toàn in-memory trên 16GB RAM, (2) Xây dựng `pgvector_scaling_16gb/README.md` hướng dẫn chi tiết vị trí sửa code, (3) `CAPSTONE_DEFENSE_CHEAT_SHEET.md` cung cấp bộ 6 câu hỏi - trả lời phản biện cốt lõi bảo vệ KLTN, (4) `docker-compose.16gb.yml` tối ưu cấp 4GB shared_buffers, 10GB effective_cache_size, 4 workers, (5) `tune_hnsw_ultra_precision.sql` nâng cấp chỉ mục HNSW lên $m=32, ef\_construction=256$, (6) Shell script `run_scaled_pipeline.sh` tự động hóa chạy pipeline mở rộng 1-click | AI Assistant | 🟢 Sẵn sàng Review |
@@ -43,6 +44,30 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#096] Rà Soát & Làm Cứng Frontend: Bỏ Dữ Liệu Y Tế Giả, Điều Kiện Nút Hành Động, UI Dùng Chung & Mobile
+* **Thời gian:** 2026-10-11 (GMT+7)
+* **Tác nhân thực hiện:** Phạm Bảo + AI (Core Developer — Frontend)
+* **Nhánh:** `feature/frontend-ux-hardening` (từ `origin/develop`, đã merge `origin/feature/fuction` — conflict `AppointmentService.java` chỉ ở khai báo field, giữ cả `objectMapper` lẫn `paymentService`; `mvn test` sau merge: 277 test, 0 fail)
+* **Mã Use Cases:** UC-CLIN (ký duyệt ca khám, phiếu khám), UC-SEC-01 (đăng nhập/quên mật khẩu), UC-05 (triage → đặt lịch), UC-06 (tìm bác sĩ), quét tài liệu & thanh toán gói
+* **Tệp tin:**
+  - `[NEW]` frontend/src/components/ui/{Button,Field,Modal,ConfirmDialog,Toast,States,cn,index}.ts(x), frontend/src/components/booking/{SlotPicker,BookingModal}.tsx, frontend/src/components/clinical/VitalValue.tsx, frontend/src/utils/{date,vitals,apiError,display,logger}.ts, frontend/src/config/{app,pricing}.ts, frontend/e2e/fixtures/mockApi.ts, frontend/e2e/{doctor-encounter,patient-dashboard,doctor-search,document-scan,admin-actions,mobile-nav,ux-capture}.spec.ts, docs/FRONTEND_UX_AUDIT.md
+  - `[MOD]` frontend/src/pages/doctor/{DoctorDashboard,DoctorPatientRecordsPage,DoctorProfilePage}.tsx, frontend/src/pages/patient/{PatientDashboard,DoctorSearchPage,DocumentSummarizerPage,SymptomTriagePage}.tsx, frontend/src/pages/{LoginPage,LandingPage}.tsx, frontend/src/pages/admin/{AdminDashboard,AppointmentSupervisionPage,UserManagementPage,DoctorManagementPage,DoctorVettingPage,AuditLogPage,SpecialtyManagementPage,TriageSupervisionPage}.tsx, frontend/src/components/patient/AdmissionTicketModal.tsx, frontend/src/components/common/{MedicalDisclaimerBanner,NotificationBell,Pagination}.tsx, frontend/src/layouts/{PatientLayout,DoctorLayout,AdminLayout}.tsx, frontend/src/App.tsx, frontend/src/vite-env.d.ts, frontend/tailwind.config.js, frontend/index.html, frontend/.env.example, frontend/e2e/{auth,triage,admin-finops,admission-ticket,doctor-workstation}.spec.ts, .gitignore, docs/WORK_LOG.md
+  - `[DEL]` không có
+* **Tài liệu đã đồng bộ:** `docs/FRONTEND_UX_AUDIT.md` (mới — bảng 60+ phát hiện P0/P1/P2, trạng thái, yêu cầu gửi backend), `docs/WORK_LOG.md`. Không thay đổi DB/API nên không sửa `DATABASE_DESIGN.md`; luồng nghiệp vụ không đổi hợp đồng nên chưa sửa `USE_CASES.md` (đề xuất bổ sung validation ở mục BE-3 khi backend làm).
+* **Bằng chứng kiểm thử:**
+  - `npm run build` (frontend): PASS, 0 lỗi TypeScript, 2293 modules; chunk chính 61,7 kB (trước 1.063 kB), không còn cảnh báo > 500 kB.
+  - Playwright (mock API theo DTO): `43 passed` trên `chromium` và `43 passed` trên `mobile-chrome` (32 test chụp ảnh audit bị skip khi không có `UX_CAPTURE`).
+  - `mvn test` (sau merge `feature/fuction`, không sửa backend): 277 run, 0 failures, 0 errors.
+  - Không chạy backend thật (máy không có Docker; không dùng DB chung để tránh ghi dữ liệu thử) → cần chạy checklist test tay trong PR.
+* **Điểm nóng Tech Lead cần Review:**
+  1. `utils/vitals.ts` — sinh hiệu trống bị **bỏ khỏi** `vitalSignsJson` (không còn giá trị mặc định); khoảng hợp lệ có thể cần bác sĩ trong nhóm duyệt.
+  2. Nút "Ký Duyệt & Hoàn Tất" chặn theo trạng thái `CHECKED_IN/IN_PROGRESS` giống guard của nhánh `feature/fuction`.
+  3. `config/pricing.ts` lặp giá với `PaymentService` cho tới khi có API gói (BE-6).
+  4. Ẩn công tắc AI chỉ là phía giao diện; `/api/v1/system/**` vẫn `permitAll` (BE-1, ưu tiên cao).
+  5. Phát hiện class Tailwind 4 không tồn tại ở v3 (`bg-linear-*`, `z-60`...) làm header modal mất nền và modal thanh toán bị che; đã bổ sung token vào `tailwind.config.js`.
+
+---
 
 ### [WORK-LOG-#094] Đại Tu Toàn Diện & Tối Ưu Hóa Sâu Kiến Trúc pgvector & Thuật Toán Tái Xếp Hạng Đa Chiều (SOTA WHRF-SOTA Re-ranking Engine & Postgres Tuning)
 * **Thời gian:** 2026-10-11 09:30:00 (GMT+7)
