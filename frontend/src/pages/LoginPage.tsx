@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   ShieldCheck,
   Lock,
@@ -21,13 +21,22 @@ import {
 import { api } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
+import { Button, ErrorState, Field, Input, Modal } from '../components/ui';
+import { ENABLE_DEMO_LOGIN } from '../config/app';
+import { todayLocal } from '../utils/date';
+import { getApiErrorMessage, getApiErrorStatus } from '../utils/apiError';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const VN_PHONE_RE = /^(\+?84|0)(3|5|7|8|9)\d{8}$/;
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get('expired') === 'true';
   const { setUser } = useAuthStore();
 
   // Mode: 'REGISTER' (default per target UI) or 'LOGIN'
-  const [activeTab, setActiveTab] = useState<'REGISTER' | 'LOGIN'>('REGISTER');
+  const [activeTab, setActiveTab] = useState<'REGISTER' | 'LOGIN'>(() => (sessionExpired ? 'LOGIN' : 'REGISTER'));
   const [roleType, setRoleType] = useState<'PATIENT' | 'DOCTOR'>('PATIENT');
 
   // Register state
@@ -37,19 +46,19 @@ export const LoginPage: React.FC = () => {
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
-  const [regBhyt, setRegBhyt] = useState('');
   const [regGender, setRegGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE');
-  const [agreeTerms, setAgreeTerms] = useState(true);
+  // Consent must be an explicit action, never pre-checked
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   // Login state
-  const [loginEmail, setLoginEmail] = useState('doctor@mediassist.local');
-  const [loginPassword, setLoginPassword] = useState('Doctor@SecurePass2026!');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
 
   // UI state
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => (sessionExpired ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' : null));
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
 
@@ -57,6 +66,10 @@ export const LoginPage: React.FC = () => {
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSubmitted, setForgotSubmitted] = useState(false);
+  const [forgotSubmitting, setForgotSubmitting] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState<string | null>(null);
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [forgotTouched, setForgotTouched] = useState(false);
   const [ssoModalType, setSsoModalType] = useState<'GOOGLE' | 'VNEID' | null>(null);
   const [complianceModalType, setComplianceModalType] = useState<'PRIVACY' | 'SECURITY' | 'DISCLAIMER' | null>(null);
 
@@ -134,31 +147,66 @@ export const LoginPage: React.FC = () => {
     };
   }, [regPassword, passCriteria]);
 
+  const registerErrors = useMemo(() => {
+    const errs: string[] = [];
+    if (!regFullName.trim()) errs.push('Họ và tên không được để trống.');
+    if (!regDob) errs.push('Vui lòng chọn ngày sinh.');
+    else if (regDob > todayLocal()) errs.push('Ngày sinh không được ở tương lai.');
+    if (!VN_PHONE_RE.test(regPhone.replace(/\s/g, ''))) errs.push('Số điện thoại di động không hợp lệ (VD: 0912 345 678).');
+    if (!EMAIL_RE.test(regEmail.trim())) errs.push('Email không hợp lệ.');
+    if (!passCriteria.length) errs.push('Mật khẩu cần ít nhất 8 ký tự.');
+    if (!passCriteria.uppercase) errs.push('Mật khẩu cần ít nhất 1 chữ hoa (A-Z).');
+    if (!passCriteria.special) errs.push('Mật khẩu cần ít nhất 1 ký tự đặc biệt (!@#...).');
+    if (regPassword !== regConfirmPassword) errs.push('Mật khẩu xác nhận không khớp.');
+    if (!agreeTerms) errs.push('Vui lòng đồng ý với Điều khoản dịch vụ và quy chế xử lý dữ liệu y tế.');
+    return errs;
+  }, [regFullName, regDob, regPhone, regEmail, passCriteria, regPassword, regConfirmPassword, agreeTerms]);
+
+  const forgotEmailError = !EMAIL_RE.test(forgotEmail.trim()) ? 'Nhập email hợp lệ đã đăng ký tài khoản.' : null;
+
+  const openForgotModal = () => {
+    setForgotEmail(loginEmail || '');
+    setForgotSubmitted(false);
+    setForgotMessage(null);
+    setForgotError(null);
+    setForgotTouched(false);
+    setShowForgotModal(true);
+  };
+
+  // POST /auth/forgot-password — backend always answers with a neutral message (no account enumeration)
+  const handleForgotPassword = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setForgotTouched(true);
+    if (forgotEmailError || forgotSubmitting) return;
+    try {
+      setForgotSubmitting(true);
+      setForgotError(null);
+      const res = await api.post('/auth/forgot-password', { email: forgotEmail.trim().toLowerCase() });
+      setForgotMessage(res.data?.message || 'Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi.');
+      setForgotSubmitted(true);
+    } catch (err) {
+      const status = getApiErrorStatus(err);
+      setForgotError(
+        status === 429
+          ? 'Bạn đã yêu cầu quá nhiều lần. Vui lòng thử lại sau ít phút.'
+          : getApiErrorMessage(err, 'Không gửi được yêu cầu. Vui lòng kiểm tra kết nối và thử lại.')
+      );
+    } finally {
+      setForgotSubmitting(false);
+    }
+  };
+
   // Handle Registration
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
+    if (loading) return;
 
-    // Client-side validation
-    if (!regFullName.trim()) {
-      setError('Họ và tên không được để trống.');
-      return;
-    }
-    if (!regEmail.trim()) {
-      setError('Email không được để trống.');
-      return;
-    }
-    if (regPassword.length < 8) {
-      setError('Mật khẩu bắt buộc phải có ít nhất 8 ký tự theo tiêu chuẩn bảo mật y tế.');
-      return;
-    }
-    if (regPassword !== regConfirmPassword) {
-      setError('Mật khẩu xác nhận không khớp với mật khẩu đã nhập.');
-      return;
-    }
-    if (!agreeTerms) {
-      setError('Vui lòng đồng ý với Điều khoản Dịch vụ và Quy chế Dữ liệu Y tế e-PHI.');
+    // Client-side validation — the same criteria that are displayed under the password field
+    const firstError = registerErrors[0];
+    if (firstError) {
+      setError(firstError);
       return;
     }
 
@@ -169,9 +217,8 @@ export const LoginPage: React.FC = () => {
         fullName: regFullName.trim(),
         email: regEmail.toLowerCase().trim(),
         password: regPassword,
-        phone: regPhone.trim() || undefined,
+        phone: regPhone.replace(/\s/g, '') || undefined,
         gender: regGender,
-        address: 'Việt Nam',
       };
 
       if (regDob && regDob.trim()) {
@@ -208,6 +255,7 @@ export const LoginPage: React.FC = () => {
   // Handle Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading || !loginEmail.trim() || !loginPassword) return;
     setError(null);
     setSuccessMsg(null);
     setIsLocked(false);
@@ -293,9 +341,6 @@ export const LoginPage: React.FC = () => {
     // Valid strong password >= 8 characters with upper, lower, number, special char
     const password = `Medi@Pass${Math.floor(Math.random() * 9000 + 1000)}!`;
 
-    // Sample BHYT / CCCD number
-    const bhyt = `GD479${Math.floor(Math.random() * 9000000000 + 1000000000)}`;
-
     setRegFullName(fullName);
     setRegGender(gender);
     setRegEmail(email);
@@ -303,10 +348,9 @@ export const LoginPage: React.FC = () => {
     setRegDob(dob);
     setRegPassword(password);
     setRegConfirmPassword(password);
-    setRegBhyt(bhyt);
     setAgreeTerms(true);
 
-    setSuccessMsg(`✓ Đã tạo ngẫu nhiên hồ sơ: ${fullName} (${gender === 'MALE' ? 'Nam' : 'Nữ'}, sinh năm ${birthYear})`);
+    setSuccessMsg(`Đã điền dữ liệu mẫu (không phải người thật): ${fullName} (${gender === 'MALE' ? 'Nam' : 'Nữ'}, sinh năm ${birthYear})`);
   };
 
   const handleQuickPreset = (presetEmail: string, presetPass: string) => {
@@ -328,7 +372,7 @@ export const LoginPage: React.FC = () => {
           </div>
           <div className="flex flex-col">
             <span className="text-lg font-black tracking-tight text-slate-900 flex items-center gap-1.5">
-              MedConnect AI
+              MediAssist
             </span>
             <span className="text-[10px] font-bold text-teal-700 tracking-wider uppercase -mt-0.5">
               Clinical Triage &amp; Telehealth
@@ -476,11 +520,12 @@ export const LoginPage: React.FC = () => {
             {activeTab === 'REGISTER' ? (
               <form onSubmit={handleRegister} className="space-y-4">
                 
-                {/* Tech Lead Quick Fill Bar (Randomized Data) */}
+                {/* Demo-only quick fill (sample data) — hidden unless VITE_ENABLE_DEMO_LOGIN / dev */}
+                {ENABLE_DEMO_LOGIN && (
                 <div className="p-3 bg-gradient-to-r from-teal-50 via-emerald-50 to-sky-50 rounded-xl border border-teal-200/80 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-teal-900">
                     <Sparkles className="w-4 h-4 text-teal-600 animate-pulse" />
-                    <span>Điền nhanh Test (Random 100% hợp lệ):</span>
+                    <span>Dữ liệu mẫu để demo:</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button
@@ -507,6 +552,7 @@ export const LoginPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Full Name */}
@@ -538,6 +584,7 @@ export const LoginPage: React.FC = () => {
                       <input
                         type="date"
                         required
+                        max={todayLocal()}
                         value={regDob}
                         onChange={(e) => setRegDob(e.target.value)}
                         className="w-full pl-9 pr-3 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition"
@@ -712,27 +759,10 @@ export const LoginPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Optional Health ID Field */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-[16px] text-teal-600">badge</span>
-                      <span>Mã thẻ BHYT hoặc Số Căn cước (CCCD / VNeID)</span>
-                    </label>
-                    <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md font-medium">Tùy chọn</span>
-                  </div>
-                  <input
-                    type="text"
-                    value={regBhyt}
-                    onChange={(e) => setRegBhyt(e.target.value)}
-                    placeholder="Ví dụ: GD4790123456789 hoặc 001201012345"
-                    className="w-full px-3 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition"
-                  />
-                  <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[13px] text-teal-600">info</span>
-                    <span>Giúp tự động đồng bộ kết quả xét nghiệm quá khứ từ các bệnh viện đối tác.</span>
-                  </div>
-                </div>
+                <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px] text-teal-600">badge</span>
+                  Bạn có thể bổ sung số BHYT / CCCD trong mục "Hồ sơ y tế" sau khi đăng ký.
+                </p>
 
                 {/* Terms Agreement */}
                 <div className="flex items-start gap-2 pt-1">
@@ -751,7 +781,8 @@ export const LoginPage: React.FC = () => {
                 {/* Primary Submit Button */}
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !agreeTerms}
+                  title={!agreeTerms ? 'Cần đồng ý điều khoản trước khi tạo tài khoản' : undefined}
                   className="w-full py-3 bg-[#0f172a] hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {loading ? (
@@ -761,7 +792,7 @@ export const LoginPage: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <span>Tạo Tài Khoản &amp; Tải Lên Hồ Sơ Đầu Tiên</span>
+                      <span>Tạo Tài Khoản</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -771,11 +802,12 @@ export const LoginPage: React.FC = () => {
               /* ==================== FORM: LOGIN MODE ==================== */
               <form onSubmit={handleLogin} className="space-y-4">
                 
-                {/* Tech Lead Presets Bar */}
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60">
+                {/* Demo account presets — seeded accounts, only in dev or with VITE_ENABLE_DEMO_LOGIN=true */}
+                {ENABLE_DEMO_LOGIN && (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60" data-testid="demo-presets">
                   <div className="text-[11px] font-bold text-slate-700 mb-2 flex items-center gap-1">
                     <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-                    <span>Tài khoản kiểm thử nhanh (1-Click Fill):</span>
+                    <span>Tài khoản demo (dữ liệu mẫu):</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     <button
@@ -816,6 +848,7 @@ export const LoginPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -843,9 +876,7 @@ export const LoginPage: React.FC = () => {
                       href="#forgot"
                       onClick={(e) => {
                         e.preventDefault();
-                        setForgotEmail(loginEmail || '');
-                        setForgotSubmitted(false);
-                        setShowForgotModal(true);
+                        openForgotModal();
                       }}
                       className="text-[11px] text-teal-700 hover:underline cursor-pointer"
                     >
@@ -880,8 +911,8 @@ export const LoginPage: React.FC = () => {
 
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="w-full py-3 bg-[#0f172a] hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  disabled={loading || !loginEmail.trim() || !loginPassword}
+                  className="w-full py-3 bg-[#0f172a] hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <>
@@ -902,8 +933,8 @@ export const LoginPage: React.FC = () => {
             <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
               <span>
                 {activeTab === 'REGISTER'
-                  ? 'Đã có tài khoản MedConnect AI?'
-                  : 'Chưa có tài khoản MedConnect AI?'}
+                  ? 'Đã có tài khoản MediAssist?'
+                  : 'Chưa có tài khoản MediAssist?'}
               </span>
               <button
                 type="button"
@@ -1041,7 +1072,7 @@ export const LoginPage: React.FC = () => {
       {/* ==================== 3. FOOTER ==================== */}
       <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-500">
         <div>
-          © 2026 MedConnect AI Clinical Technologies Inc. All rights reserved. 256-Bit SSL Encrypted.
+          © 2026 MediAssist — Đồ án tốt nghiệp. Dữ liệu demo không phải hồ sơ bệnh nhân thật.
         </div>
         <div className="flex items-center gap-4 font-medium text-slate-600">
           <a
@@ -1079,105 +1110,67 @@ export const LoginPage: React.FC = () => {
         </div>
       </footer>
 
-      {/* Forgot Password Modal */}
-      {showForgotModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center">
-                  <Lock className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Khôi Phục Mật Khẩu Y Tế</h3>
-                  <p className="text-xs text-slate-500">Bảo mật cấp độ xác thực 2 lớp EMR</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowForgotModal(false)}
-                className="p-1 rounded-xl text-slate-400 hover:text-slate-600"
+      {/* Forgot Password Modal — POST /auth/forgot-password */}
+      <Modal
+        open={showForgotModal}
+        onClose={() => setShowForgotModal(false)}
+        busy={forgotSubmitting}
+        size="sm"
+        title="Khôi phục mật khẩu"
+        description="Nhận liên kết đặt lại mật khẩu qua email"
+        footer={
+          forgotSubmitted ? (
+            <Button onClick={() => setShowForgotModal(false)}>Quay lại đăng nhập</Button>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={() => setShowForgotModal(false)} disabled={forgotSubmitting}>
+                Hủy bỏ
+              </Button>
+              <Button
+                onClick={() => handleForgotPassword()}
+                loading={forgotSubmitting}
+                loadingText="Đang gửi..."
+                disabledReason={forgotEmailError}
               >
-                <X className="w-5 h-5" />
-              </button>
+                Gửi hướng dẫn
+              </Button>
+            </>
+          )
+        }
+      >
+        {forgotSubmitted ? (
+          <div className="space-y-3 text-center py-2" data-testid="forgot-success">
+            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-6 h-6" />
             </div>
-
-            {!forgotSubmitted ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (forgotEmail.trim()) setForgotSubmitted(true);
-                }}
-                className="space-y-4"
-              >
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Nhập địa chỉ email đăng ký hồ sơ bệnh án hoặc tài khoản bác sĩ. Hệ thống sẽ cấp mã xác thực OTP khôi phục quyền truy cập an toàn.
-                </p>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Email tài khoản <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="name@mediassist.local"
-                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
-                  />
-                </div>
-
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-800 space-y-1">
-                  <p className="font-semibold">Lưu ý bảo vệ dữ liệu sức khỏe (HIPAA):</p>
-                  <p>Mã OTP có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này cho bất kỳ ai kể cả nhân viên y tế.</p>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotModal(false)}
-                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
-                  >
-                    Hủy bỏ
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl transition shadow-xs cursor-pointer"
-                  >
-                    Gửi Mã Xác Thực OTP
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="space-y-4 text-center py-2">
-                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">Yêu Cầu Khôi Phục Đã Được Ghi Nhận!</h4>
-                  <p className="text-xs text-slate-600 mt-1">
-                    Hệ thống đã gửi liên kết xác minh đến hòm thư <strong className="text-slate-900">{forgotEmail}</strong>.
-                  </p>
-                </div>
-
-                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-left text-xs space-y-1.5 font-mono">
-                  <p className="text-slate-500 text-[11px]">DEMO / STAGING OTP CODE:</p>
-                  <p className="text-lg font-black text-teal-700 tracking-widest text-center">882 941</p>
-                  <p className="text-[11px] text-slate-400 text-center">Tài khoản mặc định: patient@mediassist.local / password123</p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowForgotModal(false)}
-                  className="w-full py-2.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl transition shadow-xs cursor-pointer"
-                >
-                  Đóng & Đăng Nhập Ngay
-                </button>
-              </div>
-            )}
+            <p className="text-sm text-slate-700">{forgotMessage}</p>
+            <p className="text-xs text-slate-500">
+              Hãy kiểm tra hộp thư (kể cả mục Spam). Liên kết chỉ dùng được một lần và có thời hạn.
+            </p>
           </div>
-        </div>
-      )}
+        ) : (
+          <form onSubmit={handleForgotPassword} className="space-y-4" noValidate>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Nhập email bạn đã dùng để đăng ký. Nếu email có trong hệ thống, chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu.
+            </p>
+            <Field label="Email tài khoản" htmlFor="forgot-email" required error={forgotTouched ? forgotEmailError : null}>
+              <Input
+                id="forgot-email"
+                type="email"
+                data-autofocus
+                autoComplete="email"
+                value={forgotEmail}
+                invalid={forgotTouched && Boolean(forgotEmailError)}
+                disabled={forgotSubmitting}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                onBlur={() => setForgotTouched(true)}
+                placeholder="ten@email.com"
+              />
+            </Field>
+            {forgotError && <ErrorState message={forgotError} />}
+          </form>
+        )}
+      </Modal>
 
       {/* SSO Federation Modal */}
       {ssoModalType && (
