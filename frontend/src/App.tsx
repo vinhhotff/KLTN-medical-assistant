@@ -1,34 +1,45 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToastProvider } from './components/ui';
-import { LandingPage } from './pages/LandingPage';
-import { LoginPage } from './pages/LoginPage';
-import { OAuth2CallbackPage } from './pages/OAuth2CallbackPage';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { AdminLayout } from './layouts/AdminLayout';
 import { DoctorLayout } from './layouts/DoctorLayout';
 import { PatientLayout } from './layouts/PatientLayout';
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { DoctorManagementPage } from './pages/admin/DoctorManagementPage';
-import { UserManagementPage } from './pages/admin/UserManagementPage';
-import { SpecialtyManagementPage } from './pages/admin/SpecialtyManagementPage';
-import { AppointmentSupervisionPage } from './pages/admin/AppointmentSupervisionPage';
-import { TriageSupervisionPage } from './pages/admin/TriageSupervisionPage';
-import { AuditLogPage } from './pages/admin/AuditLogPage';
-import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
-import { DoctorProfilePage } from './pages/doctor/DoctorProfilePage';
-import { DoctorPatientRecordsPage } from './pages/doctor/DoctorPatientRecordsPage';
-import { PatientDashboard } from './pages/patient/PatientDashboard';
-import { DoctorSearchPage } from './pages/patient/DoctorSearchPage';
-import { DocumentSummarizerPage } from './pages/patient/DocumentSummarizerPage';
-import { SymptomTriagePage } from './pages/patient/SymptomTriagePage';
-import { PaymentSuccessPage } from './pages/patient/PaymentSuccessPage';
+
+// Route-level code splitting: heavy pages (three.js landing, recharts admin, 3k-line doctor desk)
+// are only downloaded when visited.
+const LandingPage = lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
+const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
+const OAuth2CallbackPage = lazy(() => import('./pages/OAuth2CallbackPage').then((m) => ({ default: m.OAuth2CallbackPage })));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
+const DoctorManagementPage = lazy(() => import('./pages/admin/DoctorManagementPage').then((m) => ({ default: m.DoctorManagementPage })));
+const UserManagementPage = lazy(() => import('./pages/admin/UserManagementPage').then((m) => ({ default: m.UserManagementPage })));
+const SpecialtyManagementPage = lazy(() => import('./pages/admin/SpecialtyManagementPage').then((m) => ({ default: m.SpecialtyManagementPage })));
+const AppointmentSupervisionPage = lazy(() => import('./pages/admin/AppointmentSupervisionPage').then((m) => ({ default: m.AppointmentSupervisionPage })));
+const TriageSupervisionPage = lazy(() => import('./pages/admin/TriageSupervisionPage').then((m) => ({ default: m.TriageSupervisionPage })));
+const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage').then((m) => ({ default: m.AuditLogPage })));
+const DoctorDashboard = lazy(() => import('./pages/doctor/DoctorDashboard').then((m) => ({ default: m.DoctorDashboard })));
+const DoctorProfilePage = lazy(() => import('./pages/doctor/DoctorProfilePage').then((m) => ({ default: m.DoctorProfilePage })));
+const DoctorPatientRecordsPage = lazy(() => import('./pages/doctor/DoctorPatientRecordsPage').then((m) => ({ default: m.DoctorPatientRecordsPage })));
+const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard').then((m) => ({ default: m.PatientDashboard })));
+const DoctorSearchPage = lazy(() => import('./pages/patient/DoctorSearchPage').then((m) => ({ default: m.DoctorSearchPage })));
+const DocumentSummarizerPage = lazy(() => import('./pages/patient/DocumentSummarizerPage').then((m) => ({ default: m.DocumentSummarizerPage })));
+const SymptomTriagePage = lazy(() => import('./pages/patient/SymptomTriagePage').then((m) => ({ default: m.SymptomTriagePage })));
+const PaymentSuccessPage = lazy(() => import('./pages/patient/PaymentSuccessPage').then((m) => ({ default: m.PaymentSuccessPage })));
+
+const RouteFallback = () => (
+  <div className="min-h-[50vh] flex items-center justify-center" role="status" aria-label="Đang tải trang">
+    <div className="w-8 h-8 rounded-full border-4 border-teal-200 border-t-teal-600 animate-spin" />
+  </div>
+);
 
 export function App() {
   return (
     <BrowserRouter>
       <ErrorBoundary>
         <ToastProvider>
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
@@ -77,6 +88,7 @@ export function App() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
         </ToastProvider>
       </ErrorBoundary>
     </BrowserRouter>
