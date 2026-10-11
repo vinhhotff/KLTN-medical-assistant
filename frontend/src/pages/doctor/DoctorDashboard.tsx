@@ -1850,7 +1850,7 @@ export const DoctorDashboard: React.FC = () => {
                     </div>
 
                     {/* Action buttons */}
-                    <div className="flex sm:flex-col gap-2 flex-shrink-0">
+                    <div className="flex flex-wrap sm:flex-nowrap sm:flex-col gap-2 sm:flex-shrink-0">
                       {apt.status === 'SCHEDULED' && (
                         <button
                           type="button"

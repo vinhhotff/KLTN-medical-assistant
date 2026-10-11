@@ -18,8 +18,14 @@ export const MedicalDisclaimerBanner: React.FC<Props> = ({ dismissible = false }
             <ShieldAlert className="w-3.5 h-3.5 text-amber-300" />
             <span>Khuyến Cáo Lâm Sàng</span>
           </span>
-          <p className="text-slate-300 text-[11px] sm:text-xs truncate sm:overflow-visible">
-            Hệ thống <strong>MediAssist-AI</strong> chỉ hỗ trợ định hướng sơ bộ và giải thích kết quả xét nghiệm, <u>không</u> thay thế chẩn đoán từ Bác sĩ chuyên khoa. Trường hợp khẩn cấp, vui lòng đến ngay cơ sở y tế gần nhất hoặc gọi cấp cứu <strong>115</strong>.
+          {/* Short copy on phones so the 115 emergency number is never truncated */}
+          <p className="sm:hidden text-slate-200 text-[11px] leading-snug">
+            Chỉ để tham khảo, <u>không</u> thay thế bác sĩ. Khẩn cấp gọi{' '}
+            <a href="tel:115" className="font-bold text-white underline">115</a>.
+          </p>
+          <p className="hidden sm:block text-slate-200 text-xs">
+            Hệ thống <strong>MediAssist-AI</strong> chỉ hỗ trợ định hướng sơ bộ và giải thích kết quả xét nghiệm, <u>không</u> thay thế chẩn đoán từ Bác sĩ chuyên khoa. Trường hợp khẩn cấp, vui lòng đến ngay cơ sở y tế gần nhất hoặc gọi cấp cứu{' '}
+            <a href="tel:115" className="font-bold text-white underline">115</a>.
           </p>
         </div>
         {dismissible && (
