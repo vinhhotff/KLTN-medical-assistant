@@ -1,0 +1,85 @@
+version: '3.8'
+
+# ====================================================================
+# MediAssist-AI Docker Compose Optimized for 16GB RAM / 512GB SSD
+# High-Performance PostgreSQL 16 + pgvector (HNSW In-Memory Graph)
+# ====================================================================
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: mediassist_postgres
+    restart: unless-stopped
+    command: >
+      postgres
+      -c shared_buffers=4GB
+      -c effective_cache_size=10GB
+      -c maintenance_work_mem=1GB
+      -c work_mem=64MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=64MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c max_worker_processes=8
+      -c max_parallel_workers_per_gather=4
+      -c max_parallel_workers=8
+      -c max_parallel_maintenance_workers=4
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_secure_2026}
+      POSTGRES_DB: ${DB_NAME:-mediassist_db}
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-mediassist_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mediassist_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: mediassist_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mediassist_net
+
+  pgweb:
+    image: sosedoff/pgweb:latest
+    container_name: mediassist_pgweb
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - PGWEB_DATABASE_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres_secure_2026}@postgres:5432/${DB_NAME:-mediassist_db}?sslmode=disable
+    depends_on:
+      - postgres
+    networks:
+      - mediassist_net
+
+volumes:
+  postgres_data:
+    name: mediassist_postgres_data
+  redis_data:
+    name: mediassist_redis_data
+
+networks:
+  mediassist_net:
+    name: mediassist_net
+    driver: bridge

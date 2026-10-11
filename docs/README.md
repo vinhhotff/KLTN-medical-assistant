@@ -78,6 +78,7 @@ Toàn bộ 14 tài liệu trong thư mục `docs/` và gốc dự án được t
 ### 4. Tầng 3: Kiểm Thử, Vận Hành & Bảo Vệ (QA & Defense)
 * [`docs/MASTER_TRACEABILITY_INDEX.md`](./MASTER_TRACEABILITY_INDEX.md): Ma trận truy vết yêu cầu 2 chiều ($33\text{ Use Cases} \leftrightarrow \text{API} \leftrightarrow \text{Database Tables} \leftrightarrow \text{Thuật Toán} \leftrightarrow \text{Câu hỏi Hội đồng}$).
 * [`docs/VECTOR_BENCHMARK_REPORT.md`](./VECTOR_BENCHMARK_REPORT.md): ⭐ **Báo cáo thực nghiệm huấn luyện vector & pgvector HNSW**: Số liệu định lượng đo trên 500 ca bệnh từ tập dữ liệu Hugging Face `Meddies/meddies-persona-vie` và `Meddies/meddies-pii` (Top-1 Accuracy tăng 3.9 lần, độ trễ $0.72\text{ms}$).
+* [`pgvector_scaling_16gb/`](../pgvector_scaling_16gb/README.md): 🚀 **Cẩm nang mở rộng pgvector trên máy 16GB RAM / 512GB SSD**: Hướng dẫn scale lên 50.000 bác sĩ / 150.000 ca Meddies, cấu hình Docker Compose 4GB shared_buffers, script SQL HNSW Siêu Phân Giải ($m=32, ef\_construction=256$) và Cheat Sheet bảo vệ KLTN.
 * [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md): Cẩm nang bảo vệ tốt nghiệp: Kịch bản thuyết trình 15 phút, checklist live demo, và bộ **35 câu hỏi phản biện gài bẫy kèm câu trả lời mẫu**.
 * [`docs/TEAM_WORKFLOW.md`](./TEAM_WORKFLOW.md): Ma trận phân chia trách nhiệm 3 vai trò trong nhóm (Tech Lead 30/50/20, Core Dev 80/15/5, QA & Doc 15/25/60).
 * [`docs/WORK_LOG.md`](./WORK_LOG.md): Nhật ký phát triển liên tục ghi nhận chi tiết từng file thay đổi, bằng chứng lệnh test và kết quả nghiệm thu.

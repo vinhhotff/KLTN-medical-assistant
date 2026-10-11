@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#092** | 11/10/2026 | Quy Hoạch Chuyên Biệt Thư Mục & Cẩm Nang Huấn Luyện Mở Rộng pgvector Cho Máy 16GB RAM / 512GB SSD (`pgvector_scaling_16gb/`): (1) Phân tích cơ chế bộ nhớ pgvector (12-15 KB/vector), chứng minh năng lực mở rộng lên 50.000 bác sĩ và toàn bộ 150.000 ca Meddies hoàn toàn in-memory trên 16GB RAM, (2) Xây dựng `pgvector_scaling_16gb/README.md` hướng dẫn chi tiết vị trí sửa code, (3) `CAPSTONE_DEFENSE_CHEAT_SHEET.md` cung cấp bộ 6 câu hỏi - trả lời phản biện cốt lõi bảo vệ KLTN, (4) `docker-compose.16gb.yml` tối ưu cấp 4GB shared_buffers, 10GB effective_cache_size, 4 workers, (5) `tune_hnsw_ultra_precision.sql` nâng cấp chỉ mục HNSW lên $m=32, ef\_construction=256$, (6) Shell script `run_scaled_pipeline.sh` tự động hóa chạy pipeline mở rộng 1-click | AI Assistant | 🟢 Sẵn sàng Review |
 | **#091** | 10/10/2026 | Hiện Thực Hóa Toàn Diện Pipeline Huấn Luyện Vector & Đánh Giá pgvector HNSW Khai Thác Tập Dữ Liệu Hugging Face Meddies (Meddies Persona Vie & Meddies PII): (1) Xây dựng bộ trích xuất và ánh xạ chuẩn vàng ICD-10 sang 12 chuyên khoa bệnh viện từ 150.000 bệnh nhân `Meddies/meddies-persona-vie`, (2) Triển khai `VectorEmbeddingEngine` (1536-d) đồng bộ 100% công thức toán học FNV-1a & L2 norm với Java `EmbeddingService`, (3) Động cơ huấn luyện và làm giàu hồ sơ bác sĩ `train_augment_doctors.py` giúp Top-1 Match Accuracy tăng vọt từ 6.00% lên 23.2% (tăng gấp 3.9 lần), Recall@3 đạt 33.0%, (4) Benchmark pgvector HNSW trên PostgreSQL 16 (port 5433) đạt độ trễ cực nhanh 0.72 ms, (5) Đánh giá rào chắn bảo vệ dữ liệu cá nhân y tế PII (Nghị định 13/2023/NĐ-CP & HIPAA) trên 100 hồ sơ bệnh viện từ `Meddies/meddies-pii` đạt Precision 82.72%, (6) Xuất báo cáo thực nghiệm chuẩn khoa học `docs/VECTOR_BENCHMARK_REPORT.md`, bổ sung Câu hỏi 17 vào `docs/CAPSTONE_DEFENSE.md` | AI Assistant | 🟢 Sẵn sàng Review |
 | **#090** | 10/10/2026 | Cập Nhật API Key Gemini, Sửa Lỗi Flyway Checksum V1/V2 & Khởi Chạy Toàn Bộ Hệ Thống Full App MediAssist-AI: (1) Cập nhật GEMINI_API_KEY thực tế vào `.env` và `backend/.env`, (2) Khắc phục lỗi Flyway Checksum mismatch V1/V2 trên PostgreSQL bằng `mvn flyway:repair`, (3) Khắc phục lỗi TypeScript TS7006 implicit any cho Recharts trong `AdminDashboard.tsx`, đưa `npm run build` PASS 100% (2273 modules, 0 lỗi TS), (4) Khởi chạy thành công toàn bộ stack: Docker PostgreSQL pgvector (:5433), Docker Redis (:6379), Spring Boot Backend (:5001), Vite React Frontend (:5173) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#089** | 10/10/2026 | Khắc Phục Lỗi GitHub Actions CI & Đại Tu Đồng Bộ Toàn Diện Hồ Sơ Tài Liệu Markdown: (1) Sửa lỗi npm ci frontend do package-lock.json lệch @playwright/test, (2) Khắc phục 3 lỗi unit test backend (DoctorServiceTest né bẫy ngày Chủ Nhật, EmbeddingServiceTest phân tách ngữ nghĩa offline, DoctorSemanticSearchServiceTest đồng bộ 3 tham số varargs HNSW V19), đưa 158/158 tests PASS (100%), (3) Đại tu ARCHITECTURE.md loại bỏ tàn dư Node.js/Express/Prisma sang thuần Java 21 Spring Boot 3.4, (4) Bổ sung đặc tả DDL Flyway V17-V19 vào DATABASE_DESIGN.md, (5) Quy hoạch tuần tiến UC-00 đến UC-32 trong USE_CASES.md (xóa trùng lặp UC-11/12), (6) Nâng cấp SRS_MediAssist_AI.md đạt chuẩn IEEE 830 toàn diện, (7) Khắc phục toàn bộ link file:/// cục bộ và đồng bộ cẩm nang bảo vệ | AI Assistant | 🟢 Sẵn sàng Review |
@@ -33,6 +34,23 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#092] Quy Hoạch Chuyên Biệt Thư Mục & Cẩm Nang Huấn Luyện Mở Rộng pgvector Cho Máy 16GB RAM / 512GB SSD (`pgvector_scaling_16gb/`)
+* **Thời gian:** 2026-10-11 08:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior AI Solution Architect & Tech Lead
+* **Mã Use Cases:** UC-06 (Tìm kiếm Bác sĩ Ngữ nghĩa HNSW), UC-05 (AI Symptom Triage), Cẩm Nang Bảo Vệ Luận Văn KLTN
+* **Trạng thái Dịch vụ & Tài Liệu:**
+  - Tạo thành công thư mục chuyên biệt `pgvector_scaling_16gb/` độc lập, dễ tra cứu và bàn giao.
+  - Phân tích toán học & tài nguyên bộ nhớ pgvector (1536 chiều tốn ~12-15 KB/vector cả đồ thị HNSW), chứng minh khả năng nạp 100% in-memory 50.000 bác sĩ và 150.000 ca Meddies trên 16GB RAM.
+  - Bộ 5 tài liệu & công cụ thực thi hoàn chỉnh phục vụ cả vận hành thực tế và bảo vệ hội đồng:
+    1. `pgvector_scaling_16gb/README.md`: Hướng dẫn toàn diện quy trình huấn luyện, bản chất giải quyết lệch ngữ nghĩa, giải thích vì sao lấy mẫu kiểm thử 500 ca ($p < 0.01$), nơi lưu trữ dữ liệu và chi tiết từng dòng code cần sửa khi scale.
+    2. `pgvector_scaling_16gb/CAPSTONE_DEFENSE_CHEAT_SHEET.md`: Bộ 6 câu hỏi - câu trả lời "phao cứu sinh" phản biện hội đồng bảo vệ, trả lời sắc bén từ bản chất AI không hardcode đến cơ chế HNSW dưới 1ms.
+    3. `pgvector_scaling_16gb/docker-compose.16gb.yml`: Cấu hình Docker Compose tối ưu cho máy 16GB RAM cấp 4GB `shared_buffers`, 10GB `effective_cache_size`, 1GB `maintenance_work_mem`, 4 parallel workers.
+    4. `pgvector_scaling_16gb/tune_hnsw_ultra_precision.sql`: Script SQL một bước nâng cấp chỉ mục HNSW lên Siêu Phân Giải ($m=32, ef\_construction=256, ef\_search=200$).
+    5. `pgvector_scaling_16gb/run_scaled_pipeline.sh`: Shell script tự động hóa toàn bộ quy trình: kiểm tra kết nối DB, kiểm tra python, apply HNSW tuning, chạy pipeline Meddies mở rộng (`--samples [N]`) và xuất báo cáo.
+  - Đồng bộ `docs/README.md` (Tầng 3) và `docs/WORK_LOG.md`.
+
+---
 
 ### [WORK-LOG-#091] Hiện Thực Hóa Toàn Diện Pipeline Huấn Luyện Vector & Đánh Giá pgvector HNSW Khai Thác Tập Dữ Liệu Hugging Face Meddies (Meddies Persona Vie & Meddies PII)
 * **Thời gian:** 2026-10-10 16:05:00 (GMT+7)
