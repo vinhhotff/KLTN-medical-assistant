@@ -48,3 +48,8 @@ backend/uploads/
 # Keep env templates tracked
 !.env.example
 !**/.env.example
+
+# Frontend UX audit screenshots (local only)
+frontend/ux-audit/
+frontend/playwright-report/
+frontend/test-results/

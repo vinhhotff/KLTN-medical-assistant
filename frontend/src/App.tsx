@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { ToastProvider } from './components/ui';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { OAuth2CallbackPage } from './pages/OAuth2CallbackPage';
@@ -27,6 +28,7 @@ export function App() {
   return (
     <BrowserRouter>
       <ErrorBoundary>
+        <ToastProvider>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
@@ -75,6 +77,7 @@ export function App() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </ToastProvider>
       </ErrorBoundary>
     </BrowserRouter>
   );
