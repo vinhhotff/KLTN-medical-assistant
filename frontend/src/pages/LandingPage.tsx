@@ -2,6 +2,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { api } from '../services/api';
+import { formatRating, formatVnd } from '../utils/display';
+import { getApiErrorMessage } from '../utils/apiError';
+import { devLog } from '../utils/logger';
+
+const PREVIEW_TYPES: Record<string, string[]> = {
+  '.pdf': ['application/pdf'],
+  '.png': ['image/png'],
+  '.jpg': ['image/jpeg'],
+  '.jpeg': ['image/jpeg'],
+};
 
 interface DoctorDetail {
   id: string;
@@ -12,7 +22,7 @@ interface DoctorDetail {
   avatarUrl?: string;
   bio: string;
   licenseNumber: string;
-  consultationFee: number;
+  consultationFee: number | null;
   yearsOfExperience: number;
   specialties: string[];
   verified: boolean;
@@ -22,6 +32,7 @@ interface DoctorDetail {
   licenseIssuedBy?: string;
   rating?: number;
   totalConsultations?: number;
+  reviewCount?: number;
 }
 
 interface SpecialtyItem {
@@ -155,7 +166,7 @@ export const LandingPage: React.FC = () => {
   // Interactive Real Backend Scan State
   const [activeSample, setActiveSample] = useState<'lipid' | 'respiratory' | 'general'>('lipid');
   const [realAnalysis, setRealAnalysis] = useState<AnalysisResult | null>(null);
-  const [scanStatus, setScanStatus] = useState<string>('Sẵn sàng bóc tách tệp xét nghiệm với Spring Boot & pgvector 5433');
+  const [scanStatus, setScanStatus] = useState<string>('Sẵn sàng đọc phiếu xét nghiệm của bạn');
   const [scanPercent, setScanPercent] = useState<string>('100% (Sẵn sàng)');
   const [progressWidth, setProgressWidth] = useState<number>(100);
   const [isScanning, setIsScanning] = useState<boolean>(false);
@@ -179,7 +190,7 @@ export const LandingPage: React.FC = () => {
           setSpecialties(specsData);
         }
       } catch (err) {
-        console.error('Failed to load data from Database:', err);
+        devLog.error('Failed to load landing data:', err);
       } finally {
         if (isMounted) {
           setIsLoadingData(false);
@@ -217,9 +228,10 @@ export const LandingPage: React.FC = () => {
   }, [doctors, selectedSpecialty]);
 
   // Aggregate stats from real database records
+  // Real total from the doctors API; null when there is nothing to show (no invented figure)
   const totalConsultationsCount = useMemo(() => {
     const sum = doctors.reduce((acc, d) => acc + (d.totalConsultations || 0), 0);
-    return sum > 0 ? sum.toLocaleString('vi-VN') : '20,500';
+    return sum > 0 ? sum.toLocaleString('vi-VN') : null;
   }, [doctors]);
 
   const handleSelectSample = (type: 'lipid' | 'respiratory' | 'general') => {
@@ -238,12 +250,13 @@ export const LandingPage: React.FC = () => {
    * NO FAKE MOCK DATA! Sends real binary stream, validates medical keywords strictly, runs pgvector!
    */
   const executeRealScan = async (file: File) => {
+    if (isScanning) return;
     setIsScanning(true);
     setUploadError(null);
     setRealAnalysis(null); // CRITICAL: Wipe out any previous diagnosis
     setProgressWidth(45);
     setScanPercent('Đang xử lý...');
-    setScanStatus(`Đang đọc tệp "${file.name}" và gửi đến Spring Boot Backend phân tích...`);
+    setScanStatus(`Đang đọc tệp "${file.name}"...`);
 
     try {
       const formData = new FormData();
@@ -258,16 +271,14 @@ export const LandingPage: React.FC = () => {
         setScanMode('real');
         setProgressWidth(100);
         setScanPercent('100% (Hoàn tất)');
-        setScanStatus(`✅ Phân tích thành công bằng AI Thật: ${file.name}`);
+        setScanStatus(`Đã phân tích xong: ${file.name}`);
       }
     } catch (err: unknown) {
       setProgressWidth(0);
       setScanPercent('0% (Từ chối)');
       setRealAnalysis(null); // CRITICAL: NEVER SHOW FAKE DIAGNOSIS ON ERROR!
 
-      const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
-      const errMsg = axiosErr.response?.data?.error?.message || 
-        'Tệp tin không thể phân tích hoặc không chứa thông tin xét nghiệm y tế hợp lệ.';
+      const errMsg = getApiErrorMessage(err, 'Tệp không phân tích được hoặc không chứa thông tin xét nghiệm hợp lệ.');
 
       setUploadError(errMsg);
       setScanStatus(`Lỗi: ${errMsg}`);
@@ -278,10 +289,21 @@ export const LandingPage: React.FC = () => {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || isScanning) return;
 
     // Reset input so same file can be re-selected
     e.target.value = '';
+
+    const name = file.name.toLowerCase();
+    const ext = Object.keys(PREVIEW_TYPES).find((x) => name.endsWith(x));
+    if (!ext || (file.type !== '' && !PREVIEW_TYPES[ext].includes(file.type.toLowerCase()))) {
+      setRealAnalysis(null);
+      setUploadError(`Tệp "${file.name}" không đúng định dạng. Chỉ nhận PDF, PNG, JPG.`);
+      setScanStatus('Định dạng tệp không được hỗ trợ');
+      setProgressWidth(0);
+      setScanPercent('0% (Từ chối)');
+      return;
+    }
 
     // Gatekeeper: Validate empty/blank file (< 100 bytes)
     if (file.size < 100) {
@@ -302,14 +324,17 @@ export const LandingPage: React.FC = () => {
    * Real sample scan calling backend with the real sample PDF
    */
   const handleRunRealSampleScan = async () => {
+    if (isScanning) return;
     try {
-      setScanStatus('Đang nạp file xét nghiệm mẫu chuẩn BYT...');
+      setScanStatus('Đang nạp phiếu xét nghiệm mẫu...');
       const response = await fetch('/sample_medical_report.pdf');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const blob = await response.blob();
       const sampleFile = new File([blob], 'sample_medical_report.pdf', { type: 'application/pdf' });
       await executeRealScan(sampleFile);
     } catch (err) {
-      console.error('Failed to load sample PDF for real scan:', err);
+      devLog.error('Failed to load sample PDF for real scan:', err);
+      setUploadError('Không tải được phiếu mẫu. Vui lòng thử lại.');
     }
   };
 
@@ -354,12 +379,12 @@ export const LandingPage: React.FC = () => {
           <div className="flex items-center gap-space-lg flex-shrink-0">
             <Link to="/" className="flex items-center gap-space-sm group">
               <img
-                alt="MedConnect AI Logo"
+                alt="MediAssist"
                 className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
                 src="https://lh3.googleusercontent.com/aida/AEtjO1UBwKoWHTNVC61PE8gNcnAcd5TNBVOYCcM7JW-n-0ZXrYHWHOifiwm65q6hKTavEG4pe1HojBPg3TiVg3BFDUQ-4cLnEBB8gMY_DrsijqI16uRjnTMn_G0F1cs-f8NGjNjT68dNuTYaS1EpQ3Tu8Xt8vmKBeNUJn_YYfJaPWElwf_Jn2mKYiYzk5QDgns14SFu3HFBW2fOjlNLCVS23dqmt0xiBaamXNfIe_krZzT3-lkE8RqEBOURR0oRV"
               />
               <span className="font-title-md text-title-md text-primary tracking-tight font-bold">
-                MedConnect AI
+                MediAssist
               </span>
             </Link>
 
@@ -527,7 +552,7 @@ export const LandingPage: React.FC = () => {
                       href="#specialists-section"
                     >
                       <span className="material-symbols-outlined text-[20px] text-secondary">stethoscope</span>
-                      <span>Khám Phá Bác Sĩ ({doctors.length > 0 ? doctors.length : 12})</span>
+                      <span>Khám Phá Bác Sĩ{doctors.length > 0 ? ` (${doctors.length})` : ''}</span>
                     </a>
                   </div>
 
@@ -538,8 +563,8 @@ export const LandingPage: React.FC = () => {
                         <span className="material-symbols-outlined text-[20px]">verified_user</span>
                       </div>
                       <div>
-                        <div className="font-label-sm text-label-sm text-outline font-semibold">BẢO MẬT TUYỆT ĐỐI</div>
-                        <div className="font-title-md text-title-md text-on-surface font-bold">HIPAA 256-bit</div>
+                        <div className="font-label-sm text-label-sm text-outline font-semibold">QUYỀN RIÊNG TƯ</div>
+                        <div className="font-title-md text-title-md text-on-surface font-bold">Ẩn thông tin cá nhân</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-space-sm">
@@ -547,8 +572,8 @@ export const LandingPage: React.FC = () => {
                         <span className="material-symbols-outlined text-[20px]">query_stats</span>
                       </div>
                       <div>
-                        <div className="font-label-sm text-label-sm text-outline font-semibold">ĐỘ CHÍNH XÁC AI</div>
-                        <div className="font-title-md text-title-md text-on-surface font-bold">99.4% Chuẩn</div>
+                        <div className="font-label-sm text-label-sm text-outline font-semibold">AI HỖ TRỢ</div>
+                        <div className="font-title-md text-title-md text-on-surface font-bold">Giải thích dễ hiểu</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-space-sm">
@@ -558,7 +583,7 @@ export const LandingPage: React.FC = () => {
                       <div>
                         <div className="font-label-sm text-label-sm text-outline font-semibold">CHUYÊN GIA SẴN SÀNG</div>
                         <div className="font-title-md text-title-md text-on-surface font-bold">
-                          {doctors.length > 0 ? `${doctors.length}+ Bác Sĩ TW` : '12+ Bác Sĩ TW'}
+                          {isLoadingData ? '…' : doctors.length > 0 ? `${doctors.length} bác sĩ` : 'Đang cập nhật'}
                         </div>
                       </div>
                     </div>
@@ -587,7 +612,7 @@ export const LandingPage: React.FC = () => {
                     {/* High-res Clinical Scene Photo */}
                     <div className="relative">
                       <img
-                        alt="Bác sĩ chuyên khoa MedConnect AI đang tư vấn kết quả phân tích tim mạch trên màn hình cho bệnh nhân"
+                        alt="Bác sĩ chuyên khoa đang tư vấn kết quả phân tích tim mạch trên màn hình cho bệnh nhân"
                         className="w-full h-auto object-cover max-h-[460px]"
                         src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKapt12RlJP5C-7szFWNFCLng5nuqRmQ9wnAu6Ozez8-0PKzsEXvMjZY_DN5nQEdWzlLdTLn-x_YWuDHq_uvflmLJQqy4J27uqbKmua_WECsQ0jExiRWvEKL8qCjqr_Bmxbsj_Tsst4a7HeYpEOrQP-M_gKrCy5M9Aigv_08JIhU-pb4vomjnZLR3YTHdgrwhc4oI6ci24GJyyuim1d7RVAR13TQMU-ONgVHzeRkPz0oywlL5sX5Qcfw"
                       />
@@ -605,10 +630,10 @@ export const LandingPage: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <span className="inline-flex items-center gap-1.5 text-secondary font-label-sm text-xs font-bold bg-secondary-container/40 px-2.5 py-0.5 rounded-full">
                           <span className="material-symbols-outlined text-[14px] text-secondary">bolt</span>
-                          Ghép Đôi Siêu Tốc 1.2 Phút
+                          Bác sĩ trên hệ thống
                         </span>
                         <span className="text-[11px] font-semibold text-outline">
-                          {topDoctor?.hospitalAffiliation || "Bệnh viện Đại Học Y Dược TP.HCM"}
+                          {topDoctor?.hospitalAffiliation || ''}
                         </span>
                       </div>
 
@@ -621,15 +646,21 @@ export const LandingPage: React.FC = () => {
                           />
                           <div className="min-w-0">
                             <div className="font-title-md text-sm text-primary font-bold truncate">
-                              {topDoctor ? `${topDoctor.academicTitle || 'BS.'} ${topDoctor.fullName}` : "GS.TS. BS. Nguyễn Văn An"}
+                              {topDoctor ? [topDoctor.academicTitle, topDoctor.fullName].filter(Boolean).join(' ') : isLoadingData ? 'Đang tải...' : 'Chưa có bác sĩ'}
                             </div>
                             <div className="text-xs text-secondary font-medium truncate">
-                              {topDoctor?.specialties?.[0] || "Cardiology (Tim mạch)"} • {topDoctor?.yearsOfExperience || 22} năm kinh nghiệm
+                              {[topDoctor?.specialties?.[0], topDoctor?.yearsOfExperience ? `${topDoctor.yearsOfExperience} năm kinh nghiệm` : null].filter(Boolean).join(' • ')}
                             </div>
                             <div className="flex items-center gap-1 text-xs text-amber-500 font-semibold mt-0.5">
-                              <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                              <span className="text-on-surface font-bold">{topDoctor?.rating || 4.98}</span>
-                              <span className="text-outline text-[11px]">({topDoctor?.totalConsultations || 3420}+ ca khám)</span>
+                              {formatRating(topDoctor?.rating, topDoctor?.reviewCount) ? (
+                                <>
+                                  <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                                  <span className="text-on-surface font-bold">{formatRating(topDoctor?.rating, topDoctor?.reviewCount)}</span>
+                                  <span className="text-outline text-[11px]">({topDoctor?.reviewCount} đánh giá)</span>
+                                </>
+                              ) : (
+                                <span className="text-outline text-[11px] font-normal">Chưa có đánh giá</span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -683,7 +714,7 @@ export const LandingPage: React.FC = () => {
                           <span className={`material-symbols-outlined text-[16px] ${isScanning ? 'animate-spin' : ''}`}>
                             {isScanning ? 'sync' : 'bolt'}
                           </span>
-                          <span>{isScanning ? 'Đang Gửi Tới Spring Boot Backend...' : '⚡ Chạy 1 Lượt Quét Mẫu Thật (Real Backend)'}</span>
+                          <span>{isScanning ? 'Đang phân tích...' : 'Thử với phiếu xét nghiệm mẫu'}</span>
                         </button>
 
                         <a
@@ -693,7 +724,7 @@ export const LandingPage: React.FC = () => {
                           title="Tải về file PDF mẫu có 5 chỉ số sinh hóa hợp lệ để kiểm thử tải lên"
                         >
                           <span className="material-symbols-outlined text-[16px] text-secondary">download</span>
-                          <span>📥 Tải File PDF Bệnh Án Mẫu (Chuẩn BYT)</span>
+                          <span>Tải phiếu mẫu (PDF minh hoạ)</span>
                         </a>
 
                         <button
@@ -781,9 +812,11 @@ export const LandingPage: React.FC = () => {
                     {/* Drag & Drop zone */}
                     <div className={`relative cursor-pointer bg-surface-container-low hover:bg-surface-container rounded-xl p-space-xl flex flex-col items-center justify-center text-center transition-all ${isScanning ? 'ring-2 ring-secondary/50 bg-secondary-container/10' : ''}`}>
                       <input
-                        accept=".pdf,.png,.jpg,.jpeg"
-                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                        aria-label="Chọn tệp phiếu xét nghiệm để phân tích"
+                        className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
                         onChange={handleFileUpload}
+                        disabled={isScanning}
                         type="file"
                       />
                       <div className="w-14 h-14 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center mb-space-sm">
@@ -792,10 +825,10 @@ export const LandingPage: React.FC = () => {
                         </span>
                       </div>
                       <div className="font-title-md text-title-md text-primary font-bold">
-                        {isScanning ? 'Đang bóc tách và đối soát pgvector trên Backend...' : 'Kéo và thả tệp PDF bệnh án hoặc hình chụp tại đây'}
+                        {isScanning ? 'Đang đọc và phân tích tài liệu...' : 'Kéo và thả tệp PDF bệnh án hoặc hình chụp tại đây'}
                       </div>
                       <div className="font-body-sm text-body-sm text-outline mt-space-2xs">
-                        Hỗ trợ PDF, PNG, JPG • Yêu cầu có nội dung xét nghiệm • Kết nối Backend thật 100%
+                        Hỗ trợ PDF, PNG, JPG • Tệp cần có nội dung xét nghiệm • Bản xem trước không lưu vào hồ sơ
                       </div>
                       <div className="mt-space-md inline-flex items-center gap-2 bg-surface-container-lowest px-space-md py-1.5 rounded-lg shadow-sm text-primary font-label-md text-label-md font-semibold">
                         <span className="material-symbols-outlined text-[18px]">folder_open</span> Duyệt file từ máy tính
@@ -871,7 +904,7 @@ export const LandingPage: React.FC = () => {
                         <div className="flex items-center justify-between mb-space-sm">
                           <span className="font-label-md text-label-md font-bold text-secondary uppercase tracking-wide flex items-center gap-1.5">
                             <span className="material-symbols-outlined text-[20px] text-secondary">verified</span>
-                            Kết Quả Quét Thật (AI &amp; pgvector)
+                            Kết quả phân tích
                           </span>
                           <span className="font-label-sm text-label-sm px-2.5 py-0.5 rounded font-bold bg-secondary-container text-on-secondary-container">
                             {realAnalysis.recommendedSpecialtyName || 'Chuyên Khoa'}
@@ -1105,23 +1138,23 @@ export const LandingPage: React.FC = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-space-lg mb-space-xl text-center">
                 <div>
                   <div className="font-display-lg text-display-lg text-secondary-fixed font-bold tracking-tight">
-                    {totalConsultationsCount}+
+                    {totalConsultationsCount ?? '—'}
                   </div>
-                  <div className="font-body-sm text-body-sm text-surface-container-high mt-1">Lượt khám &amp; Hồ sơ an toàn</div>
+                  <div className="font-body-sm text-body-sm text-surface-container-high mt-1">Lượt khám đã hoàn tất</div>
                 </div>
                 <div>
-                  <div className="font-display-lg text-display-lg text-secondary-fixed font-bold tracking-tight">1.2m</div>
-                  <div className="font-body-sm text-body-sm text-surface-container-high mt-1">Thời gian khớp bác sĩ AI</div>
+                  <div className="font-display-lg text-display-lg text-secondary-fixed font-bold tracking-tight">24/7</div>
+                  <div className="font-body-sm text-body-sm text-surface-container-high mt-1">Trợ lý triệu chứng luôn sẵn sàng</div>
                 </div>
                 <div>
                   <div className="font-display-lg text-display-lg text-secondary-fixed font-bold tracking-tight">
-                    {doctors.length > 0 ? `${doctors.length} Bác Sĩ` : '12+ Bác Sĩ'}
+                    {isLoadingData ? '…' : doctors.length > 0 ? `${doctors.length} Bác Sĩ` : '—'}
                   </div>
-                  <div className="font-body-sm text-body-sm text-surface-container-high mt-1">Chuyên gia Tuyến Trung Ương</div>
+                  <div className="font-body-sm text-body-sm text-surface-container-high mt-1">Bác sĩ đã thẩm định chứng chỉ</div>
                 </div>
                 <div>
                   <div className="font-display-lg text-display-lg text-secondary-fixed font-bold tracking-tight">
-                    {specialties.length > 0 ? `${specialties.length} Khoa` : '12 Khoa'}
+                    {isLoadingData ? '…' : specialties.length > 0 ? `${specialties.length} Khoa` : '—'}
                   </div>
                   <div className="font-body-sm text-body-sm text-surface-container-high mt-1">Chuyên khoa lâm sàng trọng điểm</div>
                 </div>
@@ -1129,12 +1162,12 @@ export const LandingPage: React.FC = () => {
 
               <div className="pt-space-lg border-t border-surface-container-high/20 flex flex-wrap items-center justify-between gap-space-md">
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-surface-variant font-semibold">
-                  Tiêu Chuẩn Tuân Thủ Y Tế Quốc Tế:
+                  Nguyên tắc thiết kế (định hướng, chưa phải chứng nhận):
                 </span>
                 <div className="flex flex-wrap items-center gap-space-lg text-surface-container-high font-label-md text-label-md">
                   <div className="flex items-center gap-1 font-semibold">
                     <span className="material-symbols-outlined text-[18px] text-secondary-fixed">health_and_safety</span>
-                    <span>HIPAA Certified</span>
+                    <span>Bảo vệ dữ liệu sức khoẻ (tinh thần HIPAA)</span>
                   </div>
                   <div className="flex items-center gap-1 font-semibold">
                     <span className="material-symbols-outlined text-[18px] text-secondary-fixed">hub</span>
@@ -1142,11 +1175,11 @@ export const LandingPage: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-1 font-semibold">
                     <span className="material-symbols-outlined text-[18px] text-secondary-fixed">shield</span>
-                    <span>ISO 27001 Security</span>
+                    <span>Mã hoá đường truyền</span>
                   </div>
                   <div className="flex items-center gap-1 font-semibold">
                     <span className="material-symbols-outlined text-[18px] text-secondary-fixed">lock_clock</span>
-                    <span>GDPR / Nghị Định 13 Compliant</span>
+                    <span>Hướng tới Nghị định 13/2023</span>
                   </div>
                 </div>
               </div>
@@ -1247,25 +1280,29 @@ export const LandingPage: React.FC = () => {
                         </div>
 
                         <p className="font-body-sm text-xs text-on-surface-variant mb-space-md line-clamp-2 leading-relaxed">
-                          {doc.bio || `Chuyên gia đầu ngành tại ${doc.hospitalAffiliation || 'bệnh viện hàng đầu'}, giàu kinh nghiệm chẩn đoán và hội chẩn đa chuyên khoa.`}
+                          {doc.bio || (doc.hospitalAffiliation ? `Công tác tại ${doc.hospitalAffiliation}.` : 'Bác sĩ chưa cập nhật giới thiệu.')}
                         </p>
 
                         <div className="flex items-center justify-between text-xs mb-space-md bg-surface p-space-xs rounded-lg">
-                          <span className="text-on-surface-variant">Đánh giá thực tế:</span>
-                          <span className="font-bold text-primary flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[15px] text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                            {doc.rating || 4.95} ({doc.totalConsultations || 1500} lượt)
-                          </span>
+                          <span className="text-on-surface-variant">Đánh giá:</span>
+                          {formatRating(doc.rating, doc.reviewCount) ? (
+                            <span className="font-bold text-primary flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[15px] text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                              {formatRating(doc.rating, doc.reviewCount)} ({doc.reviewCount} đánh giá)
+                            </span>
+                          ) : (
+                            <span className="text-on-surface-variant italic">Chưa có đánh giá</span>
+                          )}
                         </div>
                       </div>
 
                       <div>
                         <div className="flex items-center justify-between mb-space-sm text-xs font-semibold">
                           <span className="text-secondary flex items-center gap-1 font-medium">
-                            <span className="h-2 w-2 rounded-full bg-secondary"></span> {doc.yearsOfExperience} năm kinh nghiệm
+                            <span className="h-2 w-2 rounded-full bg-secondary"></span> {doc.yearsOfExperience ? `${doc.yearsOfExperience} năm kinh nghiệm` : 'Chưa cập nhật kinh nghiệm'}
                           </span>
                           <span className="text-primary font-bold">
-                            {new Intl.NumberFormat('vi-VN').format(doc.consultationFee || 350000)}đ / phiên
+                            {formatVnd(doc.consultationFee) ? `${formatVnd(doc.consultationFee)} / lượt` : 'Phí: liên hệ'}
                           </span>
                         </div>
                         <button
@@ -1287,10 +1324,10 @@ export const LandingPage: React.FC = () => {
               <div className="bg-surface-container-low rounded-2xl p-space-xl md:p-space-2xl">
                 <div className="max-w-2xl mx-auto text-center mb-space-xl">
                   <div className="font-label-sm text-label-sm text-secondary uppercase tracking-wider font-semibold mb-space-2xs">
-                    Hiệu Quả Thực Tế
+                    Câu chuyện minh hoạ
                   </div>
                   <h2 className="font-headline-lg text-headline-lg text-primary tracking-tight font-bold">
-                    Niềm Tin Từ Người Bệnh &amp; Bác Sĩ Đồng Hành
+                    MediAssist có thể giúp gì cho bạn?
                   </h2>
                 </div>
 
@@ -1306,7 +1343,7 @@ export const LandingPage: React.FC = () => {
                         ))}
                       </div>
                       <p className="font-body-md text-body-md text-on-surface italic mb-space-md leading-relaxed">
-                        “Cầm tờ kết quả xét nghiệm máu với 4 chỉ số bôi đỏ, tôi thực sự hoang mang không biết phải đi khám khoa nào trước. Sau khi tải PDF lên MedConnect AI, hệ thống giải thích mạch lạc mức độ nguy cơ và kết nối ngay với bác sĩ chuyên khoa đầu ngành. Buổi khám trực tuyến kéo dài 25 phút giúp tôi an tâm tuyệt đối.”
+                        “Cầm tờ kết quả xét nghiệm máu với 4 chỉ số bôi đỏ, tôi thực sự hoang mang không biết phải đi khám khoa nào trước. Sau khi tải PDF lên MediAssist, hệ thống giải thích mạch lạc mức độ nguy cơ và kết nối ngay với bác sĩ chuyên khoa đầu ngành. Buổi khám trực tuyến kéo dài 25 phút giúp tôi an tâm tuyệt đối.”
                       </p>
                     </div>
                     <div className="flex items-center gap-space-sm pt-space-sm border-t-0">
@@ -1314,8 +1351,8 @@ export const LandingPage: React.FC = () => {
                         HQ
                       </div>
                       <div>
-                        <div className="font-title-md text-title-md text-primary font-bold">Anh Hoàng Quốc H. (46 tuổi)</div>
-                        <div className="font-body-sm text-body-sm text-outline">Bệnh nhân phát hiện sớm rối loạn Lipid máu • Hà Nội</div>
+                        <div className="font-title-md text-title-md text-primary font-bold">Người bệnh (nhân vật minh hoạ)</div>
+                        <div className="font-body-sm text-body-sm text-outline">Tình huống giả định, không phải đánh giá thật</div>
                       </div>
                     </div>
                   </div>
@@ -1331,7 +1368,7 @@ export const LandingPage: React.FC = () => {
                         ))}
                       </div>
                       <p className="font-body-md text-body-md text-on-surface italic mb-space-md leading-relaxed">
-                        “MedConnect AI giúp bác sĩ tiết kiệm ít nhất 10 phút đọc lại các chồng giấy xét nghiệm cũ. Khi tôi bắt đầu phiên khám, toàn bộ lịch sử bệnh án và các chỉ số quan trọng đã được hệ thống OCR và chuẩn hóa theo chuẩn quốc tế, giúp việc đưa ra phác đồ chính xác hơn rất nhiều.”
+                        “MediAssist giúp bác sĩ tiết kiệm ít nhất 10 phút đọc lại các chồng giấy xét nghiệm cũ. Khi tôi bắt đầu phiên khám, toàn bộ lịch sử bệnh án và các chỉ số quan trọng đã được hệ thống OCR và chuẩn hóa theo chuẩn quốc tế, giúp việc đưa ra phác đồ chính xác hơn rất nhiều.”
                       </p>
                     </div>
                     <div className="flex items-center gap-space-sm pt-space-sm border-t-0">
@@ -1339,8 +1376,8 @@ export const LandingPage: React.FC = () => {
                         ĐH
                       </div>
                       <div>
-                        <div className="font-title-md text-title-md text-primary font-bold">TS. BS. Đỗ Hữu Nghị</div>
-                        <div className="font-body-sm text-body-sm text-outline">Cố Vấn Chuyên Khoa Nội Tiết • BV Đại Học Y Hà Nội</div>
+                        <div className="font-title-md text-title-md text-primary font-bold">Bác sĩ (nhân vật minh hoạ)</div>
+                        <div className="font-body-sm text-body-sm text-outline">Tình huống giả định, không phải đánh giá thật</div>
                       </div>
                     </div>
                   </div>
@@ -1389,7 +1426,7 @@ export const LandingPage: React.FC = () => {
       {/* ==================== FOOTER ==================== */}
       <footer className="w-full bg-surface-container-low border-t border-outline-variant/20 py-space-xl mt-space-2xl">
         <div className="max-w-[1440px] mx-auto px-margin-sm md:px-margin flex flex-col md:flex-row items-center justify-between gap-space-md text-on-surface-variant font-body-sm text-body-sm">
-          <div>© 2026 MedConnect AI Clinical Technologies Inc. All rights reserved. Encrypted e-PHI Infrastructure.</div>
+          <div>© 2026 MediAssist — Đồ án tốt nghiệp. Thông tin chỉ mang tính tham khảo, không thay thế chẩn đoán của bác sĩ.</div>
           <div className="flex items-center gap-space-lg font-medium">
             <a className="hover:text-on-surface hover:underline" href="#">HIPAA Notice</a>
             <a className="hover:text-on-surface hover:underline" href="#">Security Protocol</a>
