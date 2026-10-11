@@ -30,7 +30,7 @@
 * **Câu trả lời chuẩn (30 giây):**
   > *"Thưa Thầy Cô, 150.000 là tổng quy mô của kho dữ liệu Meddies trên Hugging Face.  
   > Trong nghiên cứu khoa học và thống kê y sinh, để đánh giá độ chính xác của thuật toán truy hồi (Information Retrieval), người ta sử dụng phương pháp lấy mẫu đại diện chuẩn vàng (Gold Benchmark Test Set).  
-  > Nhóm đã trích xuất mẫu ngẫu nhiên gồm **500 ca bệnh nhân lâm sàng** trải đều trên 12 chuyên khoa bệnh viện. Với quy mô $N = 500$, độ tin cậy thống kê đạt mức ý nghĩa $p < 0.01$, hoàn toàn đủ chuẩn mực để đo đạc khách quan các chỉ số Top-1, Recall@K, MRR và độ trễ đồ thị HNSW."*
+  > Nhóm đã trích xuất mẫu ngẫu nhiên gồm **500 ca bệnh nhân lâm sàng** trải đều trên 12 chuyên khoa bệnh viện. Với quy mô N = 500, độ tin cậy thống kê đạt mức ý nghĩa p < 0.01, hoàn toàn đủ chuẩn mực để đo đạc khách quan các chỉ số Top-1, Recall@K, MRR và độ trễ đồ thị HNSW."*
 
 ---
 
@@ -40,7 +40,7 @@
   > *"Thưa Thầy Cô, toàn bộ vector 1536 chiều được lưu trực tiếp vào cột `bio_embedding` kiểu dữ liệu `vector(1536)` trong bảng `doctor_profiles` trên PostgreSQL 16 (cổng 5433).  
   > Khi người dùng nhập triệu chứng trên web, backend chuyển câu hỏi thành vector truy vấn và thực hiện câu lệnh SQL:  
   > `SELECT * FROM doctor_profiles ORDER BY bio_embedding <=> CAST(? AS vector) LIMIT 5;`  
-  > Nhờ chỉ mục đồ thị HNSW phân tầng được cấu hình sẵn ($m=24, ef\_construction=128$), câu truy vấn hoàn tất chỉ trong **0.72 ms** mà không cần quét tuần tự toàn bộ bảng."*
+  > Nhờ chỉ mục đồ thị HNSW phân tầng được cấu hình sẵn (m=24, ef_construction=128), câu truy vấn hoàn tất chỉ trong **0.72 ms** mà không cần quét tuần tự toàn bộ bảng."*
 
 ---
 

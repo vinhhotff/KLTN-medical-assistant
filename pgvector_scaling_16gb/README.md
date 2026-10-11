@@ -19,7 +19,7 @@
 
 ### Vấn Đề Lệch Ngữ Nghĩa (Semantic Mismatch):
 - **Trước khi train:** Hồ sơ bác sĩ chỉ ghi các chức danh học thuật hàn lâm (*"Bác sĩ Chuyên khoa Tim Mạch, Đại học Y Dược, can thiệp mạch vành..."*). Trong khi người bệnh khi tìm kiếm lại dùng từ vựng dân gian, đời thường (*"tôi bị đau nhói ngực trái", "leo cầu thang hay hụt hơi", "đánh trống ngực dồn dập"*).
-- Sự lệch pha này khiến khoảng cách Cosine giữa câu hỏi của bệnh nhân và hồ sơ bác sĩ rất xa nhau $\rightarrow$ Độ chính xác Top-1 ban đầu chỉ đạt **6.0%**.
+- Sự lệch pha này khiến khoảng cách Cosine giữa câu hỏi của bệnh nhân và hồ sơ bác sĩ rất xa nhau -> Độ chính xác Top-1 ban đầu chỉ đạt **6.0%**.
 
 ### Giải Pháp:
 - Khai thác tập dữ liệu **Hugging Face `Meddies/meddies-persona-vie`** (kho dữ liệu 150.000 bệnh nhân Việt Nam có triệu chứng lâm sàng và nhãn chuẩn vàng ICD-10).
@@ -35,7 +35,7 @@
 * **500 ca (`persona_benchmark_vietnamese.json`):** Là **Tập Kiểm Thử Mẫu Vàng (Gold Benchmark Test Set)** được trích xuất về máy cục bộ.
 * **Lý do khoa học:**
   1. *Tránh nghẽn băng thông & API Rate Limit:* Tải toàn bộ 150.000 ca qua API công khai sẽ mất nhiều tiếng và tốn dung lượng ổ cứng không cần thiết cho môi trường dev.
-  2. *Độ tin cậy thống kê chuẩn y sinh ($p < 0.01$):* Trong nghiên cứu khoa học, một tập kiểm thử $N = 500$ ca trải đều trên 12 chuyên khoa bệnh viện đã đảm bảo độ phủ thống kê (Statistical Power) tuyệt đối để đo đạc Top-1, Recall@K và MRR.
+  2. *Độ tin cậy thống kê chuẩn y sinh (p < 0.01):* Trong nghiên cứu khoa học, một tập kiểm thử N = 500 ca trải đều trên 12 chuyên khoa bệnh viện đã đảm bảo độ phủ thống kê (Statistical Power) tuyệt đối để đo đạc Top-1, Recall@K và MRR.
 
 ---
 
@@ -55,7 +55,7 @@ Hệ thống lưu tại **3 vị trí cụ thể**:
 
 * **Lúc Demo bình thường (90% thời gian):**
   - **KHÔNG CẦN CHẠY CÁC FILE `.py`**.
-  - Chỉ cần mở Web UI (React + Spring Boot), gõ thử một câu mô tả tự nhiên của bệnh nhân (ví dụ: *"ăn vô đau âm ỉ thượng vị, trướng bụng ợ chua"*). Hệ thống sẽ gọi PostgreSQL pgvector và trả về ngay bác sĩ Tiêu Hóa trong nháy mắt ($< 12\text{ms}$).
+  - Chỉ cần mở Web UI (React + Spring Boot), gõ thử một câu mô tả tự nhiên của bệnh nhân (ví dụ: *"ăn vô đau âm ỉ thượng vị, trướng bụng ợ chua"*). Hệ thống sẽ gọi PostgreSQL pgvector và trả về ngay bác sĩ Tiêu Hóa trong nháy mắt (dưới 12 ms).
 * **Khi Thầy Cô trong Hội đồng hỏi kiểm chứng:**
   - *"Các con số Recall 33%, Top-1 23.2%, độ trễ 0.72ms là nhóm tự bịa hay đo thật?"*
   - **Hành động phản biện:**
@@ -64,20 +64,20 @@ Hệ thống lưu tại **3 vị trí cụ thể**:
        ```bash
        python scripts/run_meddies_pipeline.py --samples 50
        ```
-       Script sẽ quét trực tiếp qua CSDL PostgreSQL pgvector, in ra các chỉ số Top-1, Recall@3 và Latency tức thì trước mắt Hội đồng $\rightarrow$ **Ghi điểm xuất sắc!**
+       Script sẽ quét trực tiếp qua CSDL PostgreSQL pgvector, in ra các chỉ số Top-1, Recall@3 và Latency tức thì trước mắt Hội đồng -> **Ghi điểm xuất sắc!**
 
 ---
 
 ## 5. KHẢ NĂNG MỞ RỘNG TRÊN MÁY 16GB RAM / 512GB SSD
 
-Mỗi vector 1536 chiều chỉ chiếm $\approx 6.14 \text{ KB}$. Đồ thị HNSW chiếm thêm $\approx 6 \sim 8 \text{ KB}$. Tổng cộng khoảng **$12 \sim 15 \text{ KB}$ / vector**.
+Mỗi vector 1536 chiều chỉ chiếm khoảng 6.14 KB. Đồ thị HNSW chiếm thêm khoảng 6 - 8 KB. Tổng cộng khoảng **12 - 15 KB cho mỗi vector**.
 
 | Quy Mô Dữ Liệu | RAM Cần Cho HNSW | Ổ Cứng SSD Chiếm Dụng | Đánh Giá Khả Thi Trên Máy 16GB RAM |
 | :--- | :---: | :---: | :---: |
-| **10.000 Bác sĩ** | $\approx 150 \text{ MB}$ | $\approx 200 \text{ MB}$ | Quá nhẹ nhàng ($< 2\%$ RAM) |
-| **50.000 Bác sĩ** (Quy mô cả nước) | $\approx 750 \text{ MB}$ | $\approx 1 \text{ GB}$ | Hoàn toàn nằm trọn trong RAM |
-| **50.000 Ca Bệnh Meddies** | $\approx 750 \text{ MB}$ | $\approx 2 \text{ GB}$ | Rất mượt mà |
-| **Toàn bộ 150.000 Ca Meddies** | $\approx 2.2 \text{ GB}$ | $\approx 6 \text{ GB}$ | **Hoàn toàn khả thi!** RAM vẫn còn dư hơn 8GB cho Spring Boot, Redis và hệ điều hành. |
+| **10.000 Bác sĩ** | ~ 150 MB | ~ 200 MB | Quá nhẹ nhàng (chiếm dưới 2% RAM) |
+| **50.000 Bác sĩ** (Quy mô cả nước) | ~ 750 MB | ~ 1 GB | Hoàn toàn nằm trọn trong RAM |
+| **50.000 Ca Bệnh Meddies** | ~ 750 MB | ~ 2 GB | Rất mượt mà |
+| **Toàn bộ 150.000 Ca Meddies** | ~ 2.2 GB | ~ 6 GB | **Hoàn toàn khả thi!** RAM vẫn còn dư hơn 8GB cho Spring Boot, Redis và hệ điều hành. |
 
 ---
 
@@ -126,5 +126,5 @@ Trong thư mục `pgvector_scaling_16gb/`, các file sau đã được chuẩn b
 1. `README.md`: Toàn bộ tài liệu cẩm nang (file này).
 2. `CAPSTONE_DEFENSE_CHEAT_SHEET.md`: Bộ câu hỏi - câu trả lời "phao cứu sinh" chuẩn chỉnh khi bảo vệ KLTN.
 3. `docker-compose.16gb.yml`: Bản Docker Compose cấp phát sẵn 4GB RAM và 4 workers cho PostgreSQL pgvector.
-4. `tune_hnsw_ultra_precision.sql`: Lệnh SQL một bước để nâng cấp chỉ mục HNSW lên $m=32, ef\_construction=256$.
+4. `tune_hnsw_ultra_precision.sql`: Lệnh SQL một bước để nâng cấp chỉ mục HNSW lên m=32, ef_construction=256.
 5. `run_scaled_pipeline.sh`: Shell script tự động hóa chạy pipeline mở rộng chỉ với 1 click.

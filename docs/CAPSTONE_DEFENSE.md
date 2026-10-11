@@ -309,14 +309,14 @@
   1. **Nói KHÔNG Với Hardcode Từ Khóa Trá Hình:**
      - Nếu một hệ thống chỉ lấy văn bản đi so khớp với danh sách từ khóa tĩnh (như dùng `if (contains("nguc"))` để cộng chuỗi hay chấm điểm), đó chỉ là Heuristic Keyword Matching, không phải AI thực thụ và sẽ bị 'mù ngữ nghĩa' khi người bệnh dùng câu phủ định (ví dụ: 'tôi không bị ho' sẽ bị gán nhầm vào khoa phổi) hoặc khi mô tả triệu chứng bằng văn phong bình dân.
      - Trong mã nguồn của MediAssist-AI, nhóm **xóa bỏ hoàn toàn mọi quy tắc if-else nối chuỗi từ khóa**. Lời khai tự nhiên của người bệnh được chuyển **nguyên văn** vào mô hình Mạng Nơ-ron Transformer Pre-trained (`text-embedding-3-small`). Toàn bộ câu văn được các tầng Self-Attention phân tích ngữ cảnh ngầm và nén thành vector 1536 số thực liên tục trong không gian siêu cầu.
-     - Nhờ đó, hai câu **hoàn toàn không trùng bất kỳ chữ nào** (ví dụ: *'cảm giác ngực như bị đá đè, hụt hơi khi leo thang'* và *'chuyên gia can thiệp mạch vành, thiếu máu cơ tim'*), mô hình vẫn tự động nhận diện khoảng cách Cosine cực nhỏ ($\cos \approx 0.89$), tự động định tuyến chính xác tới bác sĩ chuyên khoa Tim Mạch.
+     - Nhờ đó, hai câu **hoàn toàn không trùng bất kỳ chữ nào** (ví dụ: *'cảm giác ngực như bị đá đè, hụt hơi khi leo thang'* và *'chuyên gia can thiệp mạch vành, thiếu máu cơ tim'*), mô hình vẫn tự động nhận diện khoảng cách Cosine cực nhỏ (khoảng cách cosine ~ 0.89), tự động định tuyến chính xác tới bác sĩ chuyên khoa Tim Mạch.
   2. **Dữ Liệu Hồ Sơ Bác Sĩ Hoàn Toàn Động Từ CSDL (Zero Hardcoded Map):**
-     - Văn bản dùng để tạo vector cho bác sĩ được kết xuất tự động $100\%$ từ các thực thể trong cơ sở dữ liệu: Họ tên, học vị, nơi công tác, tiểu sử và **Mô tả phạm vi chuyên môn chi tiết (`specialties.description`)** được các Bác sĩ/Admin thiết lập trực tiếp trong bảng `specialties`.
+     - Văn bản dùng để tạo vector cho bác sĩ được kết xuất tự động 100% từ các thực thể trong cơ sở dữ liệu: Họ tên, học vị, nơi công tác, tiểu sử và **Mô tả phạm vi chuyên môn chi tiết (`specialties.description`)** được các Bác sĩ/Admin thiết lập trực tiếp trong bảng `specialties`.
      - Không có bất kỳ Map từ điển cứng nào trong mã nguồn Java, đảm bảo tính động và khả năng mở rộng không giới hạn của hệ thống.
   3. **Tối Ưu Phần Cứng Với Toán Tử Cosine HNSW (`pgvector`):**
      - Khoảng cách ngữ nghĩa được tính toán trực tiếp dưới tầng cơ sở dữ liệu qua chỉ mục đồ thị phân tầng HNSW:
        `ORDER BY dp.bio_embedding <=> CAST(? AS vector) ASC`
-       đạt độ trễ $< 12\text{ms}$ trên hàng trăm nghìn hồ sơ bác sĩ.
+       đạt độ trễ dưới 12 ms trên hàng trăm nghìn hồ sơ bác sĩ.
   4. **Lớp Dự Phòng Ngoại Tuyến (Emergency Offline Fallback):**
      - Hệ thống có tầng chiếu Subspace Gaussian 128 chiều/khoa dự phòng khi mất mạng hoàn toàn tại phòng bảo vệ, đảm bảo web không bao giờ bị sập hay báo lỗi màn hình trắng."*
 
@@ -335,7 +335,7 @@
      - **Mean Reciprocal Rank (MRR):** Tăng từ **0.1573 lên 0.2931**.
      - Các chuyên khoa trọng điểm đạt độ chính xác áp đảo: Tim Mạch (Top-1: **77.4%**, Recall@3: **93.5%**), Tiêu Hóa (Top-1: **62.0%**, Recall@3: **70.0%**), Da Liễu (Top-1: **57.1%**, Recall@3: **68.6%**), Cơ Xương Khớp (Top-1: **57.9%**, Recall@3: **73.7%**).
   3. **Hiệu Năng Quét Đồ Thị HNSW Cực Nhanh Dưới 1ms:**
-     - Với cấu hình chỉ mục HNSW ($m=24, ef\_construction=128, ef\_search=100$), độ trễ truy vấn trung bình đo đạc được trên PostgreSQL 16 là **0.72 ms** (và P95 là **0.88 ms**), hoàn toàn không phụ thuộc vào tải mạng bên ngoài.
+     - Với cấu hình chỉ mục HNSW (m=24, ef_construction=128, ef_search=100), độ trễ truy vấn trung bình đo đạc được trên PostgreSQL 16 là **0.72 ms** (và P95 là **0.88 ms**), hoàn toàn không phụ thuộc vào tải mạng bên ngoài.
   4. **Thực Nghiệm Rào Chắn Bảo Vệ Dữ Liệu Cá Nhân Y Tế (Meddies PII):**
      - Kiểm thử trên 100 văn bản bệnh viện từ `Meddies/meddies-pii` đạt **Precision 82.72%** (Số điện thoại đạt 78.5% precision / 86.7% recall; Số định danh CCCD/CMND đạt 90.3% precision; Ngày sinh đạt 86.4% precision), đảm bảo tuân thủ Nghị định 13/2023/NĐ-CP và HIPAA Safe Harbor."*
 

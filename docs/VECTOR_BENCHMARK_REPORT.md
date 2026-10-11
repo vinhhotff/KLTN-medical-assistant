@@ -2,7 +2,7 @@
 > **Nền Tảng:** MediAssist-AI Telehealth & Clinical AI Assistant  
 > **Tập Dữ Liệu Thực Nghiệm:** Hugging Face `Meddies/meddies-persona-vie` (150.000 hồ sơ bệnh nhân) & `Meddies/meddies-pii`  
 > **Thời Gian Thực Nghiệm:** 2026-10-10 16:03:52  
-> **Hạ Tầng:** PostgreSQL 16 + pgvector (Port 5433), HNSW Index ($m=24, ef\_construction=128, ef\_search=100$), Không gian vector 1536 chiều.
+> **Hạ Tầng:** PostgreSQL 16 + pgvector (Port 5433), HNSW Index (m=24, ef_construction=128, ef_search=100), Không gian vector 1536 chiều.
 
 ---
 
@@ -27,12 +27,12 @@ Thực nghiệm được thực hiện trên **500 ca bệnh lâm sàng ngẫu n
 
 | Chỉ Số Đánh Giá | Giá Trị Thực Nghiệm | Ý Nghĩa Kỹ Thuật Trong Luận Văn / Doanh Nghiệp |
 | :--- | :---: | :--- |
-| **Tổng Số Ca Bệnh Kiểm Thử** | **500** | Quy mô mẫu lớn bảo đảm độ tin cậy thống kê ($p < 0.01$). |
+| **Tổng Số Ca Bệnh Kiểm Thử** | **500** | Quy mô mẫu lớn bảo đảm độ tin cậy thống kê (p < 0.01). |
 | **Top-1 Match Accuracy** | **23.2%** | Tỉ lệ bác sĩ đúng chuyên khoa xuất hiện ở vị trí số 1 tuyệt đối. |
 | **Top-3 Recall (Recall@3)** | **33.0%** | Tỉ lệ chuyên khoa đúng nằm trong Top 3 khuyến nghị hiển thị UI. |
 | **Top-5 Recall (Recall@5)** | **41.8%** | Tỉ lệ chuyên khoa đúng nằm trong Top 5 danh sách bác sĩ. |
 | **Mean Reciprocal Rank (MRR)** | **0.2931** | Thước đo chất lượng xếp hạng trung bình đảo nghịch. |
-| **Độ Trễ Truy Vấn Trung Bình** | **0.72 ms** | Thời gian quét đồ thị HNSW trên PostgreSQL 16 (cực nhanh $< 1\text{ms}$). |
+| **Độ Trễ Truy Vấn Trung Bình** | **0.72 ms** | Thời gian quét đồ thị HNSW trên PostgreSQL 16 (cực nhanh dưới 1 ms). |
 | **P95 Latency** | **0.88 ms** | 95% số truy vấn hoàn tất dưới 1ms, đáp ứng chuẩn thời gian thực. |
 
 ---
