@@ -35,6 +35,8 @@ import {
 } from 'recharts';
 import { Link } from 'react-router-dom';
 import { api } from '../../services/api';
+import { FALLBACK_USD_VND_RATE } from '../../config/app';
+import { devLog } from '../../utils/logger';
 
 export interface DailyStat {
   date: string;
@@ -111,7 +113,7 @@ export const AdminDashboard: React.FC = () => {
     if (aiStats?.totalCostUsd && Number(aiStats.totalCostUsd) > 0 && aiStats?.totalCostVnd && Number(aiStats.totalCostVnd) > 0) {
       return Math.round(Number(aiStats.totalCostVnd) / Number(aiStats.totalCostUsd));
     }
-    return 25450;
+    return FALLBACK_USD_VND_RATE;
   }, [aiStats?.totalCostUsd, aiStats?.totalCostVnd]);
 
   const fetchAiUsageData = async (days: number) => {
@@ -122,7 +124,7 @@ export const AdminDashboard: React.FC = () => {
         setAiStats(res.data.data);
       }
     } catch (err) {
-      console.error('Failed to load AI usage stats:', err);
+      devLog.error('Failed to load AI usage stats:', err);
     } finally {
       setAiLoading(false);
     }
@@ -144,7 +146,7 @@ export const AdminDashboard: React.FC = () => {
         setPendingDoctors(doctorsRes.value.data.data);
       }
     } catch (err) {
-      console.error('Failed to load dashboard data:', err);
+      devLog.error('Failed to load dashboard data:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);

@@ -21,6 +21,45 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
+import { formatRating, formatVnd } from '../../utils/display';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { devLog } from '../../utils/logger';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface DoctorFormCore {
+  fullName: string;
+  licenseNumber: string;
+  consultationFee: string;
+  yearsOfExperience: string;
+}
+
+/** Shared validation for create/edit doctor forms. Returns field → message. */
+function validateDoctorForm(
+  form: DoctorFormCore & { email?: string; password?: string },
+  specialtySlugs: string[],
+  mode: 'create' | 'edit'
+): Record<string, string> {
+  const errs: Record<string, string> = {};
+  if (mode === 'create') {
+    if (!EMAIL_RE.test((form.email || '').trim())) errs.email = 'Email không hợp lệ.';
+    const pw = form.password || '';
+    if (pw.length < 8 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw)) errs.password = 'Mật khẩu tối thiểu 8 ký tự, gồm cả chữ và số.';
+  }
+  if (!form.fullName.trim()) errs.fullName = 'Nhập họ tên bác sĩ.';
+  if (!form.licenseNumber.trim()) errs.licenseNumber = 'Nhập số chứng chỉ hành nghề.';
+  const fee = Number(form.consultationFee);
+  if (!form.consultationFee.trim() || !Number.isFinite(fee) || fee <= 0) errs.consultationFee = 'Phí khám phải lớn hơn 0.';
+  if (form.yearsOfExperience.trim()) {
+    const y = Number(form.yearsOfExperience);
+    if (!Number.isInteger(y) || y < 0 || y > 70) errs.yearsOfExperience = 'Số năm kinh nghiệm từ 0 đến 70.';
+  }
+  if (specialtySlugs.length === 0) errs.specialtySlugs = 'Chọn ít nhất 1 chuyên khoa.';
+  return errs;
+}
+
+const FieldError: React.FC<{ message?: string }> = ({ message }) =>
+  message ? <p role="alert" className="text-[11px] text-rose-600 font-medium mt-1">{message}</p> : null;
 
 export interface Doctor {
   id: string; // User ID
@@ -41,6 +80,7 @@ export interface Doctor {
   licenseIssuedBy?: string;
   rating?: number;
   totalConsultations?: number;
+  reviewCount?: number;
   userStatus?: 'ACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION';
   createdAt?: string;
 }
@@ -102,7 +142,7 @@ export const DoctorManagementPage: React.FC = () => {
         setSpecialties(specRes.value.data.data);
       }
     } catch (err) {
-      console.error('Lỗi khi tải dữ liệu bác sĩ:', err);
+      devLog.error('Lỗi khi tải dữ liệu bác sĩ:', err);
       showNotification('error', 'Không thể kết nối đến máy chủ để tải danh sách bác sĩ.');
     } finally {
       setLoading(false);
@@ -572,14 +612,18 @@ export const DoctorManagementPage: React.FC = () => {
                         {/* Experience & Rating */}
                         <td className="py-4 px-4">
                           <div className="text-xs space-y-1">
-                            <div className="flex items-center gap-1 text-amber-500 font-bold">
-                              <span>★ {doc.rating ? doc.rating.toFixed(1) : '4.9'}</span>
-                              <span className="text-slate-400 font-normal">
-                                ({doc.totalConsultations || 120} lượt khám)
+                            <div className="flex items-center gap-1 text-amber-600 font-bold">
+                              {formatRating(doc.rating, doc.reviewCount) ? (
+                                <span>★ {formatRating(doc.rating, doc.reviewCount)}</span>
+                              ) : (
+                                <span className="text-slate-500 font-normal italic">Chưa có đánh giá</span>
+                              )}
+                              <span className="text-slate-500 font-normal">
+                                ({doc.totalConsultations ?? 0} lượt khám)
                               </span>
                             </div>
                             <p className="text-slate-600 font-medium">
-                              {doc.yearsOfExperience} năm kinh nghiệm
+                              {doc.yearsOfExperience ? `${doc.yearsOfExperience} năm kinh nghiệm` : 'Chưa cập nhật kinh nghiệm'}
                             </p>
                           </div>
                         </td>
@@ -587,7 +631,7 @@ export const DoctorManagementPage: React.FC = () => {
                         {/* Consultation Fee */}
                         <td className="py-4 px-4">
                           <span className="text-xs font-bold text-slate-900">
-                            {Number(doc.consultationFee || 0).toLocaleString('vi-VN')} đ
+                            {formatVnd(doc.consultationFee) ?? <span className="font-normal italic text-slate-500">Chưa đặt phí</span>}
                           </span>
                         </td>
 
@@ -796,7 +840,7 @@ export const DoctorManagementPage: React.FC = () => {
       {/* MODAL 1: VIEW DOCTOR DETAILS */}
       {selectedDoctorView && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-xl overflow-hidden animate-scaleIn border border-slate-200 max-h-[90vh] flex flex-col">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-xl overflow-hidden animate-scaleUp border border-slate-200 max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <Stethoscope className="w-5 h-5 text-emerald-400" />
@@ -847,16 +891,17 @@ export const DoctorManagementPage: React.FC = () => {
                 <div className="p-3 bg-slate-50 rounded-xl space-y-1">
                   <span className="text-slate-400 block font-semibold">Phí tư vấn lâm sàng:</span>
                   <p className="text-emerald-700 font-black text-base">
-                    {Number(selectedDoctorView.consultationFee || 0).toLocaleString('vi-VN')} VNĐ
+                    {formatVnd(selectedDoctorView.consultationFee) ?? 'Chưa đặt phí'}
                   </p>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-xl space-y-1">
                   <span className="text-slate-400 block font-semibold">Kinh nghiệm & Đánh giá:</span>
                   <p className="text-slate-800 font-bold text-sm">
-                    {selectedDoctorView.yearsOfExperience} năm • ★ {selectedDoctorView.rating || 4.9}
+                    {selectedDoctorView.yearsOfExperience ? `${selectedDoctorView.yearsOfExperience} năm` : 'Chưa cập nhật'} •{' '}
+                    {formatRating(selectedDoctorView.rating, selectedDoctorView.reviewCount) ? `★ ${formatRating(selectedDoctorView.rating, selectedDoctorView.reviewCount)}` : 'Chưa có đánh giá'}
                   </p>
-                  <p className="text-slate-500">{selectedDoctorView.totalConsultations || 120} lượt khám hoàn thành</p>
+                  <p className="text-slate-500">{selectedDoctorView.totalConsultations ?? 0} lượt khám hoàn thành</p>
                 </div>
               </div>
 
@@ -987,24 +1032,28 @@ interface CreateDoctorModalProps {
 }
 
 const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onClose, onSuccess }) => {
+  // Every field starts empty — no pre-filled hospital, department, fee or experience
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     fullName: '',
     phone: '',
-    academicTitle: 'BS.CKI',
-    hospitalAffiliation: 'Bệnh viện Đại học Y Dược TP.HCM',
-    department: 'Khoa Nội Tổng Hợp',
+    academicTitle: '',
+    hospitalAffiliation: '',
+    department: '',
     licenseNumber: '',
-    licenseIssuedBy: 'Bộ Y Tế',
-    consultationFee: 350000,
-    yearsOfExperience: 8,
+    licenseIssuedBy: '',
+    consultationFee: '',
+    yearsOfExperience: '',
     bio: '',
     autoVerify: true,
   });
   const [selectedSlugs, setSelectedSlugs] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attempted, setAttempted] = useState(false);
+  const fieldErrors = validateDoctorForm(formData, selectedSlugs, 'create');
+  const showErr = (key: string) => (attempted ? fieldErrors[key] : undefined);
 
   const toggleSpecialty = (slug: string) => {
     if (selectedSlugs.includes(slug)) {
@@ -1016,8 +1065,9 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email || !formData.password || !formData.fullName || !formData.licenseNumber) {
-      setError('Vui lòng điền đầy đủ các thông tin bắt buộc (*).');
+    setAttempted(true);
+    if (submitting || Object.keys(fieldErrors).length > 0) {
+      setError('Vui lòng kiểm tra các trường được đánh dấu.');
       return;
     }
 
@@ -1026,12 +1076,19 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
       setError(null);
       await api.post('/admin/doctors', {
         ...formData,
+        email: formData.email.trim().toLowerCase(),
+        fullName: formData.fullName.trim(),
+        academicTitle: formData.academicTitle || undefined,
+        hospitalAffiliation: formData.hospitalAffiliation.trim() || undefined,
+        department: formData.department.trim() || undefined,
+        licenseIssuedBy: formData.licenseIssuedBy.trim() || undefined,
+        consultationFee: Number(formData.consultationFee),
+        yearsOfExperience: formData.yearsOfExperience.trim() ? Number(formData.yearsOfExperience) : undefined,
         specialtySlugs: selectedSlugs,
       });
       onSuccess();
     } catch (err: unknown) {
-      const axErr = err as { response?: { data?: { error?: { message?: string } } } };
-      setError(axErr.response?.data?.error?.message || 'Tạo bác sĩ thất bại. Vui lòng kiểm tra lại.');
+      setError(getApiErrorMessage(err, 'Tạo bác sĩ thất bại. Vui lòng kiểm tra lại.'));
     } finally {
       setSubmitting(false);
     }
@@ -1039,7 +1096,7 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-2xl rounded-3xl shadow-xl overflow-hidden animate-scaleIn border border-slate-200 max-h-[90vh] flex flex-col font-sans">
+      <div className="bg-white w-full max-w-2xl rounded-3xl shadow-xl overflow-hidden animate-scaleUp border border-slate-200 max-h-[90vh] flex flex-col font-sans">
         <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Plus className="w-5 h-5 text-emerald-400" />
@@ -1067,11 +1124,12 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
                 <input
                   type="email"
                   required
-                  placeholder="bacsi.nguyen@mediassist.local"
+                  placeholder="ten.bacsi@benhvien.vn"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
+                <FieldError message={showErr('email')} />
               </div>
 
               <div>
@@ -1079,11 +1137,13 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
                 <input
                   type="password"
                   required
-                  placeholder="Tối thiểu 6 ký tự"
+                  placeholder="Tối thiểu 8 ký tự, có chữ và số"
+                  autoComplete="new-password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
+                <FieldError message={showErr('password')} />
               </div>
 
               <div>
@@ -1091,11 +1151,12 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
                 <input
                   type="text"
                   required
-                  placeholder="Nguyễn Văn An"
+                  placeholder="Họ và tên đầy đủ"
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
+                <FieldError message={showErr('fullName')} />
               </div>
 
               <div>
@@ -1122,6 +1183,7 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
                   onChange={(e) => setFormData({ ...formData, academicTitle: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none font-semibold"
                 >
+                  <option value="">— Chọn học hàm / học vị —</option>
                   <option value="BS">BS (Bác sĩ)</option>
                   <option value="BS.CKI">BS.CKI (Bác sĩ Chuyên khoa I)</option>
                   <option value="BS.CKII">BS.CKII (Bác sĩ Chuyên khoa II)</option>
@@ -1142,6 +1204,7 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
                   onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
                 />
+                <FieldError message={showErr('licenseNumber')} />
               </div>
 
               <div>
@@ -1170,6 +1233,7 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
                 <label className="block font-semibold text-slate-700 mb-1">Nơi cấp CCHN</label>
                 <input
                   type="text"
+                  placeholder="Bộ Y Tế / Sở Y Tế ..."
                   value={formData.licenseIssuedBy}
                   onChange={(e) => setFormData({ ...formData, licenseIssuedBy: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
@@ -1181,22 +1245,27 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
                 <input
                   type="number"
                   min={0}
+                  max={70}
+                  placeholder="VD: 5"
                   value={formData.yearsOfExperience}
-                  onChange={(e) => setFormData({ ...formData, yearsOfExperience: Number(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, yearsOfExperience: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
+                <FieldError message={showErr('yearsOfExperience')} />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Giá khám (VNĐ / lượt tư vấn)</label>
+                <label className="block font-semibold text-slate-700 mb-1">Giá khám (VNĐ / lượt) *</label>
                 <input
                   type="number"
-                  step={50000}
+                  step={1000}
                   min={0}
+                  placeholder="VD: 250000"
                   value={formData.consultationFee}
-                  onChange={(e) => setFormData({ ...formData, consultationFee: Number(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, consultationFee: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none font-bold text-emerald-700"
                 />
+                <FieldError message={showErr('consultationFee')} />
               </div>
 
               <div className="flex items-center gap-2 pt-6">
@@ -1216,7 +1285,7 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
 
           {/* Section 3: Specialties & Bio */}
           <div className="space-y-2">
-            <label className="block font-semibold text-slate-700">Chuyên khoa khám bệnh:</label>
+            <label className="block font-semibold text-slate-700">Chuyên khoa khám bệnh * <span className="font-normal text-slate-500">(chọn ít nhất 1)</span></label>
             <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-200">
               {specialties.map((s) => {
                 const isSelected = selectedSlugs.includes(s.slug);
@@ -1237,6 +1306,7 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
                 );
               })}
             </div>
+            <FieldError message={showErr('specialtySlugs')} />
           </div>
 
           <div>
@@ -1254,16 +1324,18 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold"
+              disabled={submitting}
+              className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold disabled:opacity-50"
             >
               Hủy
             </button>
             <button
               type="submit"
-              disabled={submitting}
-              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-2 shadow-sm disabled:opacity-50"
+              disabled={submitting || (attempted && Object.keys(fieldErrors).length > 0)}
+              data-testid="create-doctor-submit"
+              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Đang khởi tạo...' : 'Tạo Bác Sĩ & Đồng Bộ AI'}
+              {submitting ? 'Đang khởi tạo...' : 'Tạo tài khoản bác sĩ'}
             </button>
           </div>
         </form>
@@ -1286,13 +1358,13 @@ const EditDoctorModal: React.FC<EditDoctorModalProps> = ({ doctor, specialties, 
   const [formData, setFormData] = useState({
     fullName: doctor.fullName || '',
     phone: doctor.phone || '',
-    academicTitle: doctor.academicTitle || 'BS.CKI',
+    academicTitle: doctor.academicTitle || '',
     hospitalAffiliation: doctor.hospitalAffiliation || '',
     department: doctor.department || '',
     licenseNumber: doctor.licenseNumber || '',
-    licenseIssuedBy: doctor.licenseIssuedBy || 'Bộ Y Tế',
-    consultationFee: doctor.consultationFee || 350000,
-    yearsOfExperience: doctor.yearsOfExperience || 5,
+    licenseIssuedBy: doctor.licenseIssuedBy || '',
+    consultationFee: doctor.consultationFee ? String(doctor.consultationFee) : '',
+    yearsOfExperience: doctor.yearsOfExperience !== null && doctor.yearsOfExperience !== undefined ? String(doctor.yearsOfExperience) : '',
     bio: doctor.bio || '',
     isVerified: doctor.isVerified ?? true,
   });
@@ -1314,19 +1386,29 @@ const EditDoctorModal: React.FC<EditDoctorModalProps> = ({ doctor, specialties, 
     }
   };
 
+  const fieldErrors = validateDoctorForm(formData, selectedSlugs, 'edit');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+    if (Object.keys(fieldErrors).length > 0) {
+      setError(Object.values(fieldErrors)[0]);
+      return;
+    }
     try {
       setSubmitting(true);
       setError(null);
       await api.put(`/admin/doctors/${doctor.profileId}`, {
         ...formData,
+        academicTitle: formData.academicTitle || undefined,
+        licenseIssuedBy: formData.licenseIssuedBy.trim() || undefined,
+        consultationFee: Number(formData.consultationFee),
+        yearsOfExperience: formData.yearsOfExperience.trim() ? Number(formData.yearsOfExperience) : undefined,
         specialtySlugs: selectedSlugs,
       });
       onSuccess();
     } catch (err: unknown) {
-      const axErr = err as { response?: { data?: { error?: { message?: string } } } };
-      setError(axErr.response?.data?.error?.message || 'Cập nhật thất bại. Vui lòng kiểm tra lại.');
+      setError(getApiErrorMessage(err, 'Cập nhật thất bại. Vui lòng kiểm tra lại.'));
     } finally {
       setSubmitting(false);
     }
@@ -1334,7 +1416,7 @@ const EditDoctorModal: React.FC<EditDoctorModalProps> = ({ doctor, specialties, 
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-2xl rounded-3xl shadow-xl overflow-hidden animate-scaleIn border border-slate-200 max-h-[90vh] flex flex-col font-sans">
+      <div className="bg-white w-full max-w-2xl rounded-3xl shadow-xl overflow-hidden animate-scaleUp border border-slate-200 max-h-[90vh] flex flex-col font-sans">
         <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Edit3 className="w-5 h-5 text-emerald-400" />
@@ -1423,14 +1505,17 @@ const EditDoctorModal: React.FC<EditDoctorModalProps> = ({ doctor, specialties, 
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Giá khám (VNĐ)</label>
+              <label className="block font-semibold text-slate-700 mb-1">Giá khám (VNĐ) *</label>
               <input
                 type="number"
-                step={50000}
+                step={1000}
+                min={0}
+                placeholder="VD: 250000"
                 value={formData.consultationFee}
-                onChange={(e) => setFormData({ ...formData, consultationFee: Number(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, consultationFee: e.target.value })}
                 className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none font-bold text-emerald-700"
               />
+              <FieldError message={fieldErrors.consultationFee} />
             </div>
 
             <div>
@@ -1438,10 +1523,12 @@ const EditDoctorModal: React.FC<EditDoctorModalProps> = ({ doctor, specialties, 
               <input
                 type="number"
                 min={0}
+                max={70}
                 value={formData.yearsOfExperience}
-                onChange={(e) => setFormData({ ...formData, yearsOfExperience: Number(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, yearsOfExperience: e.target.value })}
                 className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               />
+              <FieldError message={fieldErrors.yearsOfExperience} />
             </div>
           </div>
 

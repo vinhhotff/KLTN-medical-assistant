@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Clock, Check, X, AlertCircle, FileBadge, Building2, User, RefreshCw } from 'lucide-react';
 import { api } from '../../services/api';
+import { formatVnd } from '../../utils/display';
+import { devLog } from '../../utils/logger';
 
 interface PendingDoctor {
   id: string;
@@ -52,7 +54,7 @@ export const DoctorVettingPage: React.FC = () => {
         setLastUpdated(new Date());
       }
     } catch (err) {
-      console.error('Failed to fetch pending doctors:', err);
+      devLog.error('Failed to fetch pending doctors:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -237,9 +239,9 @@ export const DoctorVettingPage: React.FC = () => {
                       {doc.licenseIssuedBy && (
                         <span className="text-slate-400">Cấp bởi: {doc.licenseIssuedBy}</span>
                       )}
-                      <span>Kinh nghiệm: {doc.yearsOfExperience} năm</span>
-                      <span className="font-bold text-indigo-600">
-                        Phí: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(doc.consultationFee || 300000)}
+                      <span>Kinh nghiệm: {doc.yearsOfExperience ? `${doc.yearsOfExperience} năm` : 'chưa khai báo'}</span>
+                      <span className="font-bold text-teal-700">
+                        Phí: {formatVnd(doc.consultationFee) ?? 'chưa khai báo'}
                       </span>
                     </div>
                   </div>
