@@ -5,12 +5,10 @@ import {
   PhoneCall,
   Sparkles,
   CheckCircle2,
-  Clock,
   Send,
   UserCheck,
   ShieldCheck,
   Stethoscope,
-  X,
   HelpCircle,
   Star,
   RotateCcw,
@@ -20,7 +18,9 @@ import {
   ChevronUp
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { useAuthStore } from '../../store/useAuthStore';
+import { BookingModal, type BookableDoctor } from '../../components/booking/BookingModal';
+import { EMERGENCY_NUMBER } from '../../config/app';
+import { formatRating, formatVnd } from '../../utils/display';
 
 interface DoctorMatch {
   doctorId: string;
@@ -28,7 +28,7 @@ interface DoctorMatch {
   bio: string;
   licenseNumber: string;
   yearsOfExperience: number;
-  consultationFee: number;
+  consultationFee: number | null;
   similarityScore: number;
   specialties: string[];
   academicTitle?: string;
@@ -55,25 +55,6 @@ interface TriageResponseData {
   doctorRecommendationReason?: string;
 }
 
-interface DoctorSlot {
-  slotId?: string;
-  dayOfWeek?: string;
-  startTime: string;
-  endTime: string;
-  scheduledStart?: string;
-  scheduledEnd?: string;
-  startDateTime?: string;
-  endDateTime?: string;
-  available: boolean;
-}
-
-interface AppointmentConfirmation {
-  appointmentCode: string;
-  doctorName: string;
-  scheduledStart: string;
-  feeAmount: number;
-}
-
 interface ChatMessage {
   id: string;
   role: 'user' | 'ai';
@@ -92,16 +73,7 @@ interface ChatMessage {
   sessionId?: string;
 }
 
-// Helper to format local date YYYY-MM-DD
-function formatLocalDate(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 export const SymptomTriagePage: React.FC = () => {
-  const { user } = useAuthStore();
   const navigate = useNavigate();
 
   // Multi-turn Chatbot State
@@ -153,21 +125,10 @@ export const SymptomTriagePage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Booking Modal State
-  const [bookingDoctor, setBookingDoctor] = useState<DoctorMatch | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return formatLocalDate(tomorrow);
-  });
-  const [slots, setSlots] = useState<DoctorSlot[]>([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
-  const [slotsError, setSlotsError] = useState<string | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<DoctorSlot | null>(null);
+  // Booking: the triage session id + an editable symptom/SBAR summary are sent with the appointment
+  const [bookingDoctor, setBookingDoctor] = useState<BookableDoctor | null>(null);
   const [bookingNotes, setBookingNotes] = useState('');
-  const [bookingSubmitting, setBookingSubmitting] = useState(false);
-  const [bookingError, setBookingError] = useState<string | null>(null);
-  const [confirmedAppt, setConfirmedAppt] = useState<AppointmentConfirmation | null>(null);
+  const [bookingSessionId, setBookingSessionId] = useState<string | null>(null);
 
   // Auto-scroll on new message
   useEffect(() => {
@@ -288,80 +249,28 @@ export const SymptomTriagePage: React.FC = () => {
     }
   };
 
-  // Booking Modal handlers
-  const handleOpenBooking = (doc: DoctorMatch) => {
-    setBookingDoctor(doc);
-    setSelectedSlot(null);
-    setBookingError(null);
-    setConfirmedAppt(null);
-    setBookingNotes(`Triage AI Session: ${sessionId ? sessionId.slice(0, 8) : 'Khám chuyên khoa'}`);
-    loadSlots(doc.doctorId, selectedDate);
-  };
-
-  const loadSlots = async (doctorId: string, date: string) => {
-    try {
-      setSlotsLoading(true);
-      setSlotsError(null);
-      setSelectedSlot(null);
-      const res = await api.get(`/doctors/${doctorId}/slots?date=${date}`);
-      if (res.data?.data) {
-        setSlots(res.data.data);
-      }
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
-      setSlotsError(
-        axiosErr.response?.data?.error?.message ||
-          'Không thể tải lịch khám của bác sĩ. Vui lòng kiểm tra lại kết nối.'
-      );
-    } finally {
-      setSlotsLoading(false);
-    }
-  };
-
-  const handleDateChange = (date: string) => {
-    setSelectedDate(date);
-    if (bookingDoctor) {
-      loadSlots(bookingDoctor.doctorId, date);
-    }
-  };
-
-  const handleConfirmBooking = async () => {
-    if (!bookingDoctor || !selectedSlot) return;
-
-    if (!user) {
-      setBookingError('Vui lòng đăng nhập tài khoản bệnh nhân để xác nhận đặt lịch khám.');
-      return;
-    }
-
-    try {
-      setBookingSubmitting(true);
-      setBookingError(null);
-
-      const slotTime = selectedSlot.scheduledStart || selectedSlot.startDateTime;
-      const res = await api.post('/appointments', {
-        doctorId: bookingDoctor.doctorId,
-        scheduledStart: slotTime,
-        notes: bookingNotes
-      });
-
-      if (res.data?.data) {
-        setConfirmedAppt({
-          appointmentCode: res.data.data.appointmentCode,
-          doctorName: bookingDoctor.fullName,
-          scheduledStart: slotTime || '',
-          feeAmount: bookingDoctor.consultationFee
-        });
-      }
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error?: { code?: string; message?: string } } } };
-      if (axiosErr.response?.data?.error?.code === 'SLOT_CONFLICT') {
-        setBookingError('Khung giờ này vừa có người khác đặt trước. Vui lòng chọn một khung giờ khác.');
-      } else {
-        setBookingError(axiosErr.response?.data?.error?.message || 'Không thể tạo lịch khám. Vui lòng thử lại.');
-      }
-    } finally {
-      setBookingSubmitting(false);
-    }
+  // Booking: pre-fill a readable summary the patient can edit (not an internal session id)
+  const handleOpenBooking = (doc: DoctorMatch, msg: ChatMessage) => {
+    const symptoms = messages
+      .filter((m) => m.role === 'user')
+      .map((m) => m.content.trim())
+      .filter(Boolean)
+      .slice(-3)
+      .join('; ');
+    const parts = [
+      symptoms && `Triệu chứng: ${symptoms}`,
+      msg.recommendedSpecialty && `Chuyên khoa AI gợi ý: ${msg.recommendedSpecialty}`,
+      msg.sbarSummary && `Tóm tắt SBAR:\n${msg.sbarSummary}`,
+    ].filter(Boolean);
+    setBookingNotes(parts.join('\n').slice(0, 1000));
+    setBookingSessionId(msg.sessionId || sessionId);
+    setBookingDoctor({
+      id: doc.doctorId,
+      fullName: doc.fullName,
+      specialties: doc.specialties,
+      consultationFee: doc.consultationFee,
+      hospitalAffiliation: doc.hospitalAffiliation,
+    });
   };
 
   return (
@@ -417,7 +326,7 @@ export const SymptomTriagePage: React.FC = () => {
             </div>
 
             <a
-              href="tel:115"
+              href={`tel:${EMERGENCY_NUMBER}`}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-rose-700 hover:bg-rose-50 font-black text-sm rounded-xl shadow-md transition shrink-0 cursor-pointer"
             >
               <PhoneCall className="w-4 h-4 animate-bounce" />
@@ -471,7 +380,7 @@ export const SymptomTriagePage: React.FC = () => {
                         {msg.emergencyAlert || 'Triệu chứng có thể liên quan đến đột quỵ, nhồi máu cơ tim hoặc sốc phản vệ.'}
                       </p>
                       <a
-                        href="tel:115"
+                        href={`tel:${EMERGENCY_NUMBER}`}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 text-white rounded-lg font-bold text-xs hover:bg-rose-700 transition"
                       >
                         <PhoneCall className="w-3.5 h-3.5" /> Gọi 115 Ngay
@@ -566,29 +475,32 @@ export const SymptomTriagePage: React.FC = () => {
                                   </span>
                                 </div>
                                 <p className="text-[11px] text-slate-500 flex items-center gap-1.5 flex-wrap">
-                                  <span>{doc.specialties?.join(', ') || 'Chuyên khoa Nội'} • {doc.yearsOfExperience} năm kinh nghiệm</span>
-                                  {doc.rating !== undefined && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="inline-flex items-center gap-1 text-amber-600 font-bold">
-                                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                                        {doc.rating > 0 ? doc.rating.toFixed(1) : '5.0'}
-                                        {doc.reviewCount !== undefined && (
-                                          <span className="text-slate-400 font-normal">({doc.reviewCount})</span>
-                                        )}
-                                      </span>
-                                    </>
+                                  <span>
+                                    {doc.specialties?.length ? doc.specialties.join(', ') : 'Chưa cập nhật chuyên khoa'}
+                                    {doc.yearsOfExperience ? ` • ${doc.yearsOfExperience} năm kinh nghiệm` : ''}
+                                  </span>
+                                  <span>•</span>
+                                  {formatRating(doc.rating, doc.reviewCount) ? (
+                                    <span className="inline-flex items-center gap-1 text-amber-700 font-bold">
+                                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" aria-hidden />
+                                      {formatRating(doc.rating, doc.reviewCount)}
+                                      <span className="text-slate-500 font-normal">({doc.reviewCount})</span>
+                                    </span>
+                                  ) : (
+                                    <span className="italic">Chưa có đánh giá</span>
                                   )}
                                 </p>
                               </div>
 
                               <div className="flex items-center gap-2 self-end sm:self-auto">
-                                <span className="font-bold text-indigo-700">
-                                  {Number(doc.consultationFee || 350000).toLocaleString('vi-VN')} đ
+                                <span className="font-bold text-teal-700">
+                                  {formatVnd(doc.consultationFee) ?? 'Phí: liên hệ'}
                                 </span>
                                 <button
                                   type="button"
-                                  onClick={() => handleOpenBooking(doc)}
+                                  disabled={isEmergencyLocked}
+                                  title={isEmergencyLocked ? 'Tình trạng khẩn cấp: hãy gọi 115 thay vì đặt lịch thường' : undefined}
+                                  onClick={() => handleOpenBooking(doc, msg)}
                                   className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition shadow-2xs cursor-pointer"
                                 >
                                   Đặt Khám
@@ -698,151 +610,14 @@ export const SymptomTriagePage: React.FC = () => {
         </div>
       </div>
 
-      {/* 📅 Interactive Slot Booking Modal */}
-      {bookingDoctor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="font-bold text-slate-900 text-base">Đặt Lịch Khám Trực Tiếp</h3>
-                <p className="text-xs text-slate-500">với {bookingDoctor.fullName}</p>
-              </div>
-              <button
-                onClick={() => setBookingDoctor(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Confirmed State */}
-            {confirmedAppt ? (
-              <div className="text-center py-6 space-y-4">
-                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-                <h4 className="text-lg font-bold text-slate-900">Đặt Lịch Khám Thành Công!</h4>
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-left space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Mã lịch hẹn:</span>
-                    <span className="font-mono font-bold text-indigo-600">{confirmedAppt.appointmentCode}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Bác sĩ:</span>
-                    <span className="font-semibold text-slate-800">{confirmedAppt.doctorName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Thời gian:</span>
-                    <span className="font-semibold text-slate-800">
-                      {new Date(confirmedAppt.scheduledStart).toLocaleString('vi-VN')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Phí khám:</span>
-                    <span className="font-bold text-emerald-600">
-                      {confirmedAppt.feeAmount.toLocaleString('vi-VN')} đ
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setBookingDoctor(null)}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold cursor-pointer"
-                >
-                  Đóng
-                </button>
-              </div>
-            ) : (
-              /* Booking Form */
-              <div className="space-y-4 text-xs">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Chọn Ngày Khám</label>
-                  <input
-                    type="date"
-                    min={formatLocalDate(new Date())}
-                    value={selectedDate}
-                    onChange={(e) => handleDateChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">
-                    Chọn Khung Giờ Khám (30 phút/ca)
-                  </label>
-                  {slotsLoading ? (
-                    <div className="py-6 text-center text-slate-400">Đang tải lịch trống...</div>
-                  ) : slotsError ? (
-                    <div className="p-3 bg-rose-50 text-rose-600 rounded-xl text-center text-xs border border-rose-200">
-                      {slotsError}
-                    </div>
-                  ) : slots.length === 0 ? (
-                    <div className="p-3 bg-slate-50 text-slate-500 rounded-xl text-center">
-                      Bác sĩ không có lịch trống trong ngày này. Vui lòng chọn ngày khác.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto pr-1">
-                      {slots.map((slot) => (
-                        <button
-                          key={slot.startDateTime || slot.slotId || slot.startTime}
-                          type="button"
-                          disabled={!slot.available}
-                          onClick={() => setSelectedSlot(slot)}
-                          className={`p-2 rounded-lg border text-center transition cursor-pointer ${
-                            !slot.available
-                              ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through'
-                              : selectedSlot?.startDateTime === slot.startDateTime
-                              ? 'bg-indigo-600 text-white border-indigo-600 font-bold'
-                              : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-400'
-                          }`}
-                        >
-                          <Clock className="w-3 h-3 mx-auto mb-0.5" />
-                          {slot.startTime}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Ghi Chú Triệu Chứng Cho Bác Sĩ</label>
-                  <textarea
-                    rows={2}
-                    value={bookingNotes}
-                    onChange={(e) => setBookingNotes(e.target.value)}
-                    placeholder="Mô tả cụ thể để bác sĩ chuẩn bị trước buổi khám..."
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-
-                {bookingError && (
-                  <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl font-medium">
-                    {bookingError}
-                  </div>
-                )}
-
-                <div className="pt-2 flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setBookingDoctor(null)}
-                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-semibold cursor-pointer hover:bg-slate-50"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!selectedSlot || bookingSubmitting}
-                    onClick={handleConfirmBooking}
-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-semibold transition cursor-pointer"
-                  >
-                    {bookingSubmitting ? 'Đang Đặt...' : 'Xác Nhận Đặt Khám'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <BookingModal
+        open={bookingDoctor !== null}
+        doctor={bookingDoctor}
+        onClose={() => setBookingDoctor(null)}
+        initialNotes={bookingNotes}
+        notesLabel="Ghi chú cho bác sĩ (tóm tắt từ trợ lý AI — bạn có thể sửa)"
+        extra={{ triageSessionId: bookingSessionId }}
+      />
     </div>
   );
 };

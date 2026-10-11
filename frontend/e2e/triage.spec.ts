@@ -1,41 +1,98 @@
 import { test, expect } from '@playwright/test';
+import { installMockApi } from './fixtures/mockApi';
 
-test.describe('UC-CLIN-02: Multi-turn Chatbot Symptom Triage & Red-Flag Guard', () => {
-  test.beforeEach(async ({ page }) => {
-    // Navigate directly to symptom triage page
-    await page.goto('/triage');
+const SESSION_ID = '99999999-9999-9999-9999-999999999999';
+
+const routineResponse = {
+  success: true,
+  data: {
+    sessionId: SESSION_ID,
+    emergency: false,
+    emergencyAlert: null,
+    medicalRelated: true,
+    urgencyLevel: 'ROUTINE',
+    primarySpecialtySlug: 'tieu-hoa',
+    primarySpecialtyName: 'Tiêu hóa',
+    sbarSummary: 'S: Đau thượng vị sau ăn. A: Nghi viêm dạ dày. R: Khám Tiêu hóa.',
+    aiAdvice: 'Bạn nên khám chuyên khoa Tiêu hóa.',
+    clarifyingQuestions: [],
+    matchedDoctors: [
+      {
+        doctorId: '55555555-5555-5555-5555-555555555555', fullName: 'BS. Phạm Thu Hà', bio: null, licenseNumber: 'CCHN-002',
+        yearsOfExperience: 0, consultationFee: null, similarityScore: 0.82, specialties: ['Tiêu hóa'], rating: 4.9, reviewCount: 0,
+      },
+    ],
+  },
+};
+
+test.describe('UC-CLIN-02: Symptom triage assistant', () => {
+  test('welcome message and disclaimer are shown on /patient/triage', async ({ page }) => {
+    await installMockApi(page, { role: 'PATIENT' });
+    await page.goto('/patient/triage');
+    await expect(page.getByText('Xin chào! Tôi là Trợ lý Y tế AI của MediAssist')).toBeVisible();
+    await expect(page.getByText('Khuyến Cáo Lâm Sàng')).toBeVisible();
   });
 
-  test('should render conversational chatbot interface with initial welcome greeting', async ({ page }) => {
-    // Verify chatbot header and medical disclaimer
-    await expect(page.locator('text=Trợ Lý Phân Luồng Y Tế AI')).toBeVisible();
-    await expect(page.locator('text=Bác sĩ AI MediAssist')).toBeVisible();
-
-    // Verify initial greeting message exists
-    await expect(page.locator('text=Xin chào! Tôi là Trợ lý phân luồng y tế')).toBeVisible();
-  });
-
-  test('should display interactive clinical suggestion chips for quick input', async ({ page }) => {
-    // Check that clinical chips are rendered
-    const chipsContainer = page.locator('button:has-text("Đau đầu"), button:has-text("Sốt"), button:has-text("Đau dạ dày")');
-    await expect(chipsContainer.first()).toBeVisible();
-
-    // Clicking a chip should populate or trigger conversation
-    const firstChip = chipsContainer.first();
-    const chipText = await firstChip.innerText();
-    await firstChip.click();
-
-    // The chip text should appear as a user message in the chat
-    await expect(page.locator(`.bg-blue-600:has-text("${chipText}")`)).toBeVisible();
-  });
-
-  test('should trigger emergency Red-Flag Lockout and hotline 115 on critical symptoms', async ({ page }) => {
-    const chatInput = page.locator('input[placeholder*="Mô tả triệu chứng"]');
-    await chatInput.fill('Tôi bị đau thắt ngực dữ dội, khó thở vã mồ hôi và choáng váng');
+  test('booking from triage sends triageSessionId and an editable symptom summary', async ({ page }) => {
+    const calls: Array<{ method: string; path: string; body: unknown }> = [];
+    await installMockApi(page, {
+      role: 'PATIENT',
+      calls,
+      overrides: { 'POST /triage/assess': { body: routineResponse } },
+    });
+    await page.goto('/patient/triage');
+    await page.getByPlaceholder(/Nhập triệu chứng của bạn/).fill('Đau thượng vị sau ăn, ợ chua');
     await page.keyboard.press('Enter');
 
-    // System must display emergency alert card and disable further standard chat
-    await expect(page.locator('text=CẢNH BÁO NGUY CẤP').or(page.locator('text=CẤP CỨU KHẨN CẤP'))).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('a[href*="tel:115"]').or(page.locator('text=115'))).toBeVisible();
+    // No fake "5.0" rating or 350.000đ fee for a doctor without reviews / fee
+    await expect(page.getByText('Chưa có đánh giá')).toBeVisible();
+    await expect(page.getByText('Phí: liên hệ')).toBeVisible();
+    await expect(page.getByText('350.000')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Đặt Khám' }).click();
+    const dialog = page.getByRole('dialog');
+    const notes = dialog.locator('#booking-notes');
+    await expect(notes).toHaveValue(/Triệu chứng: Đau thượng vị sau ăn, ợ chua/);
+    await expect(notes).toHaveValue(/Tóm tắt SBAR/);
+    await expect(notes).not.toHaveValue(/Triage AI Session/);
+    await notes.fill('Đau thượng vị 3 ngày, ợ chua sau ăn');
+
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    await dialog.locator('#slot-date').fill(iso);
+    const confirm = dialog.getByRole('button', { name: 'Xác nhận đặt khám' });
+    await expect(confirm).toBeDisabled();
+    await dialog.getByRole('radio', { name: '08:00' }).click();
+    await confirm.click();
+    await expect(page.getByTestId('booking-success')).toBeVisible();
+
+    const booking = calls.find((c) => c.method === 'POST' && c.path === '/appointments');
+    expect(booking?.body).toMatchObject({
+      doctorId: '55555555-5555-5555-5555-555555555555',
+      triageSessionId: SESSION_ID,
+      notes: 'Đau thượng vị 3 ngày, ợ chua sau ăn',
+      scheduledStart: `${iso}T08:00:00`,
+    });
+  });
+
+  test('emergency answer shows the 115 call-to-action and locks routine booking', async ({ page }) => {
+    await installMockApi(page, {
+      role: 'PATIENT',
+      overrides: {
+        'POST /triage/assess': {
+          body: {
+            success: true,
+            data: { ...routineResponse.data, emergency: true, urgencyLevel: 'EMERGENCY', emergencyAlert: 'Nghi nhồi máu cơ tim cấp' },
+          },
+        },
+      },
+    });
+    await page.goto('/patient/triage');
+    await page.getByPlaceholder(/Nhập triệu chứng của bạn/).fill('Đau thắt ngực dữ dội, vã mồ hôi');
+    await page.keyboard.press('Enter');
+    await expect(page.getByText(/TÌNH TRẠNG KHẨN CẤP/)).toBeVisible();
+    await expect(page.locator('a[href="tel:115"]').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Đặt Khám' })).toBeDisabled();
   });
 });
