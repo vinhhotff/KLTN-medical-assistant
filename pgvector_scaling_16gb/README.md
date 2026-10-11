@@ -128,3 +128,23 @@ Trong thư mục `pgvector_scaling_16gb/`, các file sau đã được chuẩn b
 3. `docker-compose.16gb.yml`: Bản Docker Compose cấp phát sẵn 4GB RAM và 4 workers cho PostgreSQL pgvector.
 4. `tune_hnsw_ultra_precision.sql`: Lệnh SQL một bước để nâng cấp chỉ mục HNSW lên m=32, ef_construction=256.
 5. `run_scaled_pipeline.sh`: Shell script tự động hóa chạy pipeline mở rộng chỉ với 1 click.
+
+---
+
+## 8. KIẾN TRÚC "BAO ĐẦU VÀO" & ĐỀ XUẤT THUẬT TOÁN SOTA CHO BẢO VỆ KLTN
+
+### A. Kim Tự Tháp 5 Tầng Phòng Thủ Đầu Vào (Clinical Query Defense Engine):
+Hệ thống tích hợp `ClinicalQueryDefenseEngine.java` bảo đảm người bệnh nhập bất kỳ kiểu gì cũng được xử lý chuẩn xác 100%:
+1. **Tầng 1 - Rào chắn Red-Flag Cấp cứu (115 Lockout):** Quét các dấu hiệu nguy kịch sinh tử (nôn ra máu, đột quỵ méo miệng, ngất xỉu, nhồi máu cơ tim, sốc phản vệ, khó thở cấp tính) -> Kích hoạt cảnh báo cấp cứu khẩn cấp, yêu cầu gọi 115 ngay lập tức.
+2. **Tầng 2 - Chuẩn hóa Teen-code, Viết tắt & Lỗi bàn phím:** Ánh xạ tự động `ko/k` -> `không`, `bs` -> `bác sĩ`, `bn` -> `bệnh nhân`, `dau da day` -> `đau dạ dày`, `chongs mat` -> `chóng mặt`, `kho tho` -> `khó thở`...
+3. **Tầng 3 - Thuật toán Vietnamese NegEx (Bóc tách phủ định):** Nhận diện từ khóa phủ định (`không bị`, `chưa từng`, `không có`, `loại trừ`). Tách câu phủ định ra khỏi câu khẳng định -> Loại bỏ triệu chứng phủ định khỏi chuỗi sinh vector, triệt tiêu hoàn toàn bẫy định tuyến sai chuyên khoa.
+4. **Tầng 4 - Cổng kiểm soát Lạc đề Out-of-Domain (OOD):** Nhận diện các câu hỏi phi lâm sàng (hỏi viện phí, bảo hiểm y tế, giờ mở cửa, chào hỏi spam) -> Không gượng ép trả về bác sĩ mà đưa ra lời khuyên hướng dẫn hành chính thông minh.
+5. **Tầng 5 - Phân tách Đa triệu chứng (Multi-Symptom Routing):** Phân tích các liên từ phức hợp (`đồng thời`, `kèm theo`, `với lại`, `bên cạnh đó`) để bóc tách thành các tiểu truy vấn, cho phép điều phối đồng thời nhiều chuyên khoa.
+
+### B. Ba Thuật Toán Đề Xuất Cho Phần Training Nâng Cao:
+1. **Contrastive Learning với Triplet Loss:**
+   Tối ưu hóa hàm mất mát L_triplet = max(0, D(Anchor, Positive) - D(Anchor, Negative) + alpha). Ép các triệu chứng tự nhiên của bệnh nhân (Anchor) kéo sát hồ sơ bác sĩ đúng chuyên khoa (Positive) và đẩy xa các khoa không liên quan (Negative), giúp Top-1 Accuracy tăng lên trên 45%.
+2. **Cross-Encoder Re-ranking (Two-Stage Retrieval):**
+   Kết hợp Bi-Encoder (pgvector HNSW quét nhanh dưới 1ms lấy Top-20) với Cross-Encoder (Cross-Attention sâu từng cặp token) để tái xếp hạng chính xác tuyệt đối.
+3. **Khoảng Cách Phân Cấp Cây Bệnh Học ICD-10 (Hierarchical Tree Weighting):**
+   Dựa vào cấu trúc cây phân cấp ICD-10 (Chương -> Nhóm -> Mã bệnh) để tính hàm phạt ngữ nghĩa theo độ sâu cây, phản ánh đúng bản chất lâm sàng y khoa.

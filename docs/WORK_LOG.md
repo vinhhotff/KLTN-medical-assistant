@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#093** | 11/10/2026 | Hiện Thực Hóa Toàn Diện Động Cơ Phòng Thủ Đầu Vào 5 Tầng "Bao Đầu Vào" & Thuật Toán SOTA (Clinical Query Defense Engine): (1) Xây dựng `ClinicalQueryDefenseEngine.java` và tích hợp `DoctorSemanticSearchService.java` xử lý trọn gói 5 tình huống đầu vào: Rào chắn Red-Flag cấp cứu 115, Chuẩn hóa teen-code/viết tắt/không dấu, Thuật toán Vietnamese NegEx bóc tách câu phủ định, Cổng Out-of-Domain OOD phát hiện hỏi giá/hành chính/spam, và Phân tách đa triệu chứng phức hợp, (2) Bổ sung trường metadata phòng thủ đầu vào vào `DoctorMatchDto.java`, (3) Đồng bộ thuật toán sang Python `ClinicalQueryDefenseEnginePython` trong `scripts/meddies_pipeline/vector_engine.py` và `benchmark_hnsw.py`, (4) Bộ kiểm thử `ClinicalQueryDefenseEngineTest.java` và `DoctorSemanticSearchServiceTest.java`, đưa 165/165 tests PASS 100%, Frontend Build PASS 100% (2273 modules, 0 lỗi TS), (5) Đề xuất 3 thuật toán SOTA (Contrastive Triplet Loss, Cross-Encoder Reranker, Hierarchical ICD-10 Tree Weighting) cập nhật vào cẩm nang `pgvector_scaling_16gb/` | AI Assistant | 🟢 Sẵn sàng Review |
 | **#092** | 11/10/2026 | Quy Hoạch Chuyên Biệt Thư Mục & Cẩm Nang Huấn Luyện Mở Rộng pgvector Cho Máy 16GB RAM / 512GB SSD (`pgvector_scaling_16gb/`): (1) Phân tích cơ chế bộ nhớ pgvector (12-15 KB/vector), chứng minh năng lực mở rộng lên 50.000 bác sĩ và toàn bộ 150.000 ca Meddies hoàn toàn in-memory trên 16GB RAM, (2) Xây dựng `pgvector_scaling_16gb/README.md` hướng dẫn chi tiết vị trí sửa code, (3) `CAPSTONE_DEFENSE_CHEAT_SHEET.md` cung cấp bộ 6 câu hỏi - trả lời phản biện cốt lõi bảo vệ KLTN, (4) `docker-compose.16gb.yml` tối ưu cấp 4GB shared_buffers, 10GB effective_cache_size, 4 workers, (5) `tune_hnsw_ultra_precision.sql` nâng cấp chỉ mục HNSW lên $m=32, ef\_construction=256$, (6) Shell script `run_scaled_pipeline.sh` tự động hóa chạy pipeline mở rộng 1-click | AI Assistant | 🟢 Sẵn sàng Review |
 | **#091** | 10/10/2026 | Hiện Thực Hóa Toàn Diện Pipeline Huấn Luyện Vector & Đánh Giá pgvector HNSW Khai Thác Tập Dữ Liệu Hugging Face Meddies (Meddies Persona Vie & Meddies PII): (1) Xây dựng bộ trích xuất và ánh xạ chuẩn vàng ICD-10 sang 12 chuyên khoa bệnh viện từ 150.000 bệnh nhân `Meddies/meddies-persona-vie`, (2) Triển khai `VectorEmbeddingEngine` (1536-d) đồng bộ 100% công thức toán học FNV-1a & L2 norm với Java `EmbeddingService`, (3) Động cơ huấn luyện và làm giàu hồ sơ bác sĩ `train_augment_doctors.py` giúp Top-1 Match Accuracy tăng vọt từ 6.00% lên 23.2% (tăng gấp 3.9 lần), Recall@3 đạt 33.0%, (4) Benchmark pgvector HNSW trên PostgreSQL 16 (port 5433) đạt độ trễ cực nhanh 0.72 ms, (5) Đánh giá rào chắn bảo vệ dữ liệu cá nhân y tế PII (Nghị định 13/2023/NĐ-CP & HIPAA) trên 100 hồ sơ bệnh viện từ `Meddies/meddies-pii` đạt Precision 82.72%, (6) Xuất báo cáo thực nghiệm chuẩn khoa học `docs/VECTOR_BENCHMARK_REPORT.md`, bổ sung Câu hỏi 17 vào `docs/CAPSTONE_DEFENSE.md` | AI Assistant | 🟢 Sẵn sàng Review |
 | **#090** | 10/10/2026 | Cập Nhật API Key Gemini, Sửa Lỗi Flyway Checksum V1/V2 & Khởi Chạy Toàn Bộ Hệ Thống Full App MediAssist-AI: (1) Cập nhật GEMINI_API_KEY thực tế vào `.env` và `backend/.env`, (2) Khắc phục lỗi Flyway Checksum mismatch V1/V2 trên PostgreSQL bằng `mvn flyway:repair`, (3) Khắc phục lỗi TypeScript TS7006 implicit any cho Recharts trong `AdminDashboard.tsx`, đưa `npm run build` PASS 100% (2273 modules, 0 lỗi TS), (4) Khởi chạy thành công toàn bộ stack: Docker PostgreSQL pgvector (:5433), Docker Redis (:6379), Spring Boot Backend (:5001), Vite React Frontend (:5173) | AI Assistant | 🟢 Sẵn sàng Review |
@@ -34,6 +35,24 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#093] Hiện Thực Hóa Toàn Diện Động Cơ Phòng Thủ Đầu Vào 5 Tầng "Bao Đầu Vào" & Thuật Toán SOTA (Clinical Query Defense Engine)
+* **Thời gian:** 2026-10-11 09:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior AI Solution Architect & Tech Lead
+* **Mã Use Cases:** UC-06 (Tìm kiếm Bác sĩ Ngữ nghĩa HNSW), UC-05 (AI Symptom Triage), Rào Chắn An Toàn Y Tế Lâm Sàng
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - `ClinicalQueryDefenseEngine.java`: Hoàn thành 5 tầng phòng thủ đầu vào xử lý trọn gói các tình huống người bệnh nhập tự do:
+    1. Rào chắn Red-Flag cấp cứu: Bắt giữ các dấu hiệu nguy kịch sinh tử (nôn ra máu, đột quỵ méo miệng, ngất xỉu, nhồi máu cơ tim, sốc phản vệ, khó thở cấp tính), ngắt luồng đặt khám thường và phát còi cảnh báo gọi 115 khẩn cấp.
+    2. Bộ chuẩn hóa teen-code/viết tắt/không dấu: Khôi phục và chuẩn hóa tự động các từ viết tắt y khoa phổ biến (`ko/k` -> `không`, `bs` -> `bác sĩ`, `bn` -> `bệnh nhân`, `dau da day` -> `đau dạ dày`, `chongs mat` -> `chóng mặt`, `kho tho` -> `khó thở`).
+    3. Thuật toán Vietnamese NegEx: Phân tách và loại bỏ các triệu chứng đứng sau liên từ phủ định (`không bị`, `chưa từng`, `không có`, `loại trừ`), đảm bảo chuỗi tính vector chỉ chứa các than phiền khẳng định, triệt tiêu hoàn toàn bẫy định tuyến sai chuyên khoa.
+    4. Cổng Out-of-Domain (OOD): Nhận diện các câu hỏi phi lâm sàng (viện phí, bảo hiểm y tế, giờ mở cửa, chào hỏi spam) và đưa ra phản hồi hành chính thông minh thay vì gượng ép trả về bác sĩ.
+    5. Phân tách đa triệu chứng: Tách các cụm than phiền phức hợp liên kết bằng liên từ (`đồng thời`, `kèm theo`, `với lại`, `bên cạnh đó`) để điều phối song song nhiều chuyên khoa.
+  - Tích hợp động cơ vào `DoctorSemanticSearchService.java`, gắn cờ metadata `emergencyRedFlag`, `emergencyWarning`, `outOfDomain`, `outOfDomainGuidance`, `affirmedSymptoms`, `negatedSymptoms` vào `DoctorMatchDto.java`.
+  - Đồng bộ logic phòng thủ sang Python `ClinicalQueryDefenseEnginePython` trong `scripts/meddies_pipeline/vector_engine.py` và `benchmark_hnsw.py`.
+  - Bộ kiểm thử tự động: `165/165` Backend Unit Tests PASS 100% (bao gồm `ClinicalQueryDefenseEngineTest` và `DoctorSemanticSearchServiceTest`), Frontend Build `npm run build` PASS 100% (2273 modules, 0 lỗi TypeScript).
+  - Cập nhật tài liệu cẩm nang `pgvector_scaling_16gb/README.md` (Mục 8) và `CAPSTONE_DEFENSE_CHEAT_SHEET.md` (Câu hỏi 7 & 8) với 3 thuật toán học máy đề xuất (Contrastive Triplet Loss, Cross-Encoder Reranker, Hierarchical ICD-10 Tree Weighting).
+
+---
 
 ### [WORK-LOG-#092] Quy Hoạch Chuyên Biệt Thư Mục & Cẩm Nang Huấn Luyện Mở Rộng pgvector Cho Máy 16GB RAM / 512GB SSD (`pgvector_scaling_16gb/`)
 * **Thời gian:** 2026-10-11 08:00:00 (GMT+7)

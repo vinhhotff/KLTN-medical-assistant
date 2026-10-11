@@ -59,4 +59,26 @@
 * **Hành động phản biện (30 giây ghi điểm tuyệt đối):**
   > *"Dạ thưa Thầy Cô, nhóm có bộ kịch bản tự động đo đạc thực nghiệm độc lập lưu tại `scripts/run_meddies_pipeline.py` và báo cáo khoa học `docs/VECTOR_BENCHMARK_REPORT.md`.  
   > Nếu Thầy Cô muốn kiểm chứng, em xin phép mở Terminal chạy đo đạc trực tiếp trên cơ sở dữ liệu PostgreSQL ngay bây giờ."*  
-  *(Mở Terminal gõ: `python scripts/run_meddies_pipeline.py --samples 50` $\rightarrow$ Kết quả in ra ngay trong 5 giây!)*
+  *(Mở Terminal gõ: `python scripts/run_meddies_pipeline.py --samples 50` -> Kết quả in ra ngay trong 5 giây!)*
+
+---
+
+### ❓ CÂU HỎI 7: "Hệ thống làm thế nào để 'bao đầu vào' khi bệnh nhân nhập teen-code, viết tắt, câu phủ định hoặc ca cấp cứu?"
+
+* **Câu trả lời chuẩn (45 giây):**
+  > *"Thưa Thầy Cô, nhóm đã thiết kế Kim tự tháp 5 tầng phòng thủ đầu vào (ClinicalQueryDefenseEngine):  
+  > 1. Rào chắn Red-Flag Cấp cứu: Nếu bệnh nhân gõ dấu hiệu sinh tử (nôn ra máu, đột quỵ méo miệng, ngất xỉu), hệ thống ngắt ngay tìm kiếm thường và kích hoạt cảnh báo gọi 115 khẩn cấp.  
+  > 2. Bộ chuẩn hóa viết tắt & lỗi gõ phím: Tự động sửa 'ko/k' -> 'không', 'bs' -> 'bác sĩ', 'dau da day' -> 'đau dạ dày', 'chongs mat' -> 'chóng mặt'.  
+  > 3. Thuật toán Vietnamese NegEx: Khi bệnh nhân nói 'đau bụng nhưng không sốt, không ho', thuật toán bóc tách và loại bỏ các triệu chứng phủ định khỏi chuỗi tính vector, tránh bị bẫy định tuyến sai chuyên khoa.  
+  > 4. Cổng Out-of-Domain: Phân loại câu hỏi hành chính, giá tiền hay spam để hướng dẫn người dùng thay vì đoán bừa bác sĩ.  
+  > 5. Phân tách đa triệu chứng: Tách các than phiền phức hợp để điều phối đa chuyên khoa song song."*
+
+---
+
+### ❓ CÂU HỎI 8: "Về mặt thuật toán học máy (Machine Learning), nhóm đề xuất hướng cải tiến nào để nâng cao chất lượng vector embedding?"
+
+* **Câu trả lời chuẩn (40 giây):**
+  > *"Thưa Thầy Cô, nhóm đề xuất 3 hướng tối ưu hóa trọng tâm:  
+  > 1. Contrastive Learning với hàm mất mát Triplet Loss: Tối ưu trực tiếp khoảng cách giữa câu than phiền tự nhiên (Anchor) với hồ sơ bác sĩ đúng chuyên khoa (Positive) và tách xa các khoa khác (Negative) để đẩy Top-1 Accuracy lên trên 45%.  
+  > 2. Cross-Encoder Re-ranking (Two-Stage Retrieval): Giai đoạn 1 dùng pgvector HNSW quét nhanh dưới 1ms lấy Top-20, Giai đoạn 2 dùng Cross-Encoder so sánh chéo từng cặp token để xếp hạng chính xác tuyệt đối.  
+  > 3. Khoảng cách phân cấp cây bệnh học ICD-10: Dựa trên cấu trúc hình cây của ICD-10 để phạt sai số theo độ sâu phân cấp y khoa thay vì coi các chuyên khoa là nhãn phẳng độc lập."*

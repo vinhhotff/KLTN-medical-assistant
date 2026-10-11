@@ -2,6 +2,7 @@ package com.mediassist.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.mediassist.dto.ClinicalQueryDefenseResult;
 import com.mediassist.dto.DoctorMatchDto;
 import com.mediassist.model.entity.DoctorProfile;
 import com.mediassist.model.entity.Specialty;
@@ -35,6 +36,7 @@ public class DoctorSemanticSearchService {
     private final JdbcTemplate jdbcTemplate;
     private final EmbeddingService embeddingService;
     private final DoctorProfileRepository doctorProfileRepository;
+    private final ClinicalQueryDefenseEngine queryDefenseEngine;
 
     /**
      * High-speed L1 In-Memory Cache for frequent symptom/specialty doctor semantic queries.
@@ -54,9 +56,17 @@ public class DoctorSemanticSearchService {
     public DoctorSemanticSearchService(JdbcTemplate jdbcTemplate,
                                        EmbeddingService embeddingService,
                                        DoctorProfileRepository doctorProfileRepository) {
+        this(jdbcTemplate, embeddingService, doctorProfileRepository, new ClinicalQueryDefenseEngine());
+    }
+
+    public DoctorSemanticSearchService(JdbcTemplate jdbcTemplate,
+                                       EmbeddingService embeddingService,
+                                       DoctorProfileRepository doctorProfileRepository,
+                                       ClinicalQueryDefenseEngine queryDefenseEngine) {
         this.jdbcTemplate = jdbcTemplate;
         this.embeddingService = embeddingService;
         this.doctorProfileRepository = doctorProfileRepository;
+        this.queryDefenseEngine = queryDefenseEngine != null ? queryDefenseEngine : new ClinicalQueryDefenseEngine();
     }
 
     public void invalidateCache() {
@@ -75,6 +85,13 @@ public class DoctorSemanticSearchService {
         String cleaned = CONVERSATIONAL_NOISE_PATTERN.matcher(rawQuery.trim()).replaceAll("").trim();
         // If query was over-stripped or empty, fallback safely to original
         return (cleaned.length() >= 3) ? cleaned : rawQuery.trim();
+    }
+
+    /**
+     * Executes the comprehensive 5-stage clinical query defense pipeline directly.
+     */
+    public ClinicalQueryDefenseResult analyzeQueryDefense(String queryText) {
+        return queryDefenseEngine.analyzeAndDefend(queryText);
     }
 
     /**
@@ -163,10 +180,13 @@ public class DoctorSemanticSearchService {
             return cached;
         }
 
-        // 1. Cleanse conversational noise without hardcoding medical disease keywords
-        String cleansedSymptom = cleanseClinicalQuery(queryText);
+        // 1. Analyze input query through the 5-Stage Clinical Query Defense Engine (Bao Đầu Vào)
+        ClinicalQueryDefenseResult defense = queryDefenseEngine.analyzeAndDefend(queryText);
 
-        // 2. Project into 1536-d continuous neural vector space
+        // 2. Cleanse conversational noise strictly on affirmed/normalized clinical complaints
+        String cleansedSymptom = cleanseClinicalQuery(defense.getOptimizedClinicalQuery());
+
+        // 3. Project into 1536-d continuous neural vector space
         float[] queryVector = embeddingService.generateEmbedding(cleansedSymptom);
         String vectorSql = embeddingService.toVectorSqlString(queryVector);
 
@@ -232,6 +252,32 @@ public class DoctorSemanticSearchService {
             );
 
             List<DoctorMatchDto> results = rankDoctors(candidates, cleansedSymptom, effectiveLimit);
+
+            // Stamp clinical input defense metadata onto candidates
+            for (DoctorMatchDto doc : results) {
+                doc.setNormalizedClinicalQuery(defense.getOptimizedClinicalQuery());
+                doc.setAffirmedSymptoms(defense.getAffirmedSymptoms());
+                doc.setNegatedSymptoms(defense.getNegatedSymptoms());
+
+                if (defense.isEmergencyRedFlag()) {
+                    doc.setEmergencyRedFlag(true);
+                    doc.setEmergencyWarning(defense.getEmergencyWarning());
+                }
+                if (defense.isOutOfDomain()) {
+                    doc.setOutOfDomain(true);
+                    doc.setOutOfDomainGuidance(defense.getOodGuidance());
+                }
+            }
+
+            if (!results.isEmpty()) {
+                DoctorMatchDto top = results.get(0);
+                if (defense.isEmergencyRedFlag()) {
+                    top.setAiRecommended(true);
+                    top.setAiRecommendationReason("🚨 CẢNH BÁO CẤP CỨU KHẨN CẤP: " + defense.getEmergencyWarning());
+                } else if (defense.isOutOfDomain()) {
+                    top.setAiRecommendationReason("ℹ️ YÊU CẦU PHI LÂM SÀNG: " + defense.getOodGuidance());
+                }
+            }
 
             if (results != null && !results.isEmpty()) {
                 doctorSearchCache.put(cacheKey, results);

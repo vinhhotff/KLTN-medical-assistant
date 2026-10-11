@@ -215,4 +215,51 @@ class DoctorSemanticSearchServiceTest {
         assertEquals(3, doc.getSpecialties().size());
         assertTrue(doc.getSpecialties().contains("Hô Hấp"));
     }
+
+    @Test
+    @DisplayName("searchDoctors flags Red-Flag emergency and attaches warning instructions to top recommendation")
+    @SuppressWarnings("unchecked")
+    void testSearchDoctors_EmergencyRedFlag_FlagsDoctorAndAddsWarning() {
+        DoctorMatchDto doctor = new DoctorMatchDto(
+                UUID.randomUUID(), "BS. Cấp Cứu", "Chuyên khoa Cấp cứu", "LIC115",
+                12, BigDecimal.valueOf(350000), 0.95,
+                List.of("Cấp Cứu"), "TS. BS.", "BV Chợ Rẫy"
+        );
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(), any(), any()))
+                .thenReturn(List.of(doctor));
+
+        List<DoctorMatchDto> results = searchService.searchDoctors("bệnh nhân nôn ra máu và ngất xỉu", 4);
+        assertNotNull(results);
+        assertFalse(results.isEmpty());
+
+        DoctorMatchDto top = results.get(0);
+        assertTrue(top.isEmergencyRedFlag());
+        assertNotNull(top.getEmergencyWarning());
+        assertTrue(top.getEmergencyWarning().contains("115"));
+        assertTrue(top.isAiRecommended());
+        assertTrue(top.getAiRecommendationReason().contains("CẢNH BÁO CẤP CỨU"));
+    }
+
+    @Test
+    @DisplayName("searchDoctors normalizes slang and handles Vietnamese NegEx in clinical search")
+    @SuppressWarnings("unchecked")
+    void testSearchDoctors_SlangAndNegEx_SanitizesQuery() {
+        DoctorMatchDto doctor = new DoctorMatchDto(
+                UUID.randomUUID(), "BS. Tiêu Hóa", "Chuyên khoa Tiêu Hóa", "LIC777",
+                10, BigDecimal.valueOf(250000), 0.90,
+                List.of("Tiêu Hóa"), "ThS. BS.", "BV Đại Học Y Dược"
+        );
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(), any(), any()))
+                .thenReturn(List.of(doctor));
+
+        List<DoctorMatchDto> results = searchService.searchDoctors("bs oi em bi dau da day quan nhung khong sot", 4);
+        assertNotNull(results);
+        assertFalse(results.isEmpty());
+
+        DoctorMatchDto top = results.get(0);
+        assertNotNull(top.getNormalizedClinicalQuery());
+        assertTrue(top.getNormalizedClinicalQuery().contains("đau dạ dày"));
+        assertNotNull(top.getNegatedSymptoms());
+        assertTrue(top.getNegatedSymptoms().stream().anyMatch(s -> s.contains("không sốt") || s.contains("khong sot")));
+    }
 }

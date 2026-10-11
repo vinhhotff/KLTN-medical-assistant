@@ -21,6 +21,15 @@ public class DoctorMatchDto {
     private boolean aiRecommended;
     private String aiRecommendationReason;
 
+    // Clinical Input Defense metadata
+    private boolean emergencyRedFlag;
+    private String emergencyWarning;
+    private boolean outOfDomain;
+    private String outOfDomainGuidance;
+    private String normalizedClinicalQuery;
+    private List<String> affirmedSymptoms;
+    private List<String> negatedSymptoms;
+
     public DoctorMatchDto() {}
 
     public DoctorMatchDto(UUID doctorId, String fullName, String bio, String licenseNumber,
@@ -100,4 +109,25 @@ public class DoctorMatchDto {
 
     public int getReviewCount() { return reviewCount; }
     public void setReviewCount(int reviewCount) { this.reviewCount = reviewCount; }
+
+    public boolean isEmergencyRedFlag() { return emergencyRedFlag; }
+    public void setEmergencyRedFlag(boolean emergencyRedFlag) { this.emergencyRedFlag = emergencyRedFlag; }
+
+    public String getEmergencyWarning() { return emergencyWarning; }
+    public void setEmergencyWarning(String emergencyWarning) { this.emergencyWarning = emergencyWarning; }
+
+    public boolean isOutOfDomain() { return outOfDomain; }
+    public void setOutOfDomain(boolean outOfDomain) { this.outOfDomain = outOfDomain; }
+
+    public String getOutOfDomainGuidance() { return outOfDomainGuidance; }
+    public void setOutOfDomainGuidance(String outOfDomainGuidance) { this.outOfDomainGuidance = outOfDomainGuidance; }
+
+    public String getNormalizedClinicalQuery() { return normalizedClinicalQuery; }
+    public void setNormalizedClinicalQuery(String normalizedClinicalQuery) { this.normalizedClinicalQuery = normalizedClinicalQuery; }
+
+    public List<String> getAffirmedSymptoms() { return affirmedSymptoms; }
+    public void setAffirmedSymptoms(List<String> affirmedSymptoms) { this.affirmedSymptoms = affirmedSymptoms; }
+
+    public List<String> getNegatedSymptoms() { return negatedSymptoms; }
+    public void setNegatedSymptoms(List<String> negatedSymptoms) { this.negatedSymptoms = negatedSymptoms; }
 }

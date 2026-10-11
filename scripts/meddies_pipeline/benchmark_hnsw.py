@@ -15,7 +15,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from scripts.meddies_pipeline.vector_engine import VectorEmbeddingEngine
+from scripts.meddies_pipeline.vector_engine import VectorEmbeddingEngine, ClinicalQueryDefenseEnginePython
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -85,16 +85,20 @@ class HNSWClinicalBenchmark:
         """
 
         for idx, case in enumerate(cases, 1):
-            query_text = case.get("clinical_query") or case.get("chief_complaint") or ""
+            raw_query = case.get("clinical_query") or case.get("chief_complaint") or ""
             target_slug = case.get("ground_truth_specialty_slug")
             target_name = case.get("ground_truth_specialty_name")
 
-            # 1. Vectorize query into 1536-d space
+            # 1. Cleanse & Defend Query through 5-Stage Defense Engine (NegEx + Slang)
+            defense_res = ClinicalQueryDefenseEnginePython.defend_and_cleanse_query(raw_query)
+            query_text = defense_res.get("optimized_query") or raw_query
+
+            # 2. Vectorize query into 1536-d space
             t_vec_start = time.perf_counter()
             query_vector = self.vector_engine.generate_embedding(query_text)
             vector_sql = self.vector_engine.to_pgvector_sql(query_vector)
 
-            # 2. Query HNSW Index in PostgreSQL
+            # 3. Query HNSW Index in PostgreSQL
             t_query_start = time.perf_counter()
             cur.execute(query_sql, (self.ef_search, vector_sql))
             results = cur.fetchall()
