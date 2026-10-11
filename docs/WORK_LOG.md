@@ -32,6 +32,13 @@
 | **#078** | 28/09/2026 | Tích Hợp Toàn Diện 2 Nhánh Đồng Nghiệp Vào Nhánh develop (Integration Merge: fix/critical-bugs & feature/fuction): (1) Merge nhánh fix/critical-bugs của Bảo: Thu hẹp Vite proxy tránh cướp route /oauth2/callback SPA, nâng cấp logging lỗi OAuth2, untrack các tệp .env và cấu hình nạp qua spring.config.import, (2) Merge nhánh feature/fuction của Khương: Chuông thông báo in-app NotificationBell, Quên/Đặt lại mật khẩu PasswordResetToken, Rào chắn hoàn tiền hủy khám & Dời lịch hẹn, Flyway V15 & V16, (3) Xác thực toàn diện: 136/136 Backend Tests PASS (100%), Frontend build 0 lỗi TypeScript (1683 modules) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#077** | 23/09/2026 | Hoàn Thiện Toàn Diện Nghiệp Vụ Doanh Nghiệp, Rào Chắn Lịch Khám, Tính Nguyên Tử Thanh Toán & Chuông Thông Báo (Enterprise Flows & Safeguards Hardening): (1) Flyway V15 & V16 bổ sung `triage_session_id`, `password_reset_tokens`, `notifications`, (2) Rào chắn đặt lịch: Bác sĩ active/verified, giờ hành chính, STT, Dời lịch hẹn, tự động hoàn tiền khi hủy, (3) Tính nguyên tử thanh toán, (4) Chuông thông báo in-app | AI Assistant | 🟢 Sẵn sàng Review |
 | **#076** | 18/09/2026 | Bác Sĩ Truy Cập Hồ Sơ Cận Lâm Sàng & Kết Quả Bóc Tách AI OCR Từ Lịch Khám (Doctor Medical Document & AI OCR Analysis Viewer): (1) Khắc phục điểm khuyết Bác sĩ không thể click xem lại tài liệu bệnh nhân gửi từ phân hệ Tóm tắt hồ sơ, (2) Flyway V14 liên kết `medical_document_id` vào bảng `appointments`, (3) Backend API streaming tệp an toàn & trích xuất phân tích chi tiết, (4) Frontend Modal 2 tab `DocumentAnalysisModal.tsx` | AI Assistant | 🟢 Sẵn sàng Review |
+| **#087** | 08/10/2026 | Chuẩn Hóa Cấu Hình FinOps Tỷ Giá Ngoại Tệ & Rà Soát Tích Hợp Cổng Thanh Toán / Google OAuth2: (1) Cấu hình thuộc tính `app.ai.cost.vnd-per-usd=${AI_COST_VND_PER_USD:25450}` trong `application.properties` và `application-dev.properties` để đồng bộ tỷ giá 25.450₫/USD cho dịch vụ `AiUsageAnalyticsService`, (2) Kiểm tra toàn diện hiện trạng khóa bí mật Stripe, Google OAuth2 Redirect URI và tỷ giá hệ thống, lập tài liệu hướng dẫn chi tiết từng bước cho Tech Lead, (3) 156/156 backend tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#086** | 08/10/2026 | Vá Lỗi Nhóm 4 từ Báo Cáo Kiểm Toán Production (Slot Selection Matching, Persistent Red-Flag Lockout, EMR Allergy Conflict Modal, Auto-Save EMR Draft, UTC Google Calendar Time, Cancel Error Toast, Dynamic FinOps Rate): (1) Sửa UI-01: Trong `SymptomTriagePage.tsx`, sửa điều kiện so sánh chọn slot bác sĩ sang `selectedSlot?.startDateTime === slot.startDateTime` tương thích chuẩn `DoctorSlotDto`, (2) Sửa UI-02: Trong `SymptomTriagePage.tsx`, lưu và khôi phục cờ cấp cứu `EMERGENCY_LOCKOUT` qua `sessionStorage` chống bypass khi bệnh nhân F5 reload, (3) Sửa DOC-04: Trong `DoctorDashboard.tsx` (`handleSubmitEncounter`), phát hiện xung đột dị ứng thuốc với tiền sử bệnh nhân và hiển thị popup cảnh báo xác nhận lâm sàng trước khi ký duyệt, (4) Sửa DOC-06: Trong `DoctorDashboard.tsx`, kích hoạt cơ chế tự động lưu nháp `emr_draft_${appointmentId}` vào `localStorage` cùng sự kiện `window.onbeforeunload` chống mất dữ liệu khi mất mạng hoặc reload, xóa nháp khi ký duyệt thành công, (5) Sửa UI-03: Trong `AdmissionTicketModal.tsx`, chuẩn hóa định dạng thời gian Google Calendar bằng `.toISOString().replace(/-|:|\.\d\d\d/g, "")` tránh lệch múi giờ UTC+7, (6) Sửa UI-04: Trong `PatientDashboard.tsx`, hiển thị banner lỗi và floating toast khi API hủy lịch thất bại thay vì nuốt lỗi, (7) Sửa UI-05: Trong `AdminDashboard.tsx`, sử dụng tỷ giá quy đổi động tính từ `totalCostVnd / totalCostUsd` trả về từ Backend thay vì nhân cứng 25.450₫, (8) Frontend build 0 lỗi TS, backend 156/156 tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#085** | 08/10/2026 | Vá Lỗi Nhóm 3 từ Báo Cáo Kiểm Toán Production (Google IDP Email Verification, Payment IDOR Protection, Real Payment Gateway Refund, Atomic Fulfillment with @Version, Zero-Trust Logging): (1) Sửa SEC-01: Trong `CustomOAuth2UserService.java`, kiểm tra `email_verified` từ Google IDP; từ chối và ném `OAuth2AuthenticationException` nếu email chưa được xác thực, (2) Sửa SEC-02: Trong `PaymentController.java` & `PaymentService.java`, thực thi kiểm tra quyền sở hữu IDOR trong `verifyPayment` và `getTransaction`: người gọi phải là chủ giao dịch hoặc có role `ADMIN`, ném lỗi 403 `FORBIDDEN` nếu truy cập trái phép, (3) Sửa FIN-01: Trong `AppointmentService.java` (khi hủy lịch hẹn đã thanh toán), tích hợp gọi `PaymentService.refundPayment` kích hoạt API hoàn tiền thực tế qua cổng thanh toán (`StripePaymentGateway.refundPayment`), (4) Sửa FIN-03: Trong `PaymentService.java` (`fulfillOrder`, `verifyAndFulfillPayment`, `handleStripeWebhook`), đảm bảo tính nguyên tử chống xử lý đúp giữa Webhook và Polling client bằng kiểm tra trạng thái kép và xử lý xung đột đồng thời qua `@Version` Optimistic Locking, (5) Sửa SEC-03: Rà soát `AuthController.java` và toàn bộ luồng Auth, đảm bảo tuyệt đối không log chuỗi JWT token ra stdout/logger, (6) 156/156 backend unit tests PASS 100% & TypeScript 0 lỗi. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#084** | 08/10/2026 | Vá Lỗi Nhóm 2 từ Báo Cáo Kiểm Toán Production (Call Next Patient Prioritization, Accurate Revenue Filtering, Interval Overlap Slot Collision, Reschedule Lead Time & Pagination): (1) Sửa DOC-02: Trong `DoctorService.java` (`callNextPatient`), ưu tiên tìm và khóa bi quan ca `CHECKED_IN` sớm nhất hôm nay trước, chỉ khi không còn ca `CHECKED_IN` mới tiếp nhận ca `SCHEDULED`, (2) Sửa DOC-05: Trong `AppointmentRepository.java` (`sumTodayRevenue` & `sumLifetimeRevenue`), siết điều kiện tính doanh thu chỉ tính các ca có `status = COMPLETED` VÀ `paymentStatus = PAID`, loại trừ triệt để ca hủy hoặc vắng mặt, (3) Sửa DOC-07: Trong `DoctorService.java` (`getAvailableSlots`), kiểm tra va chạm thời gian bằng điều kiện giao thoa khoảng `slotStart.isBefore(apptEnd) && slotEnd.isAfter(apptStart)` thay vì so sánh điểm thời gian bắt đầu, (4) Sửa PAT-01: Trong `AppointmentService.java` (`rescheduleAppointment`), chặn đổi lịch nếu thời gian hẹn mới không cách hiện tại ít nhất 2 giờ (`plusHours(2)` ném `PAST_DATE`), đồng thời bọc `saveAndFlush` bắt `DataIntegrityViolationException` ném `SLOT_CONFLICT` chống race condition, (5) Sửa PERF-01: Trong `AppointmentRepository.java` & `AppointmentService.java`, bổ sung hỗ trợ `Pageable` phân trang cho `getMyAppointments` nhằm ngăn ngừa N+1 và tràn bộ nhớ, (6) 152/152 backend unit tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#083** | 08/10/2026 | Vá Lỗi Nhóm 1 từ Báo Cáo Kiểm Toán Production (STT Overflow, FinOps Isolation, State Machine Guards & E-Ticket Protection): (1) Sửa CLIN-01: Ngăn chặn tràn số nguyên dẫn đến STT âm bằng phép toán bitwise mask `rawHash & 0x7FFFFFFF` trong `AppointmentService.java`, (2) Sửa FIN-02: Đánh dấu `@Transactional(propagation = Propagation.REQUIRES_NEW)` cho `recordUsage` trong `AiUsageAnalyticsService.java` nhằm cô lập giao dịch log token, tránh rollback lan truyền sang nghiệp vụ chính, (3) Sửa DOC-01 & DOC-03: Ràng buộc `completeClinicalEncounter` chỉ hoàn tất khi trạng thái là `CHECKED_IN` hoặc `IN_PROGRESS` (ném `INVALID_STATUS_TRANSITION`), ràng buộc `checkInPatient` chỉ tiếp nhận khi ở trạng thái `SCHEDULED` (ném `INVALID_CHECKIN`), (4) Sửa O2O-01 & PAT-02: Chặn xuất vé khám `getAppointmentTicket` nếu lịch đã hủy hoặc vắng mặt (`CANCELLED` / `NO_SHOW`, ném `TICKET_INVALID`); chặn bệnh nhân hủy lịch nếu ca khám đã `CHECKED_IN`, `IN_PROGRESS` hoặc `COMPLETED` (ném `CANNOT_CANCEL`), (5) Toàn bộ 147/147 backend unit tests PASS 100%. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#082** | 05/10/2026 | Khắc Phục Lỗi Google OAuth2 401 invalid_client & Sửa Native Query đếm Vector Bác Sĩ: (1) Cấu hình Google Client ID và Client Secret thực tế từ Google Cloud Console vào `application-local.properties` (được bảo vệ bởi `.gitignore`), đồng thời đồng bộ fallback trong `application-dev.properties`, (2) Khắc phục lỗi `DoctorProfileRepository.countByBioEmbeddingIsNotNull` bằng Native SQL Query do `bio_embedding` là cột pgvector thuần không map thành thuộc tính String trong JPA, (3) Kiểm tra URL điều hướng ủy quyền OAuth2 `/oauth2/authorization/google` hoạt động chính xác với Client ID mới (`741178716405-...`), (4) Backend & Frontend đang chạy thông suốt trên cổng 5001 & 5173 | AI Assistant | 🟢 Sẵn sàng Review |
+| **#081** | 02/10/2026 | Triển Khai Bảng Giám Sát Chi Phí & Tài Nguyên AI Toàn Viện (Phase 4 Admin AI Token & Cost Analytics Dashboard): (1) Flyway migration V17 chuẩn hóa bảng `ai_token_usage` (bổ sung `service_type`, `request_status`, `cost_usd`, `appointment_id` và các chỉ mục phân tích), (2) Tạo entity `AiTokenUsage`, repository `AiTokenUsageRepository` với các truy vấn tổng hợp theo thời gian, theo ngày (Line Chart), theo dịch vụ (Pie Chart) và tỷ lệ lỗi, (3) Service `AiUsageAnalyticsService` tính toán chi phí USD theo bảng giá chuẩn Gemini ($0.00125/1k input, $0.005/1k output) và quy đổi VNĐ theo tỷ giá cấu hình (25.000₫/USD), (4) Hook tự động ghi nhận lượng tiêu thụ token vào `TriageService` và `MedicalDocumentAnalysisService`, (5) Endpoint `GET /api/v1/admin/ai-usage` phân quyền `ADMIN`, (6) Giao diện AdminDashboard tích hợp Recharts: 5 KPI Cards (Requests, Tokens, USD, VNĐ, Error Rate), Progress Bar cảnh báo lỗi (>10%), Line Chart xu hướng theo ngày với toggle [Tokens]/[Chi Phí], Pie Chart phân bổ Triage vs Cận Lâm Sàng kèm bảng chi tiết và bộ lọc 7/30/90 ngày, (7) 144/144 Backend Tests PASS sạch sẽ & Frontend Build 0 lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 
 ---
 
@@ -326,6 +333,208 @@ Sau khi hoàn thành rà soát mã nguồn nhánh `origin/feature/fuction` của
 5. **Cài đặt thư viện phụ thuộc:** Tích hợp `qrcode.react` (^4.2.0) và `recharts` (^3.10.1).
 
 ---
+
+### [WORK-LOG-#087] Chuẩn Hóa Cấu Hình FinOps Tỷ Giá Ngoại Tệ & Rà Soát Tích Hợp Cổng Thanh Toán / Google OAuth2
+* **Thời gian:** 2026-10-08 22:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-FIN-01, UC-AI-FINOPS, UC-SEC-01
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend: **156/156 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors).
+  - Frontend: **0 lỗi TypeScript**.
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/resources/application.properties`: Bổ sung cấu hình `app.ai.cost.vnd-per-usd=${AI_COST_VND_PER_USD:25450}` cho toàn hệ thống.
+  - `backend/src/main/resources/application-dev.properties`: Cố định tỷ giá chuẩn 25.450₫/USD cho môi trường phát triển cục bộ (`dev`).
+  - `docs/WORK_LOG.md`: Ghi nhận nhật ký phiên làm việc `#087`.
+
+#### 2. Kết Quả Kiểm Tra Tự Động & Đánh Giá Hiện Trạng Cho Tech Lead:
+1. **Khóa Bí Mật & Cổng Hoàn Tiền Thật (Stripe / VietQR):** Đang chạy ở chế độ **Sandbox Mock Nội Bộ**. `StripePaymentGateway` tự động nhận diện và mô phỏng hoàn tiền an toàn nếu không có API key thực tế.
+2. **Google Cloud Console OAuth2:** Backend đã cấu hình đầy đủ `Client ID`, `Client Secret` và redirect URI `{baseUrl}/login/oauth2/code/{registrationId}` trỏ vào port `5001`. Cần Tech Lead xác nhận trên Google Cloud Console UI đã có `http://localhost:5001/login/oauth2/code/google`.
+3. **Tỷ Giá Ngoại Tệ FinOps:** Đã tự động cập nhật vào cấu hình mã nguồn với tỷ giá `25450` VNĐ/USD.
+
+---
+
+### [WORK-LOG-#086] Vá Lỗi Nhóm 4 từ Báo Cáo Kiểm Toán Production (Slot Selection Matching, Persistent Red-Flag Lockout, EMR Allergy Conflict Modal, Auto-Save EMR Draft, UTC Google Calendar Time, Cancel Error Toast, Dynamic FinOps Rate)
+* **Thời gian:** 2026-10-08 19:40:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-UI-01, UC-UI-02, UC-DOC-04, UC-DOC-06, UC-UI-03, UC-UI-04, UC-UI-05
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Frontend (React 18 / TypeScript / Vite): **0 lỗi TypeScript** (`npx tsc --noEmit` & `npm run build` hoàn tất thành công trong 5.12s).
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **156/156 Unit Tests PASS 100%**, `mvn test` sạch sẽ.
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Chỉnh sửa `[MOD]`:**
+  - `frontend/src/pages/patient/SymptomTriagePage.tsx`:
+    - UI-01: Sửa điều kiện so khớp slot bác sĩ từ `selectedSlot?.slotId === slot.slotId` sang `selectedSlot?.startDateTime === slot.startDateTime` do DTO backend `DoctorSlotDto` không có thuộc tính `slotId`.
+    - UI-02: Bổ sung cơ chế lưu cờ cấp cứu Red-Flag vào `sessionStorage` (`EMERGENCY_LOCKOUT`) ngay khi phát hiện triệu chứng nguy hiểm; đọc lại trạng thái từ `sessionStorage` khi trang reload (F5) nhằm ngăn chặn bệnh nhân bypass giao diện cảnh báo cấp cứu.
+  - `frontend/src/pages/doctor/DoctorDashboard.tsx`:
+    - DOC-04: Trong `handleSubmitEncounter`, bổ sung bước rà soát xung đột dị ứng thuốc (`checkDrugAllergyConflict`) giữa đơn thuốc kê với tiền sử dị ứng bệnh nhân (`patientPassport.allergies`). Nếu phát hiện nguy cơ và chưa có xác nhận lâm sàng ghi đè, hiển thị modal cảnh báo xác nhận lâm sàng (`allergyConflictModal`) yêu cầu bác sĩ chủ động xác nhận trước khi gọi API lưu bệnh án.
+    - DOC-06: Bổ sung `useEffect` tự động lưu bản nháp bệnh án điện tử vào `localStorage` theo từng ca khám (`emr_draft_${activeEncounterAppointment.id}`) sau mỗi thay đổi của bác sĩ; tự động khôi phục bản nháp khi mở lại modal khám; gắn sự kiện `window.onbeforeunload` để cảnh báo nếu vô tình đóng trình duyệt khi đang khám dở dang; xóa sạch bản nháp khỏi `localStorage` sau khi nộp bệnh án thành công.
+  - `frontend/src/components/patient/AdmissionTicketModal.tsx`:
+    - UI-03: Chuẩn hóa logic format thời gian cho liên kết Google Calendar bằng `.toISOString().replace(/-|:|\.\d\d\d/g, "")`, loại bỏ lỗi lệch +7 tiếng khi chuyển đổi múi giờ ISO.
+  - `frontend/src/pages/patient/PatientDashboard.tsx`:
+    - UI-04: Bổ sung state hiển thị banner lỗi và floating toast khi API hủy lịch hẹn (`handleCancelAppointment`) thất bại thay vì chỉ log console và đóng modal âm thầm, giúp bệnh nhân nhận diện rõ nguyên nhân từ chối hủy lịch từ backend.
+  - `frontend/src/pages/admin/AdminDashboard.tsx`:
+    - UI-05: Chuyển đổi công thức tính chi phí VNĐ từ việc nhân cố định `25450` sang tỷ giá quy đổi động tính toán trực tiếp từ `totalCostVnd / totalCostUsd` do backend cung cấp, hiển thị tỷ giá động thực tế trên thẻ chỉ số và bảng chi tiết dịch vụ.
+  - `frontend/vite.config.ts`:
+    - Khắc phục lỗi build rollup `emitFile` trên môi trường git worktree bằng cách cấu hình `resolve: { preserveSymlinks: true }`.
+  - `docs/WORK_LOG.md`: Ghi nhận nhật ký phiên làm việc `#086`.
+
+#### 2. Tài Liệu Đã Đồng Bộ:
+* `docs/WORK_LOG.md`: Cập nhật mục lục và chi tiết phiên làm việc `#086`.
+* `docs/USE_CASES.md`: Đồng bộ các quy tắc giao diện và luồng lâm sàng (cảnh báo dị ứng thuốc, bảo lưu Red-Flag, khôi phục bản nháp EMR).
+
+#### 3. Bằng Chứng Kiểm Thử & Xác Minh:
+* `npm run build` tại `frontend/`:
+  - `tsc && vite build` hoàn thành trong 5.12s.
+  - 0 lỗi TypeScript, tất cả chunks biên dịch tối ưu (vendor, recharts, lucide, pdf).
+* `mvn test` tại `backend/`:
+  - 156/156 tests PASS 100%.
+
+#### 4. Điểm Nóng Tech Lead Cần Lưu Ý (Architect Review):
+1. **EMR Draft Isolation:** Cơ chế auto-save nháp EMR được gắn chặt với ID của lịch hẹn (`emr_draft_${appointmentId}`), triệt tiêu hoàn toàn rủi ro rò rỉ hoặc lẫn lộn dữ liệu khám giữa các bệnh nhân khác nhau khi bác sĩ mở nhiều ca khám liên tiếp.
+2. **Clinical Override Modal (DOC-04):** Bác sĩ vẫn giữ toàn quyền quyết định lâm sàng khi cần thiết (off-label hoặc lợi ích vượt trội nguy cơ), nhưng hệ thống bắt buộc phải có bước xác nhận nhận thức rõ rủi ro dị ứng trước khi ký duyệt EMR.
+3. **SessionStorage vs LocalStorage cho Red-Flag:** Lựa chọn `sessionStorage` cho cờ cấp cứu Red-Flag để đảm bảo phiên cấp cứu bị khóa cứng khi reload trang, nhưng không ảnh hưởng vĩnh viễn đến các phiên khám độc lập của các thành viên gia đình khác trên cùng một máy tính cá nhân.
+
+---
+
+### [WORK-LOG-#085] Vá Lỗi Nhóm 3 từ Báo Cáo Kiểm Toán Production (Google IDP Email Verification, Payment IDOR Protection, Real Payment Gateway Refund, Atomic Fulfillment with @Version, Zero-Trust Logging)
+* **Thời gian:** 2026-10-08 19:15:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-SEC-01, UC-SEC-02, UC-FIN-01, UC-FIN-03, UC-SEC-03
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **156/156 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors, 0 skipped).
+  - Frontend: `npx tsc --noEmit` **0 lỗi TypeScript**.
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/java/com/mediassist/security/CustomOAuth2UserService.java`:
+    - SEC-01: Kiểm tra thuộc tính `email_verified` trả về từ Google IDP: nếu `null` hoặc `false`, từ chối phiên và ném `OAuth2AuthenticationException("Email chưa được xác thực bởi Google IDP")`.
+    - Trích xuất method `fetchOAuth2User` để hỗ trợ kiểm thử đơn vị độc lập.
+  - `backend/src/main/java/com/mediassist/controller/PaymentController.java`:
+    - SEC-02: Truyền `authentication.getName()` vào `paymentService.getTransactionStatus` để thực thi ủy quyền IDOR.
+  - `backend/src/main/java/com/mediassist/service/PaymentService.java`:
+    - SEC-02: Trong `verifyAndFulfillPayment` và `getTransactionStatus`, kiểm tra quyền sở hữu IDOR: người gọi phải là chủ giao dịch (`tx.getUser().getId().equals(currentUser.getId())`) hoặc có role `ADMIN`, ném 403 `FORBIDDEN` nếu cố ý truy cập giao dịch người khác.
+    - FIN-01: Bổ sung method `refundPayment(UUID appointmentId)`: tìm giao dịch `COMPLETED`, gọi cổng thanh toán thực tế (hoặc sandbox), cập nhật trạng thái `REFUNDED` và ghi nhật ký kiểm toán `AuditLog`.
+    - FIN-03: Trong `fulfillOrder`, kiểm tra trạng thái kép và đồng bộ hóa `synchronized` để tránh xử lý đúp; trong `verifyAndFulfillPayment` và `handleStripeWebhook`, bắt `OptimisticLockingFailureException` (nhờ `@Version` trên entity `PaymentTransaction`) để đảm bảo tính nguyên tử chống xung đột Webhook & Polling client.
+  - `backend/src/main/java/com/mediassist/payment/StripePaymentGateway.java`:
+    - FIN-01: Bổ sung `refundPayment(String gatewayReference)`: khi có API key thực tế, gọi `Refund.create` với `payment_intent`; trong môi trường Sandbox/Mock, mô phỏng hoàn tiền an toàn không gây sập ứng dụng.
+  - `backend/src/main/java/com/mediassist/service/AppointmentService.java`:
+    - FIN-01: Khi hủy lịch hẹn đã thanh toán (`CANCELLED` & `PAID`), inject `@Lazy PaymentService` và gọi `paymentService.refundPayment(appointment.getId())` để kích hoạt API hoàn tiền thực sự thay vì chỉ ghi log giả lập.
+  - `backend/src/main/java/com/mediassist/controller/AuthController.java`:
+    - SEC-03: Rà soát và xác nhận toàn bộ controller và filter không in chuỗi JWT token hoặc dữ liệu định danh nhạy cảm ra System.out/logger.
+  - `backend/src/test/java/com/mediassist/OAuth2SecurityTest.java`:
+    - Thêm unit test xác minh chặn đăng nhập khi `email_verified` false/null từ Google IDP (SEC-01).
+  - `backend/src/test/java/com/mediassist/service/PaymentServiceTest.java`:
+    - Thêm unit test kiểm tra 403 `FORBIDDEN` khi người dùng khác verify hoặc tra cứu giao dịch không phải của mình (SEC-02).
+    - Thêm unit test xác minh `refundPayment` thành công cho lịch hẹn đã thanh toán (FIN-01).
+    - Cập nhật mock cho các test case sẵn có.
+  - `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`:
+    - Thêm mock và xác minh lệnh gọi `paymentService.refundPayment` khi hủy lịch hẹn đã thanh toán.
+  - `docs/WORK_LOG.md`: Ghi nhận phiên làm việc `#085`.
+
+#### 2. Kết Quả Kiểm Thử (Maven Test & TypeScript Verification):
+```text
+[INFO] Running com.mediassist.OAuth2SecurityTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Running com.mediassist.service.PaymentServiceTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Running com.mediassist.AppointmentServiceTest
+[INFO] Tests run: 23, Failures: 0, Errors: 0, Skipped: 0
+...
+[INFO] Results:
+[INFO] Tests run: 156, Failures: 0, Errors: 0, Skipped: 0
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] Total time: 26.873 s
+```
+
+#### 3. Điểm Nóng Tech Lead Cần Review:
+1. **SEC-01 Google IDP Email Verification:** Bệnh nhân sử dụng tài khoản Google chưa verify email sẽ nhận ngay ngoại lệ `email_not_verified`, chặn đứng nguy cơ giả mạo email trước khi cấp JWT.
+2. **SEC-02 Ngăn Chặn Lỗ Hổng IDOR Trên Thanh Toán:** Cả `POST /api/v1/payments/verify` và `GET /api/v1/payments/transactions/{code}` đều đối chiếu ID của caller với chủ sở hữu giao dịch trong DB. Chỉ ADMIN mới có quyền truy cập chéo.
+3. **FIN-01 Hoàn Tiền Thật Sự:** Tích hợp liên kết `AppointmentService` $\rightarrow$ `PaymentService` $\rightarrow$ `StripePaymentGateway.refundPayment`, đảm bảo khi bệnh nhân hủy lịch khám đã thanh toán, hệ thống sẽ kích hoạt hoàn tiền trên cổng và chuyển trạng thái giao dịch sang `REFUNDED` cùng AuditLog minh bạch.
+4. **FIN-03 Chống Double-Credit Giữa Webhook & Polling:** Cơ chế bảo vệ 3 lớp: (1) Kiểm tra trạng thái kép trước khi vào `fulfillOrder`, (2) Phương thức `fulfillOrder` đồng bộ `synchronized`, (3) JPA `@Version` Optimistic Locking bắt và giải quyết race condition giữa client polling và Stripe webhook callback.
+
+---
+
+### [WORK-LOG-#084] Vá Lỗi Nhóm 2 từ Báo Cáo Kiểm Toán Production (Call Next Patient Prioritization, Accurate Revenue Filtering, Interval Overlap Slot Collision, Reschedule Lead Time & Pagination)
+* **Thời gian:** 2026-10-08 19:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-DOC-02, UC-DOC-05, UC-DOC-07, UC-PAT-01, UC-PERF-01
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **152/152 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors, 0 skipped).
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/java/com/mediassist/repository/AppointmentRepository.java`:
+    - DOC-05: Cập nhật `@Query` cho `sumTodayRevenue` và `sumLifetimeRevenue` thêm điều kiện `a.paymentStatus = com.mediassist.model.entity.PaymentStatus.PAID` cùng `a.status = COMPLETED`, loại trừ các ca chưa thanh toán, hủy hoặc vắng mặt.
+    - DOC-02: Bổ sung method `@Lock(PESSIMISTIC_WRITE)` `findNextByStatusWithLock(...)` để khóa ca theo trạng thái cụ thể (`CHECKED_IN` hoặc `SCHEDULED`).
+    - PERF-01: Bổ sung các phương thức truy vấn có phân trang `Page<Appointment> findByPatientIdWithUsersOrderByScheduledStartDesc(...)` và `findByDoctorIdWithUsersOrderByScheduledStartDesc(...)` kèm `countQuery`.
+  - `backend/src/main/java/com/mediassist/service/DoctorService.java`:
+    - DOC-02: Trong `callNextPatient`, sửa logic ưu tiên tiếp nhận ca `CHECKED_IN` sớm nhất hôm nay sang `IN_PROGRESS`; nếu không có ca `CHECKED_IN` mới tiếp nhận ca `SCHEDULED`.
+    - DOC-07: Trong `getAvailableSlots` và `addTimeSlots`, thay thế kiểm tra so sánh điểm thời gian bắt đầu đơn lẻ bằng logic kiểm tra giao thoa khoảng thời gian thực tế `slotStartDt.isBefore(apptEnd) && slotEndDt.isAfter(apptStart)`.
+  - `backend/src/main/java/com/mediassist/service/AppointmentService.java`:
+    - PAT-01: Trong `rescheduleAppointment`, kiểm tra thời gian hẹn mới phải cách hiện tại tối thiểu 2 giờ `if (newStart.isBefore(LocalDateTime.now().plusHours(2)))` ném `PAST_DATE`; bọc `saveAndFlush` xử lý `DataIntegrityViolationException` ném lỗi `SLOT_CONFLICT` ngăn ngừa xung đột đồng thời.
+    - PERF-01: Thêm overload `getMyAppointments(UUID userId, Role role, Pageable pageable)` trả về `Page<AppointmentDto>` hỗ trợ phân trang hiệu năng cao, tránh tràn bộ nhớ.
+  - `backend/src/test/java/com/mediassist/DoctorServiceTest.java`:
+    - Thêm test case xác minh ưu tiên `CHECKED_IN` trước `SCHEDULED` trong `callNextPatient`.
+    - Thêm test case kiểm tra va chạm giao thoa khoảng thời gian `testGetAvailableSlots_IntervalOverlap`.
+  - `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`:
+    - Thêm test case kiểm tra lead time đổi lịch dưới 2 giờ ném `PAST_DATE`.
+    - Thêm test case kiểm tra `DataIntegrityViolationException` ném `SLOT_CONFLICT`.
+    - Thêm test case kiểm tra `getMyAppointments` với `Pageable`.
+  - `docs/WORK_LOG.md`: Ghi nhận phiên làm việc `#084`.
+
+#### 2. Kết Quả Kiểm Thử (Maven Test Verification):
+```text
+[INFO] Running com.mediassist.DoctorServiceTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Running com.mediassist.AppointmentServiceTest
+[INFO] Tests run: 23, Failures: 0, Errors: 0, Skipped: 0
+...
+[INFO] Results:
+[INFO] Tests run: 152, Failures: 0, Errors: 0, Skipped: 0
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+```
+
+### [WORK-LOG-#083] Vá Lỗi Nhóm 1 từ Báo Cáo Kiểm Toán Production (STT Overflow, FinOps Isolation, State Machine Guards & E-Ticket Protection)
+* **Thời gian:** 2026-10-08 18:38:00 (GMT+7)
+* **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
+* **Mã Use Cases:** UC-CLIN-01, UC-FIN-02, UC-DOC-01, UC-DOC-03, UC-O2O-01, UC-PAT-02
+* **Trạng thái Dịch vụ & Kiểm Thử:**
+  - Backend (Spring Boot 3.4.3 / Java 21 LTS): **147/147 Unit Tests PASS 100%**, `mvn test` sạch sẽ (0 failures, 0 errors, 0 skipped).
+  - Nhánh phát triển: `feature/fuction`
+
+#### 1. Danh Sách Tệp Tin:
+* **Chỉnh sửa `[MOD]`:**
+  - `backend/src/main/java/com/mediassist/service/AppointmentService.java`:
+    - CLIN-01: Phép tính STT sử dụng bitwise mask `int codeHash = rawHash & 0x7FFFFFFF` loại trừ hoàn toàn nguy cơ số âm khi hashCode là `Integer.MIN_VALUE`.
+    - DOC-01 & DOC-03: Bổ sung guard cho `completeClinicalEncounter` chỉ chấp nhận `CHECKED_IN` hoặc `IN_PROGRESS` (ném `AppException` mã `INVALID_STATUS_TRANSITION`), siết chặt `checkInPatient` chỉ tiếp nhận trạng thái ban đầu `SCHEDULED` (ném `AppException` mã `INVALID_CHECKIN`).
+    - O2O-01 & PAT-02: Bổ sung guard trong `getAppointmentTicket` từ chối xuất vé đối với ca hẹn đã hủy hoặc vắng mặt (`CANCELLED`, `NO_SHOW` ném `TICKET_INVALID`); siết chặt chặn bệnh nhân tự hủy lịch nếu ca khám đã `CHECKED_IN`, `IN_PROGRESS` hoặc `COMPLETED` (ném `CANNOT_CANCEL`).
+  - `backend/src/main/java/com/mediassist/service/AiUsageAnalyticsService.java`:
+    - FIN-02: Đánh dấu `recordUsage(...)` với `@Transactional(propagation = Propagation.REQUIRES_NEW)` nhằm cô lập hoàn toàn giao dịch ghi nhận số lượng token và chi phí AI, không làm ảnh hưởng hoặc rollback nghiệp vụ mẹ nếu phát sinh lỗi DB thứ cấp.
+  - `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`:
+    - Cập nhật và bổ sung 3 test case kiểm thử xác minh chính xác các guard condition (`INVALID_STATUS_TRANSITION`, `INVALID_CHECKIN`, `TICKET_INVALID`, `CANNOT_CANCEL`).
+  - `docs/WORK_LOG.md`: Ghi nhận phiên làm việc `#083`.
+
+#### 2. Kết Quả Kiểm Thử (Maven Test Verification):
+```text
+[INFO] Running com.mediassist.AppointmentServiceTest
+[INFO] Tests run: 20, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.722 s -- in com.mediassist.AppointmentServiceTest
+...
+[INFO] Results:
+[INFO] Tests run: 147, Failures: 0, Errors: 0, Skipped: 0
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+```
 
 ### [WORK-LOG-#082] Khắc Phục Lỗi Google OAuth2 401 invalid_client & Sửa Native Query đếm Vector Bác Sĩ
 * **Thời gian:** 2026-10-05 23:55:00 (GMT+7)

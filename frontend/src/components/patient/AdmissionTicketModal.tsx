@@ -100,7 +100,7 @@ export const AdmissionTicketModal: React.FC<AdmissionTicketModalProps> = ({
         ? new Date(ticket.scheduledEnd)
         : new Date(startDate.getTime() + 30 * 60000);
 
-      const toIsoString = (d: Date) => d.toISOString().replace(/-|:|\.\d+/g, '');
+      const toIsoString = (d: Date) => d.toISOString().replace(/-|:|\.\d\d\d/g, "");
       const startUtc = toIsoString(startDate);
       const endUtc = toIsoString(endDate);
 

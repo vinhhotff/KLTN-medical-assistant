@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -49,7 +50,7 @@ public class AiUsageAnalyticsService {
     /**
      * Records a single token usage event asynchronously or within transaction.
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordUsage(ServiceType serviceType, String modelName, int promptTokens,
                             int completionTokens, RequestStatus status, User user, Appointment appointment) {
         try {

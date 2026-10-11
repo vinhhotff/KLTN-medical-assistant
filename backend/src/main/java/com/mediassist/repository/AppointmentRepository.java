@@ -21,8 +21,16 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     @Query("SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor WHERE a.patient.id = :patientId ORDER BY a.scheduledStart DESC")
     List<Appointment> findByPatientIdWithUsersOrderByScheduledStartDesc(@Param("patientId") UUID patientId);
 
+    @Query(value = "SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor WHERE a.patient.id = :patientId ORDER BY a.scheduledStart DESC",
+           countQuery = "SELECT COUNT(a) FROM Appointment a WHERE a.patient.id = :patientId")
+    org.springframework.data.domain.Page<Appointment> findByPatientIdWithUsersOrderByScheduledStartDesc(@Param("patientId") UUID patientId, org.springframework.data.domain.Pageable pageable);
+
     @Query("SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor WHERE a.doctor.id = :doctorId ORDER BY a.scheduledStart DESC")
     List<Appointment> findByDoctorIdWithUsersOrderByScheduledStartDesc(@Param("doctorId") UUID doctorId);
+
+    @Query(value = "SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor WHERE a.doctor.id = :doctorId ORDER BY a.scheduledStart DESC",
+           countQuery = "SELECT COUNT(a) FROM Appointment a WHERE a.doctor.id = :doctorId")
+    org.springframework.data.domain.Page<Appointment> findByDoctorIdWithUsersOrderByScheduledStartDesc(@Param("doctorId") UUID doctorId, org.springframework.data.domain.Pageable pageable);
 
     @Query("SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor WHERE a.id = :id")
     Optional<Appointment> findByIdWithUsers(@Param("id") UUID id);
@@ -76,14 +84,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
             @Param("end") LocalDateTime end
     );
 
-    @Query("SELECT COALESCE(SUM(a.feeAmount), 0) FROM Appointment a WHERE a.doctor.id = :doctorId AND a.status = com.mediassist.model.entity.AppointmentStatus.COMPLETED AND a.scheduledStart BETWEEN :start AND :end")
+    @Query("SELECT COALESCE(SUM(a.feeAmount), 0) FROM Appointment a WHERE a.doctor.id = :doctorId AND a.status = com.mediassist.model.entity.AppointmentStatus.COMPLETED AND a.paymentStatus = com.mediassist.model.entity.PaymentStatus.PAID AND a.scheduledStart BETWEEN :start AND :end")
     java.math.BigDecimal sumTodayRevenue(
             @Param("doctorId") UUID doctorId,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
 
-    @Query("SELECT COALESCE(SUM(a.feeAmount), 0) FROM Appointment a WHERE a.doctor.id = :doctorId AND a.status = com.mediassist.model.entity.AppointmentStatus.COMPLETED")
+    @Query("SELECT COALESCE(SUM(a.feeAmount), 0) FROM Appointment a WHERE a.doctor.id = :doctorId AND a.status = com.mediassist.model.entity.AppointmentStatus.COMPLETED AND a.paymentStatus = com.mediassist.model.entity.PaymentStatus.PAID")
     java.math.BigDecimal sumLifetimeRevenue(
             @Param("doctorId") UUID doctorId
     );
@@ -98,6 +106,16 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     @Query("SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor WHERE a.doctor.id = :doctorId AND a.status = com.mediassist.model.entity.AppointmentStatus.SCHEDULED AND a.scheduledStart BETWEEN :start AND :end ORDER BY a.scheduledStart ASC")
     List<Appointment> findNextScheduledWithLock(
             @Param("doctorId") UUID doctorId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            org.springframework.data.domain.Pageable pageable
+    );
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor WHERE a.doctor.id = :doctorId AND a.status = :status AND a.scheduledStart BETWEEN :start AND :end ORDER BY a.scheduledStart ASC")
+    List<Appointment> findNextByStatusWithLock(
+            @Param("doctorId") UUID doctorId,
+            @Param("status") AppointmentStatus status,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end,
             org.springframework.data.domain.Pageable pageable

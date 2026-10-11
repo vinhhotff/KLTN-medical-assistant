@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   ShieldCheck, 
   Database, 
@@ -105,6 +105,14 @@ export const AdminDashboard: React.FC = () => {
   const [aiDaysFilter, setAiDaysFilter] = useState<number>(30);
   const [aiChartMetric, setAiChartMetric] = useState<'tokens' | 'cost'>('tokens');
   const [aiLoading, setAiLoading] = useState<boolean>(true);
+
+  // UI-05: Dynamic exchange rate from Backend (totalCostVnd / totalCostUsd) or live rate fallback
+  const dynamicExchangeRate = useMemo(() => {
+    if (aiStats?.totalCostUsd && Number(aiStats.totalCostUsd) > 0 && aiStats?.totalCostVnd && Number(aiStats.totalCostVnd) > 0) {
+      return Math.round(Number(aiStats.totalCostVnd) / Number(aiStats.totalCostUsd));
+    }
+    return 25450;
+  }, [aiStats?.totalCostUsd, aiStats?.totalCostVnd]);
 
   const fetchAiUsageData = async (days: number) => {
     try {
@@ -381,9 +389,9 @@ export const AdminDashboard: React.FC = () => {
                   <TrendingUp className="w-4 h-4 text-amber-600" />
                 </div>
                 <div className="text-2xl font-black text-amber-900 mt-2 font-mono">
-                  {Number(aiStats?.totalCostVnd ?? 0).toLocaleString('vi-VN')}₫
+                  {Number(aiStats?.totalCostVnd ?? (aiStats?.totalCostUsd ? aiStats.totalCostUsd * dynamicExchangeRate : 0)).toLocaleString('vi-VN')}₫
                 </div>
-                <span className="text-[11px] text-slate-500 mt-1 block">Tỷ giá 25.000₫/USD</span>
+                <span className="text-[11px] text-slate-500 mt-1 block">Tỷ giá {dynamicExchangeRate.toLocaleString('vi-VN')}₫/USD</span>
               </div>
 
               {/* Card 5: Error Rate */}
@@ -565,7 +573,7 @@ export const AdminDashboard: React.FC = () => {
                   <div className="space-y-2 text-xs">
                     {aiStats?.serviceStats?.map((s) => {
                       const isTriage = s.service.includes('TRIAGE');
-                      const vnd = Number(s.costUsd * 25000).toLocaleString('vi-VN');
+                      const vnd = Number(s.costUsd * dynamicExchangeRate).toLocaleString('vi-VN');
                       return (
                         <div key={s.service} className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
                           <div className="flex items-center gap-2">

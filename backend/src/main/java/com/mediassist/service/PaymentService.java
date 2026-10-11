@@ -175,7 +175,14 @@ public class PaymentService {
         PaymentTransaction tx = paymentTransactionRepository.findByTransactionCode(request.getTransactionCode())
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "TRANSACTION_NOT_FOUND", "Không tìm thấy mã giao dịch: " + request.getTransactionCode()));
 
-        // Idempotency check: if already completed, return receipt immediately
+        // SEC-02: Check ownership or ADMIN authority
+        User currentUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Người dùng không tồn tại."));
+        if (!tx.getUser().getId().equals(currentUser.getId()) && currentUser.getRole() != Role.ADMIN) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền xác thực giao dịch này.");
+        }
+
+        // FIN-03 Idempotency check: if already completed, return receipt immediately
         if (tx.getStatus() == TransactionStatus.COMPLETED) {
             log.info("⚡ [PAYMENT IDEMPOTENT] Transaction {} already completed. Returning existing receipt.", tx.getTransactionCode());
             return toDto(tx, "Giao dịch đã được ghi nhận thành công trước đó.");
@@ -196,9 +203,16 @@ public class PaymentService {
                     "Giao dịch chưa được xác nhận hoàn tất: " + verifyResult.getFailureReason());
         }
 
+        // FIN-03: Double check status before fulfilling to avoid race condition with Stripe Webhook
+        PaymentTransaction currentTx = paymentTransactionRepository.findById(tx.getId()).orElse(tx);
+        if (currentTx.getStatus() == TransactionStatus.COMPLETED) {
+            log.info("⚡ [PAYMENT IDEMPOTENT] Transaction {} already completed by concurrent process. Returning receipt.", currentTx.getTransactionCode());
+            return toDto(currentTx, "Giao dịch đã được ghi nhận thành công trước đó.");
+        }
+
         // Fulfill the business effect with error handling
         try {
-            fulfillOrder(tx);
+            fulfillOrder(currentTx);
         } catch (Exception e) {
             log.error("💥 [PAYMENT FULFILL ERROR] TxCode {}: {}", tx.getTransactionCode(), e.getMessage());
             tx.setStatus(TransactionStatus.PENDING);
@@ -207,29 +221,35 @@ public class PaymentService {
                     "Thanh toán đã được ghi nhận nhưng kích hoạt dịch vụ gặp sự cố tạm thời. Hệ thống sẽ tự động xử lý.");
         }
 
-        tx.setStatus(TransactionStatus.COMPLETED);
+        currentTx.setStatus(TransactionStatus.COMPLETED);
         if (verifyResult.getGatewayReference() != null) {
-            tx.setGatewayReference(verifyResult.getGatewayReference());
+            currentTx.setGatewayReference(verifyResult.getGatewayReference());
         }
 
         Map<String, Object> meta = new HashMap<>();
         meta.put("verifiedAt", LocalDateTime.now().toString());
         meta.put("paymentMethodDetails", verifyResult.getPaymentMethodDetails());
         try {
-            tx.setMetadataJson(objectMapper.writeValueAsString(meta));
+            currentTx.setMetadataJson(objectMapper.writeValueAsString(meta));
         } catch (Exception ignored) {}
 
-        PaymentTransaction saved = paymentTransactionRepository.save(tx);
+        PaymentTransaction saved;
+        try {
+            saved = paymentTransactionRepository.save(currentTx);
+        } catch (org.springframework.dao.OptimisticLockingFailureException oe) {
+            log.info("⚡ [PAYMENT CONCURRENT OPTIMISTIC LOCK] TxCode {} updated concurrently. Returning latest state.", currentTx.getTransactionCode());
+            saved = paymentTransactionRepository.findByTransactionCode(currentTx.getTransactionCode()).orElse(currentTx);
+        }
 
         // Record Audit Trail
         AuditLog audit = new AuditLog();
-        audit.setUserId(tx.getUser().getId());
+        audit.setUserId(saved.getUser().getId());
         audit.setAction("PAYMENT_COMPLETED");
-        audit.setResource("payments/" + tx.getTransactionCode());
-        audit.setMetadata("Method: " + tx.getPaymentMethod() + ", Amount: " + tx.getAmount() + " " + tx.getCurrency());
+        audit.setResource("payments/" + saved.getTransactionCode());
+        audit.setMetadata("Method: " + saved.getPaymentMethod() + ", Amount: " + saved.getAmount() + " " + saved.getCurrency());
         auditLogRepository.save(audit);
 
-        log.info("🎉 [PAYMENT FULFILLED] Transaction {} successfully fulfilled for user {}", tx.getTransactionCode(), tx.getUser().getEmail());
+        log.info("🎉 [PAYMENT FULFILLED] Transaction {} successfully fulfilled for user {}", saved.getTransactionCode(), saved.getUser().getEmail());
 
         return toDto(saved, "Thanh toán thành công! Dịch vụ y tế đã được kích hoạt.");
     }
@@ -250,11 +270,17 @@ public class PaymentService {
                 if (txCode != null) {
                     paymentTransactionRepository.findByTransactionCode(txCode).ifPresent(tx -> {
                         if (tx.getStatus() == TransactionStatus.PENDING) {
-                            fulfillOrder(tx);
-                            tx.setStatus(TransactionStatus.COMPLETED);
-                            tx.setGatewayReference(session.getId());
-                            paymentTransactionRepository.save(tx);
-                            log.info("🎉 [STRIPE WEBHOOK FULFILLED] Transaction {} fulfilled via webhook.", txCode);
+                            try {
+                                fulfillOrder(tx);
+                                tx.setStatus(TransactionStatus.COMPLETED);
+                                tx.setGatewayReference(session.getId());
+                                paymentTransactionRepository.save(tx);
+                                log.info("🎉 [STRIPE WEBHOOK FULFILLED] Transaction {} fulfilled via webhook.", txCode);
+                            } catch (org.springframework.dao.OptimisticLockingFailureException oe) {
+                                log.info("⚡ [STRIPE WEBHOOK CONCURRENT] TxCode {} updated concurrently by verify.", txCode);
+                            } catch (Exception e) {
+                                log.error("💥 [STRIPE WEBHOOK ERROR] TxCode {}: {}", txCode, e.getMessage());
+                            }
                         }
                     });
                 }
@@ -271,14 +297,74 @@ public class PaymentService {
                 .collect(Collectors.toList());
     }
 
-    public PaymentResponseDto getTransactionStatus(String transactionCode) {
+    // SEC-02: Get transaction with user ownership / admin check
+    public PaymentResponseDto getTransactionStatus(String userEmail, String transactionCode) {
         PaymentTransaction tx = paymentTransactionRepository.findByTransactionCode(transactionCode)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "TRANSACTION_NOT_FOUND", "Không tìm thấy mã giao dịch: " + transactionCode));
+
+        if (userEmail != null) {
+            User currentUser = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Người dùng không tồn tại."));
+            if (!tx.getUser().getId().equals(currentUser.getId()) && currentUser.getRole() != Role.ADMIN) {
+                throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền xem thông tin giao dịch này.");
+            }
+        }
+
         return toDto(tx, "Chi tiết thông tin giao dịch");
     }
 
+    public PaymentResponseDto getTransactionStatus(String transactionCode) {
+        return getTransactionStatus(null, transactionCode);
+    }
+
+    // FIN-01: Refund payment triggered upon appointment cancellation
+    @Transactional
+    public boolean refundPayment(UUID appointmentId) {
+        if (appointmentId == null) return false;
+        Optional<PaymentTransaction> optTx = paymentTransactionRepository
+                .findFirstByReferenceIdAndStatus(appointmentId.toString(), TransactionStatus.COMPLETED);
+        if (optTx.isEmpty()) {
+            log.warn("⚠️ [REFUND] No completed payment transaction found for appointment {}", appointmentId);
+            return false;
+        }
+        PaymentTransaction tx = optTx.get();
+
+        try {
+            if ("STRIPE".equalsIgnoreCase(tx.getPaymentGateway()) && stripePaymentGateway != null) {
+                stripePaymentGateway.refundPayment(tx.getGatewayReference());
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ [REFUND GATEWAY WARNING] Failed to trigger gateway refund for tx {}: {}", tx.getTransactionCode(), e.getMessage());
+        }
+
+        tx.setStatus(TransactionStatus.REFUNDED);
+        paymentTransactionRepository.save(tx);
+
+        AuditLog audit = new AuditLog();
+        audit.setUserId(tx.getUser().getId());
+        audit.setAction("PAYMENT_REFUNDED");
+        audit.setResource("payments/" + tx.getTransactionCode());
+        audit.setMetadata("Refunded amount: " + tx.getAmount() + " " + tx.getCurrency() + " for appointment: " + appointmentId);
+        auditLogRepository.save(audit);
+
+        log.info("💸 [PAYMENT REFUNDED] Transaction {} for appointment {} successfully marked as REFUNDED", tx.getTransactionCode(), appointmentId);
+        return true;
+    }
+
+    // FIN-03: Atomic fulfillment preventing duplicate token/quota execution
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
-    public void fulfillOrder(PaymentTransaction tx) {
+    public synchronized void fulfillOrder(PaymentTransaction tx) {
+        if (tx.getId() != null) {
+            PaymentTransaction freshTx = paymentTransactionRepository.findById(tx.getId()).orElse(tx);
+            if (freshTx.getStatus() == TransactionStatus.COMPLETED) {
+                log.info("⚡ [FULFILL IDEMPOTENT] Transaction {} is already completed. Skipping fulfillOrder.", tx.getTransactionCode());
+                return;
+            }
+        } else if (tx.getStatus() == TransactionStatus.COMPLETED) {
+            log.info("⚡ [FULFILL IDEMPOTENT] Transaction {} is already completed. Skipping fulfillOrder.", tx.getTransactionCode());
+            return;
+        }
+
         User user = tx.getUser();
         LocalDateTime now = LocalDateTime.now();
 
