@@ -49,8 +49,8 @@ Toàn bộ 14 tài liệu trong thư mục `docs/` và gốc dự án được t
 │  • docs/DOCUMENT_SCAN_PIPELINE.md                                      │
 ├────────────────────────────────────────────────────────────────────────┤
 │  TẦNG 3: KIỂM THỬ, VẬN HÀNH & BẢO VỆ LUẬN VĂN (OPS, QA & DEFENSE)      │
-│  • docs/MASTER_TRACEABILITY_INDEX.md  • docs/CAPSTONE_DEFENSE.md       │
-│  • docs/CAPSTONE_PRESENTATION_SLIDES.md                                │
+│  • docs/HUONG_DAN_LAM_SLIDE_VA_SRS.md • docs/CAPSTONE_DEFENSE.md       │
+│  • docs/CAPSTONE_PRESENTATION_SLIDES  • docs/MASTER_TRACEABILITY_INDEX │
 │  • docs/VECTOR_BENCHMARK_REPORT.md    • pgvector_scaling_16gb/         │
 │  • docs/TEAM_WORKFLOW.md              • docs/WORK_LOG.md               │
 └────────────────────────────────────────────────────────────────────────┘
@@ -78,6 +78,7 @@ Toàn bộ 14 tài liệu trong thư mục `docs/` và gốc dự án được t
 * [`docs/DOCUMENT_SCAN_PIPELINE.md`](./DOCUMENT_SCAN_PIPELINE.md): Đường ống bóc tách hồ sơ y tế: Tesseract OCR đa luồng + Vision AI + Bộ khử nhiễu lâm sàng.
 
 ### 4. Tầng 3: Kiểm Thử, Vận Hành, Slide & Bảo Vệ (QA, Slides & Defense)
+* [`docs/HUONG_DAN_LAM_SLIDE_VA_SRS.md`](./HUONG_DAN_LAM_SLIDE_VA_SRS.md): 🌟 **Kim chỉ nam toàn diện bảo vệ KLTN**: Hướng dẫn từng bước làm Slide Canva/PPT, cách trích xuất hoàn thiện file SRS IEEE 830, cách viết báo cáo luận văn 5 chương, top 5 câu hỏi phản biện "tử huyệt" và lệnh terminal kiểm chứng nhanh!
 * [`docs/CAPSTONE_PRESENTATION_SLIDES.md`](./CAPSTONE_PRESENTATION_SLIDES.md): 🌟 **Bộ khung 24 slide thuyết trình bảo vệ KLTN**: Bố cục visual Canva/PPT, nội dung súc tích, kịch bản lời thoại MC/Thuyết trình từng giây (Speaker notes) và bẫy phản biện dự phòng cho từng slide!
 * [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md): Cẩm nang bảo vệ tốt nghiệp: Kịch bản thuyết trình 15 phút, checklist live demo, và bộ **35+ câu hỏi phản biện gài bẫy kèm câu trả lời mẫu**.
 * [`docs/VECTOR_BENCHMARK_REPORT.md`](./VECTOR_BENCHMARK_REPORT.md): ⭐ **Báo cáo thực nghiệm huấn luyện vector & pgvector HNSW**: Số liệu định lượng đo trên 500 ca bệnh từ tập dữ liệu Hugging Face `Meddies/meddies-persona-vie` và `Meddies/meddies-pii` (Top-1 Accuracy tăng 3.9 lần, độ trễ $0.72\text{ms}$).
