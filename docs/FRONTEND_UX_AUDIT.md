@@ -1,7 +1,7 @@
 # Rà Soát & Làm Cứng Frontend MediAssist-AI (FRONTEND_UX_AUDIT.md)
 
 > **Nhánh:** `feature/frontend-ux-hardening` (tách từ `origin/develop`, đã merge `origin/feature/fuction`)
-> **Đợt 2 (sửa theo phiếu review, 12/10/2026):** nhánh `feature/frontend-ux-review-fixes` tách từ `origin/develop` @ `e78eeb1` — mục `R-02`, `R-05`, B-07, B-08g, B-23, B-26, BE-1, BE-4, BE-6, BE-13, BE-14.
+> **Đợt 2 (sửa theo phiếu review, 12/10/2026):** nhánh `feature/frontend-ux-review-fixes` tách từ `origin/develop` @ `e78eeb1` — mục `R-02`, `R-05`, B-07, B-08g, B-23, B-26, BE-1, BE-4, BE-6, BE-13, BE-14, BE-15, BE-16.
 > **Phạm vi:** chỉ `frontend/` + tài liệu. Không sửa backend, migration, docker, CI.
 > **Người thực hiện:** Phạm Bảo + AI · **Ngày:** 11/10/2026
 
@@ -100,7 +100,7 @@ ID `B-xx` là mục trong brief; `N-xx` là lỗi mới tự phát hiện.
 
 1. **B-23 (một phần):** chưa thống nhất token M3 ↔ slate/teal trên toàn bộ nội dung trang. Việc này đụng gần như mọi dòng JSX của các file 1.400–3.700 dòng, rủi ro hồi quy cao. Đề xuất làm PR riêng, chuyển dần theo từng trang.
 2. ~~B-26 (một phần)~~ — đã xong ở đợt sửa theo phiếu review (P1-7).
-3. **Không chạy được backend thật.** Mọi kiểm thử dựa trên mock bám DTO. Cần chạy lại checklist test tay (mục 5 của báo cáo) trên môi trường có Docker.
+3. ~~Không chạy được backend thật~~ — đã chạy ngày 12/10/2026 trên DB riêng `mediassist_review` (Docker Postgres 5433, Redis DB 1, không sửa `.env`): phát hiện BE-15, BE-16 (backend không lên nếu không vá tạm) và xác nhận lại BE-14 trên dữ liệu thật. Kết quả chi tiết ở WORK_LOG #102.
 
 ## 4. Yêu cầu gửi backend (Khương & Vinh)
 
@@ -120,6 +120,8 @@ ID `B-xx` là mục trong brief; `N-xx` là lỗi mới tự phát hiện.
 | BE-11 | Dữ liệu phòng/STT/địa chỉ (`clinicRoom/Floor/Building/Address`, `sttNumber`) thường null nên phiếu khám hiện "Đang chờ xếp phòng" | Cấp STT/phòng khi check-in hoặc cấu hình phòng mặc định theo bác sĩ |
 | BE-12 | `DoctorDetailDto.yearsOfExperience` là `int` nguyên thuỷ nên "chưa khai báo" thành 0 | Đổi sang `Integer`, trả `null` khi chưa khai báo |
 | BE-13 | Metadata phòng thủ của `GET /triage/search/semantic` chỉ gắn vào từng phần tử: khi không có bác sĩ nào khớp, danh sách rỗng nên **mất luôn cảnh báo cấp cứu** | Trả metadata phòng thủ ở cấp response (hoặc endpoint `GET /triage/search/defense?query=`) để cảnh báo cấp cứu vẫn hiện khi không có bác sĩ nào khớp. Ghi chú thêm: `hết` là trigger NegEx nên "khám hết bao nhiêu tiền" bị xếp vào `negatedSymptoms` (frontend đã ẩn badge khi `outOfDomain`) |
+| BE-15 | **Backend `develop` không khởi động được (trên mọi DB):** từ commit `7955606` (11/10/2026), `DoctorSemanticSearchService` có 2 constructor public (3 và 4 tham số) nhưng không có `@Autowired`, nên Spring tìm constructor mặc định và dừng với `No default constructor found` khi tạo `dataInitializer`. `mvn test` vẫn pass (185/185) vì unit test tự `new` service, không nạp Spring context | Thêm `@Autowired` vào constructor 4 tham số (`ClinicalQueryDefenseEngine` là `@Component` nên inject được). Nên thêm 1 test `@SpringBootTest` khởi động context để CI bắt lỗi kiểu này |
+| BE-16 | **Flyway V8 lỗi trên DB trắng:** `V8__allow_null_password_hash_for_oauth.sql` (merge Google OAuth2) tạo `idx_users_google_id` trên `users.google_id`, nhưng không migration nào tạo cột này → `ERROR: column "google_id" does not exist`. DB đang dùng chạy được chỉ vì Hibernate `ddl-auto=update` đã tạo cột trước. Máy cài mới (vd. máy demo hôm bảo vệ) sẽ không lên | Thêm `ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255);` vào đầu V8. Sửa V8 làm đổi checksum (`validate-on-migrate=true`) nên DB cũ cần chạy `flyway repair`. Lưu ý: `mediassist_db` hiện đã ở V20 trong khi repo chỉ có tới V19 (có migration từ nhánh khác), nên nếu chọn tạo migration mới thay vì sửa V8 thì cần chốt số phiên bản |
 
 ### 4.1. Bảng token màu dùng chung (B-23)
 
