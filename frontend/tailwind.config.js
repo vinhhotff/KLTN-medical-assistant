@@ -1,3 +1,5 @@
+import colors from 'tailwindcss/colors.js';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -7,61 +9,46 @@ export default {
   darkMode: "class",
   theme: {
     extend: {
+      // One palette for the whole app (B-23). Change colours HERE, not in pages.
+      // Root scales: brand (teal) · neutral (slate) · success/warning/danger/info.
+      // The Material-3 names below are kept only because LandingPage + index.html use them;
+      // they now point at the root scales so Landing/Login match the dashboards.
       colors: {
-        "primary-fixed-dim": "#b0c9e8",
-        "secondary-fixed": "#89f5e7",
-        "primary-container": "#0f2942",
-        "surface-variant": "#d3e4fe",
-        "on-error-container": "#93000a",
-        "on-tertiary-fixed": "#001d31",
-        "on-surface": "#0b1c30",
-        "on-tertiary-fixed-variant": "#004b73",
-        "tertiary-fixed": "#cce5ff",
-        "on-secondary-fixed-variant": "#005049",
-        "on-primary-container": "#7991af",
-        "tertiary-fixed-dim": "#93ccff",
-        "on-secondary-container": "#006f66",
-        "on-primary-fixed": "#011d35",
-        "surface-bright": "#f8f9ff",
-        "surface": "#f8f9ff",
-        "secondary-fixed-dim": "#6bd8cb",
-        "surface-container-low": "#eff4ff",
-        "on-surface-variant": "#43474d",
-        "inverse-surface": "#213145",
-        "tertiary-container": "#002a44",
-        "background": "#f8f9ff",
-        "secondary-container": "#86f2e4",
-        "surface-container-lowest": "#ffffff",
-        "on-tertiary": "#ffffff",
-        "on-secondary": "#ffffff",
-        "surface-container": "#e5eeff",
-        "surface-dim": "#cbdbf5",
-        "tertiary": "#001524",
-        "error-container": "#ffdad6",
-        "primary": "#001428",
-        "secondary": "#006a61",
-        "on-error": "#ffffff",
-        "on-background": "#0b1c30",
-        "on-tertiary-container": "#2e95da",
-        "primary-fixed": "#d1e4ff",
-        "on-primary": "#ffffff",
-        "surface-container-high": "#dce9ff",
-        "on-primary-fixed-variant": "#314863",
-        "inverse-on-surface": "#eaf1ff",
-        "outline-variant": "#c3c6ce",
-        "outline": "#74777e",
-        "inverse-primary": "#b0c9e8",
-        "surface-tint": "#49607c",
-        "error": "#ba1a1a",
-        "surface-container-highest": "#d3e4fe",
-        "on-secondary-fixed": "#00201d",
-        medical: {
-          50: '#f0fdfa',
-          100: '#ccfbf1',
-          500: '#14b8a6',
-          600: '#0d9488',
-          700: '#0f766e',
-        }
+        brand: colors.teal,
+        neutral: colors.slate,
+        success: colors.emerald,
+        warning: colors.amber,
+        danger: colors.rose,
+        info: colors.sky,
+
+        primary: colors.slate[900],
+        "on-primary": colors.white,
+        "primary-container": colors.slate[800],
+        "primary-fixed": colors.teal[100],
+        "on-primary-fixed": colors.slate[900],
+
+        secondary: colors.teal[700],
+        "on-secondary": colors.white,
+        "secondary-container": colors.teal[200],
+        "on-secondary-container": colors.teal[800],
+        "secondary-fixed": colors.teal[200],
+        "secondary-fixed-dim": colors.teal[300],
+        "on-secondary-fixed": colors.teal[950],
+
+        surface: colors.slate[50],
+        "surface-variant": colors.slate[200],
+        "surface-container-lowest": colors.white,
+        "surface-container-low": colors.slate[100],
+        "surface-container": colors.slate[100],
+        "surface-container-high": colors.slate[200],
+        "on-surface": colors.slate[900],
+        "on-surface-variant": colors.slate[600],
+        outline: colors.slate[500],
+        "outline-variant": colors.slate[300],
+
+        error: colors.rose[700],
+        "error-container": colors.rose[100],
+        "on-error-container": colors.rose[900],
       },
       spacing: {
         "space-xs": "0.5rem",

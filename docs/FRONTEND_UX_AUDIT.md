@@ -85,7 +85,7 @@ ID `B-xx` là mục trong brief; `N-xx` là lỗi mới tự phát hiện.
 | B-22 | `layouts/*` | Không có menu mobile; Admin sidebar cố định `w-64` | P2 | Bệnh nhân: bottom nav; Bác sĩ: hamburger; Admin: drawer; `NavLink` active | ✅ |
 | N-21 | `MedicalDisclaimerBanner.tsx` | `truncate` cắt mất "gọi 115" trên điện thoại | P2 | Câu ngắn trên mobile, 115 là link `tel:` | ✅ |
 | N-22 | `DoctorDashboard.tsx` | Tràn ngang 2px ở 390px (hàng nút thẻ hàng đợi) | P2 | `flex-wrap` | ✅ |
-| B-23 | toàn app | Hai ngôn ngữ thiết kế (M3 tokens ở Landing/Login vs slate/teal); PatientLayout indigo; nạp font Material Symbols 2 lần | P2 | Layout + component mới dùng teal; bỏ font trùng. **Chưa** chuyển nội dung các trang lớn (PatientDashboard hero, Landing) sang một hệ token duy nhất | ⚠️ |
+| B-23 | toàn app · `tailwind.config.js` | Hai ngôn ngữ thiết kế (M3 tokens ở Landing/Login vs slate/teal); PatientLayout indigo; nạp font Material Symbols 2 lần; (phiếu review P1-6) cần **một** bảng màu | P2 | Bỏ font trùng. **Một bảng màu duy nhất** trong `tailwind.config.js`: thang gốc `brand`(teal) · `neutral`(slate) · `success/warning/danger/info`; 25 tên M3 còn dùng (374 class, chỉ ở `LandingPage.tsx` + `index.html`) trỏ về thang gốc; xoá 22 token M3 không ai dùng + bộ `medical-*` (0 lần dùng). Tương phản mọi cặp `on-*`/nền ≥ 4.5:1 (bảng 4.1). Ảnh trước/sau Landing/Login (desktop + 390px) không vỡ layout, chỉ đổi sắc xanh-lam nhạt sang slate. **Chưa chuyển:** màu indigo/blue/violet trong nội dung trang (xem 4.1) | ⚠️ |
 | N-23 | `tailwind.config.js` | Dùng class Tailwind 4 không tồn tại ở v3: `bg-linear-to-*` (**header modal chữ trắng trên nền trắng**), `z-60` (**modal thanh toán bị che dưới bảng giá**), `shadow-2xs`, `backdrop-blur-xs`, `animate-fadeIn/scaleUp/scaleIn`, `outline-hidden` | P2 | Định nghĩa token trong config, đổi `bg-linear`→`bg-gradient`, `z-60`→`z-[60]` | ✅ |
 | B-24 | `src/components/ui/` | Thiếu bộ component dùng chung; modal đặt lịch copy 3 nơi | P2 | `Button, Field/Input/Textarea, Modal (Esc + focus trap), Toast, ConfirmDialog, EmptyState, ErrorState, Skeleton, Badge, Missing`; `booking/SlotPicker` + `booking/BookingModal` thay 3 bản copy | ✅ |
 | B-25 | trang bệnh nhân | Thuật ngữ pgvector/HNSW/cosine/Spring Boot/OpenRouter/SHA-256/cổng | P2 | Câu chữ thường; chi tiết kỹ thuật (cho buổi bảo vệ) để trong `<details>` "Chi tiết kỹ thuật" | ✅ |
@@ -119,6 +119,29 @@ ID `B-xx` là mục trong brief; `N-xx` là lỗi mới tự phát hiện.
 | BE-11 | Dữ liệu phòng/STT/địa chỉ (`clinicRoom/Floor/Building/Address`, `sttNumber`) thường null nên phiếu khám hiện "Đang chờ xếp phòng" | Cấp STT/phòng khi check-in hoặc cấu hình phòng mặc định theo bác sĩ |
 | BE-12 | `DoctorDetailDto.yearsOfExperience` là `int` nguyên thuỷ nên "chưa khai báo" thành 0 | Đổi sang `Integer`, trả `null` khi chưa khai báo |
 | BE-13 | Metadata phòng thủ của `GET /triage/search/semantic` chỉ gắn vào từng phần tử: khi không có bác sĩ nào khớp, danh sách rỗng nên **mất luôn cảnh báo cấp cứu** | Trả metadata phòng thủ ở cấp response (hoặc endpoint `GET /triage/search/defense?query=`) để cảnh báo cấp cứu vẫn hiện khi không có bác sĩ nào khớp. Ghi chú thêm: `hết` là trigger NegEx nên "khám hết bao nhiêu tiền" bị xếp vào `negatedSymptoms` (frontend đã ẩn badge khi `outOfDomain`) |
+
+### 4.1. Bảng token màu dùng chung (B-23)
+
+Nguồn duy nhất: `frontend/tailwind.config.js`. Code mới dùng **thang gốc** (`brand-600`, `neutral-200`, `danger-700`…) hoặc trực tiếp `teal-*`/`slate-*` (cùng giá trị); không thêm hex mới trong trang.
+
+| Tên | Giá trị | Dùng cho |
+|:--|:--|:--|
+| `brand-50…950` | thang `teal` Tailwind (600 = `#0d9488`) | Nút chính, link, nhấn mạnh thương hiệu |
+| `neutral-50…950` | thang `slate` (900 = `#0f172a`) | Chữ, nền, viền |
+| `success` / `warning` / `danger` / `info` | `emerald` / `amber` / `rose` / `sky` | Trạng thái (khớp `Badge` tone) |
+| `primary` · `on-primary` | `slate-900` · trắng | Nút đậm, tiêu đề Landing (17.85:1) |
+| `primary-container` | `slate-800` | Khối nền tối (chữ trắng 14.63:1) |
+| `primary-fixed` · `on-primary-fixed` | `teal-100` · `slate-900` | Nhãn nền sáng (15.84:1) |
+| `secondary` · `on-secondary` | `teal-700` · trắng | Nhấn mạnh teal, nút phụ (5.47:1) |
+| `secondary-container` · `on-secondary-container` | `teal-200` · `teal-800` | Chip/huy hiệu (6.02:1) |
+| `secondary-fixed` / `-dim` · `on-secondary-fixed` | `teal-200` / `teal-300` · `teal-950` | Nút sáng trên nền tối (≥ 9.78:1) |
+| `surface` | `slate-50` | Nền trang (`<body>`) |
+| `surface-container-lowest / low / (default) / high`, `surface-variant` | trắng / `slate-100` / `slate-100` / `slate-200` / `slate-200` | Thẻ, khối nền theo cấp |
+| `on-surface` · `on-surface-variant` | `slate-900` · `slate-600` | Chữ chính (≥ 14.48:1) · chữ phụ (≥ 6.15:1) |
+| `outline` · `outline-variant` | `slate-500` · `slate-300` | Chữ mờ / viền (outline trên `surface` 4.55:1) |
+| `error` · `error-container` · `on-error-container` | `rose-700` · `rose-100` · `rose-900` | Lỗi (6.29:1 · 7.97:1) |
+
+**Việc tiếp theo (chưa chuyển):** màu `indigo/blue/violet` còn trong nội dung trang — `PatientDashboard` (63), `DoctorDashboard` (50), `AdminDashboard` (22), `DocumentSummarizerPage` (21), `SymptomTriagePage` (18, header/bubble indigo), `DoctorPatientRecordsPage` (18), các trang admin (6–14). Chuyển dần sang `brand`/`info` theo từng trang, có ảnh trước/sau.
 
 ## 5. Tệp mới đáng chú ý
 
