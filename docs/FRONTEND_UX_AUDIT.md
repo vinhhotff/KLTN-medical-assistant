@@ -39,6 +39,7 @@ ID `B-xx` là mục trong brief; `N-xx` là lỗi mới tự phát hiện.
 | N-09 | `AdmissionTicketModal.tsx` | **In phiếu ra trang trắng**: lớp nền có `.no-print` (`display:none`) bọc luôn phiếu | P0 | Bỏ `no-print` khỏi lớp nền, chỉ giữ ở thanh nút | ✅ |
 | B-06 | `pages/LoginPage.tsx` | Quên mật khẩu giả: không gọi API, OTP `882 941`, gợi ý `password123` | P0 | `POST /auth/forgot-password {email}`, hiện message trung tính từ backend, validate email, loading/disable, xử lý 429 | ✅ |
 | B-07 | `patient/DoctorSearchPage.tsx` | Bệnh nhân thấy nút đổi chế độ AI **toàn hệ thống** | P0 | Chỉ render khi `role === 'ADMIN'` hoặc `VITE_ENABLE_DEV_TOOLS=true`; không gọi `/system/ai-mode` với bệnh nhân | ✅ (FE) · cần backend (mục 4) |
+| R-02 | `DoctorSearchPage.tsx` + `components/search/ClinicalDefenseBar.tsx` | (Phiếu review P0-2) Backend gắn metadata phòng thủ (`emergencyRedFlag`, `outOfDomain`, `affirmed/negatedSymptoms`, `normalizedClinicalQuery`) vào từng `DoctorMatchDto` nhưng UI bỏ qua: bệnh nhân gõ "đau ngực dữ dội" không thấy cảnh báo cấp cứu | P0 | "Smart Defense Bar": metadata lấy từ phần tử đầu của danh sách **gốc** (không phải danh sách đã lọc chuyên khoa); triệu chứng khẳng định = badge xanh, phủ định = badge xám gạch ngang (title NegEx); banner đỏ `role="alert"` + nút `tel:` từ `EMERGENCY_NUMBER` đặt trên danh sách; banner ngoài ngành hiện `outOfDomainGuidance` (ẩn badge vì không phải triệu chứng); `<details>` hiện `normalizedClinicalQuery`. Hiển thị nguyên chuỗi backend, không tự làm NegEx ở client. Khi danh sách rỗng backend không gửi metadata → BE-13 | ✅ (FE) · BE-13 |
 | N-10 | `DoctorProfilePage.tsx` | Khi tải hồ sơ lỗi, form hiện **hồ sơ giả** (TS.BS, BV ĐHYD, Tim mạch, 350.000đ, 10 năm, bio + CCHN giả), bấm Lưu sẽ **ghi đè hồ sơ thật** | P0 | Lỗi tải → `ErrorState` + Thử lại, không render form | ✅ |
 
 ### P1 — Nút/form thiếu điều kiện, giá trị viết cứng
@@ -115,6 +116,7 @@ ID `B-xx` là mục trong brief; `N-xx` là lỗi mới tự phát hiện.
 | BE-10 | `CreateAppointmentRequest.notes` không giới hạn độ dài | `@Size(max = 1000)` (frontend đang giới hạn 1000) |
 | BE-11 | Dữ liệu phòng/STT/địa chỉ (`clinicRoom/Floor/Building/Address`, `sttNumber`) thường null nên phiếu khám hiện "Đang chờ xếp phòng" | Cấp STT/phòng khi check-in hoặc cấu hình phòng mặc định theo bác sĩ |
 | BE-12 | `DoctorDetailDto.yearsOfExperience` là `int` nguyên thuỷ nên "chưa khai báo" thành 0 | Đổi sang `Integer`, trả `null` khi chưa khai báo |
+| BE-13 | Metadata phòng thủ của `GET /triage/search/semantic` chỉ gắn vào từng phần tử: khi không có bác sĩ nào khớp, danh sách rỗng nên **mất luôn cảnh báo cấp cứu** | Trả metadata phòng thủ ở cấp response (hoặc endpoint `GET /triage/search/defense?query=`) để cảnh báo cấp cứu vẫn hiện khi không có bác sĩ nào khớp. Ghi chú thêm: `hết` là trigger NegEx nên "khám hết bao nhiêu tiền" bị xếp vào `negatedSymptoms` (frontend đã ẩn badge khi `outOfDomain`) |
 
 ## 5. Tệp mới đáng chú ý
 

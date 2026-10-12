@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { Pagination } from '../../components/common/Pagination';
 import { DoctorReviewsListModal } from '../../components/common/DoctorReviewsListModal';
 import { BookingModal } from '../../components/booking/BookingModal';
+import { ClinicalDefenseBar, type ClinicalDefenseMeta } from '../../components/search/ClinicalDefenseBar';
 import { EmptyState, ErrorState, SkeletonList, useToast } from '../../components/ui';
 import { ENABLE_DEV_TOOLS } from '../../config/app';
 import { formatRating, formatVnd } from '../../utils/display';
@@ -22,7 +23,7 @@ interface AiModeStatus {
   message?: string;
 }
 
-interface DoctorDetail {
+interface DoctorDetail extends ClinicalDefenseMeta {
   id: string;
   doctorId?: string;
   profileId?: string;
@@ -63,6 +64,8 @@ export const DoctorSearchPage: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [semanticResults, setSemanticResults] = useState<DoctorDetail[] | null>(null);
+  /** Query that `semanticResults` answers — defense metadata is only shown for the current query */
+  const [semanticQuery, setSemanticQuery] = useState<string | null>(null);
   const [searchingSemantic, setSearchingSemantic] = useState(false);
 
   // System-wide AI mode switch: admin or explicit dev-tools flag only (it affects every user)
@@ -85,9 +88,11 @@ export const DoctorSearchPage: React.FC = () => {
         params: { query: trimmed, limit: 12 }
       });
       setSemanticResults(Array.isArray(res.data?.data) ? res.data.data.map(normalizeDoctor) : null);
+      setSemanticQuery(trimmed);
     } catch (err) {
       devLog.warn('Semantic search fallback to keyword filter:', err);
       setSemanticResults(null);
+      setSemanticQuery(null);
     } finally {
       setSearchingSemantic(false);
     }
@@ -171,6 +176,13 @@ export const DoctorSearchPage: React.FC = () => {
       if (targetDoc) setBookingDoctor(targetDoc);
     }
   }, [queryDoctorId, doctors]);
+
+  // Defense metadata comes from the raw API list (not filteredDoctors) so the specialty
+  // filter never hides it; it is dropped as soon as the query changes or falls under 3 chars.
+  const defense = useMemo<ClinicalDefenseMeta | null>(() => {
+    if (semanticQuery === null || semanticQuery !== searchTerm.trim()) return null;
+    return semanticResults?.[0] ?? null;
+  }, [semanticResults, semanticQuery, searchTerm]);
 
   const displaySource = semanticResults !== null ? semanticResults : doctors;
 
@@ -288,6 +300,8 @@ export const DoctorSearchPage: React.FC = () => {
           </select>
         </div>
       </div>
+
+      <ClinicalDefenseBar defense={defense} />
 
       {loading ? (
         <SkeletonList rows={3} />

@@ -284,6 +284,16 @@ graph TD
    ```
 4. Trả về danh sách bác sĩ xếp hạng theo độ tương đồng giảm dần (`similarity_score`).
 5. Giao diện hiển thị thẻ Bác sĩ gồm: Ảnh đại diện, Học vị, Nơi công tác, Điểm tương đồng (`%`), Giá khám và Nút *"Đặt Khám Ngay"*.
+6. **Smart Defense Bar** (`ClinicalDefenseBar.tsx`): ngay dưới ô tìm kiếm, hiện "AI đã hiểu triệu chứng của bạn:" với `affirmedSymptoms` (badge xanh) và `negatedSymptoms` (badge xám gạch ngang). Metadata lấy từ phần tử đầu của danh sách gốc nên bộ lọc chuyên khoa không làm mất thanh; `<details>` "Chi tiết kỹ thuật" hiện `normalizedClinicalQuery`.
+
+#### Luồng thay thế (Alternative Flows) — Clinical Query Defense:
+- **A1. Phủ định NegEx:** *"ho sốt nhưng không khó thở"* → backend tách theo **mệnh đề** (dấu câu, "nhưng / tuy nhiên / mặc dù / song"): affirmed `["ho sốt"]`, negated `["không khó thở"]`. Chỉ mệnh đề khẳng định được dùng làm truy vấn vector. Frontend hiển thị nguyên chuỗi backend, không tự làm NegEx.
+- **A2. Cấp cứu (Red-Flag):** truy vấn khớp từ khoá cấp cứu (vd. *"đau ngực dữ dội"*) → `emergencyRedFlag = true`. Frontend hiện banner đỏ `role="alert"` với `emergencyWarning` và nút gọi `tel:` lấy từ `EMERGENCY_NUMBER`, đặt **trên** danh sách; danh sách bác sĩ vẫn hiện bên dưới.
+- **A3. Ngoài ngành (OOD):** *"khám hết bao nhiêu tiền"* → `outOfDomain = true` → banner thông tin hiện `outOfDomainGuidance`; không hiện badge triệu chứng.
+
+#### Luồng ngoại lệ (Exception Flows):
+- **E1. Không bác sĩ nào khớp:** API trả danh sách rỗng nên không có metadata → không hiện thanh, kể cả cảnh báo cấp cứu. Đã ghi yêu cầu backend **BE-13** (`docs/FRONTEND_UX_AUDIT.md`).
+- **E2. Truy vấn dưới 3 ký tự, lỗi API hoặc đổi truy vấn:** thanh bị gỡ ngay; lỗi API thì quay về lọc theo từ khoá.
 
 ---
 

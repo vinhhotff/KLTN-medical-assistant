@@ -135,6 +135,8 @@ export interface MockOverride {
   body?: unknown;
   /** Delay in ms before fulfilling, to observe loading states */
   delay?: number;
+  /** Build the `data` payload per request (wrapped in ApiResponse); takes precedence over `body` */
+  respond?: (query: URLSearchParams, body: unknown) => unknown;
 }
 
 export interface MockOptions {
@@ -207,7 +209,9 @@ export async function installMockApi(page: Page, opts: MockOptions = {}) {
     if (override) {
       if (override.delay) await new Promise((r) => setTimeout(r, override.delay));
       const status = override.status ?? 200;
-      const payload = override.body !== undefined
+      const payload = override.respond
+        ? ok(override.respond(url.searchParams, body))
+        : override.body !== undefined
         ? override.body
         : status >= 400 ? fail('MOCK_ERROR', 'Lỗi giả lập từ máy chủ') : ok({});
       return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(payload) });
