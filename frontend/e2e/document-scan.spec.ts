@@ -165,4 +165,39 @@ test.describe('Package prices come from the backend (review P0-4)', () => {
     expect(calls.filter((c) => c.path === '/payments/checkout')).toHaveLength(1);
     expect(calls.filter((c) => c.path === '/payments/verify')).toHaveLength(1);
   });
+
+  test('held transaction locks the payment method until "Hủy bỏ"', async ({ page }) => {
+    const calls: Array<{ method: string; path: string; body: unknown }> = [];
+    await installMockApi(page, {
+      role: 'PATIENT',
+      calls,
+      overrides: {
+        'GET /documents/quota': { body: QUOTA_EMPTY },
+        'POST /payments/checkout': {
+          body: { success: true, data: { transactionCode: 'TX-3', gatewayReference: 'g-3', amount: 99000.0, currency: 'VND', status: 'PENDING' } },
+        },
+      },
+    });
+    await page.goto('/patient/documents');
+    await page.getByRole('button', { name: '+ Mua thêm' }).click();
+    await page.getByTestId('package-VIP_MONTHLY').getByRole('button').click();
+    await page.getByRole('button', { name: /VietQR/ }).click();
+    await page.getByRole('button', { name: /Mô phỏng thanh toán thành công/ }).click();
+    await expect(page.getByTestId('amount-changed')).toBeVisible();
+
+    // The held TX-3 was created for VietQR: switching method must not silently reuse or drop it
+    for (const name of [/Stripe Sandbox/, /VietQR/, /VNPAY QR/, /Ví MoMo/]) {
+      await expect(page.getByRole('button', { name })).toBeDisabled();
+    }
+    await expect(page.getByTestId('method-locked-hint')).toHaveText('Bấm Hủy bỏ để đổi phương thức.');
+
+    await page.getByRole('button', { name: 'Hủy bỏ' }).click();
+    await expect(page.getByTestId('amount-changed')).toHaveCount(0);
+    await page.getByTestId('package-VIP_MONTHLY').getByRole('button').click();
+    await expect(page.getByTestId('method-locked-hint')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /VNPAY QR/ })).toBeEnabled();
+    await page.getByRole('button', { name: /VNPAY QR/ }).click();
+    await expect(page.getByRole('button', { name: /Mô phỏng thanh toán thành công/ })).toBeVisible();
+    expect(calls.filter((c) => c.path === '/payments/verify')).toHaveLength(0);
+  });
 });

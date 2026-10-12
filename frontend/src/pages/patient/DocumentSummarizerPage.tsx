@@ -260,6 +260,7 @@ export const DocumentSummarizerPage: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<'STRIPE' | 'VIETQR' | 'VNPAY' | 'MOMO'>('STRIPE');
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const methodLocked = pendingTx !== null;
 
   // Analysis Success Notification Banner
   const [analysisSuccessNotification, setAnalysisSuccessNotification] = useState<{
@@ -2005,14 +2006,15 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
               </div>
             )}
 
-            {/* Payment Method Selector */}
+            {/* Payment Method Selector — locked while a held transaction exists, since it was created for this method */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-700 block">Chọn phương thức thanh toán:</label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('STRIPE')}
-                  className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                  disabled={methodLocked}
+                  className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     paymentMethod === 'STRIPE'
                       ? 'border-indigo-600 bg-indigo-50/70 text-indigo-950 shadow-xs ring-2 ring-indigo-500/20'
                       : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
@@ -2025,7 +2027,8 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('VIETQR')}
-                  className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                  disabled={methodLocked}
+                  className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     paymentMethod === 'VIETQR'
                       ? 'border-teal-600 bg-teal-50/60 text-teal-900 shadow-xs ring-2 ring-teal-500/20'
                       : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
@@ -2038,7 +2041,8 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('VNPAY')}
-                  className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                  disabled={methodLocked}
+                  className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     paymentMethod === 'VNPAY'
                       ? 'border-teal-600 bg-teal-50/60 text-teal-900 shadow-xs ring-2 ring-teal-500/20'
                       : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
@@ -2051,7 +2055,8 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('MOMO')}
-                  className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                  disabled={methodLocked}
+                  className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     paymentMethod === 'MOMO'
                       ? 'border-teal-600 bg-teal-50/60 text-teal-900 shadow-xs ring-2 ring-teal-500/20'
                       : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
@@ -2062,6 +2067,11 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   <span className="text-[9px] text-slate-400 font-normal">Ví điện tử</span>
                 </button>
               </div>
+              {methodLocked && (
+                <p className="text-[11px] text-slate-500" data-testid="method-locked-hint">
+                  Bấm Hủy bỏ để đổi phương thức.
+                </p>
+              )}
             </div>
 
             {/* Simulated Payment Details */}
