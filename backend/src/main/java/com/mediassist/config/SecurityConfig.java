@@ -78,6 +78,7 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/system/ai-mode").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/payments/packages").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/clinical/ontology/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/specialties/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/doctors", "/api/v1/doctors/{id}", "/api/v1/doctors/{id}/slots", "/api/v1/doctors/{id}/reviews").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/documents/analyze-preview").permitAll()

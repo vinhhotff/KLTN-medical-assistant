@@ -5240,5 +5240,34 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
 5. **`[MOD]` `docs/README.md`:**
    - Cập nhật Tầng 3 liên kết trực tiếp tới `docs/DATA_PROVENANCE_AND_CLINICAL_STANDARDS.md`.
 
+---
+
+### [WORK-LOG-#099] Hiện Thực Hóa REST API Bản Thể Luận Y Khoa (Clinical Ontology Service & Controller)
+* **Thời gian:** 2026-10-12 14:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Cung cấp dịch vụ tra cứu bản thể luận y khoa thời gian thực chuẩn quốc tế qua REST API (`ClinicalOntologyService` & `ClinicalOntologyController`), hỗ trợ bác sĩ tra cứu mã chẩn đoán ICD-10 và kỹ thuật viên xét nghiệm tra cứu mã LOINC.
+* **Trạng thái Build:**
+  - Backend: **`185 / 185` Tests PASS 100%** (`mvn test` 0 failure, 0 error).
+  - Frontend: **`npm run build` PASS 100%** (2293 modules, 0 lỗi TypeScript, 2.49s).
+
+#### 1. Chi Tiết Các Tệp Mã Nguồn Đã Hiện Thực Hóa:
+1. **`[NEW]` `com.mediassist.dto.clinical.Icd10DiagnosisDto`:**
+   - DTO đóng gói thực thể chẩn đoán ICD-10: `code`, `nameVi`, `nameEn`, `chapter`, `specialtySlug`, `specialtyName`, `commonSymptoms`.
+2. **`[NEW]` `com.mediassist.dto.clinical.LabIndicatorDto`:**
+   - DTO đóng gói thực thể xét nghiệm sinh hóa: `id`, `loincCode`, `nameVi`, `nameEn`, `category`, `unit`, `refRangeMin`, `refRangeMax`, `refRangeText`, `clinicalRelevance`, `targetSpecialty`.
+3. **`[NEW]` `com.mediassist.service.ClinicalOntologyService`:**
+   - Nạp tự động các tệp JSON bản thể luận từ classpath (`clinical_ontology/icd10_vietnam_standard.json` và `clinical_ontology/lab_indicators_loinc_byt.json`).
+   - Cung cấp các phương thức tìm kiếm linh hoạt: `searchIcd10` (theo mã, tên tiếng Việt, tên tiếng Anh, triệu chứng và chuyên khoa), `getIcd10ByCode`, `searchLabIndicators`, `getLabIndicatorByLoinc`.
+4. **`[NEW]` `com.mediassist.controller.ClinicalOntologyController`:**
+   - `GET /api/v1/clinical/ontology/icd10`: Tra cứu danh mục mã bệnh ICD-10.
+   - `GET /api/v1/clinical/ontology/icd10/{code}`: Lấy chi tiết mã bệnh theo mã chuẩn.
+   - `GET /api/v1/clinical/ontology/lab-indicators`: Tra cứu chỉ số cận lâm sàng Hóa sinh.
+   - `GET /api/v1/clinical/ontology/lab-indicators/{loincCode}`: Lấy chi tiết chỉ số theo mã LOINC.
+5. **`[MOD]` `com.mediassist.config.SecurityConfig`:**
+   - Cấu hình công khai `permitAll` cho các endpoint `GET /api/v1/clinical/ontology/**` phục vụ tra cứu tiêu chuẩn mở.
+6. **`[NEW]` `com.mediassist.service.ClinicalOntologyServiceTest`:**
+   - Bộ 6 bài kiểm thử tự động bao phủ 100% các luồng nạp dữ liệu, tìm kiếm đa tiêu chí, lọc theo chuyên khoa và tra cứu mã chính xác.
+
+
 
 
