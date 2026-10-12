@@ -20,9 +20,9 @@ import {
 import { api } from '../../services/api';
 import { BookingModal, type BookableDoctor } from '../../components/booking/BookingModal';
 import { EMERGENCY_NUMBER } from '../../config/app';
+import { formatRating, formatVnd } from '../../utils/display';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-import { formatRating, formatVnd } from '../../utils/display';
 
 interface DoctorMatch {
   doctorId: string;
