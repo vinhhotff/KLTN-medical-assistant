@@ -110,3 +110,59 @@ test.describe('Document scanner', () => {
     await expect(page.getByText('Giao dịch chưa được xác nhận.')).toBeVisible();
   });
 });
+
+test.describe('Package prices come from the backend (review P0-4)', () => {
+  test('prices from GET /payments/packages replace the fallback table', async ({ page }) => {
+    await installMockApi(page, { role: 'PATIENT', overrides: { 'GET /documents/quota': { body: QUOTA_EMPTY } } });
+    await page.goto('/patient/documents');
+    await page.getByRole('button', { name: '+ Mua thêm' }).click();
+    // API: VIP_MONTHLY 149.000 / VIP_ENTERPRISE 399.000 (fallback has 99.000 / 149.000)
+    await expect(page.getByTestId('package-VIP_MONTHLY')).toContainText('149.000₫');
+    await expect(page.getByTestId('package-VIP_ENTERPRISE')).toContainText('399.000₫');
+    await expect(page.getByTestId('package-VIP_MONTHLY')).not.toContainText('99.000₫');
+    await expect(page.getByTestId('price-fallback-note')).toHaveCount(0);
+  });
+
+  test('API error → fallback prices with a "reference price" note', async ({ page }) => {
+    await installMockApi(page, {
+      role: 'PATIENT',
+      overrides: { 'GET /documents/quota': { body: QUOTA_EMPTY }, 'GET /payments/packages': { status: 500 } },
+    });
+    await page.goto('/patient/documents');
+    await page.getByRole('button', { name: '+ Mua thêm' }).click();
+    await expect(page.getByTestId('price-fallback-note')).toContainText('Giá tham khảo');
+    await expect(page.getByTestId('package-VIP_MONTHLY')).toContainText('99.000₫');
+    await expect(page.getByTestId('package-BASIC_5')).toContainText('29.000₫');
+  });
+
+  test('checkout amount differs → total updated and user must confirm before verify', async ({ page }) => {
+    const calls: Array<{ method: string; path: string; body: unknown }> = [];
+    await installMockApi(page, {
+      role: 'PATIENT',
+      calls,
+      overrides: {
+        'GET /documents/quota': { body: QUOTA_EMPTY },
+        // Real backend today: list says 149.000 but PaymentService charges 99.000 for VIP_MONTHLY
+        'POST /payments/checkout': {
+          body: { success: true, data: { transactionCode: 'TX-2', gatewayReference: 'g-2', amount: 99000.0, currency: 'VND', status: 'PENDING' } },
+        },
+        'POST /payments/verify': { body: { success: true, data: { transactionCode: 'TX-2', status: 'SUCCESS' } } },
+      },
+    });
+    await page.goto('/patient/documents');
+    await page.getByRole('button', { name: '+ Mua thêm' }).click();
+    await page.getByTestId('package-VIP_MONTHLY').getByRole('button').click();
+    await expect(page.getByTestId('checkout-total')).toHaveText('149.000₫');
+    await page.getByRole('button', { name: /VietQR/ }).click();
+    await page.getByRole('button', { name: /Mô phỏng thanh toán thành công/ }).click();
+
+    await expect(page.getByTestId('amount-changed')).toContainText('99.000₫');
+    await expect(page.getByTestId('checkout-total')).toHaveText('99.000₫');
+    expect(calls.filter((c) => c.path === '/payments/verify')).toHaveLength(0);
+
+    await page.getByRole('button', { name: 'Xác nhận thanh toán 99.000₫' }).click();
+    await expect(page.getByText(/Thanh toán thành công/)).toBeVisible();
+    expect(calls.filter((c) => c.path === '/payments/checkout')).toHaveLength(1);
+    expect(calls.filter((c) => c.path === '/payments/verify')).toHaveLength(1);
+  });
+});

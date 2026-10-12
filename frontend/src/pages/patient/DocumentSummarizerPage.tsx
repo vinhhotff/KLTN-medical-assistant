@@ -37,7 +37,8 @@ import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { BookingModal, type BookableDoctor } from '../../components/booking/BookingModal';
 import { Skeleton, useToast } from '../../components/ui';
-import { SCAN_PACKAGES, formatPackagePrice, type PackageCode } from '../../config/pricing';
+import { formatPackagePrice, type PackageCode, type ScanPackage } from '../../config/pricing';
+import { useScanPackages } from '../../hooks/useScanPackages';
 import { getApiErrorMessage, isQuotaError, isRetryableError } from '../../utils/apiError';
 import { devLog } from '../../utils/logger';
 import { formatRating, formatVnd } from '../../utils/display';
@@ -51,9 +52,26 @@ const ACCEPTED_TYPES: Record<string, string[]> = {
 };
 const MIN_FILE_BYTES = 100;
 
+const formatMoney = (amount: number, currency: string) =>
+  currency === 'VND' ? formatPackagePrice(amount) : `${amount.toLocaleString('vi-VN')} ${currency}`;
+
+/** Scan entitlement derived from the package data (not from marketing copy). */
+const packageEntitlement = (pkg: ScanPackage) =>
+  pkg.unlimitedScans
+    ? `Quét không giới hạn${pkg.durationDays ? ` trong ${pkg.durationDays} ngày` : ''}`
+    : pkg.scans
+    ? `+${pkg.scans} lượt quét`
+    : pkg.description;
+
+/** PaymentResponseDto.amount is a BigDecimal: number in JSON, tolerate a numeric string. */
+const parseAmount = (v: unknown): number | null => {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number(v) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
 type AnalysisErrorKind = 'validation' | 'quota' | 'retryable' | 'other';
 
-/** Display copy for each package; price and duration come from config/pricing (must match PaymentService). */
+/** Marketing copy per package code; name, price and duration come from GET /payments/packages (fallback: config/pricing). */
 const PACKAGE_DISPLAY: Record<PackageCode, { tag: string; badge?: string; highlights: string[]; cta: string; tone: 'slate' | 'teal' | 'amber' }> = {
   BASIC_5: {
     tag: 'Gói lẻ',
@@ -233,8 +251,12 @@ export const DocumentSummarizerPage: React.FC = () => {
   const [showPricingModal, setShowPricingModal] = useState(false);
 
   // Sandbox Payment Checkout Modal State
-  const [selectedPackageCode, setSelectedPackageCode] = useState<PackageCode | null>(null);
-  const selectedPaymentPackage = selectedPackageCode ? SCAN_PACKAGES[selectedPackageCode] : null;
+  const { packages: scanPackages, source: packageSource, loading: packagesLoading } = useScanPackages();
+  const [selectedPaymentPackage, setSelectedPaymentPackage] = useState<ScanPackage | null>(null);
+  /** Amount the backend will actually charge (POST /payments/checkout), once known */
+  const [chargedAmount, setChargedAmount] = useState<{ amount: number; currency: string } | null>(null);
+  /** Checkout created but held because its amount differs from the displayed price */
+  const [pendingTx, setPendingTx] = useState<{ transactionCode: string; gatewayReference?: string } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'STRIPE' | 'VIETQR' | 'VNPAY' | 'MOMO'>('STRIPE');
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -251,39 +273,71 @@ export const DocumentSummarizerPage: React.FC = () => {
   // Random Meddies PDF Download State
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
+  const closeCheckout = () => {
+    setSelectedPaymentPackage(null);
+    setChargedAmount(null);
+    setPendingTx(null);
+    setPaymentError(null);
+  };
+
+  const verifyPayment = async (tx: { transactionCode: string; gatewayReference?: string }, pkg: ScanPackage) => {
+    const verifyRes = await api.post('/payments/verify', {
+      transactionCode: tx.transactionCode,
+      sessionId: tx.gatewayReference,
+    });
+    if (!verifyRes.data?.success) {
+      setPaymentError(verifyRes.data?.message || 'Chưa xác nhận được thanh toán. Nếu đã chuyển khoản, vui lòng chờ vài phút rồi kiểm tra lại.');
+      return;
+    }
+    await fetchQuota();
+    toast.success(`Thanh toán thành công — đã kích hoạt ${pkg.name}.`);
+    closeCheckout();
+    setShowPricingModal(false);
+    setError(null);
+  };
+
   const handleConfirmPayment = async () => {
     if (!selectedPaymentPackage || processingPayment) return;
+    const pkg = selectedPaymentPackage;
     try {
       setProcessingPayment(true);
       setPaymentError(null);
-      const res = await api.post('/payments/checkout', {
-        orderType: 'QUOTA_PURCHASE',
-        packageId: selectedPaymentPackage.code,
-        paymentMethod,
-      });
 
-      if (paymentMethod === 'STRIPE' && res.data?.data?.checkoutUrl) {
-        window.location.href = res.data.data.checkoutUrl;
+      // User already saw and accepted the backend amount → verify the held transaction
+      if (pendingTx) {
+        await verifyPayment(pendingTx, pkg);
         return;
       }
 
-      if (!res.data?.data?.transactionCode) {
+      const res = await api.post('/payments/checkout', {
+        orderType: 'QUOTA_PURCHASE',
+        packageId: pkg.code,
+        paymentMethod,
+      });
+      const data = res.data?.data;
+      const official = parseAmount(data?.amount);
+      const currency = typeof data?.currency === 'string' && data.currency ? data.currency : 'VND';
+      const differs = official !== null && (official !== pkg.priceVnd || currency !== 'VND');
+
+      if (paymentMethod === 'STRIPE' && data?.checkoutUrl) {
+        // Stripe's hosted page shows the backend amount itself
+        if (differs) devLog.warn('Checkout amount differs from displayed price', { displayed: pkg.priceVnd, official, currency });
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+
+      if (!data?.transactionCode) {
         setPaymentError('Cổng thanh toán không trả về mã giao dịch. Vui lòng thử lại sau.');
         return;
       }
-      const verifyRes = await api.post('/payments/verify', {
-        transactionCode: res.data.data.transactionCode,
-        sessionId: res.data.data.gatewayReference,
-      });
-      if (!verifyRes.data?.success) {
-        setPaymentError(verifyRes.data?.message || 'Chưa xác nhận được thanh toán. Nếu đã chuyển khoản, vui lòng chờ vài phút rồi kiểm tra lại.');
+      const tx = { transactionCode: data.transactionCode, gatewayReference: data.gatewayReference };
+      if (official !== null) setChargedAmount({ amount: official, currency });
+      if (differs) {
+        // Never silently charge a different amount: show it and wait for a second confirmation
+        setPendingTx(tx);
         return;
       }
-      await fetchQuota();
-      toast.success(`Thanh toán thành công — đã kích hoạt ${selectedPaymentPackage.name}.`);
-      setSelectedPackageCode(null);
-      setShowPricingModal(false);
-      setError(null);
+      await verifyPayment(tx, pkg);
     } catch (err: unknown) {
       setPaymentError(getApiErrorMessage(err, 'Giao dịch thanh toán không thành công.'));
     } finally {
@@ -1826,6 +1880,11 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 <div>
                   <h3 className="font-bold text-lg text-slate-900">Bảng giá gói quét</h3>
                   <p className="text-xs text-slate-500">Giá đã gồm VAT. Thanh toán một lần, không tự gia hạn.</p>
+                  {packageSource === 'fallback' && (
+                    <p className="text-[11px] text-amber-700 mt-0.5" data-testid="price-fallback-note">
+                      Giá tham khảo, số tiền chính xác hiển thị ở bước thanh toán.
+                    </p>
+                  )}
                 </div>
               </div>
               <button
@@ -1839,8 +1898,9 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {(Object.keys(SCAN_PACKAGES) as PackageCode[]).map((code) => {
-                const pkg = SCAN_PACKAGES[code];
+              {packagesLoading && [0, 1, 2].map((i) => <Skeleton key={i} className="h-56 rounded-2xl" />)}
+              {scanPackages.map((pkg) => {
+                const code: PackageCode = pkg.code;
                 const display = PACKAGE_DISPLAY[code];
                 const toneCard = display.tone === 'teal'
                   ? 'border-2 border-teal-500 bg-teal-50/40'
@@ -1859,8 +1919,9 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                     )}
                     <div className="space-y-2">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{display.tag}</span>
-                      <h4 className="text-2xl font-black text-slate-900">{formatPackagePrice(code)}</h4>
-                      <p className="text-xs text-slate-700 font-medium">{pkg.description}</p>
+                      <h4 className="text-2xl font-black text-slate-900">{formatPackagePrice(pkg.priceVnd)}</h4>
+                      <p className="text-xs text-slate-700 font-semibold">{packageEntitlement(pkg)}</p>
+                      {pkg.description !== packageEntitlement(pkg) && <p className="text-[11px] text-slate-500">{pkg.description}</p>}
                       <ul className="text-xs text-slate-600 space-y-1.5 pt-2">
                         {display.highlights.map((h) => (
                           <li key={h} className="flex items-center gap-1.5">
@@ -1872,12 +1933,12 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                     <button
                       type="button"
                       onClick={() => {
-                        setPaymentError(null);
-                        setSelectedPackageCode(code);
+                        closeCheckout();
+                        setSelectedPaymentPackage(pkg);
                       }}
                       className={`w-full py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${toneButton}`}
                     >
-                      {display.cta} ({formatPackagePrice(code)})
+                      {display.cta} ({formatPackagePrice(pkg.priceVnd)})
                     </button>
                   </div>
                 );
@@ -1893,8 +1954,9 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
 
       {/* Sandbox Payment & VietQR Checkout Modal */}
       {selectedPaymentPackage && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5">
+        <div className="fixed inset-0 z-[60] flex overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+          {/* m-auto (not items-center) so a modal taller than the phone screen scrolls instead of clipping its buttons */}
+          <div className="m-auto bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center">
@@ -1906,7 +1968,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 </div>
               </div>
               <button
-                onClick={() => setSelectedPackageCode(null)}
+                onClick={closeCheckout}
                 disabled={processingPayment}
                 aria-label="Đóng thanh toán"
                 className="p-1 rounded-xl text-slate-500 hover:text-slate-700 transition cursor-pointer disabled:opacity-40"
@@ -1930,9 +1992,18 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
               </div>
               <div className="text-right">
                 <span className="text-xs text-slate-400 block">Tổng tiền</span>
-                <span className="text-lg font-black text-teal-700">{formatPackagePrice(selectedPaymentPackage.code)}</span>
+                <span className="text-lg font-black text-teal-700" data-testid="checkout-total">
+                  {chargedAmount ? formatMoney(chargedAmount.amount, chargedAmount.currency) : formatPackagePrice(selectedPaymentPackage.priceVnd)}
+                </span>
               </div>
             </div>
+
+            {pendingTx && chargedAmount && (
+              <div role="alert" className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900" data-testid="amount-changed">
+                Máy chủ xác nhận số tiền thanh toán là <strong>{formatMoney(chargedAmount.amount, chargedAmount.currency)}</strong>, khác giá{' '}
+                {formatPackagePrice(selectedPaymentPackage.priceVnd)} đang hiển thị. Bấm "Xác nhận thanh toán" để tiếp tục với số tiền mới, hoặc "Hủy bỏ".
+              </div>
+            )}
 
             {/* Payment Method Selector */}
             <div className="space-y-2">
@@ -2067,7 +2138,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setSelectedPackageCode(null)}
+                onClick={closeCheckout}
                 disabled={processingPayment}
                 className="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer disabled:opacity-40"
               >
@@ -2089,7 +2160,12 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                 ) : paymentMethod === 'STRIPE' ? (
                   <>
                     <CreditCard className="w-4 h-4" />
-                    <span>Thanh toán qua Stripe ({formatPackagePrice(selectedPaymentPackage.code)})</span>
+                    <span>Thanh toán qua Stripe ({formatPackagePrice(selectedPaymentPackage.priceVnd)})</span>
+                  </>
+                ) : pendingTx && chargedAmount ? (
+                  <>
+                    <BadgeCheck className="w-4 h-4" />
+                    <span>Xác nhận thanh toán {formatMoney(chargedAmount.amount, chargedAmount.currency)}</span>
                   </>
                 ) : (
                   <>

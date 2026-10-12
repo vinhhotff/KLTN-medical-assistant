@@ -122,6 +122,12 @@ export const AI_MODE_OFFLINE = {
   message: 'Đã giả lập TẮT API Key thành công! Hệ thống chuyển sang Unsupervised Feature Hashing (Không phụ thuộc mạng).',
 };
 
+export const PAYMENT_PACKAGES = [
+  { code: 'BASIC_5', name: 'Gói Quét Cơ Bản (+5 Lượt)', description: 'Bổ sung 5 lượt phân tích hồ sơ cận lâm sàng chất lượng cao', priceVnd: 29000.0, scans: 5, durationDays: 30, unlimitedScans: false },
+  { code: 'VIP_MONTHLY', name: 'Hội Viên MediPass VIP (30 Ngày)', description: 'Không giới hạn số lượt quét tài liệu và ưu tiên ghép nối bác sĩ chuyên khoa', priceVnd: 149000.0, scans: null, durationDays: 30, unlimitedScans: true },
+  { code: 'VIP_ENTERPRISE', name: 'Hội Viên MediPass Doanh Nghiệp (90 Ngày)', description: 'Gói toàn diện dành cho gia đình và doanh nghiệp với 90 ngày không giới hạn', priceVnd: 399000.0, scans: null, durationDays: 90, unlimitedScans: true },
+];
+
 export const DEFAULT_DATA: Record<string, unknown> = {
   'GET /doctors/me/stats': {
     todayAppointmentsCount: 2, todayWaitingCount: 1, todayInProgressCount: 0, todayCompletedCount: 0,
@@ -142,6 +148,8 @@ export const DEFAULT_DATA: Record<string, unknown> = {
   'GET /system/ai-mode': AI_MODE_ONLINE,
   'POST /system/ai-mode/toggle': AI_MODE_OFFLINE,
   'GET /notifications/unread-count': { count: 0 },
+  // Mirrors PaymentController#getPricingPackages (954071f). NB: checkout in PaymentService still charges 99k/149k for VIP.
+  'GET /payments/packages': PAYMENT_PACKAGES,
 };
 
 export interface MockOverride {
