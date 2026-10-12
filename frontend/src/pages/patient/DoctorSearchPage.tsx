@@ -8,7 +8,8 @@ import { DoctorReviewsListModal } from '../../components/common/DoctorReviewsLis
 import { BookingModal } from '../../components/booking/BookingModal';
 import { ClinicalDefenseBar, type ClinicalDefenseMeta } from '../../components/search/ClinicalDefenseBar';
 import { EmptyState, ErrorState, SkeletonList, useToast } from '../../components/ui';
-import { ENABLE_DEV_TOOLS } from '../../config/app';
+import { ENABLE_DEMO_AI_TOGGLE, ENABLE_DEV_TOOLS } from '../../config/app';
+import { useDemoToolsHotkey } from '../../hooks/useDemoToolsHotkey';
 import { formatRating, formatVnd } from '../../utils/display';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { devLog } from '../../utils/logger';
@@ -68,8 +69,11 @@ export const DoctorSearchPage: React.FC = () => {
   const [semanticQuery, setSemanticQuery] = useState<string | null>(null);
   const [searchingSemantic, setSearchingSemantic] = useState(false);
 
-  // System-wide AI mode switch: admin or explicit dev-tools flag only (it affects every user)
-  const canToggleAiMode = user?.role === 'ADMIN' || ENABLE_DEV_TOOLS;
+  // System-wide AI mode switch (affects every user): admin, explicit dev/demo build flag,
+  // or demo tools unlocked with Ctrl+Shift+D for the capstone defense.
+  const demoToolsUnlocked = useDemoToolsHotkey();
+  const isAdmin = user?.role === 'ADMIN';
+  const canToggleAiMode = isAdmin || ENABLE_DEV_TOOLS || ENABLE_DEMO_AI_TOGGLE || demoToolsUnlocked;
   const [aiModeStatus, setAiModeStatus] = useState<AiModeStatus | null>(null);
   const [togglingAiMode, setTogglingAiMode] = useState(false);
 
@@ -118,7 +122,13 @@ export const DoctorSearchPage: React.FC = () => {
         if (searchTerm.trim().length >= 3) executeSemanticSearch(searchTerm);
       }
     } catch (err) {
-      toast.error(getApiErrorMessage(err, 'Không đổi được chế độ AI.'));
+      // Backend restricts POST /system/** to ADMIN (BE-1); the demo exception is still pending.
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      toast.error(
+        status === 401 || status === 403
+          ? 'Máy chủ chỉ cho tài khoản quản trị đổi chế độ AI. Hãy dùng tài khoản ADMIN cho bước demo này.'
+          : getApiErrorMessage(err, 'Không đổi được chế độ AI.'),
+      );
     } finally {
       setTogglingAiMode(false);
     }
@@ -225,7 +235,7 @@ export const DoctorSearchPage: React.FC = () => {
         </p>
       </div>
 
-      {/* AI mode switch: affects the WHOLE system → admin / dev-tools only */}
+      {/* AI mode switch: affects the WHOLE system → admin, or demo tools for the defense */}
       {canToggleAiMode && (
         <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-sm border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -234,12 +244,20 @@ export const DoctorSearchPage: React.FC = () => {
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">Công cụ quản trị · Chế độ AI toàn hệ thống</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                  {isAdmin ? 'Công cụ quản trị' : 'Công cụ demo'} · Chế độ AI toàn hệ thống
+                </span>
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-white/10">{aiModeStatus?.statusLabel || 'Đang tải...'}</span>
               </div>
+              <p className="text-[11px] text-amber-300 mt-0.5">Ảnh hưởng tới mọi người dùng</p>
               <details className="mt-1">
                 <summary className="text-[11px] text-slate-400 cursor-pointer">Chi tiết kỹ thuật</summary>
                 <p className="text-xs text-slate-300 mt-1 font-mono">{aiModeStatus?.activeEngineDescription || '—'}</p>
+                {aiModeStatus && (
+                  <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
+                    {aiModeStatus.modelName} · {aiModeStatus.vectorDimensions} chiều
+                  </p>
+                )}
               </details>
             </div>
           </div>

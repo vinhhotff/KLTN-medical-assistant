@@ -109,6 +109,19 @@ const slotsFor = (date: string) =>
     isAvailable: i !== 1, available: i !== 1,
   }));
 
+/** Mirrors SystemConfigController#buildStatusPayload */
+export const AI_MODE_ONLINE = {
+  forcedOfflineSimulation: false, onlineNeuralActive: true,
+  activeEngineDescription: 'Mạng Nơ-ron Transformer Trực Tuyến (openai/text-embedding-3-small 1536-d)',
+  vectorDimensions: 1536, modelName: 'openai/text-embedding-3-small', statusLabel: 'Neural AI Trực Tuyến (Online Mode)',
+};
+export const AI_MODE_OFFLINE = {
+  forcedOfflineSimulation: true, onlineNeuralActive: false,
+  activeEngineDescription: 'Giả Lập Tắt API Key (Unsupervised Character N-gram Hashing 1536-d)',
+  vectorDimensions: 1536, modelName: 'unsupervised-feature-hashing', statusLabel: 'Chế Độ Test Offline (Tắt API Key)',
+  message: 'Đã giả lập TẮT API Key thành công! Hệ thống chuyển sang Unsupervised Feature Hashing (Không phụ thuộc mạng).',
+};
+
 export const DEFAULT_DATA: Record<string, unknown> = {
   'GET /doctors/me/stats': {
     todayAppointmentsCount: 2, todayWaitingCount: 1, todayInProgressCount: 0, todayCompletedCount: 0,
@@ -126,7 +139,8 @@ export const DEFAULT_DATA: Record<string, unknown> = {
     totalRequests: 40, totalTokens: 52000, totalCostUsd: 0.42, totalCostVnd: 10689, errorRatePercent: 2.5,
     exchangeRate: 25450, dailyStats: [], serviceStats: [],
   },
-  'GET /system/ai-mode': { offline: false, forceOffline: false, mode: 'ONLINE' },
+  'GET /system/ai-mode': AI_MODE_ONLINE,
+  'POST /system/ai-mode/toggle': AI_MODE_OFFLINE,
   'GET /notifications/unread-count': { count: 0 },
 };
 

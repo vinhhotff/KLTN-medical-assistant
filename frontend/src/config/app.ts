@@ -18,3 +18,10 @@ export const ENABLE_DEMO_LOGIN = import.meta.env.DEV || import.meta.env.VITE_ENA
 
 /** Show developer tools such as the AI offline toggle outside the admin role. */
 export const ENABLE_DEV_TOOLS = import.meta.env.VITE_ENABLE_DEV_TOOLS === 'true';
+
+/**
+ * Show the system-wide AI mode switch as a demo tool (capstone defense) for non-admins.
+ * Strict comparison on purpose: NOT enabled by `npm run dev`, so patients don't see it by default.
+ * Can also be unlocked per tab with Ctrl+Shift+D (see hooks/useDemoToolsHotkey).
+ */
+export const ENABLE_DEMO_AI_TOGGLE = import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true';

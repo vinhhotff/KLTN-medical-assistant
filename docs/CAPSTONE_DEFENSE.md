@@ -80,6 +80,16 @@
    - Chuyển sang trang *Tìm & Đặt Bác Sĩ*.
    - Nhập chuỗi tìm kiếm tự nhiên: *"bác sĩ can thiệp mạch vành"* $\rightarrow$ Hệ thống gọi `pgvector` tính khoảng cách cosine và đưa bác sĩ Nguyễn Văn An lên vị trí top 1 với độ tương quan cao nhất.
    - Bấm *Đặt Khám Ngay* $\rightarrow$ Thông báo đặt lịch thành công hiển thị tức thì.
+   - **3b. Smart Defense Bar + chuyển AI ngoại tuyến (Feature Hashing fallback):**
+     1. Đăng nhập tài khoản PATIENT $\rightarrow$ trang *Tìm & Đặt Bác Sĩ*.
+     2. Nhấn **Ctrl+Shift+D** (macOS: Cmd+Shift+D) $\rightarrow$ toast "Đã bật công cụ demo", hiện khối "Công cụ demo · Chế độ AI toàn hệ thống" (dòng cảnh báo "Ảnh hưởng tới mọi người dùng"). Bản build demo có `VITE_ENABLE_DEMO_LOGIN=true` thì khối này hiện sẵn.
+     3. Bấm **"Chuyển AI sang ngoại tuyến"** $\rightarrow$ nhãn đổi thành "Chế Độ Test Offline (Tắt API Key)".
+     4. Gõ *"ho sốt nhưng không khó thở"* $\rightarrow$ chỉ ra thanh "AI đã hiểu triệu chứng của bạn:" với badge xanh **ho sốt** và badge xám gạch ngang **không khó thở** (NegEx tách theo mệnh đề, mệnh đề phủ định bị loại khỏi truy vấn vector); mở "Chi tiết kỹ thuật" để thấy `normalizedClinicalQuery`. Danh sách bác sĩ **vẫn trả về** dù AI đã ngắt (fallback Feature Hashing 1536-d).
+     5. (Tuỳ chọn) Gõ *"đau ngực dữ dội"* $\rightarrow$ banner đỏ cấp cứu + nút gọi 115 nằm trên danh sách bác sĩ.
+     6. Bấm **"Bật lại AI trực tuyến"** trước khi sang bước tiếp theo (chế độ này áp dụng cho **toàn hệ thống**).
+   - ⚠️ **Lưu ý trước buổi bảo vệ:**
+     - Thử phím tắt trước trên **đúng trình duyệt của máy demo** (một số trình duyệt/extension chiếm Ctrl+Shift+D).
+     - Từ `954071f`, backend chỉ cho ADMIN gọi `POST /system/ai-mode/toggle` (BE-1). Nếu chưa có ngoại lệ cho profile demo, bước 3 bằng tài khoản PATIENT sẽ báo "Máy chủ chỉ cho tài khoản quản trị đổi chế độ AI" $\rightarrow$ bấm nút ở một **cửa sổ ẩn danh** (hoặc trình duyệt khác) đăng nhập ADMIN, cùng trang Tìm bác sĩ — hai tab thường dùng chung phiên đăng nhập nên không tách được vai trò — rồi quay lại cửa sổ PATIENT để làm bước 4.
 4. **Bước 4: Giải Nghĩa Phiếu Xét Nghiệm Bằng AI (Document Summarizer)**
    - Mở tab *Tóm Tắt Bệnh Án*.
    - Chọn tệp ảnh phiếu xét nghiệm máu mẫu và bấm *Phân Tích AI*.

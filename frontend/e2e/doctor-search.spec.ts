@@ -43,6 +43,40 @@ test.describe('Doctor search', () => {
     await installMockApi(page, { role: 'ADMIN' });
     await page.goto('/patient/doctors');
     await expect(page.getByRole('button', { name: /Chuyển AI sang ngoại tuyến|Bật lại AI/ })).toBeVisible();
+    await expect(page.getByText(/Công cụ quản trị · Chế độ AI toàn hệ thống/i)).toBeVisible();
+  });
+
+  test('patient presses Ctrl+Shift+D in the search box → demo AI switch appears and calls the toggle API', async ({ page }) => {
+    const calls: Array<{ method: string; path: string; body: unknown }> = [];
+    await installMockApi(page, { role: 'PATIENT', calls });
+    await page.goto('/patient/doctors');
+    const search = page.getByRole('searchbox');
+    await search.fill('ho');
+    await search.press('Control+Shift+KeyD');
+    await expect(search).toHaveValue('ho');
+    await expect(page.getByText('Đã bật công cụ demo')).toBeVisible();
+    await expect(page.getByText(/Công cụ demo · Chế độ AI toàn hệ thống/i)).toBeVisible();
+    await expect(page.getByText('Ảnh hưởng tới mọi người dùng')).toBeVisible();
+    await expect(page.getByText('Neural AI Trực Tuyến (Online Mode)')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Chuyển AI sang ngoại tuyến' }).click();
+    await expect(page.getByRole('button', { name: 'Bật lại AI trực tuyến' })).toBeVisible();
+    expect(calls.filter((c) => c.method === 'POST' && c.path === '/system/ai-mode/toggle')).toHaveLength(1);
+
+    // Survives navigation within the tab, and the same combo turns it off again
+    await page.reload();
+    await expect(page.getByText(/Công cụ demo · Chế độ AI/i)).toBeVisible();
+    await page.keyboard.press('Control+Shift+KeyD');
+    await expect(page.getByText(/Công cụ demo · Chế độ AI/i)).toHaveCount(0);
+  });
+
+  test('demo toggle explains a 403 from the admin-only backend', async ({ page }) => {
+    await installMockApi(page, { role: 'PATIENT', overrides: { 'POST /system/ai-mode/toggle': { status: 403 } } });
+    await page.goto('/patient/doctors');
+    await expect(page.getByText('BS. Nguyễn Văn Tâm')).toBeVisible();
+    await page.keyboard.press('Control+Shift+KeyD');
+    await page.getByRole('button', { name: 'Chuyển AI sang ngoại tuyến' }).click();
+    await expect(page.getByText(/chỉ cho tài khoản quản trị/)).toBeVisible();
   });
 
   test('missing fee and reviews are shown honestly', async ({ page }) => {
