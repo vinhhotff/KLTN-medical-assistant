@@ -210,6 +210,15 @@ export const DoctorDashboard: React.FC = () => {
   const [chiefComplaint, setChiefComplaint] = useState('');
   const [icd10Code, setIcd10Code] = useState('');
   const [icd10Name, setIcd10Name] = useState('');
+  // Live ICD-10 Clinical Ontology Autocomplete
+  const [icd10Suggestions, setIcd10Suggestions] = useState<Array<{
+    code: string;
+    nameVi: string;
+    nameEn: string;
+    specialtyName: string;
+  }>>([]);
+  const [loadingIcd10, setLoadingIcd10] = useState(false);
+  const [showIcd10Dropdown, setShowIcd10Dropdown] = useState(false);
   const [consultationNotes, setConsultationNotes] = useState('');
   const [treatmentPlan, setTreatmentPlan] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
@@ -699,6 +708,28 @@ export const DoctorDashboard: React.FC = () => {
   const selectIcd10Template = (code: string, name: string) => {
     setIcd10Code(code);
     setIcd10Name(name);
+    setShowIcd10Dropdown(false);
+  };
+
+  // Search standard WHO/MOH ICD-10 diagnoses from live clinical ontology API
+  const handleSearchIcd10 = async (q: string) => {
+    if (!q || q.trim().length < 1) {
+      setIcd10Suggestions([]);
+      setShowIcd10Dropdown(false);
+      return;
+    }
+    setLoadingIcd10(true);
+    try {
+      const res = await api.get('/clinical/ontology/icd10', { params: { query: q.trim() } });
+      if (res.data?.data) {
+        setIcd10Suggestions(res.data.data.slice(0, 8));
+        setShowIcd10Dropdown(true);
+      }
+    } catch {
+      // Silently keep empty
+    } finally {
+      setLoadingIcd10(false);
+    }
   };
 
   // Preset prescriptions
@@ -3138,9 +3169,9 @@ export const DoctorDashboard: React.FC = () => {
                 </div>
 
                 {/* Section 3: ICD-10 Coding */}
-                <div className="p-4 bg-indigo-50/50 border border-indigo-200 rounded-2xl space-y-3">
+                <div className="p-4 bg-indigo-50/50 border border-indigo-200 rounded-2xl space-y-3 relative">
                   <div className="font-bold text-indigo-900 text-sm flex items-center justify-between">
-                    <span>Chẩn Đoán ICD-10 <span className="text-rose-600">*</span></span>
+                    <span>Chẩn Đoán ICD-10 Chuẩn Y Tế <span className="text-rose-600">*</span></span>
                     <div className="flex flex-wrap gap-1.5">
                       <button
                         type="button"
@@ -3163,30 +3194,94 @@ export const DoctorDashboard: React.FC = () => {
                       >
                         K21.0 (GERD)
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => selectIcd10Template('E11.9', 'Đái tháo đường týp 2, không biến chứng')}
+                        className="px-2 py-0.5 rounded bg-white text-[11px] font-bold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 cursor-pointer"
+                      >
+                        E11.9 (ĐTĐ)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectIcd10Template('J45.9', 'Hen phế quản, không xác định')}
+                        className="px-2 py-0.5 rounded bg-white text-[11px] font-bold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 cursor-pointer"
+                      >
+                        J45.9 (Hen)
+                      </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 relative">
                     <div>
-                      <label className="text-slate-500 font-semibold block mb-1">Mã Bệnh (ICD-10 Code)</label>
+                      <label className="text-slate-500 font-semibold block mb-1">Mã Bệnh (ICD-10)</label>
                       <input
                         type="text"
                         value={icd10Code}
-                        onChange={(e) => setIcd10Code(e.target.value.toUpperCase())}
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase();
+                          setIcd10Code(val);
+                          handleSearchIcd10(val);
+                        }}
+                        onFocus={() => {
+                          if (icd10Code.trim()) handleSearchIcd10(icd10Code);
+                        }}
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold uppercase bg-white"
                         placeholder="I10"
                       />
                     </div>
                     <div className="sm:col-span-3">
-                      <label className="text-slate-500 font-semibold block mb-1">Tên Chẩn Đoán Y Khoa</label>
+                      <label className="text-slate-500 font-semibold block mb-1">Tên Chẩn Đoán (Tra cứu bản thể luận WHO/BYT)</label>
                       <input
                         type="text"
                         value={icd10Name}
-                        onChange={(e) => setIcd10Name(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setIcd10Name(val);
+                          handleSearchIcd10(val);
+                        }}
+                        onFocus={() => {
+                          if (icd10Name.trim()) handleSearchIcd10(icd10Name);
+                        }}
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-semibold"
-                        placeholder="Tên bệnh..."
+                        placeholder="Nhập tên bệnh hoặc triệu chứng..."
                       />
                     </div>
                   </div>
+
+                  {/* Autocomplete Suggestions Dropdown from live Ontology API */}
+                  {showIcd10Dropdown && icd10Suggestions.length > 0 && (
+                    <div className="bg-white border border-indigo-200 rounded-xl shadow-xl max-h-56 overflow-y-auto p-1.5 divide-y divide-slate-100 mt-1">
+                      <div className="text-[10px] font-bold text-indigo-600 px-2 py-1 uppercase tracking-wider bg-indigo-50/70 rounded-lg flex items-center justify-between">
+                        <span>Gợi ý chẩn đoán chuẩn WHO & Bộ Y Tế {loadingIcd10 ? '(Đang tra cứu...)' : ''}:</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowIcd10Dropdown(false)}
+                          className="text-slate-400 hover:text-slate-700 font-bold"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      {icd10Suggestions.map((item) => (
+                        <div
+                          key={item.code}
+                          onClick={() => selectIcd10Template(item.code, item.nameVi)}
+                          className="px-3 py-2 hover:bg-indigo-50 rounded-lg cursor-pointer flex items-center justify-between transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-black text-xs px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded">
+                              {item.code}
+                            </span>
+                            <span className="text-xs font-semibold text-slate-800">
+                              {item.nameVi}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            {item.specialtyName}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {submitAttempted && !icd10Code.trim() && !icd10Name.trim() && (
                     <p role="alert" className="text-[11px] text-rose-600 font-medium">Cần nhập mã hoặc tên chẩn đoán ICD-10.</p>
                   )}

@@ -5268,6 +5268,26 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
 6. **`[NEW]` `com.mediassist.service.ClinicalOntologyServiceTest`:**
    - Bộ 6 bài kiểm thử tự động bao phủ 100% các luồng nạp dữ liệu, tìm kiếm đa tiêu chí, lọc theo chuyên khoa và tra cứu mã chính xác.
 
+---
+
+### [WORK-LOG-#100] Tích Hợp Tìm Kiếm & Tự Động Điền Chẩn Đoán ICD-10 Thời Gian Thực Trên Bàn Khám Bác Sĩ
+* **Thời gian:** 2026-10-12 14:15:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Kết nối giao diện Bàn khám Bác sĩ (`DoctorDashboard.tsx`) với API bản thể luận y khoa `GET /api/v1/clinical/ontology/icd10`, cung cấp tính năng tra cứu và tự động điền (Autocomplete) chẩn đoán chuẩn WHO/Bộ Y Tế thời gian thực.
+* **Trạng thái Build:**
+  - Backend: **`185 / 185` Tests PASS 100%** (`mvn test` 0 failure, 0 error).
+  - Frontend: **`npm run build` PASS 100%** (2293 modules, 0 lỗi TypeScript, 2.61s).
+
+#### 1. Chi Tiết Thay Đổi Giao Diện & Trải Nghiệm Khám Bệnh:
+1. **`[MOD]` `frontend/src/pages/doctor/DoctorDashboard.tsx`:**
+   - Thêm trạng thái `icd10Suggestions`, `loadingIcd10`, `showIcd10Dropdown` và hàm `handleSearchIcd10`.
+   - Tại Section 3 (ICD-10 Coding) của Modal Khám bệnh:
+     * Tự động kích hoạt tìm kiếm khi bác sĩ gõ mã ICD-10 hoặc tên chẩn đoán (hoặc triệu chứng).
+     * Hiển thị bảng gợi ý trực quan (Autocomplete Dropdown) gồm: Huy hiệu mã bệnh ICD-10, Tên tiếng Việt chuẩn Bộ Y Tế, và Tag chuyên khoa phụ trách.
+     * Chọn 1-click tự động điền đồng thời cả `icd10Code` và `icd10Name`.
+     * Bổ sung các chip mẫu chẩn đoán thường gặp: `I10 (THA)`, `I20.9 (Đau ngực)`, `K21.0 (GERD)`, `E11.9 (ĐTĐ týp 2)`, `J45.9 (Hen PQ)`.
+
+
 
 
 
