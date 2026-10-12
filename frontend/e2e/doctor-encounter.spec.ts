@@ -17,6 +17,10 @@ test.describe('UC-CLIN: Doctor clinical encounter sign-off', () => {
     }
     await expect(page.locator('#emr-room')).toHaveValue('');
 
+    // SBAR + urgency arrive via the appointment's triageSessionId (AppointmentDto), not via notes
+    await expect(page.getByText('Phiên Phân Luồng AI Triage:')).toBeVisible();
+    await expect(page.getByText(/S: Đau thượng vị\. B: Tiền sử viêm dạ dày\. A: Nghi GERD/).first()).toBeVisible();
+
     const signButton = page.getByRole('button', { name: /Ký Duyệt & Hoàn Tất/ });
     await expect(signButton).toBeDisabled();
     const blockers = page.getByTestId('sign-blockers');

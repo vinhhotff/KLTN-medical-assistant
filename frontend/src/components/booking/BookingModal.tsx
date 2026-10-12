@@ -34,6 +34,8 @@ interface BookingModalProps {
   notesHint?: React.ReactNode;
   /** Extra CreateAppointmentRequest fields. */
   extra?: { medicalDocumentId?: string | null; triageSessionId?: string | null };
+  /** Opened from the triage assistant: tells the patient whether the AI triage record is linked. */
+  fromTriage?: boolean;
   /** Context shown above the form, e.g. the attached document. */
   context?: React.ReactNode;
   onBooked?: (appointment: BookedAppointment) => void;
@@ -50,6 +52,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   notesLabel = 'Mô tả triệu chứng / lý do khám',
   notesHint,
   extra,
+  fromTriage = false,
   context,
   onBooked,
 }) => {
@@ -186,6 +189,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               placeholder="VD: Đau ngực khi leo cầu thang 3 ngày nay, kèm khó thở nhẹ..."
             />
           </Field>
+          {extra?.triageSessionId ? (
+            <p className="text-xs text-teal-800 bg-teal-50 border border-teal-200 rounded-xl px-3 py-2" data-testid="triage-link-info">
+              Phiếu phân luồng AI (SBAR đầy đủ, mức độ khẩn) sẽ được đính kèm tự động cho bác sĩ.
+            </p>
+          ) : fromTriage ? (
+            <p role="alert" className="text-xs text-amber-900 bg-amber-50 border border-amber-300 rounded-xl px-3 py-2" data-testid="triage-link-missing">
+              Không liên kết được phiên phân luồng AI; bác sĩ sẽ chỉ thấy ghi chú của bạn.
+            </p>
+          ) : null}
           <p className="text-xs text-slate-600">
             Phí khám dự kiến: <strong className="text-slate-900">{fee ?? 'Bác sĩ chưa cập nhật — thông báo tại quầy'}</strong>
           </p>

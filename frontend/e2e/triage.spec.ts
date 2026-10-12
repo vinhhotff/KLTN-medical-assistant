@@ -33,7 +33,7 @@ test.describe('UC-CLIN-02: Symptom triage assistant', () => {
     await expect(page.getByText('Khuyến Cáo Lâm Sàng')).toBeVisible();
   });
 
-  test('booking from triage sends triageSessionId and an editable symptom summary', async ({ page }) => {
+  test('booking from triage links the session instead of copying a truncated SBAR into notes', async ({ page }) => {
     const calls: Array<{ method: string; path: string; body: unknown }> = [];
     await installMockApi(page, {
       role: 'PATIENT',
@@ -53,8 +53,11 @@ test.describe('UC-CLIN-02: Symptom triage assistant', () => {
     const dialog = page.getByRole('dialog');
     const notes = dialog.locator('#booking-notes');
     await expect(notes).toHaveValue(/Triệu chứng: Đau thượng vị sau ăn, ợ chua/);
-    await expect(notes).toHaveValue(/Tóm tắt SBAR/);
+    await expect(notes).toHaveValue(/Chuyên khoa AI gợi ý: Tiêu hóa/);
+    await expect(notes).not.toHaveValue(/Tóm tắt SBAR|S: Đau thượng vị sau ăn\. A:/);
     await expect(notes).not.toHaveValue(/Triage AI Session/);
+    await expect(dialog.getByTestId('triage-link-info')).toContainText('Phiếu phân luồng AI (SBAR đầy đủ, mức độ khẩn) sẽ được đính kèm tự động');
+    await expect(dialog.getByTestId('triage-link-missing')).toHaveCount(0);
     await notes.fill('Đau thượng vị 3 ngày, ợ chua sau ăn');
 
     const d = new Date();
@@ -68,12 +71,51 @@ test.describe('UC-CLIN-02: Symptom triage assistant', () => {
     await expect(page.getByTestId('booking-success')).toBeVisible();
 
     const booking = calls.find((c) => c.method === 'POST' && c.path === '/appointments');
+    expect((booking?.body as { triageSessionId?: string }).triageSessionId).toBe(SESSION_ID);
     expect(booking?.body).toMatchObject({
       doctorId: '55555555-5555-5555-5555-555555555555',
       triageSessionId: SESSION_ID,
       notes: 'Đau thượng vị 3 ngày, ợ chua sau ăn',
       scheduledStart: `${iso}T08:00:00`,
     });
+  });
+
+  test('long symptoms are not silently cut: the modal blocks > 1000 chars', async ({ page }) => {
+    await installMockApi(page, { role: 'PATIENT', overrides: { 'POST /triage/assess': { body: routineResponse } } });
+    await page.goto('/patient/triage');
+    await page.getByPlaceholder(/Nhập triệu chứng của bạn/).fill('Đau thượng vị '.repeat(80).trim());
+    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: 'Đặt Khám' }).click();
+    const dialog = page.getByRole('dialog');
+    const value = await dialog.locator('#booking-notes').inputValue();
+    expect(value.length).toBeGreaterThan(1000);
+    await expect(dialog.getByText('Tối đa 1000 ký tự.')).toBeVisible();
+  });
+
+  test('missing sessionId: booking still allowed but the patient is warned', async ({ page }) => {
+    const calls: Array<{ method: string; path: string; body: unknown }> = [];
+    await installMockApi(page, {
+      role: 'PATIENT',
+      calls,
+      overrides: { 'POST /triage/assess': { body: { ...routineResponse, data: { ...routineResponse.data, sessionId: null } } } },
+    });
+    await page.goto('/patient/triage');
+    await page.getByPlaceholder(/Nhập triệu chứng của bạn/).fill('Đau thượng vị sau ăn, ợ chua');
+    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: 'Đặt Khám' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByTestId('triage-link-missing')).toContainText('Không liên kết được phiên phân luồng AI');
+    await expect(dialog.getByTestId('triage-link-info')).toHaveCount(0);
+
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    await dialog.locator('#slot-date').fill(iso);
+    await dialog.getByRole('radio', { name: '08:00' }).click();
+    await dialog.getByRole('button', { name: 'Xác nhận đặt khám' }).click();
+    await expect(page.getByTestId('booking-success')).toBeVisible();
+    const booking = calls.find((c) => c.method === 'POST' && c.path === '/appointments');
+    expect((booking?.body as { triageSessionId?: string }).triageSessionId).toBeUndefined();
   });
 
   test('emergency answer shows the 115 call-to-action and locks routine booking', async ({ page }) => {

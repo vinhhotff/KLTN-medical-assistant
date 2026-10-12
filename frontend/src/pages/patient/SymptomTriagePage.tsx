@@ -20,6 +20,8 @@ import {
 import { api } from '../../services/api';
 import { BookingModal, type BookableDoctor } from '../../components/booking/BookingModal';
 import { EMERGENCY_NUMBER } from '../../config/app';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { formatRating, formatVnd } from '../../utils/display';
 
 interface DoctorMatch {
@@ -250,6 +252,9 @@ export const SymptomTriagePage: React.FC = () => {
   };
 
   // Booking: pre-fill a readable summary the patient can edit (not an internal session id)
+  // Notes carry only what the patient typed (+ suggested specialty). The full SBAR and urgency
+  // reach the doctor through triageSessionId (AppointmentDto.triageSbarSummary/triageUrgencyLevel),
+  // so they are not duplicated — or silently truncated — in the 1000-char notes field.
   const handleOpenBooking = (doc: DoctorMatch, msg: ChatMessage) => {
     const symptoms = messages
       .filter((m) => m.role === 'user')
@@ -260,10 +265,10 @@ export const SymptomTriagePage: React.FC = () => {
     const parts = [
       symptoms && `Triệu chứng: ${symptoms}`,
       msg.recommendedSpecialty && `Chuyên khoa AI gợi ý: ${msg.recommendedSpecialty}`,
-      msg.sbarSummary && `Tóm tắt SBAR:\n${msg.sbarSummary}`,
     ].filter(Boolean);
-    setBookingNotes(parts.join('\n').slice(0, 1000));
-    setBookingSessionId(msg.sessionId || sessionId);
+    setBookingNotes(parts.join('\n'));
+    const triageSessionId = msg.sessionId || sessionId;
+    setBookingSessionId(triageSessionId && UUID_RE.test(triageSessionId) ? triageSessionId : null);
     setBookingDoctor({
       id: doc.doctorId,
       fullName: doc.fullName,
@@ -615,8 +620,9 @@ export const SymptomTriagePage: React.FC = () => {
         doctor={bookingDoctor}
         onClose={() => setBookingDoctor(null)}
         initialNotes={bookingNotes}
-        notesLabel="Ghi chú cho bác sĩ (tóm tắt từ trợ lý AI — bạn có thể sửa)"
+        notesLabel="Ghi chú cho bác sĩ (triệu chứng bạn đã nhập — bạn có thể sửa)"
         extra={{ triageSessionId: bookingSessionId }}
+        fromTriage
       />
     </div>
   );

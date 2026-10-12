@@ -330,6 +330,11 @@ graph TD
 * **3a. Người khác đã đặt slot trước đó (Pre-check):** `existsConflict` phát hiện trùng giờ $\rightarrow$ Ném ngoại lệ `AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", ...)`. Backend trả về HTTP 409: *"Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác."*
 * **3b. Xung đột đặt lịch song song (Concurrent Race Condition Shield):** Trường hợp hai bệnh nhân cùng bấm xác nhận tại cùng một microsecond và cùng vượt qua bước `existsConflict()`, Database Partial Unique Index `idx_appointment_unique_active_slot` trên `appointments(doctor_id, scheduled_start) WHERE status != 'CANCELLED'` sẽ chặn transaction thứ hai. Lệnh `saveAndFlush()` kích hoạt `DataIntegrityViolationException`, được bắt và chuyển đổi thành HTTP 409 `SLOT_CONFLICT` an toàn, loại bỏ 100% rủi ro Double-booking.
 
+#### Luồng thay thế: Đặt khám từ Trợ lý Triệu chứng AI (Triage → Booking):
+* **A1. Có phiên phân luồng:** `SymptomTriagePage` mở `BookingModal` với `notes` điền sẵn **chỉ** phần triệu chứng bệnh nhân đã nhập (+ chuyên khoa AI gợi ý) và `extra.triageSessionId` (chỉ gửi khi là UUID hợp lệ). Modal hiện dòng chỉ đọc *"Phiếu phân luồng AI (SBAR đầy đủ, mức độ khẩn) sẽ được đính kèm tự động cho bác sĩ."* Backend lưu `Appointment.triageSessionId`; `AppointmentDto` trả `triageSbarSummary` + `triageUrgencyLevel` đầy đủ và `DoctorDashboard` hiển thị ở banner "Phiên Phân Luồng AI Triage". SBAR **không** được chép vào `notes` nữa (trước đây bị chép rồi cắt cụt ở 1000 ký tự, bác sĩ thấy 2 bản SBAR).
+* **A2. Không có `sessionId`:** vẫn cho đặt khám, modal hiện cảnh báo vàng *"Không liên kết được phiên phân luồng AI; bác sĩ sẽ chỉ thấy ghi chú của bạn"*, request không có `triageSessionId`.
+* **A3. Ghi chú > 1000 ký tự:** không cắt ngầm; `BookingModal` hiện bộ đếm + lỗi "Tối đa 1000 ký tự." và khoá nút xác nhận cho tới khi bệnh nhân rút gọn (backend cũng `@Size(max = 1000)`, BE-10).
+
 ---
 
 ### UC-06: Thẩm Định Bác Sĩ & Ghi Nhật Ký Kiểm Toán (Doctor Vetting & Audit Trail)
