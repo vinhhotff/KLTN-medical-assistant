@@ -168,6 +168,7 @@ MediAssist-AI operates on an **Online-to-Offline (O2O)** healthcare model:
   5. *Stage 5 - Compound Multi-Symptom Decomposition:* Syntactic clause splitting over conjunctions (`kèm theo`, `đồng thời`) enabling multi-specialty cross-matching.
 * **FR-VEC-06 (PostgreSQL Session Tuning & Forced Index Scan):** Every vector similarity search session SHALL execute session-scoped query planner parameters (`SET LOCAL hnsw.ef_search = 120`, `SET LOCAL enable_seqscan = off`, `SET LOCAL work_mem = '64MB'`) to eliminate table-level sequential scans and guarantee sub-millisecond HNSW index lookups.
 * **FR-VEC-07 (Sigmoid Contrastive Sharpening & Contrastive Penalty):** The system SHALL apply Sigmoid contrastive sharpening ($S_{dense} = \frac{1}{1 + e^{-8.0(S_{cosine} - 0.65)}}$) to separate high-affinity candidates from background noise, apply a $+0.12$ semantic specialty bonus for organ-level alignments, and enforce a $-0.10$ divergence penalty against mismatched medical departments.
+* **FR-VEC-08 (Clinical Ontology & Standard WHO ICD-10 / LOINC Integration):** The system SHALL expose standardized medical clinical ontologies via REST API (`/api/v1/clinical/ontology/**`), providing standard WHO ICD-10 and MOH Decision 7603/QĐ-BYT diagnoses alongside international LOINC v2.76 and MOH Decision 3280/QĐ-BYT laboratory indicator reference ranges for automated doctor encounter autocompletion.
 
 ### 3.5 Online-to-Offline (O2O) In-Clinic Scheduling & Admission Tickets (FR-BOK)
 
@@ -242,7 +243,7 @@ MediAssist-AI operates on an **Online-to-Offline (O2O)** healthcare model:
 * **NFR-SEC-04:** Security headers MUST include `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and strict CORS policies.
 
 ### 5.4 Maintainability & Extensibility
-* **NFR-MAINT-01:** Automated unit and slice test suites SHALL achieve 100% pass rate across $\ge 165$ tests (`mvn test`).
+* **NFR-MAINT-01:** Automated unit and slice test suites SHALL achieve 100% pass rate across $\ge 185$ tests (`mvn test`).
 * **NFR-MAINT-02:** Frontend codebase SHALL compile cleanly with zero TypeScript errors under strict mode (`tsc`).
 * **NFR-MAINT-03:** Database changes SHALL be strictly versioned using Flyway migration scripts.
 
@@ -263,6 +264,7 @@ MediAssist-AI operates on an **Online-to-Offline (O2O)** healthcare model:
 | **FR-VEC-03..04** | WHRF Re-Ranking & Credibility Damper | `UC-04` | `doctor_profiles` (V17, V19) | `DoctorSemanticSearchServiceTest.java` |
 | **FR-VEC-05** | 5-Stage Clinical Input Defense Engine | `UC-04` | Deterministic Memory Pipeline | `ClinicalQueryDefenseEngineTest.java` (100% pass) |
 | **FR-VEC-06..07** | Session HNSW Tuning & Sigmoid Re-Ranking | `UC-04` | PostgreSQL Session Config & L1 Heap | `DoctorSemanticSearchServiceTest.java` (9 tests pass) |
+| **FR-VEC-08** | Clinical Ontology (WHO ICD-10 & LOINC) | `UC-04, 20` | Classpath JSON & Memory Index | `ClinicalOntologyServiceTest.java` (6 tests pass) |
 | **FR-BOK-01..02** | O2O Scheduling & Concurrency Guard | `UC-05` | `appointments` (V1, V7) | `AppointmentServiceTest.java` |
 | **FR-BOK-03** | Admission Ticket & O2O QR | `UC-27` | `appointments(queue_number)` (V2) | `admission-ticket.spec.ts` |
 | **FR-BOK-04..05** | Rescheduling & Auto-Refund | `UC-23, 25`| `appointments(status=REFUNDED)` (V15)| `AppointmentServiceTest.java` |

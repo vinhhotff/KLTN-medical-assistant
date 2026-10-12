@@ -5287,6 +5287,30 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
      * Chọn 1-click tự động điền đồng thời cả `icd10Code` và `icd10Name`.
      * Bổ sung các chip mẫu chẩn đoán thường gặp: `I10 (THA)`, `I20.9 (Đau ngực)`, `K21.0 (GERD)`, `E11.9 (ĐTĐ týp 2)`, `J45.9 (Hen PQ)`.
 
+---
+
+### [WORK-LOG-#101] Đồng Bộ Toàn Diện Hồ Sơ Luận Văn Với Bản Thể Luận Y Khoa FR-VEC-08 & 185 Bài Kiểm Thử Tự Động
+* **Thời gian:** 2026-10-12 14:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Đồng bộ hóa toàn bộ hồ sơ tài liệu bảo vệ KLTN (SRS IEEE 830, Đặc tả đề cương, Slide bảo vệ 24 slide, Cẩm nang hướng dẫn) với tính năng Bản thể luận Y khoa FR-VEC-08 và cột mốc 185 bài kiểm thử tự động.
+* **Trạng thái Build:**
+  - Backend: **`185 / 185` Tests PASS 100%** (`mvn test` 0 failure, 0 error).
+  - Frontend: **`npm run build` PASS 100%** (2293 modules, 0 lỗi TypeScript, 2.61s).
+
+#### 1. Chi Tiết Các Tệp Hồ Sơ Đã Được Đồng Bộ:
+1. **`[MOD]` `docs/SRS_MediAssist_AI.md`:**
+   - Bổ sung yêu cầu chức năng mới `FR-VEC-08` (Bản thể luận Y khoa Chuẩn Quốc tế WHO ICD-10 & LOINC v2.76).
+   - Nâng cấp yêu cầu phi chức năng `NFR-MAINT-01`: Đạt 100% pass rate trên $\ge 185$ tests tự động.
+   - Bổ sung `FR-VEC-08` vào bảng Ma trận truy vết yêu cầu (RTM Mapping) ánh xạ tới `ClinicalOntologyServiceTest.java`.
+2. **`[MOD]` `docs/CAPSTONE_SPECIFICATION.md`:**
+   - Cập nhật chỉ số kiểm thử phần mềm lên **185/185 Unit Tests PASS 100%**.
+3. **`[MOD]` `docs/HUONG_DAN_LAM_SLIDE_VA_SRS.md`:**
+   - Bổ sung `FR-VEC-08` vào danh mục yêu cầu chức năng trích xuất làm SRS.
+   - Cập nhật số lượng bài test kiểm chứng nhanh tại Mục 2 và Mục 6 lên 185 tests.
+4. **`[MOD]` `docs/CAPSTONE_PRESENTATION_SLIDES.md`:**
+   - Cập nhật Slide 21 (Huy hiệu chất lượng & Lời thoại thuyết trình) lên **185/185 Backend Tests PASS 100%** và 2.293 modules frontend build sạch.
+
+
 
 
 

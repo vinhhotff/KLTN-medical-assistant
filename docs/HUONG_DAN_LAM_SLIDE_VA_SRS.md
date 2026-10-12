@@ -67,7 +67,7 @@ Tệp nguồn: [`docs/CAPSTONE_PRESENTATION_SLIDES.md`](./CAPSTONE_PRESENTATION_
 * **02:30 - 05:30 (Slide 4 - 6):** Kiến trúc C4, Rào chắn đạo đức y tế và CSDL Flyway.
 * **05:30 - 10:00 (Slide 7 - 13):** **Trọng tâm bảo vệ:** Lệch ngữ nghĩa, kho dữ liệu Meddies 150k ca, Động cơ phòng thủ 5 tầng "Bao Đầu Vào", Vietnamese NegEx, HNSW Session Tuning và kết quả Benchmark.
 * **10:00 - 13:00 (Slide 14 - 19):** Hiện thực hóa phân hệ doanh nghiệp: OCR song song, Khử PII, Two-Layer Cache, Bàn khám Bác sĩ, FinOps Token.
-* **13:00 - 15:00 (Slide 20 - 24):** Kịch bản Live Demo 5 phút, Kiểm thử 165/165 tests, Khả năng mở rộng 16GB RAM và Kết luận.
+* **13:00 - 15:00 (Slide 20 - 24):** Kịch bản Live Demo 5 phút, Kiểm thử 185/185 tests, Khả năng mở rộng 16GB RAM và Kết luận.
 
 ---
 
@@ -90,12 +90,13 @@ Nếu giảng viên yêu cầu nộp bản **Software Requirement Specification 
     5. *Phân tách đa triệu chứng phức hợp.*
   - **FR-VEC-06:** PostgreSQL Session Tuning & Forced Index Scan (`SET LOCAL hnsw.ef_search = 120`, `SET LOCAL enable_seqscan = off`, `SET LOCAL work_mem = '64MB'`).
   - **FR-VEC-07:** Sigmoid Contrastive Sharpening ($S_{dense} = \frac{1}{1 + e^{-8.0(S - 0.65)}}$) kết hợp Thưởng chuyên khoa ($+0.12$) và Phạt phân kỳ ($-0.10$).
+  - **FR-VEC-08 (Mới):** Tích hợp Bản thể luận Y khoa Chuẩn Quốc Tế (`/api/v1/clinical/ontology/**`): Chuẩn WHO ICD-10 & QĐ 7603/QĐ-BYT cùng Mã LOINC & QĐ 3280/QĐ-BYT Bộ Y Tế, hỗ trợ tự động điền (Autocomplete) chẩn đoán trên Bàn khám Bác sĩ.
 
 ### 2. Trích xuất Phần Yêu Cầu Phi Chức Năng (Non-Functional Requirements - NFR):
 * **NFR-PERF-01..05:** Độ trễ L1 Caffeine $< 1\text{ms}$, L2 Redis $< 3\text{ms}$, HNSW Index Scan $< 12\text{ms}$ (Thực tế đạt $0.72\text{ms}$).
 * **NFR-AVAIL-01..02:** Uptime $\ge 99.9\%$, chịu tải $\ge 500$ Virtual Users không tràn connection pool.
 * **NFR-SEC-01..03:** Bcrypt cost 12, HttpOnly Secure Cookie, Khử PII tuân thủ Nghị định 13/2023/NĐ-CP và HIPAA Safe Harbor.
-* **NFR-MAINT-01:** **165/165 Unit Tests PASS 100% (`mvn test`)**, 0 lỗi TypeScript.
+* **NFR-MAINT-01:** **185/185 Unit Tests PASS 100% (`mvn test`)**, 0 lỗi TypeScript.
 
 ### 3. Trích xuất Ma Trận Truy Vết Yêu Cầu (RTM - Section 6):
 Copy trực tiếp bảng mục 6 trong `SRS_MediAssist_AI.md` vào phần Phụ lục (Appendix) của báo cáo SRS để chứng minh mọi yêu cầu đều có Use Case, Migration SQL và Unit Test tương ứng.
@@ -177,11 +178,11 @@ python scripts/run_meddies_pipeline.py --samples 50
 ```
 Script sẽ quét trực tiếp CSDL PostgreSQL, tính toán và in ra ngay bảng Top-1 (23.2%), Recall@3 (33.0%) và Latency (0.72ms).
 
-### 2. Kiểm chứng 165 bài test Backend tự động (15 giây):
+### 2. Kiểm chứng 185 bài test Backend tự động (15 giây):
 ```bash
 cd backend && mvn test
 ```
-Toàn bộ 165 tests PASS 100% (xanh hoàn toàn).
+Toàn bộ 185 tests PASS 100% (xanh hoàn toàn).
 
 ### 3. Kiểm chứng chất lượng Frontend sạch 100% (3 giây):
 ```bash

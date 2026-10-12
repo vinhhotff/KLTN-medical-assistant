@@ -115,5 +115,5 @@ graph TD
 | **Cache & Queue** | Redis Cluster (L2 Cache, Rate Limiting, Session State) |
 | **Database Migration** | Flyway Migrations (V1 $\rightarrow$ V19) |
 | **AI Models (API Only)**| Google Gemini 1.5 Flash (Vision OCR & Scribe) / OpenAI Embeddings |
-| **Testing** | JUnit 5, Mockito, Spring Boot Test (165/165 Unit Tests PASS 100%) |
+| **Testing** | JUnit 5, Mockito, Spring Boot Test (185/185 Unit Tests PASS 100%) |
 | **DevOps** | Docker, Docker Compose, Nginx Reverse Proxy, Enforced HTTPS |

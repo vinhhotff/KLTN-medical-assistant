@@ -461,18 +461,18 @@
 * **Thời lượng:** 50 giây
 * **Gợi ý thiết kế Visual:**
   - Huy hiệu chất lượng (Quality Badges):
-    - `165 / 165 Backend Tests PASS (100%)` (Màu xanh lá rực rỡ).
+    - `185 / 185 Backend Tests PASS (100%)` (Màu xanh lá rực rỡ).
     - `TypeScript Strict Mode: 0 Error, 0 Warning` (Build sạch 100%).
     - Biểu đồ kết quả k6 Load Testing (500 Virtual Users, 0% Error Rate, Latency P95 $< 18\text{ms}$).
 * **Nội dung hiển thị trên Slide:**
   - **Kiểm thử tự động hóa toàn diện:**
-    - **165/165 Unit & Slice Tests Backend vượt qua 100% (`mvn test`):** Bao phủ toàn bộ các dịch vụ trọng yếu (`ClinicalQueryDefenseEngineTest`, `DoctorSemanticSearchServiceTest`, `RedFlagServiceTest`...).
-    - **Frontend Compile sạch 100% (`npm run build`):** 2.273 modules được biên dịch với 0 lỗi TypeScript dưới chế độ nghiêm ngặt.
+    - **185/185 Unit & Slice Tests Backend vượt qua 100% (`mvn test`):** Bao phủ toàn bộ các dịch vụ trọng yếu (`ClinicalQueryDefenseEngineTest`, `DoctorSemanticSearchServiceTest`, `ClinicalOntologyServiceTest`, `RedFlagServiceTest`...).
+    - **Frontend Compile sạch 100% (`npm run build`):** 2.293 modules được biên dịch với 0 lỗi TypeScript dưới chế độ nghiêm ngặt và chia nhỏ bundle tự động (Code-splitting).
   - **Kiểm thử khả năng chịu tải (k6 Load Test):**
     - Duy trì ổn định ở mức 500 người dùng ảo đồng thời (Virtual Users).
     - Tỷ lệ lỗi giao dịch: **0.00%**, độ trễ $P95 < 18\text{ms}$ nhờ bộ nhớ đệm 2 lớp L1/L2.
 * **Kịch bản lời thoại (Speaker Notes):**
-  > *"Để đảm bảo chất lượng phần mềm chuẩn doanh nghiệp, nhóm duy trì bộ kiểm thử tự động với 165 trên 165 bài test Backend chạy thành công 100%, Frontend không có bất kỳ lỗi TypeScript nào. Thử nghiệm tải bằng k6 với 500 người dùng đồng thời cho tỷ lệ lỗi bằng 0% và độ trễ P95 dưới 18 mili-giây."*
+  > *"Để đảm bảo chất lượng phần mềm chuẩn doanh nghiệp, nhóm duy trì bộ kiểm thử tự động với 185 trên 185 bài test Backend chạy thành công 100%, Frontend không có bất kỳ lỗi TypeScript nào. Thử nghiệm tải bằng k6 với 500 người dùng đồng thời cho tỷ lệ lỗi bằng 0% và độ trễ P95 dưới 18 mili-giây."*
 
 ---
 
