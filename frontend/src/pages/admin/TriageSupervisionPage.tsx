@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { 
   HeartPulse, 
   Search, 
@@ -16,6 +16,8 @@ import {
 import { api } from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
 import { devLog } from '../../utils/logger';
+import { EmptyState, ErrorState, SkeletonTable } from '../../components/ui';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 interface AdminTriageSession {
   id: string;
@@ -34,28 +36,30 @@ interface AdminTriageSession {
 export const TriageSupervisionPage: React.FC = () => {
   const [sessions, setSessions] = useState<AdminTriageSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('ALL');
   const [selectedSession, setSelectedSession] = useState<AdminTriageSession | null>(null);
 
-  const fetchTriageSessions = async (silent = false) => {
+  // Background (silent) refreshes never replace a loaded table with an error
+  const fetchTriageSessions = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(true);
       const res = await api.get('/admin/triage-sessions');
-      if (res.data?.data) {
-        setSessions(res.data.data);
-        setLastUpdated(new Date());
-      }
+      setSessions(Array.isArray(res.data?.data) ? res.data.data : []);
+      setLastUpdated(new Date());
+      setLoadError(null);
     } catch (err) {
       devLog.error('Failed to load triage sessions:', err);
+      if (!silent) setLoadError(getApiErrorMessage(err, 'Không tải được danh sách phiên phân luồng.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchTriageSessions();
@@ -170,9 +174,11 @@ export const TriageSupervisionPage: React.FC = () => {
       {/* Triage Sessions Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="py-20 text-center text-slate-400 text-sm">
-            Đang tải dữ liệu phiên phân luồng triệu chứng...
-          </div>
+          <SkeletonTable rows={6} cols={5} />
+        ) : loadError ? (
+          <ErrorState message={loadError} onRetry={() => fetchTriageSessions()} retrying={loading} className="m-4" />
+        ) : sessions.length === 0 ? (
+          <EmptyState title="Chưa có phiên phân luồng nào" description="Phiên mới sẽ xuất hiện khi bệnh nhân dùng trợ lý triệu chứng." className="m-4" />
         ) : filteredSessions.length === 0 ? (
           <div className="py-20 text-center text-slate-400 text-sm">
             Không tìm thấy phiên phân luồng nào phù hợp với bộ lọc tìm kiếm.

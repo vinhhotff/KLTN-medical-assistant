@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, ShieldCheck, Mail, Phone, Calendar, RefreshCw, UserX, UserCheck, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
 import { devLog } from '../../utils/logger';
+import { EmptyState, ErrorState, SkeletonTable } from '../../components/ui';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 const SUSPEND_MIN_REASON = 10;
 
@@ -20,6 +22,7 @@ interface UserRecord {
 export const UserManagementPage: React.FC = () => {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
 
@@ -66,23 +69,23 @@ export const UserManagementPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await api.get('/admin/users');
-      if (res.data?.data) {
-        setUsers(res.data.data);
-      }
+      setUsers(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (err) {
       devLog.error('Failed to load users:', err);
+      setLoadError(getApiErrorMessage(err, 'Không tải được danh sách người dùng.'));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   // Pagination state (Limit/Offset)
   const [currentPage, setCurrentPage] = useState(1);
@@ -179,7 +182,11 @@ export const UserManagementPage: React.FC = () => {
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="py-16 text-center text-slate-400 text-sm">Đang tải danh sách người dùng...</div>
+          <SkeletonTable rows={6} cols={5} />
+        ) : loadError ? (
+          <ErrorState message={loadError} onRetry={fetchUsers} retrying={loading} className="m-4" />
+        ) : users.length === 0 ? (
+          <EmptyState title="Chưa có người dùng nào" className="m-4" />
         ) : filteredUsers.length === 0 ? (
           <div className="py-16 text-center text-slate-400 text-sm">
             Không tìm thấy người dùng phù hợp.

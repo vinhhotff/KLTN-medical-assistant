@@ -20,6 +20,24 @@ export const SkeletonList: React.FC<{ rows?: number; className?: string }> = ({ 
   </div>
 );
 
+/** Table-shaped skeleton (header + rows × cols) for admin tables. */
+export const SkeletonTable: React.FC<{ rows?: number; cols?: number; className?: string }> = ({ rows = 5, cols = 4, className }) => (
+  <div className={cn('p-4 space-y-3', className)} role="status" aria-label="Đang tải" data-testid="skeleton-table">
+    <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+      {Array.from({ length: cols }, (_, c) => (
+        <Skeleton key={c} className="h-3 w-2/3 bg-slate-300/70" />
+      ))}
+    </div>
+    {Array.from({ length: rows }, (_, r) => (
+      <div key={r} className="grid gap-4 py-2 border-t border-slate-100" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+        {Array.from({ length: cols }, (_, c) => (
+          <Skeleton key={c} className={cn('h-4', c === 0 ? 'w-4/5' : 'w-1/2')} />
+        ))}
+      </div>
+    ))}
+  </div>
+);
+
 interface EmptyStateProps {
   title: string;
   description?: React.ReactNode;

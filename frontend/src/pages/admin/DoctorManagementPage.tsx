@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Stethoscope,
   Search,
   Plus,
-  RefreshCw,
   CheckCircle2,
   XCircle,
   AlertCircle,
@@ -24,6 +23,7 @@ import { Pagination } from '../../components/common/Pagination';
 import { formatRating, formatVnd } from '../../utils/display';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { devLog } from '../../utils/logger';
+import { EmptyState, ErrorState, SkeletonTable } from '../../components/ui';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -97,6 +97,7 @@ export const DoctorManagementPage: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [specialties, setSpecialties] = useState<SpecialtyItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'roster' | 'vetting'>('roster');
 
   // Search & Filter
@@ -122,32 +123,34 @@ export const DoctorManagementPage: React.FC = () => {
   const [rejectingDoctor, setRejectingDoctor] = useState<Doctor | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  // Fetch initial data
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const [docRes, specRes] = await Promise.allSettled([
         api.get('/admin/doctors'),
         api.get('/specialties'),
       ]);
 
-      if (docRes.status === 'fulfilled' && docRes.value.data?.data) {
-        setDoctors(docRes.value.data.data);
+      if (docRes.status === 'fulfilled') {
+        setDoctors(Array.isArray(docRes.value.data?.data) ? docRes.value.data.data : []);
+      } else {
+        // allSettled never throws: a failed doctor list used to look like "no doctors"
+        devLog.error('Lỗi khi tải dữ liệu bác sĩ:', docRes.reason);
+        setLoadError(getApiErrorMessage(docRes.reason, 'Không tải được danh sách bác sĩ.'));
       }
       if (specRes.status === 'fulfilled' && specRes.value.data?.data) {
         setSpecialties(specRes.value.data.data);
       }
-    } catch (err) {
-      devLog.error('Lỗi khi tải dữ liệu bác sĩ:', err);
-      showNotification('error', 'Không thể kết nối đến máy chủ để tải danh sách bác sĩ.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Fetch initial data
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
@@ -517,10 +520,11 @@ export const DoctorManagementPage: React.FC = () => {
           {/* Doctors Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             {loading ? (
-              <div className="p-12 text-center">
-                <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mx-auto mb-3" />
-                <p className="text-slate-500 text-sm">Đang tải danh sách bác sĩ...</p>
-              </div>
+              <SkeletonTable rows={6} cols={5} />
+            ) : loadError ? (
+              <ErrorState message={loadError} onRetry={fetchData} retrying={loading} className="m-4" />
+            ) : doctors.length === 0 ? (
+              <EmptyState title="Chưa có bác sĩ nào" description="Tạo tài khoản bác sĩ mới hoặc chờ bác sĩ đăng ký." className="m-4" />
             ) : filteredDoctors.length === 0 ? (
               <div className="p-12 text-center">
                 <Stethoscope className="w-12 h-12 text-slate-300 mx-auto mb-3" />

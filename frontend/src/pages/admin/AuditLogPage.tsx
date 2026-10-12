@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { 
   FileSpreadsheet, 
   Search, 
@@ -14,6 +14,8 @@ import {
 import { api } from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
 import { devLog } from '../../utils/logger';
+import { EmptyState, ErrorState, SkeletonTable } from '../../components/ui';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 interface AuditLogItem {
   id: string;
@@ -30,13 +32,15 @@ interface AuditLogItem {
 export const AuditLogPage: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('ALL');
   const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null);
 
-  const fetchLogs = async (action?: string, silent = false) => {
+  // Background (silent) refreshes never replace a loaded table with an error
+  const fetchLogs = useCallback(async (action?: string, silent = false) => {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(true);
@@ -44,17 +48,17 @@ export const AuditLogPage: React.FC = () => {
         ? `/admin/audit-logs?action=${encodeURIComponent(action)}` 
         : '/admin/audit-logs';
       const res = await api.get(url);
-      if (res.data?.data) {
-        setLogs(res.data.data);
-        setLastUpdated(new Date());
-      }
+      setLogs(Array.isArray(res.data?.data) ? res.data.data : []);
+      setLastUpdated(new Date());
+      setLoadError(null);
     } catch (err) {
       devLog.error('Failed to load audit logs:', err);
+      if (!silent) setLoadError(getApiErrorMessage(err, 'Không tải được nhật ký kiểm toán.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchLogs(actionFilter);
@@ -185,9 +189,11 @@ export const AuditLogPage: React.FC = () => {
       {/* Audit Logs Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="py-20 text-center text-slate-400 text-sm">
-            Đang tải dữ liệu vết kiểm toán...
-          </div>
+          <SkeletonTable rows={6} cols={5} />
+        ) : loadError ? (
+          <ErrorState message={loadError} onRetry={() => fetchLogs(actionFilter)} retrying={loading} className="m-4" />
+        ) : logs.length === 0 ? (
+          <EmptyState title="Chưa có bản ghi kiểm toán" description="Thao tác của người dùng và quản trị viên sẽ được ghi lại tại đây." className="m-4" />
         ) : filteredLogs.length === 0 ? (
           <div className="py-20 text-center text-slate-400 text-sm">
             Không tìm thấy bản ghi kiểm toán nào phù hợp.

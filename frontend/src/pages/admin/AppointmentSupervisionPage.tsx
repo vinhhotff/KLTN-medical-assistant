@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { 
   CalendarCheck, 
   Search, 
@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
-import { ConfirmDialog, ErrorState, useToast } from '../../components/ui';
+import { ConfirmDialog, EmptyState, ErrorState, SkeletonTable, useToast } from '../../components/ui';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { devLog } from '../../utils/logger';
 
@@ -64,7 +64,8 @@ export const AppointmentSupervisionPage: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const toast = useToast();
 
-  const fetchAppointments = async (silent = false) => {
+  // Background (silent) refreshes never replace a loaded table with an error
+  const fetchAppointments = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(true);
@@ -74,12 +75,12 @@ export const AppointmentSupervisionPage: React.FC = () => {
       setLoadError(null);
     } catch (err) {
       devLog.error('Failed to load appointments:', err);
-      setLoadError(getApiErrorMessage(err, 'Không tải được danh sách lịch hẹn.'));
+      if (!silent) setLoadError(getApiErrorMessage(err, 'Không tải được danh sách lịch hẹn.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAppointments();
@@ -221,12 +222,12 @@ export const AppointmentSupervisionPage: React.FC = () => {
 
       {/* Appointments Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        {loadError && appointments.length === 0 && !loading ? (
-          <ErrorState message={loadError} onRetry={() => fetchAppointments()} className="m-4" />
-        ) : loading ? (
-          <div className="py-20 text-center text-slate-400 text-sm">
-            Đang tải dữ liệu cuộc hẹn toàn viện...
-          </div>
+        {loading ? (
+          <SkeletonTable rows={6} cols={5} />
+        ) : loadError ? (
+          <ErrorState message={loadError} onRetry={() => fetchAppointments()} retrying={loading} className="m-4" />
+        ) : appointments.length === 0 ? (
+          <EmptyState title="Chưa có lịch hẹn nào" className="m-4" />
         ) : filteredAppointments.length === 0 ? (
           <div className="py-20 text-center text-slate-400 text-sm">
             Không tìm thấy cuộc hẹn nào phù hợp với bộ lọc tìm kiếm.

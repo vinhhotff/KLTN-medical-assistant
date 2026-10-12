@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, Activity, Stethoscope, RefreshCw, Plus, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
 import { devLog } from '../../utils/logger';
+import { EmptyState, ErrorState, SkeletonList } from '../../components/ui';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 interface SpecialtyItem {
   id: string;
@@ -14,6 +16,7 @@ interface SpecialtyItem {
 export const SpecialtyManagementPage: React.FC = () => {
   const [specialties, setSpecialties] = useState<SpecialtyItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Add Specialty Modal State
@@ -25,23 +28,23 @@ export const SpecialtyManagementPage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchSpecialties();
-  }, []);
-
-  const fetchSpecialties = async () => {
+  const fetchSpecialties = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await api.get('/specialties');
-      if (res.data?.data) {
-        setSpecialties(res.data.data);
-      }
+      setSpecialties(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (err) {
       devLog.error('Failed to load specialties:', err);
+      setLoadError(getApiErrorMessage(err, 'Không tải được danh mục chuyên khoa.'));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchSpecialties();
+  }, [fetchSpecialties]);
 
   const handleNameChange = (val: string) => {
     setName(val);
@@ -165,7 +168,11 @@ export const SpecialtyManagementPage: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="py-16 text-center text-slate-400 text-sm">Đang tải danh mục chuyên khoa...</div>
+        <SkeletonList rows={3} />
+      ) : loadError ? (
+        <ErrorState message={loadError} onRetry={fetchSpecialties} retrying={loading} />
+      ) : specialties.length === 0 ? (
+        <EmptyState title="Chưa có chuyên khoa nào" description="Thêm chuyên khoa mới để bắt đầu xây dựng danh mục." />
       ) : filteredSpecialties.length === 0 ? (
         <div className="py-16 text-center text-slate-400 text-sm bg-white rounded-2xl border border-slate-200">
           Không tìm thấy chuyên khoa phù hợp.

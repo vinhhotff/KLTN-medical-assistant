@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ShieldCheck, Clock, Check, X, AlertCircle, FileBadge, Building2, User, RefreshCw } from 'lucide-react';
 import { api } from '../../services/api';
 import { formatVnd } from '../../utils/display';
 import { devLog } from '../../utils/logger';
+import { ErrorState, SkeletonList } from '../../components/ui';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 interface PendingDoctor {
   id: string;
@@ -27,6 +29,7 @@ interface PendingDoctor {
 export const DoctorVettingPage: React.FC = () => {
   const [pendingDoctors, setPendingDoctors] = useState<PendingDoctor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -44,22 +47,23 @@ export const DoctorVettingPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const fetchPendingDoctors = async (silent = false) => {
+  // Background (silent) refreshes never replace a loaded list with an error
+  const fetchPendingDoctors = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(true);
       const res = await api.get('/admin/doctors/pending');
-      if (res.data?.data) {
-        setPendingDoctors(res.data.data);
-        setLastUpdated(new Date());
-      }
+      setPendingDoctors(Array.isArray(res.data?.data) ? res.data.data : []);
+      setLastUpdated(new Date());
+      setLoadError(null);
     } catch (err) {
       devLog.error('Failed to fetch pending doctors:', err);
+      if (!silent) setLoadError(getApiErrorMessage(err, 'Không tải được danh sách hồ sơ chờ duyệt.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   const handleApprove = async (doctor: PendingDoctor) => {
     try {
@@ -185,7 +189,9 @@ export const DoctorVettingPage: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="p-16 text-center text-slate-400 text-sm">Đang tải danh sách chờ phê duyệt...</div>
+          <SkeletonList rows={3} className="p-4" />
+        ) : loadError ? (
+          <ErrorState message={loadError} onRetry={() => fetchPendingDoctors()} retrying={loading} className="m-4" />
         ) : pendingDoctors.length === 0 ? (
           <div className="p-16 text-center text-slate-400">
             <Clock className="w-12 h-12 text-slate-300 mx-auto mb-3" />

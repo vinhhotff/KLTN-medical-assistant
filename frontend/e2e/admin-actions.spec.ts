@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
-import { installMockApi } from './fixtures/mockApi';
+import { test, expect, type Page } from '@playwright/test';
+import { installMockApi, type MockOverride } from './fixtures/mockApi';
 
 test.describe('Admin actions require a reason / valid input', () => {
   test('admin cancel needs a reason of ≥ 10 characters and sends it verbatim', async ({ page }) => {
@@ -84,5 +84,45 @@ test.describe('Doctor profile', () => {
     await expect.poll(() => calls.some((c) => c.method === 'PUT' && c.path === '/doctors/me/profile')).toBe(true);
     const body = calls.find((c) => c.method === 'PUT')?.body as { specialtySlugs: string[] };
     expect(body.specialtySlugs.sort()).toEqual(['tieu-hoa', 'tim-mach']);
+  });
+});
+
+test.describe('Admin lists: skeleton, error + "Thử lại" (review P1-7)', () => {
+  const AUDIT_LOG = {
+    id: 'al-1', userId: '33333333-3333-3333-3333-333333333333', userEmail: 'admin@mediassist.local', action: 'USER_SUSPENDED',
+    resource: 'users/11111111', ipAddress: '127.0.0.1', userAgent: 'Playwright', metadata: null, createdAt: '2026-10-12T08:00:00',
+  };
+  const cases: Array<{ name: string; path: string; api: string; ready: (page: Page) => Promise<void>; recoveredBody?: unknown }> = [
+    { name: 'specialties', path: '/admin/specialties', api: 'GET /specialties', ready: (page) => expect(page.getByText('TIM-MACH')).toBeVisible() },
+    { name: 'triage sessions', path: '/admin/triage', api: 'GET /admin/triage-sessions', ready: (page) => expect(page.getByRole('table')).toBeVisible() },
+    {
+      name: 'audit logs', path: '/admin/audit-logs', api: 'GET /admin/audit-logs',
+      ready: (page) => expect(page.getByRole('table')).toBeVisible(),
+      recoveredBody: { success: true, data: [AUDIT_LOG] },
+    },
+  ];
+
+  for (const c of cases) {
+    test(`${c.name}: 500 → "Thử lại" → data`, async ({ page }) => {
+      const overrides: Record<string, MockOverride> = { [c.api]: { status: 500 } };
+      await installMockApi(page, { role: 'ADMIN', overrides });
+      await page.goto(c.path);
+      const alert = page.getByRole('alert').filter({ hasText: 'Lỗi giả lập từ máy chủ' });
+      await expect(alert).toBeVisible();
+      // Backend recovers: drop the failure (or serve data), then retry
+      if (c.recoveredBody) overrides[c.api] = { body: c.recoveredBody };
+      else delete overrides[c.api];
+      await alert.getByRole('button', { name: 'Thử lại' }).click();
+      await c.ready(page);
+      await expect(alert).toHaveCount(0);
+    });
+  }
+
+  test('slow admin table shows a skeleton, not "Đang tải..." text', async ({ page }) => {
+    await installMockApi(page, { role: 'ADMIN', overrides: { 'GET /admin/triage-sessions': { delay: 2000, body: { success: true, data: [] } } } });
+    await page.goto('/admin/triage');
+    await expect(page.getByTestId('skeleton-table')).toBeVisible();
+    await expect(page.getByText(/Đang tải dữ liệu/)).toHaveCount(0);
+    await expect(page.getByText('Chưa có phiên phân luồng nào')).toBeVisible();
   });
 });

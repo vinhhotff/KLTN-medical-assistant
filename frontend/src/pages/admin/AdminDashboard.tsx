@@ -37,6 +37,8 @@ import { Link } from 'react-router-dom';
 import { api } from '../../services/api';
 import { FALLBACK_USD_VND_RATE } from '../../config/app';
 import { devLog } from '../../utils/logger';
+import { ErrorState, Skeleton } from '../../components/ui';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 export interface DailyStat {
   date: string;
@@ -99,6 +101,7 @@ export const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<AdminSystemStats | null>(null);
   const [pendingDoctors, setPendingDoctors] = useState<PendingDoctorSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
@@ -140,6 +143,10 @@ export const AdminDashboard: React.FC = () => {
       if (statsRes.status === 'fulfilled' && statsRes.value.data?.data) {
         setStats(statsRes.value.data.data);
         setLastUpdated(new Date());
+        setStatsError(null);
+      } else if (statsRes.status === 'rejected') {
+        devLog.error('Failed to load admin stats:', statsRes.reason);
+        setStatsError(getApiErrorMessage(statsRes.reason, 'Không tải được số liệu tổng quan.'));
       }
 
       if (doctorsRes.status === 'fulfilled' && doctorsRes.value.data?.data) {
@@ -197,6 +204,10 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
+      {statsError && !stats && !loading && (
+        <ErrorState message={statsError} onRetry={handleManualRefresh} retrying={refreshing} />
+      )}
+
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Card 1: Users & Doctors */}
@@ -209,7 +220,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div className="mt-4">
             <div className="text-3xl font-black text-slate-900">
-              {loading ? '...' : stats?.totalDoctors ?? 0}
+              {loading ? <Skeleton className="h-8 w-16" /> : stats ? stats.totalDoctors ?? 0 : '—'}
             </div>
             <p className="text-xs text-slate-500 font-medium mt-1">Bác sĩ chuyên khoa chính thức</p>
           </div>
@@ -235,7 +246,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div className="mt-4">
             <div className="text-3xl font-black text-slate-900">
-              {loading ? '...' : stats?.totalAppointments ?? 0}
+              {loading ? <Skeleton className="h-8 w-16" /> : stats ? stats.totalAppointments ?? 0 : '—'}
             </div>
             <p className="text-xs text-slate-500 font-medium mt-1">Tổng cuộc hẹn đã đặt</p>
           </div>
@@ -259,7 +270,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div className="mt-4">
             <div className="text-3xl font-black text-slate-900">
-              {loading ? '...' : stats?.totalDocumentsAnalyzed ?? 0}
+              {loading ? <Skeleton className="h-8 w-16" /> : stats ? stats.totalDocumentsAnalyzed ?? 0 : '—'}
             </div>
             <p className="text-xs text-slate-500 font-medium mt-1">Hồ sơ đã phân tích (OCR & Vision)</p>
           </div>
@@ -281,7 +292,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div className="mt-4">
             <div className="text-3xl font-black text-slate-900">
-              {loading ? '...' : stats?.totalTriageSessions ?? 0}
+              {loading ? <Skeleton className="h-8 w-16" /> : stats ? stats.totalTriageSessions ?? 0 : '—'}
             </div>
             <p className="text-xs text-slate-500 font-medium mt-1">Phiên đánh giá triệu chứng</p>
           </div>

@@ -89,7 +89,7 @@ ID `B-xx` là mục trong brief; `N-xx` là lỗi mới tự phát hiện.
 | N-23 | `tailwind.config.js` | Dùng class Tailwind 4 không tồn tại ở v3: `bg-linear-to-*` (**header modal chữ trắng trên nền trắng**), `z-60` (**modal thanh toán bị che dưới bảng giá**), `shadow-2xs`, `backdrop-blur-xs`, `animate-fadeIn/scaleUp/scaleIn`, `outline-hidden` | P2 | Định nghĩa token trong config, đổi `bg-linear`→`bg-gradient`, `z-60`→`z-[60]` | ✅ |
 | B-24 | `src/components/ui/` | Thiếu bộ component dùng chung; modal đặt lịch copy 3 nơi | P2 | `Button, Field/Input/Textarea, Modal (Esc + focus trap), Toast, ConfirmDialog, EmptyState, ErrorState, Skeleton, Badge, Missing`; `booking/SlotPicker` + `booking/BookingModal` thay 3 bản copy | ✅ |
 | B-25 | trang bệnh nhân | Thuật ngữ pgvector/HNSW/cosine/Spring Boot/OpenRouter/SHA-256/cổng | P2 | Câu chữ thường; chi tiết kỹ thuật (cho buổi bảo vệ) để trong `<details>` "Chi tiết kỹ thuật" | ✅ |
-| B-26 | các danh sách | Thiếu skeleton/empty/error + retry; nút chỉ có icon thiếu `aria-label` | P2 | Đã làm cho: tìm bác sĩ, slot, danh bạ bệnh nhân, hồ sơ bác sĩ, lịch hẹn admin, dashboard bệnh nhân, quota; `aria-label` cho nút icon đã đụng tới. **Chưa** rà hết các bảng admin còn lại (Triage, Audit, Specialty) | ⚠️ |
+| B-26 | các danh sách · `components/ui/States.tsx` (`SkeletonTable`) | Thiếu skeleton/empty/error + retry; nút chỉ có icon thiếu `aria-label`; (phiếu review P1-7) các trang admin còn chữ "Đang tải…", lỗi chỉ `console` rồi hiện như danh sách rỗng | P2 | Đã làm cho: tìm bác sĩ, slot, danh bạ bệnh nhân, hồ sơ bác sĩ, dashboard bệnh nhân, quota. **Admin:** `Specialty`, `TriageSupervision`, `AuditLog`, `DoctorVetting`, `UserManagement`, `DoctorManagement`, `AppointmentSupervision` tách 4 trạng thái *đang tải (skeleton) / lỗi (`ErrorState` + "Thử lại", `getApiErrorMessage`) / rỗng (`EmptyState`) / có dữ liệu*; hàm fetch bọc `useCallback` để nút Thử lại dùng lại; lần làm mới ngầm (polling) lỗi **không** xoá bảng đang hiện. `DoctorManagement` trước đây dùng `allSettled` nên lỗi tải = "không có bác sĩ". `AdminDashboard`: thẻ KPI skeleton thay `'...'`, lỗi `/admin/stats` → "—" + `ErrorState` thay vì số 0 giả. E2E: 500 → Thử lại → dữ liệu (Specialty/Triage/Audit) + skeleton khi chậm | ✅ |
 | B-27 | `App.tsx` | Bundle chính 1.063 kB | P2 | `React.lazy` + `Suspense` theo route → **62 kB** (gzip 19 kB); không còn cảnh báo > 500 kB | ✅ |
 | B-28 | toàn app | 31 lệnh `console.*` | P2 | Xoá hoặc dùng `utils/logger` (chỉ log khi DEV) | ✅ |
 | B-29 | `frontend/e2e/*` | Spec cũ hỏng (route `/triage`, nút preset không còn, cần backend thật) | P2 | Viết lại trên mock: 11 spec, **43 test pass** (chromium + mobile-chrome) | ✅ |
@@ -98,7 +98,7 @@ ID `B-xx` là mục trong brief; `N-xx` là lỗi mới tự phát hiện.
 ## 3. Việc chưa làm và lý do
 
 1. **B-23 (một phần):** chưa thống nhất token M3 ↔ slate/teal trên toàn bộ nội dung trang. Việc này đụng gần như mọi dòng JSX của các file 1.400–3.700 dòng, rủi ro hồi quy cao. Đề xuất làm PR riêng, chuyển dần theo từng trang.
-2. **B-26 (một phần):** các trang admin Triage / Audit / Specialty vẫn dùng chữ "Đang tải…" và chưa có nút thử lại.
+2. ~~B-26 (một phần)~~ — đã xong ở đợt sửa theo phiếu review (P1-7).
 3. **Không chạy được backend thật.** Mọi kiểm thử dựa trên mock bám DTO. Cần chạy lại checklist test tay (mục 5 của báo cáo) trên môi trường có Docker.
 
 ## 4. Yêu cầu gửi backend (Khương & Vinh)
