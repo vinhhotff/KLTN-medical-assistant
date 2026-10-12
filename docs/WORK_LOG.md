@@ -5177,3 +5177,39 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
    - Bổ sung `docs/CAPSTONE_PRESENTATION_SLIDES.md` vào Tầng 3 trong sơ đồ 4 tầng kiến trúc hồ sơ.
    - Thêm **Luồng E: Dành Cho Soạn Slide Thuyết Trình & Chuẩn Bị Bảo Vệ KLTN** hướng dẫn quy trình 4 bước từ làm Slide $\rightarrow$ Trích xuất SRS $\rightarrow$ Luyện Q&A phản biện $\rightarrow$ Trích dẫn số liệu Benchmark.
 
+---
+
+### [WORK-LOG-#097] Tích Hợp Toàn Diện Nhánh Frontend UX Hardening & Hiện Thực Hóa Rào Chắn Backend (BE-1..BE-12)
+* **Thời gian:** 2026-10-12 08:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Fast-forward merge nhánh `feature/frontend-ux-hardening` vào `develop` và hiện thực hóa toàn bộ 12 yêu cầu rào chắn Backend được nêu trong `docs/FRONTEND_UX_AUDIT.md` (Mục 4: Yêu cầu gửi backend Khương & Vinh).
+* **Trạng thái Build:**
+  - Backend: **`179 / 179` Tests PASS 100%** (`mvn test` 0 failure, 0 error).
+  - Frontend: **`npm run build` PASS 100%** (2293 modules, 0 lỗi TypeScript, chunk chính nén từ 1,063 kB xuống **61.69 kB**, 0 cảnh báo).
+
+#### 1. Chi Tiết Các Yêu Cầu Backend Đã Hiện Thực Hóa (BE-1 .. BE-12):
+1. **`[MOD]` `com.mediassist.config.SecurityConfig` (BE-1, BE-6):**
+   - Rào chắn bảo mật `/api/v1/system/**`: Yêu cầu `hasRole("ADMIN")` cho các thao tác nhạy cảm (`/ai-mode/toggle`, `/ai-mode/sync-vectors`).
+   - Mở quyền công khai (`permitAll`) cho `GET /api/v1/system/ai-mode` (đọc trạng thái AI) và `GET /api/v1/payments/packages` (xem bảng giá minh bạch).
+2. **`[NEW]` `com.mediassist.dto.payment.PaymentPackageDto` & `PaymentController` (BE-6):**
+   - Bổ sung API `GET /api/v1/payments/packages` trả về danh mục 3 gói nạp chuẩn xác khớp 100% với `PaymentService`:
+     * `BASIC_5`: 29.000 VNĐ (+5 lượt quét, 30 ngày).
+     * `VIP_MONTHLY`: 149.000 VNĐ (Quét không giới hạn, 30 ngày).
+     * `VIP_ENTERPRISE`: 399.000 VNĐ (Quét không giới hạn, 90 ngày).
+3. **`[MOD]` `com.mediassist.dto.DoctorMatchDto` (BE-7):**
+   - Xóa bỏ điểm đánh giá mặc định giả `rating = 4.9`. Khi bác sĩ có `reviewCount == 0`, trường `rating` trả về `null` để Frontend hiển thị đúng trạng thái trung thực "Chưa có đánh giá".
+4. **`[MOD]` `com.mediassist.dto.DoctorDetailDto` (BE-12):**
+   - Chuyển `yearsOfExperience` từ `int` sang `Integer`.
+   - Triệt tiêu hoàn toàn các giá trị giả lập: không tự điền `4.9` rating và không tự điền `1250` lượt khám khi bác sĩ chưa có dữ liệu.
+5. **`[MOD]` `com.mediassist.dto.AdminCreateDoctorRequest` (BE-8):**
+   - Loại bỏ các giá trị mặc định cứng (`300000` VNĐ, `5` năm kinh nghiệm).
+   - Bổ sung các ràng buộc xác thực dữ liệu: `@NotEmpty specialtySlugs`, `@NotNull @Positive consultationFee`, `@NotNull @Min(0) yearsOfExperience`.
+6. **`[MOD]` `com.mediassist.dto.CreateAppointmentRequest` (BE-10):**
+   - Bổ sung ràng buộc độ dài ghi chú: `@Size(max = 1000)`.
+7. **`[MOD]` `com.mediassist.service.AdminVettingService` (BE-9):**
+   - Ràng buộc lý do hủy lịch hẹn (`adminCancelAppointment`) bắt buộc tối thiểu 10 ký tự.
+   - Ràng buộc lý do khóa tài khoản người dùng (`updateUserStatus` với `SUSPENDED`) bắt buộc tối thiểu 10 ký tự.
+8. **`[MOD]` `com.mediassist.service.AdminVettingServiceTest`:**
+   - Bổ sung bộ kiểm thử đơn vị bao phủ các tình huống từ chối khi lý do hủy lịch hoặc khóa tài khoản bị để trống hoặc dưới 10 ký tự.
+
+

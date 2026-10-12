@@ -448,6 +448,10 @@ public class AdminVettingService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
 
+        if (status == UserStatus.SUSPENDED && (reason == null || reason.trim().length() < 10)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_REASON", "Lý do khóa tài khoản bắt buộc tối thiểu 10 ký tự");
+        }
+
         user.setStatus(status);
         User updated = userRepository.save(user);
 
@@ -611,12 +615,16 @@ public class AdminVettingService {
 
     @Transactional
     public AppointmentDto adminCancelAppointment(UUID appointmentId, UUID adminUserId, String reason) {
+        if (reason == null || reason.trim().length() < 10) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_REASON", "Lý do hủy cuộc hẹn bắt buộc tối thiểu 10 ký tự");
+        }
+
         Appointment appointment = appointmentRepository.findByIdWithUsers(appointmentId)
                 .or(() -> appointmentRepository.findById(appointmentId))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "APPOINTMENT_NOT_FOUND", "Không tìm thấy thông tin cuộc hẹn"));
 
         appointment.setStatus(AppointmentStatus.CANCELLED);
-        String cancelNote = "[ADMIN CANCELLED] " + (reason != null && !reason.isBlank() ? reason.trim() : "Quản trị viên can thiệp hủy lịch hẹn vì lý do vận hành");
+        String cancelNote = "[ADMIN CANCELLED] " + reason.trim();
         appointment.setCancellationReason(cancelNote);
 
         Appointment saved = appointmentRepository.save(appointment);

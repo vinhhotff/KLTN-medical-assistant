@@ -16,7 +16,7 @@ public class DoctorMatchDto {
     private List<String> specialties;
     private String academicTitle;
     private String hospitalAffiliation;
-    private Double rating = 4.9;
+    private Double rating = null;
     private int reviewCount = 0;
     private boolean aiRecommended;
     private String aiRecommendationReason;
@@ -35,13 +35,13 @@ public class DoctorMatchDto {
     public DoctorMatchDto(UUID doctorId, String fullName, String bio, String licenseNumber,
                           int yearsOfExperience, BigDecimal consultationFee, double similarityScore,
                           List<String> specialties) {
-        this(doctorId, fullName, bio, licenseNumber, yearsOfExperience, consultationFee, similarityScore, specialties, "TS.BS", "BV Đại Học Y Dược TP.HCM", 4.9, 0);
+        this(doctorId, fullName, bio, licenseNumber, yearsOfExperience, consultationFee, similarityScore, specialties, "TS.BS", "BV Đại Học Y Dược TP.HCM", null, 0);
     }
 
     public DoctorMatchDto(UUID doctorId, String fullName, String bio, String licenseNumber,
                           int yearsOfExperience, BigDecimal consultationFee, double similarityScore,
                           List<String> specialties, String academicTitle, String hospitalAffiliation) {
-        this(doctorId, fullName, bio, licenseNumber, yearsOfExperience, consultationFee, similarityScore, specialties, academicTitle, hospitalAffiliation, 4.9, 0);
+        this(doctorId, fullName, bio, licenseNumber, yearsOfExperience, consultationFee, similarityScore, specialties, academicTitle, hospitalAffiliation, null, 0);
     }
 
     public DoctorMatchDto(UUID doctorId, String fullName, String bio, String licenseNumber,
@@ -58,7 +58,7 @@ public class DoctorMatchDto {
         this.specialties = specialties;
         this.academicTitle = academicTitle != null ? academicTitle : "TS.BS";
         this.hospitalAffiliation = hospitalAffiliation != null ? hospitalAffiliation : "BV Đại Học Y Dược TP.HCM";
-        this.rating = rating != null ? rating : 4.9;
+        this.rating = (reviewCount > 0) ? rating : null;
         this.reviewCount = reviewCount;
     }
 

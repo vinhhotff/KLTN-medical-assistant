@@ -1,5 +1,6 @@
 package com.mediassist.service;
 
+import com.mediassist.common.AppException;
 import com.mediassist.dto.AdminCreateDoctorRequest;
 import com.mediassist.dto.AdminUpdateDoctorRequest;
 import com.mediassist.dto.DoctorDetailDto;
@@ -356,5 +357,28 @@ class AdminVettingServiceTest {
         assertEquals(com.mediassist.model.entity.AppointmentStatus.CANCELLED, dto.getStatus());
         assertTrue(dto.getCancellationReason().contains("Doctor emergency leave"));
         verify(auditLogRepository).save(any(AuditLog.class));
+    }
+
+    @Test
+    @DisplayName("Should reject admin cancellation if reason is blank or less than 10 characters")
+    void testAdminCancelAppointment_InvalidReason_ThrowsException() {
+        UUID appId = UUID.randomUUID();
+        assertThrows(AppException.class, () ->
+                adminVettingService.adminCancelAppointment(appId, adminId, "Short"));
+        assertThrows(AppException.class, () ->
+                adminVettingService.adminCancelAppointment(appId, adminId, "   "));
+        assertThrows(AppException.class, () ->
+                adminVettingService.adminCancelAppointment(appId, adminId, null));
+    }
+
+    @Test
+    @DisplayName("Should reject user suspension if reason is blank or less than 10 characters")
+    void testUpdateUserStatus_SuspendInvalidReason_ThrowsException() {
+        when(userRepository.findById(doctorUser.getId())).thenReturn(Optional.of(doctorUser));
+
+        assertThrows(AppException.class, () ->
+                adminVettingService.updateUserStatus(doctorUser.getId(), UserStatus.SUSPENDED, "Short", adminId));
+        assertThrows(AppException.class, () ->
+                adminVettingService.updateUserStatus(doctorUser.getId(), UserStatus.SUSPENDED, null, adminId));
     }
 }

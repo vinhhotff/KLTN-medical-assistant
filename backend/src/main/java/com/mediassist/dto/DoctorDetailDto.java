@@ -20,7 +20,7 @@ public class DoctorDetailDto {
     private String bio;
     private String licenseNumber;
     private BigDecimal consultationFee;
-    private int yearsOfExperience;
+    private Integer yearsOfExperience;
     private boolean isVerified;
     private List<String> specialties;
     private String academicTitle;
@@ -57,9 +57,9 @@ public class DoctorDetailDto {
         dto.setHospitalAffiliation(profile.getHospitalAffiliation());
         dto.setDepartment(profile.getDepartment());
         dto.setLicenseIssuedBy(profile.getLicenseIssuedBy());
-        dto.setRating(profile.getRating() != null ? profile.getRating() : 4.9);
-        dto.setTotalConsultations(profile.getTotalConsultations() != null ? profile.getTotalConsultations() : 1250);
         dto.setReviewCount(profile.getReviewCount() != null ? profile.getReviewCount() : 0);
+        dto.setRating(profile.getReviewCount() != null && profile.getReviewCount() > 0 ? profile.getRating() : null);
+        dto.setTotalConsultations(profile.getTotalConsultations() != null ? profile.getTotalConsultations() : 0);
         if (profile.getSpecialties() != null) {
             dto.setSpecialties(profile.getSpecialties().stream()
                     .map(Specialty::getName)
@@ -95,8 +95,8 @@ public class DoctorDetailDto {
     public BigDecimal getConsultationFee() { return consultationFee; }
     public void setConsultationFee(BigDecimal consultationFee) { this.consultationFee = consultationFee; }
 
-    public int getYearsOfExperience() { return yearsOfExperience; }
-    public void setYearsOfExperience(int yearsOfExperience) { this.yearsOfExperience = yearsOfExperience; }
+    public Integer getYearsOfExperience() { return yearsOfExperience; }
+    public void setYearsOfExperience(Integer yearsOfExperience) { this.yearsOfExperience = yearsOfExperience; }
 
     public boolean isVerified() { return isVerified; }
     public void setVerified(boolean verified) { isVerified = verified; }

@@ -1,6 +1,7 @@
 package com.mediassist.dto;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -13,6 +14,7 @@ public class CreateAppointmentRequest {
     @NotNull(message = "Scheduled start time is required")
     private LocalDateTime scheduledStart;
 
+    @Size(max = 1000, message = "Ghi chú không được vượt quá 1000 ký tự")
     private String notes;
     private UUID medicalDocumentId;
     private UUID triageSessionId;

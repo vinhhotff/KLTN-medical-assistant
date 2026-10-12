@@ -1,7 +1,11 @@
 package com.mediassist.dto;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -33,10 +37,15 @@ public class AdminCreateDoctorRequest {
 
     private String licenseIssuedBy; // Bộ Y Tế / Sở Y Tế
 
-    private BigDecimal consultationFee = BigDecimal.valueOf(300000);
+    @NotNull(message = "Phí khám không được để trống")
+    @Positive(message = "Phí khám phải lớn hơn 0")
+    private BigDecimal consultationFee;
 
-    private Integer yearsOfExperience = 5;
+    @NotNull(message = "Số năm kinh nghiệm không được để trống")
+    @Min(value = 0, message = "Số năm kinh nghiệm không âm")
+    private Integer yearsOfExperience;
 
+    @NotEmpty(message = "Vui lòng chọn ít nhất 1 chuyên khoa")
     private List<String> specialtySlugs;
 
     private String bio;

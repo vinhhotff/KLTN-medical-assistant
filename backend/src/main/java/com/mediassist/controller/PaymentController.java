@@ -71,6 +71,41 @@ public class PaymentController {
         return ResponseEntity.ok(ApiResponse.success(history));
     }
 
+    @GetMapping("/packages")
+    @Operation(summary = "Lấy danh sách các gói nạp lượt quét và hội viên MediPass VIP chính thức")
+    public ResponseEntity<ApiResponse<List<com.mediassist.dto.payment.PaymentPackageDto>>> getPricingPackages() {
+        List<com.mediassist.dto.payment.PaymentPackageDto> packages = List.of(
+                new com.mediassist.dto.payment.PaymentPackageDto(
+                        "BASIC_5",
+                        "Gói Quét Cơ Bản (+5 Lượt)",
+                        "Bổ sung 5 lượt phân tích hồ sơ cận lâm sàng chất lượng cao",
+                        new java.math.BigDecimal("29000.00"),
+                        5,
+                        30,
+                        false
+                ),
+                new com.mediassist.dto.payment.PaymentPackageDto(
+                        "VIP_MONTHLY",
+                        "Hội Viên MediPass VIP (30 Ngày)",
+                        "Không giới hạn số lượt quét tài liệu và ưu tiên ghép nối bác sĩ chuyên khoa",
+                        new java.math.BigDecimal("149000.00"),
+                        null,
+                        30,
+                        true
+                ),
+                new com.mediassist.dto.payment.PaymentPackageDto(
+                        "VIP_ENTERPRISE",
+                        "Hội Viên MediPass Doanh Nghiệp (90 Ngày)",
+                        "Gói toàn diện dành cho gia đình và doanh nghiệp với 90 ngày không giới hạn",
+                        new java.math.BigDecimal("399000.00"),
+                        null,
+                        90,
+                        true
+                )
+        );
+        return ResponseEntity.ok(ApiResponse.success(packages));
+    }
+
     @GetMapping("/transactions/{code}")
     @Operation(summary = "Tra cứu chi tiết một giao dịch cụ thể theo mã")
     public ResponseEntity<ApiResponse<PaymentResponseDto>> getTransactionDetails(
