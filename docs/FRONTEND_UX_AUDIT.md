@@ -1,6 +1,7 @@
 # Rà Soát & Làm Cứng Frontend MediAssist-AI (FRONTEND_UX_AUDIT.md)
 
 > **Nhánh:** `feature/frontend-ux-hardening` (tách từ `origin/develop`, đã merge `origin/feature/fuction`)
+> **Đợt 2 (sửa theo phiếu review, 12/10/2026):** nhánh `feature/frontend-ux-review-fixes` tách từ `origin/develop` @ `954071f` — mục `R-02`, `R-05`, B-07, B-08g, B-23, B-26, BE-1, BE-4, BE-6, BE-13, BE-14.
 > **Phạm vi:** chỉ `frontend/` + tài liệu. Không sửa backend, migration, docker, CI.
 > **Người thực hiện:** Phạm Bảo + AI · **Ngày:** 11/10/2026
 
@@ -108,7 +109,7 @@ ID `B-xx` là mục trong brief; `N-xx` là lỗi mới tự phát hiện.
 | BE-1 | `/api/v1/system/**` đang `permitAll` trong `SecurityConfig`: ai cũng gọi được `ai-mode/toggle`, `sync-vectors` (frontend chỉ ẩn nút) | Giới hạn `hasRole('ADMIN')`, chỉ để `GET /system/ai-mode` public nếu cần. **Đã làm ở `954071f`** (`/system/**` → ADMIN, `GET /system/ai-mode` public). **Còn thiếu:** nếu khoá `/system/**` chỉ cho ADMIN thì cần ngoại lệ cho profile demo, nếu không kịch bản demo bằng tài khoản PATIENT sẽ bị 403 (vd. cho phép `POST /system/ai-mode/toggle` khi `spring.profiles.active` có `demo`). Trong lúc chờ, kịch bản bảo vệ dùng tài khoản ADMIN cho bước bật/tắt AI |
 | BE-2 | `/api/v1/pii/**` cũng `permitAll` | Xác nhận có chủ đích; nếu không, yêu cầu xác thực |
 | BE-3 | `ClinicalEncounterRequest` không có validation | `@NotBlank chiefComplaint`, bắt buộc `icd10Code` hoặc `icd10Name`, validate khoảng sinh hiệu trong `vitalSignsJson`, `followUpDate` ≥ hôm nay, kiểm từng dòng `prescriptionJson` (tên + số lượng > 0) |
-| BE-4 | Guard "chỉ hoàn tất khi `CHECKED_IN/IN_PROGRESS`" mới có ở `feature/fuction` | Merge vào `develop` (nhánh này đã merge để frontend khớp) |
+| BE-4 | Guard "chỉ hoàn tất khi `CHECKED_IN/IN_PROGRESS`" mới có ở `feature/fuction` | **Đã có trên `develop`**: `feature/fuction` và `feature/frontend-ux-hardening` đều đã vào `develop` (xác nhận 12/10/2026: `git merge-base --is-ancestor origin/feature/fuction origin/develop` → MERGED). Phiếu review yêu cầu gỡ merge khỏi nhánh frontend, nhưng khi sửa thì nhánh đã nằm trọn trong `develop` nên không còn gỡ được; đợt sửa làm trên nhánh mới, không đụng backend. Frontend không phụ thuộc thay đổi backend này (không đổi contract) |
 | BE-5 | `forgot-password` trên `develop` chỉ lưu token, không gửi email; luồng thật ở `feature/email-notifications` | Merge `feature/email-notifications`; trang reset/verify cũng ở nhánh đó |
 | BE-6 | Chưa có API danh sách gói/giá | `GET /payments/packages` trả `{code, name, priceVnd, scans, durationDays}`. **Đã có ở `954071f`** (thêm `description`, `unlimitedScans`). Frontend đã tiêu thụ API này; `config/pricing.ts` chỉ còn là fallback khi API lỗi |
 | BE-14 | **Backend tự mâu thuẫn về giá:** `GET /payments/packages` trả VIP_MONTHLY = 149.000, VIP_ENTERPRISE = 399.000, nhưng `PaymentService.createCheckoutSession` vẫn thu 99.000 / 149.000 (BASIC_5 = 29.000 khớp). Bệnh nhân thấy 149.000 rồi bị yêu cầu xác nhận 99.000 | Một nguồn duy nhất cho giá (vd. enum/bảng `payment_packages` dùng chung cho cả `/packages` và `checkout`). Frontend đã chặn việc thu khác số đang hiện (bắt xác nhận lại) nhưng không tự chọn số nào đúng |

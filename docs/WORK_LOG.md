@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#098** | 12/10/2026 | Sửa 7 mục phiếu review frontend (`feature/frontend-ux-review-fixes`): (1) Smart Defense Bar trên trang Tìm bác sĩ (NegEx/cấp cứu/ngoài ngành), (2) công cụ demo bật/tắt AI (Ctrl+Shift+D), (3) giá gói lấy từ `GET /payments/packages` + `amount` checkout là số chính thức, (4) triage → đặt khám liên kết `triageSessionId`, bỏ SBAR cắt cụt trong ghi chú, (5) một bảng màu trong `tailwind.config.js`, (6) skeleton + Thử lại cho 7 trang admin + dashboard, (7) 116 E2E pass. Không đổi backend. Ghi BE-13, BE-14 | Phạm Bảo + AI | 🟢 Sẵn sàng Review |
 | **#096** | 11/10/2026 | Rà Soát & Làm Cứng Frontend (`feature/frontend-ux-hardening`): (1) Ngừng bịa sinh hiệu/nhóm máu/chẩn đoán/liên hệ khẩn cấp/phòng khám/STT trong EMR, dashboard bệnh nhân & phiếu khám, (2) Nút ký duyệt ca khám có điều kiện + validate sinh hiệu, (3) Quên mật khẩu gọi API thật, (4) Ẩn công tắc AI toàn hệ thống với bệnh nhân, (5) Trang quét theo quota + bảng giá khớp `PaymentService`, (6) Gửi `triageSessionId`, dời lịch theo slot thật, (7) Bộ UI dùng chung + menu mobile + lazy route (bundle 1.063 kB → 62 kB), (8) 43 E2E pass. Chi tiết: `docs/FRONTEND_UX_AUDIT.md` | Phạm Bảo + AI | 🟢 Sẵn sàng Review |
 | **#094** | 11/10/2026 | Đại Tu Toàn Diện & Tối Ưu Hóa Sâu Kiến Trúc pgvector & Thuật Toán Tái Xếp Hạng Đa Chiều (SOTA WHRF-SOTA Re-ranking Engine & Postgres Tuning): (1) Thiết lập cấu hình phiên làm việc tối ưu HNSW: `SET LOCAL hnsw.ef_search = 120`, `SET LOCAL enable_seqscan = off` (triệt tiêu sequential scan, ép buộc index scan), `SET LOCAL work_mem = '64MB'`, (2) Tái thiết kế toàn diện thuật toán `rankDoctors` trong `DoctorSemanticSearchService.java` kết hợp 5 nhân tố: Sigmoid Contrastive Sharpening nâng cao độ phân giải ngữ nghĩa vector, Sparse Lexical & Trigram Overlap, Specialty Semantic Alignment Bonus (+0.12), Contrastive Divergence Penalty (-0.10) loại bỏ ứng viên nhiễu, và Authority Score, (3) Nâng cấp Python benchmark pipeline trong `scripts/meddies_pipeline/benchmark_hnsw.py` và `train_augment_doctors.py` tăng độ phong phú triệu chứng từ 12 lên 20, (4) 165/165 Backend Tests PASS 100%, Frontend Build PASS 100% | AI Assistant | 🟢 Sẵn sàng Review |
 | **#093** | 11/10/2026 | Hiện Thực Hóa Toàn Diện Động Cơ Phòng Thủ Đầu Vào 5 Tầng "Bao Đầu Vào" & Thuật Toán SOTA (Clinical Query Defense Engine): (1) Xây dựng `ClinicalQueryDefenseEngine.java` và tích hợp `DoctorSemanticSearchService.java` xử lý trọn gói 5 tình huống đầu vào: Rào chắn Red-Flag cấp cứu 115, Chuẩn hóa teen-code/viết tắt/không dấu, Thuật toán Vietnamese NegEx bóc tách câu phủ định, Cổng Out-of-Domain OOD phát hiện hỏi giá/hành chính/spam, và Phân tách đa triệu chứng phức hợp, (2) Bổ sung trường metadata phòng thủ đầu vào vào `DoctorMatchDto.java`, (3) Đồng bộ thuật toán sang Python `ClinicalQueryDefenseEnginePython` trong `scripts/meddies_pipeline/vector_engine.py` và `benchmark_hnsw.py`, (4) Bộ kiểm thử `ClinicalQueryDefenseEngineTest.java` và `DoctorSemanticSearchServiceTest.java`, đưa 165/165 tests PASS 100%, Frontend Build PASS 100% (2273 modules, 0 lỗi TS), (5) Đề xuất 3 thuật toán SOTA (Contrastive Triplet Loss, Cross-Encoder Reranker, Hierarchical ICD-10 Tree Weighting) cập nhật vào cẩm nang `pgvector_scaling_16gb/` | AI Assistant | 🟢 Sẵn sàng Review |
@@ -44,6 +45,31 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#098] Sửa Frontend Theo Phiếu Review (P0-1..P0-5, P1-6, P1-7)
+* **Thời gian:** 2026-10-12 (GMT+7)
+* **Tác nhân thực hiện:** Phạm Bảo + AI (Core Developer — Frontend)
+* **Nhánh:** `feature/frontend-ux-review-fixes`, tách từ `origin/develop` @ `954071f`. **P0-1 (gỡ backend khỏi nhánh) không làm theo kế hoạch viết lại lịch sử:** khi bắt đầu, `origin/develop` đã chứa trọn `feature/frontend-ux-hardening` (gồm merge `9c77368`) và `feature/fuction` đã vào `develop`, nên dựng lại nhánh không còn gỡ được gì. Tech Lead/Bảo chọn làm trên nhánh mới; không tạo nhánh backup, không force-push.
+* **Mã Use Cases:** UC-04 (tìm bác sĩ — luồng NegEx/cấp cứu/ngoài ngành), UC-05 (triage → đặt khám), UC-11/UC-14 (gói quét & thanh toán), UC-17 (giám sát admin)
+* **Tệp tin:**
+  - `[NEW]` frontend/src/components/search/ClinicalDefenseBar.tsx, frontend/src/hooks/{useDemoToolsHotkey,useScanPackages}.ts, frontend/src/services/pricingService.ts
+  - `[MOD]` frontend/src/pages/patient/{DoctorSearchPage,DocumentSummarizerPage,SymptomTriagePage}.tsx, frontend/src/components/booking/BookingModal.tsx, frontend/src/components/ui/{States,index}.ts(x), frontend/src/pages/admin/{AdminDashboard,AppointmentSupervisionPage,AuditLogPage,DoctorManagementPage,DoctorVettingPage,SpecialtyManagementPage,TriageSupervisionPage,UserManagementPage}.tsx, frontend/src/config/{app,pricing}.ts, frontend/tailwind.config.js, frontend/.env.example, frontend/playwright.config.ts, frontend/e2e/fixtures/mockApi.ts, frontend/e2e/{doctor-search,document-scan,triage,doctor-encounter,admin-actions}.spec.ts, docs/{FRONTEND_UX_AUDIT,USE_CASES,CAPSTONE_DEFENSE,WORK_LOG}.md
+  - `[DEL]` không có (token màu M3 không dùng + bộ `medical-*` bị xoá khỏi `tailwind.config.js`)
+* **Tài liệu đã đồng bộ:** `FRONTEND_UX_AUDIT.md` (R-02, R-05, B-07, B-08g, B-23 + bảng token 4.1, B-26, BE-1, BE-4, BE-6, BE-13, BE-14), `USE_CASES.md` (UC-04 luồng thay thế/ngoại lệ, UC-05 luồng triage → đặt khám), `CAPSTONE_DEFENSE.md` (bước demo 3b). Không đổi DB nên không sửa `DATABASE_DESIGN.md`.
+* **Bằng chứng kiểm thử:**
+  - `npm run build` (frontend): PASS, 0 lỗi TypeScript (chạy sau mỗi phase).
+  - Playwright (mock API theo DTO, `--workers=4`): **116 passed, 0 failed**, 64 skipped (chụp ảnh audit khi không có `UX_CAPTURE`). Chạy mặc định (số worker tự động, server Vite nguội) bị timeout hàng loạt ở trang "Đang tải trang" do biên dịch route lazy — lỗi hạ tầng test, không phải assertion; đã nâng `expect.timeout` lên 15 s.
+  - Backend **không thay đổi** (`git diff --stat origin/develop...HEAD -- backend/` rỗng) nên **không chạy `mvn test`**.
+  - Ảnh trước/sau Landing/Login (desktop + 390 px): `frontend/ux-audit/tokens-{before,after}/` (git-ignored).
+* **Điểm nóng Tech Lead cần Review:**
+  1. **BE-14 — giá backend tự mâu thuẫn:** `/payments/packages` (149k/399k) ≠ `PaymentService` checkout (99k/149k) cho gói VIP. Frontend hiện giá API, nhưng khi checkout trả `amount` khác sẽ hiện số mới và **bắt bấm xác nhận lần 2** trước khi verify. Cần backend chốt một nguồn giá.
+  2. **BE-1 — ngoại lệ demo:** từ `954071f`, `POST /system/ai-mode/toggle` chỉ ADMIN. Nút demo cho PATIENT (Ctrl+Shift+D / `VITE_ENABLE_DEMO_LOGIN=true`) sẽ nhận 403 → toast giải thích; kịch bản bảo vệ tạm dùng cửa sổ ẩn danh đăng nhập ADMIN cho bước bật/tắt.
+  3. **BE-13:** danh sách tìm kiếm rỗng thì mất metadata phòng thủ → mất cảnh báo cấp cứu. Cần metadata cấp response.
+  4. Ẩn badge triệu chứng khi `outOfDomain` (vì `hết` là trigger NegEx nên "khám hết bao nhiêu tiền" bị coi là phủ định).
+  5. Bảng màu: tên M3 trỏ về teal/slate — Landing đổi sắc xanh-lam nhạt sang slate; nội dung trang còn indigo/blue (danh sách ở FRONTEND_UX_AUDIT 4.1).
+  6. Modal thanh toán đổi sang cuộn được trên điện thoại (nút xác nhận từng bị đẩy khỏi màn hình).
+
+---
 
 ### [WORK-LOG-#096] Rà Soát & Làm Cứng Frontend: Bỏ Dữ Liệu Y Tế Giả, Điều Kiện Nút Hành Động, UI Dùng Chung & Mobile
 * **Thời gian:** 2026-10-11 (GMT+7)
