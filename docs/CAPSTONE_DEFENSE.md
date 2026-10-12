@@ -406,6 +406,12 @@
 
 ---
 
+### Câu hỏi 21: Vì sao trên trang Tìm Bác Sĩ của bệnh nhân lại thấy công cụ đổi chế độ AI (trực tuyến ↔ ngoại tuyến)? Bệnh nhân có tự tắt AI của toàn hệ thống được không?
+* **Trả lời của sinh viên:**  
+  *"Thưa Thầy Cô, không. Bệnh nhân bình thường **không nhìn thấy** công cụ này. Thẻ đổi chế độ AI trong `DoctorSearchPage` chỉ hiện khi: tài khoản là ADMIN, hoặc bản build bật cờ demo (`VITE_ENABLE_DEMO_LOGIN` / `VITE_ENABLE_DEV_TOOLS`), hoặc người trình bày bấm phím tắt demo **Ctrl+Shift+D** để mở công cụ trình diễn trước Hội đồng. Đây chỉ là lớp hiển thị; quyền thực sự nằm ở backend: `SecurityConfig` chỉ cho phép đọc trạng thái `GET /api/v1/system/ai-mode` công khai, còn `POST /api/v1/system/ai-mode/toggle` thuộc `/api/v1/system/**` yêu cầu `hasRole("ADMIN")`. Nếu bệnh nhân mở được công cụ và bấm đổi, máy chủ trả **403** và giao diện báo 'Máy chủ chỉ cho tài khoản quản trị đổi chế độ AI'. Vì vậy trong buổi demo, bước chuyển AI sang ngoại tuyến được thực hiện bằng tài khoản ADMIN."*
+
+---
+
 ## 5. Bảng Tiêu Chí Đánh Giá Xuất Sắc Của Hội Đồng (Evaluation Rubric)
 
 | Tiêu Chí Đánh Giá | Trọng Số | Yêu Cầu Để Đạt Điểm Tối Đa (Grade A / 9.0 - 10.0) | Hiện Trạng Dự Án MediAssist-AI |
