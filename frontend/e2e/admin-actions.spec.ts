@@ -118,6 +118,19 @@ test.describe('Admin lists: skeleton, error + "Thử lại" (review P1-7)', () =
     });
   }
 
+  test('manual "Làm mới" failure keeps the table and shows a toast', async ({ page }) => {
+    const overrides: Record<string, MockOverride> = {};
+    await installMockApi(page, { role: 'ADMIN', overrides });
+    await page.goto('/admin/triage');
+    await expect(page.getByRole('table')).toBeVisible();
+
+    overrides['GET /admin/triage-sessions'] = { status: 500 };
+    await page.getByRole('button', { name: 'Làm mới', exact: true }).click();
+    await expect(page.getByText('Lỗi giả lập từ máy chủ')).toBeVisible();
+    await expect(page.getByRole('table')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Thử lại' })).toHaveCount(0);
+  });
+
   test('slow admin table shows a skeleton, not "Đang tải..." text', async ({ page }) => {
     await installMockApi(page, { role: 'ADMIN', overrides: { 'GET /admin/triage-sessions': { delay: 2000, body: { success: true, data: [] } } } });
     await page.goto('/admin/triage');

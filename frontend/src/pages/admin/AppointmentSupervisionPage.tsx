@@ -65,7 +65,8 @@ export const AppointmentSupervisionPage: React.FC = () => {
   const toast = useToast();
 
   // Background (silent) refreshes never replace a loaded table with an error
-  const fetchAppointments = useCallback(async (silent = false) => {
+  // — a manual "Làm mới" (notify) reports the failure in a toast instead
+  const fetchAppointments = useCallback(async (silent = false, notify = false) => {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(true);
@@ -75,12 +76,14 @@ export const AppointmentSupervisionPage: React.FC = () => {
       setLoadError(null);
     } catch (err) {
       devLog.error('Failed to load appointments:', err);
-      if (!silent) setLoadError(getApiErrorMessage(err, 'Không tải được danh sách lịch hẹn.'));
+      const message = getApiErrorMessage(err, 'Không tải được danh sách lịch hẹn.');
+      if (!silent) setLoadError(message);
+      else if (notify) toast.error(message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchAppointments();
@@ -173,7 +176,7 @@ export const AppointmentSupervisionPage: React.FC = () => {
             <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
           </div>
           <button
-            onClick={() => fetchAppointments(true)}
+            onClick={() => fetchAppointments(true, true)}
             disabled={refreshing}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
             title="Làm mới danh sách lịch khám"

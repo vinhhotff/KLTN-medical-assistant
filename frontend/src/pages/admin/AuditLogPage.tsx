@@ -14,7 +14,7 @@ import {
 import { api } from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
 import { devLog } from '../../utils/logger';
-import { EmptyState, ErrorState, SkeletonTable } from '../../components/ui';
+import { EmptyState, ErrorState, SkeletonTable, useToast } from '../../components/ui';
 import { getApiErrorMessage } from '../../utils/apiError';
 
 interface AuditLogItem {
@@ -33,6 +33,7 @@ export const AuditLogPage: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,7 +41,8 @@ export const AuditLogPage: React.FC = () => {
   const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null);
 
   // Background (silent) refreshes never replace a loaded table with an error
-  const fetchLogs = useCallback(async (action?: string, silent = false) => {
+  // — a manual "Làm mới" (notify) reports the failure in a toast instead
+  const fetchLogs = useCallback(async (action?: string, silent = false, notify = false) => {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(true);
@@ -53,12 +55,14 @@ export const AuditLogPage: React.FC = () => {
       setLoadError(null);
     } catch (err) {
       devLog.error('Failed to load audit logs:', err);
-      if (!silent) setLoadError(getApiErrorMessage(err, 'Không tải được nhật ký kiểm toán.'));
+      const message = getApiErrorMessage(err, 'Không tải được nhật ký kiểm toán.');
+      if (!silent) setLoadError(message);
+      else if (notify) toast.error(message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchLogs(actionFilter);
@@ -134,7 +138,7 @@ export const AuditLogPage: React.FC = () => {
             <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
           </div>
           <button
-            onClick={() => fetchLogs(actionFilter, true)}
+            onClick={() => fetchLogs(actionFilter, true, true)}
             disabled={refreshing}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
             title="Làm mới nhật ký kiểm toán"

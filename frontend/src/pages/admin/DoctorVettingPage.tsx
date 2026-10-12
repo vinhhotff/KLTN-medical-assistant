@@ -3,7 +3,7 @@ import { ShieldCheck, Clock, Check, X, AlertCircle, FileBadge, Building2, User, 
 import { api } from '../../services/api';
 import { formatVnd } from '../../utils/display';
 import { devLog } from '../../utils/logger';
-import { ErrorState, SkeletonList } from '../../components/ui';
+import { ErrorState, SkeletonList, useToast } from '../../components/ui';
 import { getApiErrorMessage } from '../../utils/apiError';
 
 interface PendingDoctor {
@@ -30,6 +30,7 @@ export const DoctorVettingPage: React.FC = () => {
   const [pendingDoctors, setPendingDoctors] = useState<PendingDoctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -48,7 +49,8 @@ export const DoctorVettingPage: React.FC = () => {
   }, []);
 
   // Background (silent) refreshes never replace a loaded list with an error
-  const fetchPendingDoctors = useCallback(async (silent = false) => {
+  // — a manual "Làm mới" (notify) reports the failure in a toast instead
+  const fetchPendingDoctors = useCallback(async (silent = false, notify = false) => {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(true);
@@ -58,12 +60,14 @@ export const DoctorVettingPage: React.FC = () => {
       setLoadError(null);
     } catch (err) {
       devLog.error('Failed to fetch pending doctors:', err);
-      if (!silent) setLoadError(getApiErrorMessage(err, 'Không tải được danh sách hồ sơ chờ duyệt.'));
+      const message = getApiErrorMessage(err, 'Không tải được danh sách hồ sơ chờ duyệt.');
+      if (!silent) setLoadError(message);
+      else if (notify) toast.error(message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [toast]);
 
   const handleApprove = async (doctor: PendingDoctor) => {
     try {
@@ -145,7 +149,7 @@ export const DoctorVettingPage: React.FC = () => {
             <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
           </div>
           <button
-            onClick={() => fetchPendingDoctors(true)}
+            onClick={() => fetchPendingDoctors(true, true)}
             disabled={refreshing}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
             title="Làm mới hàng đợi duyệt bác sĩ"

@@ -16,7 +16,7 @@ import {
 import { api } from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
 import { devLog } from '../../utils/logger';
-import { EmptyState, ErrorState, SkeletonTable } from '../../components/ui';
+import { EmptyState, ErrorState, SkeletonTable, useToast } from '../../components/ui';
 import { getApiErrorMessage } from '../../utils/apiError';
 
 interface AdminTriageSession {
@@ -37,6 +37,7 @@ export const TriageSupervisionPage: React.FC = () => {
   const [sessions, setSessions] = useState<AdminTriageSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,7 +45,8 @@ export const TriageSupervisionPage: React.FC = () => {
   const [selectedSession, setSelectedSession] = useState<AdminTriageSession | null>(null);
 
   // Background (silent) refreshes never replace a loaded table with an error
-  const fetchTriageSessions = useCallback(async (silent = false) => {
+  // — a manual "Làm mới" (notify) reports the failure in a toast instead
+  const fetchTriageSessions = useCallback(async (silent = false, notify = false) => {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(true);
@@ -54,12 +56,14 @@ export const TriageSupervisionPage: React.FC = () => {
       setLoadError(null);
     } catch (err) {
       devLog.error('Failed to load triage sessions:', err);
-      if (!silent) setLoadError(getApiErrorMessage(err, 'Không tải được danh sách phiên phân luồng.'));
+      const message = getApiErrorMessage(err, 'Không tải được danh sách phiên phân luồng.');
+      if (!silent) setLoadError(message);
+      else if (notify) toast.error(message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchTriageSessions();
@@ -124,7 +128,7 @@ export const TriageSupervisionPage: React.FC = () => {
             <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
           </div>
           <button
-            onClick={() => fetchTriageSessions(true)}
+            onClick={() => fetchTriageSessions(true, true)}
             disabled={refreshing}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
             title="Làm mới danh sách phân luồng"
