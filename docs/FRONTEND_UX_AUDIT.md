@@ -1,7 +1,7 @@
 # Rà Soát & Làm Cứng Frontend MediAssist-AI (FRONTEND_UX_AUDIT.md)
 
 > **Nhánh:** `feature/frontend-ux-hardening` (tách từ `origin/develop`, đã merge `origin/feature/fuction`)
-> **Đợt 2 (sửa theo phiếu review, 12/10/2026):** nhánh `feature/frontend-ux-review-fixes` tách từ `origin/develop` @ `954071f` — mục `R-02`, `R-05`, B-07, B-08g, B-23, B-26, BE-1, BE-4, BE-6, BE-13, BE-14.
+> **Đợt 2 (sửa theo phiếu review, 12/10/2026):** nhánh `feature/frontend-ux-review-fixes` tách từ `origin/develop` @ `e78eeb1` — mục `R-02`, `R-05`, B-07, B-08g, B-23, B-26, BE-1, BE-4, BE-6, BE-13, BE-14.
 > **Phạm vi:** chỉ `frontend/` + tài liệu. Không sửa backend, migration, docker, CI.
 > **Người thực hiện:** Phạm Bảo + AI · **Ngày:** 11/10/2026
 
