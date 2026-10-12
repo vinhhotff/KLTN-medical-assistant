@@ -191,7 +191,7 @@ export const AuditLogPage: React.FC = () => {
         {loading ? (
           <SkeletonTable rows={6} cols={5} />
         ) : loadError ? (
-          <ErrorState message={loadError} onRetry={() => fetchLogs(actionFilter)} retrying={loading} className="m-4" />
+          <ErrorState message={loadError} onRetry={() => fetchLogs(actionFilter)} className="m-4" />
         ) : logs.length === 0 ? (
           <EmptyState title="Chưa có bản ghi kiểm toán" description="Thao tác của người dùng và quản trị viên sẽ được ghi lại tại đây." className="m-4" />
         ) : filteredLogs.length === 0 ? (

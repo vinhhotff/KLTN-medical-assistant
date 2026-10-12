@@ -191,7 +191,7 @@ export const DoctorVettingPage: React.FC = () => {
         {loading ? (
           <SkeletonList rows={3} className="p-4" />
         ) : loadError ? (
-          <ErrorState message={loadError} onRetry={() => fetchPendingDoctors()} retrying={loading} className="m-4" />
+          <ErrorState message={loadError} onRetry={() => fetchPendingDoctors()} className="m-4" />
         ) : pendingDoctors.length === 0 ? (
           <div className="p-16 text-center text-slate-400">
             <Clock className="w-12 h-12 text-slate-300 mx-auto mb-3" />

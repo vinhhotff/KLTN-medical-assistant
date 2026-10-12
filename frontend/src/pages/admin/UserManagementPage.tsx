@@ -184,7 +184,7 @@ export const UserManagementPage: React.FC = () => {
         {loading ? (
           <SkeletonTable rows={6} cols={5} />
         ) : loadError ? (
-          <ErrorState message={loadError} onRetry={fetchUsers} retrying={loading} className="m-4" />
+          <ErrorState message={loadError} onRetry={fetchUsers} className="m-4" />
         ) : users.length === 0 ? (
           <EmptyState title="Chưa có người dùng nào" className="m-4" />
         ) : filteredUsers.length === 0 ? (

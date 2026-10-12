@@ -170,7 +170,7 @@ export const SpecialtyManagementPage: React.FC = () => {
       {loading ? (
         <SkeletonList rows={3} />
       ) : loadError ? (
-        <ErrorState message={loadError} onRetry={fetchSpecialties} retrying={loading} />
+        <ErrorState message={loadError} onRetry={fetchSpecialties} />
       ) : specialties.length === 0 ? (
         <EmptyState title="Chưa có chuyên khoa nào" description="Thêm chuyên khoa mới để bắt đầu xây dựng danh mục." />
       ) : filteredSpecialties.length === 0 ? (

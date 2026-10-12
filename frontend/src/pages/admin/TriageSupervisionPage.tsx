@@ -176,7 +176,7 @@ export const TriageSupervisionPage: React.FC = () => {
         {loading ? (
           <SkeletonTable rows={6} cols={5} />
         ) : loadError ? (
-          <ErrorState message={loadError} onRetry={() => fetchTriageSessions()} retrying={loading} className="m-4" />
+          <ErrorState message={loadError} onRetry={() => fetchTriageSessions()} className="m-4" />
         ) : sessions.length === 0 ? (
           <EmptyState title="Chưa có phiên phân luồng nào" description="Phiên mới sẽ xuất hiện khi bệnh nhân dùng trợ lý triệu chứng." className="m-4" />
         ) : filteredSessions.length === 0 ? (

@@ -225,7 +225,7 @@ export const AppointmentSupervisionPage: React.FC = () => {
         {loading ? (
           <SkeletonTable rows={6} cols={5} />
         ) : loadError ? (
-          <ErrorState message={loadError} onRetry={() => fetchAppointments()} retrying={loading} className="m-4" />
+          <ErrorState message={loadError} onRetry={() => fetchAppointments()} className="m-4" />
         ) : appointments.length === 0 ? (
           <EmptyState title="Chưa có lịch hẹn nào" className="m-4" />
         ) : filteredAppointments.length === 0 ? (

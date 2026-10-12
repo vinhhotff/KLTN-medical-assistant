@@ -522,7 +522,7 @@ export const DoctorManagementPage: React.FC = () => {
             {loading ? (
               <SkeletonTable rows={6} cols={5} />
             ) : loadError ? (
-              <ErrorState message={loadError} onRetry={fetchData} retrying={loading} className="m-4" />
+              <ErrorState message={loadError} onRetry={fetchData} className="m-4" />
             ) : doctors.length === 0 ? (
               <EmptyState title="Chưa có bác sĩ nào" description="Tạo tài khoản bác sĩ mới hoặc chờ bác sĩ đăng ký." className="m-4" />
             ) : filteredDoctors.length === 0 ? (
