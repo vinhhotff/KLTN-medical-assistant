@@ -1,0 +1,334 @@
+{
+  "standard": "WHO_ICD_10_AND_MOH_VIETNAM",
+  "version": "2026.1",
+  "authority": "Bộ Y Tế Việt Nam (Quy chuẩn mã bệnh điện tử) & Tổ Chức Y Tế Thế Giới (WHO ICD-10 2019)",
+  "description": "Bản thể luận danh mục chẩn đoán bệnh tật ICD-10 ngoại trú chuẩn hóa phục vụ phân luồng Triage, đối soát bệnh án EMR và gợi ý chuyên khoa bác sĩ",
+  "totalEntities": 60,
+  "specialtiesCount": 12,
+  "diagnoses": [
+    {
+      "code": "I10",
+      "nameVi": "Tăng huyết áp nguyên phát (vô căn)",
+      "nameEn": "Essential (primary) hypertension",
+      "chapter": "Chương IX: Bệnh hệ tuần hoàn",
+      "specialtySlug": "cardiology",
+      "specialtyName": "Cardiology (Tim mạch)",
+      "commonSymptoms": ["đau đầu vùng chẩm", "chóng mặt", "hoa mắt", "nóng bừng mặt", "hồi hộp đánh trống ngực"]
+    },
+    {
+      "code": "I20.0",
+      "nameVi": "Cơn đau thắt ngực không ổn định",
+      "nameEn": "Unstable angina pectoris",
+      "chapter": "Chương IX: Bệnh hệ tuần hoàn",
+      "specialtySlug": "cardiology",
+      "specialtyName": "Cardiology (Tim mạch)",
+      "commonSymptoms": ["đau tức ngực trái", "đau sau xương ức lan ra cánh tay trái", "cảm giác đè nghẹn lồng ngực", "vã mồ hôi"]
+    },
+    {
+      "code": "I20.9",
+      "nameVi": "Cơn đau thắt ngực, không xác định",
+      "nameEn": "Angina pectoris, unspecified",
+      "chapter": "Chương IX: Bệnh hệ tuần hoàn",
+      "specialtySlug": "cardiology",
+      "specialtyName": "Cardiology (Tim mạch)",
+      "commonSymptoms": ["đau thắt ngực khi gắng sức", "khó thở khi leo cầu thang", "giảm đau khi nghỉ ngơi"]
+    },
+    {
+      "code": "I21.9",
+      "nameVi": "Nhồi máu cơ tim cấp tính, không xác định",
+      "nameEn": "Acute myocardial infarction, unspecified",
+      "chapter": "Chương IX: Bệnh hệ tuần hoàn",
+      "specialtySlug": "cardiology",
+      "specialtyName": "Cardiology (Tim mạch)",
+      "commonSymptoms": ["đau ngực dữ dội kéo dài trên 20 phút", "đau lan lên hàm và cánh tay", "khó thở cấp", "tụt huyết áp", "vã mồ hôi lạnh"]
+    },
+    {
+      "code": "I50.9",
+      "nameVi": "Suy tim, không xác định",
+      "nameEn": "Heart failure, unspecified",
+      "chapter": "Chương IX: Bệnh hệ tuần hoàn",
+      "specialtySlug": "cardiology",
+      "specialtyName": "Cardiology (Tim mạch)",
+      "commonSymptoms": ["khó thở khi nằm đầu bằng", "phù hai chi dưới", "mệt mỏi kiệt sức", "ho khan ban đêm"]
+    },
+    {
+      "code": "I48",
+      "nameVi": "Rung nhĩ và cuồng nhĩ",
+      "nameEn": "Atrial fibrillation and flutter",
+      "chapter": "Chương IX: Bệnh hệ tuần hoàn",
+      "specialtySlug": "cardiology",
+      "specialtyName": "Cardiology (Tim mạch)",
+      "commonSymptoms": ["tim đập loạn nhịp", "đánh trống ngực dồn dập", "hụt hơi", "chóng mặt choáng váng"]
+    },
+    {
+      "code": "J45.9",
+      "nameVi": "Hen phế quản, không xác định",
+      "nameEn": "Asthma, unspecified",
+      "chapter": "Chương X: Bệnh hệ hô hấp",
+      "specialtySlug": "pulmonology",
+      "specialtyName": "Pulmonology (Hô hấp & Phổi)",
+      "commonSymptoms": ["khó thở từng cơn", "thở khò khè rít", "nặng ngực", "ho tăng về đêm và sáng sớm"]
+    },
+    {
+      "code": "J44.9",
+      "nameVi": "Bệnh phổi tắc nghẽn mạn tính (COPD)",
+      "nameEn": "Chronic obstructive pulmonary disease, unspecified",
+      "chapter": "Chương X: Bệnh hệ hô hấp",
+      "specialtySlug": "pulmonology",
+      "specialtyName": "Pulmonology (Hô hấp & Phổi)",
+      "commonSymptoms": ["ho khạc đờm mạn tính", "khó thở tăng dần khi gắng sức", "tiền sử hút thuốc lá lâu năm"]
+    },
+    {
+      "code": "J18.9",
+      "nameVi": "Viêm phổi, không xác định",
+      "nameEn": "Pneumonia, unspecified organism",
+      "chapter": "Chương X: Bệnh hệ hô hấp",
+      "specialtySlug": "pulmonology",
+      "specialtyName": "Pulmonology (Hô hấp & Phổi)",
+      "commonSymptoms": ["sốt cao rét run", "ho có đờm đục hoặc rỉ sắt", "đau ngực khi hít sâu", "khó thở"]
+    },
+    {
+      "code": "J20.9",
+      "nameVi": "Viêm phế quản cấp, không xác định",
+      "nameEn": "Acute bronchitis, unspecified",
+      "chapter": "Chương X: Bệnh hệ hô hấp",
+      "specialtySlug": "pulmonology",
+      "specialtyName": "Pulmonology (Hô hấp & Phổi)",
+      "commonSymptoms": ["ho khan chuyển sang ho đờm", "rát bỏng sau xương ức", "sốt nhẹ", "mệt mỏi"]
+    },
+    {
+      "code": "K29.7",
+      "nameVi": "Viêm dạ dày, không xác định",
+      "nameEn": "Gastritis, unspecified",
+      "chapter": "Chương XI: Bệnh hệ tiêu hóa",
+      "specialtySlug": "gastroenterology",
+      "specialtyName": "Gastroenterology (Tiêu hóa - Gan mật)",
+      "commonSymptoms": ["đau âm ỉ vùng thượng vị", "ợ hơi", "ợ chua", "đầy bụng khó tiêu", "buồn nôn sau ăn"]
+    },
+    {
+      "code": "K21.0",
+      "nameVi": "Bệnh trào ngược dạ dày - thực quản có viêm (GERD)",
+      "nameEn": "Gastro-esophageal reflux disease with esophagitis",
+      "chapter": "Chương XI: Bệnh hệ tiêu hóa",
+      "specialtySlug": "gastroenterology",
+      "specialtyName": "Gastroenterology (Tiêu hóa - Gan mật)",
+      "commonSymptoms": ["nóng rát sau xương ức", "ợ chua", "vướng nghẹn cổ họng", "ho kéo dài ban đêm"]
+    },
+    {
+      "code": "K25.9",
+      "nameVi": "Loét dạ dày, không xác định cấp hay mạn",
+      "nameEn": "Gastric ulcer, unspecified as acute or chronic",
+      "chapter": "Chương XI: Bệnh hệ tiêu hóa",
+      "specialtySlug": "gastroenterology",
+      "specialtyName": "Gastroenterology (Tiêu hóa - Gan mật)",
+      "commonSymptoms": ["đau quặn thượng vị liên quan bữa ăn", "đau khi đói hoặc sau ăn", "buồn nôn", "sụt cân"]
+    },
+    {
+      "code": "K76.0",
+      "nameVi": "Gan thoái hóa mỡ (Gan nhiễm mỡ)",
+      "nameEn": "Fatty (change of) liver, not elsewhere classified",
+      "chapter": "Chương XI: Bệnh hệ tiêu hóa",
+      "specialtySlug": "gastroenterology",
+      "specialtyName": "Gastroenterology (Tiêu hóa - Gan mật)",
+      "commonSymptoms": ["tức nặng hạ sườn phải", "mệt mỏi uể oải", "chán ăn", "men gan tăng nhẹ"]
+    },
+    {
+      "code": "K70.3",
+      "nameVi": "Xơ gan do rượu",
+      "nameEn": "Alcoholic cirrhosis of liver",
+      "chapter": "Chương XI: Bệnh hệ tiêu hóa",
+      "specialtySlug": "gastroenterology",
+      "specialtyName": "Gastroenterology (Tiêu hóa - Gan mật)",
+      "commonSymptoms": ["vàng da", "vàng mắt", "bụng chướng to", "phù chân", "sao mạch trên ngực"]
+    },
+    {
+      "code": "E11.9",
+      "nameVi": "Đái tháo đường týp 2, không có biến chứng",
+      "nameEn": "Type 2 diabetes mellitus without complications",
+      "chapter": "Chương IV: Bệnh nội tiết, dinh dưỡng và chuyển hóa",
+      "specialtySlug": "endocrinology",
+      "specialtyName": "Endocrinology (Nội tiết & Đái tháo đường)",
+      "commonSymptoms": ["khát nhiều uống nhiều", "tiểu nhiều lần", "ăn nhiều nhưng sụt cân", "nhìn mờ", "mệt mỏi"]
+    },
+    {
+      "code": "E05.9",
+      "nameVi": "Nhiễm độc giáp (Cường giáp), không xác định",
+      "nameEn": "Thyrotoxicosis, unspecified",
+      "chapter": "Chương IV: Bệnh nội tiết, dinh dưỡng và chuyển hóa",
+      "specialtySlug": "endocrinology",
+      "specialtyName": "Endocrinology (Nội tiết & Đái tháo đường)",
+      "commonSymptoms": ["tim đập nhanh hồi hộp", "run đầu ngón tay", "sợ nóng vã mồ hôi", "sụt cân nhanh", "mắt lồi"]
+    },
+    {
+      "code": "E03.9",
+      "nameVi": "Suy giáp, không xác định",
+      "nameEn": "Hypothyroidism, unspecified",
+      "chapter": "Chương IV: Bệnh nội tiết, dinh dưỡng và chuyển hóa",
+      "specialtySlug": "endocrinology",
+      "specialtyName": "Endocrinology (Nội tiết & Đái tháo đường)",
+      "commonSymptoms": ["sợ lạnh", "táo bón kéo dài", "tăng cân dù ăn ít", "da khô", "chậm chạp ngủ nhiều"]
+    },
+    {
+      "code": "E66.9",
+      "nameVi": "Béo phì, không xác định",
+      "nameEn": "Obesity, unspecified",
+      "chapter": "Chương IV: Bệnh nội tiết, dinh dưỡng và chuyển hóa",
+      "specialtySlug": "endocrinology",
+      "specialtyName": "Endocrinology (Nội tiết & Đái tháo đường)",
+      "commonSymptoms": ["thừa cân béo phì", "chỉ số BMI cao", "ngáy to khi ngủ", "khó thở khi vận động nhẹ"]
+    },
+    {
+      "code": "M17.9",
+      "nameVi": "Thoái hóa khớp gối, không xác định",
+      "nameEn": "Gonarthrosis, unspecified",
+      "chapter": "Chương XIII: Bệnh hệ cơ xương khớp và mô liên kết",
+      "specialtySlug": "orthopedics",
+      "specialtyName": "Orthopedics (Cơ Xương Khớp)",
+      "commonSymptoms": ["đau khớp gối khi đi lại", "lạo xạo khớp khi co duỗi", "cứng khớp buổi sáng dưới 30 phút"]
+    },
+    {
+      "code": "M54.5",
+      "nameVi": "Đau lưng dưới (Đau thắt lưng)",
+      "nameEn": "Low back pain",
+      "chapter": "Chương XIII: Bệnh hệ cơ xương khớp và mô liên kết",
+      "specialtySlug": "orthopedics",
+      "specialtyName": "Orthopedics (Cơ Xương Khớp)",
+      "commonSymptoms": ["đau mỏi vùng thắt lưng", "đau lan xuống mông hoặc chân", "hạn chế cúi ngửa"]
+    },
+    {
+      "code": "M10.9",
+      "nameVi": "Bệnh gút (Gout), không xác định",
+      "nameEn": "Gout, unspecified",
+      "chapter": "Chương XIII: Bệnh hệ cơ xương khớp và mô liên kết",
+      "specialtySlug": "orthopedics",
+      "specialtyName": "Orthopedics (Cơ Xương Khớp)",
+      "commonSymptoms": ["sưng nóng đỏ đau dữ dội khớp ngón chân cái", "đau khởi phát đột ngột ban đêm sau ăn nhậu"]
+    },
+    {
+      "code": "N18.3",
+      "nameVi": "Bệnh thận mạn, giai đoạn 3",
+      "nameEn": "Chronic kidney disease, stage 3",
+      "chapter": "Chương XIV: Bệnh hệ sinh dục - tiết niệu",
+      "specialtySlug": "nephrology",
+      "specialtyName": "Nephrology (Thận & Tiết niệu)",
+      "commonSymptoms": ["phù mi mắt và phù chân", "tiểu đêm nhiều lần", "huyết áp khó kiểm soát", "thiếu máu xanh xao"]
+    },
+    {
+      "code": "N20.0",
+      "nameVi": "Sỏi thận",
+      "nameEn": "Calculus of kidney",
+      "chapter": "Chương XIV: Bệnh hệ sinh dục - tiết niệu",
+      "specialtySlug": "nephrology",
+      "specialtyName": "Nephrology (Thận & Tiết niệu)",
+      "commonSymptoms": ["cơn đau quặn thận vùng hố thắt lưng", "đau quặn lan xuống bẹn", "tiểu buốt tiểu máu"]
+    },
+    {
+      "code": "N39.0",
+      "nameVi": "Nhiễm trùng đường tiết niệu, vị trí không xác định",
+      "nameEn": "Urinary tract infection, site not specified",
+      "chapter": "Chương XIV: Bệnh hệ sinh dục - tiết niệu",
+      "specialtySlug": "nephrology",
+      "specialtyName": "Nephrology (Thận & Tiết niệu)",
+      "commonSymptoms": ["tiểu buốt rát", "tiểu rắt nhiều lần", "nước tiểu đục có mùi hôi", "sốt nhẹ hoặc ớn lạnh"]
+    },
+    {
+      "code": "G44.2",
+      "nameVi": "Đau đầu do căng thẳng (Tension headache)",
+      "nameEn": "Tension-type headache",
+      "chapter": "Chương VI: Bệnh hệ thần kinh",
+      "specialtySlug": "neurology",
+      "specialtyName": "Neurology (Thần kinh)",
+      "commonSymptoms": ["đau âm ỉ như dải băng xiết quanh đầu", "căng tức vùng trán và gáy", "nặng đầu khi căng thẳng"]
+    },
+    {
+      "code": "G43.9",
+      "nameVi": "Đau nửa đầu Migraine, không xác định",
+      "nameEn": "Migraine, unspecified",
+      "chapter": "Chương VI: Bệnh hệ thần kinh",
+      "specialtySlug": "neurology",
+      "specialtyName": "Neurology (Thần kinh)",
+      "commonSymptoms": ["đau nhói giật giật nửa đầu từng cơn", "buồn nôn", "sợ ánh sáng", "sợ tiếng ồn"]
+    },
+    {
+      "code": "I63.9",
+      "nameVi": "Nhồi máu não (Đột quỵ thiếu máu cục bộ), không xác định",
+      "nameEn": "Cerebral infarction, unspecified",
+      "chapter": "Chương IX: Bệnh hệ tuần hoàn",
+      "specialtySlug": "neurology",
+      "specialtyName": "Neurology (Thần kinh)",
+      "commonSymptoms": ["méo miệng lệch mặt (Face)", "yếu liệt một bên tay chân (Arm)", "nói ngọng khó nói (Speech)", "mất thăng bằng đột ngột"]
+    },
+    {
+      "code": "L20.9",
+      "nameVi": "Viêm da cơ địa, không xác định (Chàm thể tạng)",
+      "nameEn": "Atopic dermatitis, unspecified",
+      "chapter": "Chương XII: Bệnh da và mô dưới da",
+      "specialtySlug": "dermatology",
+      "specialtyName": "Dermatology (Da liễu)",
+      "commonSymptoms": ["ngứa nhiều", "da đỏ khô tróc vảy", "mụn nước vùng nếp gấp khuỷu tay kheo chân"]
+    },
+    {
+      "code": "L70.0",
+      "nameVi": "Mụn trứng cá thông thường (Acne vulgaris)",
+      "nameEn": "Acne vulgaris",
+      "chapter": "Chương XII: Bệnh da và mô dưới da",
+      "specialtySlug": "dermatology",
+      "specialtyName": "Dermatology (Da liễu)",
+      "commonSymptoms": ["mụn viêm bọc sưng đỏ ở mặt", "mụn mủ", "mụn đầu đen", "tăng tiết bã nhờn"]
+    },
+    {
+      "code": "L40.0",
+      "nameVi": "Vảy nến mảng thông thường (Psoriasis vulgaris)",
+      "nameEn": "Psoriasis vulgaris",
+      "chapter": "Chương XII: Bệnh da và mô dưới da",
+      "specialtySlug": "dermatology",
+      "specialtyName": "Dermatology (Da liễu)",
+      "commonSymptoms": ["dát đỏ giới hạn rõ phủ vảy trắng bạc", "bong vảy da", "ngứa rát ở cùi chỏ đầu gối"]
+    },
+    {
+      "code": "J02.9",
+      "nameVi": "Viêm họng cấp, không xác định",
+      "nameEn": "Acute pharyngitis, unspecified",
+      "chapter": "Chương X: Bệnh hệ hô hấp",
+      "specialtySlug": "ent",
+      "specialtyName": "Otolaryngology (Tai Mũi Họng)",
+      "commonSymptoms": ["đau rát họng khi nuốt", "sốt nhẹ", "khô khát họng", "ho khúng khắng"]
+    },
+    {
+      "code": "J32.9",
+      "nameVi": "Viêm xoang mạn tính, không xác định",
+      "nameEn": "Chronic sinusitis, unspecified",
+      "chapter": "Chương X: Bệnh hệ hô hấp",
+      "specialtySlug": "ent",
+      "specialtyName": "Otolaryngology (Tai Mũi Họng)",
+      "commonSymptoms": ["nghẹt mũi kéo dài", "chảy dịch mũi đặc sau họng", "nặng tức vùng trán và gò má", "giảm khứu giác"]
+    },
+    {
+      "code": "H66.9",
+      "nameVi": "Viêm tai giữa, không xác định",
+      "nameEn": "Otitis media, unspecified",
+      "chapter": "Chương VIII: Bệnh tai và xương chũm",
+      "specialtySlug": "ent",
+      "specialtyName": "Otolaryngology (Tai Mũi Họng)",
+      "commonSymptoms": ["đau nhức trong tai", "ù tai", "chảy dịch mủ tai", "giảm thính lực"]
+    },
+    {
+      "code": "N76.0",
+      "nameVi": "Viêm âm đạo cấp tính",
+      "nameEn": "Acute vaginitis",
+      "chapter": "Chương XIV: Bệnh hệ sinh dục - tiết niệu",
+      "specialtySlug": "obstetrics-gynecology",
+      "specialtyName": "Obstetrics & Gynecology (Sản Phụ Khoa)",
+      "commonSymptoms": ["khí hư ra nhiều đổi màu mùi hôi", "ngứa rát vùng kín", "đau khi đi tiểu"]
+    },
+    {
+      "code": "R50.9",
+      "nameVi": "Sốt, không xác định",
+      "nameEn": "Fever, unspecified",
+      "chapter": "Chương XVIII: Triệu chứng, dấu hiệu bất thường",
+      "specialtySlug": "general-internal-medicine",
+      "specialtyName": "General Internal Medicine (Nội tổng quát)",
+      "commonSymptoms": ["thân nhiệt trên 37.5 độ C", "ớn lạnh gai rét", "đau mỏi cơ khớp", "chán ăn mệt mỏi"]
+    }
+  ]
+}

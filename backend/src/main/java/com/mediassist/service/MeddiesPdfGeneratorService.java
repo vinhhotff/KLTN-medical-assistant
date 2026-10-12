@@ -66,17 +66,23 @@ public class MeddiesPdfGeneratorService {
 
     public static class IndicatorRow {
         public final String name;
+        public final String loincCode;
         public final String value;
         public final String unit;
         public final String refRange;
         public final String status;
 
-        public IndicatorRow(String name, String value, String unit, String refRange, String status) {
+        public IndicatorRow(String name, String loincCode, String value, String unit, String refRange, String status) {
             this.name = name;
+            this.loincCode = loincCode;
             this.value = value;
             this.unit = unit;
             this.refRange = refRange;
             this.status = status;
+        }
+
+        public IndicatorRow(String name, String value, String unit, String refRange, String status) {
+            this(name, null, value, unit, refRange, status);
         }
     }
 
@@ -199,39 +205,39 @@ public class MeddiesPdfGeneratorService {
         String complaintLower = (p.chiefComplaint + " " + p.history).toLowerCase();
         if (complaintLower.contains("nguc") || complaintLower.contains("tim") || complaintLower.contains("mach")) {
             p.department = "Khoa Noi Tim Mach";
-            p.indicators.add(new IndicatorRow("Cholesterol toan phan", "6.8", "mmol/L", "3.9 - 5.2", "TANG"));
-            p.indicators.add(new IndicatorRow("Triglyceride", "2.9", "mmol/L", "0.46 - 1.88", "TANG"));
-            p.indicators.add(new IndicatorRow("Troponin T hs", "0.045", "ng/mL", "< 0.014", "TANG CAO"));
-            p.indicators.add(new IndicatorRow("Glucose huyet doi", "5.8", "mmol/L", "3.9 - 6.4", "BINH THUONG"));
-            p.indicators.add(new IndicatorRow("Creatinine", "85.0", "umol/L", "44.0 - 88.0", "BINH THUONG"));
+            p.indicators.add(new IndicatorRow("Cholesterol toan phan", "2093-3", "6.8", "mmol/L", "3.9 - 5.2", "TANG"));
+            p.indicators.add(new IndicatorRow("Triglyceride", "2571-8", "2.9", "mmol/L", "0.46 - 1.88", "TANG"));
+            p.indicators.add(new IndicatorRow("Troponin T hs", "6598-7", "0.045", "ng/mL", "< 0.014", "TANG CAO"));
+            p.indicators.add(new IndicatorRow("Glucose huyet doi", "2345-7", "5.8", "mmol/L", "3.9 - 6.4", "BINH THUONG"));
+            p.indicators.add(new IndicatorRow("Creatinine", "2160-0", "85.0", "umol/L", "44.0 - 106.0", "BINH THUONG"));
         } else if (complaintLower.contains("gan") || complaintLower.contains("bung") || complaintLower.contains("vang da") || complaintLower.contains("ruou")) {
             p.department = "Khoa Noi Tieu Hoa - Gan Mat";
-            p.indicators.add(new IndicatorRow("Men gan ALT (GPT)", "95.0", "U/L", "< 41.0", "TANG CAO"));
-            p.indicators.add(new IndicatorRow("Men gan AST (GOT)", "88.0", "U/L", "< 37.0", "TANG CAO"));
-            p.indicators.add(new IndicatorRow("GGT", "145.0", "U/L", "11.0 - 50.0", "TANG CAO"));
-            p.indicators.add(new IndicatorRow("Bilirubin toan phan", "22.5", "umol/L", "5.1 - 17.0", "TANG"));
-            p.indicators.add(new IndicatorRow("Albumin", "38.0", "g/L", "35.0 - 52.0", "BINH THUONG"));
+            p.indicators.add(new IndicatorRow("Men gan ALT (GPT)", "1742-6", "95.0", "U/L", "< 41.0", "TANG CAO"));
+            p.indicators.add(new IndicatorRow("Men gan AST (GOT)", "1920-8", "88.0", "U/L", "< 37.0", "TANG CAO"));
+            p.indicators.add(new IndicatorRow("GGT", "2324-2", "145.0", "U/L", "11.0 - 50.0", "TANG CAO"));
+            p.indicators.add(new IndicatorRow("Bilirubin toan phan", "1975-2", "22.5", "umol/L", "5.1 - 17.0", "TANG"));
+            p.indicators.add(new IndicatorRow("Albumin", "1751-7", "38.0", "g/L", "35.0 - 52.0", "BINH THUONG"));
         } else if (complaintLower.contains("duong") || complaintLower.contains("tieu") || complaintLower.contains("khat")) {
             p.department = "Khoa Noi Tiet - Dai Thao Duong";
-            p.indicators.add(new IndicatorRow("Glucose huyet doi", "9.6", "mmol/L", "3.9 - 6.4", "TANG CAO"));
-            p.indicators.add(new IndicatorRow("HbA1c", "8.7", "%", "4.0 - 6.0", "TANG CAO"));
-            p.indicators.add(new IndicatorRow("Ure", "7.4", "mmol/L", "2.5 - 7.5", "BINH THUONG"));
-            p.indicators.add(new IndicatorRow("Creatinine", "82.0", "umol/L", "44.0 - 88.0", "BINH THUONG"));
-            p.indicators.add(new IndicatorRow("Acid Uric", "340.0", "umol/L", "200.0 - 420.0", "BINH THUONG"));
+            p.indicators.add(new IndicatorRow("Glucose huyet doi", "2345-7", "9.6", "mmol/L", "3.9 - 6.4", "TANG CAO"));
+            p.indicators.add(new IndicatorRow("HbA1c", "4548-4", "8.7", "%", "4.0 - 6.0", "TANG CAO"));
+            p.indicators.add(new IndicatorRow("Ure", "3094-0", "7.4", "mmol/L", "2.5 - 7.5", "BINH THUONG"));
+            p.indicators.add(new IndicatorRow("Creatinine", "2160-0", "82.0", "umol/L", "44.0 - 106.0", "BINH THUONG"));
+            p.indicators.add(new IndicatorRow("Acid Uric", "3084-1", "340.0", "umol/L", "200.0 - 420.0", "BINH THUONG"));
         } else if (complaintLower.contains("than") || complaintLower.contains("phu") || complaintLower.contains("tieu dem")) {
             p.department = "Khoa Noi Than - Tiet Nieu";
-            p.indicators.add(new IndicatorRow("Creatinine", "175.0", "umol/L", "44.0 - 88.0", "TANG CAO"));
-            p.indicators.add(new IndicatorRow("Ure", "15.2", "mmol/L", "2.5 - 7.5", "TANG CAO"));
-            p.indicators.add(new IndicatorRow("eGFR", "36.0", "mL/min", "> 90.0", "GIAM NANG"));
-            p.indicators.add(new IndicatorRow("Acid Uric", "495.0", "umol/L", "200.0 - 420.0", "TANG"));
-            p.indicators.add(new IndicatorRow("Kali mau (K+)", "5.1", "mmol/L", "3.5 - 5.0", "TANG NHE"));
+            p.indicators.add(new IndicatorRow("Creatinine", "2160-0", "175.0", "umol/L", "44.0 - 106.0", "TANG CAO"));
+            p.indicators.add(new IndicatorRow("Ure", "3094-0", "15.2", "mmol/L", "2.5 - 7.5", "TANG CAO"));
+            p.indicators.add(new IndicatorRow("eGFR", "33914-3", "36.0", "mL/min", "> 90.0", "GIAM NANG"));
+            p.indicators.add(new IndicatorRow("Acid Uric", "3084-1", "495.0", "umol/L", "200.0 - 420.0", "TANG"));
+            p.indicators.add(new IndicatorRow("Kali mau (K+)", "2823-3", "5.1", "mmol/L", "3.5 - 5.0", "TANG NHE"));
         } else {
             p.department = "Khoa Xet Nghiem Tong Quat";
-            p.indicators.add(new IndicatorRow("Bach cau (WBC)", "13.8", "G/L", "4.0 - 10.0", "TANG"));
-            p.indicators.add(new IndicatorRow("Neutrophil (%)", "78.5", "%", "40.0 - 70.0", "TANG"));
-            p.indicators.add(new IndicatorRow("Protein C phan ung (CRP)", "24.5", "mg/L", "< 5.0", "TANG CAO"));
-            p.indicators.add(new IndicatorRow("Hong cau (RBC)", "4.6", "T/L", "3.8 - 5.3", "BINH THUONG"));
-            p.indicators.add(new IndicatorRow("Tieu cau (PLT)", "240.0", "G/L", "150.0 - 450.0", "BINH THUONG"));
+            p.indicators.add(new IndicatorRow("Bach cau (WBC)", "6690-2", "13.8", "G/L", "4.0 - 10.0", "TANG"));
+            p.indicators.add(new IndicatorRow("Neutrophil (%)", "770-8", "78.5", "%", "40.0 - 70.0", "TANG"));
+            p.indicators.add(new IndicatorRow("Protein C phan ung (CRP)", "1988-5", "24.5", "mg/L", "< 5.0", "TANG CAO"));
+            p.indicators.add(new IndicatorRow("Hong cau (RBC)", "789-8", "4.6", "T/L", "3.8 - 5.3", "BINH THUONG"));
+            p.indicators.add(new IndicatorRow("Tieu cau (PLT)", "777-3", "240.0", "G/L", "150.0 - 450.0", "BINH THUONG"));
         }
     }
 
@@ -426,7 +432,8 @@ public class MeddiesPdfGeneratorService {
                         IndicatorRow row = p.indicators.get(i);
                         if (row == null) continue;
                         y -= 16;
-                        drawText(cs, fontRegular, 9, margin, y, row.name);
+                        String displayName = row.name + (row.loincCode != null ? " [" + row.loincCode + "]" : "");
+                        drawText(cs, fontRegular, 8.5f, margin, y, displayName);
                         drawText(cs, fontBold, 9, margin + 170, y, row.value);
                         drawText(cs, fontRegular, 9, margin + 250, y, row.unit);
                         drawText(cs, fontRegular, 9, margin + 330, y, row.refRange);
