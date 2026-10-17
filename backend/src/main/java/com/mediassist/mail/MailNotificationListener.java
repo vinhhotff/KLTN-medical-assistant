@@ -143,7 +143,8 @@ public class MailNotificationListener {
         Map<String, Object> vars = appointmentVars(event.appointment());
         vars.put("cancelledBy", cancelledByLabel);
         vars.put("refunded", event.refunded());
-        vars.put("refundAmount", MailFormat.money(event.refundAmount()));
+        // Khong ro so tien (giao dich goc khong con) -> ghi chung "phi kham" thay vi de trong
+        vars.put("refundAmount", event.refundAmount() != null ? MailFormat.money(event.refundAmount()) : "phí khám");
         return vars;
     }
 

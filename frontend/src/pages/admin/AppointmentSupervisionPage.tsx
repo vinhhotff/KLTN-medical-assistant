@@ -24,6 +24,9 @@ import { devLog } from '../../utils/logger';
 
 const ADMIN_CANCEL_MIN_REASON = 10;
 
+/** Chỉ lịch đang chờ khám / đang khám mới hủy được (đồng bộ với backend: APPOINTMENT_NOT_CANCELLABLE). */
+const CANCELLABLE_STATUSES: AppointmentItem['status'][] = ['SCHEDULED', 'IN_PROGRESS'];
+
 interface AppointmentItem {
   id: string;
   appointmentCode: string;
@@ -295,7 +298,7 @@ export const AppointmentSupervisionPage: React.FC = () => {
                         >
                           <FileText className="w-3.5 h-3.5 text-slate-600" /> Chi Tiết
                         </button>
-                        {app.status !== 'CANCELLED' && app.status !== 'COMPLETED' && (
+                        {CANCELLABLE_STATUSES.includes(app.status) && (
                           <button
                             onClick={() => setCancelModalItem(app)}
                             aria-label={`Hủy lịch hẹn ${app.appointmentCode}`}
@@ -424,6 +427,11 @@ export const AppointmentSupervisionPage: React.FC = () => {
               Hủy lịch hẹn <strong className="font-mono">{cancelModalItem.appointmentCode}</strong> giữa bác sĩ{' '}
               <strong>{cancelModalItem.doctorName}</strong> và bệnh nhân <strong>{cancelModalItem.patientName}</strong>.
               Hành động và lý do sẽ được ghi vào nhật ký kiểm toán.
+              {cancelModalItem.paymentStatus === 'PAID' && (
+                <span className="block mt-1 text-xs text-amber-700">
+                  Lịch hẹn đã thanh toán: hệ thống sẽ tự động hoàn tiền cho bệnh nhân.
+                </span>
+              )}
             </>
           )
         }
