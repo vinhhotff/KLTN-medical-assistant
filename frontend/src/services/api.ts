@@ -32,6 +32,13 @@ api.interceptors.response.use(
   }
 );
 
+export const PATIENT_ACCESS_DENIED_MESSAGE =
+  'Hồ sơ sức khỏe được bảo vệ theo Nghị định 13/2023/NĐ-CP. Bạn chỉ xem được hồ sơ của bệnh nhân đã có lịch hẹn khám với mình (đã đặt, đang khám hoặc đã hoàn tất). Nếu cần hội chẩn, vui lòng liên hệ Quản trị viên.';
+
+/** Nhận diện lỗi 403 do rào chắn quyền truy cập hồ sơ bệnh nhân (FORBIDDEN_PATIENT_ACCESS). */
+export const isPatientAccessDenied = (error: unknown): boolean =>
+  axios.isAxiosError(error) && error.response?.status === 403;
+
 export interface DoctorReviewDto {
   id: string;
   appointmentId: string;

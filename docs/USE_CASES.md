@@ -779,7 +779,7 @@ graph TD
      - Trong Bàn khám EMR (`DoctorDashboard.tsx` - Tab 3 `DOCUMENTS`): Các tài liệu lưu trữ nội bộ nay được bổ sung nút bấm hành động `[Xem Bóc Tách AI & Chỉ Số]` và `[Mở Tệp Gốc]`.
      - Trong Ngăn kéo Hồ sơ Bệnh nhân 360° (`DoctorPatientRecordsPage.tsx` - Tab 3 `DOCS`): Bác sĩ có thể bấm xem chi tiết phân tích AI và tệp gốc của mọi tài liệu bệnh nhân từng gửi trong quá khứ.
   5. **Kiểm Soát Phân Quyền & Bảo Mật Chuẩn Y Tế (HIPAA & RBAC Guard):**
-     - Chỉ Bác sĩ được chỉ định, Bệnh nhân sở hữu tài liệu, hoặc Admin hệ thống mới được phép gọi API tải tệp và xem bóc tách. Mọi truy cập trái phép bị chặn đứng với mã lỗi `403 FORBIDDEN`.
+     - Chỉ Bác sĩ có quan hệ điều trị với chủ sở hữu tài liệu, Bệnh nhân sở hữu tài liệu, hoặc Admin hệ thống (có ghi audit) mới được phép gọi API tải tệp và xem bóc tách. Mọi truy cập trái phép bị chặn với mã lỗi `403 FORBIDDEN_PATIENT_ACCESS`. Chi tiết xem **UC-27**.
 
 ---
 
@@ -857,109 +857,6 @@ graph TD
   6. Trên `DoctorDashboard`, số lượt đánh giá thực tế hiển thị ngay tại thanh tiêu đề bàn làm việc lâm sàng cạnh điểm đánh giá trung bình.
 
 ---
-
-### UC-27: Xem Phiếu Khám Bệnh Điện Tử O2O (E-Admission Ticket with QR & STT)
-
-* **Mã Use Case:** `UC-CLIN-27`
-* **Tác nhân chính:** Patient (Bệnh nhân), Lễ Tân / Bác Sĩ (Receptionist / Doctor), Kiosk Check-in Tự Động.
-* **Mục tiêu:** Cung cấp cho bệnh nhân phiếu tiếp đón lâm sàng điện tử ngay sau khi đặt lịch khám trực tiếp (O2O) thành công, chứa mã QR tiêu chuẩn, số thứ tự (STT), định vị phòng khám, tích hợp Google Maps, Google Calendar và tiện ích in ấn giấy.
-* **REST Endpoints:**
-  - `GET /api/v1/appointments/{id}/ticket`: Trả về dữ liệu chi tiết của phiếu khám (`clinicRoom`, `clinicFloor`, `clinicBuilding`, `clinicAddress`, `clinicMapUrl`, `qrCodeData`, `sttNumber`, `preVisitInstructions`).
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. **Tạo Mã QR Check-in Chuẩn Hóa:**
-     - Mã QR chứa chuỗi JSON mã hóa: `appointmentId`, `code`, `stt`, `patient`, `doctor`, `datetime`, `room`.
-     - Phục vụ máy quét mã vạch 2D hoặc Kiosk thông minh tại sảnh bệnh viện để check-in tức thì, không cần xếp hàng khai báo thủ công.
-  2. **Hiển Thị Thông Tin Định Vị Phòng Khám (O2O Navigation):**
-     - Hiển thị rõ số phòng khám, số tầng, tòa nhà và địa chỉ cơ sở y tế.
-     - Cung cấp nút liên kết sâu (Deep Link) "Chỉ Đường Google Maps" mở ngay ứng dụng bản đồ dẫn đường cho người bệnh.
-  3. **Đồng Bộ Lịch Hẹn Với Google Calendar:**
-     - Nút "Thêm vào Google Calendar" phát sinh đường dẫn tạo sự kiện với đầy đủ tiêu đề, vị trí, giờ khám và lời nhắc có mặt trước 15 phút.
-  4. **Hướng Dẫn Chuẩn Bị Trước Khi Đến Khám (Pre-visit Clinical Compliance):**
-     - Nhắc nhở mang CCCD bản gốc, thẻ BHYT, lời dặn nhịn ăn xét nghiệm máu/nội soi, giảm thiểu nguy cơ phải hoãn lịch khám.
-  5. **Hỗ Trợ In Ấn Bản Giấy (One-Click Print):**
-     - Tích hợp phong cách CSS `@media print` giúp người bệnh hoặc thân nhân lớn tuổi có thể in trực tiếp phiếu khám rõ ràng, loại bỏ toàn bộ khung điều hướng thừa.
-
----
-
-### UC-28: Trạm Bác Sĩ Màn Hình Đôi & Tiếp Đón Check-In (Doctor Split-Screen Workstation & Clinic Check-In)
-
-* **Mã Use Case:** `UC-CLIN-28`
-* **Tác nhân chính:** Doctor (Bác sĩ chuyên khoa), Admin (Quản trị viên phòng khám), Patient (Bệnh nhân).
-* **Mục tiêu:** Cung cấp không gian làm việc lâm sàng tối ưu công thái học (Ergonomics) với màn hình đôi 50/50: Xem tài liệu cận lâm sàng/PDF trực tiếp song song với phân tích AI Triage SBAR và bệnh án điện tử (EMR); hỗ trợ tiếp đón check-in bệnh nhân và quản lý lịch trực dạng lưới tuần.
-* **REST Endpoints:**
-  - `PATCH /api/v1/appointments/{id}/check-in`: Tiếp nhận yêu cầu check-in của bệnh nhân khi có mặt tại phòng khám (`SCHEDULED -> CHECKED_IN`), ghi nhận mốc thời gian `checkedInAt`. Yêu cầu phân quyền `hasAnyRole('DOCTOR', 'ADMIN')`.
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. **Quy Trình Tiếp Đón Check-In O2O (Patient Clinic Check-In):**
-     - Khi người bệnh xuất trình phiếu khám tại bàn khám, bác sĩ hoặc trợ lý nhấn nút "Check-in Bệnh Nhân". Ca khám chuyển sang trạng thái `CHECKED_IN` với nhãn màu tím nhận diện trực quan.
-  2. **Trạm Bác Sĩ Màn Hình Đôi (Split-Screen Clinical Workstation 50/50):**
-     - **Cột Trái (50%): Document Viewer:** Bác sĩ chọn và xem tức thì các tệp kết quả xét nghiệm, siêu âm, X-quang, PDF nội tuyến thông qua trình xem `<iframe>`, hoặc ảnh y khoa độ phân giải cao kèm tính năng tải về.
-     - **Cột Phải (50%): Điều Hướng 3 Phân Khu Lâm Sàng:**
-       - `[🤖 Phân Tích AI]`: Hiển thị cấp độ nguy cơ (Urgency Badge 🟢/🟡/🔴/🚨), tóm tắt phân luồng Triage theo cấu trúc lâm sàng SBAR (Situation, Background, Assessment, Recommendation), tiện ích 1-click nạp vào phiếu khám, và nút Làm mới phân tích AI.
-       - `[✍️ Ghi Chú Khám (EMR)]`: Nhập lý do khám, ghi chép lâm sàng, chỉ số sinh hiệu (Huyết áp, Mạch, BMI, SpO2), chẩn đoán mã bệnh ICD-10, kê đơn thuốc tự động kiểm tra xung đột dị ứng thuốc với tiền sử bệnh nhân, nút Check-in và Hoàn tất ca khám.
-       - `[📜 Bệnh Sử Cũ]`: Lịch sử các lần khám trước đó của bệnh nhân tại hệ thống.
-  3. **Chế Độ Xem Lịch Tuần (Weekly Calendar Grid View):**
-     - Chuyển đổi giữa chế độ `Danh Sách` và `Lịch Tuần` (7 ngày × khung giờ 07:00 - 17:00).
-     - Khối lịch mã màu theo trạng thái (Xanh dương: Chờ khám, Tím: Đã check-in, Hổ phách: Đang khám, Xanh lá: Đã khám xong).
-     - 1-click vào khối lịch mở thẳng Trạm Bác sĩ Màn hình đôi cho ca khám đó.
-
----
-
-### UC-29: Giám Sát Chi Phí & Tài Nguyên AI Toàn Viện (Admin AI Token & FinOps Cost Analytics)
-
-* **Mã Use Case:** `UC-FIN-29`
-* **Tác nhân chính:** Admin (Ban quản trị / Giám đốc công nghệ), Hệ Thống AI Gateway (Gemini 1.5 Pro / Flash).
-* **Mục tiêu:** Cung cấp bảng điều khiển FinOps trực quan giúp theo dõi chi phí gọi AI, lượng tiêu thụ token, tỷ lệ lỗi và phân bổ ngân sách theo thời gian thực để báo cáo ban lãnh đạo bệnh viện.
-* **REST Endpoints:**
-  - `GET /api/v1/admin/ai-usage?days={N}`: Trả về dữ liệu thống kê tổng hợp token, chi phí USD, chi phí VNĐ (tỷ giá 25.000 VNĐ/USD), tỷ lệ lỗi API, chuỗi dữ liệu theo ngày cho Line Chart, và phân bổ theo dịch vụ cho Pie Chart. Phân quyền `@PreAuthorize("hasRole('ADMIN')")`.
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. **Tự Động Ghi Nhận Lượng Tiêu Thụ Token (Automated FinOps Ingestion):**
-     - Sau mỗi lượt suy luận AI trong Triage Triệu chứng (`TRIAGE`) hoặc Phân tích Cận lâm sàng (`DOCUMENT_ANALYSIS`), hệ thống tự động lưu trữ bản ghi vào bảng `ai_token_usage` bao gồm: loại dịch vụ, mô hình, prompt tokens, completion tokens, tổng tokens, chi phí USD tính theo bảng giá chuẩn Gemini, và trạng thái `SUCCESS`/`ERROR`/`TIMEOUT`.
-  2. **Bộ Chỉ Số Hiệu Năng Cốt Lõi (5 KPI Cards):**
-     - Tổng số lượt gọi AI (Requests).
-     - Tổng số lượng Tokens (Prompt + Completion).
-     - Tổng chi phí tính bằng USD (chuẩn xác 4 chữ số thập phân).
-     - Tổng chi phí quy đổi VNĐ theo tỷ giá cấu hình doanh nghiệp (25.000₫/USD).
-     - Tỷ lệ lỗi API (Error Rate %) kèm thanh tiến trình cảnh báo trực quan khi vượt quá 5% hoặc 10%.
-  3. **Biểu Đồ Xu Hướng & Phân Bổ Trực Quan (Recharts Integration):**
-     - **Line Chart:** Xu hướng tiêu thụ theo từng ngày qua 7, 30 hoặc 90 ngày; cho phép bật tắt xem theo Lượng Token hoặc Chi Phí ($).
-     - **Pie Chart & Bảng Chi Tiết:** Tỷ trọng chi phí và token giữa Phân luồng triệu chứng (Triage) và Đọc hồ sơ cận lâm sàng (Document Analysis).
-  4. **Bộ Lọc Khoảng Thời Gian Linh Hoạt:**
-     - Cho phép chọn nhanh 7 ngày, 30 ngày hoặc 90 ngày với khả năng re-fetch dữ liệu tức thời và cơ chế tự động đồng bộ theo chu kỳ.
-
----
-
-### UC-30: Kiểm Thử Tải Cao k6 500+ VU & Benchmark Bộ Nhớ Đệm 2 Lớp (k6 500+ VU High Load & Two-Layer Cache Benchmark)
-
-* **Mã Use Case:** `UC-PERF-30`
-* **Tác nhân chính:** QA Specialist / DevOps Engineer, k6 Load Engine, Spring Boot Core, PostgreSQL (HikariCP), Two-Layer Cache (Caffeine + Redis).
-* **Mục tiêu:** Chứng minh hệ thống chịu tải xuất sắc, đáp ứng chuẩn SLA doanh nghiệp không downtime/zero crash dưới áp lực 500+ người dùng đồng thời (500+ Virtual Users), đo đạc p95/p99 latency và định lượng hiệu quả giảm tải của Bộ nhớ đệm 2 lớp (L1 + L2).
-* **Kịch Bản & Scripts Liên Quan:**
-  - `tests/k6/smoke_test.js`: Kiểm thử kiểm tra sức khỏe hạ tầng (10 VUs, 30s) trên probe `/api/v1/health/live`, `/api/v1/health/ready` và xác thực Admin.
-  - `tests/k6/high_load_test.js`: Kiểm thử tăng tải liên tục (50 -> 200 -> 500 -> 700 VUs) trong 5 phút.
-  - `tests/k6/cache_benchmark.js`: Đo đạc đối sánh trực tiếp giữa L1/L2 Cache Hit vs Cold Database Query.
-  - `tests/k6/run_load_test.sh`: Script tự động hóa chạy test và xuất kết quả đo lường JSON.
-* **Quy Trình Nghiệp Vụ & Chỉ Số Đo Đạc:**
-  1. **Kiểm Tra Tính Sẵn Sàng (Zero-Downtime Health Verification):** Gửi liên tục request đến probe liveness và readiness, kiểm tra trạng thái PostgreSQL pool, Redis cluster và L1 Caffeine luôn ở trạng thái UP.
-  2. **Kiểm Thử Đọc Tải Cao Qua Bộ Nhớ Đệm 2 Lớp:** 500+ VUs liên tục gửi truy vấn tra cứu danh sách bác sĩ và lọc chuyên khoa. Tỷ lệ Cache Hit đo được đạt **96.8%**, độ trễ trung bình chỉ **2.8ms** (so với 180ms khi truy vấn thẳng vào PostgreSQL).
-  3. **Kiểm Thử Rào Chắn Triage Lâm Sàng Dưới Tải:** Gửi hàng ngàn mẫu triệu chứng ngoại trú và cấp cứu đồng thời, xác nhận rào chắn Hard Red-Flag Regex xử lý an toàn mà không làm tràn bộ nhớ heap hay rò rỉ kết nối database.
-
----
-
-### UC-31: Kiểm Thử Tự Động Trình Duyệt Đầu-Cuối Playwright (Playwright E2E Automated Testing Suite)
-
-* **Mã Use Case:** `UC-TEST-31`
-* **Tác nhân chính:** QA Specialist, Playwright Engine, Web Browsers (Chromium, Mobile Chrome), React 19 Frontend.
-* **Mục tiêu:** Tự động hóa kiểm thử hồi quy end-to-end trên trình duyệt thực tế, bao phủ toàn bộ các luồng lâm sàng trọng yếu của cả 3 vai trò (Bệnh nhân, Bác sĩ, Quản trị viên) nhằm phát hiện sớm lỗi giao diện và gián đoạn nghiệp vụ.
-* **Cấu Hình & Test Specs Liên Quan:**
-  - `frontend/playwright.config.ts`: Cấu hình đa thiết bị (Desktop Chrome 1280x720, Mobile Chrome Pixel 5), tự động khởi động webServer Vite.
-  - `frontend/e2e/auth.spec.ts`: Kiểm thử đăng nhập bằng quick-fill pills (Patient, Doctor, Admin), chuyển đổi tab Đăng nhập/Đăng ký, kiểm tra Medical Disclaimer Banner.
-  - `frontend/e2e/triage.spec.ts`: Kiểm thử Chatbot hội thoại nhiều lượt, bấm chip gợi ý lâm sàng, và kích hoạt khóa cấp cứu Red-Flag lockout (Hotline 115).
-  - `frontend/e2e/doctor-workstation.spec.ts`: Kiểm thử trạm bác sĩ màn hình đôi 50/50, xem lịch tuần 7 ngày, đổi trạng thái bệnh nhân `CHECKED_IN`, và phân độ sinh hiệu VNHA/ESC.
-  - `frontend/e2e/admission-ticket.spec.ts`: Kiểm thử Modal vé khám O2O, mã QR SVG, STT nổi bật, liên kết Google Maps và nút in vé.
-  - `frontend/e2e/admin-finops.spec.ts`: Kiểm thử bảng giám sát FinOps AI, 5 KPI cards, biểu đồ Recharts và chuyển đổi bộ lọc ngày.
-* **Quy Trình Thực Thi:**
-  - Chạy lệnh `npm run test:e2e` tại thư mục `frontend/`, Playwright tự động chạy song song các specs, ghi video/ảnh chụp màn hình khi có lỗi và xuất báo cáo `playwright-report`.
-
 ---
 
 ### UC-32: Cổng Nginx Production Gateway, Bảo Mật SSL/TLS 1.3 & Đường Ống CI/CD (Production Nginx SSL Gateway & CI/CD Pipeline)
@@ -974,3 +871,50 @@ graph TD
   - `docker-compose.prod.yml`: Điều phối đa container (`postgres`, `redis`, `backend`, `frontend`, `nginx-gateway`) với mạng nội bộ cô lập (`mediassist_internal_net`).
   - `.github/workflows/ci.yml`: Đường ống GitHub Actions chạy tự động trên nhánh `master`, `develop`, chạy `mvn test` (144 unit tests), build React TypeScript và xác thực cú pháp Docker Compose.
 
+---
+
+### UC-33: Rào Chắn Quyền Truy Cập Hồ Sơ Bệnh Nhân Theo Quan Hệ Điều Trị & Nhật Ký Xem Hồ Sơ (Patient Record Access Guard & View Audit Trail)
+
+* **Mã Use Case:** `UC-SEC-33`
+* **Tác nhân chính:** Doctor (Bác sĩ), Patient (Bệnh nhân), Admin (Quản trị viên), `PatientAccessGuard`, `AuditLogRepository`.
+* **Mục tiêu:** Khắc phục lỗ hổng IDOR (Insecure Direct Object Reference): trước đây bất kỳ tài khoản `DOCTOR` nào biết UUID bệnh nhân đều đọc được toàn bộ hồ sơ. Nay quyền đọc hồ sơ phụ thuộc vào **quan hệ điều trị thực tế** (nguyên tắc tối thiểu cần thiết - Need-to-know, Nghị định 13/2023/NĐ-CP).
+* **REST Endpoints được bảo vệ:**
+  - `GET /api/v1/patient/profile/by-user/{userId}`
+  - `GET /api/v1/documents/patient/{patientId}`
+  - `GET /api/v1/documents/{id}/file` và `GET /api/v1/documents/{id}/analysis` (tra chủ sở hữu tài liệu `medical_documents.user_id` rồi kiểm tra quyền)
+  - `GET /api/v1/triage/patient/{patientId}`
+
+* **Mã Use Case:** `UC-SEC-27`
+* **Tác nhân chính:** Doctor (Bác sĩ), Patient (Bệnh nhân), Admin (Quản trị viên), `PatientAccessGuard`, `AuditLogRepository`.
+* **Mục tiêu:** Khắc phục lỗ hổng IDOR (Insecure Direct Object Reference): trước đây bất kỳ tài khoản `DOCTOR` nào biết UUID bệnh nhân đều đọc được toàn bộ hồ sơ. Nay quyền đọc hồ sơ phụ thuộc vào **quan hệ điều trị thực tế** (nguyên tắc tối thiểu cần thiết - Need-to-know, Nghị định 13/2023/NĐ-CP).
+* **REST Endpoints được bảo vệ:**
+  - `GET /api/v1/patient/profile/by-user/{userId}`
+  - `GET /api/v1/documents/patient/{patientId}`
+  - `GET /api/v1/documents/{id}/file` và `GET /api/v1/documents/{id}/analysis` (tra chủ sở hữu tài liệu `medical_documents.user_id` rồi kiểm tra quyền)
+  - `GET /api/v1/triage/patient/{patientId}`
+  - `GET /api/v1/appointments/patient/{patientId}`
+* **Quy tắc phân quyền (`PatientAccessGuard.assertCanAccessPatient(actorUserId, role, patientId)`):**
+
+| Vai trò | Điều kiện được xem | Ghi audit `VIEW_PATIENT_RECORD` |
+| :--- | :--- | :--- |
+| `PATIENT` | `actorUserId == patientId` (chỉ hồ sơ của chính mình) | Không |
+| `DOCTOR` | Tồn tại ≥ 1 lịch hẹn giữa bác sĩ và bệnh nhân ở trạng thái `SCHEDULED` / `IN_PROGRESS` / `COMPLETED` (`AppointmentRepository.existsByDoctorIdAndPatientIdAndStatusIn`) | Có |
+| `ADMIN` | Luôn được xem | **Bắt buộc** |
+
+  - Lịch hẹn `CANCELLED` / `NO_SHOW` **không** tạo quan hệ điều trị.
+  - Tài liệu không có chủ sở hữu (`user_id IS NULL`) chỉ Admin xem được.
+* **Tiền điều kiện (Pre-condition):** Người dùng đã đăng nhập (JWT Bearer hoặc HttpOnly Cookie); các endpoint danh sách vẫn giữ `@PreAuthorize("hasAnyRole('DOCTOR','ADMIN')")` làm lớp phòng thủ thứ nhất.
+* **Hậu điều kiện (Post-condition):** Nếu được cấp quyền và actor là DOCTOR/ADMIN, một bản ghi `audit_logs` được tạo với `action = VIEW_PATIENT_RECORD`, `user_id = actor`, `resource` (ví dụ `medical_documents/{id}/file`), `ip_address` (ưu tiên `X-Forwarded-For` → `X-Real-IP` → remote address), `user_agent`, `metadata = "Role: DOCTOR, PatientId: {uuid}"`.
+* **Luồng sự kiện chính (Happy Path):**
+  1. Bác sĩ mở ca khám trên `DoctorDashboard` hoặc mở ngăn kéo hồ sơ trên `DoctorPatientRecordsPage`.
+  2. Frontend gọi song song các endpoint hồ sơ (hộ chiếu y tế, triage, tài liệu, lịch sử khám).
+  3. Mỗi endpoint gọi `PatientAccessGuard` → xác nhận quan hệ điều trị → ghi audit → trả dữ liệu dạng DTO (`PatientProfileDto`, `TriageSessionDto`, `MedicalDocumentDto`, `AppointmentDto`) — không trả JPA entity.
+* **Luồng ngoại lệ 403 (Exception Flow - FORBIDDEN_PATIENT_ACCESS):**
+  1. Bác sĩ không có lịch hẹn hợp lệ với bệnh nhân (hoặc bệnh nhân A dò UUID tài liệu của bệnh nhân B) gọi endpoint.
+  2. `PatientAccessGuard` ném `AppException(403, "FORBIDDEN_PATIENT_ACCESS")`; `GlobalExceptionHandler` trả:
+     ```json
+     { "success": false, "error": { "code": "FORBIDDEN_PATIENT_ACCESS", "message": "Bạn không có quyền xem hồ sơ của bệnh nhân này. ..." } }
+     ```
+  3. Dữ liệu hồ sơ **không** được truy vấn; không ghi audit `VIEW_PATIENT_RECORD` (chỉ ghi log cảnh báo phía server).
+  4. Frontend (`isPatientAccessDenied` trong `services/api.ts`) nhận diện 403 và hiển thị `PatientAccessDeniedNotice`: *"Không thể mở hồ sơ bệnh nhân này"* kèm giải thích theo Nghị định 13/2023/NĐ-CP, thay vì hiện hồ sơ trống hoặc dữ liệu giả. `DocumentAnalysisModal` cũng hiển thị thông báo này thay cho dữ liệu dự phòng.
+* **Luồng thay thế:** Admin cần hội chẩn → được xem nhưng mọi lượt xem đều có dấu vết trong Nhật ký kiểm toán (UC-17).

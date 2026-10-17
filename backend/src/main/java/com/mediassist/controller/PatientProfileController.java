@@ -2,6 +2,8 @@ package com.mediassist.controller;
 
 import com.mediassist.common.ApiResponse;
 import com.mediassist.dto.PatientProfileDto;
+import com.mediassist.security.UserPrincipal;
+import com.mediassist.service.PatientAccessGuard;
 import com.mediassist.service.PatientProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,9 +21,11 @@ import java.util.UUID;
 public class PatientProfileController {
 
     private final PatientProfileService patientProfileService;
+    private final PatientAccessGuard patientAccessGuard;
 
-    public PatientProfileController(PatientProfileService patientProfileService) {
+    public PatientProfileController(PatientProfileService patientProfileService, PatientAccessGuard patientAccessGuard) {
         this.patientProfileService = patientProfileService;
+        this.patientAccessGuard = patientAccessGuard;
     }
 
     @GetMapping
@@ -48,7 +52,9 @@ public class PatientProfileController {
     @GetMapping("/by-user/{userId}")
     @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "Bác sĩ hoặc Quản trị viên xem hồ sơ bệnh án của bệnh nhân theo User ID")
-    public ResponseEntity<ApiResponse<PatientProfileDto>> getProfileByUserId(@PathVariable UUID userId) {
+    public ResponseEntity<ApiResponse<PatientProfileDto>> getProfileByUserId(@AuthenticationPrincipal UserPrincipal principal,
+                                                                            @PathVariable UUID userId) {
+        patientAccessGuard.assertCanAccessPatient(principal.getId(), principal.getRole(), userId, "patient_profiles/by-user/" + userId);
         PatientProfileDto dto = patientProfileService.getProfileByUserId(userId);
         return ResponseEntity.ok(ApiResponse.success(dto));
     }

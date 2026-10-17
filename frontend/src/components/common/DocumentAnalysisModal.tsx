@@ -17,7 +17,8 @@ import {
   Activity,
   Layers
 } from 'lucide-react';
-import { api } from '../../services/api';
+import { api, isPatientAccessDenied } from '../../services/api';
+import { PatientAccessDeniedNotice } from './PatientAccessDeniedNotice';
 
 export interface AbnormalIndicator {
   indicatorName: string;
@@ -75,6 +76,7 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [data, setData] = useState<DocumentAnalysisDetail | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     if (isOpen && documentId) {
@@ -82,6 +84,7 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
       setLoading(true);
       setData(null);
       setCopied(false);
+      setAccessDenied(false);
 
       api.get(`/documents/${documentId}/analysis`)
         .then((res: { data?: { data?: DocumentAnalysisDetail } }) => {
@@ -89,7 +92,11 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
             setData(res.data.data);
           }
         })
-        .catch(() => {
+        .catch((err: unknown) => {
+          if (isPatientAccessDenied(err)) {
+            setAccessDenied(true);
+            return;
+          }
           // Fallback baseline data if analysis record not found
           setData({
             documentId,
@@ -249,6 +256,8 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
               <div className="inline-block w-8 h-8 border-4 border-sky-600 border-t-transparent rounded-full animate-spin"></div>
               <p className="text-sm font-semibold text-slate-600">Đang đồng bộ và nạp kết quả phân tích AI...</p>
             </div>
+          ) : accessDenied ? (
+            <PatientAccessDeniedNotice />
           ) : activeTab === 'ANALYSIS' ? (
             <div className="space-y-6">
               {/* ADMINISTRATIVE METADATA CARDS */}

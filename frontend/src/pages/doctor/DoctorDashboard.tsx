@@ -36,7 +36,8 @@ import {
   Download
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
-import { api } from '../../services/api';
+import { api, isPatientAccessDenied } from '../../services/api';
+import { PatientAccessDeniedNotice } from '../../components/common/PatientAccessDeniedNotice';
 import { Pagination } from '../../components/common/Pagination';
 import { useDebounce } from '../../hooks/useDebounce';
 import { DocumentAnalysisModal } from '../../components/common/DocumentAnalysisModal';
@@ -280,6 +281,7 @@ export const DoctorDashboard: React.FC = () => {
   const [patientDocuments, setPatientDocuments] = useState<PatientDocumentItem[]>([]);
   const [patientPastAppointments, setPatientPastAppointments] = useState<DoctorAppointment[]>([]);
   const [encounterLoading, setEncounterLoading] = useState(false);
+  const [patientAccessDenied, setPatientAccessDenied] = useState(false);
   const [callingNext, setCallingNext] = useState(false);
   const [bookingFollowUp, setBookingFollowUp] = useState(false);
 
@@ -525,12 +527,16 @@ export const DoctorDashboard: React.FC = () => {
       setSelectedDocId(null);
     }
     setEncounterLoading(true);
+    setPatientAccessDenied(false);
     Promise.allSettled([
       api.get(`/patient/profile/by-user/${apt.patientId}`),
       api.get(`/triage/patient/${apt.patientId}`),
       api.get(`/documents/patient/${apt.patientId}`),
       api.get(`/appointments/patient/${apt.patientId}`)
     ]).then(([resProfile, resTriage, resDocs, resPast]) => {
+      setPatientAccessDenied(
+        [resProfile, resTriage, resDocs, resPast].some((r) => r.status === 'rejected' && isPatientAccessDenied(r.reason))
+      );
       if (resProfile.status === 'fulfilled' && resProfile.value.data?.data) {
         setPatientPassport(resProfile.value.data.data);
       } else {
@@ -2524,6 +2530,10 @@ export const DoctorDashboard: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {patientAccessDenied && !encounterLoading && (
+              <PatientAccessDeniedNotice className="mx-6 mt-4" />
+            )}
 
             {/* SPLIT-SCREEN 50 / 50 MAIN BODY */}
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 overflow-hidden min-h-0">

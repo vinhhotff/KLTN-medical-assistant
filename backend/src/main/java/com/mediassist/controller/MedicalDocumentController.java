@@ -3,11 +3,13 @@ package com.mediassist.controller;
 import com.mediassist.common.ApiResponse;
 import com.mediassist.common.AppException;
 import com.mediassist.dto.DocumentAnalysisResponse;
+import com.mediassist.dto.MedicalDocumentDto;
 import com.mediassist.model.entity.MedicalDocument;
 import com.mediassist.model.entity.User;
 import com.mediassist.repository.MedicalDocumentRepository;
 import com.mediassist.repository.UserRepository;
 import com.mediassist.service.MedicalDocumentAnalysisService;
+import com.mediassist.service.PatientAccessGuard;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -20,7 +22,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.mediassist.service.MeddiesPdfGeneratorService;
 
-import com.mediassist.model.entity.Role;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -38,17 +39,20 @@ public class MedicalDocumentController {
     private final UserRepository userRepository;
     private final com.mediassist.service.SecurityRateLimiterService rateLimiterService;
     private final MeddiesPdfGeneratorService meddiesPdfGeneratorService;
+    private final PatientAccessGuard patientAccessGuard;
 
     public MedicalDocumentController(MedicalDocumentAnalysisService analysisService,
                                      MedicalDocumentRepository medicalDocumentRepository,
                                      UserRepository userRepository,
                                      com.mediassist.service.SecurityRateLimiterService rateLimiterService,
-                                     MeddiesPdfGeneratorService meddiesPdfGeneratorService) {
+                                     MeddiesPdfGeneratorService meddiesPdfGeneratorService,
+                                     PatientAccessGuard patientAccessGuard) {
         this.analysisService = analysisService;
         this.medicalDocumentRepository = medicalDocumentRepository;
         this.userRepository = userRepository;
         this.rateLimiterService = rateLimiterService;
         this.meddiesPdfGeneratorService = meddiesPdfGeneratorService;
+        this.patientAccessGuard = patientAccessGuard;
     }
 
     @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -141,6 +145,18 @@ public class MedicalDocumentController {
         return result;
     }
 
+    private User requireCurrentUser(Authentication authentication) {
+        return userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED",
+                        "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại."));
+    }
+
+    /** Tài liệu y tế thuộc về bệnh nhân đã tải lên: kiểm tra quyền theo chủ sở hữu tài liệu. */
+    private void assertCanAccessDocument(User actor, MedicalDocument doc, String resource) {
+        UUID ownerId = doc.getUser() != null ? doc.getUser().getId() : null;
+        patientAccessGuard.assertCanAccessPatient(actor.getId(), actor.getRole(), ownerId, resource);
+    }
+
     private String extractClientIp(jakarta.servlet.http.HttpServletRequest request) {
         if (request == null) return "unknown";
         String xForwardedFor = request.getHeader("X-Forwarded-For");
@@ -156,7 +172,7 @@ public class MedicalDocumentController {
 
     @GetMapping("/my")
     @Operation(summary = "Get list of medical documents uploaded by current patient")
-    public ResponseEntity<ApiResponse<List<MedicalDocument>>> getMyDocuments(Authentication authentication) {
+    public ResponseEntity<ApiResponse<List<MedicalDocumentDto>>> getMyDocuments(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
             throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập để xem danh sách hồ sơ y tế của bạn.");
         }
@@ -164,18 +180,21 @@ public class MedicalDocumentController {
         if (user == null) {
             return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
         }
-        List<MedicalDocument> list = medicalDocumentRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+        List<MedicalDocumentDto> list = medicalDocumentRepository.findByUserIdOrderByCreatedAtDesc(user.getId())
+                .stream().map(MedicalDocumentDto::fromEntity).toList();
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 
     @GetMapping("/patient/{patientId}")
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "Bác sĩ hoặc Quản trị viên xem hồ sơ cận lâm sàng và tệp xét nghiệm đã tải lên của bệnh nhân")
-    public ResponseEntity<ApiResponse<List<MedicalDocument>>> getPatientDocuments(@PathVariable("patientId") java.util.UUID patientId) {
-        List<MedicalDocument> list = medicalDocumentRepository.findByUserIdOrderByCreatedAtDesc(patientId);
-        if (list == null) {
-            list = Collections.emptyList();
-        }
+    public ResponseEntity<ApiResponse<List<MedicalDocumentDto>>> getPatientDocuments(
+            @PathVariable("patientId") UUID patientId,
+            Authentication authentication) {
+        User actor = requireCurrentUser(authentication);
+        patientAccessGuard.assertCanAccessPatient(actor.getId(), actor.getRole(), patientId, "medical_documents/patient/" + patientId);
+        List<MedicalDocumentDto> list = medicalDocumentRepository.findByUserIdOrderByCreatedAtDesc(patientId)
+                .stream().map(MedicalDocumentDto::fromEntity).toList();
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 
@@ -231,12 +250,7 @@ public class MedicalDocumentController {
         MedicalDocument doc = medicalDocumentRepository.findById(id)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy tài liệu y tế."));
 
-        User user = userRepository.findByEmail(authentication.getName()).orElse(null);
-        if (user != null && user.getRole() == Role.PATIENT) {
-            if (doc.getUser() != null && !doc.getUser().getId().equals(user.getId())) {
-                throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền xem tài liệu của người khác.");
-            }
-        }
+        assertCanAccessDocument(requireCurrentUser(authentication), doc, "medical_documents/" + id + "/analysis");
 
         DocumentAnalysisResponse resp = analysisService.getDocumentAnalysis(id);
         return ResponseEntity.ok(ApiResponse.success(resp));
@@ -256,12 +270,7 @@ public class MedicalDocumentController {
         MedicalDocument doc = medicalDocumentRepository.findById(id)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy tài liệu y tế."));
 
-        User user = userRepository.findByEmail(authentication.getName()).orElse(null);
-        if (user != null && user.getRole() == Role.PATIENT) {
-            if (doc.getUser() != null && !doc.getUser().getId().equals(user.getId())) {
-                throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền xem tệp tài liệu của người khác.");
-            }
-        }
+        assertCanAccessDocument(requireCurrentUser(authentication), doc, "medical_documents/" + id + "/file");
 
         byte[] fileBytes = null;
         String storageUrl = doc.getStorageUrl();
