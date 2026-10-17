@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi" th:replace="~{email/_layout :: layout(~{::mailContent})}">
+<body>
+<div th:fragment="mailContent">
+    <p>Xin chào <span th:unless="${forPatient}">bác sĩ </span><strong th:text="${recipientName}">bạn</strong>,</p>
+    <p>Lịch hẹn khám dưới đây đã bị hủy.</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0;font-size:14px;">
+        <tr th:replace="~{email/_parts :: row('Mã lịch hẹn', ${appointmentCode})}"></tr>
+        <tr th:replace="~{email/_parts :: row('Thời gian', ${scheduledTime})}"></tr>
+        <th:block th:if="${forPatient}"><tr th:replace="~{email/_parts :: row('Bác sĩ', ${doctorName})}"></tr></th:block>
+        <th:block th:unless="${forPatient}"><tr th:replace="~{email/_parts :: row('Bệnh nhân', ${patientName})}"></tr></th:block>
+        <tr th:replace="~{email/_parts :: row('Người hủy', ${cancelledBy})}"></tr>
+    </table>
+    <p th:if="${refunded and forPatient}"
+       style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:12px;">
+        Khoản thanh toán <strong th:text="${refundAmount}">350.000 ₫</strong> cho lịch hẹn này đã được ghi nhận hoàn tiền.
+        Thời gian tiền về tài khoản phụ thuộc vào ngân hàng hoặc cổng thanh toán.
+    </p>
+    <p th:if="${refunded and !forPatient}">Khoản phí khám <strong th:text="${refundAmount}">350.000 ₫</strong> đã được ghi nhận hoàn lại cho bệnh nhân.</p>
+    <p>Xem chi tiết lý do sau khi đăng nhập.</p>
+    <p style="text-align:center;margin:24px 0;">
+        <a th:replace="~{email/_parts :: button(${portalUrl}, 'Đăng nhập để xem chi tiết')}">Đăng nhập để xem chi tiết</a>
+    </p>
+</div>
+</body>
+</html>
