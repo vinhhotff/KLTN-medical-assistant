@@ -1,6 +1,7 @@
 package com.mediassist.service;
 
 import com.mediassist.common.AppException;
+import com.mediassist.common.ClientRequestInfo;
 import com.mediassist.model.entity.AppointmentStatus;
 import com.mediassist.model.entity.AuditLog;
 import com.mediassist.model.entity.Role;
@@ -11,9 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.EnumSet;
 import java.util.Set;
@@ -82,10 +80,10 @@ public class PatientAccessGuard {
         audit.setUserId(actorUserId);
         audit.setAction(ACTION_VIEW_PATIENT_RECORD);
         audit.setResource(resource);
-        HttpServletRequest request = currentRequest();
+        HttpServletRequest request = ClientRequestInfo.currentRequest();
         if (request != null) {
-            audit.setIpAddress(extractClientIp(request));
-            audit.setUserAgent(request.getHeader("User-Agent"));
+            audit.setIpAddress(ClientRequestInfo.clientIp(request));
+            audit.setUserAgent(ClientRequestInfo.userAgent(request));
         }
         audit.setMetadata("Role: " + role.name() + ", PatientId: " + patientId);
         auditLogRepository.save(audit);
@@ -94,25 +92,5 @@ public class PatientAccessGuard {
     private AppException forbidden() {
         return new AppException(HttpStatus.FORBIDDEN, ERROR_CODE,
                 "Bạn không có quyền xem hồ sơ của bệnh nhân này. Chỉ bác sĩ có lịch hẹn điều trị với bệnh nhân mới được truy cập.");
-    }
-
-    private HttpServletRequest currentRequest() {
-        RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
-        if (attrs instanceof ServletRequestAttributes servletAttrs) {
-            return servletAttrs.getRequest();
-        }
-        return null;
-    }
-
-    private String extractClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isBlank()) {
-            return xRealIp.trim();
-        }
-        return request.getRemoteAddr();
     }
 }

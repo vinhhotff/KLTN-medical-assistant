@@ -28,9 +28,11 @@ import com.mediassist.service.AppointmentService;
 import com.mediassist.service.DoctorSemanticSearchService;
 import com.mediassist.service.MeddiesPdfGeneratorService;
 import com.mediassist.service.MedicalDocumentAnalysisService;
+import com.mediassist.service.MedicalDocumentFileAccessService;
 import com.mediassist.service.PatientAccessGuard;
 import com.mediassist.service.PatientProfileService;
 import com.mediassist.service.SecurityRateLimiterService;
+import com.mediassist.service.StorageService;
 import com.mediassist.service.TriageRateLimiterService;
 import com.mediassist.service.TriageService;
 import org.junit.jupiter.api.AfterEach;
@@ -56,6 +58,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -89,8 +92,11 @@ class PatientRecordAccessControllerTest {
                 mock(TriageRateLimiterService.class), triageSessionRepository, userRepository, guard);
         patientProfileController = new PatientProfileController(patientProfileService, guard);
         appointmentController = new AppointmentController(appointmentService, guard);
+        SecurityRateLimiterService rateLimiter = mock(SecurityRateLimiterService.class);
+        lenient().when(rateLimiter.allowDocumentFileAccess(anyString())).thenReturn(true);
         medicalDocumentController = new MedicalDocumentController(analysisService, medicalDocumentRepository,
-                userRepository, mock(SecurityRateLimiterService.class), mock(MeddiesPdfGeneratorService.class), guard);
+                userRepository, rateLimiter, mock(MeddiesPdfGeneratorService.class), guard,
+                new MedicalDocumentFileAccessService(medicalDocumentRepository, guard, mock(StorageService.class), auditLogRepository));
 
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr("192.168.1.20");

@@ -3,16 +3,20 @@ package com.mediassist.controller;
 import com.mediassist.common.ApiResponse;
 import com.mediassist.common.AppException;
 import com.mediassist.dto.DocumentAnalysisResponse;
+import com.mediassist.dto.DocumentFileAccessDto;
 import com.mediassist.dto.MedicalDocumentDto;
 import com.mediassist.model.entity.MedicalDocument;
 import com.mediassist.model.entity.User;
 import com.mediassist.repository.MedicalDocumentRepository;
 import com.mediassist.repository.UserRepository;
 import com.mediassist.service.MedicalDocumentAnalysisService;
+import com.mediassist.service.MedicalDocumentFileAccessService;
 import com.mediassist.service.PatientAccessGuard;
+import com.mediassist.service.StorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -40,19 +44,22 @@ public class MedicalDocumentController {
     private final com.mediassist.service.SecurityRateLimiterService rateLimiterService;
     private final MeddiesPdfGeneratorService meddiesPdfGeneratorService;
     private final PatientAccessGuard patientAccessGuard;
+    private final MedicalDocumentFileAccessService fileAccessService;
 
     public MedicalDocumentController(MedicalDocumentAnalysisService analysisService,
                                      MedicalDocumentRepository medicalDocumentRepository,
                                      UserRepository userRepository,
                                      com.mediassist.service.SecurityRateLimiterService rateLimiterService,
                                      MeddiesPdfGeneratorService meddiesPdfGeneratorService,
-                                     PatientAccessGuard patientAccessGuard) {
+                                     PatientAccessGuard patientAccessGuard,
+                                     MedicalDocumentFileAccessService fileAccessService) {
         this.analysisService = analysisService;
         this.medicalDocumentRepository = medicalDocumentRepository;
         this.userRepository = userRepository;
         this.rateLimiterService = rateLimiterService;
         this.meddiesPdfGeneratorService = meddiesPdfGeneratorService;
         this.patientAccessGuard = patientAccessGuard;
+        this.fileAccessService = fileAccessService;
     }
 
     @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -256,70 +263,83 @@ public class MedicalDocumentController {
         return ResponseEntity.ok(ApiResponse.success(resp));
     }
 
+    @GetMapping("/{id}/signed-url")
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Cấp signed URL ngắn hạn (15 phút) để xem / tải tệp y tế gốc sau khi kiểm tra quyền và ghi audit")
+    public ResponseEntity<ApiResponse<DocumentFileAccessDto>> getSignedFileUrl(
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "download", defaultValue = "false") boolean download,
+            Authentication authentication) {
+        User actor = requireFileAccessActor(authentication);
+        DocumentFileAccessDto access = fileAccessService.issueAccess(actor, id, download);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(ApiResponse.success(access));
+    }
+
     @GetMapping("/{id}/file")
     @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Xem hoặc tải về tệp gốc của tài liệu y tế (PDF / Ảnh phiếu xét nghiệm)")
+    @Operation(summary = "Xem hoặc tải về tệp gốc của tài liệu y tế: tệp Supabase → 302 tới signed URL mới; tệp local → stream trực tiếp")
     public ResponseEntity<byte[]> viewOrDownloadFile(
             @PathVariable("id") UUID id,
             @RequestParam(value = "download", defaultValue = "false") boolean download,
             Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
-            throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập để xem tệp tài liệu.");
+        User actor = requireFileAccessActor(authentication);
+        MedicalDocument doc = fileAccessService.loadAuthorizedDocument(actor, id, "medical_documents/" + id + "/file");
+
+        // 1. Tệp trên bucket Supabase PRIVATE → ghi audit và redirect 302 tới signed URL mới
+        if (!doc.isLocalFile()) {
+            DocumentFileAccessDto access = fileAccessService.issueSignedAccess(actor, doc, download);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(java.net.URI.create(access.getUrl()))
+                    .cacheControl(CacheControl.noStore())
+                    .build();
         }
 
-        MedicalDocument doc = medicalDocumentRepository.findById(id)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy tài liệu y tế."));
-
-        assertCanAccessDocument(requireCurrentUser(authentication), doc, "medical_documents/" + id + "/file");
-
-        byte[] fileBytes = null;
-        String storageUrl = doc.getStorageUrl();
-
-        // 1. If stored locally (e.g. /uploads/...)
-        if (storageUrl != null && storageUrl.startsWith("/uploads/")) {
-            try {
-                String relPath = storageUrl.startsWith("/") ? storageUrl.substring(1) : storageUrl;
-                Path localPath = Paths.get(relPath).toAbsolutePath().normalize();
-                Path baseUploadDir = Paths.get("uploads").toAbsolutePath().normalize();
-                if (localPath.startsWith(baseUploadDir) && Files.exists(localPath)) {
-                    fileBytes = Files.readAllBytes(localPath);
-                }
-            } catch (Exception ignored) {}
-        } else if (storageUrl != null && (storageUrl.startsWith("http://") || storageUrl.startsWith("https://"))) {
-            // 2. If stored in cloud (Supabase), proxy fetch bytes for seamless inline display without CORS issues
-            try {
-                java.net.URL url = java.net.URI.create(storageUrl).toURL();
-                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
-                conn.setConnectTimeout(4000);
-                conn.setReadTimeout(7000);
-                conn.setRequestMethod("GET");
-                if (conn.getResponseCode() == 200) {
-                    try (java.io.InputStream is = conn.getInputStream()) {
-                        fileBytes = is.readAllBytes();
-                    }
-                }
-            } catch (Exception ignored) {}
-        }
-
-        // 3. Fallback: If file bytes could not be retrieved, generate a realistic clinical PDF placeholder on the fly
+        // 2. Tệp local (fallback dev) → stream qua backend (đã kiểm tra quyền)
+        byte[] fileBytes = readLocalFile(doc.getStoragePath());
         if (fileBytes == null || fileBytes.length == 0) {
-            MeddiesPdfGeneratorService.GeneratedPdfResult sample = meddiesPdfGeneratorService.generateRandomMeddiesPdf();
-            fileBytes = sample.getPdfBytes();
+            throw new AppException(HttpStatus.NOT_FOUND, StorageService.ERROR_FILE_NOT_AVAILABLE,
+                    "Tệp gốc của tài liệu này không còn khả dụng trên hệ thống lưu trữ.");
         }
 
-        MediaType mediaType = MediaType.APPLICATION_PDF;
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
         if (doc.getContentType() != null && !doc.getContentType().isBlank()) {
             try {
                 mediaType = MediaType.parseMediaType(doc.getContentType());
             } catch (Exception ignored) {}
         }
 
-        String disposition = (download ? "attachment" : "inline") + "; filename=\"" + (doc.getFileName() != null ? doc.getFileName().replaceAll("[\"\r\n]", "_") : "document.pdf") + "\"";
+        String safeName = doc.getFileName() != null ? doc.getFileName().replaceAll("[\"\r\n]", "_") : "document";
+        String disposition = (download ? "attachment" : "inline") + "; filename=\"" + safeName + "\"";
 
         return ResponseEntity.ok()
                 .contentType(mediaType)
+                .cacheControl(CacheControl.noStore())
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
                 .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
                 .body(fileBytes);
+    }
+
+    private User requireFileAccessActor(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập để xem tệp tài liệu.");
+        }
+        if (rateLimiterService != null && !rateLimiterService.allowDocumentFileAccess(authentication.getName())) {
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
+                    "Bạn đã mở tệp y tế quá nhiều lần trong thời gian ngắn. Vui lòng chờ 1 phút rồi thử lại.");
+        }
+        return requireCurrentUser(authentication);
+    }
+
+    private byte[] readLocalFile(String storagePath) {
+        try {
+            Path localPath = Paths.get(storagePath.substring(1)).toAbsolutePath().normalize();
+            Path baseUploadDir = Paths.get("uploads").toAbsolutePath().normalize();
+            if (localPath.startsWith(baseUploadDir) && Files.exists(localPath)) {
+                return Files.readAllBytes(localPath);
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }

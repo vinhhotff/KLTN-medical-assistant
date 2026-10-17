@@ -14,6 +14,8 @@ import java.util.UUID;
 })
 public class MedicalDocument {
 
+    public static final String LOCAL_PREFIX = "/uploads/";
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -35,8 +37,13 @@ public class MedicalDocument {
     @Column(nullable = false, length = 30)
     private String status = "PROCESSED";
 
-    @Column(name = "storage_url")
-    private String storageUrl;
+    /**
+     * Khóa đối tượng lưu trữ (KHÔNG phải URL công khai).
+     * - Bắt đầu bằng "/uploads/": tệp local (fallback dev).
+     * - Còn lại: object key trong bucket Supabase PRIVATE, chỉ xem qua signed URL ngắn hạn.
+     */
+    @Column(name = "storage_path")
+    private String storagePath;
 
     @Column(name = "file_hash", length = 64)
     private String fileHash;
@@ -68,8 +75,14 @@ public class MedicalDocument {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
-    public String getStorageUrl() { return storageUrl; }
-    public void setStorageUrl(String storageUrl) { this.storageUrl = storageUrl; }
+    public String getStoragePath() { return storagePath; }
+    public void setStoragePath(String storagePath) { this.storagePath = storagePath; }
+
+    @Transient
+    public boolean hasStoredFile() { return storagePath != null && !storagePath.isBlank(); }
+
+    @Transient
+    public boolean isLocalFile() { return storagePath != null && storagePath.startsWith(LOCAL_PREFIX); }
 
     public String getFileHash() { return fileHash; }
     public void setFileHash(String fileHash) { this.fileHash = fileHash; }

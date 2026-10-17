@@ -112,7 +112,7 @@ public class MedicalDocumentAnalysisService {
         resp.setFileName(doc.getFileName());
         resp.setFileSizeBytes(doc.getFileSizeBytes());
         resp.setContentType(doc.getContentType());
-        resp.setStorageUrl(doc.getStorageUrl());
+        resp.setHasFile(doc.hasStoredFile());
 
         if (analysisOpt.isPresent()) {
             DocumentAnalysis da = analysisOpt.get();
@@ -227,7 +227,7 @@ public class MedicalDocumentAnalysisService {
         resp.setRecommendedSpecialtyName(specialtyName);
         resp.setSuggestedQuestions(cachedQuestions);
         resp.setMatchedDoctors(matchedDoctors);
-        resp.setStorageUrl(existingDoc.getStorageUrl());
+        resp.setHasFile(existingDoc.hasStoredFile());
         resp.setCachedResult(true);
         resp.setModelUsed("SHA-256 Deduplication Cache (0 LLM Tokens)");
         resp.setDoctorRecommendationReason(doctorRecommendationReason);
@@ -380,7 +380,7 @@ public class MedicalDocumentAnalysisService {
             log.info("💳 Atomically deducted 1 scan quota for user {}. Starting analysis pipeline for batch of {} file(s).", userEmail, files.size());
         }
 
-        String storageUrl = null;
+        String storagePath = null;
         MedicalDocument medDoc = null;
         java.util.concurrent.CompletableFuture<String> asyncStorageUploadFuture = null;
         try {
@@ -569,14 +569,14 @@ public class MedicalDocumentAnalysisService {
                 String topSpecialtySlug = "multi-specialty";
                 String topDocReason = "Hệ thống đã phân loại và đề xuất bác sĩ chuyên khoa riêng biệt cho từng người bệnh để đảm bảo an toàn y tế.";
 
-                if (!isReanalyzingStaleOffline || existingDoc == null || existingDoc.getStorageUrl() == null || existingDoc.getStorageUrl().isBlank()) {
+                if (!isReanalyzingStaleOffline || existingDoc == null || existingDoc.getStoragePath() == null || existingDoc.getStoragePath().isBlank()) {
                     try {
-                        storageUrl = storageService.uploadDocument(uploadBytes, uploadName, uploadType, uploadUserId);
+                        storagePath = storageService.uploadDocument(uploadBytes, uploadName, uploadType, uploadUserId);
                     } catch (Exception uploadEx) {
                         log.warn("Storage upload failed for multi-patient batch: {}. Continuing without permanent storage URL.", uploadEx.getMessage());
                     }
                 } else if (isReanalyzingStaleOffline && existingDoc != null) {
-                    storageUrl = existingDoc.getStorageUrl();
+                    storagePath = existingDoc.getStoragePath();
                 }
 
                 if (isReanalyzingStaleOffline && existingDoc != null) {
@@ -585,7 +585,7 @@ public class MedicalDocumentAnalysisService {
                     medDoc.setFileSizeBytes(size);
                     medDoc.setContentType(contentType);
                     medDoc.setStatus("PROCESSED");
-                    medDoc.setStorageUrl(storageUrl);
+                    medDoc.setStoragePath(storagePath);
                     medDoc.setValidMedical(true);
                     medicalDocumentRepository.save(medDoc);
                 } else {
@@ -596,7 +596,7 @@ public class MedicalDocumentAnalysisService {
                         medDoc.setFileSizeBytes(size);
                         medDoc.setContentType(contentType);
                         medDoc.setStatus("PROCESSED");
-                        medDoc.setStorageUrl(storageUrl);
+                        medDoc.setStoragePath(storagePath);
                         medDoc.setFileHash(fileHash);
                         medDoc.setValidMedical(true);
                         medDoc = medicalDocumentRepository.save(medDoc);
@@ -679,7 +679,7 @@ public class MedicalDocumentAnalysisService {
                 response.setRecommendedSpecialtyName(topSpecialtyName);
                 response.setSuggestedQuestions(combinedQuestions);
                 response.setMatchedDoctors(combinedDoctors);
-                response.setStorageUrl(storageUrl);
+                response.setHasFile(storagePath != null && !storagePath.isBlank());
                 response.setCachedResult(false);
                 response.setModelUsed("Multi-Patient Clinical Segregation Engine");
                 response.setDoctorRecommendationReason(topDocReason);
@@ -738,7 +738,7 @@ public class MedicalDocumentAnalysisService {
             com.mediassist.ai.ClinicalAiResult ragResult = clinicalRagService.performDocumentRagAnalysis(clinicalContext, fileName, preRagCandidates);
 
             // 9b. Pipelined Asynchronous Cloud Storage Upload (Lazy - only after AI succeeds)
-            if (!isReanalyzingStaleOffline || existingDoc == null || existingDoc.getStorageUrl() == null || existingDoc.getStorageUrl().isBlank()) {
+            if (!isReanalyzingStaleOffline || existingDoc == null || existingDoc.getStoragePath() == null || existingDoc.getStoragePath().isBlank()) {
                 java.util.function.Supplier<String> uploadSupplier = () -> {
                     try {
                         return storageService.uploadDocument(uploadBytes, uploadName, uploadType, uploadUserId);
@@ -853,17 +853,17 @@ public class MedicalDocumentAnalysisService {
             // Await async cloud storage upload
             if (asyncStorageUploadFuture != null) {
                 try {
-                    storageUrl = asyncStorageUploadFuture.get(10, java.util.concurrent.TimeUnit.SECONDS);
+                    storagePath = asyncStorageUploadFuture.get(10, java.util.concurrent.TimeUnit.SECONDS);
                 } catch (Exception ex) {
                     log.warn("Async storage upload exceeded timeout: {}. Attempting synchronous fallback.", ex.getMessage());
                     try {
-                        storageUrl = storageService.uploadDocument(uploadBytes, uploadName, uploadType, uploadUserId);
+                        storagePath = storageService.uploadDocument(uploadBytes, uploadName, uploadType, uploadUserId);
                     } catch (Exception syncEx) {
                         log.warn("Synchronous storage fallback also failed: {}. Continuing without permanent storage URL.", syncEx.getMessage());
                     }
                 }
             } else if (isReanalyzingStaleOffline && existingDoc != null) {
-                storageUrl = existingDoc.getStorageUrl();
+                storagePath = existingDoc.getStoragePath();
             }
 
             // 11. LAZY CLOUD UPLOAD & PERSISTENCE
@@ -874,7 +874,7 @@ public class MedicalDocumentAnalysisService {
                 medDoc.setFileSizeBytes(size);
                 medDoc.setContentType(contentType);
                 medDoc.setStatus("PROCESSED");
-                medDoc.setStorageUrl(storageUrl);
+                medDoc.setStoragePath(storagePath);
                 medDoc.setValidMedical(true);
                 medicalDocumentRepository.save(medDoc);
             } else {
@@ -885,7 +885,7 @@ public class MedicalDocumentAnalysisService {
                     medDoc.setFileSizeBytes(size);
                     medDoc.setContentType(contentType);
                     medDoc.setStatus("PROCESSED");
-                    medDoc.setStorageUrl(storageUrl);
+                    medDoc.setStoragePath(storagePath);
                     medDoc.setFileHash(fileHash);
                     medDoc.setValidMedical(true);
                     medDoc = medicalDocumentRepository.save(medDoc);
@@ -902,10 +902,10 @@ public class MedicalDocumentAnalysisService {
                         }
                     }
                     // 2. Compensating action: Clean up redundant cloud storage upload
-                    if (storageUrl != null) {
+                    if (storagePath != null) {
                         try {
-                            storageService.deleteDocument(storageUrl);
-                            storageUrl = null;
+                            storageService.deleteDocument(storagePath);
+                            storagePath = null;
                         } catch (Exception delEx) {
                             log.error("Failed to delete duplicate storage file: {}", delEx.getMessage());
                         }
@@ -984,7 +984,7 @@ public class MedicalDocumentAnalysisService {
             response.setRecommendedSpecialtyName(specialtyName);
             response.setSuggestedQuestions(suggestedQuestions);
             response.setMatchedDoctors(matchedDoctors);
-            response.setStorageUrl(storageUrl);
+            response.setHasFile(storagePath != null && !storagePath.isBlank());
             response.setCachedResult(false);
             response.setModelUsed(ragResult.getModelUsed());
             response.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
@@ -1034,15 +1034,15 @@ public class MedicalDocumentAnalysisService {
                     log.error("Failed to restore scan quota for user {}: {}", userEmail, restoreEx.getMessage());
                 }
             }
-            if (storageUrl == null && asyncStorageUploadFuture != null) {
+            if (storagePath == null && asyncStorageUploadFuture != null) {
                 try {
-                    storageUrl = asyncStorageUploadFuture.getNow(null);
+                    storagePath = asyncStorageUploadFuture.getNow(null);
                 } catch (Exception ignored) {}
             }
-            if (storageUrl != null) {
-                log.warn("🚨 [ROLLBACK COMPENSATING ACTION] Pipeline failure after cloud upload. Deleting orphan file: {}", storageUrl);
+            if (storagePath != null) {
+                log.warn("🚨 [ROLLBACK COMPENSATING ACTION] Pipeline failure after cloud upload. Deleting orphan storage object for document pipeline: {}", storagePath);
                 try {
-                    storageService.deleteDocument(storageUrl);
+                    storageService.deleteDocument(storagePath);
                 } catch (Exception deleteEx) {
                     log.error("Failed to delete orphan file: {}", deleteEx.getMessage());
                 }

@@ -96,6 +96,14 @@ public class SecurityRateLimiterService {
         return checkLimit("sample_pdf:" + ipAddress, 10, 1);
     }
 
+    /**
+     * Rate limiter for issuing short-lived signed URLs to view/download original medical files
+     * Limit: 30 requests per minute per user (Anti-scraping of patient documents)
+     */
+    public boolean allowDocumentFileAccess(String userKey) {
+        return checkLimit("doc_file_access:" + userKey, 30, 1);
+    }
+
     private boolean checkLimit(String key, int maxRequests, int windowMinutes) {
         String redisKey = "ratelimit:" + key;
         try {

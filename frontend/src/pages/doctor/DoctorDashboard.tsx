@@ -41,6 +41,7 @@ import { PatientAccessDeniedNotice } from '../../components/common/PatientAccess
 import { Pagination } from '../../components/common/Pagination';
 import { useDebounce } from '../../hooks/useDebounce';
 import { DocumentAnalysisModal } from '../../components/common/DocumentAnalysisModal';
+import { DocumentFileAccessError, openDocumentFile, downloadDocumentFile } from '../../services/documentFileService';
 import {
   evaluateBloodPressure,
   evaluateBmiAsia,
@@ -99,7 +100,7 @@ interface PatientDocumentItem {
   fileSizeBytes: number;
   contentType: string;
   status: string;
-  storageUrl?: string;
+  hasFile?: boolean;
   isValidMedical: boolean;
   extractedIndicators?: string;
   createdAt: string;
@@ -309,13 +310,23 @@ export const DoctorDashboard: React.FC = () => {
   const [docModalOpen, setDocModalOpen] = useState(false);
   const [docModalId, setDocModalId] = useState<string | null>(null);
   const [docModalFileName, setDocModalFileName] = useState<string | undefined>(undefined);
-  const [docModalStorageUrl, setDocModalStorageUrl] = useState<string | undefined>(undefined);
+  const [fileOpenError, setFileOpenError] = useState<string | null>(null);
 
-  const handleOpenDocumentModal = (docId: string, fileName?: string, storageUrl?: string) => {
+  const handleOpenDocumentModal = (docId: string, fileName?: string) => {
     setDocModalId(docId);
     setDocModalFileName(fileName);
-    setDocModalStorageUrl(storageUrl);
     setDocModalOpen(true);
+  };
+
+  // Mở tệp gốc qua signed URL ngắn hạn (backend kiểm tra quyền + ghi audit). Gọi trực tiếp trong click handler.
+  const handleOpenOriginalFile = (docId: string) => {
+    setFileOpenError(null);
+    openDocumentFile(docId).catch((err: DocumentFileAccessError) => setFileOpenError(err.message));
+  };
+
+  const handleDownloadOriginalFile = (docId: string) => {
+    setFileOpenError(null);
+    downloadDocumentFile(docId).catch((err: DocumentFileAccessError) => setFileOpenError(err.message));
   };
 
   const handleInsertDocumentAnalysisToEncounter = (data: { clinicalSummary: string; abnormalIndicatorsText: string }) => {
@@ -2565,26 +2576,24 @@ export const DoctorDashboard: React.FC = () => {
                       {(() => {
                         const activeDoc = patientDocuments.find((d) => d.id === selectedDocId) || patientDocuments[0];
                         if (!activeDoc) return null;
-                        const fileUrl = activeDoc.storageUrl || `/api/v1/documents/${activeDoc.id}/file`;
                         return (
                           <div className="flex items-center gap-1">
-                            <a
-                              href={fileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1.5 text-slate-500 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition"
-                              title="Mở tab mới"
+                            <button
+                              type="button"
+                              onClick={() => handleOpenOriginalFile(activeDoc.id)}
+                              className="p-1.5 text-slate-500 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition cursor-pointer"
+                              title="Mở tab mới (liên kết bảo mật)"
                             >
                               <ExternalLink className="w-4 h-4" />
-                            </a>
-                            <a
-                              href={fileUrl}
-                              download={activeDoc.fileName}
-                              className="p-1.5 text-slate-500 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition"
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadOriginalFile(activeDoc.id)}
+                              className="p-1.5 text-slate-500 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition cursor-pointer"
                               title="Tải về"
                             >
                               <Download className="w-4 h-4" />
-                            </a>
+                            </button>
                           </div>
                         );
                       })()}
@@ -2610,8 +2619,8 @@ export const DoctorDashboard: React.FC = () => {
                       );
                     }
 
-                    const fileUrl = activeDoc.storageUrl || `/api/v1/documents/${activeDoc.id}/file`;
-                    const isPdf = activeDoc.fileName.toLowerCase().endsWith('.pdf') || activeDoc.contentType?.toLowerCase().includes('pdf') || activeDoc.storageUrl?.toLowerCase().includes('.pdf');
+                    const fileUrl = `/api/v1/documents/${activeDoc.id}/file`;
+                    const isPdf = activeDoc.fileName.toLowerCase().endsWith('.pdf') || (activeDoc.contentType?.toLowerCase().includes('pdf') ?? false);
                     const isImage = activeDoc.contentType?.toLowerCase().startsWith('image') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(activeDoc.fileName);
 
                     if (isPdf) {
@@ -2658,17 +2667,16 @@ export const DoctorDashboard: React.FC = () => {
                           Định dạng tệp: {activeDoc.contentType || 'Tài liệu'} ({(activeDoc.fileSizeBytes / 1024).toFixed(1)} KB)
                         </p>
                         <div className="mt-4 flex gap-2">
-                          <a
-                            href={fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs transition"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" /> Mở Tệp Trực Tiếp
-                          </a>
                           <button
                             type="button"
-                            onClick={() => handleOpenDocumentModal(activeDoc.id, activeDoc.fileName, activeDoc.storageUrl)}
+                            onClick={() => handleOpenOriginalFile(activeDoc.id)}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" /> Mở Tệp Trực Tiếp
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDocumentModal(activeDoc.id, activeDoc.fileName)}
                             className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
                           >
                             <Eye className="w-3.5 h-3.5 text-sky-600" /> Bóc Tách AI
@@ -2888,7 +2896,7 @@ export const DoctorDashboard: React.FC = () => {
                             </div>
                             <button
                               type="button"
-                              onClick={() => handleOpenDocumentModal(activeDoc.id, activeDoc.fileName, activeDoc.storageUrl)}
+                              onClick={() => handleOpenDocumentModal(activeDoc.id, activeDoc.fileName)}
                               className="inline-flex items-center gap-1 px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-bold text-[11px] shadow-2xs transition cursor-pointer"
                             >
                               <Eye className="w-3 h-3" />
@@ -3962,13 +3970,28 @@ export const DoctorDashboard: React.FC = () => {
           setDocModalOpen(false);
           setDocModalId(null);
           setDocModalFileName(undefined);
-          setDocModalStorageUrl(undefined);
         }}
         documentId={docModalId}
         initialFileName={docModalFileName}
-        initialStorageUrl={docModalStorageUrl}
         onInsertToEncounter={activeEncounterAppointment ? handleInsertDocumentAnalysisToEncounter : undefined}
       />
+
+      {fileOpenError && (
+        <div
+          role="alert"
+          className="fixed bottom-6 right-6 z-[60] max-w-sm p-4 rounded-2xl bg-rose-50 border border-rose-200 shadow-lg text-xs text-rose-800 flex items-start gap-2"
+        >
+          <span className="flex-1">{fileOpenError}</span>
+          <button
+            type="button"
+            onClick={() => setFileOpenError(null)}
+            className="font-bold text-rose-500 hover:text-rose-700 cursor-pointer"
+            title="Đóng thông báo"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 };
