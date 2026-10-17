@@ -21,10 +21,8 @@ import {
 import { api } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
-import { Button, ErrorState, Field, Input, Modal } from '../components/ui';
 import { ENABLE_DEMO_LOGIN } from '../config/app';
 import { todayLocal } from '../utils/date';
-import { getApiErrorMessage, getApiErrorStatus } from '../utils/apiError';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VN_PHONE_RE = /^(\+?84|0)(3|5|7|8|9)\d{8}$/;
@@ -33,10 +31,13 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const sessionExpired = searchParams.get('expired') === 'true';
+  const passwordJustReset = searchParams.get('reset') === 'success';
   const { setUser } = useAuthStore();
 
   // Mode: 'REGISTER' (default per target UI) or 'LOGIN'
-  const [activeTab, setActiveTab] = useState<'REGISTER' | 'LOGIN'>(() => (sessionExpired ? 'LOGIN' : 'REGISTER'));
+  const [activeTab, setActiveTab] = useState<'REGISTER' | 'LOGIN'>(() =>
+    sessionExpired || passwordJustReset ? 'LOGIN' : 'REGISTER'
+  );
   const [roleType, setRoleType] = useState<'PATIENT' | 'DOCTOR'>('PATIENT');
 
   // Register state
@@ -58,18 +59,15 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(() => (sessionExpired ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' : null));
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    sessionExpired ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' : null
+  );
+  const [successMsg, setSuccessMsg] = useState<string | null>(
+    passwordJustReset ? 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới.' : null
+  );
   const [isLocked, setIsLocked] = useState(false);
 
   // Interactive Modals State (Eliminate all alerts)
-  const [showForgotModal, setShowForgotModal] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotSubmitted, setForgotSubmitted] = useState(false);
-  const [forgotSubmitting, setForgotSubmitting] = useState(false);
-  const [forgotMessage, setForgotMessage] = useState<string | null>(null);
-  const [forgotError, setForgotError] = useState<string | null>(null);
-  const [forgotTouched, setForgotTouched] = useState(false);
   const [ssoModalType, setSsoModalType] = useState<'GOOGLE' | 'VNEID' | null>(null);
   const [complianceModalType, setComplianceModalType] = useState<'PRIVACY' | 'SECURITY' | 'DISCLAIMER' | null>(null);
 
@@ -161,40 +159,6 @@ export const LoginPage: React.FC = () => {
     if (!agreeTerms) errs.push('Vui lòng đồng ý với Điều khoản dịch vụ và quy chế xử lý dữ liệu y tế.');
     return errs;
   }, [regFullName, regDob, regPhone, regEmail, passCriteria, regPassword, regConfirmPassword, agreeTerms]);
-
-  const forgotEmailError = !EMAIL_RE.test(forgotEmail.trim()) ? 'Nhập email hợp lệ đã đăng ký tài khoản.' : null;
-
-  const openForgotModal = () => {
-    setForgotEmail(loginEmail || '');
-    setForgotSubmitted(false);
-    setForgotMessage(null);
-    setForgotError(null);
-    setForgotTouched(false);
-    setShowForgotModal(true);
-  };
-
-  // POST /auth/forgot-password — backend always answers with a neutral message (no account enumeration)
-  const handleForgotPassword = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    setForgotTouched(true);
-    if (forgotEmailError || forgotSubmitting) return;
-    try {
-      setForgotSubmitting(true);
-      setForgotError(null);
-      const res = await api.post('/auth/forgot-password', { email: forgotEmail.trim().toLowerCase() });
-      setForgotMessage(res.data?.message || 'Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi.');
-      setForgotSubmitted(true);
-    } catch (err) {
-      const status = getApiErrorStatus(err);
-      setForgotError(
-        status === 429
-          ? 'Bạn đã yêu cầu quá nhiều lần. Vui lòng thử lại sau ít phút.'
-          : getApiErrorMessage(err, 'Không gửi được yêu cầu. Vui lòng kiểm tra kết nối và thử lại.')
-      );
-    } finally {
-      setForgotSubmitting(false);
-    }
-  };
 
   // Handle Registration
   const handleRegister = async (e: React.FormEvent) => {
@@ -872,16 +836,12 @@ export const LoginPage: React.FC = () => {
                     <label className="text-xs font-bold text-slate-700">
                       Mật khẩu <span className="text-rose-500">*</span>
                     </label>
-                    <a
-                      href="#forgot"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        openForgotModal();
-                      }}
+                    <Link
+                      to="/forgot-password"
                       className="text-[11px] text-teal-700 hover:underline cursor-pointer"
                     >
                       Quên mật khẩu?
-                    </a>
+                    </Link>
                   </div>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -1109,68 +1069,6 @@ export const LoginPage: React.FC = () => {
           </a>
         </div>
       </footer>
-
-      {/* Forgot Password Modal — POST /auth/forgot-password */}
-      <Modal
-        open={showForgotModal}
-        onClose={() => setShowForgotModal(false)}
-        busy={forgotSubmitting}
-        size="sm"
-        title="Khôi phục mật khẩu"
-        description="Nhận liên kết đặt lại mật khẩu qua email"
-        footer={
-          forgotSubmitted ? (
-            <Button onClick={() => setShowForgotModal(false)}>Quay lại đăng nhập</Button>
-          ) : (
-            <>
-              <Button variant="secondary" onClick={() => setShowForgotModal(false)} disabled={forgotSubmitting}>
-                Hủy bỏ
-              </Button>
-              <Button
-                onClick={() => handleForgotPassword()}
-                loading={forgotSubmitting}
-                loadingText="Đang gửi..."
-                disabledReason={forgotEmailError}
-              >
-                Gửi hướng dẫn
-              </Button>
-            </>
-          )
-        }
-      >
-        {forgotSubmitted ? (
-          <div className="space-y-3 text-center py-2" data-testid="forgot-success">
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
-            <p className="text-sm text-slate-700">{forgotMessage}</p>
-            <p className="text-xs text-slate-500">
-              Hãy kiểm tra hộp thư (kể cả mục Spam). Liên kết chỉ dùng được một lần và có thời hạn.
-            </p>
-          </div>
-        ) : (
-          <form onSubmit={handleForgotPassword} className="space-y-4" noValidate>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Nhập email bạn đã dùng để đăng ký. Nếu email có trong hệ thống, chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu.
-            </p>
-            <Field label="Email tài khoản" htmlFor="forgot-email" required error={forgotTouched ? forgotEmailError : null}>
-              <Input
-                id="forgot-email"
-                type="email"
-                data-autofocus
-                autoComplete="email"
-                value={forgotEmail}
-                invalid={forgotTouched && Boolean(forgotEmailError)}
-                disabled={forgotSubmitting}
-                onChange={(e) => setForgotEmail(e.target.value)}
-                onBlur={() => setForgotTouched(true)}
-                placeholder="ten@email.com"
-              />
-            </Field>
-            {forgotError && <ErrorState message={forgotError} />}
-          </form>
-        )}
-      </Modal>
 
       {/* SSO Federation Modal */}
       {ssoModalType && (

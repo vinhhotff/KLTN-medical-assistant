@@ -11,6 +11,8 @@ import { PatientLayout } from './layouts/PatientLayout';
 // are only downloaded when visited.
 const LandingPage = lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
 const OAuth2CallbackPage = lazy(() => import('./pages/OAuth2CallbackPage').then((m) => ({ default: m.OAuth2CallbackPage })));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 const DoctorManagementPage = lazy(() => import('./pages/admin/DoctorManagementPage').then((m) => ({ default: m.DoctorManagementPage })));
@@ -45,6 +47,8 @@ export function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* OAuth2 Callback — Backend redirect ve day sau khi Google xac thuc thanh cong */}
           <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />

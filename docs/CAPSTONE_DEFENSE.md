@@ -424,6 +424,13 @@
   - **Demo trực tiếp:** Đăng nhập một bác sĩ chưa từng khám bệnh nhân X, gọi `GET /api/v1/triage/patient/{X}` → nhận 403, giao diện hiển thị thông báo thân thiện; sau đó đăng nhập bác sĩ có lịch hẹn → xem được và bản ghi `VIEW_PATIENT_RECORD` xuất hiện trong Nhật ký kiểm toán.
   - **Hạn chế thừa nhận trung thực:** Quyền của bác sĩ hiện chưa hết hạn theo thời gian sau khi ca khám hoàn tất, và tệp lưu trên Supabase có `storageUrl` công khai. Hướng phát triển: giới hạn cửa sổ thời gian truy cập và chuyển sang Signed URL có thời hạn.
 
+### Câu hỏi 17: Vì sao token đặt lại mật khẩu chỉ được lưu dạng SHA-256 hash mà không lưu nguyên văn? Mật khẩu đã băm bằng BCrypt rồi, sao token không băm BCrypt luôn?
+* **Trả lời mẫu:**
+  - **Token chính là "chìa khóa tạm thời" của tài khoản:** ai có token còn hạn thì đặt được mật khẩu mới, tức chiếm được hồ sơ sức khỏe. Nếu lưu nguyên văn, chỉ cần lộ bảng `password_reset_tokens` (file backup, SQL injection, công cụ xem DB như pgweb, nhân viên vận hành tò mò) là kẻ tấn công dựng được liên kết và chiếm mọi tài khoản đang có yêu cầu reset. Lưu hash thì DB bị lộ cũng vô dụng: không thể suy ngược từ hash ra token.
+  - **Vì sao SHA-256 mà không phải BCrypt:** BCrypt cố ý chậm để chống dò mật khẩu người dùng đặt (entropy thấp, có thể đoán theo từ điển). Token của hệ thống là 32 byte ngẫu nhiên từ `SecureRandom` (256 bit entropy), dò vét cạn là bất khả thi, nên không cần hàm băm chậm. SHA-256 còn cho phép tra cứu trực tiếp bằng index `UNIQUE` (BCrypt có salt ngẫu nhiên nên không tra cứu được, phải quét toàn bảng).
+  - **Các lớp bảo vệ khác:** hiệu lực 30 phút, dùng một lần, yêu cầu mới vô hiệu liên kết cũ; trang đặt lại mật khẩu xóa token khỏi thanh địa chỉ ngay khi đọc; token và liên kết không bao giờ ghi vào log; `forgot-password` luôn trả cùng một thông báo (không lộ email có tồn tại hay không) và có rate limit theo IP lẫn theo email.
+  - **Bằng chứng:** `AuthServicePasswordResetTest.tokenIsStoredHashed` khẳng định giá trị lưu DB khác token gửi qua email và bằng `SHA-256(token)`; `AuthControllerPasswordResetTest.sameResponseForExistingAndUnknownEmail` khẳng định hai response giống hệt nhau.
+
 ---
 
 ## 5. Bảng Tiêu Chí Đánh Giá Xuất Sắc Của Hội Đồng (Evaluation Rubric)

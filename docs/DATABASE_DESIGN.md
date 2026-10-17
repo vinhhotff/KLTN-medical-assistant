@@ -638,7 +638,7 @@ CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_tokens(tok
 CREATE INDEX IF NOT EXISTS idx_password_reset_user_id ON password_reset_tokens(user_id);
 ```
 
-- **Cơ chế an toàn:** Token UUID ngẫu nhiên có hiệu lực 60 phút, kiểm tra cờ `is_used = FALSE`, tự động đánh dấu đã dùng ngay khi đặt lại mật khẩu thành công.
+- **Cơ chế an toàn (lịch sử V16):** Token UUID ngẫu nhiên lưu dạng plaintext. **Đã được thay thế ở Flyway V19** (mục 14): cột `token` đổi thành `token_hash` (SHA-256), hiệu lực 30 phút, một lần dùng.
 
 ### 12.2. Lược Đồ Bảng `notifications`
 ```sql
@@ -777,5 +777,33 @@ USING gin (full_name gin_trgm_ops);
 
 - **Ứng dụng lâm sàng:** Hỗ trợ thuật toán **Reciprocal Rank Fusion (RRF)** kết hợp giữa tìm kiếm ngữ nghĩa mờ (Vector Cosine Embedding) và tìm kiếm từ khóa chính xác (Lexical BM25 / Trigram), mang lại độ chính xác vượt trội khi người bệnh tìm kiếm theo tên bác sĩ hoặc thuật ngữ viết tắt.
 
+---
 
+## 14. Hệ Thống Email: Token Băm SHA-256 & Xác Thực Email (Flyway V21)
 
+### 14.1. Flyway V21: `password_reset_tokens.token` → `token_hash`
+Bản di trú `V21__password_reset_token_hash.sql` (WORK_LOG #083):
+
+| Bước | Câu lệnh | Ghi chú |
+| :--- | :--- | :--- |
+| 1 | `DELETE FROM password_reset_tokens` | Token cũ đang là plaintext và chưa từng được gửi đi; người dùng chỉ cần yêu cầu liên kết mới. |
+| 2 | Khối `DO $$`: gỡ mọi ràng buộc `UNIQUE` trên bảng (tên do PostgreSQL/Hibernate tự sinh) | Tránh ràng buộc cũ còn bám vào cột sau khi đổi tên. |
+| 3 | `ALTER TABLE ... RENAME COLUMN token TO token_hash` | Idempotent: nếu đã có `token_hash` thì `DROP COLUMN token`; nếu thiếu cả hai thì `ADD COLUMN`. |
+| 4 | `DROP INDEX IF EXISTS idx_prt_token` → `CREATE UNIQUE INDEX idx_prt_token_hash ON password_reset_tokens(token_hash)` | Tra cứu token bằng hash (O(log n)), duy nhất. |
+
+Lược đồ sau V21:
+```sql
+password_reset_tokens (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  VARCHAR(64) NOT NULL,          -- SHA-256 hex của token gốc; UNIQUE qua idx_prt_token_hash
+    expires_at  TIMESTAMPTZ NOT NULL,          -- now + 30 phút
+    used        BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+- **Token gốc** = 32 byte `SecureRandom`, Base64 URL-safe không padding (43 ký tự), **chỉ** nằm trong email. DB chỉ lưu `SHA-256(token)`, nên kẻ đọc được DB (backup, SQL injection, pgweb) không dựng lại được liên kết.
+- Tạo token mới → xóa mọi token cũ của user. Đặt lại thành công → `used = true` cho token vừa dùng và xóa các token còn lại.
+- Kiểu `VARCHAR(64)` (không dùng `CHAR(64)`) để khớp `ddl-auto=validate` của Hibernate ở profile prod.
+
+**Audit (bảng `audit_logs`, không đổi schema):** `PASSWORD_RESET_REQUESTED` (chỉ khi email tồn tại; metadata ghi rõ có gửi mail hay không), `PASSWORD_RESET_COMPLETED`. Kèm IP và User-Agent.
