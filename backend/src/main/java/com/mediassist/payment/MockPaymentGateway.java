@@ -1,8 +1,11 @@
 package com.mediassist.payment;
 
+import com.mediassist.common.AppException;
 import com.mediassist.model.entity.PaymentTransaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
@@ -12,6 +15,9 @@ public class MockPaymentGateway implements PaymentGateway {
 
     private static final Logger log = LoggerFactory.getLogger(MockPaymentGateway.class);
 
+    @Value("${app.payment.mock.enabled:true}")
+    private boolean mockEnabled = true;
+
     @Override
     public String getGatewayName() {
         return "LOCAL_MOCK";
@@ -19,6 +25,7 @@ public class MockPaymentGateway implements PaymentGateway {
 
     @Override
     public boolean supports(String paymentMethod) {
+        if (!mockEnabled) return false;
         if (paymentMethod == null) return false;
         String m = paymentMethod.trim().toUpperCase();
         return "VIETQR".equals(m) || "VNPAY".equals(m) || "MOMO".equals(m) || "MOCK".equals(m) || "CASH".equals(m);
@@ -26,6 +33,10 @@ public class MockPaymentGateway implements PaymentGateway {
 
     @Override
     public PaymentInitiationResult initiatePayment(PaymentTransaction tx, String successUrl, String cancelUrl) {
+        if (!mockEnabled) {
+            throw new AppException(HttpStatus.FORBIDDEN, "MOCK_PAYMENT_DISABLED",
+                    "Cổng thanh toán thử nghiệm không được bật trên môi trường này.");
+        }
         String mockRef = "mock_ref_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         log.info("💳 [MOCK GATEWAY] Initiating mock payment for method: {}, tx: {}", tx.getPaymentMethod(), tx.getTransactionCode());
 
@@ -47,6 +58,9 @@ public class MockPaymentGateway implements PaymentGateway {
 
     @Override
     public PaymentVerificationResult verifyPayment(String gatewayReference) {
+        if (!mockEnabled) {
+            return PaymentVerificationResult.unpaid("Cổng thanh toán thử nghiệm bị vô hiệu hóa.");
+        }
         log.info("💳 [MOCK GATEWAY VERIFY] Successfully verified simulated payment: {}", gatewayReference);
         return PaymentVerificationResult.paid(gatewayReference, "Cổng Thanh Toán Thử Nghiệm Sandbox");
     }
