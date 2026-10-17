@@ -9,6 +9,7 @@ import com.mediassist.model.entity.Role;
 import com.mediassist.model.entity.User;
 import com.mediassist.model.entity.UserStatus;
 import com.mediassist.repository.AuditLogRepository;
+import com.mediassist.repository.EmailVerificationTokenRepository;
 import com.mediassist.repository.PasswordResetTokenRepository;
 import com.mediassist.repository.PatientProfileRepository;
 import com.mediassist.repository.UserRepository;
@@ -48,7 +49,8 @@ class AuthServicePasswordResetTest {
         auditLogRepository = mock(AuditLogRepository.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
         authService = new AuthService(userRepository, mock(PatientProfileRepository.class), passwordEncoder,
-                mock(JwtTokenProvider.class), tokenRepository, auditLogRepository, eventPublisher);
+                mock(JwtTokenProvider.class), tokenRepository, auditLogRepository, eventPublisher,
+                mock(EmailVerificationTokenRepository.class), mock(SecurityRateLimiterService.class));
     }
 
     private User user(UserStatus status) {

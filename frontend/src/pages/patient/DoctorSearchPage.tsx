@@ -447,6 +447,7 @@ export const DoctorSearchPage: React.FC = () => {
 
       <BookingModal open={bookingDoctor !== null} doctor={bookingDoctor} onClose={() => setBookingDoctor(null)} />
 
+      {/* Doctor Reviews List Modal */}
       {viewingReviewsDoctor && (
         <DoctorReviewsListModal
           isOpen={!!viewingReviewsDoctor}

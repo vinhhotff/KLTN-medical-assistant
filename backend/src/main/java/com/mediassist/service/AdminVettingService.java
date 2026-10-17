@@ -246,6 +246,8 @@ public class AdminVettingService {
         user.setPhone(req.getPhone() != null ? req.getPhone().trim() : null);
         user.setRole(Role.DOCTOR);
         user.setStatus(UserStatus.ACTIVE);
+        // Admin tao tai khoan voi email do bac si cung cap qua kenh tham dinh -> coi la da xac thuc
+        user.markEmailVerified(LocalDateTime.now());
         User savedUser = userRepository.save(user);
 
         // 2. Create DoctorProfile

@@ -131,6 +131,22 @@ public class SecurityRateLimiterService {
         return checkLimit("reset_token:" + ipAddress, 20, 10);
     }
 
+    /**
+     * Rate limiter for resending the email verification link (Anti mailbox flooding)
+     * Limit: 1 request per 60 seconds per user
+     */
+    public boolean allowVerificationResendBurst(String userKey) {
+        return checkLimit("verify_resend_burst:" + userKey, 1, 1);
+    }
+
+    /**
+     * Rate limiter for resending the email verification link
+     * Limit: 5 requests per 60 minutes per user
+     */
+    public boolean allowVerificationResendHourly(String userKey) {
+        return checkLimit("verify_resend_hourly:" + userKey, 5, 60);
+    }
+
     private boolean checkLimit(String key, int maxRequests, int windowMinutes) {
         String redisKey = "ratelimit:" + key;
         try {

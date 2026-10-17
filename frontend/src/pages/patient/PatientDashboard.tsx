@@ -20,7 +20,8 @@ import {
   QrCode
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { api, DoctorReviewDto } from '../../services/api';
+import { api, DoctorReviewDto, EMAIL_NOT_VERIFIED_MESSAGE, EMAIL_NOT_VERIFIED_TOOLTIP, isEmailNotVerified } from '../../services/api';
+import { useEmailVerification } from '../../hooks/useEmailVerification';
 import { Pagination } from '../../components/common/Pagination';
 import { DoctorReviewModal } from '../../components/common/DoctorReviewModal';
 import { AdmissionTicketModal } from '../../components/patient/AdmissionTicketModal';
@@ -151,6 +152,7 @@ export const PatientDashboard: React.FC = () => {
   const [rescheduleSlot, setRescheduleSlot] = useState<DoctorSlot | null>(null);
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [submittingReschedule, setSubmittingReschedule] = useState(false);
+  const { isUnverified } = useEmailVerification();
 
   // Admission Ticket Modal State
   const [selectedTicketAppointment, setSelectedTicketAppointment] = useState<AppointmentItem | null>(null);
@@ -177,6 +179,10 @@ export const PatientDashboard: React.FC = () => {
       setRescheduleReason('');
       toast.success('Đã dời lịch hẹn thành công.');
     } catch (err: unknown) {
+      if (isEmailNotVerified(err)) {
+        toast.error(EMAIL_NOT_VERIFIED_MESSAGE);
+        return;
+      }
       toast.error(getApiErrorMessage(err, 'Không thể dời lịch hẹn. Vui lòng chọn khung giờ khác.'));
     } finally {
       setSubmittingReschedule(false);
@@ -202,6 +208,10 @@ export const PatientDashboard: React.FC = () => {
       }
       toast.error('Cổng thanh toán không trả về đường dẫn thanh toán. Vui lòng thử lại sau hoặc thanh toán tại quầy.');
     } catch (err: unknown) {
+      if (isEmailNotVerified(err)) {
+        toast.error(EMAIL_NOT_VERIFIED_MESSAGE);
+        return;
+      }
       toast.error(getApiErrorMessage(err, 'Không thể khởi tạo phiên thanh toán cho cuộc hẹn.'));
     } finally {
       setPayingApptId(null);
@@ -751,7 +761,8 @@ export const PatientDashboard: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handlePayAppointment(apt)}
-                              disabled={payingApptId !== null}
+                              disabled={payingApptId !== null || isUnverified}
+                              title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
                               className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
                             >
                               <CreditCard className="w-3.5 h-3.5" />
@@ -880,7 +891,9 @@ export const PatientDashboard: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => openReschedule(apt)}
-                                className="px-3 py-1.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer"
+                                disabled={isUnverified}
+                                title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
+                                className="px-3 py-1.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <Calendar className="w-3.5 h-3.5" /> Dời Lịch Hẹn
                               </button>
@@ -1588,6 +1601,20 @@ export const PatientDashboard: React.FC = () => {
                 placeholder="Ví dụ: Bận đột xuất, muốn đổi sang ngày thuận tiện hơn..."
                 className="w-full p-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 outline-none"
               />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <Button variant="secondary" onClick={() => setReschedulingAppointment(null)} disabled={submittingReschedule}>
+                Hủy bỏ
+              </Button>
+              <Button
+                onClick={() => handleConfirmReschedule()}
+                loading={submittingReschedule}
+                loadingText="Đang dời lịch..."
+                disabledReason={!rescheduleSlot ? 'Chọn một khung giờ còn trống.' : isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
+              >
+                Xác nhận dời lịch
+              </Button>
             </div>
           </div>
         )}

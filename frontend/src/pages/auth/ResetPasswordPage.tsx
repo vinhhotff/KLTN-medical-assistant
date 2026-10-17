@@ -4,23 +4,16 @@ import axios from 'axios';
 import { AlertCircle, ArrowLeft, Eye, EyeOff, Loader2, Lock, LockKeyhole } from 'lucide-react';
 import { api, getApiErrorMessage } from '../../services/api';
 import { AuthCard } from '../../components/auth/AuthCard';
+import { readTokenFromUrl, useStripTokenFromUrl } from '../../hooks/useUrlToken';
 
 const MIN_PASSWORD_LENGTH = 8;
 
 type PageState = 'checking' | 'invalid' | 'ready';
 
-/** Đọc token một lần rồi xóa khỏi thanh địa chỉ, tránh lộ qua lịch sử trình duyệt hoặc header Referer. */
-const takeTokenFromUrl = (): string | null => {
-  const token = new URLSearchParams(window.location.search).get('token');
-  if (token) {
-    window.history.replaceState(null, '', window.location.pathname);
-  }
-  return token;
-};
-
 export const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
-  const [token] = useState<string | null>(takeTokenFromUrl);
+  const [token] = useState<string | null>(readTokenFromUrl);
+  useStripTokenFromUrl();
   const [pageState, setPageState] = useState<PageState>(token ? 'checking' : 'invalid');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

@@ -83,6 +83,8 @@ class PaymentServiceTest {
         testPatient.setFullName("Nguyen Van Benh Nhan");
         testPatient.setScanQuota(1);
         testPatient.setSubscriptionTier("FREE");
+        testPatient.setRole(Role.PATIENT);
+        testPatient.markEmailVerified(LocalDateTime.now());
 
         testDoctor = new User();
         testDoctor.setId(UUID.randomUUID());
@@ -345,5 +347,20 @@ class PaymentServiceTest {
         assertEquals(TransactionStatus.REFUNDED, tx.getStatus());
         verify(paymentTransactionRepository).save(tx);
         verify(auditLogRepository).save(any(AuditLog.class));
+    }
+
+    @Test
+    @DisplayName("Benh nhan chua xac thuc email: checkout bi chan 403 EMAIL_NOT_VERIFIED, khong tao giao dich")
+    void testCreateCheckout_UnverifiedPatient_Blocked() {
+        testPatient.setEmailVerified(false);
+        when(userRepository.findByEmail(testPatient.getEmail())).thenReturn(Optional.of(testPatient));
+
+        CreatePaymentRequest request = new CreatePaymentRequest("QUOTA_PURCHASE", "VIP_MONTHLY", null, "STRIPE");
+        AppException ex = assertThrows(AppException.class,
+                () -> paymentService.createCheckoutSession(testPatient.getEmail(), request));
+
+        assertEquals("EMAIL_NOT_VERIFIED", ex.getCode());
+        assertEquals(org.springframework.http.HttpStatus.FORBIDDEN, ex.getStatus());
+        verify(paymentTransactionRepository, never()).save(any());
     }
 }

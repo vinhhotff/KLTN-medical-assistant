@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, Link, NavLink } from 'react-router-dom';
 import { HeartPulse, MessageSquare, UploadCloud, LogOut, Search, CalendarDays } from 'lucide-react';
 import { MedicalDisclaimerBanner } from '../components/common/MedicalDisclaimerBanner';
+import { EmailVerificationBanner } from '../components/common/EmailVerificationBanner';
 import { NotificationBell } from '../components/common/NotificationBell';
 import { useAuthStore } from '../store/useAuthStore';
 import { cn } from '../components/ui';
@@ -14,12 +15,20 @@ const NAV_ITEMS = [
 ];
 
 export const PatientLayout: React.FC = () => {
-  const { user, logout, isAuthenticated } = useAuthStore();
+  const { user, logout, isAuthenticated, refreshCurrentUser } = useAuthStore();
+
+  // User lưu trong localStorage có thể cũ (thiếu emailVerified): đồng bộ lại khi vào khu vực bệnh nhân
+  useEffect(() => {
+    if (isAuthenticated) {
+      void refreshCurrentUser();
+    }
+  }, [isAuthenticated, refreshCurrentUser]);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
       {/* Permanent Medical Disclaimer Banner — required on every patient page */}
       <MedicalDisclaimerBanner dismissible={false} />
+      <EmailVerificationBanner />
 
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 md:h-16 flex items-center justify-between gap-3">

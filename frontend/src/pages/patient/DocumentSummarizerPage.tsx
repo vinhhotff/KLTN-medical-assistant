@@ -33,7 +33,9 @@ import {
   User,
   Star
 } from 'lucide-react';
-import { api } from '../../services/api';
+import { api, EMAIL_NOT_VERIFIED_MESSAGE, EMAIL_NOT_VERIFIED_TOOLTIP, isEmailNotVerified } from '../../services/api';
+import { useEmailVerification } from '../../hooks/useEmailVerification';
+import { EmailNotVerifiedHint } from '../../components/common/EmailNotVerifiedHint';
 import { DocumentFileAccessError, openDocumentFile } from '../../services/documentFileService';
 import { useAuthStore } from '../../store/useAuthStore';
 import { BookingModal, type BookableDoctor } from '../../components/booking/BookingModal';
@@ -186,6 +188,7 @@ interface UserQuota {
 export const DocumentSummarizerPage: React.FC = () => {
   const { user } = useAuthStore();
   const toast = useToast();
+  const { isUnverified } = useEmailVerification();
   const [searchParams] = useSearchParams();
   const focusId = searchParams.get('focusId');
   const [loadingFocusDoc, setLoadingFocusDoc] = useState(false);
@@ -341,6 +344,10 @@ export const DocumentSummarizerPage: React.FC = () => {
       }
       await verifyPayment(tx, pkg);
     } catch (err: unknown) {
+      if (isEmailNotVerified(err)) {
+        setPaymentError(EMAIL_NOT_VERIFIED_MESSAGE);
+        return;
+      }
       setPaymentError(getApiErrorMessage(err, 'Giao dịch thanh toán không thành công.'));
     } finally {
       setProcessingPayment(false);
@@ -2169,6 +2176,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             )}
 
             {/* Actions */}
+            <EmailNotVerifiedHint className="justify-end" />
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
@@ -2181,7 +2189,8 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
               <button
                 type="button"
                 onClick={handleConfirmPayment}
-                disabled={processingPayment}
+                disabled={processingPayment || isUnverified}
+                title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
                 aria-busy={processingPayment || undefined}
                 className={`px-5 py-2.5 text-sm font-bold text-white rounded-xl transition shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                   paymentMethod === 'STRIPE'

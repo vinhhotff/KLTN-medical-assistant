@@ -60,6 +60,13 @@ public class User {
     @Column(name = "vip_valid_until")
     private LocalDateTime vipValidUntil;
 
+    /** Mac dinh FALSE (fail-closed): moi luong tao user phai tu quyet dinh email da duoc chung minh so huu hay chua. */
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = false;
+
+    @Column(name = "email_verified_at")
+    private LocalDateTime emailVerifiedAt;
+
     @Version
     private Long version = 0L;
 
@@ -149,6 +156,20 @@ public class User {
         return scanQuota > 0;
     }
 
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
+
+    public LocalDateTime getEmailVerifiedAt() { return emailVerifiedAt; }
+    public void setEmailVerifiedAt(LocalDateTime emailVerifiedAt) { this.emailVerifiedAt = emailVerifiedAt; }
+
+    /** Danh dau email da xac thuc (giu nguyen thoi diem xac thuc dau tien). */
+    public void markEmailVerified(LocalDateTime at) {
+        if (!this.emailVerified || this.emailVerifiedAt == null) {
+            this.emailVerifiedAt = at;
+        }
+        this.emailVerified = true;
+    }
+
     public Long getVersion() { return version; }
     public void setVersion(Long version) { this.version = version; }
 
@@ -165,6 +186,7 @@ public class User {
         private Role role;
         private UserStatus status;
         private String googleId;
+        private boolean emailVerified;
 
         public UserBuilder id(UUID id) { this.id = id; return this; }
         public UserBuilder email(String email) { this.email = email; return this; }
@@ -175,9 +197,14 @@ public class User {
         public UserBuilder role(Role role) { this.role = role; return this; }
         public UserBuilder status(UserStatus status) { this.status = status; return this; }
         public UserBuilder googleId(String googleId) { this.googleId = googleId; return this; }
+        public UserBuilder emailVerified(boolean emailVerified) { this.emailVerified = emailVerified; return this; }
 
         public User build() {
-            return new User(id, email, passwordHash, fullName, phone, avatarUrl, role, status, googleId);
+            User user = new User(id, email, passwordHash, fullName, phone, avatarUrl, role, status, googleId);
+            if (emailVerified) {
+                user.markEmailVerified(LocalDateTime.now());
+            }
+            return user;
         }
     }
 }
