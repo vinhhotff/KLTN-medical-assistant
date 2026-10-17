@@ -9,5 +9,6 @@ ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
 -- 2. Chuyen avatar_url sang TEXT de chua duoc URL dai cua Google/mang xa hoi
 ALTER TABLE users ALTER COLUMN avatar_url TYPE TEXT;
 
--- 3. Bo sung chi muc unique cho google_id neu chua co
+-- 3. Bo sung cot google_id neu chua co va chi muc unique
+ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL;

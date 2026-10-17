@@ -204,22 +204,22 @@ class DoctorServiceTest {
     @Test
     @DisplayName("getAvailableSlots uses interval overlap to disable slots spanning an appointment")
     void testGetAvailableSlots_IntervalOverlap() {
-        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        LocalDate testWorkDate = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
         when(doctorProfileRepository.findByUserIdWithDetails(doctorUserId)).thenReturn(Optional.of(doctorProfile));
 
         // Cuộc hẹn kéo dài 45 phút từ 08:15 đến 09:00 -> giao thoa cả slot 08:00-08:30 và 08:30-09:00
         Appointment overlappingAppt = Appointment.builder()
                 .patient(doctorUser)
                 .doctor(doctorUser)
-                .scheduledStart(tomorrow.atTime(8, 15))
-                .scheduledEnd(tomorrow.atTime(9, 0))
+                .scheduledStart(testWorkDate.atTime(8, 15))
+                .scheduledEnd(testWorkDate.atTime(9, 0))
                 .status(AppointmentStatus.SCHEDULED)
                 .build();
 
         when(appointmentRepository.findActiveAppointmentsByDoctorAndRange(eq(doctorUserId), any(), any()))
                 .thenReturn(List.of(overlappingAppt));
 
-        List<DoctorSlotDto> slots = doctorService.getAvailableSlots(doctorUserId, tomorrow);
+        List<DoctorSlotDto> slots = doctorService.getAvailableSlots(doctorUserId, testWorkDate);
 
         assertNotNull(slots);
         DoctorSlotDto slot800 = slots.stream().filter(s -> s.getStartTime().equals(LocalTime.of(8, 0))).findFirst().orElse(null);
