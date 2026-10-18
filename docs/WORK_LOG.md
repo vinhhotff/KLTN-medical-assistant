@@ -5668,6 +5668,46 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
 - Thanh công cụ nổi với nút bấm "🖨️ In ra PDF / Lưu PDF (Cmd+P)" hỗ trợ in A4 không vỡ trang.
 - Tương thích 100% với Microsoft Word (chọn Open file HTML -> Save As `.docx`) và Google Docs.
 
+### [WORK-LOG-#108] Tự Động Hóa 100% Đường Ống Render Mermaid Ra Ảnh Vector & Xuất Trọn Bộ 7 Tài Liệu DOCX + PDF
+* **Thời gian:** 2026-10-18 14:30:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Giải quyết triệt để vấn đề Microsoft Word và Google Docs không tự động nhận diện/render code Mermaid (do không chạy client-side JS) bằng cách tích hợp `pandoc` + `mermaid-filter` + Chromium Headless: Tự động biên dịch mọi khối ` ```mermaid ` thành ảnh PNG độ nét cao nhúng trực tiếp vào file Word `.docx`, đồng thời sử dụng Puppeteer xuất thẳng ra các file PDF chuẩn in ấn A4.
+* **Trạng thái Build:**
+  - Backend: **`306 / 306` Tests PASS 100%** (`mvn test` 0 failure, 0 error).
+  - Frontend: **`npm run build` PASS 100%** (2307 modules, 0 lỗi TypeScript, 2.68s).
+  - Trọn bộ 7 tài liệu xuất xưởng tại `docs/export/` đầy đủ 3 định dạng: **`.html`**, **`.docx`** (nhúng ảnh Mermaid), và **`.pdf`** (vector A4).
+
+#### 1. Danh Mục Các Tệp Xuất Bản Chính Thức (docs/export/):
+1. **Report 1 (Project Charter & Plan):**
+   - `Report1_Project_Charter_and_Plan.docx` (208.9 KB, nhúng 5 ảnh Mermaid PNG)
+   - `Report1_Project_Charter_and_Plan.pdf` (909.6 KB, A4 PDF)
+   - `Report1_Project_Charter_and_Plan.html` (40.9 KB)
+2. **Report 2 (Requirements Analysis & Domain Model):**
+   - `Report2_Requirements_Analysis_and_Domain_Model.docx` (485.4 KB, nhúng 5 ảnh Mermaid PNG)
+   - `Report2_Requirements_Analysis_and_Domain_Model.pdf` (817.3 KB, A4 PDF)
+   - `Report2_Requirements_Analysis_and_Domain_Model.html` (37.8 KB)
+3. **Report 3 (Software Requirements Specification - SRS):**
+   - `Report3_Software_Requirement_Specification.docx` (757.9 KB, nhúng đầy đủ ảnh Mermaid & 49 Use Case tables)
+   - `Report3_Software_Requirement_Specification.pdf` (3.4 MB, A4 PDF)
+   - `Report3_Software_Requirement_Specification.html` (216.2 KB)
+4. **Report 4 (Software Design Document - SDD):**
+   - `Report4_Software_Design_Document.docx` (5.6 MB, **nhúng chính xác 88 ảnh Mermaid PNG**)
+   - `Report4_Software_Design_Document.pdf` (4.6 MB, A4 PDF)
+   - `Report4_Software_Design_Document.html` (311.1 KB)
+5. **Report 5 (Software Test Report - STR):**
+   - `Report5_Software_Test_Report.docx` (103.3 KB, nhúng ảnh Mermaid)
+   - `Report5_Software_Test_Report.pdf` (1.2 MB, A4 PDF)
+   - `Report5_Software_Test_Report.html` (51.6 KB)
+6. **Capstone Presentation Slides (24 Slides):**
+   - `Capstone_Presentation_Slides.docx` (35.9 KB)
+   - `Capstone_Presentation_Slides.pdf` (1.1 MB, A4 PDF)
+   - `Capstone_Presentation_Slides.html` (57.6 KB)
+7. **Top 25 Capstone Defense Q&A:**
+   - `Capstone_Defense_QnA_Top25.docx` (47.9 KB)
+   - `Capstone_Defense_QnA_Top25.pdf` (1.3 MB, A4 PDF)
+   - `Capstone_Defense_QnA_Top25.html` (81.4 KB)
+
+
 
 
 

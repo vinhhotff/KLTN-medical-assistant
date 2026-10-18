@@ -1381,7 +1381,7 @@ sequenceDiagram
     Backend->>Handler: onAuthenticationSuccess(...)
     Handler->>Token: generateAccessToken(user) -> accessToken
     Handler->>Token: generateRefreshToken(user) -> refreshToken
-    Handler->>Browser: Set-Cookie: refresh_token=refreshToken; HttpOnly; Secure; SameSite=Lax
+    Handler->>Browser: Set-Cookie: refresh_token=refreshToken, HttpOnly, Secure, SameSite=Lax
     Handler-->>Browser: 302 Redirect tới /oauth2/callback?token=ACCESS_TOKEN
     Browser->>Browser: Đọc token từ URL query parameter, lưu vào RAM, dọn URL và mở Dashboard
 ```
@@ -1740,7 +1740,7 @@ sequenceDiagram
     Svc->>Token: validateToken(tamperedToken)
     Token-->>Svc: false (Chữ ký HMAC không khớp hoặc Token đã bị Revoke)
     Svc->>Audit: logSecurityEvent("TOKEN_TAMPERING_DETECTED", ipAddress)
-    Svc->>Ctrl: Set-Cookie: refresh_token=; Max-Age=0 (Xóa cookie kẻ tấn công)
+    Svc->>Ctrl: Set-Cookie: refresh_token=, Max-Age=0 (Xóa cookie kẻ tấn công)
     Svc-->>Ctrl: throw AppException(UNAUTHORIZED_INVALID_REFRESH_TOKEN)
     Ctrl-->>Attacker: 401 Unauthorized (ErrorCode: "INVALID_REFRESH_TOKEN", Message: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.")
 ```
@@ -1796,7 +1796,7 @@ sequenceDiagram
     UI->>Ctrl: POST /api/v1/auth/logout (Header: Bearer accessToken)
     Ctrl->>Svc: logout(principal.getId(), response)
     Svc->>Audit: logAction("LOGOUT", principal.getId(), "Đăng xuất an toàn", ipAddress)
-    Svc->>Ctrl: Set-Cookie: refresh_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax
+    Svc->>Ctrl: Set-Cookie: refresh_token=, Path=/, Max-Age=0, HttpOnly, SameSite=Lax
     Ctrl-->>UI: 200 OK (Message: "Đăng xuất thành công")
     UI->>UI: Xóa accessToken khỏi RAM, xóa toàn bộ Cache bộ đệm giao diện
     UI-->>Patient: Chuyển hướng người dùng về trang chủ LandingPage
@@ -1823,7 +1823,7 @@ sequenceDiagram
     User->>UI: Nhấn Đăng xuất khi Access Token đã hết hạn từ lâu
     UI->>Ctrl: POST /api/v1/auth/logout (Token đã hết hạn)
     Note over Ctrl: Bộ lọc bảo mật cho phép endpoint /logout hoạt động ngay cả khi token hết hạn<br/>để đảm bảo client luôn xóa được cookie phiên.
-    Ctrl-->>UI: 200 OK + Set-Cookie: refresh_token=; Max-Age=0
+    Ctrl-->>UI: 200 OK + Set-Cookie: refresh_token=, Max-Age=0
     UI-->>User: Xóa sạch bộ nhớ cục bộ và trở về màn hình đăng nhập
 ```
 
@@ -2164,7 +2164,7 @@ sequenceDiagram
     Embed->>AI: POST /v1/embeddings (input: query)
     AI-->>Embed: Vector float[1536] (queryVector)
     Embed-->>Svc: queryVector
-    Svc->>DB: SET LOCAL hnsw.ef_search = 120;<br/>SELECT dp.*, 1 - (dp.bio_embedding <=> queryVector) AS cosine_sim<br/>FROM doctor_profiles dp WHERE dp.is_verified = true<br/>ORDER BY dp.bio_embedding <=> queryVector LIMIT 20;
+    Svc->>DB: HNSW Query: SET LOCAL hnsw.ef_search = 120 -- SELECT dp.*, cosine_sim FROM doctor_profiles WHERE is_verified=true ORDER BY bio_embedding <=> queryVector LIMIT 20
     DB-->>Svc: Top 20 Ứng viên Bác sĩ có khoảng cách Cosine gần nhất
     loop Áp dụng Thuật toán WHRF-SOTA cho từng Bác sĩ
         Svc->>Svc: S_dense = 1 / (1 + exp(-8.0 * (cosine_sim - 0.65)))
@@ -4014,7 +4014,7 @@ sequenceDiagram
 
     Admin->>UI: Chọn bộ lọc: Hành động = VIEW_PATIENT_RECORD, Trang 1, Kích thước 20 dòng
     UI->>Ctrl: GET /api/v1/admin/audit-logs?action=VIEW_PATIENT_RECORD&page=0&size=20
-    Ctrl->>DB: SELECT * FROM audit_logs WHERE action = 'VIEW_PATIENT_RECORD' ORDER BY created_at DESC LIMIT 20 OFFSET 0;
+    Ctrl->>DB: SELECT * FROM audit_logs WHERE action = 'VIEW_PATIENT_RECORD' ORDER BY created_at DESC LIMIT 20 OFFSET 0
     DB-->>Ctrl: Page 20 bản ghi kiểm toán y tế
     Ctrl-->>UI: 200 OK + Page<AuditLogDto>
     UI-->>Admin: Hiển thị bảng nhật ký truy vết chi tiết (Thời gian, Bác sĩ, Người bệnh, IP, Thiết bị)
@@ -4042,7 +4042,7 @@ sequenceDiagram
     UI->>Ctrl: GET /api/v1/admin/audit-logs/export
     Ctrl->>DB: Stream toàn bộ bản ghi audit_logs trong 30 ngày gần nhất
     DB-->>Ctrl: Luồng dữ liệu bản ghi
-    Ctrl-->>UI: 200 OK (Content-Type: text/csv, Content-Disposition: attachment; filename="audit_report_20261018.csv")
+    Ctrl-->>UI: 200 OK (Download CSV File audit_report_20261018.csv)
     UI-->>Admin: Tự động tải về tệp tin CSV phục vụ thanh tra an toàn y tế
 ```
 

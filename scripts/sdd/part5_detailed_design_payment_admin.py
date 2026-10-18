@@ -669,7 +669,7 @@ sequenceDiagram
 
     Admin->>UI: Chọn bộ lọc: Hành động = VIEW_PATIENT_RECORD, Trang 1, Kích thước 20 dòng
     UI->>Ctrl: GET /api/v1/admin/audit-logs?action=VIEW_PATIENT_RECORD&page=0&size=20
-    Ctrl->>DB: SELECT * FROM audit_logs WHERE action = 'VIEW_PATIENT_RECORD' ORDER BY created_at DESC LIMIT 20 OFFSET 0;
+    Ctrl->>DB: SELECT * FROM audit_logs WHERE action = 'VIEW_PATIENT_RECORD' ORDER BY created_at DESC LIMIT 20 OFFSET 0
     DB-->>Ctrl: Page 20 bản ghi kiểm toán y tế
     Ctrl-->>UI: 200 OK + Page<AuditLogDto>
     UI-->>Admin: Hiển thị bảng nhật ký truy vết chi tiết (Thời gian, Bác sĩ, Người bệnh, IP, Thiết bị)
@@ -697,7 +697,7 @@ sequenceDiagram
     UI->>Ctrl: GET /api/v1/admin/audit-logs/export
     Ctrl->>DB: Stream toàn bộ bản ghi audit_logs trong 30 ngày gần nhất
     DB-->>Ctrl: Luồng dữ liệu bản ghi
-    Ctrl-->>UI: 200 OK (Content-Type: text/csv, Content-Disposition: attachment; filename="audit_report_20261018.csv")
+    Ctrl-->>UI: 200 OK (Download CSV File audit_report_20261018.csv)
     UI-->>Admin: Tự động tải về tệp tin CSV phục vụ thanh tra an toàn y tế
 ```
 

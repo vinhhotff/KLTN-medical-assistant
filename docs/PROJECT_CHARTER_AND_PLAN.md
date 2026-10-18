@@ -272,19 +272,19 @@ Ma trận đánh giá và phân loại rủi ro theo mức độ ảnh hưởng 
 
 ```mermaid
 quadrantChart
-    title Ma Trận Quản Trị Rủi Ro Đồ Án MediAssist-AI
-    x-axis Xác Suất Thấp --> Xác Suất Cao
-    y-axis Mức Ảnh Hưởng Thấp --> Mức Ảnh Hưởng Cao
-    quadrant-1 "ƯU TIÊN XỬ LÝ SỐ 1 (Critical)"
-    quadrant-2 "GIÁM SÁT CHẶT CHẼ (High)"
-    quadrant-3 "CHẤP NHẬN ĐƯỢC (Low)"
-    quadrant-4 "LẬP KẾ HOẠCH DỰ PHÒNG (Medium)"
-    "Cấp cứu 115 bị bỏ sót": [0.2, 0.95]
-    "Lỗ hổng BOLA/IDOR hồ sơ": [0.35, 0.9]
-    "Mất mạng ngoài OpenAI API": [0.65, 0.75]
-    "Trùng slot đặt lịch khám": [0.75, 0.65]
-    "Thundering Herd sập Cache": [0.4, 0.55]
-    "SMTP Server gửi mail bị nghẽn": [0.6, 0.35]
+    title "Ma Tran Quan Tri Rui Ro Do An MediAssist-AI"
+    x-axis "Xac Suat Thap" --> "Xac Suat Cao"
+    y-axis "Muc Anh Huong Thap" --> "Muc Anh Huong Cao"
+    quadrant-1 "UU TIEN XU LY SO 1 (Critical)"
+    quadrant-2 "GIAM SAT CHAT CHE (High)"
+    quadrant-3 "CHAP NHAN DUOC (Low)"
+    quadrant-4 "LAP KE HOACH DU PHONG (Medium)"
+    "Cap cuu 115 bi bo sot": [0.2, 0.95]
+    "Lo hong BOLA IDOR ho so": [0.35, 0.9]
+    "Mat mang ngoai OpenAI API": [0.65, 0.75]
+    "Trung slot dat lich kham": [0.75, 0.65]
+    "Thundering Herd sap Cache": [0.4, 0.55]
+    "SMTP Server gui mail bi nghen": [0.6, 0.35]
 ```
 
 #### 4.2 Clinical & Healthcare Ethical Risks
