@@ -4,6 +4,7 @@ Part 4: 3. Functional Requirements
 3.1 System Functional Overview (3.1.1 Screens Flow, 3.1.2 Screen Descriptions for 18 screens,
 3.1.3 Screen Authorization Matrix, 3.1.4 Non-Screen Functions, 3.1.5 Physical ERD)
 3.2 Applications for Patients, Doctors, and Admins (3.2.1 to 3.2.7 detailed functional requirements).
+Derived 100% from actual MediAssist-AI codebase.
 """
 
 def get_content():
@@ -16,44 +17,51 @@ def get_content():
 
 #### 3.1.1 Screens Flow
 
-The user interface transitions within MediAssist-AI are governed by a deterministic finite state machine operating across the three user roles (`PATIENT`, `DOCTOR`, `ADMIN`):
+The user interface transitions within MediAssist-AI are governed by a deterministic finite state machine operating across the three user roles (`PATIENT`, `DOCTOR`, `ADMIN`) configured in `frontend/src/App.tsx`:
 
 ```mermaid
 stateDiagram-v2
     [*] --> SCR01_LandingPage: Public Navigation
 
     state "Authentication & Onboarding Flow" as AuthFlow {
-        SCR01_LandingPage --> SCR02_SignIn: Click "Đăng Nhập"
-        SCR01_LandingPage --> SCR03_SignUp: Click "Đăng Ký"
-        SCR02_SignIn --> SCR04_ForgotPassword: Click "Quên Mật Khẩu"
-        SCR04_ForgotPassword --> SCR02_SignIn: Reset Complete
-        SCR03_SignUp --> SCR05_EmailVerifyGate: Registration Success
-        SCR05_EmailVerifyGate --> SCR02_SignIn: Token Verified
+        SCR01_LandingPage --> SCR02_LoginPage: Click "Đăng Nhập" / "Bắt Đầu"
+        SCR02_LoginPage --> SCR03_ForgotPassword: Click "Quên Mật Khẩu"
+        SCR03_ForgotPassword --> SCR04_ResetPassword: Click Link Trong Email
+        SCR04_ResetPassword --> SCR02_LoginPage: Đổi Mật Khẩu Thành Công
+        SCR02_LoginPage --> SCR05_VerifyEmail: Đăng Ký Tài Khoản Mới
+        SCR05_VerifyEmail --> SCR02_LoginPage: Kích Hoạt Token Thành Công
+        SCR02_LoginPage --> SCR06_OAuth2Callback: Sign in with Google Redirect
+        SCR06_OAuth2Callback --> RoleRouting: Token Ingested
     }
 
-    state "Patient Operational Flow" as PatientFlow {
-        SCR02_SignIn --> SCR06_PatientDashboard: Role = PATIENT
-        SCR06_PatientDashboard --> SCR07_AITriage: Start AI Triage
-        SCR07_AITriage --> SCR08_DoctorSearch: Triage Complete / Specialty Matched
-        SCR08_DoctorSearch --> SCR09_DoctorProfile: Select Doctor Card
-        SCR06_PatientDashboard --> SCR10_DocSummarizer: Upload Lab Report
-        SCR10_DocSummarizer --> SCR11_DocInspection: View AI Biomarkers
-        SCR09_DoctorProfile --> SCR12_BookingCheckout: Select Slot (08:00-17:00)
-        SCR12_BookingCheckout --> SCR13_AdmissionTicket: Payment Successful (STT Issued)
-        SCR06_PatientDashboard --> SCR14_MedicalPassport: View Longitudinal Health
-        SCR13_AdmissionTicket --> SCR06_PatientDashboard: Return to Hub
+    state "Role-Based Protected Routing" as RoleRouting {
+        SCR02_LoginPage --> SCR07_PatientDashboard: Role = PATIENT
+        SCR02_LoginPage --> SCR12_DoctorWorkstation: Role = DOCTOR
+        SCR02_LoginPage --> SCR15_AdminDashboard: Role = ADMIN
     }
 
-    state "Doctor Operational Flow" as DoctorFlow {
-        SCR02_SignIn --> SCR15_DoctorWorkstation: Role = DOCTOR
-        SCR15_DoctorWorkstation --> SCR16_EncounterWorkspace: Select Patient (STT Queue)
-        SCR16_EncounterWorkspace --> SCR15_DoctorWorkstation: Finalize Encounter (ICD-10 / Prescription)
+    state "Patient Portal Flow (/patient/*)" as PatientFlow {
+        SCR07_PatientDashboard --> SCR08_SymptomTriage: Click "Sàng Lọc Triệu Chứng"
+        SCR08_SymptomTriage --> SCR09_DoctorSearch: Matched Specialty / Search Doctors
+        SCR07_PatientDashboard --> SCR09_DoctorSearch: Click "Tìm Bác Sĩ"
+        SCR09_DoctorSearch --> BookingModal: Click "Đặt Lịch Khám"
+        BookingModal --> SCR11_PaymentSuccess: Checkout & Payment Complete
+        SCR07_PatientDashboard --> SCR10_DocumentSummarizer: Click "Tóm Tắt Xét Nghiệm"
+        SCR10_DocumentSummarizer --> SplitViewModal: Click "Xem Phân Tích"
+        SCR11_PaymentSuccess --> SCR07_PatientDashboard: Quay Lại Dashboard
     }
 
-    state "Admin Governance Flow" as AdminFlow {
-        SCR02_SignIn --> SCR17_AdminDashboard: Role = ADMIN
-        SCR17_AdminDashboard --> SCR18_SupervisionFinOps: Navigate Supervision / AI FinOps
-        SCR18_SupervisionFinOps --> SCR17_AdminDashboard: Return to Dashboard
+    state "Doctor Workstation Flow (/doctor/*)" as DoctorFlow {
+        SCR12_DoctorWorkstation --> EncounterModal: Click "Gọi Khám Tiếp" (STT Queue)
+        EncounterModal --> SCR12_DoctorWorkstation: Finalize Encounter (ICD-10 / Prescription)
+        SCR12_DoctorWorkstation --> SCR13_DoctorPatientRecords: Click "Hồ Sơ Bệnh Nhân"
+        SCR12_DoctorWorkstation --> SCR14_DoctorProfile: Click "Hồ Sơ & Lịch Khám"
+    }
+
+    state "Admin Operations Flow (/admin/*)" as AdminFlow {
+        SCR15_AdminDashboard --> SCR16_DoctorManagement: Click "Quản Lý Bác Sĩ & Thẩm Định"
+        SCR15_AdminDashboard --> SCR17_UserManagement: Click "Quản Lý Người Dùng"
+        SCR15_AdminDashboard --> SCR18_SupervisionConsole: Click "Giám Sát Lịch Hẹn & AI FinOps"
     }
 ```
 
@@ -63,89 +71,85 @@ stateDiagram-v2
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-01 SPLASH & LANDING PAGE
+SCREEN SPECIFICATION: SCR-01 LANDING PAGE
 ================================================================================
 1.  Screen ID:           SCR-01
-2.  Screen Name:         Splash & Landing Page
-3.  Route URL:           `/`
+2.  Screen Name:         Modern Telehealth Landing Page & Live Triage Simulator
+3.  Route URL:           `/` or `/landing` (Component: `LandingPage.tsx`)
 4.  Primary Actors:      Guest, Patient, Doctor, Admin (Unauthenticated)
-5.  Visual Layout:       
-    - Top sticky navigation bar: Logo, Menu links (Dịch Vụ, Bác Sĩ, Về Chúng Tôi), Language picker, Login/Register buttons.
-    - Hero Section: High-impact headline ("Chăm Sóc Sức Khỏe Thông Minh Cùng AI"), CTA button "Khám Phá Triệu Chứng Ngay", quick symptom search bar.
-    - Live Clinical Triage Simulator Widget: Mini interactive chat allowing visitors to experience 5-stage triage before signing up.
-    - Value Proposition Grid: 4 cards (AI Triage 24/7, Multimodal OCR, pgvector Doctor Matching, O2O In-Clinic Appointments).
-    - Clinical Quality Badges: WHO ICD-10, LOINC MOH 3280, HIPAA Safe Harbor, Decree 13/2023/NĐ-CP.
-    - Footer: Hospital directory, hotline 115 emergency warning, legal disclaimers.
+5.  Visual Layout:
+    - Sticky Navigation Header: MediAssist Logo, Navigation Links ("Trang Chủ", "Sàng Lọc AI", "Tìm Bác Sĩ", "Hồ Sơ Xét Nghiệm"), Role quick switch, Login/Register buttons.
+    - Hero Section: Headline "Chăm Sóc Sức Khỏe Thông Minh Với AI Lâm Sàng", subheadline, primary CTA "Bắt Đầu Sàng Lọc Ngay", secondary CTA "Tìm Bác Sĩ Chuyên Khoa".
+    - Live Clinical Triage Simulator: Interactive mini-chat on landing page demonstrating 5-stage symptom screening and red-flag interception before registration.
+    - Core Capabilities Grid: 4 cards (AI Sàng Lọc Triệu Chứng SBAR, Bóc Tách Xét Nghiệm OCR, Khớp Nối Bác Sĩ pgvector HNSW, Đặt Lịch Khám Trực Tiếp O2O).
+    - Clinical Quality Badges: WHO ICD-10, LOINC MOH Decision 3280, HIPAA Safe Harbor, Decree 13/2023/NĐ-CP.
+    - Footer: Hospital address, 115 emergency hotline warning, legal disclaimers.
 6.  UI Controls & Inputs:
-    - Search Input: `symptom_query` (Text, max 255 chars).
-    - Buttons: `Bắt Đầu Sàng Lọc`, `Tìm Bác Sĩ`, `Đăng Nhập`, `Đăng Ký`.
-7.  Validation Rules:    Non-empty query string.
-8.  Target Transitions:  `/triage`, `/doctors`, `/login`, `/register`.
+    - Search Input: `symptomQuery` (Text).
+    - Buttons: `Bắt Đầu Sàng Lọc Ngay`, `Tìm Bác Sĩ Chuyên Khoa`, `Đăng Nhập`, `Đăng Ký`.
+7.  Validation Rules:    Non-empty search query string.
+8.  Target Transitions:  `/login`, `/patient/triage`, `/patient/doctors`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-02 SIGN-IN PAGE
+SCREEN SPECIFICATION: SCR-02 LOGIN & REGISTRATION PAGE
 ================================================================================
 1.  Screen ID:           SCR-02
-2.  Screen Name:         Sign-In Page (Email/Password & Google OAuth2)
-3.  Route URL:           `/login`
-4.  Primary Actors:      Unauthenticated Users (All Roles)
-5.  Visual Layout:       
-    - Split-screen layout: Left pane showcases clinical AI graphic and patient testimonials; Right pane renders modern clean auth form.
-    - Form card: Email input, Password input with eye toggle icon, Remember Me checkbox, Forgot Password link.
-    - "Đăng Nhập" primary button with spinner state.
-    - Social login divider: "Hoặc tiếp tục với" -> Google OAuth2 button with official Google SVG icon.
-    - Demo Quick Login Drawer (Enabled in dev/demo builds for Capstone defense): 1-click login chips for Demo Patient, Demo Doctor, Demo Admin.
+2.  Screen Name:         Sign-In & Account Registration Page
+3.  Route URL:           `/login` (Component: `LoginPage.tsx`)
+4.  Primary Actors:      Unauthenticated Users (Patient, Doctor, Admin)
+5.  Visual Layout:
+    - Two-Column Layout: Left column renders high-resolution clinical healthcare artwork; right column renders responsive authentication card.
+    - Tab Switcher: "Đăng Nhập" vs "Đăng Ký Tài Khoản".
+    - Sign-In Form: Email input, Password input with eye toggle visibility icon, Remember Me checkbox, "Quên mật khẩu?" link, "Đăng Nhập" primary button.
+    - Social Auth Divider: "Hoặc tiếp tục với" -> "Đăng nhập bằng Google" (Google OAuth2).
+    - Demo Quick Login Drawer: Collapsible drawer for rapid evaluation (Demo Bệnh Nhân, Demo Bác Sĩ, Demo Quản Trị Viên).
+    - Sign-Up Form (when Register tab active): Full Name, Email, Password, Confirm Password, Phone Number, Role selector (Patient vs Doctor with CCHN input).
 6.  UI Controls & Inputs:
-    - Text Input: `email` (Type: email, required, email format regex).
-    - Password Input: `password` (Type: password, required, min 8 chars).
-    - Checkbox: `remember_me` (Boolean).
-    - Button: `Đăng Nhập`, `Đăng Nhập Bằng Google`.
-7.  Validation Rules:    Valid RFC 5322 email regex, non-empty password.
-8.  Target Transitions:  Role-based routing (`/patient/dashboard`, `/doctor/dashboard`, `/admin/supervision`), `/forgot-password`, `/register`.
+    - Text Inputs: `email`, `password`, `fullName`, `phoneNumber`, `licenseNumber` (Doctor).
+    - Action Buttons: `Đăng Nhập`, `Đăng Nhập Bằng Google`, `Đăng Ký Tài Khoản`.
+7.  Validation Rules:    Valid RFC 5322 email regex, password min 8 characters (BR-01), Vietnamese phone regex (BR-06).
+8.  Target Transitions:  `/oauth2/callback`, `/forgot-password`, `/verify-email`, role dashboards (`/patient`, `/doctor`, `/admin`).
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-03 SIGN-UP & REGISTRATION PAGE
+SCREEN SPECIFICATION: SCR-03 FORGOT PASSWORD PAGE
 ================================================================================
 1.  Screen ID:           SCR-03
-2.  Screen Name:         Sign-Up & Account Registration
-3.  Route URL:           `/register`
-4.  Primary Actors:      New Users (Patients, Doctors)
-5.  Visual Layout:       
-    - Card container: Role selector toggle tab ("Tôi là Bệnh Nhân" vs "Tôi là Bác Sĩ").
-    - Common Fields: Full Name, Email, Password, Confirm Password, Phone Number.
-    - Doctor Specific Fields (shown if Doctor selected): Practice Certificate Number (CCHN), Specialty dropdown, Hospital Name.
-    - Terms & Conditions checkbox with link to Privacy Policy (Decree 13/2023/NĐ-CP compliance).
-    - Submit button: "Tạo Tài Khoản".
+2.  Screen Name:         Forgot Password Request Page
+3.  Route URL:           `/forgot-password` (Component: `ForgotPasswordPage.tsx`)
+4.  Primary Actors:      Unauthenticated Users
+5.  Visual Layout:
+    - Centered card: Lock illustration, explanation of token reset security, email input field.
+    - "Gửi Link Đặt Lại Mật Khẩu" primary action button with loading spinner state.
+    - Back to login link: "Quay lại trang Đăng nhập".
 6.  UI Controls & Inputs:
-    - Text Inputs: `full_name`, `email`, `phone_number`, `license_number` (Doctor only).
-    - Password Inputs: `password`, `confirm_password` with interactive strength meter.
-    - Checkbox: `agree_terms` (Required true).
-7.  Validation Rules:    Bcrypt password rules (BR-01), Vietnamese phone regex (BR-06).
-8.  Target Transitions:  `/verify-email`, `/login`.
+    - Text Input: `email` (Type: email, required).
+    - Action Button: `Gửi Link Đặt Lại Mật Khẩu`.
+7.  Validation Rules:    Valid email format. Backend generates SHA-256 token hash (Flyway V21 - BE-5).
+8.  Target Transitions:  `/login`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-04 FORGOT PASSWORD & RESET PAGE
+SCREEN SPECIFICATION: SCR-04 RESET PASSWORD PAGE
 ================================================================================
 1.  Screen ID:           SCR-04
-2.  Screen Name:         Forgot Password & Secure Token Reset
-3.  Route URL:           `/forgot-password`, `/reset-password`
-4.  Primary Actors:      Unauthenticated Users
-5.  Visual Layout:       
-    - Step 1 (`/forgot-password`): Clean card with padlock illustration, email input, "Gửi Link Đặt Lại Mật Khẩu" button.
-    - Step 2 (`/reset-password?token=...`): Token validation spinner; upon valid token, renders New Password and Confirm Password inputs.
+2.  Screen Name:         Secure Password Reset Page
+3.  Route URL:           `/reset-password` (Component: `ResetPasswordPage.tsx`)
+4.  Primary Actors:      Unauthenticated Users possessing valid reset token
+5.  Visual Layout:
+    - Card container: URL token parameter extraction (`?token=...`).
+    - Input Fields: New Password and Confirm New Password with real-time strength meter.
+    - "Xác Nhận Đổi Mật Khẩu" button.
 6.  UI Controls & Inputs:
-    - Text Input: `email`.
-    - Password Inputs: `new_password`, `confirm_password`.
-7.  Validation Rules:    SHA-256 token hash validation (BE-5 / Flyway V21), password complexity.
+    - Password Inputs: `newPassword`, `confirmPassword`.
+7.  Validation Rules:    Bcrypt password complexity (BR-01), matching confirmation, valid 15-minute token TTL (BR-08).
 8.  Target Transitions:  `/login`.
 ================================================================================
 ```
@@ -155,298 +159,281 @@ SCREEN SPECIFICATION: SCR-04 FORGOT PASSWORD & RESET PAGE
 SCREEN SPECIFICATION: SCR-05 EMAIL VERIFICATION GATE PAGE
 ================================================================================
 1.  Screen ID:           SCR-05
-2.  Screen Name:         Email Verification Gate
-3.  Route URL:           `/verify-email`
-4.  Primary Actors:      Unverified Registered Users
-5.  Visual Layout:       
-    - Centered card: Mail envelope illustration, notice to check inbox for activation link.
-    - "Gửi lại email kích hoạt" secondary button with 60-second cooldown timer.
-    - Interactive success celebration banner once token link is clicked.
-6.  UI Controls & Inputs: Button `Gửi Lại Email Kích Hoạt`, Button `Đến Trang Đăng Nhập`.
-7.  Validation Rules:    Token expiration check (Flyway V22).
+2.  Screen Name:         Email Verification Gate Page
+3.  Route URL:           `/verify-email` (Component: `VerifyEmailPage.tsx`)
+4.  Primary Actors:      Newly registered users
+5.  Visual Layout:
+    - Centered card: Envelope graphic, notification of verification link dispatched to inbox.
+    - "Kích Hoạt Tài Khoản" button validating token URL parameter (`POST /api/v1/auth/verify-email`).
+    - "Gửi Lại Email Kích Hoạt" button with 60-second cooldown timer (`POST /api/v1/auth/resend-verification`).
+6.  UI Controls & Inputs: Action Buttons `Kích Hoạt Tài Khoản`, `Gửi Lại Email`.
+7.  Validation Rules:    Token expiration validation (`email_verification_tokens` Flyway V22).
 8.  Target Transitions:  `/login`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-06 PATIENT HOME DASHBOARD
+SCREEN SPECIFICATION: SCR-06 OAUTH2 CALLBACK HANDLER PAGE
 ================================================================================
 1.  Screen ID:           SCR-06
-2.  Screen Name:         Patient Home Dashboard
-3.  Route URL:           `/patient/dashboard`
-4.  Primary Actors:      Patient
-5.  Visual Layout:       
-    - Top banner: Personalized greeting ("Xin chào, {FullName}"), quick date, active health summary.
-    - Quick Action Cards:
-      1. "Trò chuyện Sàng Lọc AI" -> Routes to `/triage`.
-      2. "Tải Lên Kết Quả Xét Nghiệm" -> Routes to `/documents`.
-      3. "Tìm Kiếm Bác Sĩ Chuyên Khoa" -> Routes to `/doctors`.
-      4. "Hồ Sơ Sức Khỏe Điện Tử" -> Routes to `/patient/medical-passport`.
-    - Next Upcoming Appointment Widget: Shows next confirmed in-clinic consultation (Doctor name, time window, clinic room, sequential STT number, "Xem Phiếu Khám" button).
-    - Recent AI Medical Summaries: Mini list of recently processed lab documents.
-6.  UI Controls:         Action cards, widget buttons, notification bell.
-7.  Target Transitions:  `/triage`, `/documents`, `/doctors`, `/appointments/{id}/ticket`, `/patient/medical-passport`.
+2.  Screen Name:         OAuth2 Authorization Callback Page
+3.  Route URL:           `/oauth2/callback` (Component: `OAuth2CallbackPage.tsx`)
+4.  Primary Actors:      Users authenticating via Google Single Sign-On
+5.  Visual Layout:
+    - Clean loading state: Animated clinical spinner, "Đang xác thực thông tin đăng nhập từ Google...".
+    - Backend extracts Google OAuth2 code, generates dual-transport JWT, and sets cookie.
+    - Client ingests token and role, routing immediately to designated role dashboard.
+6.  UI Controls:         Loading spinner.
+7.  Target Transitions:  `/patient`, `/doctor`, `/admin`, `/login?error=oauth2_failed`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-07 CONVERSATIONAL AI TRIAGE SCREEN
+SCREEN SPECIFICATION: SCR-07 PATIENT DASHBOARD
 ================================================================================
 1.  Screen ID:           SCR-07
-2.  Screen Name:         Conversational AI Symptom Triage Screen
-3.  Route URL:           `/triage`
+2.  Screen Name:         Patient Home Dashboard
+3.  Route URL:           `/patient` (Component: `PatientDashboard.tsx`)
 4.  Primary Actors:      Patient
-5.  Visual Layout:       
-    - Left/Center: Conversational chat stream with alternating message bubbles (User query on right, MediAssist AI Scribe on left).
-    - Floating Emergency 115 Alert Banner: Appears instantly if Red-Flag symptoms detected.
-    - Quick Symptom Tags: Pills for rapid selection (Đau đầu, Đau thắt ngực, Sốt cao, Ho kéo dài...).
-    - Bottom Chat Bar: Text input, Send button, mic icon for voice dictation.
-    - Right Side Panel: Real-time SBAR Assessment Card:
-      * Situation badge.
-      * Urgency Indicator: `ROUTINE` (Green), `URGENT` (Amber), `EMERGENCY` (Flashing Red).
-      * Recommended Medical Specialty: e.g., "Khoa Tim Mạch Can Thiệp".
-      * Matched Specialist Doctors: Mini cards linking directly to booking.
-6.  UI Controls:         Chat textarea, send button, symptom tags, matched doctor cards.
-7.  Target Transitions:  `/doctors`, `/appointments/checkout`.
+5.  Visual Layout:
+    - Header Banner: Personalized patient greeting, blood type, remaining AI analysis quota badge.
+    - Quick Action Cards:
+      1. "Sàng Lọc Triệu Chứng AI" -> Routes to `/patient/triage`.
+      2. "Tóm Tắt Hồ Sơ Xét Nghiệm" -> Routes to `/patient/documents`.
+      3. "Tìm Kiếm Bác Sĩ Chuyên Khoa" -> Routes to `/patient/doctors`.
+    - Upcoming In-Clinic Appointment Widget: Displays next appointment card (Doctor name, scheduled time, clinic room, sequential STT number, "Xem Phiếu Khám" ticket modal).
+    - Recent Appointments Table: Status badges (`SCHEDULED`, `CONFIRMED`, `COMPLETED`, `CANCELLED`), "Hủy Lịch", "Dời Lịch", "Check-in" buttons.
+6.  UI Controls:         Action cards, appointment list, check-in button, ticket button.
+7.  Target Transitions:  `/patient/triage`, `/patient/documents`, `/patient/doctors`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-08 SEMANTIC DOCTOR SEARCH & DISCOVERY
+SCREEN SPECIFICATION: SCR-08 SYMPTOM TRIAGE PAGE
 ================================================================================
 1.  Screen ID:           SCR-08
-2.  Screen Name:         Semantic Doctor Search & Discovery Screen
-3.  Route URL:           `/doctors`
-4.  Primary Actors:      Patient, Guest
-5.  Visual Layout:       
-    - Search Bar: Natural language clinical symptom query input ("Tôi bị đau nửa đầu kèm buồn nôn").
-    - Filter Bar: Specialty dropdown, Consultation fee slider, Star rating filter, Hospital campus filter.
-    - AI Mode Indicator: Displays active provider (Gemini 1.5 Flash Direct vs OpenRouter vs Local Hashing).
-    - Doctor Card Grid: Displays ranked specialists:
-      * Doctor avatar, Full name, Academic Title (PGS.TS, BS.CKII).
-      * Specialty badge, Hospital affiliation.
-      * Semantic Match Percentage badge (e.g., "96% Phù Hợp").
-      * Star rating (e.g., "4.9 ★ (128 đánh giá)").
-      * Consultation fee (VNĐ), Next available slot badge.
-      * Action buttons: "Xem Hồ Sơ", "Đặt Lịch Khám".
-6.  UI Controls:         Search bar, filter dropdowns, slider, card CTA buttons.
-7.  Target Transitions:  `/doctors/{id}`.
+2.  Screen Name:         Conversational AI Symptom Triage Page
+3.  Route URL:           `/patient/triage` (Component: `SymptomTriagePage.tsx`)
+4.  Primary Actors:      Patient
+5.  Visual Layout:
+    - Conversational Chat Stream: Alternating message bubbles (User query vs MediAssist AI Scribe).
+    - Floating Emergency 115 Banner: Appears instantly if Red-Flag symptoms detected (FAST stroke, AMI, anaphylaxis).
+    - Quick Symptom Chips: Pre-configured clinical pills (Đau đầu, Đau ngực, Sốt cao, Ho có đờm, Khó thở...).
+    - Bottom Chat Bar: Text input, Send button, clear history button.
+    - Side SBAR Clinical Assessment Card:
+      * Situation & Background summary.
+      * Urgency Badge: `ROUTINE` (Green), `URGENT` (Amber), `EMERGENCY` (Flashing Red).
+      * Recommended Specialty Tag (e.g., "Khoa Tim Mạch").
+      * Matched Specialist Doctors: Mini cards linking directly to booking.
+6.  UI Controls:         Chat textarea, send button, symptom chips, matched doctor cards.
+7.  Target Transitions:  `/patient/doctors`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-09 DOCTOR PUBLIC PROFILE & BOOKING MODAL
+SCREEN SPECIFICATION: SCR-09 DOCTOR SEARCH PAGE & BOOKING MODAL
 ================================================================================
 1.  Screen ID:           SCR-09
-2.  Screen Name:         Doctor Public Profile & In-Clinic Slot Picker
-3.  Route URL:           `/doctors/{id}`
+2.  Screen Name:         Semantic Doctor Search Page & Booking Modal
+3.  Route URL:           `/patient/doctors` (Component: `DoctorSearchPage.tsx`, `BookingModal.tsx`)
 4.  Primary Actors:      Patient, Guest
-5.  Visual Layout:       
-    - Header: Large avatar, verified checkmark, CCHN license number, academic title, hospital department.
-    - Bio Section: Clinical experience, research publications, treatment philosophies.
-    - Consultation Fee Box: Transparent pricing per 30-minute in-clinic encounter.
-    - Interactive Calendar & Slot Picker:
-      * Date row: Monday through Saturday tabs (Sundays disabled).
-      * Morning Slots (08:00 - 12:00) & Afternoon Slots (13:30 - 17:00).
-      * Available slots (Teal), Booked slots (Disabled Grey), Selected slot (Solid Dark Teal).
-    - Patient Reviews Section: Verified patient feedback cards.
-    - Booking Drawer / Modal: Pre-populates selected slot, prompts patient to enter chief complaint and attach lab results.
-6.  UI Controls:         Date picker pills, slot buttons, document dropdown, "Tiếp Tục Đặt Lịch" button.
-7.  Target Transitions:  `/appointments/checkout`.
+5.  Visual Layout:
+    - Natural Language Search Bar: Accepts symptom text ("tôi bị đau nửa đầu kèm buồn nôn").
+    - Filter Controls: Specialty dropdown, consultation fee slider, star rating filter.
+    - AI Mode Status Indicator: Shows active inference provider (Gemini 1.5 Flash vs OpenRouter vs Local Hashing).
+    - Doctor Card Grid: Doctor avatar, Full Name, Academic Title (PGS.TS, BS.CKII), Specialty badge, Semantic match compatibility badge (e.g., "96% Phù Hợp"), Rating, Fee (VNĐ), "Đặt Lịch Khám" button.
+    - BookingModal (Dialog):
+      * Date Picker: Monday through Saturday tabs (Sundays disabled - BR-17).
+      * 30-Minute Slot Chips: 08:00–12:00 and 13:30–17:00.
+      * Chief complaint input, optional document attachment dropdown.
+      * Sequential STT queue preview.
+      * "Xác Nhận & Thanh Toán" action button.
+6.  UI Controls:         Search bar, filters, slot chips, modal submit button.
+7.  Target Transitions:  `/payment/success`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-10 MEDICAL DOCUMENT INGESTION SCREEN
+SCREEN SPECIFICATION: SCR-10 DOCUMENT SUMMARIZER PAGE
 ================================================================================
 1.  Screen ID:           SCR-10
-2.  Screen Name:         Medical Document Ingestion & Summarizer Screen
-3.  Route URL:           `/documents`
+2.  Screen Name:         Multimodal Document Ingestion & Summarizer Page
+3.  Route URL:           `/patient/documents` (Component: `DocumentSummarizerPage.tsx`)
 4.  Primary Actors:      Patient
-5.  Visual Layout:       
-    - Header: "Trợ Lý Bóc Tách & Tóm Tắt Hồ Sơ Cận Lâm Sàng".
-    - Drag-and-Drop Ingestion Zone: Border-dashed upload area supporting PDF, PNG, JPEG (< 10MB, max 10 pages).
-    - File Preview Strip: Shows selected file name, file size, thumbnail.
-    - "Phân Tích Bằng AI" primary button.
-    - Document History Table: List of uploaded documents with columns: Tên Tệp, Ngày Tải, Loại Xét Nghiệm, Trạng Thái (`Đang Xử Lý`, `Hoàn Thành`, `Lỗi`), Nút Hành Động ("Xem Chi Tiết", "Tải Tệp Gốc").
-6.  UI Controls:         Drag-and-drop file input, upload button, document data table.
-7.  Target Transitions:  `/documents/{id}/analysis`.
+5.  Visual Layout:
+    - Header: Quota balance counter ("Còn lại: {quota} lượt phân tích"), "Mua Thêm Gói" button.
+    - Drag-and-Drop Ingestion Zone: PDF, PNG, JPEG (< 10MB, max 10 pages).
+    - Action Buttons: "Phân Tích Bằng AI", "Tạo Tệp PDF Mẫu (Random Sample)".
+    - Uploaded Documents Table: File name, upload date, status (`ANALYZED`, `PROCESSING`, `FAILED`), actions: "Xem Phân Tích", "Tải Tệp Gốc" (via 15-min signed URL).
+    - Split-View Analysis Modal:
+      * Left Pane: Secure document viewer rendering source file.
+      * Right Pane: Extracted Biomarker Table (Chỉ số, Giá trị, Đơn vị, Khoảng tham chiếu, Mã LOINC, Cảnh báo: Bình Thường/Tăng/Giảm), Layperson Vietnamese clinical interpretation, Recommended Specialty.
+    - Quota Purchase Modal: Selection of 3 quota packages (Gói Tiêu Chuẩn 5 lượt, Gói Nâng Cao 15 lượt, Gói Không Giới Hạn 50 lượt).
+6.  UI Controls:         Dropzone, sample PDF generator button, analysis modal, quota modal.
+7.  Target Transitions:  `/payment/success`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-11 MULTIMODAL DOCUMENT INSPECTION SPLIT-VIEW
+SCREEN SPECIFICATION: SCR-11 PAYMENT SUCCESS & RECEIPT PAGE
 ================================================================================
 1.  Screen ID:           SCR-11
-2.  Screen Name:         Multimodal Document Inspection Split-View Screen
-3.  Route URL:           `/documents/{id}/analysis`
-4.  Primary Actors:      Patient, Authorized Doctor
-5.  Visual Layout:       
-    - Split-View Layout (50/50 responsive):
-      * Left Pane (Original Scan): In-browser secure viewer rendering source PDF/Image via 15-minute temporary signed URL. Tools: Zoom In/Out, Rotate, Page Navigation.
-      * Right Pane (AI Clinical Interpretation):
-        - Document Classification pill (e.g., "Phiếu Xét Nghiệm Huyết Học & Sinh Hóa").
-        - Extracted Biomarker Table: Tên chỉ số, Giá trị đo được, Đơn vị, Khoảng tham chiếu, Mã LOINC, Cảnh báo (`Bình Thường`, `Tăng Cao`, `Giảm`).
-        - Layperson Medical Summary: Plain Vietnamese explanation of clinical significance.
-        - Red-Flag Alerts (if acute abnormalities detected).
-        - Recommended Specialist Card with "Đặt Lịch Khám Ngay" CTA.
-6.  UI Controls:         PDF viewer controls, biomarker table, accordion sections, booking CTA button.
-7.  Target Transitions:  `/doctors`, `/appointments/checkout`.
+2.  Screen Name:         Payment Verification & Receipt Page
+3.  Route URL:           `/payment/success` (Component: `PaymentSuccessPage.tsx`)
+4.  Primary Actors:      Patient
+5.  Visual Layout:
+    - Centered Receipt Card: Success checkmark icon, Transaction Code, Order Type (`APPOINTMENT_FEE` or `QUOTA_PURCHASE`), Amount (VNĐ), Payment Method.
+    - If Appointment: Shows Admission Ticket Summary with Queue Number (`STT 05`), Clinic Room ("Phòng Khám 204"), Scheduled Time, Doctor Name.
+    - Action Buttons: "Xem Phiếu Khám", "Về Bảng Điều Khiển".
+6.  UI Controls:         Action buttons, printable receipt frame.
+7.  Target Transitions:  `/patient`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-12 IN-CLINIC BOOKING CHECKOUT & PAYMENT
+SCREEN SPECIFICATION: SCR-12 DOCTOR WORKSTATION DASHBOARD
 ================================================================================
 1.  Screen ID:           SCR-12
-2.  Screen Name:         In-Clinic Appointment Checkout & Payment Screen
-3.  Route URL:           `/appointments/checkout`
-4.  Primary Actors:      Patient
-5.  Visual Layout:       
-    - Booking Summary Card: Doctor Name, Specialty, Clinic Room, Date & Time Slot, Sequential STT preview.
-    - Consultation Fee Breakdown: Base Fee, VAT (0%), Total Payable.
-    - Countdown Timer: 10:00 minutes temporary slot reservation lock.
-    - Payment Method Selector:
-      * Option 1: Thẻ Quốc Tế (Stripe Credit / Debit Card iframe).
-      * Option 2: MediAssist Pay (Mock Sandbox - Dev/Demo mode).
-    - "Xác Nhận & Thanh Toán" action button.
-6.  UI Controls:         Payment radio buttons, Stripe Elements input, submit button, countdown clock.
-7.  Target Transitions:  `/appointments/{id}/ticket`.
+2.  Screen Name:         Doctor Clinical Workstation Dashboard
+3.  Route URL:           `/doctor` (Component: `DoctorDashboard.tsx`)
+4.  Primary Actors:      Doctor
+5.  Visual Layout:
+    - Clinic Room Header: Clinic room name ("Phòng Khám 204 - Khu Khám Yêu Cầu"), Doctor greeting, Date.
+    - Daily Queue Sidebar (Left): Patients scheduled today sorted by sequential STT numbers:
+      * STT badge (`STT 01`, `STT 02`...).
+      * Patient Name, Age, Gender, Scheduled Slot.
+      * Status Badge (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED`).
+      * "Gọi Khám Tiếp" primary queue progression button (`POST /api/v1/doctors/me/call-next`).
+    - Clinical Encounter Modal (Split-Screen):
+      * Left Pane: Pre-Encounter Inspection (Raw lab scan viewer vs AI SBAR summary).
+      * Right Pane: EMR Consultation Entry Form:
+        - Section 1: Vital Signs (Blood pressure mmHg, Heart rate bpm, Temp °C, SpO2 %, Height, Weight, BMI).
+        - Section 2: Clinical Examination Notes & Observations.
+        - Section 3: ICD-10 Diagnosis Autocomplete (WHO ICD-10 & MOH Decision 7603/QĐ-BYT).
+        - Section 4: LOINC Lab Requisition Autocomplete (MOH Decision 3280/QĐ-BYT).
+        - Section 5: Outpatient Prescription JSON (Drug name, quantity, dosage, directions).
+        - Section 6: Treatment Plan & Follow-up Date.
+      * "Hoàn Thành Ca Khám" primary CTA button (`POST /api/v1/appointments/{id}/complete-clinical`).
+6.  UI Controls:         "Gọi Khám Tiếp" button, queue rows, ICD-10 autocomplete, encounter form inputs.
+7.  Target Transitions:  `/doctor/patients`, `/doctor/profile`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-13 ELECTRONIC PATIENT ADMISSION SLIP
+SCREEN SPECIFICATION: SCR-13 DOCTOR PATIENT RECORDS PAGE
 ================================================================================
 1.  Screen ID:           SCR-13
-2.  Screen Name:         Electronic Patient Encounter Slip & Directions
-3.  Route URL:           `/appointments/{id}/ticket`
-4.  Primary Actors:      Patient, Reception Staff
-5.  Visual Layout:       
-    - Admission Ticket Card:
-      * Prominent Sequential Queue Number: `STT 05` (Large font).
-      * Patient Full Name, Appointment Date & Time Window.
-      * Attending Doctor Name, Academic Title, Specialty.
-      * Clinic Room Navigation: "Phòng Khám 302, Tầng 3, Tòa Nhà A, Bệnh Viện Đa Khoa MediAssist".
-      * Dynamic Verification QR Code.
-    - In-Clinic Preparation Guidelines Box:
-      * "Nhịn ăn sáng ít nhất 8 tiếng nếu có xét nghiệm máu."
-      * "Mang theo bản gốc Căn cước công dân (CCCD) và Thẻ BHYT."
-      * "Có mặt trước giờ hẹn 15 phút."
-    - Action Toolbar: "Google Maps Dẫn Đường", "In Phiếu Khám", "Thêm Vào Google Calendar", "Tải Tệp .ICS".
-6.  UI Controls:         Action buttons, printable ticket frame.
-7.  Target Transitions:  `/patient/dashboard`, Google Maps external link.
+2.  Screen Name:         Doctor Patient Medical Records Page
+3.  Route URL:           `/doctor/patients` (Component: `DoctorPatientRecordsPage.tsx`)
+4.  Primary Actors:      Doctor
+5.  Visual Layout:
+    - Patient Roster Table: List of patients who have active or past care relationships with this doctor.
+    - Guarded Patient Detail Drawer: Enforces `PatientAccessGuard`:
+      * Patient demographics, blood type, known allergies.
+      * Encounter History: Past diagnoses (ICD-10), vital signs, prescriptions.
+      * Attached Medical Documents: Lab scans viewable via 15-min signed URLs.
+6.  UI Controls:         Patient search input, patient table rows, encounter detail cards.
+7.  Target Transitions:  `/doctor`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-14 PATIENT MEDICAL PASSPORT & EMR
+SCREEN SPECIFICATION: SCR-14 DOCTOR PROFILE & SCHEDULE PAGE
 ================================================================================
 1.  Screen ID:           SCR-14
-2.  Screen Name:         Patient Medical Passport & Historical EMR Screen
-3.  Route URL:           `/patient/medical-passport`
-4.  Primary Actors:      Patient
-5.  Visual Layout:       
-    - Profile Header: Patient avatar, blood type, drug allergies pill tags, emergency contact.
-    - Longitudinal Health Timeline: Chronological feed of past clinical encounters.
-    - Encounter Card: Date, Doctor, Facility, Vital signs summary, ICD-10 Diagnosis code & title, Prescribed medications list, "Xem Đơn Thuốc PDF" button.
-    - Biomarker Trend Charts: Visual line graphs tracking key indicators over time (Huyết áp, Glucose, Cholesterol, SGPT/SGOT).
-6.  UI Controls:         Timeline cards, trend charts, PDF export buttons.
-7.  Target Transitions:  `/patient/dashboard`.
+2.  Screen Name:         Doctor Profile & Schedule Management Page
+3.  Route URL:           `/doctor/profile` (Component: `DoctorProfilePage.tsx`)
+4.  Primary Actors:      Doctor
+5.  Visual Layout:
+    - Tab 1 (Hồ Sơ Chuyên Môn): Doctor Full Name, Academic Title (PGS.TS, BS.CKII), Practice Certificate (CCHN) number, Biography textarea, Consultation Fee (VNĐ), Clinic Room.
+    - Tab 2 (Lịch Khám Tuần): Weekly recurring schedule slot matrix (`doctor_schedule_slots`):
+      * Shift toggles for Monday through Saturday.
+      * Morning (08:00–12:00) and Afternoon (13:30–17:00) slot controls.
+      * "Lưu Lịch Khám" button.
+    - Tab 3 (Đánh Giá Bệnh Nhân): List of verified patient reviews and ratings.
+6.  UI Controls:         Bio input, fee input, schedule matrix grid, save buttons.
+7.  Target Transitions:  `/doctor`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-15 DOCTOR CLINICAL WORKSTATION
+SCREEN SPECIFICATION: SCR-15 ADMIN DASHBOARD
 ================================================================================
 1.  Screen ID:           SCR-15
-2.  Screen Name:         Doctor Clinical Workstation & Daily Patient Queue
-3.  Route URL:           `/doctor/dashboard`
-4.  Primary Actors:      Doctor
-5.  Visual Layout:       
-    - Header: Doctor greeting, clinic room indicator ("Phòng Khám 302"), current date.
-    - Daily Queue Sidebar (Left): List of patients scheduled today sorted by STT:
-      * STT Number (`STT 01`, `STT 02`...).
-      * Patient Name, Age, Gender, Scheduled Time Window.
-      * Triage Urgency Badge (`ROUTINE`, `URGENT`).
-      * Status Badge (`CONFIRMED`, `IN_PROGRESS`, `COMPLETED`).
-    - Main Panel: Active Encounter Overview:
-      * Patient demographics, chief complaint, attached lab document badge.
-      * Action Buttons: "Bắt Đầu Ca Khám", "Đánh Dấu Vắng Mặt (No-Show)".
-    - Quick Stats Bar: Total patients today, completed count, remaining queue length.
-6.  UI Controls:         Queue list, action buttons, filter tabs.
-7.  Target Transitions:  `/doctor/encounters/{id}`.
+2.  Screen Name:         Admin Executive Dashboard & System Telemetry
+3.  Route URL:           `/admin` (Component: `AdminDashboard.tsx`)
+4.  Primary Actors:      Admin
+5.  Visual Layout:
+    - Executive KPI Cards: Total Registered Users, Active Doctors, Total Consultations, Total Gross Revenue.
+    - System Health & Infrastructure Grid: Spring Boot Backend, PostgreSQL 16 (pgvector), Redis Cache, Gemini Gateway, Stripe Gateway.
+    - AI Usage & FinOps Telemetry Card: Prompt vs Completion tokens across Gemini, OpenAI, OpenRouter; Cost projection in USD and VNĐ (`AI_COST_VND_PER_USD = 25450`).
+    - AI Mode Switcher: System-wide AI provider toggle (BE-1).
+    - Recent System Activity Feed: Live feed of bookings, completed encounters, and security events.
+6.  UI Controls:         KPI cards, AI mode toggle buttons, date filters.
+7.  Target Transitions:  `/admin/doctors`, `/admin/users`, `/admin/appointments`, `/admin/specialties`, `/admin/audit-logs`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-16 DOCTOR CLINICAL ENCOUNTER WORKSPACE
+SCREEN SPECIFICATION: SCR-16 DOCTOR MANAGEMENT & VETTING PAGE
 ================================================================================
 1.  Screen ID:           SCR-16
-2.  Screen Name:         Doctor Clinical Encounter Split-Screen & EMR Entry
-3.  Route URL:           `/doctor/encounters/{id}`
-4.  Primary Actors:      Doctor
-5.  Visual Layout:       
-    - Split-Screen Workspace:
-      * Left Pane: Pre-Encounter Clinical Inspection:
-        - Toggle 1: Raw Lab Scan Viewer (PDF/Image via 15-min signed URL).
-        - Toggle 2: AI SBAR Synthesis & Biomarker Reference Range Table.
-      * Right Pane: Comprehensive EMR Consultation Form:
-        - Section 1: Vital Signs (Blood pressure, Heart rate, Temp, SpO2, Weight, Height, BMI).
-        - Section 2: Clinical Examination Notes (Rich text objective findings).
-        - Section 3: ICD-10 Medical Diagnosis Autocomplete (WHO ICD-10 & MOH 7603).
-        - Section 4: LOINC Lab & Diagnostic Test Ordering (LOINC & MOH 3280).
-        - Section 5: Electronic Outpatient Prescription (Drug name, quantity, dosage, route).
-        - Section 6: Follow-up Appointment Date Picker.
-    - Bottom Action Bar: "Lưu Bản Nháp" (Draft auto-saved), "Hoàn Tất Ca Khám" (Locks record as immutable).
-6.  UI Controls:         Split pane resizer, autocomplete inputs, vital signs fields, prescription table, finalize CTA.
-7.  Target Transitions:  `/doctor/dashboard`.
+2.  Screen Name:         Doctor Directory & Credential Vetting Page
+3.  Route URL:           `/admin/doctors` (Component: `DoctorManagementPage.tsx`)
+4.  Primary Actors:      Admin
+5.  Visual Layout:
+    - Tab Switcher: "Danh Sách Bác Sĩ" vs "Chờ Thẩm Định Chứng Chỉ (Pending Vetting)".
+    - Pending Vetting Table: Doctors awaiting license audit, showing CCHN number, Specialty, Hospital, "Phê Duyệt" / "Từ Chối" buttons.
+    - Action Bar: "Tạo Bác Sĩ Mới", "Đồng Bộ Toàn Bộ Vector Bác Sĩ (Sync Vectors)".
+    - Doctor Directory Table: Full Name, Specialty, CCHN Number, Rating, Status (`ACTIVE`, `INACTIVE`), Action menu (Edit, Toggle Status, Sync Single Vector).
+6.  UI Controls:         Search bar, vetting action buttons, create doctor modal, sync vector button.
+7.  Target Transitions:  `/admin`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-17 ADMIN EXECUTIVE DASHBOARD
+SCREEN SPECIFICATION: SCR-17 USER MANAGEMENT & ACCESS CONTROL PAGE
 ================================================================================
 1.  Screen ID:           SCR-17
-2.  Screen Name:         Admin Executive Dashboard & System Telemetry
-3.  Route URL:           `/admin/dashboard`
+2.  Screen Name:         User Management & Access Control Page
+3.  Route URL:           `/admin/users` (Component: `UserManagementPage.tsx`)
 4.  Primary Actors:      Admin
-5.  Visual Layout:       
-    - Telemetry KPI Cards: Active Users Online, Total Consultations, Revenue, AI Tokens Today.
-    - System Health Status Grid: Spring Boot Backend, PostgreSQL 16 (pgvector), Redis Cache, Gemini Gateway, Stripe Gateway.
-    - Doctor Vetting Alert Card: Number of pending doctor license applications awaiting audit.
-    - Real-Time Activity Feed: Live ticker of bookings, completed encounters, and security events.
-6.  UI Controls:         KPI cards, time range filter, refresh button.
-7.  Target Transitions:  `/admin/supervision`, `/admin/ai-finops`, `/admin/doctors/vetting`.
+5.  Visual Layout:
+    - Search & Filter Bar: Search by email/name, filter by role (`PATIENT`, `DOCTOR`, `ADMIN`).
+    - User Accounts Table: Avatar, Full Name, Email, Phone, Role badge, Status badge (`ACTIVE`, `LOCKED`, `UNVERIFIED`).
+    - Action Menu: "Khóa Tài Khoản" / "Mở Khóa" modal with mandatory 10-character reason textarea.
+6.  UI Controls:         Search input, role filter, lock/unlock toggle, reason modal.
+7.  Target Transitions:  `/admin`.
 ================================================================================
 ```
 
 ```
 ================================================================================
-SCREEN SPECIFICATION: SCR-18 ADMIN SUPERVISION & AI FINOPS CONSOLE
+SCREEN SPECIFICATION: SCR-18 OPERATIONS SUPERVISION CONSOLE
 ================================================================================
 1.  Screen ID:           SCR-18
-2.  Screen Name:         Admin Supervision & AI FinOps Console
-3.  Route URL:           `/admin/supervision`, `/admin/ai-finops`
+2.  Screen Name:         Operations Supervision Console (Appointments, Triage, Specialties, Audit Logs)
+3.  Route URL:           `/admin/appointments`, `/admin/triage`, `/admin/specialties`, `/admin/audit-logs`
 4.  Primary Actors:      Admin
-5.  Visual Layout:       
-    - Tab 1 (Supervision): Master appointment table with filters (Doctor, Patient, Date, Status), "Buộc Hủy & Hoàn Tiền" button with audit justification dialog.
-    - Tab 2 (AI FinOps Analytics): Token usage charts (Prompt vs Completion), Cost in USD and VNĐ (`AI_COST_VND_PER_USD = 25450`), Cost per feature breakdown, Model failover switch (Gemini -> OpenRouter -> Local Hashing).
-    - Tab 3 (Security Audit Logs): Searchable log table with action filter (`VIEW_PATIENT_RECORD`, `USER_LOGIN`, `ADMIN_OVERRIDE`).
-6.  UI Controls:         Data tables, pagination, AI mode toggle switch, refund override button, log filters.
-7.  Target Transitions:  `/admin/dashboard`.
+5.  Visual Layout:
+    - Sub-Page 18a (`/admin/appointments` - `AppointmentSupervisionPage.tsx`): Master appointment list, filter by status and date, "Hủy Bắt Buộc & Hoàn Tiền" button with reason dialog.
+    - Sub-Page 18b (`/admin/triage` - `TriageSupervisionPage.tsx`): List of AI triage sessions, urgency level pills, SBAR clinical inspector modal.
+    - Sub-Page 18c (`/admin/specialties` - `SpecialtyManagementPage.tsx`): Clinical specialty directory, Add/Edit specialty modal (Name, Code, Description, Icon).
+    - Sub-Page 18d (`/admin/audit-logs` - `AuditLogPage.tsx`): Immutable security audit log table, action filter (`VIEW_PATIENT_RECORD`, `USER_LOGIN`, `ADMIN_OVERRIDE`), expandable JSON detail inspector.
+6.  UI Controls:         Data tables, filter dropdowns, force-cancel button, audit JSON inspector.
+7.  Target Transitions:  `/admin`.
 ================================================================================
 ```
 
@@ -454,49 +441,49 @@ SCREEN SPECIFICATION: SCR-18 ADMIN SUPERVISION & AI FINOPS CONSOLE
 
 #### 3.1.3 Role-Based Screen Authorization Matrix
 
-| Screen ID | Screen Name & Route | Guest | Patient | Doctor | Admin | Authorization Mechanism |
-| :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| **SCR-01** | Splash & Landing Page (`/`) | **ALLOW** | **ALLOW** | **ALLOW** | **ALLOW** | Public route; no auth guard. |
-| **SCR-02** | Sign-In Page (`/login`) | **ALLOW** | **REDIRECT** | **REDIRECT** | **REDIRECT** | Authenticated users auto-redirected to role dashboard. |
-| **SCR-03** | Sign-Up Page (`/register`) | **ALLOW** | **REDIRECT** | **REDIRECT** | **REDIRECT** | Public route; auto-redirect if session active. |
-| **SCR-04** | Forgot Password (`/forgot-password`) | **ALLOW** | **ALLOW** | **ALLOW** | **ALLOW** | Public route; token hash validated server-side. |
-| **SCR-05** | Email Verification Gate (`/verify-email`) | **ALLOW** | **ALLOW** | **ALLOW** | **ALLOW** | Public token redemption endpoint. |
-| **SCR-06** | Patient Dashboard (`/patient/dashboard`) | DENY | **ALLOW** | DENY | DENY | Frontend `ProtectedRoute(role='PATIENT')`. |
-| **SCR-07** | Conversational AI Triage (`/triage`) | **ALLOW** | **ALLOW** | DENY | DENY | Public guest screening or authenticated patient. |
-| **SCR-08** | Semantic Doctor Search (`/doctors`) | **ALLOW** | **ALLOW** | **ALLOW** | **ALLOW** | Public directory; verified doctors displayed. |
-| **SCR-09** | Doctor Public Profile (`/doctors/{id}`) | **ALLOW** | **ALLOW** | **ALLOW** | **ALLOW** | Public profile view; slot booking requires auth. |
-| **SCR-10** | Document Ingestion (`/documents`) | DENY | **ALLOW** | DENY | DENY | Requires verified `PATIENT` account. |
-| **SCR-11** | Document Split-View (`/documents/{id}/analysis`) | DENY | **ALLOW\*** | **ALLOW\*** | **ALLOW\*** | **`PatientAccessGuard`**: Patient self, Doctor with active appointment, or Admin (logged). |
-| **SCR-12** | Booking Checkout (`/appointments/checkout`) | DENY | **ALLOW** | DENY | DENY | Patient authenticated with verified email. |
-| **SCR-13** | Admission Slip (`/appointments/{id}/ticket`) | DENY | **ALLOW\*** | **ALLOW\*** | **ALLOW** | Patient self or attending Doctor. |
-| **SCR-14** | Medical Passport (`/patient/medical-passport`) | DENY | **ALLOW** | DENY | DENY | Patient self-access only. |
-| **SCR-15** | Doctor Workstation (`/doctor/dashboard`) | DENY | DENY | **ALLOW** | DENY | Role `DOCTOR` with `is_verified = true`. |
-| **SCR-16** | Encounter Workspace (`/doctor/encounters/{id}`) | DENY | DENY | **ALLOW\*** | DENY | Attending Doctor assigned to appointment. |
-| **SCR-17** | Admin Dashboard (`/admin/dashboard`) | DENY | DENY | DENY | **ALLOW** | Role `ADMIN` strictly enforced. |
-| **SCR-18** | Supervision & FinOps (`/admin/supervision`) | DENY | DENY | DENY | **ALLOW** | Role `ADMIN` strictly enforced. |
+The screen access permissions are enforced via React Router `ProtectedRoute` in `frontend/src/App.tsx` and Spring Security `@PreAuthorize` on backend endpoints:
 
-*\*Access strictly guarded by `PatientAccessGuard` Broken Object Level Authorization defense.*
+| Screen ID | Screen Name & Route Path | Guest | Patient | Doctor | Admin | Authorization Enforcement Mechanism |
+| :--- | :--- | :---: | :---: | :---: | :---: | :--- |
+| **SCR-01** | Landing Page (`/`, `/landing`) | **ALLOW** | **ALLOW** | **ALLOW** | **ALLOW** | Public route; unauthenticated access permitted. |
+| **SCR-02** | Login & Registration (`/login`) | **ALLOW** | **REDIRECT** | **REDIRECT** | **REDIRECT** | Public route; active sessions redirected to role dashboard. |
+| **SCR-03** | Forgot Password (`/forgot-password`) | **ALLOW** | **ALLOW** | **ALLOW** | **ALLOW** | Public route; token generated and emailed. |
+| **SCR-04** | Reset Password (`/reset-password`) | **ALLOW** | **ALLOW** | **ALLOW** | **ALLOW** | Token hash validated server-side. |
+| **SCR-05** | Verify Email Gate (`/verify-email`) | **ALLOW** | **ALLOW** | **ALLOW** | **ALLOW** | Public token redemption endpoint. |
+| **SCR-06** | OAuth2 Callback (`/oauth2/callback`) | **ALLOW** | **ALLOW** | **ALLOW** | **ALLOW** | Ingests JWT from Google OAuth2 redirect. |
+| **SCR-07** | Patient Dashboard (`/patient`) | DENY | **ALLOW** | DENY | **ALLOW** | `ProtectedRoute(allowedRoles=['PATIENT', 'ADMIN'])`. |
+| **SCR-08** | Symptom Triage (`/patient/triage`) | DENY | **ALLOW** | DENY | **ALLOW** | Protected patient route. |
+| **SCR-09** | Doctor Search & Booking (`/patient/doctors`) | DENY | **ALLOW** | DENY | **ALLOW** | Protected patient route. |
+| **SCR-10** | Document Summarizer (`/patient/documents`) | DENY | **ALLOW** | DENY | **ALLOW** | Protected patient route. |
+| **SCR-11** | Payment Success (`/payment/success`) | DENY | **ALLOW** | DENY | **ALLOW** | Public receipt / callback route. |
+| **SCR-12** | Doctor Workstation (`/doctor`) | DENY | DENY | **ALLOW** | DENY | `ProtectedRoute(allowedRoles=['DOCTOR'])`. |
+| **SCR-13** | Doctor Patient Records (`/doctor/patients`) | DENY | DENY | **ALLOW\*** | DENY | Protected doctor route + `PatientAccessGuard`. |
+| **SCR-14** | Doctor Profile & Schedule (`/doctor/profile`) | DENY | DENY | **ALLOW** | DENY | Protected doctor route. |
+| **SCR-15** | Admin Dashboard (`/admin`) | DENY | DENY | DENY | **ALLOW** | `ProtectedRoute(allowedRoles=['ADMIN'])`. |
+| **SCR-16** | Doctor Management (`/admin/doctors`) | DENY | DENY | DENY | **ALLOW** | Protected admin route. |
+| **SCR-17** | User Management (`/admin/users`) | DENY | DENY | DENY | **ALLOW** | Protected admin route. |
+| **SCR-18** | Operations Supervision (`/admin/*`) | DENY | DENY | DENY | **ALLOW** | Protected admin route. |
+
+*\*Access strictly guarded by `PatientAccessGuard` verifying an active care relationship (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED` appointment).*
 
 ---
 
 #### 3.1.4 Non-Screen & Asynchronous Background Functions
 
-MediAssist-AI executes critical asynchronous background workflows that operate outside of direct HTTP request-response screen rendering:
-
 ```mermaid
 graph TD
-    subgraph "Background Thread Pools & Schedulers (Java 21 Project Loom)"
-        LoomPool[Virtual Threads Loom Executor: Task-per-thread]
+    subgraph "Thread Pools & Schedulers (Java 21 Project Loom)"
+        LoomPool[Virtual Threads Loom Executor]
         MailPool[Async MailExecutor: 4 Core, 10 Max, 500 Queue]
-        Scheduler[Spring @Scheduled Cron Tasks]
+        Scheduler[Spring @Scheduled Tasks]
     end
 
     subgraph "Asynchronous Background Jobs"
-        Job1[NSF-01: Asynchronous Transactional Email Dispatch]
+        Job1[NSF-01: Transactional Email Dispatch @Async mailExecutor]
         Job2[NSF-02: Slot Hold Expiration & Lock Release Engine]
-        Job3[NSF-03: Vector Index Refresh & Session Parameter Tuning]
-        Job4[NSF-04: Flyway Schema Migration Auto-Execution]
-        Job5[NSF-05: Multimodal OCR Document Pipeline Worker]
+        Job3[NSF-03: Vector Index Tuning SET LOCAL hnsw.ef_search = 120]
+        Job4[NSF-04: Flyway Schema Migration Auto-Execution V1-V22]
+        Job5[NSF-05: Multimodal OCR Vision Pipeline Worker]
         Job6[NSF-06: Cache Invalidation & Telemetry Aggregator]
     end
 
@@ -506,54 +493,51 @@ graph TD
     SpringContext[Spring Boot Startup Context] --> Job4
 ```
 
-1. **NSF-01: Asynchronous Transactional Email Dispatch (`@Async("mailExecutor")`):**
-   - Handles account verification tokens, password reset hashes, and appointment admission slips asynchronously to prevent blocking web request threads.
-   - Built on Spring `ThreadPoolTaskExecutor` (Core: 4, Max: 10, Queue: 500) backed by Java 21 Project Loom.
-2. **NSF-02: Slot Hold Expiration & Lock Release Engine (`@Scheduled(fixedRate = 60000)`):**
-   - Runs every 60 seconds. Identifies appointments in `PENDING` status exceeding the 10-minute payment timeout.
-   - Automatically transitions status to `CANCELLED` and releases the slot lock in Redis.
-3. **NSF-03: Vector Index Refresh & Session Parameter Tuning:**
-   - Injects session-level tuning (`SET LOCAL hnsw.ef_search = 120`, `SET LOCAL enable_seqscan = off`) before executing vector search queries.
-   - Executes periodic index maintenance (`REINDEX INDEX CONCURRENTLY idx_doctor_bio_hnsw_verified`) during off-peak hours.
+1. **NSF-01: Transactional Email Dispatch (`@Async("mailExecutor")`):**
+   - Dispatches password reset emails, account verification links, and appointment admission slips asynchronously via `AsyncConfig` (`mailExecutor`).
+2. **NSF-02: Slot Hold Expiration & Lock Release Engine:**
+   - Periodically identifies appointments in `UNPAID` status exceeding reservation timeout and frees slots.
+3. **NSF-03: Vector Index Session Tuning:**
+   - Dynamically injects session-level tuning (`SET LOCAL hnsw.ef_search = 120`, `SET LOCAL enable_seqscan = off`, `SET LOCAL work_mem = '64MB'`) prior to executing vector search.
 4. **NSF-04: Flyway Schema Migration Auto-Execution:**
-   - Automatically runs on Spring Boot application startup before bean initialization.
-   - Evaluates migration scripts `V1` through `V22`, applying pending DDL/DML scripts in strict sequential order.
-5. **NSF-05: Multimodal OCR Document Pipeline Worker:**
-   - Asynchronously processes uploaded lab reports using Google Gemini Vision API.
-   - Converts raw OCR text into structured biomarker tables and LOINC terms without blocking client file upload response.
+   - Automatically executes Flyway migrations `V1` through `V22` on Spring Boot startup before bean creation.
+5. **NSF-05: Multimodal OCR Vision Pipeline Worker:**
+   - Asynchronously streams PDF/Image documents to Google Gemini 1.5 Flash Vision API and extracts biomarker JSON.
 6. **NSF-06: Cache Invalidation & Telemetry Aggregator:**
-   - Aggregates daily AI token usage from `ai_token_logs` into executive summary tables.
-   - Refreshes doctor rating averages and invalidates stale Redis query caches.
+   - Aggregates daily AI token usage from `ai_token_usage` and invalidates stale Redis caches.
 
 ---
 
 #### 3.1.5 Physical Entity Relationship Diagram (ERD)
 
-The MediAssist-AI relational schema is implemented on PostgreSQL 16 LTS with the `pgvector` extension and Flyway database migrations (V1 through V22):
+The MediAssist-AI relational schema is implemented on PostgreSQL 16 LTS with the `pgvector` extension across 17 real database tables managed by Flyway migrations V1 through V22:
 
 ```mermaid
 erDiagram
-    users ||--o| doctor_profiles : "has"
+    users ||--o| doctor_profiles : "has profile"
+    users ||--o| patient_profiles : "has profile"
     users ||--o{ medical_documents : "owns"
-    users ||--o{ appointments : "books as patient"
-    users ||--o{ appointments : "attends as doctor"
-    users ||--o{ reviews : "writes"
+    users ||--o{ appointments : "as patient"
+    users ||--o{ appointments : "as doctor"
+    users ||--o{ triage_sessions : "creates"
+    users ||--o{ payment_transactions : "initiates"
     users ||--o{ password_reset_tokens : "requests"
-    users ||--o{ email_verification_tokens : "verifies"
+    users ||--o{ email_verification_tokens : "receives"
+    users ||--o{ notifications : "receives"
     users ||--o{ audit_logs : "triggers"
-    users ||--o{ triage_sessions : "engages"
 
-    doctor_profiles }|--|| specialties : "belongs to"
-    doctor_profiles ||--o{ doctor_schedules : "configures"
-    doctor_profiles ||--o{ reviews : "receives"
+    doctor_profiles }|--|| specialties : "primary specialty"
+    doctor_profiles ||--o{ doctor_specialties : "sub-specialties"
+    doctor_specialties }|--|| specialties : "references"
+    doctor_profiles ||--o{ doctor_schedule_slots : "schedules"
+    doctor_profiles ||--o{ doctor_reviews : "receives"
 
-    appointments ||--o| medical_records : "generates"
-    appointments ||--o| payments : "settles"
+    appointments ||--o| payment_transactions : "settled by"
     appointments }o--o| medical_documents : "attaches"
+    appointments }o--o| triage_sessions : "originates from"
+    appointments ||--o| doctor_reviews : "rated by"
 
-    medical_records ||--o{ prescriptions : "contains"
-    prescriptions ||--o{ prescription_items : "includes"
-    prescription_items }|--|| medications : "references"
+    medical_documents ||--o| document_analyses : "analyzed into"
 
     users {
         uuid id PK
@@ -561,7 +545,7 @@ erDiagram
         varchar password_hash
         varchar full_name
         varchar phone_number UK
-        varchar role
+        varchar role "PATIENT, DOCTOR, ADMIN"
         boolean is_active
         boolean email_verified
         varchar google_id UK
@@ -569,9 +553,23 @@ erDiagram
         timestamp updated_at
     }
 
+    patient_profiles {
+        uuid id PK
+        uuid user_id FK,UK
+        date date_of_birth
+        varchar gender
+        varchar blood_type
+        text allergies
+        varchar emergency_contact
+        text medical_history_summary
+        integer remaining_ai_quota
+        timestamp created_at
+        timestamp updated_at
+    }
+
     doctor_profiles {
         uuid id PK
-        uuid user_id FK
+        uuid user_id FK,UK
         uuid specialty_id FK
         varchar license_number UK
         varchar academic_title
@@ -584,6 +582,8 @@ erDiagram
         varchar clinic_room
         varchar hospital_name
         text hospital_address
+        timestamp created_at
+        timestamp updated_at
     }
 
     specialties {
@@ -592,21 +592,66 @@ erDiagram
         varchar code UK
         text description
         varchar icon_name
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    doctor_specialties {
+        uuid id PK
+        uuid doctor_id FK
+        uuid specialty_id FK
+    }
+
+    doctor_schedule_slots {
+        uuid id PK
+        uuid doctor_id FK
+        varchar day_of_week
+        time start_time
+        time end_time
+        boolean is_available
+        integer max_patients
+        timestamp created_at
     }
 
     appointments {
         uuid id PK
+        varchar appointment_code UK
         uuid patient_id FK
         uuid doctor_id FK
-        date appointment_date
-        time start_time
-        time end_time
-        integer queue_number "Sequential STT"
-        varchar status
-        decimal fee
-        uuid medical_document_id FK
+        timestamp scheduled_start
+        timestamp scheduled_end
+        varchar status "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED"
+        varchar cancellation_reason
+        text consultation_notes
+        varchar queue_number "STT 01, STT 02..."
+        varchar clinic_room
         text chief_complaint
-        text cancellation_reason
+        text vital_signs_json "BP, HR, SpO2, BMI"
+        varchar icd10_code
+        varchar icd10_name
+        text prescription_json
+        text treatment_plan
+        date follow_up_date
+        decimal fee_amount
+        varchar payment_status "UNPAID, PAID, REFUNDED"
+        uuid medical_document_id FK
+        uuid triage_session_id FK
+        timestamp checked_in_at
+        bigint version
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    triage_sessions {
+        uuid id PK
+        uuid user_id FK
+        text chief_complaint
+        text raw_symptoms
+        text sbar_summary
+        varchar urgency_level "ROUTINE, URGENT, EMERGENCY"
+        uuid recommended_specialty_id FK
+        boolean red_flags_detected
+        text clarifying_turns_json
         timestamp created_at
     }
 
@@ -617,48 +662,37 @@ erDiagram
         varchar file_type
         bigint file_size
         varchar file_hash "SHA-256"
-        varchar storage_path "S3 Object Key"
-        varchar status
-        jsonb analysis_result "LOINC & Biomarkers"
+        varchar storage_path "Private S3 Key"
+        varchar status "ANALYZED, PROCESSING, FAILED"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    document_analyses {
+        uuid id PK
+        uuid document_id FK,UK
+        text biomarkers_json
+        text abnormal_indicators_json
+        text layperson_summary
+        text loinc_codes_json
+        uuid recommended_specialty_id FK
         timestamp created_at
     }
 
-    medical_records {
+    payment_transactions {
         uuid id PK
-        uuid appointment_id FK
-        uuid patient_id FK
-        uuid doctor_id FK
-        text examination_notes
-        jsonb vital_signs "BP, HR, SpO2, BMI"
-        varchar primary_icd10_code FK
-        varchar primary_icd10_desc
-        jsonb secondary_icd10_codes
-        jsonb lab_orders "LOINC codes"
-        text follow_up_instructions
-        date follow_up_date
-        timestamp finalized_at
-    }
-
-    payments {
-        uuid id PK
-        uuid appointment_id FK
+        varchar transaction_code UK
         uuid user_id FK
+        uuid appointment_id FK
+        varchar order_type "APPOINTMENT_FEE, QUOTA_PURCHASE"
         decimal amount
-        varchar currency
-        varchar status
-        varchar payment_method
-        varchar transaction_id UK
+        varchar currency "VND"
+        varchar status "PENDING, SUCCESS, FAILED, REFUNDED"
+        varchar payment_method "STRIPE, MOCK"
+        varchar gateway_transaction_id
+        text metadata_json
         timestamp created_at
-    }
-
-    reviews {
-        uuid id PK
-        uuid appointment_id FK,UK
-        uuid patient_id FK
-        uuid doctor_id FK
-        integer rating "1 to 5"
-        text comment
-        timestamp created_at
+        timestamp updated_at
     }
 
     password_reset_tokens {
@@ -668,6 +702,7 @@ erDiagram
         timestamp expires_at
         boolean consumed
         timestamp consumed_at
+        timestamp created_at
     }
 
     email_verification_tokens {
@@ -678,25 +713,46 @@ erDiagram
         timestamp created_at
     }
 
+    notifications {
+        uuid id PK
+        uuid user_id FK
+        varchar title
+        text message
+        varchar type
+        boolean is_read
+        text metadata_json
+        timestamp created_at
+    }
+
+    doctor_reviews {
+        uuid id PK
+        uuid appointment_id FK,UK
+        uuid patient_id FK
+        uuid doctor_id FK
+        integer rating "1 to 5"
+        text comment
+        timestamp created_at
+    }
+
     audit_logs {
         uuid id PK
         uuid user_id FK
-        varchar action
+        varchar action "VIEW_PATIENT_RECORD, LOGIN..."
         varchar entity_type
         uuid entity_id
         varchar ip_address
-        jsonb details
-        timestamp timestamp
+        text details_json
+        timestamp created_at
     }
 
-    ai_token_logs {
+    ai_token_usage {
         uuid id PK
-        varchar provider "GEMINI, OPENAI"
+        varchar provider "GEMINI, OPENAI, OPENROUTER"
         varchar model_name
         integer prompt_tokens
         integer completion_tokens
         decimal estimated_cost_usd
-        timestamp timestamp
+        timestamp created_at
     }
 ```
 
@@ -705,63 +761,63 @@ erDiagram
 ### 3.2 Applications for Patients, Doctors, and Admins
 
 #### 3.2.1 Welcome & Authentication Flow (FR-AUTH)
-- **FR-AUTH-01:** System shall authenticate users via Email/Password utilizing Bcrypt hashing (cost factor 12) with zero plaintext credential persistence.
+- **FR-AUTH-01:** System shall authenticate users via Email/Password utilizing Bcrypt hashing (cost factor 12) with zero plaintext credential persistence (`AuthController.login`).
 - **FR-AUTH-02:** System shall support single sign-on (SSO) via Google OAuth2 Authorization Code Grant flow, auto-provisioning new accounts with `google_id` linkage (Flyway V8).
-- **FR-AUTH-03:** System shall issue stateless JSON Web Tokens (JWT) adhering to RFC 7519 using a dual-transport mechanism: HttpOnly Secure Cookie (primary web defense against XSS) and JSON Response Body (mobile/client Bearer header support).
-- **FR-AUTH-04:** System shall enforce an Email Verification Gate (Flyway V22) blocking unverified accounts (`email_verified = false`) from reserving in-clinic appointments or accessing medical records.
+- **FR-AUTH-03:** System shall issue stateless JSON Web Tokens (JWT) adhering to RFC 7519 using a dual-transport mechanism: HttpOnly Secure Cookie (primary web defense against XSS) and JSON Response Body (`AuthResponse`).
+- **FR-AUTH-04:** System shall enforce an Email Verification Gate (Flyway V22) blocking unverified accounts (`email_verified = false`) from reserving in-clinic appointments or accessing medical records (`EmailVerificationGuard`).
 - **FR-AUTH-05:** System shall provide a secure password reset workflow utilizing single-use SHA-256 token hashing (Flyway V21) with a strict 15-minute expiration time-to-live (TTL).
-- **FR-AUTH-06:** System shall execute an automated account rate-limiting lockout following 5 consecutive failed login attempts within a 15-minute sliding window.
+- **FR-AUTH-06:** System shall execute an automated account rate-limiting lockout following 5 consecutive failed login attempts within a 15-minute sliding window (`SecurityRateLimiterService`).
 
 #### 3.2.2 Conversational Triage & Clinical Defense Engine (FR-TRG)
-- **FR-TRG-01:** System shall conduct multi-turn conversational symptom evaluations, prompting targeted clarifying questions regarding onset, duration, and aggravating factors before rendering clinical recommendations.
-- **FR-TRG-02:** System shall intercept acute medical emergencies (Red-Flags) including Stroke FAST signs, Myocardial Infarction symptoms, and Severe Anaphylaxis, halting triage and locking the interface with an immediate 115 Emergency Hotline directive.
+- **FR-TRG-01:** System shall conduct multi-turn conversational symptom evaluations, prompting targeted clarifying questions regarding onset, duration, and aggravating factors before rendering clinical recommendations (`TriageController.assess`).
+- **FR-TRG-02:** System shall intercept acute medical emergencies (Red-Flags) including Stroke FAST signs, Myocardial Infarction symptoms, and Severe Anaphylaxis, halting triage and locking the interface with an immediate 115 Emergency Hotline directive (`ClinicalQueryDefenseEngine`).
 - **FR-TRG-03:** System shall normalize Vietnamese medical colloquialisms, regional slang, teen-code, and unaccented text (`ko` $\rightarrow$ `không`, `bs` $\rightarrow$ `bác sĩ`, `dau da day` $\rightarrow$ `đau dạ dày`) prior to downstream semantic processing.
 - **FR-TRG-04:** System shall implement the Vietnamese NegEx algorithm to split clinical queries into affirmative and negated clauses, quarantining negated findings (e.g., "không sốt") to prevent false specialty routing.
-- **FR-TRG-05:** System shall generate a structured SBAR (Situation, Background, Assessment, Recommendation) clinical handoff report containing an assigned urgency rating (`ROUTINE`, `URGENT`, `EMERGENCY`) and recommended medical specialty code.
+- **FR-TRG-05:** System shall generate a structured SBAR (Situation, Background, Assessment, Recommendation) clinical handoff report containing an assigned urgency rating (`ROUTINE`, `URGENT`, `EMERGENCY`) and recommended medical specialty code (`triage_sessions`).
 
 #### 3.2.3 Semantic Vector Search & Doctor Matching Engine (FR-VEC)
-- **FR-VEC-01:** System shall transform affirmative symptom queries into 1536-dimensional continuous dense vector embeddings using `openai/text-embedding-3-small` with local FNV-1a feature hash fallback.
-- **FR-VEC-02:** System shall index verified physician biographies in PostgreSQL 16 using Hierarchical Navigable Small World (HNSW) graph indexing with parameters $m=24$ and $ef\_construction=128$.
+- **FR-VEC-01:** System shall transform affirmative symptom queries into 1536-dimensional continuous dense vector embeddings using `openai/text-embedding-3-small` with local FNV-1a feature hash fallback (`EmbeddingService`).
+- **FR-VEC-02:** System shall index verified physician biographies in PostgreSQL 16 using Hierarchical Navigable Small World (HNSW) graph indexing with parameters $m=24$ and $ef\_construction=128$ (`idx_doctor_bio_hnsw_verified` - Flyway V11).
 - **FR-VEC-03:** System shall tune database session parameters prior to vector execution via `SET LOCAL hnsw.ef_search = 120`, `SET LOCAL enable_seqscan = off`, and `SET LOCAL work_mem = '64MB'` to enforce index scan execution and guarantee $> 99.95\%$ recall.
 - **FR-VEC-04:** System shall execute a Weighted Hybrid Re-Ranking Formula (WHRF) within a bounded min-heap combining Sigmoid Contrastive Sharpening ($S_{dense} = \frac{1}{1 + e^{-8.0(S - 0.65)}}$), sparse lexical BM25 overlap, specialty bonuses ($+0.12$), divergence penalties ($-0.10$), and review credibility dampers.
 - **FR-VEC-05:** System shall restrict public doctor search visibility strictly to verified licensed practitioners (`is_verified = true`).
-- **FR-VEC-06:** System shall integrate WHO ICD-10 and MOH Decision 7603/QĐ-BYT clinical ontologies, providing prefix autocomplete for medical diagnoses in $< 30\text{ms}$.
-- **FR-VEC-07:** System shall integrate LOINC and MOH Decision 3280/QĐ-BYT laboratory ontologies, providing autocomplete for laboratory and diagnostic test requisitions in $< 30\text{ms}$.
-- **FR-VEC-08:** System shall return the top $K=5$ optimal physician matches with normalized match compatibility percentages and real-time appointment slot availability.
+- **FR-VEC-06:** System shall integrate WHO ICD-10 and MOH Decision 7603/QĐ-BYT clinical ontologies, providing prefix autocomplete for medical diagnoses in $< 30\text{ms}$ (`ClinicalOntologyController.searchIcd10`).
+- **FR-VEC-07:** System shall integrate LOINC and MOH Decision 3280/QĐ-BYT laboratory ontologies, providing autocomplete for laboratory and diagnostic test requisitions in $< 30\text{ms}$ (`ClinicalOntologyController.searchLoinc`).
+- **FR-VEC-08:** System shall return the top $K=5$ optimal physician matches with normalized match compatibility percentages and real-time appointment slot availability (`DoctorSemanticSearchService`).
 
 #### 3.2.4 Multimodal Medical Document OCR & LOINC Summarizer (FR-DOC)
-- **FR-DOC-01:** System shall ingest patient medical lab reports, blood panels, and imaging scans in PDF, PNG, and JPEG formats up to 10MB in size and 10 pages in length.
-- **FR-DOC-02:** System shall compute client-side SHA-256 cryptographic checksums to detect and deduplicate identical document re-uploads.
+- **FR-DOC-01:** System shall ingest patient medical lab reports, blood panels, and imaging scans in PDF, PNG, and JPEG formats up to 10MB in size and 10 pages in length (`MedicalDocumentValidator`).
+- **FR-DOC-02:** System shall compute client-side SHA-256 cryptographic checksums to detect and deduplicate identical document re-uploads (`file_hash` - Flyway V5).
 - **FR-DOC-03:** System shall store all medical document files strictly in private Supabase S3 cloud buckets (`medical-documents`) under internal object keys (`storage_path`), completely prohibiting public web access URLs (Security Fix V20).
-- **FR-DOC-04:** System shall issue time-limited HMAC signed URLs with a strict 15-minute expiration (900 seconds) for authorized file previews and downloads.
-- **FR-DOC-05:** System shall extract numerical biomarkers, physiological units, demographic reference ranges, and abnormal indicator flags (`NORMAL`, `ELEVATED`, `LOW`) using Google Gemini 1.5 Flash Multimodal Vision AI.
+- **FR-DOC-04:** System shall issue time-limited HMAC signed URLs with a strict 15-minute expiration (900 seconds) for authorized file previews and downloads (`SupabaseStorageService`).
+- **FR-DOC-05:** System shall extract numerical biomarkers, physiological units, demographic reference ranges, and abnormal indicator flags (`NORMAL`, `ELEVATED`, `LOW`) using Google Gemini 1.5 Flash Multimodal Vision AI (`DocumentAnalysis`).
 - **FR-DOC-06:** System shall translate complex clinical laboratory findings into plain-language Vietnamese explanations accompanied by mandatory medical safety disclaimers.
 
 #### 3.2.5 O2O Clinical Scheduling & Multi-Channel Payment (FR-BOK)
-- **FR-BOK-01:** System shall manage in-clinic consultation bookings strictly within hospital operating hours: Monday through Saturday, 08:00–12:00 and 13:30–17:00 (Sundays closed).
-- **FR-BOK-02:** System shall enforce serializable concurrency controls preventing double-booking of identical 30-minute doctor time slots.
-- **FR-BOK-03:** System shall issue a sequential daily admission queue number (`STT 01`, `STT 02`...) for each doctor schedule starting at STT 01 at 08:00 AM.
-- **FR-BOK-04:** System shall generate an Electronic Patient Admission Slip detailing clinic room, hospital floor/building, Google Maps navigation coordinates, and pre-encounter preparation instructions.
-- **FR-BOK-05:** System shall support appointment calendar export via direct Google Calendar URL generation and RFC 5545 `.ics` file downloads.
-- **FR-BOK-06:** System shall permit patient-initiated rescheduling up to 2 hours prior to scheduled appointment time without fee penalties.
+- **FR-BOK-01:** System shall manage in-clinic consultation bookings strictly within hospital operating hours: Monday through Saturday, 08:00–12:00 and 13:30–17:00 (Sundays closed - `INVALID_SLOT_DAY`, `INVALID_SLOT_TIME`).
+- **FR-BOK-02:** System shall enforce serializable concurrency controls preventing double-booking of identical 30-minute doctor time slots (`SLOT_CONFLICT`).
+- **FR-BOK-03:** System shall issue a sequential daily admission queue number (`STT 01`, `STT 02`...) for each doctor schedule starting at STT 01 at 08:00 AM (`queue_number` - Flyway V19).
+- **FR-BOK-04:** System shall generate an Electronic Patient Admission Slip detailing clinic room, hospital floor/building, Google Maps navigation coordinates, and pre-encounter preparation instructions (`AppointmentController.getTicket`).
+- **FR-BOK-05:** System shall support appointment check-in upon arrival at the hospital clinic (`AppointmentController.checkIn`).
+- **FR-BOK-06:** System shall permit patient-initiated rescheduling up to 2 hours prior to scheduled appointment time without fee penalties (`AppointmentController.rescheduleAppointment`).
 - **FR-BOK-07:** System shall execute automated financial refunds via `AppointmentRefundService` according to hospital cancellation timeline policies (>24h: 100%, 2-24h: 80%, <2h: 0%, Doctor Cancel: 100%).
 
 #### 3.2.6 Doctor Clinical Workstation & Longitudinal EMR (FR-CLIN)
-- **FR-CLIN-01:** System shall provide attending physicians with an interactive daily queue sorted sequentially by patient admission STT numbers.
-- **FR-CLIN-02:** System shall provide a split-screen pre-encounter clinical inspection workspace displaying the original raw lab document alongside the AI SBAR clinical summary.
+- **FR-CLIN-01:** System shall provide attending physicians with an interactive daily queue sorted sequentially by patient admission STT numbers (`DoctorController.callNextPatient`).
+- **FR-CLIN-02:** System shall provide a split-screen pre-encounter clinical inspection workspace displaying the original raw lab document alongside the AI SBAR clinical summary (`DoctorDashboard.tsx`).
 - **FR-CLIN-03:** System shall enforce Broken Object Level Authorization defenses via `PatientAccessGuard`, requiring an active care relationship (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED` appointment) before permitting doctor access to patient records, with mandatory `VIEW_PATIENT_RECORD` audit logging.
-- **FR-CLIN-04:** System shall record objective physical examination notes and vital signs (Blood Pressure, Heart Rate, Respiratory Rate, Body Temperature, SpO2, Weight, Height, and auto-computed BMI).
-- **FR-CLIN-05:** System shall require at least one standardized WHO ICD-10 diagnosis code prior to encounter finalization.
-- **FR-CLIN-06:** System shall generate electronic outpatient prescriptions with dosage regimens, administration routes, and treatment durations.
-- **FR-CLIN-07:** System shall lock finalized clinical encounters as legally immutable medical records, recording physician digital sign-off and timestamps.
-- **FR-CLIN-08:** System shall export official formatted consultation summaries and prescriptions as print-ready PDF documents.
+- **FR-CLIN-04:** System shall record objective physical examination notes and vital signs (Blood Pressure, Heart Rate, Respiratory Rate, Body Temperature, SpO2, Weight, Height, and auto-computed BMI) directly on `appointments.vital_signs_json` (Flyway V18).
+- **FR-CLIN-05:** System shall require at least one standardized WHO ICD-10 diagnosis code prior to encounter finalization (`icd10_code`, `icd10_name`).
+- **FR-CLIN-06:** System shall generate electronic outpatient prescriptions with dosage regimens, administration routes, and treatment durations stored in `appointments.prescription_json` (Flyway V9).
+- **FR-CLIN-07:** System shall lock finalized clinical encounters as legally immutable medical records (`AppointmentStatus.COMPLETED`).
+- **FR-CLIN-08:** System shall export official formatted consultation summaries and prescriptions as print-ready PDF documents (`MeddiesPdfGeneratorService`).
 
 #### 3.2.7 Admin Governance & AI FinOps Analytics (FR-ADM)
-- **FR-ADM-01:** System shall provide an executive telemetry dashboard tracking active platform users, consultation volumes, and infrastructure service health.
-- **FR-ADM-02:** System shall audit and vet doctor medical practice certificates (CCHN) against the National Healthcare Practitioner Registry before granting public visibility.
-- **FR-ADM-03:** System shall monitor AI token consumption (prompt and completion tokens) across Gemini and OpenAI APIs, projecting costs in USD and VNĐ (`AI_COST_VND_PER_USD = 25450`).
+- **FR-ADM-01:** System shall provide an executive telemetry dashboard tracking active platform users, consultation volumes, and infrastructure service health (`AdminController.getStats`).
+- **FR-ADM-02:** System shall audit and vet doctor medical practice certificates (CCHN) against the National Healthcare Practitioner Registry before granting public visibility (`AdminController.vetDoctor`).
+- **FR-ADM-03:** System shall monitor AI token consumption (prompt and completion tokens) across Gemini, OpenAI, and OpenRouter APIs, projecting costs in USD and VNĐ (`AI_COST_VND_PER_USD = 25450` - `AdminController.getAiUsage`).
 - **FR-ADM-04:** System shall enforce role-based access control permitting only `ADMIN` users to toggle system-wide AI provider and failover modes (`POST /api/v1/system/ai-mode/toggle` - Security Fix BE-1).
-- **FR-ADM-05:** System shall maintain an append-only, immutable audit trail in `audit_logs` capturing authentication events, doctor patient record inspections, and administrative overrides.
+- **FR-ADM-05:** System shall maintain an append-only, immutable audit trail in `audit_logs` capturing authentication events, doctor patient record inspections, and administrative overrides (`AdminController.getAuditLogs`).
 - **FR-ADM-06:** System shall track Flyway database migration history (V1 through V22) and pgvector HNSW index health.
 """
 

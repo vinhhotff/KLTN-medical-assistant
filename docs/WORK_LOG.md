@@ -5493,16 +5493,16 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
      * **2.3.3 Doctor (UC-DOC-01..14):** Cấu hình ca khám, Hàng đợi bệnh nhân theo STT trong ngày, Khám tiền lâm sàng Split-Screen (Tệp gốc vs Bản bóc tách AI), Truy cập hồ sơ có rào chắn `PatientAccessGuard` (BOLA/IDOR), Ghi nhận sinh hiệu & khám lâm sàng, Autocomplete chẩn đoán WHO ICD-10 & QĐ 7603/QĐ-BYT, Autocomplete cận lâm sàng LOINC & QĐ 3280/QĐ-BYT, Kê đơn thuốc ngoại trú, Hẹn tái khám, Khóa bệnh án bất biến (Finalize), Bác sĩ hủy lịch hoàn tiền 100%, Xuất bệnh án/đơn thuốc PDF, Báo cáo doanh thu & đánh giá, Quản lý hồ sơ CCHN.
      * **2.3.4 Admin (UC-ADM-01..10):** Dashboard điều hành & Telemetry thời gian thực, Quản trị tài khoản & Khóa người dùng, Thẩm định CCHN bác sĩ, Quản lý danh mục chuyên khoa, Giám sát & Can thiệp lịch hẹn toàn viện, FinOps theo dõi tiêu thụ Token & Chi phí USD/VNĐ, Chuyển đổi nhà cung cấp AI toàn hệ thống (BE-1), Nhật ký kiểm toán an ninh `VIEW_PATIENT_RECORD` bất biến, Giám sát di trú CSDL Flyway V1-V22 & HNSW Index, Phát thông báo khẩn toàn viện.
 3. **Mục 3: Functional Requirements:**
-   - **3.1.1 Screens Flow:** Sơ đồ chuyển trạng thái màn hình (State Machine Diagram) phân luồng cho cả 3 vai trò.
-   - **3.1.2 Screen Descriptions:** Đặc tả chi tiết 18 màn hình (SCR-01 đến SCR-18) gồm bố cục UI, các trường nhập liệu, kiểu dữ liệu, quy tắc validation và các đích chuyển trang.
-   - **3.1.3 Screen Authorization Matrix:** Ma trận phân quyền màn hình theo vai trò (Guest, Patient, Doctor, Admin).
+   - **3.1.1 Screens Flow:** Sơ đồ chuyển trạng thái màn hình (State Machine Diagram) phân luồng cho cả 3 vai trò khớp 100% với React Router trong `frontend/src/App.tsx`.
+   - **3.1.2 Screen Descriptions:** Đặc tả chi tiết đúng 18 màn hình thực tế (SCR-01 đến SCR-18) trong thư mục `frontend/src/pages/` (Landing, Login, ForgotPassword, ResetPassword, VerifyEmail, OAuth2Callback, PatientDashboard, SymptomTriage, DoctorSearch & BookingModal, DocumentSummarizer, PaymentSuccess, DoctorDashboard Workstation, DoctorPatientRecords, DoctorProfile, AdminDashboard, DoctorManagement, UserManagement, Supervision & Operations).
+   - **3.1.3 Screen Authorization Matrix:** Ma trận phân quyền màn hình theo vai trò (Guest, Patient, Doctor, Admin) được bảo vệ bởi `ProtectedRoute` và `PatientAccessGuard`.
    - **3.1.4 Non-Screen Functions:** Đặc tả 6 tác vụ ngầm bất đồng bộ (NSF-01..06) trên Java 21 Project Loom Virtual Threads và `@Async("mailExecutor")`.
-   - **3.1.5 Physical ERD:** Sơ đồ thực thể quan hệ hoàn chỉnh của PostgreSQL 16 `pgvector` với 22 migration Flyway.
+   - **3.1.5 Physical ERD:** Sơ đồ thực thể quan hệ chuẩn xác 100% của PostgreSQL 16 `pgvector` với 17 bảng thực tế từ Flyway V1 đến V22 (`users`, `specialties`, `doctor_profiles`, `doctor_specialties`, `doctor_schedule_slots`, `patient_profiles`, `appointments` lưu trữ trực tiếp các trường lâm sàng JSON, `triage_sessions`, `medical_documents`, `document_analyses`, `audit_logs`, `ai_token_usage`, `payment_transactions`, `password_reset_tokens`, `notifications`, `doctor_reviews`, `email_verification_tokens`), loại bỏ hoàn toàn các thực thể giả định.
    - **3.2 Module Functional Requirements:** Chi tiết từng tiêu chí kỹ thuật của 7 phân hệ FR (FR-AUTH, FR-TRG, FR-VEC, FR-DOC, FR-BOK, FR-CLIN, FR-ADM).
 4. **Mục 4: Non-Functional Requirements & Mục 5: Requirement Appendix:**
    - **4.1 External Interfaces:** Giao diện người dùng (bảng màu lâm sàng, hỗ trợ split-screen), Phần cứng máy chủ AVX2/AVX-512, Phần mềm bên ngoài.
    - **4.2 Quality Attributes:** NFR-USA (Usability), NFR-REL (Reliability 99.9%, Fallback 3 tầng), NFR-PERF (Vector search < 12ms, L1/L2 cache), NFR-SEC (BOLA/IDOR, Bcrypt 12, PII 20k, URL 15 phút, Mock payment lockdown), NFR-MAINT (306/306 tests 100%).
-   - **5.1 Business Rules:** Bảng 34 quy tắc nghiệp vụ (BR-01 đến BR-34).
+   - **5.1 Business Rules:** Bảng 34 quy tắc nghiệp vụ (BR-01 đến BR-34) gắn liền với các mã lỗi chuẩn xác từ backend (`INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `EMAIL_NOT_VERIFIED`, `SLOT_CONFLICT`, `FORBIDDEN_PATIENT_ACCESS`, v.v.).
    - **5.2 Acronyms:** Bảng tra cứu thuật ngữ chuyên ngành y sinh và kỹ thuật phần mềm.
    - **5.3 Common Requirements:** Ràng buộc kiến trúc (Loom, Seeding, CORS, Secrets Isolation).
    - **5.4 Application Messages List:** Danh mục song ngữ toàn bộ thông điệp giao diện.
