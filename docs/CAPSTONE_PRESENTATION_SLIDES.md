@@ -16,7 +16,7 @@
 - **PHẦN 2: KIẾN TRÚC HỆ THỐNG & AN TOÀN Y TẾ (Slide 4 - 6)**
   - Slide 4: Tổng Quan Kiến Trúc C4 & Công Nghệ Cốt Lõi
   - Slide 5: Rào Chắn Đạo Đức Y Tế, Khẩn Cấp 115 & Bảo Mật PII (Nghị Định 13)
-  - Slide 6: Cơ Sở Dữ Liệu Quan Hệ 3NF & Vòng Đời Di Trú Flyway (V1 - V19)
+  - Slide 6: Cơ Sở Dữ Liệu Quan Hệ 3NF & Vòng Đời Di Trú Flyway (V1 - V22)
 - **PHẦN 3: ĐỘT PHÁ AI, PGVECTOR & KHOA HỌC DỮ LIỆU (Slide 7 - 13)**
   - Slide 7: Bài Toán Cốt Lõi: Lệch Ngữ Nghĩa Trong Tìm Kiếm Bác Sĩ (Semantic Mismatch)
   - Slide 8: Khai Thác Kho Dữ Liệu Hugging Face Meddies 150.000 Ca Bệnh
@@ -34,7 +34,7 @@
   - Slide 19: Quản Trị Tài Chính AI FinOps & Bảng Kiểm Toán Chi Phí Token
 - **PHẦN 5: LIVE DEMO, KIỂM THỬ & KẾT LUẬN (Slide 20 - 24)**
   - Slide 20: Kịch Bản Live Demo 5 Phút Vàng Trước Hội Đồng
-  - Slide 21: Đảm Bảo Chất Lượng Toàn Diện (165 Tests Backend, 0 TS Error, k6 Load Test)
+  - Slide 21: Đảm Bảo Chất Lượng Toàn Diện (306 Tests Backend, 0 TS Error, k6 Load Test)
   - Slide 22: Kế Hoạch Mở Rộng Hệ Thống Trên Máy Chủ 16GB RAM / 512GB SSD
   - Slide 23: Đóng Góp Khoa Học, Hạn Chế & Hướng Phát Triển
   - Slide 24: Kết Luận, Lời Cảm Ơn & Sẵn Sàng Trả Lời Phản Biện (Q&A)
@@ -120,41 +120,48 @@
 ### SLIDE 5: RÀO CHẮN ĐẠO ĐỨC Y TẾ, KHẨN CẤP 115 & BẢO MẬT PII
 * **Thời lượng:** 50 giây
 * **Gợi ý thiết kế Visual:**
-  - Hình minh họa 3 rào chắn bảo vệ (3 Khiên chắn):
-    - Khiên 1: Banner Medical Disclaimer màu cam thường trực.
-    - Khiên 2: Động cơ Red-Flag Regex khóa khẩn cấp 115.
+  - Hình minh họa 4 rào chắn bảo vệ y tế đa lớp (4 Khiên Chắn Toàn Diện):
+    - Khiên 1: Banner Medical Disclaimer màu cam thường trực trên mọi giao diện.
+    - Khiên 2: Động cơ Red-Flag Regex khóa khẩn cấp chuyển hướng 115.
     - Khiên 3: Rào chắn khử định danh PII tuân thủ Nghị định 13/2023/NĐ-CP & HIPAA.
+    - Khiên 4: Rào chắn phân quyền BOLA/IDOR `PatientAccessGuard` & URL ký số HMAC 15 phút.
 * **Nội dung hiển thị trên Slide:**
   - **Thanh cảnh báo pháp lý thường trực (Mandatory Disclaimer):** Hiển thị cố định trên mọi màn hình bệnh nhân.
   - **Rào chắn cấp cứu khẩn cấp (Emergency Red-Flag Lockout):**
     - Nhận diện tức thì triệu chứng nguy kịch: Đột quỵ FAST, nhồi máu cơ tim, sốc phản vệ, nôn ra máu.
     - Lập tức ngắt luồng AI thông thường, khóa tìm kiếm và bật cảnh báo đỏ gọi ngay Cấp cứu 115.
   - **Khử định danh dữ liệu y tế nhạy cảm (Medical PII Guardrail):**
-    - Che mờ tự động 6 trường PII: Họ tên, CCCD 12 số, Thẻ BHYT, SĐT, Địa chỉ, Ngày sinh.
+    - Che mờ tự động 6 trường PII: Họ tên, CCCD 12 số, Thẻ BHYT, SĐT, Địa chỉ, Ngày sinh (`@Size(max = 20000)`).
     - Nguyên tắc Zero Cloud Data Leakage: AI đám mây chỉ nhìn thấy dữ liệu đã che giấu.
+  - **Phòng thủ Broken Object Level Authorization (BOLA/IDOR):**
+    - `PatientAccessGuard` thẩm định quan hệ điều trị thực tế (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED`).
+    - Supabase S3 Private Storage với URL ký số HMAC-SHA256 có hạn 15 phút, tự động ghi vết kiểm toán.
 * **Kịch bản lời thoại (Speaker Notes):**
-  > *"Đạo đức y tế và bảo mật dữ liệu là ưu tiên số một của đề tài. MediAssist-AI tích hợp rào chắn Red-Flag phát hiện dấu hiệu nguy kịch để khóa luồng và chuyển hướng gọi 115 ngay lập tức. Đồng thời, hệ thống khử định danh 100% thông tin cá nhân của người bệnh trước khi gửi prompt sang AI đám mây, tuân thủ nghiêm ngặt Nghị định 13/2023/NĐ-CP của Chính phủ."*
+  > *"Đạo đức y tế và bảo mật dữ liệu là ưu tiên số một của đề tài. MediAssist-AI thiết lập 4 tầng khiên chắn bảo vệ: Từ rào chắn Red-Flag khóa luồng chuyển 115 khi phát hiện nguy kịch, khử định danh 100% PII trước khi gửi sang AI đám mây theo Nghị định 13/2023/NĐ-CP, cho đến rào chắn PatientAccessGuard chống rò rỉ bệnh án BOLA/IDOR và cấp phát URL ký số S3 15 phút. Toàn bộ hành vi truy cập y tế đều được ghi nhật ký kiểm toán bất biến."*
 
 ---
 
-### SLIDE 6: CƠ SỞ DỮ LIỆU QUAN HỆ 3NF & VÒNG ĐỜI DI TRÚ FLYWAY
+### SLIDE 6: CƠ SỞ DỮ LIỆU QUAN HỆ 3NF & VÒNG ĐỜI DI TRÚ FLYWAY (V1 - V22)
 * **Thời lượng:** 45 giây
 * **Gợi ý thiết kế Visual:**
   - Bảng tổng hợp cấu trúc ERD chuẩn hóa 3NF:
-    - Bảng người dùng & phân quyền (`users`, `roles`, `doctor_profiles`).
-    - Bảng lâm sàng & tài liệu (`medical_documents`, `document_analyses`).
-    - Bảng lịch hẹn & kiểm toán (`appointments`, `ai_token_usage`, `audit_logs`).
-  - Timeline 19 phiên bản Flyway Migration liên tục từ `V1` đến `V19`.
+    - Bảng người dùng & phân quyền (`users`, `doctor_profiles`, `patient_profiles`).
+    - Bảng lâm sàng & tài liệu (`appointments`, `medical_documents`, `document_analyses`).
+    - Bảng giao dịch, kiểm toán & bảo mật (`payment_transactions`, `audit_logs`, `password_reset_tokens`, `email_verification_tokens`).
+  - Timeline 22 phiên bản Flyway Migration liên tục từ `V1` đến `V22`.
 * **Nội dung hiển thị trên Slide:**
-  - **Chuẩn hóa quan hệ 3NF:** Đảm bảo toàn vẹn dữ liệu, triệt tiêu dư thừa dữ liệu bất thường.
-  - **100% Quản lý phiên bản CSDL qua Flyway:**
-    - 19 file migration SQL tự động hóa hoàn toàn từ `V1` đến `V19`.
-    - `V10`: Thêm cột `bio_embedding vector(1536)` và chỉ mục HNSW.
-    - `V18`: Bổ sung kiểm toán FinOps `ai_token_usage`.
-    - `V19`: Tối ưu hóa đồ thị HNSW và chỉ mục lai GIN Trigram.
+  - **Chuẩn hóa quan hệ 3NF:** Đảm bảo toàn vẹn dữ liệu giao dịch y tế, triệt tiêu dư thừa dữ liệu bất thường.
+  - **100% Quản lý phiên bản CSDL qua Flyway (22 bản di trú V1 – V22):**
+    - `V10`: Thêm cột `bio_embedding vector(1536)` và chỉ mục HNSW Cosine Similarity.
+    - `V17`: Tích hợp hệ thống đánh giá bác sĩ `doctor_reviews` và `review_count` vào WHRF Credibility Damper.
+    - `V18`: Bổ sung kiểm toán FinOps `ai_token_usage` cho OpenAI và Gemini.
+    - `V19`: Tối ưu hóa đồ thị HNSW (`m=24`, `ef_construction=128`) và chỉ mục lai GIN Trigram.
+    - `V20`: Khóa lưu trữ nội bộ riêng tư `storage_path` trên Supabase S3 với HMAC presigned URLs 15 phút.
+    - `V21`: Băm một chiều SHA-256 cho token đặt lại mật khẩu (`token_hash`) chống rò rỉ dữ liệu.
+    - `V22`: Thiết lập cổng xác thực email `email_verification_tokens` và cờ `email_verified`.
   - **Chỉ mục bộ phận (Partial Indexing):** `CREATE INDEX ... WHERE is_verified = TRUE`, giảm 40% dung lượng RAM của đồ thị vector.
 * **Kịch bản lời thoại (Speaker Notes):**
-  > *"Cơ sở dữ liệu của hệ thống được thiết kế chuẩn hóa 3NF và tiến hóa qua 19 phiên bản Flyway Migration tự động, giúp việc triển khai tại bất kỳ máy chủ nào cũng đạt độ nhất quán tuyệt đối. Đặc biệt tại Flyway V19, nhóm đã tối ưu hóa chỉ mục bộ phận Partial Indexing, giúp đồ thị vector chỉ lập chỉ mục cho các bác sĩ đã được xác minh chứng chỉ hành nghề, tiết kiệm tới 40% bộ nhớ RAM."*
+  > *"Cơ sở dữ liệu của hệ thống được thiết kế chuẩn hóa 3NF và tiến hóa qua 22 phiên bản Flyway Migration tự động, giúp việc triển khai tại bất kỳ môi trường nào cũng đạt độ nhất quán tuyệt đối. Nhóm đã tối ưu hóa từ đồ thị vector HNSW ở V19, rào chắn lưu trữ S3 riêng tư với URL ký số 15 phút ở V20, băm token SHA-256 ở V21 cho tới cổng xác thực email ở V22, bảo vệ dữ liệu y tế toàn diện theo chuẩn HIPAA và Nghị định 13."*
 
 ---
 
