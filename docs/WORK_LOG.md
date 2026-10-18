@@ -5510,6 +5510,42 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
 5. **Công Cụ Xây Dựng Tự Động:**
    - Xây dựng bộ công cụ tạo sinh mô-đun tại `scripts/build_srs_doc.py` và `scripts/srs/` giúp biên dịch và bảo trì tài liệu tức thì.
 
+---
+
+### [WORK-LOG-#103] Chuẩn Hóa 1-1 Bảng Biểu & Logic Thuật Toán SRS Theo Chuẩn Đồ Án FPT Capstone (Google Doc Reference)
+* **Thời gian:** 2026-10-18 10:15:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Tinh chỉnh toàn bộ bảng biểu Use Case và phân hệ chức năng (Mục 2.3 và Mục 3) của `docs/SRS_MediAssist_AI.md` khớp 1-1 với cấu trúc thẩm mỹ, biểu bảng và thuật toán cốt lõi trong tệp tài liệu mẫu Google Doc (108 trang).
+* **Trạng thái Build:**
+  - Backend: **`306 / 306` Tests PASS 100%** (`mvn test` 0 failure, 0 error).
+  - Frontend: **`npm run build` PASS 100%** (2307 modules, 0 lỗi TypeScript, 2.54s).
+  - Kho di trú CSDL: 22 bản di trú Flyway V1 – V22 hoàn chỉnh.
+
+#### 1. Chi Tiết Các Cải Tiến Bảng Biểu & Thuật Toán:
+1. **Chuẩn Hóa 49 Use Cases Thành Bảng 2 Cột Chuẩn Mẫu (Section 2.3):**
+   - Thay thế toàn bộ định dạng khối văn bản thô bằng cấu trúc bảng Markdown 2 cột (`| Attribute | Specification Details |`) chuẩn chỉ:
+     * Cột trái: Thuộc tính (`Use Case ID`, `Use Case Name`, `Created By/Date`, `Primary/Secondary Actors`, `Description`, `Trigger`, `Pre-conditions`, `Post-conditions`, `Normal Flow`, `Alternative Flow`, `Exceptions`, `Priority`, `Frequency of Use`, `Business Rules`, `Data Entities Involved`, `User Interface Controls`).
+     * Cột phải: Chi tiết đặc tả kỹ thuật tương ứng, định dạng thẻ `<br>` rõ ràng, gãy gọn, không tràn lề.
+2. **Chuẩn Hóa Bảng Biểu Mục 3.1 (System Functional Overview):**
+   - **`Table 3.1.2 : Website Screen Descriptions`:** Liệt kê đầy đủ 18 màn hình thực tế trong `frontend/src/pages/` với các cột `#`, `Feature Domain`, `Screen Name`, `Route Path`, `Description & Purpose`.
+   - **`Table 3.1.3 : Screen Authorization`:** Ma trận phân quyền ma trận 4 vai trò (Guest, Patient, Doctor, Admin) kèm cơ chế bảo vệ `ProtectedRoute` và `PatientAccessGuard`.
+   - **`Table 3.1.4 : Non-Screen Functions`:** Bảng 6 tác vụ xử lý ngầm (NSF-01 đến NSF-06) trên Java 21 Project Loom Virtual Threads và `@Async("mailExecutor")`.
+   - **`3.1.5 Physical ERD Data Dictionary`:** Bổ sung Từ điển Dữ liệu (Data Dictionary) chi tiết cho toàn bộ 17 bảng PostgreSQL thực tế (Tên bảng, khóa chính, khóa ngoại, kiểu dữ liệu, ràng buộc).
+3. **Đặc Tả Sâu Các Thuật Toán Cốt Lõi (Section 3.2):**
+   - **Thuật toán Tái Xếp Hạng WHRF-SOTA (Mục 3.2.4):**
+     * Trình bày công thức Sigmoid Contrastive Sharpening: $S_{dense} = \frac{1}{1 + e^{-8.0 \cdot (\text{CosineSim} - 0.65)}}$.
+     * Bộ giảm chấn gian lận điểm đánh giá: $W_{cred} = \frac{\log_{10}(\text{review\_count} + 1)}{\log_{10}(100)}$.
+     * Thưởng chuyên khoa $+0.12$, phạt phân kỳ $-0.10$, và trọng số học hàm học vị (Prof +0.08, Assoc Prof +0.05, PhD +0.03).
+   - **Thuật toán Động Cơ Phòng Thủ Lâm Sàng 5 Tầng & Vietnamese NegEx (Mục 3.2.3):**
+     * Sơ đồ luồng xử lý và bảng mẫu Regex rào chắn cấp cứu (Stroke FAST, Nhồi máu cơ tim, Sốc phản vệ).
+     * Thuật toán bóc tách mệnh đề khẳng định $C_{aff}$ và cách ly mệnh đề phủ định $C_{neg}$ ("không sốt") triệt tiêu 100% rủi ro định tuyến sai chuyên khoa.
+   - **Kỹ Thuật Session-Level Tuning PostgreSQL 16 (Mục 3.2.4):**
+     * Cơ chế tiêm `SET LOCAL hnsw.ef_search = 120`, `SET LOCAL enable_seqscan = off`, `SET LOCAL work_mem = '64MB'` đạt độ trễ vector search **0.72ms** và Recall 99.95%.
+   - **Rào Chắn Phân Quyền BOLA/IDOR `PatientAccessGuard` (Mục 3.2.7):**
+     * Trích xuất nguyên mẫu mã Java kiểm tra quan hệ điều trị bắt buộc (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED`) và tự động ghi nhật ký `VIEW_PATIENT_RECORD`.
+   - **Thuật Toán Hoàn Tiền Tự Động Phân Tầng `AppointmentRefundService` (Mục 3.2.6):**
+     * Công thức hoàn tiền theo mốc thời gian: $>24\text{h} = 100\%$, $2\text{h} - 24\text{h} = 80\%$, $<2\text{h} = 0\%$, và Bác sĩ hủy = $100\%$.
+
 
 
 
