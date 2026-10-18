@@ -5629,6 +5629,23 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
 7. **Đánh Giá Tiêu Chí Đồ Án Tốt Nghiệp & Nghiệm Thu (Section 7):**
    - Đạt điểm tối đa (Grade A) trên toàn bộ tiêu chí đánh giá của Hội đồng Khóa luận Tốt nghiệp Đại học FPT.
 
+### [WORK-LOG-#106] Thiết Lập Trọn Vẹn Bộ 5 Báo Cáo Khóa Luận Tốt Nghiệp Chuẩn FPT Capstone (Report 1 đến Report 5)
+* **Thời gian:** 2026-10-18 12:45:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Khởi tạo và đồng bộ hóa toàn diện bộ ngũ báo cáo Khóa luận Tốt nghiệp Đại học FPT: Report 1 (Project Charter & Plan), Report 2 (Requirements Analysis & Domain Model), Report 3 (SRS IEEE 830), Report 4 (SDD IEEE 1016), và Report 5 (Test Documentation IEEE 829), thiết lập tài liệu đỉnh cao sẵn sàng nộp bài và bảo vệ.
+* **Trạng thái Build:**
+  - Backend: **`306 / 306` Tests PASS 100%** (`mvn test` 0 failure, 0 error, 15.14s).
+  - Frontend: **`npm run build` PASS 100%** (2307 modules, 0 lỗi TypeScript, 2.68s).
+  - Hệ sinh thái Capstone: **100% tài liệu đồng bộ 1-1 với codebase và các chuẩn quốc tế ISO/IEEE**.
+
+#### 1. Bộ 5 Báo Cáo Khóa Luận Tốt Nghiệp Chuẩn Hóa:
+1. **Report 1 (`docs/PROJECT_CHARTER_AND_PLAN.md`):** Khởi động & Kế hoạch Quản lý Dự án chuẩn PMBOK/Agile, WBS 4 cấp, Ma trận phân công RACI, Lộ trình 7 Milestones (M1–M7), Dự toán ngân sách FinOps và Ma trận quản trị rủi ro y tế/kỹ thuật.
+2. **Report 2 (`docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`):** Phân tích nghiệp vụ y tế mô hình As-Is vs To-Be (O2O), 3 Chân dung người dùng (Personas), Mô hình miền lâm sàng Conceptual Domain Model và 7 Bounded Contexts theo Domain-Driven Design (DDD).
+3. **Report 3 (`docs/SRS_MediAssist_AI.md`):** Đặc tả Yêu cầu Phần mềm chuẩn IEEE 830 / ISO 29148, 49 Use Cases dạng bảng 2 cột chuẩn mẫu Google Doc, 18 Màn hình Website, Từ điển Dữ liệu 17 bảng, và Ma trận truy vết kiểm thử (RTM Section 5.5).
+4. **Report 4 (`docs/SDD_MediAssist_AI.md`):** Thiết kế Phần mềm chuẩn IEEE 1016, 88 Biểu đồ Mermaid (1 Architecture, 2 Packages, 1 ERD, 28 Class, 56 Sequence), 17 Bảng CSDL với đầy đủ bảng Cột, Chỉ mục vật lý (HNSW, GIN, composite) và Ràng buộc Khóa ngoại, 28 quy trình nghiệp vụ bóc tách 4 tầng chi tiết.
+5. **Report 5 (`docs/TEST_REPORT_MediAssist_AI.md`):** Báo cáo Kiểm thử Phần mềm chuẩn IEEE 829 / ISO 29119, 306/306 bài test tự động trên 37 lớp kiểm thử, Thử nghiệm tải cao k6 (500 VUs, 0% lỗi), Benchmark đồ thị HNSW trên 150.000 ca bệnh Meddies (0.72ms), Ma trận kiểm thử thâm nhập an ninh BOLA/IDOR và Nhật ký xử lý lỗi BE-1 đến BE-16.
+
+
 
 
 

@@ -26,6 +26,8 @@ Khi cần tìm kiếm tài liệu phục vụ viết báo cáo luận văn, slid
 | Tên Tệp Tài Liệu | Nội Dung Trọng Tâm | Dành Cho Ai? | Đường Dẫn |
 | :--- | :--- | :---: | :---: |
 | **`MASTER_TRACEABILITY_INDEX.md`** *(Tệp này)* | Ma trận truy vết từ Use Case $\rightarrow$ Code $\rightarrow$ DB $\rightarrow$ Test, bản đồ thuật toán, cheatsheet lệnh | Toàn bộ nhóm & Hội đồng | [`docs/MASTER_TRACEABILITY_INDEX.md`](./MASTER_TRACEABILITY_INDEX.md) |
+| **`PROJECT_CHARTER_AND_PLAN.md`** | Khởi động & Kế hoạch Quản lý Dự án (Capstone Report 1) chuẩn PMBOK/Agile, WBS, RACI, 7 Milestones, FinOps | Giảng viên hướng dẫn & Tech Lead | [`docs/PROJECT_CHARTER_AND_PLAN.md`](./PROJECT_CHARTER_AND_PLAN.md) |
+| **`REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`** | Phân tích Nghiệp vụ & Mô hình hóa Miền (Capstone Report 2) chuẩn ISO 29148, Mô hình O2O, 3 Personas, DDD | Business Analyst & Hội đồng | [`docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`](./REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md) |
 | **`SRS_MediAssist_AI.md`** | Hồ sơ Đặc tả Yêu cầu Phần mềm (Capstone Report 3) chuẩn IEEE 830 / ISO 29148, 49 Use Cases, 18 Màn hình, RTM | Hội đồng chấm đồ án & Nhóm | [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md) |
 | **`SDD_MediAssist_AI.md`** | Hồ sơ Thiết kế Phần mềm (Capstone Report 4) chuẩn FPT Capstone, 88 Biểu đồ Mermaid Class & Sequence, 17 Bảng CSDL | Giảng viên phản biện & Dev | [`docs/SDD_MediAssist_AI.md`](./SDD_MediAssist_AI.md) |
 | **`TEST_REPORT_MediAssist_AI.md`** | Báo cáo Kiểm thử Phần mềm & Đảm bảo Chất lượng (Capstone Report 5) chuẩn IEEE 829 / ISO 29119, 306 Tests, k6, HNSW | Ban Đảm bảo Chất lượng & Hội đồng | [`docs/TEST_REPORT_MediAssist_AI.md`](./TEST_REPORT_MediAssist_AI.md) |
