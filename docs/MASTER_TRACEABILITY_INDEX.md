@@ -12,7 +12,7 @@
 - [1. Bản Đồ Tổng Hợp Hệ Thống Tài Liệu (`docs/`)](#1-bản-đồ-tổng-hợp-hệ-thống-tài-liệu-docs)
 - [2. Ma Trận Truy Vết Yêu Cầu Kỹ Thuật Toàn Diện (RTM 33 Use Cases)](#2-ma-trận-truy-vết-yêu-cầu-kỹ-thuật-toàn-diện-rtm-33-use-cases)
 - [3. Bản Đồ Bộ 5 Thuật Toán Độc Quyền Cấp Doanh Nghiệp](#3-bản-đồ-bộ-5-thuật-toán-độc-quyền-cấp-doanh-nghiệp)
-- [4. Bản Đồ Cơ Sở Dữ Liệu & 19 Bản Di Trú Flyway (V1 - V19)](#4-bản-đồ-cơ-sở-dữ-liệu--19-bản-di-trú-flyway-v1---v19)
+- [4. Bản Đồ Cơ Sở Dữ Liệu & 22 Bản Di Trú Flyway (V1 - V22)](#4-bản-đồ-cơ-sở-dữ-liệu--22-bản-di-trú-flyway-v1---v22)
 - [5. Sổ Tra Cứu Các Lỗi Tiềm Ẩn & Giải Pháp Kiến Trúc Đã Khắc Phục](#5-sổ-tra-cứu-các-lỗi-tiềm-ẩn--giải-pháp-kiến-trúc-đã-khắc-phục)
 - [6. Bản Đồ Bộ Kiểm Thử Chất Lượng (Unit Tests, Playwright E2E & k6)](#6-bản-đồ-bộ-kiểm-thử-chất-lượng-unit-tests-playwright-e2e--k6)
 - [7. Cẩm Nang Lệnh Vận Hành Nhanh (Fast Operations Cheatsheet)](#7-cẩm-nang-lệnh-vận-hành-nhanh-fast-operations-cheatsheet)
@@ -29,7 +29,7 @@ Khi cần tìm kiếm tài liệu phục vụ viết báo cáo luận văn, slid
 | **`ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`** | Đặc tả chi tiết 5 thuật toán doanh nghiệp độc quyền (Hedged Requests, Progressive Sieve, XFetch, v.v.) | Tech Lead & Giám khảo chấm điểm | [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md) |
 | **`CAPSTONE_DEFENSE.md`** | Cẩm nang bảo vệ: Đề cương 5 chương, kịch bản thuyết trình 15p, checklist live demo, Top 16 câu hỏi Q&A | Cả nhóm đi bảo vệ | [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md) |
 | **`USE_CASES.md`** | Đặc tả 33 Use Cases chi tiết chuẩn RUP/IEEE 830, luồng sự kiện, ngoại lệ, API endpoints | Dev 1 & Dev 3 | [`docs/USE_CASES.md`](./USE_CASES.md) |
-| **`DATABASE_DESIGN.md`** | Thiết kế CSDL 3NF, sơ đồ Mermaid ERD, HNSW Indexing, 19 bản di trú Flyway V1-V19 | Dev 1 & Tech Lead | [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md) |
+| **`DATABASE_DESIGN.md`** | Thiết kế CSDL 3NF, sơ đồ Mermaid ERD, HNSW Indexing, 22 bản di trú Flyway V1-V22 | Dev 1 & Tech Lead | [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md) |
 | **`STORYTELLING.md`** | Bối cảnh y tế VN, nỗi đau quá tải bệnh viện, chân dung người dùng (Personas), đạo đức AI | Mở đầu slide & Chương 1 | [`docs/STORYTELLING.md`](./STORYTELLING.md) |
 | **`CAPSTONE_SPECIFICATION.md`** | Đặc tả mô hình O2O (Online-to-Offline), 5 phân hệ lâm sàng chuẩn FPT Capstone | Báo cáo môn học | [`docs/CAPSTONE_SPECIFICATION.md`](./CAPSTONE_SPECIFICATION.md) |
 | **`WORK_LOG.md`** | Nhật ký kiểm duyệt kiến trúc 85 phiên làm việc (`#001` đến `#085`), bằng chứng test | Tech Lead Audit | [`docs/WORK_LOG.md`](./WORK_LOG.md) |
@@ -95,7 +95,7 @@ Bảng dưới đây ánh xạ toàn bộ 33 Use Cases sang mã nguồn Frontend
 
 ---
 
-## 4. Bản Đồ Cơ Sở Dữ Liệu & 19 Bản Di Trú Flyway (V1 - V19)
+## 4. Bản Đồ Cơ Sở Dữ Liệu & 22 Bản Di Trú Flyway (V1 - V22)
 
 Toàn bộ các tệp di trú nằm tại thư mục: `backend/src/main/resources/db/migration/`:
 
@@ -120,6 +120,9 @@ Toàn bộ các tệp di trú nằm tại thư mục: `backend/src/main/resource
 | **V17** | `V17__create_doctor_reviews_and_rating_system.sql` | Bảng `doctor_reviews`, `doctor_profiles(review_count)` | Đánh giá 1-5 sao sau ca khám, tự tính rating và đưa điểm thực vào WHRF. |
 | **V18** | `V18__align_ai_token_usage_schema.sql` | `ai_token_usage(service_type, cost_usd, request_status)` | Chuẩn hóa bảng kiểm toán tài nguyên AI phục vụ Admin FinOps Dashboard. |
 | **V19** | `V19__optimize_clinical_pgvector_hnsw_and_hybrid_gin.sql` | Nâng cấp HNSW (m=24, ef_construction=128), GIN Full-Text Index trên `doctor_profiles` và `specialties` | Tối ưu hóa Vector Search y tế không sai sót (Recall 99.8%) và hỗ trợ RRF Hybrid Search. |
+| **V20** | `V20__private_document_storage_path.sql` | `medical_documents(storage_path)` | Chuẩn hóa bảo mật Supabase S3 private bucket, loại bỏ URL công khai và phát hành HMAC Signed URLs 15 phút. |
+| **V21** | `V21__password_reset_token_hash.sql` | `password_reset_tokens(token_hash VARCHAR(64))` | Tăng cường an ninh BE-5: Chỉ lưu mã băm SHA-256 đơn dụng của token đặt lại mật khẩu, thanh lọc hoàn toàn plaintext. |
+| **V22** | `V22__email_verification.sql` | `users(email_verified)`, bảng `email_verification_tokens` | Cổng kiểm soát kích hoạt email bắt buộc (Email Verification Gate), bảo vệ tài nguyên y tế. |
 
 ---
 
@@ -129,6 +132,10 @@ Bảng lưu vết kỹ thuật (Defect Resolution Trail) chứng minh năng lự
 
 | Mã Lỗi / Vấn Đề Kỹ Thuật | Hiện Tượng Ban Đầu | Rủi Ro Lâm Sàng / Hệ Thống | Giải Pháp Kiến Trúc Đã Áp Dụng | Commit & Tệp Đã Sửa |
 | :--- | :--- | :--- | :--- | :--- |
+| **Lỗ hổng BOLA/IDOR truy cập hồ sơ bệnh nhân** | Bác sĩ hoặc người dùng truy cập trực tiếp URL tệp hoặc kết quả xét nghiệm của bệnh nhân bất kỳ. | Rò rỉ thông tin sức khỏe nhạy cảm, vi phạm nghiêm trọng HIPAA và Nghị định 13/2023/NĐ-CP. | Xây dựng rào chắn `PatientAccessGuard`: kiểm tra quan hệ điều trị thực tế (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED`), ghi vết kiểm toán `VIEW_PATIENT_RECORD`. | `PatientAccessGuard.java` (`4183c53`) |
+| **Khóa công khai Supabase và Bucket Public** | Tệp y tế lưu bucket công khai với URL tĩnh tồn tại vĩnh viễn. | Người ngoài có thể tải tệp xét nghiệm qua URL đoán trước. | Flyway `V20`: chuyển sang `storage_path`, khóa private bucket, phát hành HMAC Signed URL hết hạn sau 15 phút. | `V20__private_document_storage_path.sql` (`4183c53`) |
+| **Lỗ hổng bypass Mock Payment trên Production** | Cổng Mock Payment cho phép gọi verify mà không chuyển tiền thật. | Người dùng lợi dụng đặt lịch miễn phí trên môi trường thực tế. | Bổ sung cờ `app.payment.mock.enabled` (mặc định false trên prod), từ chối verify và ném `AppException` nếu bị gọi lén. | `MockPaymentGateway.java` (`4183c53`) |
+| **Lỗi ReDoS / Cạn kiệt CPU tại API Khử PII** | Chuỗi văn bản PII quá lớn gây tắc nghẽn regex engine. | Kẻ xấu gửi payload hàng megabytes làm treo Virtual Threads. | Áp đặt giới hạn `@Size(max = 20000)` trên `DeidentifyTextRequest`, bảo đảm xử lý dưới 25ms. | `DeidentifyTextRequest.java` (`4183c53`) |
 | **Malformed JSON trong mã QR Vé Khám O2O** | Dùng `String.format` thủ công kết hợp hàm tự escape đơn giản. | Tên tiếng Việt có dấu, ký tự điều khiển làm máy quét 2D / Kiosk crash `SyntaxError`. | Tiêm `ObjectMapper` của Jackson, đóng gói `Map<String, Object>` serialize chuẩn RFC 8259. | `AppointmentService.java` (`a1f73af`) |
 | **Lỗi 401 invalid_client Google OAuth2** | Client ID / Secret trên file template rỗng hoặc sai lệch. | Người dùng không thể đăng nhập bằng tài khoản Google. | Cấu hình Client ID / Secret thực tế từ Google Cloud Console vào `application-local.properties` được `.gitignore` bảo vệ. | `WORK_LOG-#082` (`7e7e3bc`) |
 | **Lỗi Native Query đếm Vector Bác Sĩ** | Spring Data JPA derived query ném exception trên cột `bio_embedding`. | Sập màn hình Admin Dashboard khi tính tổng số bác sĩ có embedding. | Chuyển sang Native SQL Query thuần: `SELECT COUNT(*) FROM doctor_profiles WHERE bio_embedding IS NOT NULL`. | `DoctorProfileRepository.java` (`7e7e3bc`) |
@@ -142,9 +149,15 @@ Bảng lưu vết kỹ thuật (Defect Resolution Trail) chứng minh năng lự
 
 ## 6. Bản Đồ Bộ Kiểm Thử Chất Lượng (Unit Tests, Playwright E2E & k6)
 
-### 🧪 6.1. Backend Unit & Slice Tests (158 Tests - 100% PASS)
+### 🧪 6.1. Backend Unit & Slice Tests (306 Tests - 100% PASS)
 * Lệnh thực thi: `cd backend && mvn test`
-* Các bộ kiểm thử trọng yếu:
+* Toàn bộ **306/306 bài test tự động** đạt tỷ lệ thành công tuyệt đối ($0$ Failure, $0$ Error):
+  - `PatientAccessGuardTest.java`: Kiểm thử phòng vệ BOLA/IDOR, bắt buộc có quan hệ điều trị (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED`) và ghi nhận nhật ký `VIEW_PATIENT_RECORD`.
+  - `AppointmentRefundServiceTest.java`: Kiểm thử chính sách hoàn tiền tự động theo mốc thời gian (>24h = 100%, 2-24h = 80%, <2h = 0%, Bác sĩ hủy = 100%).
+  - `ClinicalOntologyServiceTest.java`: Kiểm thử tra cứu và autocomplete mã WHO ICD-10 và chỉ số LOINC Bộ Y Tế.
+  - `ClinicalQueryDefenseEngineTest.java`: Kiểm thử động cơ phòng thủ 5 tầng (Red-Flag 115, Teen-code, Vietnamese NegEx, OOD).
+  - `DoctorSemanticSearchServiceTest.java`: Kiểm thử tìm kiếm vector pgvector HNSW, tinh chỉnh session và thuật toán tái xếp hạng WHRF.
+  - `EmailVerificationGuardTest.java`: Kiểm thử cổng kích hoạt tài khoản Email Verification Gate.
   - `TwoLayerCacheServiceTest.java`: Kiểm thử đồng bộ bộ nhớ đệm L1 Caffeine + L2 Redis, kiểm thử TTL và Write-invalidate.
   - `SecurityHardeningTest.java`: Kiểm thử phòng thủ Brute-force (5 lần sai $\rightarrow$ khóa 15p), zero-trust 401.
   - `MedicalDocumentValidatorTest.java`: Kiểm thử bóc tách magic bytes và bộ lọc rác y tế (Gatekeeper Sieve).
