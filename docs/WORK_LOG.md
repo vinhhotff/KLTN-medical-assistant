@@ -5546,6 +5546,38 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
    - **Thuật Toán Hoàn Tiền Tự Động Phân Tầng `AppointmentRefundService` (Mục 3.2.6):**
      * Công thức hoàn tiền theo mốc thời gian: $>24\text{h} = 100\%$, $2\text{h} - 24\text{h} = 80\%$, $<2\text{h} = 0\%$, và Bác sĩ hủy = $100\%$.
 
+### [WORK-LOG-#104] Xây Dựng Hoàn Chỉnh Hồ Sơ Thiết Kế Phần Mềm SDD (Capstone Report 4) Khớp 1-1 Với Codebase
+* **Thời gian:** 2026-10-18 11:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Soạn thảo và biên dịch toàn diện tài liệu `docs/SDD_MediAssist_AI.md` (Software Design Document - SDD) theo chuẩn cấu trúc Đồ án Tốt nghiệp FPT University (Report 4), ánh xạ 1-1 với 17 bảng PostgreSQL thực tế, 18 màn hình giao diện, và toàn bộ 28 quy trình nghiệp vụ cốt lõi kèm 88 biểu đồ Mermaid (Class & Sequence diagrams).
+* **Trạng thái Build:**
+  - Backend: **`306 / 306` Tests PASS 100%** (`mvn test` 0 failure, 0 error).
+  - Frontend: **`npm run build` PASS 100%** (2307 modules, 0 lỗi TypeScript, 2.54s).
+  - Quy mô tài liệu SDD: **2.726 dòng (137.809 ký tự)**, 88 khối biểu đồ Mermaid hoàn chỉnh.
+
+#### 1. Cấu Trúc Tài Liệu Chuẩn Capstone Report 4:
+1. **Trang Bìa, Mục Lục & Lịch Sử Thay Đổi (Section I):**
+   - Định dạng chuẩn Capstone Project Report FPT University.
+   - Bảng theo dõi lịch sử chỉnh sửa tài liệu Record of Changes (A/M/D).
+2. **Kiến Trúc Hệ Thống (Section 1.1) & Biểu Đồ Gói Package Diagrams (Section 1.2):**
+   - `Figure 1.1 : System Architecture`: Mô hình Tiered Micro-Modular Monolith gồm React 18 SPA, Nginx Edge Gateway, Spring Boot 3.4 (Project Loom Virtual Threads), Hybrid Cache (L1 Caffeine + L2 Redis), PostgreSQL 16 + pgvector, Private Supabase S3, OpenAI, Gemini 1.5 Flash, và VNPay.
+   - `Table 1.1 : System Architecture Descriptions`: Mô tả 15 thành phần kiến trúc chi tiết.
+   - `Figure 1.2.1 & Table 1.2.1 : Front-end Design & Package Descriptions`: Cấu trúc 13 gói thư mục trong `frontend/src/`.
+   - `Figure 1.2.2 & Table 1.2.2 : Back-end Design & Package Descriptions`: Cấu trúc 15 gói package trong `backend/src/main/java/com/mediassist/`.
+3. **Thiết Kế Cơ Sở Dữ Liệu Chi Tiết (Section 2):**
+   - `Figure 2 : Physical Database Design ERD`: Sơ đồ Mermaid ERD thể hiện quan hệ liên kết đầy đủ 17 bảng PostgreSQL thực tế.
+   - `Table 2 : Database Design Description`: Bảng tổng kết 17 bảng, khóa chính, khóa ngoại và vai trò nghiệp vụ.
+   - `Section 2.1 đến 2.17`: Bảng đặc tả chi tiết từng cột (Column Name, Data Type, Not Null, Key, Constraints, Detailed Description) cho toàn bộ 17 bảng (`users`, `specialties`, `doctor_profiles`, `doctor_specialties`, `doctor_schedule_slots`, `patient_profiles`, `appointments`, `triage_sessions`, `medical_documents`, `document_analyses`, `payment_transactions`, `password_reset_tokens`, `email_verification_tokens`, `notifications`, `doctor_reviews`, `audit_logs`, `ai_token_usage`).
+4. **Thiết Kế Chi Tiết 28 Quy Trình Nghiệp Vụ Cốt Lõi (Section 3):**
+   - Mỗi quy trình bao gồm 1 Biểu đồ Lớp (Class Diagram), 1 Biểu đồ Tuần tự Luồng Chính (Main Flow Sequence Diagram), và 1 Biểu đồ Tuần tự Luồng Ngoại Lệ/Thất Bại (Error Flow Sequence Diagram):
+     * **Xác thực & Bảo mật (3.1 - 3.8):** Đăng nhập Dual-Transport JWT (3.1), Đăng ký & Email Verification Gate (3.2), Google OAuth2 SSO (3.3), Quên mật khẩu SHA-256 (3.4), Đặt lại mật khẩu (3.5), Xoay vòng Refresh Token (3.6), Đăng xuất an toàn (3.7), Cập nhật hồ sơ (3.8).
+     * **AI Lâm Sàng & Tìm Kiếm Bác Sĩ (3.9 - 3.10):** Phân luồng triệu chứng 5 tầng & NegEx (3.9), Tìm kiếm ngữ nghĩa pgvector & WHRF (3.10).
+     * **Lịch Khám & Bàn Làm Việc Bác Sĩ (3.11 - 3.17):** Đặt lịch hẹn & Slot Concurrency Locking (3.11), Dời lịch khám (3.12), Hủy lịch & Hoàn tiền tự động phân tầng (3.13), Điểm danh tiếp đón STT (3.14), Bệnh án điện tử EMR & ICD-10/LOINC (3.15), Giám sát hàng đợi bàn làm việc (3.16), Đánh giá & Giảm chấn Credibility Damper (3.17).
+     * **Hồ Sơ Y Tế & Bảo Mật Dữ Liệu (3.18 - 3.20):** Tải lên tài liệu y tế vào Supabase S3 (3.18), Giải nghĩa xét nghiệm OCR Gemini Flash (3.19), Phòng thủ BOLA/IDOR PatientAccessGuard & HMAC Signed URL 15 phút (3.20).
+     * **Thanh Toán & Kế Toán (3.21 - 3.23):** Khởi tạo đơn thanh toán VNPay HMAC-SHA512 (3.21), Xử lý Webhook VNPay IPN Idempotent (3.22), Đối soát & Hoàn tiền tự động (3.23).
+     * **Quản Trị Hệ Thống & Hậu Cần (3.24 - 3.28):** Phê duyệt chứng chỉ bác sĩ (3.24), Quản lý danh mục chuyên khoa (3.25), Khóa tài khoản an ninh (3.26), Giám sát nhật ký kiểm toán (3.27), Động cơ phát thư điện tử giao dịch Async Outbox (3.28).
+
+
 
 
 

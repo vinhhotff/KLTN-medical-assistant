@@ -26,6 +26,8 @@ Khi cần tìm kiếm tài liệu phục vụ viết báo cáo luận văn, slid
 | Tên Tệp Tài Liệu | Nội Dung Trọng Tâm | Dành Cho Ai? | Đường Dẫn |
 | :--- | :--- | :---: | :---: |
 | **`MASTER_TRACEABILITY_INDEX.md`** *(Tệp này)* | Ma trận truy vết từ Use Case $\rightarrow$ Code $\rightarrow$ DB $\rightarrow$ Test, bản đồ thuật toán, cheatsheet lệnh | Toàn bộ nhóm & Hội đồng | [`docs/MASTER_TRACEABILITY_INDEX.md`](./MASTER_TRACEABILITY_INDEX.md) |
+| **`SRS_MediAssist_AI.md`** | Hồ sơ Đặc tả Yêu cầu Phần mềm (Capstone Report 3) chuẩn IEEE 830 / ISO 29148, 49 Use Cases, 18 Màn hình, RTM | Hội đồng chấm đồ án & Nhóm | [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md) |
+| **`SDD_MediAssist_AI.md`** | Hồ sơ Thiết kế Phần mềm (Capstone Report 4) chuẩn FPT Capstone, 88 Biểu đồ Mermaid Class & Sequence, 17 Bảng CSDL | Giảng viên phản biện & Dev | [`docs/SDD_MediAssist_AI.md`](./SDD_MediAssist_AI.md) |
 | **`ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`** | Đặc tả chi tiết 5 thuật toán doanh nghiệp độc quyền (Hedged Requests, Progressive Sieve, XFetch, v.v.) | Tech Lead & Giám khảo chấm điểm | [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md) |
 | **`CAPSTONE_DEFENSE.md`** | Cẩm nang bảo vệ: Đề cương 5 chương, kịch bản thuyết trình 15p, checklist live demo, Top 16 câu hỏi Q&A | Cả nhóm đi bảo vệ | [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md) |
 | **`USE_CASES.md`** | Đặc tả 33 Use Cases chi tiết chuẩn RUP/IEEE 830, luồng sự kiện, ngoại lệ, API endpoints | Dev 1 & Dev 3 | [`docs/USE_CASES.md`](./USE_CASES.md) |
