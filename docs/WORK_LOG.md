@@ -5551,9 +5551,9 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
 * **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
 * **Mục tiêu:** Soạn thảo và biên dịch toàn diện tài liệu `docs/SDD_MediAssist_AI.md` (Software Design Document - SDD) theo chuẩn cấu trúc Đồ án Tốt nghiệp FPT University (Report 4), ánh xạ 1-1 với 17 bảng PostgreSQL thực tế, 18 màn hình giao diện, và toàn bộ 28 quy trình nghiệp vụ cốt lõi kèm 88 biểu đồ Mermaid (Class & Sequence diagrams).
 * **Trạng thái Build:**
-  - Backend: **`306 / 306` Tests PASS 100%** (`mvn test` 0 failure, 0 error).
-  - Frontend: **`npm run build` PASS 100%** (2307 modules, 0 lỗi TypeScript, 2.54s).
-  - Quy mô tài liệu SDD: **2.726 dòng (137.809 ký tự)**, 88 khối biểu đồ Mermaid hoàn chỉnh.
+  - Backend: **`306 / 306` Tests PASS 100%** (`mvn test` 0 failure, 0 error, 15.14s).
+  - Frontend: **`npm run build` PASS 100%** (2307 modules, 0 lỗi TypeScript, 2.68s).
+  - Quy mô tài liệu SDD: **4.149 dòng (286.093 ký tự)**, 88 khối biểu đồ Mermaid hoàn chỉnh kèm đầy đủ bảng đặc tả lớp, bảng mô tả luồng sự kiện chi tiết và ma trận mã lỗi xử lý ngoại lệ cho toàn bộ 28 quy trình nghiệp vụ.
 
 #### 1. Cấu Trúc Tài Liệu Chuẩn Capstone Report 4:
 1. **Trang Bìa, Mục Lục & Lịch Sử Thay Đổi (Section I):**
@@ -5561,15 +5561,24 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
    - Bảng theo dõi lịch sử chỉnh sửa tài liệu Record of Changes (A/M/D).
 2. **Kiến Trúc Hệ Thống (Section 1.1) & Biểu Đồ Gói Package Diagrams (Section 1.2):**
    - `Figure 1.1 : System Architecture`: Mô hình Tiered Micro-Modular Monolith gồm React 18 SPA, Nginx Edge Gateway, Spring Boot 3.4 (Project Loom Virtual Threads), Hybrid Cache (L1 Caffeine + L2 Redis), PostgreSQL 16 + pgvector, Private Supabase S3, OpenAI, Gemini 1.5 Flash, và VNPay.
-   - `Table 1.1 : System Architecture Descriptions`: Mô tả 15 thành phần kiến trúc chi tiết.
-   - `Figure 1.2.1 & Table 1.2.1 : Front-end Design & Package Descriptions`: Cấu trúc 13 gói thư mục trong `frontend/src/`.
-   - `Figure 1.2.2 & Table 1.2.2 : Back-end Design & Package Descriptions`: Cấu trúc 15 gói package trong `backend/src/main/java/com/mediassist/`.
+   - `Table 1.1 : System Architecture Descriptions`: Mô tả 16 thành phần kiến trúc chi tiết kèm thông số cấu hình, cổng kết nối và vai trò kỹ thuật.
+   - `Figure 1.2.1 & Table 1.2.1 : Front-end Design & Package Descriptions`: Cấu trúc 14 gói thư mục trong `frontend/src/` khớp 1-1 với mã nguồn React 18 SPA.
+   - `Figure 1.2.2 & Table 1.2.2 : Back-end Design & Package Descriptions`: Cấu trúc 24 gói package trong `backend/src/main/java/com/mediassist/` khớp 1-1 với kiến trúc Clean Architecture.
 3. **Thiết Kế Cơ Sở Dữ Liệu Chi Tiết (Section 2):**
    - `Figure 2 : Physical Database Design ERD`: Sơ đồ Mermaid ERD thể hiện quan hệ liên kết đầy đủ 17 bảng PostgreSQL thực tế.
-   - `Table 2 : Database Design Description`: Bảng tổng kết 17 bảng, khóa chính, khóa ngoại và vai trò nghiệp vụ.
-   - `Section 2.1 đến 2.17`: Bảng đặc tả chi tiết từng cột (Column Name, Data Type, Not Null, Key, Constraints, Detailed Description) cho toàn bộ 17 bảng (`users`, `specialties`, `doctor_profiles`, `doctor_specialties`, `doctor_schedule_slots`, `patient_profiles`, `appointments`, `triage_sessions`, `medical_documents`, `document_analyses`, `payment_transactions`, `password_reset_tokens`, `email_verification_tokens`, `notifications`, `doctor_reviews`, `audit_logs`, `ai_token_usage`).
+   - `Table 2 : Database Design Description`: Bảng tổng kết 17 bảng, tên miền nghiệp vụ tiếng Việt, khóa chính, khóa ngoại, dung lượng ước tính và vai trò nghiệp vụ.
+   - `Section 2.3.1 đến 2.3.17`: Bảng đặc tả chi tiết cho toàn bộ 17 bảng (`users`, `specialties`, `doctor_profiles`, `doctor_specialties`, `doctor_schedule_slots`, `patient_profiles`, `appointments`, `triage_sessions`, `medical_documents`, `document_analyses`, `payment_transactions`, `password_reset_tokens`, `email_verification_tokens`, `notifications`, `doctor_reviews`, `audit_logs`, `ai_token_usage`).
+   - Mỗi bảng đều gồm 3 bảng con chuyên sâu:
+     * **Bảng A (Column Specifications):** No, Column Name, Data Type, Not Null, Key, Constraints & Default, Detailed Functional Description.
+     * **Bảng B (Physical Indexes & Optimization):** Index Name, Index Type (B-Tree, HNSW vector_cosine_ops m=24 ef_construction=128, GIN Trigram, Partial Index), Columns / Expressions, Performance & Architectural Purpose.
+     * **Bảng C (Foreign Key Constraints):** Constraint Name, Local Column, Referenced Table(Column), On Delete, On Update, Architectural Impact.
 4. **Thiết Kế Chi Tiết 28 Quy Trình Nghiệp Vụ Cốt Lõi (Section 3):**
-   - Mỗi quy trình bao gồm 1 Biểu đồ Lớp (Class Diagram), 1 Biểu đồ Tuần tự Luồng Chính (Main Flow Sequence Diagram), và 1 Biểu đồ Tuần tự Luồng Ngoại Lệ/Thất Bại (Error Flow Sequence Diagram):
+   - Mỗi quy trình được cấu trúc hoàn chỉnh bao gồm 4 tiểu mục kỹ thuật chuyên sâu:
+     * **Bối cảnh & Mục tiêu thiết kế (Context & Design Scope):** Phạm vi nghiệp vụ, tác nhân tham gia, tiền/hậu điều kiện, quy định an ninh / lâm sàng.
+     * **3.X.1 Class Diagram & Bảng Đặc tả Lớp (Class Specification Table):** Biểu đồ lớp Mermaid chuẩn xác kèm bảng mô tả chi tiết từng component, tầng kiến trúc, trách nhiệm, thuộc tính và chữ ký phương thức (methods với kiểu dữ liệu).
+     * **3.X.2 Sequence Diagram: Luồng chính (Main Success Flow):** Biểu đồ tuần tự Mermaid đánh số bước kèm bảng mô tả luồng sự kiện chi tiết từng bước (Step #, Source, Target, Message/Method Call, Payload/Parameters, Database Action & State Mutation).
+     * **3.X.3 Sequence Diagram: Luồng ngoại lệ (Alternative & Exception Flows):** Biểu đồ tuần tự Mermaid mô tả các kịch bản lỗi kèm bảng ma trận xử lý ngoại lệ (Error Scenario, Trigger Condition, HTTP Status, ErrorCode, User Message & System Defense Action) ánh xạ trực tiếp sang `AppException`.
+   - Danh mục 28 quy trình nghiệp vụ:
      * **Xác thực & Bảo mật (3.1 - 3.8):** Đăng nhập Dual-Transport JWT (3.1), Đăng ký & Email Verification Gate (3.2), Google OAuth2 SSO (3.3), Quên mật khẩu SHA-256 (3.4), Đặt lại mật khẩu (3.5), Xoay vòng Refresh Token (3.6), Đăng xuất an toàn (3.7), Cập nhật hồ sơ (3.8).
      * **AI Lâm Sàng & Tìm Kiếm Bác Sĩ (3.9 - 3.10):** Phân luồng triệu chứng 5 tầng & NegEx (3.9), Tìm kiếm ngữ nghĩa pgvector & WHRF (3.10).
      * **Lịch Khám & Bàn Làm Việc Bác Sĩ (3.11 - 3.17):** Đặt lịch hẹn & Slot Concurrency Locking (3.11), Dời lịch khám (3.12), Hủy lịch & Hoàn tiền tự động phân tầng (3.13), Điểm danh tiếp đón STT (3.14), Bệnh án điện tử EMR & ICD-10/LOINC (3.15), Giám sát hàng đợi bàn làm việc (3.16), Đánh giá & Giảm chấn Credibility Damper (3.17).
