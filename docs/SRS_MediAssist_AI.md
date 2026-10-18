@@ -380,1964 +380,1191 @@ graph LR
 
 #### 2.3.1 Common Use Case Specifications
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.1.1 SIGN IN (UC-COMM-01)
-================================================================================
-1.  Use Case ID:         UC-COMM-01
-2.  Use Case Name:       Sign In
-3.  Target System:       MediAssist-AI Identity & Access Management (IAM)
-4.  Primary Actor:       Patient, Doctor, Admin, Guest
-5.  Stakeholders:        All users, Security Compliance Officer, Hospital IT
-6.  Trigger:             User clicks "Sign In" or submits authentication form.
-7.  Pre-conditions:
-    - User has network connection to MediAssist-AI.
-    - If signing in with email/password, account exists in `users` table.
-8.  Post-conditions:
-    - User session is established.
-    - Server issues dual-transport JWT: HttpOnly Secure Cookie + Response JSON Body.
-    - User redirected to role-based dashboard:
-      * `PATIENT` -> `/patient`
-      * `DOCTOR`  -> `/doctor`
-      * `ADMIN`   -> `/admin`
-9.  Priority:            High (P0 - Architectural Blocker)
-10. Normal Flow (Main Scenario):
-    Step 1: User navigates to `/login` and selects authentication mode (Password or Google OAuth2).
-    Step 2: User provides email and password or clicks "Sign in with Google".
-    Step 3: Frontend validates non-empty inputs and valid email format regex.
-    Step 4: Frontend sends HTTP POST request to `/api/v1/auth/login` with `LoginRequest` DTO.
-    Step 5: Backend `AuthenticationManager` verifies credentials against Bcrypt hash (cost 12) in `users`.
-    Step 6: Backend checks account status (`is_active == true` and `email_verified == true`).
-    Step 7: Backend generates signed JWT access token (24-hour expiration).
-    Step 8: Backend attaches `Set-Cookie: jwt_token=...; HttpOnly; Secure; SameSite=Lax; Path=/api`.
-    Step 9: Backend returns HTTP 200 OK with `AuthResponse` DTO containing token and user profile metadata.
-    Step 10: Client stores token in Zustand store (`useAuthStore`) and redirects user to target dashboard.
-11. Alternative Flows:
-    - Alt Flow 11a: Google OAuth2 Sign-In:
-      1. User clicks "Sign in with Google".
-      2. Browser navigates to `/login/oauth2/code/google` authorization endpoint.
-      3. Google returns authorization code; backend exchanges for Google ID and user email.
-      4. If user does not exist, backend auto-provisions account with role `PATIENT` (Flyway V8 `google_id`).
-      5. Backend redirects to frontend `/oauth2/callback` with JWT token.
-    - Alt Flow 11b: Unverified Email Login:
-      1. Backend detects `email_verified == false` (Flyway V22 gate).
-      2. Backend throws `AppException(HttpStatus.FORBIDDEN, "EMAIL_NOT_VERIFIED", ...)`.
-      3. Frontend displays verification notification with "Resend Verification Link" button.
-12. Exception Flows:
-    - Exc Flow 12a: Invalid Credentials (Wrong email or password):
-      1. Backend throws `AppException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", ...)`.
-      2. Backend returns HTTP 401 Unauthorized.
-      3. Frontend displays inline alert: "Email hoặc mật khẩu không chính xác."
-    - Exc Flow 12b: Account Locked:
-      1. Backend detects `is_active == false`.
-      2. Backend throws `AppException(HttpStatus.LOCKED, "ACCOUNT_LOCKED", ...)`.
-      3. Frontend displays modal directing user to contact administrative support.
-13. Business Rules:
-    - BR-01: Password complexity must be enforced (Min 8 chars, 1 uppercase, 1 digit, 1 special char).
-    - BR-02: Maximum 5 consecutive failed login attempts before 15-minute IP/account rate lock.
-    - BR-03: JWT secret key must have at least 256 bits entropy (`APP_JWT_SECRET`).
-14. Non-Functional Requirements:
-    - NFR-PERF: Authentication response latency < 350ms (including Bcrypt evaluation).
-    - NFR-SEC: Stateless tokens with dual-transport mechanism preventing XSS token harvesting.
-15. Data Entities Involved:
-    - `users` (id, email, password_hash, role, is_active, email_verified, google_id).
-    - `audit_logs` (id, user_id, action, ip_address, created_at).
-16. User Interface Controls:
-    - Text inputs: `Email`, `Password`.
-    - Checkbox: `Remember Me`.
-    - Action buttons: `Đăng Nhập`, `Đăng Nhập Với Google`, `Quên Mật Khẩu`.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.1.1 Sign In (UC-COMM-01)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.1.2 SIGN OUT (UC-COMM-02)
-================================================================================
-1.  Use Case ID:         UC-COMM-02
-2.  Use Case Name:       Sign Out
-3.  Target System:       MediAssist-AI Identity & Access Management (IAM)
-4.  Primary Actor:       All authenticated users (Patient, Doctor, Admin)
-5.  Stakeholders:        All users, Security Compliance Officer
-6.  Trigger:             User clicks "Sign Out" / "Đăng Xuất" in top navbar or drawer.
-7.  Pre-conditions:      User is actively authenticated with a valid JWT token.
-8.  Post-conditions:
-    - Client in-memory auth state, user profile, and cached tokens are wiped.
-    - Server clears the HttpOnly `jwt_token` cookie via zero-max-age expiration header.
-    - User is redirected to `/login` with an informational sign-out toast.
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: User clicks "Đăng Xuất" from the user menu avatar dropdown.
-    Step 2: Frontend dispatches HTTP POST to `/api/v1/auth/logout`.
-    Step 3: Backend invalidates session cookies: `Set-Cookie: jwt_token=; Max-Age=0; Path=/; HttpOnly`.
-    Step 4: Backend logs audit entry: `USER_LOGOUT` for telemetry compliance.
-    Step 5: Backend returns HTTP 200 OK with `{"message": "Logged out successfully"}`.
-    Step 6: Frontend clears Zustand stores (`useAuthStore.getState().logout()`).
-    Step 7: Frontend purges all cached sensitive clinical records from browser memory.
-    Step 8: Frontend redirects browser to `/login`.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules:
-    - BR-04: Terminating the session must invalidate client access immediately.
-14. Non-Functional Requirements:
-    - NFR-SEC: Zero leftover credentials in `localStorage` or `sessionStorage`.
-15. Data Entities Involved:
-    - `audit_logs` (action = 'LOGOUT').
-16. User Interface Controls:
-    - Menu Item: `Đăng Xuất` with icon `LogOut`.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-01` |
+| **Use Case Name** | Sign In |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Doctor, Admin, Guest |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - User session is established.<br>- Server issues dual-transport JWT: HttpOnly Secure Cookie + Response JSON Body.<br>- User redirected to role-based dashboard:<br>* `PATIENT` -> `/patient`<br>* `DOCTOR`  -> `/doctor`<br>* `ADMIN`   -> `/admin` |
+| **Trigger** | User clicks "Sign In" or submits authentication form. |
+| **Pre-conditions** | - User has network connection to MediAssist-AI.<br>- If signing in with email/password, account exists in `users` table. |
+| **Post-conditions** | - User session is established.<br>- Server issues dual-transport JWT: HttpOnly Secure Cookie + Response JSON Body.<br>- User redirected to role-based dashboard:<br>* `PATIENT` -> `/patient`<br>* `DOCTOR`  -> `/doctor`<br>* `ADMIN`   -> `/admin` |
+| **Normal Flow** | Step 1: User navigates to `/login` and selects authentication mode (Password or Google OAuth2).<br>Step 2: User provides email and password or clicks "Sign in with Google".<br>Step 3: Frontend validates non-empty inputs and valid email format regex.<br>Step 4: Frontend sends HTTP POST request to `/api/v1/auth/login` with `LoginRequest` DTO.<br>Step 5: Backend `AuthenticationManager` verifies credentials against Bcrypt hash (cost 12) in `users`.<br>Step 6: Backend checks account status (`is_active == true` and `email_verified == true`).<br>Step 7: Backend generates signed JWT access token (24-hour expiration).<br>Step 8: Backend attaches `Set-Cookie: jwt_token=...; HttpOnly; Secure; SameSite=Lax; Path=/api`.<br>Step 9: Backend returns HTTP 200 OK with `AuthResponse` DTO containing token and user profile metadata.<br>Step 10: Client stores token in Zustand store (`useAuthStore`) and redirects user to target dashboard. |
+| **Alternative Flow** | - Alt Flow 11a: Google OAuth2 Sign-In:<br>1. User clicks "Sign in with Google".<br>2. Browser navigates to `/login/oauth2/code/google` authorization endpoint.<br>3. Google returns authorization code; backend exchanges for Google ID and user email.<br>4. If user does not exist, backend auto-provisions account with role `PATIENT` (Flyway V8 `google_id`).<br>5. Backend redirects to frontend `/oauth2/callback` with JWT token.<br>- Alt Flow 11b: Unverified Email Login:<br>1. Backend detects `email_verified == false` (Flyway V22 gate).<br>2. Backend throws `AppException(HttpStatus.FORBIDDEN, "EMAIL_NOT_VERIFIED", ...)`.<br>3. Frontend displays verification notification with "Resend Verification Link" button. |
+| **Exceptions** | - Exc Flow 12a: Invalid Credentials (Wrong email or password):<br>1. Backend throws `AppException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", ...)`.<br>2. Backend returns HTTP 401 Unauthorized.<br>3. Frontend displays inline alert: "Email hoặc mật khẩu không chính xác."<br>- Exc Flow 12b: Account Locked:<br>1. Backend detects `is_active == false`.<br>2. Backend throws `AppException(HttpStatus.LOCKED, "ACCOUNT_LOCKED", ...)`.<br>3. Frontend displays modal directing user to contact administrative support. |
+| **Priority** | High (P0 - Architectural Blocker) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-01: Password complexity must be enforced (Min 8 chars, 1 uppercase, 1 digit, 1 special char).<br>- BR-02: Maximum 5 consecutive failed login attempts before 15-minute IP/account rate lock.<br>- BR-03: JWT secret key must have at least 256 bits entropy (`APP_JWT_SECRET`). |
+| **Data Entities Involved** | - `users` (id, email, password_hash, role, is_active, email_verified, google_id).<br>- `audit_logs` (id, user_id, action, ip_address, created_at). |
+| **User Interface Controls** | - Text inputs: `Email`, `Password`.<br>- Checkbox: `Remember Me`.<br>- Action buttons: `Đăng Nhập`, `Đăng Nhập Với Google`, `Quên Mật Khẩu`. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.1.3 CHANGE PASSWORD (UC-COMM-03)
-================================================================================
-1.  Use Case ID:         UC-COMM-03
-2.  Use Case Name:       Change Password
-3.  Target System:       MediAssist-AI Identity & Access Management (IAM)
-4.  Primary Actor:       Patient, Doctor, Admin
-5.  Stakeholders:        Account Owners, Security Auditor
-6.  Trigger:             User submits password update form in settings.
-7.  Pre-conditions:      User is authenticated and knows their current password.
-8.  Post-conditions:
-    - Old password hash in database is replaced with new Bcrypt hash.
-    - Security confirmation notification is dispatched.
-9.  Priority:            Medium (P2)
-10. Normal Flow:
-    Step 1: User navigates to security settings and inputs Current and New Password.
-    Step 2: Client validates matching passwords and complexity regex in real time.
-    Step 3: Frontend sends HTTP POST to `/api/v1/auth/reset-password` with `ResetPasswordRequest`.
-    Step 4: Backend verifies password complexity.
-    Step 5: Backend encodes new password with `BCryptPasswordEncoder(12)`.
-    Step 6: Backend commits update to `users.password_hash` within `@Transactional`.
-    Step 7: Backend publishes `PasswordChangedEvent` -> triggers async security notice email.
-    Step 8: Backend returns HTTP 200 OK.
-    Step 9: Frontend displays success toast: "Mật khẩu đã được cập nhật thành công."
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Weak New Password:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "WEAK_PASSWORD", ...)`.
-      2. Frontend displays: "Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và chữ số."
-13. Business Rules:
-    - BR-01: Minimum 8 characters, at least 1 uppercase letter, 1 number, and 1 special symbol.
-    - BR-05: New password cannot be identical to the previous password.
-14. Non-Functional Requirements:
-    - NFR-SEC: Bcrypt cost factor 12 (approx. 250ms hashing calculation).
-15. Data Entities Involved:
-    - `users` (password_hash, updated_at).
-16. User Interface Controls:
-    - Password inputs: `Mật khẩu mới`, `Xác nhận mật khẩu mới`.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.1.4 VIEW & UPDATE PATIENT PROFILE (UC-COMM-04)
-================================================================================
-1.  Use Case ID:         UC-COMM-04
-2.  Use Case Name:       View & Update Patient Profile
-3.  Target System:       MediAssist-AI Patient Profile Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient, Attending Physician
-6.  Trigger:             Patient navigates to profile view or updates clinical demographics.
-7.  Pre-conditions:      User is authenticated as `PATIENT`.
-8.  Post-conditions:     Patient entity in `patient_profiles` is retrieved or updated.
-9.  Priority:            Medium (P2)
-10. Normal Flow:
-    Step 1: Patient accesses profile modal/page.
-    Step 2: Frontend calls HTTP GET `/api/v1/patient/profile`.
-    Step 3: Backend retrieves `PatientProfile` linked to `user_id`.
-    Step 4: Backend returns `PatientProfileDto` (date of birth, gender, blood type, allergies, emergency contact, remaining AI quota).
-    Step 5: Patient updates Blood Type, Allergies, or Emergency Contact Phone.
-    Step 6: Frontend dispatches HTTP PUT `/api/v1/patient/profile` with updated DTO.
-    Step 7: Backend validates phone format and citizen ID regex if present.
-    Step 8: Backend commits update to `patient_profiles` table.
-    Step 9: Backend returns HTTP 200 OK with refreshed profile.
-    Step 10: Frontend renders toast: "Hồ sơ sức khỏe đã được cập nhật."
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Invalid Phone Format:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_PHONE", ...)`.
-      2. Frontend displays: "Số điện thoại không đúng định dạng Việt Nam (VD: 0901234567)."
-13. Business Rules:
-    - BR-06: Vietnamese phone numbers must match regex `^(0|\+84)(3|5|7|8|9)[0-9]{8}$`.
-14. Non-Functional Requirements:
-    - NFR-PERF: Profile read/write latency < 150ms.
-15. Data Entities Involved:
-    - `users`, `patient_profiles` (id, user_id, date_of_birth, gender, blood_type, allergies, emergency_contact, remaining_ai_quota).
-16. User Interface Controls:
-    - Text inputs (`Họ và tên`, `Số điện thoại`, `Người liên hệ khẩn cấp`), select (`Nhóm máu`, `Giới tính`), textarea (`Dị ứng thuốc`).
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.1.2 Sign Out (UC-COMM-02)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.1.5 FORGOT PASSWORD & TOKEN HASH RESET (UC-COMM-05)
-================================================================================
-1.  Use Case ID:         UC-COMM-05
-2.  Use Case Name:       Forgot Password & Token Hash Reset
-3.  Target System:       MediAssist-AI Identity & Access Management (IAM)
-4.  Primary Actor:       Unauthenticated User (Patient, Doctor, Admin)
-5.  Stakeholders:        Registered Users, Security Architect
-6.  Trigger:             User clicks "Quên mật khẩu?" on login page.
-7.  Pre-conditions:      User account exists with a verified email address.
-8.  Post-conditions:
-    - Single-use SHA-256 hashed password reset token is generated with 15-minute TTL.
-    - Password reset email containing secure redemption link is dispatched asynchronously.
-    - Upon token redemption, user's password is reset and token marked as consumed.
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: User navigates to `/forgot-password`, inputs registered email, and clicks "Gửi Yêu Cầu".
-    Step 2: Frontend sends HTTP POST to `/api/v1/auth/forgot-password` with `ForgotPasswordRequest(email)`.
-    Step 3: Backend searches `userRepository.findByEmail(email)`.
-            (Security note: If email not found, backend still returns 200 OK to prevent account enumeration).
-    Step 4: Backend generates 32-byte cryptographically secure random token (`SecureRandom`).
-    Step 5: Backend computes SHA-256 hash of raw token (`DigestUtils.sha256Hex(rawToken)`).
-    Step 6: Backend stores hash, user ID, expiration timestamp (`now() + 15 minutes`), and `consumed = false`
-            in `password_reset_tokens` table (Flyway V21 migration).
-    Step 7: Backend asynchronously invokes `EmailService.sendPasswordResetMail(email, rawToken)`.
-    Step 8: User opens email, clicks reset link: `https://mediassist.local/reset-password?token={rawToken}`.
-    Step 9: Frontend calls HTTP GET `/api/v1/auth/reset-password/validate?token={rawToken}` to verify validity.
-    Step 10: User enters new password and confirms password on the reset page.
-    Step 11: Frontend sends HTTP POST to `/api/v1/auth/reset-password` with `rawToken` and `newPassword`.
-    Step 12: Backend hashes `rawToken` with SHA-256 and searches `password_reset_tokens.token_hash`.
-    Step 13: Backend verifies token is not expired (`expires_at > now()`) and not consumed (`consumed == false`).
-    Step 14: Backend updates user's `password_hash` with Bcrypt(cost 12) and marks `consumed = true`.
-    Step 15: Backend returns HTTP 200 OK. Frontend redirects to `/login` with success banner.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Expired or Already Consumed Token:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", ...)`.
-      2. Backend returns HTTP 400 Bad Request.
-      3. Frontend displays: "Đường dẫn đặt lại mật khẩu đã hết hạn hoặc đã được sử dụng. Vui lòng thử lại."
-13. Business Rules:
-    - BR-07: Plaintext reset tokens must NEVER be stored in the database. Only SHA-256 hashes are persisted (Flyway V21).
-    - BR-08: Token lifespan is strictly limited to 15 minutes.
-14. Non-Functional Requirements:
-    - NFR-SEC: Zero account enumeration via constant-time responses.
-15. Data Entities Involved:
-    - `users`, `password_reset_tokens` (id, user_id, token_hash, expires_at, consumed, consumed_at).
-16. User Interface Controls:
-    - Input: `Email`, `Mật khẩu mới`, `Nhập lại mật khẩu`.
-    - Button: `Gửi Link Đặt Lại`, `Xác Nhận Mật Khẩu Mới`.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-02` |
+| **Use Case Name** | Sign Out |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | All authenticated users (Patient, Doctor, Admin) |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - Client in-memory auth state, user profile, and cached tokens are wiped.<br>- Server clears the HttpOnly `jwt_token` cookie via zero-max-age expiration header.<br>- User is redirected to `/login` with an informational sign-out toast. |
+| **Trigger** | User clicks "Sign Out" / "Đăng Xuất" in top navbar or drawer. |
+| **Pre-conditions** | User is actively authenticated with a valid JWT token. |
+| **Post-conditions** | - Client in-memory auth state, user profile, and cached tokens are wiped.<br>- Server clears the HttpOnly `jwt_token` cookie via zero-max-age expiration header.<br>- User is redirected to `/login` with an informational sign-out toast. |
+| **Normal Flow** | Step 1: User clicks "Đăng Xuất" from the user menu avatar dropdown.<br>Step 2: Frontend dispatches HTTP POST to `/api/v1/auth/logout`.<br>Step 3: Backend invalidates session cookies: `Set-Cookie: jwt_token=; Max-Age=0; Path=/; HttpOnly`.<br>Step 4: Backend logs audit entry: `USER_LOGOUT` for telemetry compliance.<br>Step 5: Backend returns HTTP 200 OK with `{"message": "Logged out successfully"}`.<br>Step 6: Frontend clears Zustand stores (`useAuthStore.getState().logout()`).<br>Step 7: Frontend purges all cached sensitive clinical records from browser memory.<br>Step 8: Frontend redirects browser to `/login`. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-04: Terminating the session must invalidate client access immediately. |
+| **Data Entities Involved** | - `audit_logs` (action = 'LOGOUT'). |
+| **User Interface Controls** | - Menu Item: `Đăng Xuất` with icon `LogOut`. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.1.6 EMAIL VERIFICATION GATE (UC-COMM-06)
-================================================================================
-1.  Use Case ID:         UC-COMM-06
-2.  Use Case Name:       Email Verification Gate
-3.  Target System:       MediAssist-AI Identity & Access Management (IAM)
-4.  Primary Actor:       Newly registered user
-5.  Stakeholders:        All Users, System Compliance Officer
-6.  Trigger:             User clicks the activation link received upon account registration.
-7.  Pre-conditions:      Account created with `email_verified = false` (Flyway V22).
-8.  Post-conditions:
-    - User account marked `email_verified = true`.
-    - User is permitted to access full clinical features (booking, triage, consultation).
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: Upon registration, backend generates verification token stored in `email_verification_tokens`.
-    Step 2: Backend dispatches HTML email containing activation link: `/verify-email?token={token}`.
-    Step 3: User clicks activation link in email client navigating to `/verify-email`.
-    Step 4: Frontend calls HTTP POST `/api/v1/auth/verify-email` with `VerifyEmailRequest(token)`.
-    Step 5: Backend verifies token validity, matches user, updates `users.email_verified = true`.
-    Step 6: Backend deletes consumed verification token.
-    Step 7: Backend returns HTTP 200 OK with `TokenValidationResponse`.
-    Step 8: Frontend renders success celebration screen with button to proceed to login.
-11. Alternative Flows:
-    - Alt Flow 11a: Resend Verification Email:
-      1. User calls HTTP POST `/api/v1/auth/resend-verification`.
-      2. Backend enforces rate limiting (`RATE_LIMIT_EXCEEDED`), generates fresh token, and sends new email.
-12. Exception Flows:
-    - Exc Flow 12a: Invalid or Expired Token:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", "Liên kết xác thực email đã hết hạn.")`.
-      2. Frontend displays error message with option to request a fresh verification link.
-13. Business Rules:
-    - BR-09: Unverified accounts cannot book clinical appointments or access medical records (`EmailVerificationGuard`).
-14. Non-Functional Requirements:
-    - NFR-SEC: Verification token must be cryptographically unpredictable.
-15. Data Entities Involved:
-    - `users` (email_verified), `email_verification_tokens` (id, user_id, token, expires_at).
-16. User Interface Controls:
-    - Activation banner, button `Kích Hoạt Tài Khoản`, `Gửi Lại Email`.
-17. Open Issues: None.
-================================================================================
+
+##### 2.3.1.3 Change Password (UC-COMM-03)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-03` |
+| **Use Case Name** | Change Password |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Doctor, Admin |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - Old password hash in database is replaced with new Bcrypt hash.<br>- Security confirmation notification is dispatched. |
+| **Trigger** | User submits password update form in settings. |
+| **Pre-conditions** | User is authenticated and knows their current password. |
+| **Post-conditions** | - Old password hash in database is replaced with new Bcrypt hash.<br>- Security confirmation notification is dispatched. |
+| **Normal Flow** | Step 1: User navigates to security settings and inputs Current and New Password.<br>Step 2: Client validates matching passwords and complexity regex in real time.<br>Step 3: Frontend sends HTTP POST to `/api/v1/auth/reset-password` with `ResetPasswordRequest`.<br>Step 4: Backend verifies password complexity.<br>Step 5: Backend encodes new password with `BCryptPasswordEncoder(12)`.<br>Step 6: Backend commits update to `users.password_hash` within `@Transactional`.<br>Step 7: Backend publishes `PasswordChangedEvent` -> triggers async security notice email.<br>Step 8: Backend returns HTTP 200 OK.<br>Step 9: Frontend displays success toast: "Mật khẩu đã được cập nhật thành công." |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Weak New Password:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "WEAK_PASSWORD", ...)`.<br>2. Frontend displays: "Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và chữ số." |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-01: Minimum 8 characters, at least 1 uppercase letter, 1 number, and 1 special symbol.<br>- BR-05: New password cannot be identical to the previous password. |
+| **Data Entities Involved** | - `users` (password_hash, updated_at). |
+| **User Interface Controls** | - Password inputs: `Mật khẩu mới`, `Xác nhận mật khẩu mới`. |
+
+
+##### 2.3.1.4 View & Update Patient Profile (UC-COMM-04)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-04` |
+| **Use Case Name** | View & Update Patient Profile |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Patient Profile Subsystem — Patient entity in `patient_profiles` is retrieved or updated. |
+| **Trigger** | Patient navigates to profile view or updates clinical demographics. |
+| **Pre-conditions** | User is authenticated as `PATIENT`. |
+| **Post-conditions** | Patient entity in `patient_profiles` is retrieved or updated. |
+| **Normal Flow** | Step 1: Patient accesses profile modal/page.<br>Step 2: Frontend calls HTTP GET `/api/v1/patient/profile`.<br>Step 3: Backend retrieves `PatientProfile` linked to `user_id`.<br>Step 4: Backend returns `PatientProfileDto` (date of birth, gender, blood type, allergies, emergency contact, remaining AI quota).<br>Step 5: Patient updates Blood Type, Allergies, or Emergency Contact Phone.<br>Step 6: Frontend dispatches HTTP PUT `/api/v1/patient/profile` with updated DTO.<br>Step 7: Backend validates phone format and citizen ID regex if present.<br>Step 8: Backend commits update to `patient_profiles` table.<br>Step 9: Backend returns HTTP 200 OK with refreshed profile.<br>Step 10: Frontend renders toast: "Hồ sơ sức khỏe đã được cập nhật." |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Invalid Phone Format:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_PHONE", ...)`.<br>2. Frontend displays: "Số điện thoại không đúng định dạng Việt Nam (VD: 0901234567)." |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-06: Vietnamese phone numbers must match regex `^(0\|\+84)(3\|5\|7\|8\|9)[0-9]{8}$`. |
+| **Data Entities Involved** | - `users`, `patient_profiles` (id, user_id, date_of_birth, gender, blood_type, allergies, emergency_contact, remaining_ai_quota). |
+| **User Interface Controls** | - Text inputs (`Họ và tên`, `Số điện thoại`, `Người liên hệ khẩn cấp`), select (`Nhóm máu`, `Giới tính`), textarea (`Dị ứng thuốc`). |
+
+
+##### 2.3.1.5 Forgot Password & Token Hash Reset (UC-COMM-05)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-05` |
+| **Use Case Name** | Forgot Password & Token Hash Reset |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Unauthenticated User (Patient, Doctor, Admin) |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - Single-use SHA-256 hashed password reset token is generated with 15-minute TTL.<br>- Password reset email containing secure redemption link is dispatched asynchronously.<br>- Upon token redemption, user's password is reset and token marked as consumed. |
+| **Trigger** | User clicks "Quên mật khẩu?" on login page. |
+| **Pre-conditions** | User account exists with a verified email address. |
+| **Post-conditions** | - Single-use SHA-256 hashed password reset token is generated with 15-minute TTL.<br>- Password reset email containing secure redemption link is dispatched asynchronously.<br>- Upon token redemption, user's password is reset and token marked as consumed. |
+| **Normal Flow** | Step 1: User navigates to `/forgot-password`, inputs registered email, and clicks "Gửi Yêu Cầu".<br>Step 2: Frontend sends HTTP POST to `/api/v1/auth/forgot-password` with `ForgotPasswordRequest(email)`.<br>Step 3: Backend searches `userRepository.findByEmail(email)`.<br>(Security note: If email not found, backend still returns 200 OK to prevent account enumeration).<br>Step 4: Backend generates 32-byte cryptographically secure random token (`SecureRandom`).<br>Step 5: Backend computes SHA-256 hash of raw token (`DigestUtils.sha256Hex(rawToken)`).<br>Step 6: Backend stores hash, user ID, expiration timestamp (`now() + 15 minutes`), and `consumed = false`<br>in `password_reset_tokens` table (Flyway V21 migration).<br>Step 7: Backend asynchronously invokes `EmailService.sendPasswordResetMail(email, rawToken)`.<br>Step 8: User opens email, clicks reset link: `https://mediassist.local/reset-password?token={rawToken}`.<br>Step 9: Frontend calls HTTP GET `/api/v1/auth/reset-password/validate?token={rawToken}` to verify validity.<br>Step 10: User enters new password and confirms password on the reset page.<br>Step 11: Frontend sends HTTP POST to `/api/v1/auth/reset-password` with `rawToken` and `newPassword`.<br>Step 12: Backend hashes `rawToken` with SHA-256 and searches `password_reset_tokens.token_hash`.<br>Step 13: Backend verifies token is not expired (`expires_at > now()`) and not consumed (`consumed == false`).<br>Step 14: Backend updates user's `password_hash` with Bcrypt(cost 12) and marks `consumed = true`.<br>Step 15: Backend returns HTTP 200 OK. Frontend redirects to `/login` with success banner. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Expired or Already Consumed Token:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", ...)`.<br>2. Backend returns HTTP 400 Bad Request.<br>3. Frontend displays: "Đường dẫn đặt lại mật khẩu đã hết hạn hoặc đã được sử dụng. Vui lòng thử lại." |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-07: Plaintext reset tokens must NEVER be stored in the database. Only SHA-256 hashes are persisted (Flyway V21).<br>- BR-08: Token lifespan is strictly limited to 15 minutes. |
+| **Data Entities Involved** | - `users`, `password_reset_tokens` (id, user_id, token_hash, expires_at, consumed, consumed_at). |
+| **User Interface Controls** | - Input: `Email`, `Mật khẩu mới`, `Nhập lại mật khẩu`.<br>- Button: `Gửi Link Đặt Lại`, `Xác Nhận Mật Khẩu Mới`. |
+
+
+##### 2.3.1.6 Email Verification Gate (UC-COMM-06)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-06` |
+| **Use Case Name** | Email Verification Gate |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Newly registered user |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - User account marked `email_verified = true`.<br>- User is permitted to access full clinical features (booking, triage, consultation). |
+| **Trigger** | User clicks the activation link received upon account registration. |
+| **Pre-conditions** | Account created with `email_verified = false` (Flyway V22). |
+| **Post-conditions** | - User account marked `email_verified = true`.<br>- User is permitted to access full clinical features (booking, triage, consultation). |
+| **Normal Flow** | Step 1: Upon registration, backend generates verification token stored in `email_verification_tokens`.<br>Step 2: Backend dispatches HTML email containing activation link: `/verify-email?token={token}`.<br>Step 3: User clicks activation link in email client navigating to `/verify-email`.<br>Step 4: Frontend calls HTTP POST `/api/v1/auth/verify-email` with `VerifyEmailRequest(token)`.<br>Step 5: Backend verifies token validity, matches user, updates `users.email_verified = true`.<br>Step 6: Backend deletes consumed verification token.<br>Step 7: Backend returns HTTP 200 OK with `TokenValidationResponse`.<br>Step 8: Frontend renders success celebration screen with button to proceed to login. |
+| **Alternative Flow** | - Alt Flow 11a: Resend Verification Email:<br>1. User calls HTTP POST `/api/v1/auth/resend-verification`.<br>2. Backend enforces rate limiting (`RATE_LIMIT_EXCEEDED`), generates fresh token, and sends new email. |
+| **Exceptions** | - Exc Flow 12a: Invalid or Expired Token:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", "Liên kết xác thực email đã hết hạn.")`.<br>2. Frontend displays error message with option to request a fresh verification link. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-09: Unverified accounts cannot book clinical appointments or access medical records (`EmailVerificationGuard`). |
+| **Data Entities Involved** | - `users` (email_verified), `email_verification_tokens` (id, user_id, token, expires_at). |
+| **User Interface Controls** | - Activation banner, button `Kích Hoạt Tài Khoản`, `Gửi Lại Email`. |
+
 
 
 #### 2.3.2 Patient (Portal & Triage)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.1 CONVERSATIONAL AI SYMPTOM TRIAGE (UC-PAT-01)
-================================================================================
-1.  Use Case ID:         UC-PAT-01
-2.  Use Case Name:       Conversational AI Symptom Triage
-3.  Target System:       MediAssist-AI Clinical Triage Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient, Attending Physician, Clinical Safety Board
-6.  Trigger:             Patient sends symptom description on `/patient/triage`.
-7.  Pre-conditions:
-    - Patient is authenticated (or accessing guest preview).
-    - AI Inference Gateway (Gemini 1.5 Flash / OpenRouter) is operational.
-8.  Post-conditions:
-    - Symptom input processed by 5-Stage Defense Engine.
-    - AI generates structured SBAR clinical report (Situation, Background, Assessment, Recommendation).
-    - Clinical urgency level (`ROUTINE`, `URGENT`, `EMERGENCY`) and recommended specialty determined.
-    - Triage record persisted in `triage_sessions` table (Flyway V1, V15).
-    - Matching specialist doctors retrieved via pgvector semantic search.
-9.  Priority:            High (P0 - Core Differentiator)
-10. Normal Flow:
-    Step 1: Patient enters symptom query into chat box on `/patient/triage` (e.g., "Tôi bị sốt cao 39 độ, ho có đờm xanh và tức ngực 3 ngày nay").
-    Step 2: Frontend sends HTTP POST to `/api/v1/triage/assess` with `TriageRequest(symptoms, conversationHistory, age, gender)`.
-    Step 3: Backend passes input through `ClinicalQueryDefenseEngine` (UC-PAT-02).
-    Step 4: System verifies non-emergency clinical symptom description.
-    Step 5: Backend constructs clinical prompt with SBAR format directives and clinical safety boundaries:
-            - Prohibit definitive diagnosis and medication prescriptions.
-            - Instruct model to suggest clarifying questions if clinical details are ambiguous.
-    Step 6: Backend dispatches prompt to Google Gemini 1.5 Flash API (Priority 1) or OpenRouter (Priority 2).
-    Step 7: AI inference returns structured `ClinicalAiResult` containing:
-            - `sbarSummary`: Situation, Background, Assessment, Recommendation.
-            - `urgencyLevel`: `ROUTINE` or `URGENT`.
-            - `recommendedSpecialtyId`: UUID of matched medical specialty.
-            - `clarifyingQuestions`: 1-2 follow-up questions to refine presentation.
-    Step 8: Backend calls `DoctorSemanticSearchService` to match top 3 specialist doctors for the recommended specialty.
-    Step 9: Backend saves session record into `triage_sessions` table (`sbar_summary`, `urgency_level`, `recommended_specialty_id`).
-    Step 10: Backend returns HTTP 200 OK with `TriageResponse` DTO.
-    Step 11: Frontend renders conversational response bubble, SBAR assessment card, and matched specialist doctor cards.
-11. Alternative Flows:
-    - Alt Flow 11a: Acute Red-Flag Emergency Detected:
-      1. Defense Engine flags acute emergency condition (FAST stroke, acute myocardial infarction, severe anaphylaxis).
-      2. Normal flow interrupted immediately (Divert to UC-PAT-02 Alt Flow 10a).
-    - Alt Flow 11b: AI Gateway Overloaded / Rate Limited:
-      1. Gemini API throws `AiProviderOverloadedException` (HTTP 429).
-      2. Router falls back to OpenRouter pool or `DeterministicFallbackAiProvider` (local keyword heuristics).
-12. Exception Flows:
-    - Exc Flow 12a: Empty or Too Short Input:
-      1. Symptoms text is under 3 characters.
-      2. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INPUT_TOO_SHORT", "Vui lòng mô tả triệu chứng cụ thể hơn (tối thiểu 3 ký tự).")`.
-    - Exc Flow 12b: Input Exceeds Maximum Length:
-      1. Symptoms text exceeds 2,000 characters.
-      2. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INPUT_TOO_LONG", "Mô tả triệu chứng không được vượt quá 2000 ký tự.")`.
-13. Business Rules:
-    - BR-10: Medical disclaimer mandatory: "Kết quả sàng lọc mang tính chất tham khảo, không thay thế chẩn đoán y khoa chính thức từ bác sĩ."
-    - BR-11: Triage rate limited to prevent API abuse (`TriageRateLimiterService`).
-14. Non-Functional Requirements:
-    - NFR-PERF: Triage assessment response time < 2500ms (P95).
-15. Data Entities Involved:
-    - `triage_sessions` (id, user_id, chief_complaint, raw_symptoms, sbar_summary, urgency_level, recommended_specialty_id, created_at).
-16. User Interface Controls:
-    - Chat message stream, symptom text input, quick symptom chips, SBAR summary card, matched doctor cards.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.2.1 Conversational AI Symptom Triage (UC-PAT-01)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.2 5-STAGE CLINICAL QUERY DEFENSE (UC-PAT-02)
-================================================================================
-1.  Use Case ID:         UC-PAT-02
-2.  Use Case Name:       5-Stage Clinical Query Defense Screening
-3.  Target System:       MediAssist-AI Clinical Query Defense Engine
-4.  Primary Actor:       Patient (System Interceptor)
-5.  Stakeholders:        Patient Safety Officer, Medical Director
-6.  Trigger:             Invoked automatically on every natural language symptom query.
-7.  Pre-conditions:      Raw text received by `TriageController` or `DoctorSemanticSearchService`.
-8.  Post-conditions:
-    - Query sanitized, normalized, and categorized, OR intercepted with emergency lockout / administrative redirect.
-9.  Priority:            High (P0 - Patient Safety Critical)
-10. Normal Flow:
-    Step 1: Input text passes to `ClinicalQueryDefenseEngine.process(rawInput)`.
-    Step 2: Stage 1 — Acute Red-Flag Emergency Interception:
-            Engine checks input against regex patterns for acute emergencies:
-            - Đột quỵ não (FAST): "méo miệng", "liệt nửa người", "nói ngọng", "mờ mắt đột ngột".
-            - Nhồi máu cơ tim: "đau thắt ngực lan ra cánh tay trái", "vã mồ hôi lạnh", "khó thở dữ dội".
-            - Sốc phản vệ / Cấp cứu: "khó thở sau dùng thuốc", "sưng phù môi họng", "nôn ra máu tươi".
-            If match found -> Divert to Alternative Flow 10a.
-    Step 3: Stage 2 — Vietnamese Slang & Teen-Code Normalization:
-            Engine converts informal phrasing into medical terminology:
-            - `ko`, `k`, `khg` -> `không`
-            - `bs`, `bsi` -> `bác sĩ`
-            - `dau da day` -> `đau dạ dày`
-            - `met` -> `mệt mỏi`
-            - `sot cao` -> `sốt cao`
-    Step 4: Stage 3 — Vietnamese NegEx Clause-Level Negation Splitting:
-            Engine identifies negation trigger terms: `không bị`, `chưa từng`, `không có`, `không sốt`.
-            Input is split into Affirmative Clause and Negated Clause.
-            Negated symptoms (e.g., "không sốt") are quarantined to prevent false routing to infectious disease doctors.
-    Step 5: Stage 4 — Out-of-Domain (OOD) Intent Gating:
-            Engine checks if query is administrative or greeting chatter (viện phí, giờ khám, bảo hiểm).
-            If OOD found -> Divert to Alternative Flow 10b.
-    Step 6: Stage 5 — Compound Multi-Symptom Decomposition:
-            Engine splits multi-symptom conjunctions (`đồng thời`, `kèm theo`, `và`) into sub-queries.
-    Step 7: Engine outputs sanitized string and affirmative clause for downstream embedding generation.
-11. Alternative Flows:
-    - Alt Flow 10a: Emergency Red-Flag Interception:
-      1. Engine sets `isEmergency = true`, `urgency = EMERGENCY`.
-      2. Engine attaches emergency response banner:
-         "CẢNH BÁO NGUY HIỂM: Triệu chứng của bạn có dấu hiệu cấp cứu y khoa đe dọa tính mạng! Vui lòng gọi ngay Cấp cứu 115 hoặc đến khoa Cấp cứu bệnh viện gần nhất!"
-      3. Booking controls locked; 115 call hotline button highlighted in red.
-    - Alt Flow 10b: Out-of-Domain Administrative Gating:
-      1. Engine identifies administrative query.
-      2. Returns guidance text directing user to hospital customer service hotline (1900-xxxx).
-12. Exception Flows: None.
-13. Business Rules:
-    - BR-12: Red-flag check must run in-memory synchronously with zero external network dependencies.
-14. Non-Functional Requirements:
-    - NFR-PERF: 5-Stage screening execution time < 15ms.
-15. Data Entities Involved: None (pure computational in-memory defense engine).
-16. User Interface Controls: Red Emergency Alert Banner, 115 Call Button.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-01` |
+| **Use Case Name** | Conversational AI Symptom Triage |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | Google Gemini 1.5 Flash Vision, OpenAI text-embedding-3-small |
+| **Description** | MediAssist-AI Clinical Triage Subsystem — - Symptom input processed by 5-Stage Defense Engine.<br>- AI generates structured SBAR clinical report (Situation, Background, Assessment, Recommendation).<br>- Clinical urgency level (`ROUTINE`, `URGENT`, `EMERGENCY`) and recommended specialty determined.<br>- Triage record persisted in `triage_sessions` table (Flyway V1, V15).<br>- Matching specialist doctors retrieved via pgvector semantic search. |
+| **Trigger** | Patient sends symptom description on `/patient/triage`. |
+| **Pre-conditions** | - Patient is authenticated (or accessing guest preview).<br>- AI Inference Gateway (Gemini 1.5 Flash / OpenRouter) is operational. |
+| **Post-conditions** | - Symptom input processed by 5-Stage Defense Engine.<br>- AI generates structured SBAR clinical report (Situation, Background, Assessment, Recommendation).<br>- Clinical urgency level (`ROUTINE`, `URGENT`, `EMERGENCY`) and recommended specialty determined.<br>- Triage record persisted in `triage_sessions` table (Flyway V1, V15).<br>- Matching specialist doctors retrieved via pgvector semantic search. |
+| **Normal Flow** | Step 1: Patient enters symptom query into chat box on `/patient/triage` (e.g., "Tôi bị sốt cao 39 độ, ho có đờm xanh và tức ngực 3 ngày nay").<br>Step 2: Frontend sends HTTP POST to `/api/v1/triage/assess` with `TriageRequest(symptoms, conversationHistory, age, gender)`.<br>Step 3: Backend passes input through `ClinicalQueryDefenseEngine` (UC-PAT-02).<br>Step 4: System verifies non-emergency clinical symptom description.<br>Step 5: Backend constructs clinical prompt with SBAR format directives and clinical safety boundaries:<br>- Prohibit definitive diagnosis and medication prescriptions.<br>- Instruct model to suggest clarifying questions if clinical details are ambiguous.<br>Step 6: Backend dispatches prompt to Google Gemini 1.5 Flash API (Priority 1) or OpenRouter (Priority 2).<br>Step 7: AI inference returns structured `ClinicalAiResult` containing:<br>- `sbarSummary`: Situation, Background, Assessment, Recommendation.<br>- `urgencyLevel`: `ROUTINE` or `URGENT`.<br>- `recommendedSpecialtyId`: UUID of matched medical specialty.<br>- `clarifyingQuestions`: 1-2 follow-up questions to refine presentation.<br>Step 8: Backend calls `DoctorSemanticSearchService` to match top 3 specialist doctors for the recommended specialty.<br>Step 9: Backend saves session record into `triage_sessions` table (`sbar_summary`, `urgency_level`, `recommended_specialty_id`).<br>Step 10: Backend returns HTTP 200 OK with `TriageResponse` DTO.<br>Step 11: Frontend renders conversational response bubble, SBAR assessment card, and matched specialist doctor cards. |
+| **Alternative Flow** | - Alt Flow 11a: Acute Red-Flag Emergency Detected:<br>1. Defense Engine flags acute emergency condition (FAST stroke, acute myocardial infarction, severe anaphylaxis).<br>2. Normal flow interrupted immediately (Divert to UC-PAT-02 Alt Flow 10a).<br>- Alt Flow 11b: AI Gateway Overloaded / Rate Limited:<br>1. Gemini API throws `AiProviderOverloadedException` (HTTP 429).<br>2. Router falls back to OpenRouter pool or `DeterministicFallbackAiProvider` (local keyword heuristics). |
+| **Exceptions** | - Exc Flow 12a: Empty or Too Short Input:<br>1. Symptoms text is under 3 characters.<br>2. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INPUT_TOO_SHORT", "Vui lòng mô tả triệu chứng cụ thể hơn (tối thiểu 3 ký tự).")`.<br>- Exc Flow 12b: Input Exceeds Maximum Length:<br>1. Symptoms text exceeds 2,000 characters.<br>2. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INPUT_TOO_LONG", "Mô tả triệu chứng không được vượt quá 2000 ký tự.")`. |
+| **Priority** | High (P0 - Core Differentiator) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-10: Medical disclaimer mandatory: "Kết quả sàng lọc mang tính chất tham khảo, không thay thế chẩn đoán y khoa chính thức từ bác sĩ."<br>- BR-11: Triage rate limited to prevent API abuse (`TriageRateLimiterService`). |
+| **Data Entities Involved** | - `triage_sessions` (id, user_id, chief_complaint, raw_symptoms, sbar_summary, urgency_level, recommended_specialty_id, created_at). |
+| **User Interface Controls** | - Chat message stream, symptom text input, quick symptom chips, SBAR summary card, matched doctor cards. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.3 SEMANTIC DOCTOR SEARCH VIA PGVECTOR HNSW (UC-PAT-03)
-================================================================================
-1.  Use Case ID:         UC-PAT-03
-2.  Use Case Name:       Semantic Doctor Search via pgvector HNSW
-3.  Target System:       MediAssist-AI Vector Search Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient, Doctor, Platform Architect
-6.  Trigger:             Patient enters symptoms into search bar on `/patient/doctors`.
-7.  Pre-conditions:
-    - Verified doctor profiles have pre-computed 1536-d embeddings in `doctor_profiles.bio_embedding`.
-    - PostgreSQL 16 HNSW index `idx_doctor_bio_hnsw_verified` is active (Flyway V11).
-8.  Post-conditions:
-    - System executes session-tuned vector similarity query.
-    - Candidates re-ranked using Weighted Hybrid Re-Ranking Formula (WHRF) in a bounded min-heap.
-    - Ranked list of qualified specialist doctors returned with match compatibility scores.
-9.  Priority:            High (P0 - Core Differentiator)
-10. Normal Flow:
-    Step 1: Patient types symptoms on `/patient/doctors` (e.g., "đau dạ dày ợ chua trào ngược").
-    Step 2: Frontend dispatches HTTP GET to `/api/v1/triage/search/semantic?query=...&limit=5`.
-    Step 3: Backend passes query through `ClinicalQueryDefenseEngine`.
-    Step 4: Backend calls `EmbeddingService` to compute 1536-d dense vector using `openai/text-embedding-3-small`.
-    Step 5: Backend applies PostgreSQL session tuning:
-            - `SET LOCAL hnsw.ef_search = 120;`
-            - `SET LOCAL enable_seqscan = off;`
-            - `SET LOCAL work_mem = '64MB';`
-    Step 6: Backend executes vector similarity query against `doctor_profiles`:
-            `SELECT d.*, 1 - (d.bio_embedding <=> :queryEmbedding) AS cosine_sim FROM doctor_profiles d WHERE d.is_verified = true ...`
-    Step 7: Candidates processed through Bounded Min-Heap executing WHRF Re-ranking:
-            - Sigmoid Contrastive Sharpening: $S_{dense} = rac{1}{1 + e^{-8.0(cosine\_sim - 0.65)}}$
-            - Sparse lexical overlap bonus
-            - Specialty Match Boost: $+0.12$
-            - Divergence Penalty: $-0.10$
-            - Credibility Damper: $\log_{10}(	ext{review\_count} + 1) / \log_{10}(100)$
-    Step 8: Top $K=5$ doctors serialized into `DoctorMatchDto` list.
-    Step 9: Frontend renders doctor cards with match percentage, specialty badge, rating, fee, and available slots.
-11. Alternative Flows:
-    - Alt Flow 11a: Embedding Service Offline:
-      1. Backend falls back to local Unsupervised Feature Hashing (Character N-gram FNV-1a).
-      2. Search completes with degraded semantic precision.
-12. Exception Flows: None.
-13. Business Rules:
-    - BR-13: Only verified doctors (`is_verified = true`) are visible in search results.
-14. Non-Functional Requirements:
-    - NFR-PERF: PostgreSQL vector query execution < 12ms (Observed benchmark: 0.72ms).
-15. Data Entities Involved:
-    - `doctor_profiles` (id, user_id, specialty_id, bio_embedding, rating_avg, review_count, consultation_fee, is_verified).
-    - `specialties`.
-16. User Interface Controls:
-    - Search input, Specialty filter, Price filter, Doctor card list, "Đặt Lịch Khám" button.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.4 VIEW DOCTOR DETAILS & SLOTS (UC-PAT-04)
-================================================================================
-1.  Use Case ID:         UC-PAT-04
-2.  Use Case Name:       View Doctor Details & Available Slots
-3.  Target System:       MediAssist-AI Doctor Directory Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient, Attending Physician
-6.  Trigger:             Patient selects doctor card to view schedule and credentials.
-7.  Pre-conditions:      Doctor account exists and is verified.
-8.  Post-conditions:     Doctor bio, credentials, CCHN number, and 30-min consultation slots rendered.
-9.  Priority:            Medium (P1)
-10. Normal Flow:
-    Step 1: Patient clicks doctor card on `/patient/doctors`.
-    Step 2: Frontend calls HTTP GET `/api/v1/doctors/{id}` to fetch `DoctorDetailDto`.
-    Step 3: Frontend calls HTTP GET `/api/v1/doctors/{id}/slots?date=YYYY-MM-DD` to fetch available slots.
-    Step 4: Backend retrieves `doctor_schedule_slots` and filters out existing bookings from `appointments`.
-    Step 5: Backend returns list of `DoctorSlotDto` (startTime, endTime, isAvailable).
-    Step 6: Frontend renders doctor profile header, CCHN license badge, bio, fee, and slot grid.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Doctor Not Found:
-      1. Backend throws HTTP 404 Not Found.
-13. Business Rules:
-    - BR-14: Doctor practice certificate number (CCHN) must be publicly displayed.
-14. Non-Functional Requirements:
-    - NFR-PERF: Slot query response time < 100ms.
-15. Data Entities Involved: `doctor_profiles`, `doctor_schedule_slots`, `appointments`.
-16. User Interface Controls: Date picker, 30-minute slot chips, "Đặt Lịch" action button.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.2.2 5-Stage Clinical Query Defense Screening (UC-PAT-02)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.5 UPLOAD MEDICAL DOCUMENT & VISION OCR (UC-PAT-05)
-================================================================================
-1.  Use Case ID:         UC-PAT-05
-2.  Use Case Name:       Upload Medical Document & Vision OCR
-3.  Target System:       MediAssist-AI Document Ingestion Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient, Attending Physician
-6.  Trigger:             Patient uploads a medical document file on `/patient/documents`.
-7.  Pre-conditions:
-    - Patient is authenticated.
-    - File format: PDF, PNG, or JPEG; size <= 10MB; PDF pages <= 10.
-8.  Post-conditions:
-    - SHA-256 checksum computed for deduplication.
-    - Document stored in private Supabase S3 bucket `medical-documents`.
-    - Record inserted in `medical_documents` with status `ANALYZED`.
-    - OCR extraction saved in `document_analyses` table (Flyway V1, V5, V20).
-9.  Priority:            High (P0)
-10. Normal Flow:
-    Step 1: Patient drops lab test file (blood test, urinalysis, ultrasound) onto upload zone.
-    Step 2: Frontend validates file size (<= 10MB) and MIME type.
-    Step 3: Frontend calls HTTP POST `/api/v1/documents/analyze` with multipart file.
-    Step 4: Backend `MedicalDocumentValidator` validates PDF page limit (<= 10 pages) and checks file signature.
-    Step 5: Backend computes SHA-256 hash (`file_hash`).
-    Step 6: Backend checks for duplicate upload in `medical_documents`.
-    Step 7: Backend streams file to Supabase S3 private bucket under path `documents/{patientId}/{uuid}.ext`.
-    Step 8: Backend calls Google Gemini 1.5 Flash Vision API to perform multimodal OCR and clinical extraction.
-    Step 9: Backend extracts biomarkers table, abnormal indicators, LOINC codes, and layperson summary.
-    Step 10: Backend saves metadata in `medical_documents` (`storage_path`) and extraction in `document_analyses`.
-    Step 11: Backend decrements user's remaining AI quota in `patient_profiles.remaining_ai_quota`.
-    Step 12: Backend returns HTTP 200 OK with `DocumentAnalysisResponse`.
-    Step 13: Frontend renders split-view modal with extracted indicators and plain-text summary.
-11. Alternative Flows:
-    - Alt Flow 11a: Identical Duplicate Document:
-      1. Backend finds existing document with matching SHA-256 hash for this patient.
-      2. Backend returns cached analysis without re-uploading or consuming AI quota.
-12. Exception Flows:
-    - Exc Flow 12a: File Too Large (> 10MB):
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE", ...)`.
-    - Exc Flow 12b: Quota Depleted:
-      1. Patient has 0 remaining AI quota.
-      2. Backend prompts patient to purchase additional analysis quota (UC-PAT-08).
-13. Business Rules:
-    - BR-15: Medical documents must reside strictly in private S3 buckets. Public URLs forbidden (V20).
-14. Non-Functional Requirements:
-    - NFR-PERF: Document OCR and interpretation pipeline completes in < 4500ms.
-15. Data Entities Involved:
-    - `medical_documents`, `document_analyses`, `patient_profiles`.
-16. User Interface Controls:
-    - Drag-and-drop zone, file preview thumbnail, "Phân Tích AI" button, quota counter badge.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-02` |
+| **Use Case Name** | 5-Stage Clinical Query Defense Screening |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient (System Interceptor) |
+| **Secondary Actor** | Google Gemini 1.5 Flash Vision, OpenAI text-embedding-3-small |
+| **Description** | MediAssist-AI Clinical Query Defense Engine — - Query sanitized, normalized, and categorized, OR intercepted with emergency lockout / administrative redirect. |
+| **Trigger** | Invoked automatically on every natural language symptom query. |
+| **Pre-conditions** | Raw text received by `TriageController` or `DoctorSemanticSearchService`. |
+| **Post-conditions** | - Query sanitized, normalized, and categorized, OR intercepted with emergency lockout / administrative redirect. |
+| **Normal Flow** | Step 1: Input text passes to `ClinicalQueryDefenseEngine.process(rawInput)`.<br>Step 2: Stage 1 — Acute Red-Flag Emergency Interception:<br>Engine checks input against regex patterns for acute emergencies:<br>- Đột quỵ não (FAST): "méo miệng", "liệt nửa người", "nói ngọng", "mờ mắt đột ngột".<br>- Nhồi máu cơ tim: "đau thắt ngực lan ra cánh tay trái", "vã mồ hôi lạnh", "khó thở dữ dội".<br>- Sốc phản vệ / Cấp cứu: "khó thở sau dùng thuốc", "sưng phù môi họng", "nôn ra máu tươi".<br>If match found -> Divert to Alternative Flow 10a.<br>Step 3: Stage 2 — Vietnamese Slang & Teen-Code Normalization:<br>Engine converts informal phrasing into medical terminology:<br>- `ko`, `k`, `khg` -> `không`<br>- `bs`, `bsi` -> `bác sĩ`<br>- `dau da day` -> `đau dạ dày`<br>- `met` -> `mệt mỏi`<br>- `sot cao` -> `sốt cao`<br>Step 4: Stage 3 — Vietnamese NegEx Clause-Level Negation Splitting:<br>Engine identifies negation trigger terms: `không bị`, `chưa từng`, `không có`, `không sốt`.<br>Input is split into Affirmative Clause and Negated Clause.<br>Negated symptoms (e.g., "không sốt") are quarantined to prevent false routing to infectious disease doctors.<br>Step 5: Stage 4 — Out-of-Domain (OOD) Intent Gating:<br>Engine checks if query is administrative or greeting chatter (viện phí, giờ khám, bảo hiểm).<br>If OOD found -> Divert to Alternative Flow 10b.<br>Step 6: Stage 5 — Compound Multi-Symptom Decomposition:<br>Engine splits multi-symptom conjunctions (`đồng thời`, `kèm theo`, `và`) into sub-queries.<br>Step 7: Engine outputs sanitized string and affirmative clause for downstream embedding generation. |
+| **Alternative Flow** | - Alt Flow 10a: Emergency Red-Flag Interception:<br>1. Engine sets `isEmergency = true`, `urgency = EMERGENCY`.<br>2. Engine attaches emergency response banner:<br>"CẢNH BÁO NGUY HIỂM: Triệu chứng của bạn có dấu hiệu cấp cứu y khoa đe dọa tính mạng! Vui lòng gọi ngay Cấp cứu 115 hoặc đến khoa Cấp cứu bệnh viện gần nhất!"<br>3. Booking controls locked; 115 call hotline button highlighted in red.<br>- Alt Flow 10b: Out-of-Domain Administrative Gating:<br>1. Engine identifies administrative query.<br>2. Returns guidance text directing user to hospital customer service hotline (1900-xxxx). |
+| **Exceptions** | None. |
+| **Priority** | High (P0 - Patient Safety Critical) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-12: Red-flag check must run in-memory synchronously with zero external network dependencies. |
+| **Data Entities Involved** | None (pure computational in-memory defense engine). |
+| **User Interface Controls** | Red Emergency Alert Banner, 115 Call Button. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.6 INSPECT BIOMARKERS & LOINC CODES (UC-PAT-06)
-================================================================================
-1.  Use Case ID:         UC-PAT-06
-2.  Use Case Name:       Inspect Extracted Biomarkers & LOINC Codes
-3.  Target System:       MediAssist-AI Clinical Analysis Subsystem
-4.  Primary Actor:       Patient, Attending Doctor
-5.  Stakeholders:        Patient, Doctor
-6.  Trigger:             User clicks "Xem Phân Tích" on an uploaded medical document.
-7.  Pre-conditions:      Document has been analyzed (`document_analyses` record exists).
-8.  Post-conditions:     Structured biomarker table and layperson summary displayed.
-9.  Priority:            High (P0)
-10. Normal Flow:
-    Step 1: User selects document from document list on `/patient/documents`.
-    Step 2: Frontend calls HTTP GET `/api/v1/documents/{id}/analysis`.
-    Step 3: Backend enforces `PatientAccessGuard` verifying patient ownership or doctor care relationship.
-    Step 4: Backend retrieves `document_analyses` record joined with `medical_documents`.
-    Step 5: Backend returns payload containing:
-            - Table of biomarkers: Test name, measured value, unit, reference range, status (`NORMAL`, `ELEVATED`, `LOW`).
-            - Standardized LOINC codes.
-            - Layperson clinical summary in plain Vietnamese.
-            - Recommended medical specialty.
-    Step 6: Frontend renders interactive table with abnormal rows highlighted in red or amber.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Unauthorized Access (IDOR Attempt):
-      1. Backend throws `AppException(HttpStatus.FORBIDDEN, "FORBIDDEN_PATIENT_ACCESS", ...)`.
-13. Business Rules:
-    - BR-10: Medical safety disclaimer mandatory on all biomarker views.
-    - BR-16: Numerical lab values must retain exact precision extracted from the scan.
-14. Non-Functional Requirements:
-    - NFR-PERF: Analysis retrieval latency < 150ms.
-15. Data Entities Involved: `medical_documents`, `document_analyses`.
-16. User Interface Controls: Biomarker table, status pills, layperson accordion.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.7 DOWNLOAD DOCUMENT FILE VIA SIGNED URL (UC-PAT-07)
-================================================================================
-1.  Use Case ID:         UC-PAT-07
-2.  Use Case Name:       Download Document File via 15-Minute Signed URL
-3.  Target System:       MediAssist-AI Storage Subsystem
-4.  Primary Actor:       Patient, Authorized Doctor
-5.  Stakeholders:        Patient, Doctor
-6.  Trigger:             User clicks "Tải Tệp Gốc" or previews source file.
-7.  Pre-conditions:      Document exists in private Supabase S3 bucket.
-8.  Post-conditions:     15-minute temporary signed URL generated; file stream returned.
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: User clicks download/preview icon for document ID.
-    Step 2: Frontend calls HTTP GET `/api/v1/documents/{id}/file` or `/api/v1/documents/{id}/signed-url`.
-    Step 3: Backend verifies authorization via `PatientAccessGuard`.
-    Step 4: Backend retrieves `storage_path` from `medical_documents`.
-    Step 5: Backend invokes `SupabaseStorageService.createSignedUrl(storagePath, 900)` (TTL = 15 minutes / 900 seconds).
-    Step 6: Backend returns `DocumentFileAccessDto(signedUrl, expiresInSeconds=900)`.
-    Step 7: Browser opens secure preview or initiates direct download.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: File Missing from Storage:
-      1. Backend throws `AppException(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", ...)`.
-13. Business Rules:
-    - BR-15: Direct public links to medical files are strictly forbidden (Flyway V20).
-14. Non-Functional Requirements:
-    - NFR-SEC: Signed URL TTL strictly capped at 900 seconds.
-15. Data Entities Involved: `medical_documents`, `audit_logs`.
-16. User Interface Controls: Download button, progress spinner.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.2.3 Semantic Doctor Search via pgvector HNSW (UC-PAT-03)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.8 PURCHASE AI ANALYSIS QUOTA (UC-PAT-08)
-================================================================================
-1.  Use Case ID:         UC-PAT-08
-2.  Use Case Name:       Purchase AI Analysis Quota
-3.  Target System:       MediAssist-AI Payment & Quota Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient, Hospital Finance
-6.  Trigger:             Patient clicks "Mua Thêm Hạn Ngạch" on `/patient/documents`.
-7.  Pre-conditions:      Patient is authenticated.
-8.  Post-conditions:     Payment checkout initiated; quota credited upon successful transaction.
-9.  Priority:            Medium (P2)
-10. Normal Flow:
-    Step 1: Patient opens Quota Purchase modal on `/patient/documents`.
-    Step 2: Frontend calls HTTP GET `/api/v1/payments/packages` to display quota tiers:
-            - Gói Tiêu Chuẩn: 5 lượt phân tích (50.000 VNĐ).
-            - Gói Nâng Cao: 15 lượt phân tích (120.000 VNĐ).
-            - Gói Không Giới Hạn: 50 lượt phân tích (300.000 VNĐ).
-    Step 3: Patient selects package and clicks "Thanh Toán".
-    Step 4: Frontend calls HTTP POST `/api/v1/payments/checkout` with `orderType = QUOTA_PURCHASE`.
-    Step 5: Backend initializes payment via Stripe or Mock Sandbox.
-    Step 6: Patient completes payment; transaction verified via `POST /api/v1/payments/verify`.
-    Step 7: Backend increments `patient_profiles.remaining_ai_quota`.
-    Step 8: Frontend updates quota balance badge.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-SEC: Quota credited atomically within payment transaction.
-15. Data Entities Involved: `patient_profiles`, `payment_transactions`.
-16. User Interface Controls: Package selection cards, payment checkout modal.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-03` |
+| **Use Case Name** | Semantic Doctor Search via pgvector HNSW |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | Google Gemini 1.5 Flash Vision, OpenAI text-embedding-3-small |
+| **Description** | MediAssist-AI Vector Search Subsystem — - System executes session-tuned vector similarity query.<br>- Candidates re-ranked using Weighted Hybrid Re-Ranking Formula (WHRF) in a bounded min-heap.<br>- Ranked list of qualified specialist doctors returned with match compatibility scores. |
+| **Trigger** | Patient enters symptoms into search bar on `/patient/doctors`. |
+| **Pre-conditions** | - Verified doctor profiles have pre-computed 1536-d embeddings in `doctor_profiles.bio_embedding`.<br>- PostgreSQL 16 HNSW index `idx_doctor_bio_hnsw_verified` is active (Flyway V11). |
+| **Post-conditions** | - System executes session-tuned vector similarity query.<br>- Candidates re-ranked using Weighted Hybrid Re-Ranking Formula (WHRF) in a bounded min-heap.<br>- Ranked list of qualified specialist doctors returned with match compatibility scores. |
+| **Normal Flow** | Step 1: Patient types symptoms on `/patient/doctors` (e.g., "đau dạ dày ợ chua trào ngược").<br>Step 2: Frontend dispatches HTTP GET to `/api/v1/triage/search/semantic?query=...&limit=5`.<br>Step 3: Backend passes query through `ClinicalQueryDefenseEngine`.<br>Step 4: Backend calls `EmbeddingService` to compute 1536-d dense vector using `openai/text-embedding-3-small`.<br>Step 5: Backend applies PostgreSQL session tuning:<br>- `SET LOCAL hnsw.ef_search = 120;`<br>- `SET LOCAL enable_seqscan = off;`<br>- `SET LOCAL work_mem = '64MB';`<br>Step 6: Backend executes vector similarity query against `doctor_profiles`:<br>`SELECT d.*, 1 - (d.bio_embedding <=> :queryEmbedding) AS cosine_sim FROM doctor_profiles d WHERE d.is_verified = true ...`<br>Step 7: Candidates processed through Bounded Min-Heap executing WHRF Re-ranking:<br>- Sigmoid Contrastive Sharpening: $S_{dense} = rac{1}{1 + e^{-8.0(cosine\_sim - 0.65)}}$<br>- Sparse lexical overlap bonus<br>- Specialty Match Boost: $+0.12$<br>- Divergence Penalty: $-0.10$<br>- Credibility Damper: $\log_{10}(	ext{review\_count} + 1) / \log_{10}(100)$<br>Step 8: Top $K=5$ doctors serialized into `DoctorMatchDto` list.<br>Step 9: Frontend renders doctor cards with match percentage, specialty badge, rating, fee, and available slots. |
+| **Alternative Flow** | - Alt Flow 11a: Embedding Service Offline:<br>1. Backend falls back to local Unsupervised Feature Hashing (Character N-gram FNV-1a).<br>2. Search completes with degraded semantic precision. |
+| **Exceptions** | None. |
+| **Priority** | High (P0 - Core Differentiator) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-13: Only verified doctors (`is_verified = true`) are visible in search results. |
+| **Data Entities Involved** | - `doctor_profiles` (id, user_id, specialty_id, bio_embedding, rating_avg, review_count, consultation_fee, is_verified).<br>- `specialties`. |
+| **User Interface Controls** | - Search input, Specialty filter, Price filter, Doctor card list, "Đặt Lịch Khám" button. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.9 BOOK IN-CLINIC APPOINTMENT (UC-PAT-09)
-================================================================================
-1.  Use Case ID:         UC-PAT-09
-2.  Use Case Name:       Book In-Clinic Appointment & Slot Reservation
-3.  Target System:       MediAssist-AI Clinical Scheduling Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient, Doctor, Clinic Receptionist
-6.  Trigger:             Patient confirms slot selection in `BookingModal`.
-7.  Pre-conditions:
-    - Patient is authenticated with verified email (`email_verified = true`).
-    - Doctor is verified (`is_verified = true`) and active (`is_active = true`).
-8.  Post-conditions:
-    - Appointment record created with status `SCHEDULED` and payment status `UNPAID`.
-    - Sequential daily STT queue number assigned (`queue_number = 'STT 01'`).
-    - Clinic room assigned from doctor profile.
-9.  Priority:            High (P0)
-10. Normal Flow:
-    Step 1: Patient selects doctor and 30-min slot on `/patient/doctors` (e.g., 2026-10-20 09:00:00 to 09:30:00).
-    Step 2: Patient opens `BookingModal`, enters chief complaint, and optionally selects an uploaded `medicalDocumentId`.
-    Step 3: Frontend calls HTTP POST `/api/v1/appointments` with `CreateAppointmentRequest`.
-    Step 4: Backend checks doctor status (`DOCTOR_NOT_ACTIVE`, `DOCTOR_NOT_VERIFIED`).
-    Step 5: Backend checks clinic hours: Monday–Saturday, 08:00–12:00 & 13:30–17:00 (Sundays blocked).
-    Step 6: Backend verifies slot vacancy:
-            `SELECT COUNT(*) FROM appointments WHERE doctor_id = :d AND scheduled_start = :s AND status NOT IN ('CANCELLED')`
-    Step 7: Backend calculates next daily sequential queue number:
-            `queue_number = String.format("STT %02d", countToday + 1)`.
-    Step 8: Backend generates unique `appointment_code` (e.g., `AP-20261020-XXXX`).
-    Step 9: Backend sets `clinic_room = doctorProfile.getClinicRoom()`.
-    Step 10: Backend inserts record into `appointments` with status `SCHEDULED`.
-    Step 11: Backend returns HTTP 201 Created with `AppointmentDto`.
-    Step 12: Frontend opens payment modal or redirects to checkout.
-11. Alternative Flows:
-    - Alt Flow 11a: Concurrent Slot Collision:
-      1. Another patient booked the same slot milliseconds earlier.
-      2. Backend detects conflict and throws `AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", "Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác.")`.
-      3. Frontend refreshes slot picker.
-12. Exception Flows:
-    - Exc Flow 12a: Sunday Booking Attempt:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_DAY", "Bệnh viện không tiếp nhận lịch hẹn vào Chủ Nhật.")`.
-    - Exc Flow 12b: Outside Operating Hours:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME", "Khung giờ khám hợp lệ là 08:00-12:00 và 13:30-17:00.")`.
-13. Business Rules:
-    - BR-17: In-clinic consultations operate strictly Monday–Saturday, 08:00–12:00 & 13:30–17:00.
-    - BR-20: Queue numbers (STT) are sequential per doctor per calendar date starting at STT 01.
-14. Non-Functional Requirements:
-    - NFR-PERF: Booking transaction commits in < 150ms with database concurrency lock.
-15. Data Entities Involved: `appointments`, `doctor_profiles`, `users`.
-16. User Interface Controls: `BookingModal`, slot pills, document select dropdown, "Xác Nhận Đặt Lịch" button.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.10 PROCESS PAYMENT VIA STRIPE / MOCK (UC-PAT-10)
-================================================================================
-1.  Use Case ID:         UC-PAT-10
-2.  Use Case Name:       Process Payment via Stripe / Mock Sandbox
-3.  Target System:       MediAssist-AI Payment Gateway Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient, Doctor, Hospital Finance
-6.  Trigger:             Patient proceeds to pay consultation fee for scheduled appointment.
-7.  Pre-conditions:      Appointment exists with `payment_status = UNPAID`.
-8.  Post-conditions:
-    - Payment authorized and settled.
-    - `appointments.payment_status` updated to `PAID`.
-    - Record inserted in `payment_transactions` with status `SUCCESS`.
-    - Confirmation notification dispatched to patient.
-9.  Priority:            High (P0)
-10. Normal Flow:
-    Step 1: Patient selects payment method (Stripe Credit Card or Mock Sandbox).
-    Step 2: Frontend calls HTTP POST `/api/v1/payments/checkout` with `CreatePaymentRequest(orderType=APPOINTMENT_FEE, appointmentId=...)`.
-    Step 3: Backend verifies `app.payment.mock.enabled`:
-            - If production (`mock.enabled = false`): Routes to Stripe Checkout Gateway.
-            - If demo/dev (`mock.enabled = true`): Routes to Mock Payment Gateway.
-    Step 4: Backend creates `PaymentTransaction` record with status `PENDING`.
-    Step 5: Patient submits payment details; gateway returns transaction confirmation.
-    Step 6: Frontend calls HTTP POST `/api/v1/payments/verify` with `VerifyPaymentRequest(transactionCode)`.
-    Step 7: Backend verifies transaction with gateway and updates `payment_transactions.status = SUCCESS`.
-    Step 8: Backend updates `appointments.payment_status = PAID`.
-    Step 9: Backend publishes `PaymentCompletedEvent` -> dispatches confirmation email.
-    Step 10: Frontend redirects to `/payment/success` with receipt details.
-11. Alternative Flows:
-    - Alt Flow 11a: Stripe Webhook Asynchronous Capture:
-      1. Stripe posts webhook to `/api/v1/payments/webhook/stripe`.
-      2. Backend validates webhook signature and auto-fulfills appointment payment status.
-12. Exception Flows:
-    - Exc Flow 12a: Mock Payment Attempt in Production:
-      1. Backend detects `mock.enabled = false` and throws `AppException(HttpStatus.FORBIDDEN, "MOCK_PAYMENT_DISABLED", ...)`.
-13. Business Rules:
-    - BR-19: Mock payment permanently disabled in production mode (Security Audit BE-10).
-14. Non-Functional Requirements:
-    - NFR-SEC: Webhook signature verification mandatory (HMAC-SHA256).
-15. Data Entities Involved: `payment_transactions`, `appointments`.
-16. User Interface Controls: Payment modal, Stripe Elements card iframe, "Thanh Toán Ngay" button.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.2.4 View Doctor Details & Available Slots (UC-PAT-04)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.11 VIEW ELECTRONIC ENCOUNTER SLIP (UC-PAT-11)
-================================================================================
-1.  Use Case ID:         UC-PAT-11
-2.  Use Case Name:       View Electronic Encounter Slip & Admission STT
-3.  Target System:       MediAssist-AI Appointment Subsystem
-4.  Primary Actor:       Patient, Clinic Reception
-5.  Stakeholders:        Patient, Doctor, Receptionist
-6.  Trigger:             Patient accesses ticket view for confirmed appointment.
-7.  Pre-conditions:      Appointment exists.
-8.  Post-conditions:     Electronic admission slip rendered with clinic navigation details.
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: Patient clicks "Xem Phiếu Khám" from dashboard or appointment card.
-    Step 2: Frontend calls HTTP GET `/api/v1/appointments/{id}/ticket`.
-    Step 3: Backend verifies user ownership or staff access via `PatientAccessGuard`.
-    Step 4: Backend returns ticket DTO:
-            - Sequential Queue Number (e.g., `STT 05`).
-            - Appointment Code (e.g., `AP-20261020-0012`).
-            - Patient Name, Scheduled Date & Time Window.
-            - Attending Doctor Name, Academic Title, Specialty.
-            - Clinic Room (e.g., "Phòng Khám 204 - Khu Khám Yêu Cầu").
-            - Preparation Instructions (nhịn ăn 8h nếu xét nghiệm máu, mang CCCD).
-    Step 5: Frontend renders styled digital encounter ticket card with print button.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules:
-    - BR-20: Sequential STT displayed prominently on all tickets.
-14. Non-Functional Requirements:
-    - NFR-USA: 1-click browser print view.
-15. Data Entities Involved: `appointments`, `doctor_profiles`, `users`.
-16. User Interface Controls: Ticket frame, "In Phiếu Khám" button, "Xem Lịch Hẹn" link.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-04` |
+| **Use Case Name** | View Doctor Details & Available Slots |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Doctor Directory Subsystem — Doctor bio, credentials, CCHN number, and 30-min consultation slots rendered. |
+| **Trigger** | Patient selects doctor card to view schedule and credentials. |
+| **Pre-conditions** | Doctor account exists and is verified. |
+| **Post-conditions** | Doctor bio, credentials, CCHN number, and 30-min consultation slots rendered. |
+| **Normal Flow** | Step 1: Patient clicks doctor card on `/patient/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/doctors/{id}` to fetch `DoctorDetailDto`.<br>Step 3: Frontend calls HTTP GET `/api/v1/doctors/{id}/slots?date=YYYY-MM-DD` to fetch available slots.<br>Step 4: Backend retrieves `doctor_schedule_slots` and filters out existing bookings from `appointments`.<br>Step 5: Backend returns list of `DoctorSlotDto` (startTime, endTime, isAvailable).<br>Step 6: Frontend renders doctor profile header, CCHN license badge, bio, fee, and slot grid. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Doctor Not Found:<br>1. Backend throws HTTP 404 Not Found. |
+| **Priority** | Medium (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-14: Doctor practice certificate number (CCHN) must be publicly displayed. |
+| **Data Entities Involved** | `doctor_profiles`, `doctor_schedule_slots`, `appointments`. |
+| **User Interface Controls** | Date picker, 30-minute slot chips, "Đặt Lịch" action button. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.12 VIEW APPOINTMENT HISTORY (UC-PAT-12)
-================================================================================
-1.  Use Case ID:         UC-PAT-12
-2.  Use Case Name:       View Patient Appointment History
-3.  Target System:       MediAssist-AI Patient Appointment Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient
-6.  Trigger:             Patient navigates to appointments section on `/patient`.
-7.  Pre-conditions:      Patient is authenticated.
-8.  Post-conditions:     List of user appointments rendered with status badges.
-9.  Priority:            Medium (P1)
-10. Normal Flow:
-    Step 1: Patient views appointments section on `/patient`.
-    Step 2: Frontend calls HTTP GET `/api/v1/appointments/my`.
-    Step 3: Backend queries `appointments` for `patient_id = currentUserId` ordered by `scheduled_start DESC`.
-    Step 4: Backend returns `List<AppointmentDto>`.
-    Step 5: Frontend renders cards showing Doctor name, Date/Time, STT, and status badge (`SCHEDULED`, `CONFIRMED`, `COMPLETED`, `CANCELLED`).
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: Query utilizes index `idx_appointment_patient` (< 30ms).
-15. Data Entities Involved: `appointments`, `users`, `doctor_profiles`.
-16. User Interface Controls: Appointment cards, status pills, filter tabs.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.13 PATIENT CHECK-IN FOR APPOINTMENT (UC-PAT-13)
-================================================================================
-1.  Use Case ID:         UC-PAT-13
-2.  Use Case Name:       Patient Check-In for In-Clinic Appointment
-3.  Target System:       MediAssist-AI Clinical Scheduling Subsystem
-4.  Primary Actor:       Patient, Clinic Receptionist
-5.  Stakeholders:        Patient, Doctor, Clinic Nurse
-6.  Trigger:             Patient arrives at hospital and checks in.
-7.  Pre-conditions:      Appointment status is `SCHEDULED`.
-8.  Post-conditions:     `checked_in_at` timestamp recorded; appointment marked ready in doctor queue.
-9.  Priority:            Medium (P2)
-10. Normal Flow:
-    Step 1: Patient clicks "Tôi Đã Đến Phòng Khám (Check-in)" on appointment card.
-    Step 2: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/check-in`.
-    Step 3: Backend verifies user is the appointment patient or assigned doctor.
-    Step 4: Backend sets `checkedInAt = LocalDateTime.now()`.
-    Step 5: Backend commits update to `appointments` table.
-    Step 6: Backend returns HTTP 200 OK with updated appointment DTO.
-    Step 7: Frontend updates appointment badge to "Đã Check-in / Sẵn Sàng Khám".
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Check-in on non-scheduled appointment:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_CHECKIN", ...)`.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: Check-in executed in < 50ms.
-15. Data Entities Involved: `appointments`.
-16. User Interface Controls: "Check-in Ngay" button, check-in confirmation badge.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.2.5 Upload Medical Document & Vision OCR (UC-PAT-05)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.14 RESCHEDULE APPOINTMENT (UC-PAT-14)
-================================================================================
-1.  Use Case ID:         UC-PAT-14
-2.  Use Case Name:       Reschedule Active Appointment
-3.  Target System:       MediAssist-AI Clinical Scheduling Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient, Doctor
-6.  Trigger:             Patient selects "Dời Lịch Khám" on active appointment.
-7.  Pre-conditions:
-    - Appointment is in `SCHEDULED` status.
-    - New appointment time is at least 2 hours in the future.
-8.  Post-conditions:     `scheduled_start` and `scheduled_end` updated to new available slot.
-9.  Priority:            Medium (P2)
-10. Normal Flow:
-    Step 1: Patient opens reschedule dialog on appointment card.
-    Step 2: Patient selects new date and slot from doctor's available schedule.
-    Step 3: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/reschedule` with `RescheduleAppointmentRequest(newScheduledStart, newScheduledEnd)`.
-    Step 4: Backend checks current appointment status is `SCHEDULED`.
-    Step 5: Backend verifies new slot is >= 2 hours from current time (`PAST_DATE`).
-    Step 6: Backend verifies clinic hours (Monday–Saturday, 08:00–12:00 / 13:30–17:00).
-    Step 7: Backend checks new slot vacancy to prevent conflict (`SLOT_CONFLICT`).
-    Step 8: Backend updates appointment schedule times and re-computes queue number.
-    Step 9: Backend sends email notice of schedule change.
-    Step 10: Frontend displays toast: "Đã dời lịch hẹn thành công."
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Reschedule within 2 hours of appointment:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "PAST_DATE", "Thời gian hẹn mới phải cách thời điểm hiện tại ít nhất 2 giờ")`.
-13. Business Rules:
-    - BR-21: Rescheduling allowed up to 2 hours prior to scheduled appointment.
-14. Non-Functional Requirements:
-    - NFR-PERF: Reschedule transaction commits in < 100ms.
-15. Data Entities Involved: `appointments`, `audit_logs`.
-16. User Interface Controls: Reschedule modal, slot picker, confirm button.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-05` |
+| **Use Case Name** | Upload Medical Document & Vision OCR |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | Google Gemini 1.5 Flash Vision, OpenAI text-embedding-3-small |
+| **Description** | MediAssist-AI Document Ingestion Subsystem — - SHA-256 checksum computed for deduplication.<br>- Document stored in private Supabase S3 bucket `medical-documents`.<br>- Record inserted in `medical_documents` with status `ANALYZED`.<br>- OCR extraction saved in `document_analyses` table (Flyway V1, V5, V20). |
+| **Trigger** | Patient uploads a medical document file on `/patient/documents`. |
+| **Pre-conditions** | - Patient is authenticated.<br>- File format: PDF, PNG, or JPEG; size <= 10MB; PDF pages <= 10. |
+| **Post-conditions** | - SHA-256 checksum computed for deduplication.<br>- Document stored in private Supabase S3 bucket `medical-documents`.<br>- Record inserted in `medical_documents` with status `ANALYZED`.<br>- OCR extraction saved in `document_analyses` table (Flyway V1, V5, V20). |
+| **Normal Flow** | Step 1: Patient drops lab test file (blood test, urinalysis, ultrasound) onto upload zone.<br>Step 2: Frontend validates file size (<= 10MB) and MIME type.<br>Step 3: Frontend calls HTTP POST `/api/v1/documents/analyze` with multipart file.<br>Step 4: Backend `MedicalDocumentValidator` validates PDF page limit (<= 10 pages) and checks file signature.<br>Step 5: Backend computes SHA-256 hash (`file_hash`).<br>Step 6: Backend checks for duplicate upload in `medical_documents`.<br>Step 7: Backend streams file to Supabase S3 private bucket under path `documents/{patientId}/{uuid}.ext`.<br>Step 8: Backend calls Google Gemini 1.5 Flash Vision API to perform multimodal OCR and clinical extraction.<br>Step 9: Backend extracts biomarkers table, abnormal indicators, LOINC codes, and layperson summary.<br>Step 10: Backend saves metadata in `medical_documents` (`storage_path`) and extraction in `document_analyses`.<br>Step 11: Backend decrements user's remaining AI quota in `patient_profiles.remaining_ai_quota`.<br>Step 12: Backend returns HTTP 200 OK with `DocumentAnalysisResponse`.<br>Step 13: Frontend renders split-view modal with extracted indicators and plain-text summary. |
+| **Alternative Flow** | - Alt Flow 11a: Identical Duplicate Document:<br>1. Backend finds existing document with matching SHA-256 hash for this patient.<br>2. Backend returns cached analysis without re-uploading or consuming AI quota. |
+| **Exceptions** | - Exc Flow 12a: File Too Large (> 10MB):<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE", ...)`.<br>- Exc Flow 12b: Quota Depleted:<br>1. Patient has 0 remaining AI quota.<br>2. Backend prompts patient to purchase additional analysis quota (UC-PAT-08). |
+| **Priority** | High (P0) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-15: Medical documents must reside strictly in private S3 buckets. Public URLs forbidden (V20). |
+| **Data Entities Involved** | - `medical_documents`, `document_analyses`, `patient_profiles`. |
+| **User Interface Controls** | - Drag-and-drop zone, file preview thumbnail, "Phân Tích AI" button, quota counter badge. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.15 CANCEL APPOINTMENT WITH REFUND (UC-PAT-15)
-================================================================================
-1.  Use Case ID:         UC-PAT-15
-2.  Use Case Name:       Cancel Appointment with Automated Policy Refund
-3.  Target System:       MediAssist-AI Refund Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient, Hospital Finance
-6.  Trigger:             Patient clicks "Hủy Lịch Hẹn" and confirms cancellation reason.
-7.  Pre-conditions:      Appointment status is `SCHEDULED`.
-8.  Post-conditions:
-    - `appointments.status` updated to `CANCELLED`.
-    - Automated refund calculated via `AppointmentRefundService`.
-    - Slot freed for other patients.
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: Patient clicks "Hủy Lịch" on `/patient` and inputs cancellation reason.
-    Step 2: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/status` with `{"status": "CANCELLED", "cancellationReason": "..."}`.
-    Step 3: Backend verifies user is the appointment patient.
-    Step 4: Backend invokes unified `AppointmentRefundService.processRefund(appointment, PATIENT)`.
-    Step 5: Refund Service calculates refund tier:
-            - Cancelled > 24 hours in advance: 100% full refund.
-            - Cancelled 2 to 24 hours in advance: 80% refund (20% administrative retention).
-            - Cancelled < 2 hours in advance: 0% refund.
-    Step 6: Backend updates `appointments.status = CANCELLED` and records `cancellation_reason`.
-    Step 7: Backend triggers refund via payment gateway if fee was paid.
-    Step 8: Backend sends cancellation email with refund statement.
-    Step 9: Frontend renders cancellation confirmation toast.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Attempt to cancel completed appointment:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "CANNOT_CANCEL", ...)`.
-13. Business Rules:
-    - BR-22: Cancellation refund tiers: >24h = 100%, 2-24h = 80%, <2h = 0%.
-14. Non-Functional Requirements:
-    - NFR-SEC: Refund operations must be idempotent.
-15. Data Entities Involved: `appointments`, `payment_transactions`, `audit_logs`.
-16. User Interface Controls: Cancel dialog, cancellation reason textarea, confirm button.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.16 SUBMIT DOCTOR REVIEW AND RATING (UC-PAT-16)
-================================================================================
-1.  Use Case ID:         UC-PAT-16
-2.  Use Case Name:       Submit Doctor Review and Rating
-3.  Target System:       MediAssist-AI Feedback Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient, Doctor
-6.  Trigger:             Patient rates completed consultation.
-7.  Pre-conditions:
-    - Appointment is in `COMPLETED` status.
-    - Patient has not previously reviewed this appointment.
-8.  Post-conditions:
-    - Review saved in `doctor_reviews` table (Flyway V17).
-    - `doctor_profiles.rating_avg` and `review_count` updated.
-9.  Priority:            Low (P3)
-10. Normal Flow:
-    Step 1: Patient clicks "Đánh Giá Bác Sĩ" on a completed appointment card.
-    Step 2: Patient selects star rating (1 to 5) and writes feedback comment.
-    Step 3: Frontend calls HTTP POST `/api/v1/appointments/{id}/review` with `DoctorReviewRequest(rating, comment)`.
-    Step 4: Backend checks appointment status is `COMPLETED` (`APPOINTMENT_NOT_COMPLETED`).
-    Step 5: Backend checks for duplicate review (`REVIEW_ALREADY_EXISTS`).
-    Step 6: Backend saves record in `doctor_reviews`.
-    Step 7: Backend recalculates doctor's average rating and updates `doctor_profiles`.
-    Step 8: Backend returns HTTP 201 Created with `DoctorReviewDto`.
-    Step 9: Frontend renders review confirmation.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Reviewing Incomplete Appointment:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "APPOINTMENT_NOT_COMPLETED", "Chỉ có thể đánh giá ca khám đã hoàn tất.")`.
-13. Business Rules:
-    - BR-23: Only patients with verified `COMPLETED` appointments can submit reviews.
-14. Non-Functional Requirements:
-    - NFR-PERF: Review transaction executes in < 60ms.
-15. Data Entities Involved: `doctor_reviews`, `appointments`, `doctor_profiles`.
-16. User Interface Controls: 5-star rating input, comment textarea, submit button.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.2.6 Inspect Extracted Biomarkers & LOINC Codes (UC-PAT-06)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.17 VIEW TRIAGE HISTORY (UC-PAT-17)
-================================================================================
-1.  Use Case ID:         UC-PAT-17
-2.  Use Case Name:       View Patient Triage History
-3.  Target System:       MediAssist-AI Clinical Triage Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient
-6.  Trigger:             Patient accesses historical triage conversations on `/patient/triage`.
-7.  Pre-conditions:      Patient is authenticated.
-8.  Post-conditions:     List of past triage sessions and SBAR summaries rendered.
-9.  Priority:            Low (P3)
-10. Normal Flow:
-    Step 1: Patient opens history tab on `/patient/triage`.
-    Step 2: Frontend calls HTTP GET `/api/v1/triage/history`.
-    Step 3: Backend queries `triage_sessions` for `user_id = currentUserId` ordered by `created_at DESC`.
-    Step 4: Backend returns `List<TriageSessionDto>`.
-    Step 5: Frontend renders past symptom cards with urgency badges and SBAR summaries.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: Query uses index `idx_triage_user_created` (< 40ms).
-15. Data Entities Involved: `triage_sessions`.
-16. User Interface Controls: Triage history drawer, SBAR modal inspector.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-06` |
+| **Use Case Name** | Inspect Extracted Biomarkers & LOINC Codes |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Attending Doctor |
+| **Secondary Actor** | Google Gemini 1.5 Flash Vision, OpenAI text-embedding-3-small |
+| **Description** | MediAssist-AI Clinical Analysis Subsystem — Structured biomarker table and layperson summary displayed. |
+| **Trigger** | User clicks "Xem Phân Tích" on an uploaded medical document. |
+| **Pre-conditions** | Document has been analyzed (`document_analyses` record exists). |
+| **Post-conditions** | Structured biomarker table and layperson summary displayed. |
+| **Normal Flow** | Step 1: User selects document from document list on `/patient/documents`.<br>Step 2: Frontend calls HTTP GET `/api/v1/documents/{id}/analysis`.<br>Step 3: Backend enforces `PatientAccessGuard` verifying patient ownership or doctor care relationship.<br>Step 4: Backend retrieves `document_analyses` record joined with `medical_documents`.<br>Step 5: Backend returns payload containing:<br>- Table of biomarkers: Test name, measured value, unit, reference range, status (`NORMAL`, `ELEVATED`, `LOW`).<br>- Standardized LOINC codes.<br>- Layperson clinical summary in plain Vietnamese.<br>- Recommended medical specialty.<br>Step 6: Frontend renders interactive table with abnormal rows highlighted in red or amber. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Unauthorized Access (IDOR Attempt):<br>1. Backend throws `AppException(HttpStatus.FORBIDDEN, "FORBIDDEN_PATIENT_ACCESS", ...)`. |
+| **Priority** | High (P0) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-10: Medical safety disclaimer mandatory on all biomarker views.<br>- BR-16: Numerical lab values must retain exact precision extracted from the scan. |
+| **Data Entities Involved** | `medical_documents`, `document_analyses`. |
+| **User Interface Controls** | Biomarker table, status pills, layperson accordion. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.2.18 DE-IDENTIFY MEDICAL PII IN TEXT (UC-PAT-18)
-================================================================================
-1.  Use Case ID:         UC-PAT-18
-2.  Use Case Name:       De-identify Medical PII in Text
-3.  Target System:       MediAssist-AI Privacy Engine
-4.  Primary Actor:       Patient (System Pre-processor)
-5.  Stakeholders:        Patient, Data Privacy Officer
-6.  Trigger:             Patient submits clinical text for PII sanitization.
-7.  Pre-conditions:      Input text length <= 20,000 characters (`@Size(max = 20000)`).
-8.  Post-conditions:     PII tokens (names, phone numbers, CCCD) redacted with privacy placeholders.
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: Frontend calls HTTP POST `/api/v1/pii/deidentify` with `DeidentifyTextRequest(text)`.
-    Step 2: Backend `MedicalPiiService` scans for Vietnamese identifiers:
-            - Phone numbers: replaced with `[PHONE_REDACTED]`
-            - Citizen ID / CCCD: replaced with `[CITIZEN_ID_REDACTED]`
-            - Email addresses: replaced with `[EMAIL_REDACTED]`
-            - Personal patient names: replaced with `[PATIENT_NAME]`
-    Step 3: Backend returns `DeidentificationResult(sanitizedText, entitiesFound)`.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Text Exceeds 20,000 Characters:
-      1. Validation fails; backend returns HTTP 400 Bad Request (Security Fix BE-12).
-13. Business Rules:
-    - BR-24: De-identification complies with Decree 13/2023/NĐ-CP and HIPAA Safe Harbor.
-14. Non-Functional Requirements:
-    - NFR-PERF: Text processing latency < 25ms.
-15. Data Entities Involved: None (pure in-memory text filter).
-16. User Interface Controls: Privacy badge, toggle "Bảo vệ thông tin cá nhân (Ẩn PII)".
-17. Open Issues: None.
-================================================================================
+
+##### 2.3.2.7 Download Document File via 15-Minute Signed URL (UC-PAT-07)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-07` |
+| **Use Case Name** | Download Document File via 15-Minute Signed URL |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Authorized Doctor |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Storage Subsystem — 15-minute temporary signed URL generated; file stream returned. |
+| **Trigger** | User clicks "Tải Tệp Gốc" or previews source file. |
+| **Pre-conditions** | Document exists in private Supabase S3 bucket. |
+| **Post-conditions** | 15-minute temporary signed URL generated; file stream returned. |
+| **Normal Flow** | Step 1: User clicks download/preview icon for document ID.<br>Step 2: Frontend calls HTTP GET `/api/v1/documents/{id}/file` or `/api/v1/documents/{id}/signed-url`.<br>Step 3: Backend verifies authorization via `PatientAccessGuard`.<br>Step 4: Backend retrieves `storage_path` from `medical_documents`.<br>Step 5: Backend invokes `SupabaseStorageService.createSignedUrl(storagePath, 900)` (TTL = 15 minutes / 900 seconds).<br>Step 6: Backend returns `DocumentFileAccessDto(signedUrl, expiresInSeconds=900)`.<br>Step 7: Browser opens secure preview or initiates direct download. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: File Missing from Storage:<br>1. Backend throws `AppException(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", ...)`. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-15: Direct public links to medical files are strictly forbidden (Flyway V20). |
+| **Data Entities Involved** | `medical_documents`, `audit_logs`. |
+| **User Interface Controls** | Download button, progress spinner. |
+
+
+##### 2.3.2.8 Purchase AI Analysis Quota (UC-PAT-08)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-08` |
+| **Use Case Name** | Purchase AI Analysis Quota |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | Stripe Payment Gateway, Mock Payment Sandbox |
+| **Description** | MediAssist-AI Payment & Quota Subsystem — Payment checkout initiated; quota credited upon successful transaction. |
+| **Trigger** | Patient clicks "Mua Thêm Hạn Ngạch" on `/patient/documents`. |
+| **Pre-conditions** | Patient is authenticated. |
+| **Post-conditions** | Payment checkout initiated; quota credited upon successful transaction. |
+| **Normal Flow** | Step 1: Patient opens Quota Purchase modal on `/patient/documents`.<br>Step 2: Frontend calls HTTP GET `/api/v1/payments/packages` to display quota tiers:<br>- Gói Tiêu Chuẩn: 5 lượt phân tích (50.000 VNĐ).<br>- Gói Nâng Cao: 15 lượt phân tích (120.000 VNĐ).<br>- Gói Không Giới Hạn: 50 lượt phân tích (300.000 VNĐ).<br>Step 3: Patient selects package and clicks "Thanh Toán".<br>Step 4: Frontend calls HTTP POST `/api/v1/payments/checkout` with `orderType = QUOTA_PURCHASE`.<br>Step 5: Backend initializes payment via Stripe or Mock Sandbox.<br>Step 6: Patient completes payment; transaction verified via `POST /api/v1/payments/verify`.<br>Step 7: Backend increments `patient_profiles.remaining_ai_quota`.<br>Step 8: Frontend updates quota balance badge. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `patient_profiles`, `payment_transactions`. |
+| **User Interface Controls** | Package selection cards, payment checkout modal. |
+
+
+##### 2.3.2.9 Book In-Clinic Appointment & Slot Reservation (UC-PAT-09)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-09` |
+| **Use Case Name** | Book In-Clinic Appointment & Slot Reservation |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Clinical Scheduling Subsystem — - Appointment record created with status `SCHEDULED` and payment status `UNPAID`.<br>- Sequential daily STT queue number assigned (`queue_number = 'STT 01'`).<br>- Clinic room assigned from doctor profile. |
+| **Trigger** | Patient confirms slot selection in `BookingModal`. |
+| **Pre-conditions** | - Patient is authenticated with verified email (`email_verified = true`).<br>- Doctor is verified (`is_verified = true`) and active (`is_active = true`). |
+| **Post-conditions** | - Appointment record created with status `SCHEDULED` and payment status `UNPAID`.<br>- Sequential daily STT queue number assigned (`queue_number = 'STT 01'`).<br>- Clinic room assigned from doctor profile. |
+| **Normal Flow** | Step 1: Patient selects doctor and 30-min slot on `/patient/doctors` (e.g., 2026-10-20 09:00:00 to 09:30:00).<br>Step 2: Patient opens `BookingModal`, enters chief complaint, and optionally selects an uploaded `medicalDocumentId`.<br>Step 3: Frontend calls HTTP POST `/api/v1/appointments` with `CreateAppointmentRequest`.<br>Step 4: Backend checks doctor status (`DOCTOR_NOT_ACTIVE`, `DOCTOR_NOT_VERIFIED`).<br>Step 5: Backend checks clinic hours: Monday–Saturday, 08:00–12:00 & 13:30–17:00 (Sundays blocked).<br>Step 6: Backend verifies slot vacancy:<br>`SELECT COUNT(*) FROM appointments WHERE doctor_id = :d AND scheduled_start = :s AND status NOT IN ('CANCELLED')`<br>Step 7: Backend calculates next daily sequential queue number:<br>`queue_number = String.format("STT %02d", countToday + 1)`.<br>Step 8: Backend generates unique `appointment_code` (e.g., `AP-20261020-XXXX`).<br>Step 9: Backend sets `clinic_room = doctorProfile.getClinicRoom()`.<br>Step 10: Backend inserts record into `appointments` with status `SCHEDULED`.<br>Step 11: Backend returns HTTP 201 Created with `AppointmentDto`.<br>Step 12: Frontend opens payment modal or redirects to checkout. |
+| **Alternative Flow** | - Alt Flow 11a: Concurrent Slot Collision:<br>1. Another patient booked the same slot milliseconds earlier.<br>2. Backend detects conflict and throws `AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", "Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác.")`.<br>3. Frontend refreshes slot picker. |
+| **Exceptions** | - Exc Flow 12a: Sunday Booking Attempt:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_DAY", "Bệnh viện không tiếp nhận lịch hẹn vào Chủ Nhật.")`.<br>- Exc Flow 12b: Outside Operating Hours:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME", "Khung giờ khám hợp lệ là 08:00-12:00 và 13:30-17:00.")`. |
+| **Priority** | High (P0) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-17: In-clinic consultations operate strictly Monday–Saturday, 08:00–12:00 & 13:30–17:00.<br>- BR-20: Queue numbers (STT) are sequential per doctor per calendar date starting at STT 01. |
+| **Data Entities Involved** | `appointments`, `doctor_profiles`, `users`. |
+| **User Interface Controls** | `BookingModal`, slot pills, document select dropdown, "Xác Nhận Đặt Lịch" button. |
+
+
+##### 2.3.2.10 Process Payment via Stripe / Mock Sandbox (UC-PAT-10)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-10` |
+| **Use Case Name** | Process Payment via Stripe / Mock Sandbox |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | Stripe Payment Gateway, Mock Payment Sandbox |
+| **Description** | MediAssist-AI Payment Gateway Subsystem — - Payment authorized and settled.<br>- `appointments.payment_status` updated to `PAID`.<br>- Record inserted in `payment_transactions` with status `SUCCESS`.<br>- Confirmation notification dispatched to patient. |
+| **Trigger** | Patient proceeds to pay consultation fee for scheduled appointment. |
+| **Pre-conditions** | Appointment exists with `payment_status = UNPAID`. |
+| **Post-conditions** | - Payment authorized and settled.<br>- `appointments.payment_status` updated to `PAID`.<br>- Record inserted in `payment_transactions` with status `SUCCESS`.<br>- Confirmation notification dispatched to patient. |
+| **Normal Flow** | Step 1: Patient selects payment method (Stripe Credit Card or Mock Sandbox).<br>Step 2: Frontend calls HTTP POST `/api/v1/payments/checkout` with `CreatePaymentRequest(orderType=APPOINTMENT_FEE, appointmentId=...)`.<br>Step 3: Backend verifies `app.payment.mock.enabled`:<br>- If production (`mock.enabled = false`): Routes to Stripe Checkout Gateway.<br>- If demo/dev (`mock.enabled = true`): Routes to Mock Payment Gateway.<br>Step 4: Backend creates `PaymentTransaction` record with status `PENDING`.<br>Step 5: Patient submits payment details; gateway returns transaction confirmation.<br>Step 6: Frontend calls HTTP POST `/api/v1/payments/verify` with `VerifyPaymentRequest(transactionCode)`.<br>Step 7: Backend verifies transaction with gateway and updates `payment_transactions.status = SUCCESS`.<br>Step 8: Backend updates `appointments.payment_status = PAID`.<br>Step 9: Backend publishes `PaymentCompletedEvent` -> dispatches confirmation email.<br>Step 10: Frontend redirects to `/payment/success` with receipt details. |
+| **Alternative Flow** | - Alt Flow 11a: Stripe Webhook Asynchronous Capture:<br>1. Stripe posts webhook to `/api/v1/payments/webhook/stripe`.<br>2. Backend validates webhook signature and auto-fulfills appointment payment status. |
+| **Exceptions** | - Exc Flow 12a: Mock Payment Attempt in Production:<br>1. Backend detects `mock.enabled = false` and throws `AppException(HttpStatus.FORBIDDEN, "MOCK_PAYMENT_DISABLED", ...)`. |
+| **Priority** | High (P0) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-19: Mock payment permanently disabled in production mode (Security Audit BE-10). |
+| **Data Entities Involved** | `payment_transactions`, `appointments`. |
+| **User Interface Controls** | Payment modal, Stripe Elements card iframe, "Thanh Toán Ngay" button. |
+
+
+##### 2.3.2.11 View Electronic Encounter Slip & Admission STT (UC-PAT-11)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-11` |
+| **Use Case Name** | View Electronic Encounter Slip & Admission STT |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Clinic Reception |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Appointment Subsystem — Electronic admission slip rendered with clinic navigation details. |
+| **Trigger** | Patient accesses ticket view for confirmed appointment. |
+| **Pre-conditions** | Appointment exists. |
+| **Post-conditions** | Electronic admission slip rendered with clinic navigation details. |
+| **Normal Flow** | Step 1: Patient clicks "Xem Phiếu Khám" from dashboard or appointment card.<br>Step 2: Frontend calls HTTP GET `/api/v1/appointments/{id}/ticket`.<br>Step 3: Backend verifies user ownership or staff access via `PatientAccessGuard`.<br>Step 4: Backend returns ticket DTO:<br>- Sequential Queue Number (e.g., `STT 05`).<br>- Appointment Code (e.g., `AP-20261020-0012`).<br>- Patient Name, Scheduled Date & Time Window.<br>- Attending Doctor Name, Academic Title, Specialty.<br>- Clinic Room (e.g., "Phòng Khám 204 - Khu Khám Yêu Cầu").<br>- Preparation Instructions (nhịn ăn 8h nếu xét nghiệm máu, mang CCCD).<br>Step 5: Frontend renders styled digital encounter ticket card with print button. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-20: Sequential STT displayed prominently on all tickets. |
+| **Data Entities Involved** | `appointments`, `doctor_profiles`, `users`. |
+| **User Interface Controls** | Ticket frame, "In Phiếu Khám" button, "Xem Lịch Hẹn" link. |
+
+
+##### 2.3.2.12 View Patient Appointment History (UC-PAT-12)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-12` |
+| **Use Case Name** | View Patient Appointment History |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Patient Appointment Subsystem — List of user appointments rendered with status badges. |
+| **Trigger** | Patient navigates to appointments section on `/patient`. |
+| **Pre-conditions** | Patient is authenticated. |
+| **Post-conditions** | List of user appointments rendered with status badges. |
+| **Normal Flow** | Step 1: Patient views appointments section on `/patient`.<br>Step 2: Frontend calls HTTP GET `/api/v1/appointments/my`.<br>Step 3: Backend queries `appointments` for `patient_id = currentUserId` ordered by `scheduled_start DESC`.<br>Step 4: Backend returns `List<AppointmentDto>`.<br>Step 5: Frontend renders cards showing Doctor name, Date/Time, STT, and status badge (`SCHEDULED`, `CONFIRMED`, `COMPLETED`, `CANCELLED`). |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `appointments`, `users`, `doctor_profiles`. |
+| **User Interface Controls** | Appointment cards, status pills, filter tabs. |
+
+
+##### 2.3.2.13 Patient Check-In for In-Clinic Appointment (UC-PAT-13)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-13` |
+| **Use Case Name** | Patient Check-In for In-Clinic Appointment |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Clinic Receptionist |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Clinical Scheduling Subsystem — `checked_in_at` timestamp recorded; appointment marked ready in doctor queue. |
+| **Trigger** | Patient arrives at hospital and checks in. |
+| **Pre-conditions** | Appointment status is `SCHEDULED`. |
+| **Post-conditions** | `checked_in_at` timestamp recorded; appointment marked ready in doctor queue. |
+| **Normal Flow** | Step 1: Patient clicks "Tôi Đã Đến Phòng Khám (Check-in)" on appointment card.<br>Step 2: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/check-in`.<br>Step 3: Backend verifies user is the appointment patient or assigned doctor.<br>Step 4: Backend sets `checkedInAt = LocalDateTime.now()`.<br>Step 5: Backend commits update to `appointments` table.<br>Step 6: Backend returns HTTP 200 OK with updated appointment DTO.<br>Step 7: Frontend updates appointment badge to "Đã Check-in / Sẵn Sàng Khám". |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Check-in on non-scheduled appointment:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_CHECKIN", ...)`. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `appointments`. |
+| **User Interface Controls** | "Check-in Ngay" button, check-in confirmation badge. |
+
+
+##### 2.3.2.14 Reschedule Active Appointment (UC-PAT-14)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-14` |
+| **Use Case Name** | Reschedule Active Appointment |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Clinical Scheduling Subsystem — `scheduled_start` and `scheduled_end` updated to new available slot. |
+| **Trigger** | Patient selects "Dời Lịch Khám" on active appointment. |
+| **Pre-conditions** | - Appointment is in `SCHEDULED` status.<br>- New appointment time is at least 2 hours in the future. |
+| **Post-conditions** | `scheduled_start` and `scheduled_end` updated to new available slot. |
+| **Normal Flow** | Step 1: Patient opens reschedule dialog on appointment card.<br>Step 2: Patient selects new date and slot from doctor's available schedule.<br>Step 3: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/reschedule` with `RescheduleAppointmentRequest(newScheduledStart, newScheduledEnd)`.<br>Step 4: Backend checks current appointment status is `SCHEDULED`.<br>Step 5: Backend verifies new slot is >= 2 hours from current time (`PAST_DATE`).<br>Step 6: Backend verifies clinic hours (Monday–Saturday, 08:00–12:00 / 13:30–17:00).<br>Step 7: Backend checks new slot vacancy to prevent conflict (`SLOT_CONFLICT`).<br>Step 8: Backend updates appointment schedule times and re-computes queue number.<br>Step 9: Backend sends email notice of schedule change.<br>Step 10: Frontend displays toast: "Đã dời lịch hẹn thành công." |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Reschedule within 2 hours of appointment:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "PAST_DATE", "Thời gian hẹn mới phải cách thời điểm hiện tại ít nhất 2 giờ")`. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-21: Rescheduling allowed up to 2 hours prior to scheduled appointment. |
+| **Data Entities Involved** | `appointments`, `audit_logs`. |
+| **User Interface Controls** | Reschedule modal, slot picker, confirm button. |
+
+
+##### 2.3.2.15 Cancel Appointment with Automated Policy Refund (UC-PAT-15)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-15` |
+| **Use Case Name** | Cancel Appointment with Automated Policy Refund |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Refund Subsystem — - `appointments.status` updated to `CANCELLED`.<br>- Automated refund calculated via `AppointmentRefundService`.<br>- Slot freed for other patients. |
+| **Trigger** | Patient clicks "Hủy Lịch Hẹn" and confirms cancellation reason. |
+| **Pre-conditions** | Appointment status is `SCHEDULED`. |
+| **Post-conditions** | - `appointments.status` updated to `CANCELLED`.<br>- Automated refund calculated via `AppointmentRefundService`.<br>- Slot freed for other patients. |
+| **Normal Flow** | Step 1: Patient clicks "Hủy Lịch" on `/patient` and inputs cancellation reason.<br>Step 2: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/status` with `{"status": "CANCELLED", "cancellationReason": "..."}`.<br>Step 3: Backend verifies user is the appointment patient.<br>Step 4: Backend invokes unified `AppointmentRefundService.processRefund(appointment, PATIENT)`.<br>Step 5: Refund Service calculates refund tier:<br>- Cancelled > 24 hours in advance: 100% full refund.<br>- Cancelled 2 to 24 hours in advance: 80% refund (20% administrative retention).<br>- Cancelled < 2 hours in advance: 0% refund.<br>Step 6: Backend updates `appointments.status = CANCELLED` and records `cancellation_reason`.<br>Step 7: Backend triggers refund via payment gateway if fee was paid.<br>Step 8: Backend sends cancellation email with refund statement.<br>Step 9: Frontend renders cancellation confirmation toast. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Attempt to cancel completed appointment:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "CANNOT_CANCEL", ...)`. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-22: Cancellation refund tiers: >24h = 100%, 2-24h = 80%, <2h = 0%. |
+| **Data Entities Involved** | `appointments`, `payment_transactions`, `audit_logs`. |
+| **User Interface Controls** | Cancel dialog, cancellation reason textarea, confirm button. |
+
+
+##### 2.3.2.16 Submit Doctor Review and Rating (UC-PAT-16)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-16` |
+| **Use Case Name** | Submit Doctor Review and Rating |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Feedback Subsystem — - Review saved in `doctor_reviews` table (Flyway V17).<br>- `doctor_profiles.rating_avg` and `review_count` updated. |
+| **Trigger** | Patient rates completed consultation. |
+| **Pre-conditions** | - Appointment is in `COMPLETED` status.<br>- Patient has not previously reviewed this appointment. |
+| **Post-conditions** | - Review saved in `doctor_reviews` table (Flyway V17).<br>- `doctor_profiles.rating_avg` and `review_count` updated. |
+| **Normal Flow** | Step 1: Patient clicks "Đánh Giá Bác Sĩ" on a completed appointment card.<br>Step 2: Patient selects star rating (1 to 5) and writes feedback comment.<br>Step 3: Frontend calls HTTP POST `/api/v1/appointments/{id}/review` with `DoctorReviewRequest(rating, comment)`.<br>Step 4: Backend checks appointment status is `COMPLETED` (`APPOINTMENT_NOT_COMPLETED`).<br>Step 5: Backend checks for duplicate review (`REVIEW_ALREADY_EXISTS`).<br>Step 6: Backend saves record in `doctor_reviews`.<br>Step 7: Backend recalculates doctor's average rating and updates `doctor_profiles`.<br>Step 8: Backend returns HTTP 201 Created with `DoctorReviewDto`.<br>Step 9: Frontend renders review confirmation. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Reviewing Incomplete Appointment:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "APPOINTMENT_NOT_COMPLETED", "Chỉ có thể đánh giá ca khám đã hoàn tất.")`. |
+| **Priority** | Low (P3) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-23: Only patients with verified `COMPLETED` appointments can submit reviews. |
+| **Data Entities Involved** | `doctor_reviews`, `appointments`, `doctor_profiles`. |
+| **User Interface Controls** | 5-star rating input, comment textarea, submit button. |
+
+
+##### 2.3.2.17 View Patient Triage History (UC-PAT-17)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-17` |
+| **Use Case Name** | View Patient Triage History |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Clinical Triage Subsystem — List of past triage sessions and SBAR summaries rendered. |
+| **Trigger** | Patient accesses historical triage conversations on `/patient/triage`. |
+| **Pre-conditions** | Patient is authenticated. |
+| **Post-conditions** | List of past triage sessions and SBAR summaries rendered. |
+| **Normal Flow** | Step 1: Patient opens history tab on `/patient/triage`.<br>Step 2: Frontend calls HTTP GET `/api/v1/triage/history`.<br>Step 3: Backend queries `triage_sessions` for `user_id = currentUserId` ordered by `created_at DESC`.<br>Step 4: Backend returns `List<TriageSessionDto>`.<br>Step 5: Frontend renders past symptom cards with urgency badges and SBAR summaries. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Low (P3) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `triage_sessions`. |
+| **User Interface Controls** | Triage history drawer, SBAR modal inspector. |
+
+
+##### 2.3.2.18 De-identify Medical PII in Text (UC-PAT-18)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-18` |
+| **Use Case Name** | De-identify Medical PII in Text |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient (System Pre-processor) |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Privacy Engine — PII tokens (names, phone numbers, CCCD) redacted with privacy placeholders. |
+| **Trigger** | Patient submits clinical text for PII sanitization. |
+| **Pre-conditions** | Input text length <= 20,000 characters (`@Size(max = 20000)`). |
+| **Post-conditions** | PII tokens (names, phone numbers, CCCD) redacted with privacy placeholders. |
+| **Normal Flow** | Step 1: Frontend calls HTTP POST `/api/v1/pii/deidentify` with `DeidentifyTextRequest(text)`.<br>Step 2: Backend `MedicalPiiService` scans for Vietnamese identifiers:<br>- Phone numbers: replaced with `[PHONE_REDACTED]`<br>- Citizen ID / CCCD: replaced with `[CITIZEN_ID_REDACTED]`<br>- Email addresses: replaced with `[EMAIL_REDACTED]`<br>- Personal patient names: replaced with `[PATIENT_NAME]`<br>Step 3: Backend returns `DeidentificationResult(sanitizedText, entitiesFound)`. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Text Exceeds 20,000 Characters:<br>1. Validation fails; backend returns HTTP 400 Bad Request (Security Fix BE-12). |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-24: De-identification complies with Decree 13/2023/NĐ-CP and HIPAA Safe Harbor. |
+| **Data Entities Involved** | None (pure in-memory text filter). |
+| **User Interface Controls** | Privacy badge, toggle "Bảo vệ thông tin cá nhân (Ẩn PII)". |
+
 
 
 #### 2.3.3 Doctor (Clinical Workstation)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.1 VIEW WORKSTATION & STATS (UC-DOC-01)
-================================================================================
-1.  Use Case ID:         UC-DOC-01
-2.  Use Case Name:       View Doctor Workstation Dashboard & Stats
-3.  Target System:       MediAssist-AI Doctor Workstation Subsystem
-4.  Primary Actor:       Doctor
-5.  Stakeholders:        Doctor, Hospital Clinic Director
-6.  Trigger:             Doctor opens Doctor Dashboard (`/doctor`).
-7.  Pre-conditions:      Doctor is authenticated and profile is verified (`is_verified = true`).
-8.  Post-conditions:     Workstation rendered with queue metrics and active patient list.
-9.  Priority:            High (P0)
-10. Normal Flow:
-    Step 1: Doctor navigates to `/doctor`.
-    Step 2: Frontend calls HTTP GET `/api/v1/doctors/me/stats`.
-    Step 3: Backend queries `appointments` table for `doctor_id = currentUserId` on current date.
-    Step 4: Backend aggregates:
-            - `todayPatients`: Total patients scheduled today.
-            - `completedToday`: Consultations finished.
-            - `inProgressCount`: Currently active consultation.
-            - `pendingCount`: Patients remaining in queue.
-    Step 5: Backend returns `DoctorStatsDto`.
-    Step 6: Frontend renders workstation summary cards and today's sequential patient queue.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules:
-    - BR-13: Only verified doctors can access the clinical workstation.
-14. Non-Functional Requirements:
-    - NFR-PERF: Workstation metrics load latency < 120ms.
-15. Data Entities Involved: `appointments`, `doctor_profiles`.
-16. User Interface Controls: KPI cards, queue progress bar, active patient panel.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.3.1 View Doctor Workstation Dashboard & Stats (UC-DOC-01)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.2 CONFIGURE SCHEDULE SLOTS (UC-DOC-02)
-================================================================================
-1.  Use Case ID:         UC-DOC-02
-2.  Use Case Name:       Configure Doctor Schedule Slots
-3.  Target System:       MediAssist-AI Scheduling Subsystem
-4.  Primary Actor:       Doctor
-5.  Stakeholders:        Doctor, Patients
-6.  Trigger:             Doctor updates weekly shifts on `/doctor/profile`.
-7.  Pre-conditions:      Doctor is authenticated.
-8.  Post-conditions:     `doctor_schedule_slots` records persisted for days of the week.
-9.  Priority:            High (P0)
-10. Normal Flow:
-    Step 1: Doctor navigates to Schedule tab on `/doctor/profile`.
-    Step 2: Frontend calls HTTP GET `/api/v1/doctors/me/schedules`.
-    Step 3: Backend returns existing `doctor_schedule_slots` records.
-    Step 4: Doctor configures operational time windows (Monday through Saturday, 08:00–12:00 and 13:30–17:00).
-    Step 5: Frontend sends HTTP PUT `/api/v1/doctors/me/schedules` with `UpdateDoctorScheduleRequest`.
-    Step 6: Backend validates shifts fall within hospital working hours (Sunday blocked).
-    Step 7: Backend updates `doctor_schedule_slots` table within a transaction.
-    Step 8: Backend invalidates doctor slot cache in Redis.
-    Step 9: Frontend displays toast: "Lịch khám đã được cập nhật thành công."
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Invalid Slot Window:
-      1. Doctor attempts to configure Sunday or hours outside 08:00–17:00.
-      2. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME", ...)`.
-13. Business Rules:
-    - BR-17: Clinic operating hours: Monday–Saturday, 08:00–12:00 and 13:30–17:00.
-14. Non-Functional Requirements:
-    - NFR-PERF: Schedule update completes in < 100ms.
-15. Data Entities Involved: `doctor_schedule_slots`, `doctor_profiles`.
-16. User Interface Controls: Weekly schedule matrix, time pickers, save button.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-01` |
+| **Use Case Name** | View Doctor Workstation Dashboard & Stats |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Doctor Workstation Subsystem — Workstation rendered with queue metrics and active patient list. |
+| **Trigger** | Doctor opens Doctor Dashboard (`/doctor`). |
+| **Pre-conditions** | Doctor is authenticated and profile is verified (`is_verified = true`). |
+| **Post-conditions** | Workstation rendered with queue metrics and active patient list. |
+| **Normal Flow** | Step 1: Doctor navigates to `/doctor`.<br>Step 2: Frontend calls HTTP GET `/api/v1/doctors/me/stats`.<br>Step 3: Backend queries `appointments` table for `doctor_id = currentUserId` on current date.<br>Step 4: Backend aggregates:<br>- `todayPatients`: Total patients scheduled today.<br>- `completedToday`: Consultations finished.<br>- `inProgressCount`: Currently active consultation.<br>- `pendingCount`: Patients remaining in queue.<br>Step 5: Backend returns `DoctorStatsDto`.<br>Step 6: Frontend renders workstation summary cards and today's sequential patient queue. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P0) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-13: Only verified doctors can access the clinical workstation. |
+| **Data Entities Involved** | `appointments`, `doctor_profiles`. |
+| **User Interface Controls** | KPI cards, queue progress bar, active patient panel. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.3 DAILY QUEUE & CALL NEXT (UC-DOC-03)
-================================================================================
-1.  Use Case ID:         UC-DOC-03
-2.  Use Case Name:       View Daily Patient Queue & Call Next Patient
-3.  Target System:       MediAssist-AI Doctor Workstation Subsystem
-4.  Primary Actor:       Doctor
-5.  Stakeholders:        Doctor, Patients, Clinic Nurse
-6.  Trigger:             Doctor clicks "Gọi Bệnh Nhân Tiếp Theo" on workstation.
-7.  Pre-conditions:      There are waiting patients scheduled today.
-8.  Post-conditions:
-    - Next waiting patient in queue selected by sequential STT.
-    - `appointments.status` transitions from `SCHEDULED` to `IN_PROGRESS`.
-    - Active clinical encounter opened on doctor workstation.
-9.  Priority:            High (P0)
-10. Normal Flow:
-    Step 1: Doctor inspects today's patient queue on `/doctor`.
-    Step 2: Doctor clicks "Gọi Khám Tiếp" (`POST /api/v1/doctors/me/call-next`).
-    Step 3: Backend locates next appointment for this doctor today where `status IN ('SCHEDULED')` ordered by `queue_number ASC`.
-    Step 4: If previous appointment was `IN_PROGRESS`, backend marks it completed or requires finalization.
-    Step 5: Backend updates target appointment `status = IN_PROGRESS`.
-    Step 6: Backend logs call event in application log.
-    Step 7: Backend returns `AppointmentDto` with patient details, STT, and attached document ID.
-    Step 8: Frontend opens Split-Screen Clinical Encounter Modal with patient's case loaded.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Queue Empty:
-      1. No patients waiting in queue today.
-      2. Backend throws `AppException(HttpStatus.NOT_FOUND, "QUEUE_EMPTY", "Đã phục vụ hết tất cả bệnh nhân trong hàng đợi hôm nay.")`.
-      3. Frontend displays: "Đã phục vụ hết tất cả bệnh nhân trong hàng đợi hôm nay."
-13. Business Rules:
-    - BR-20: Queue strictly follows sequential STT ordering.
-14. Non-Functional Requirements:
-    - NFR-PERF: Call-next transition latency < 100ms.
-15. Data Entities Involved: `appointments`, `users`.
-16. User Interface Controls: "Gọi Khám Tiếp" button, active queue row highlight.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.4 SPLIT-SCREEN PRE-CHECK (UC-DOC-04)
-================================================================================
-1.  Use Case ID:         UC-DOC-04
-2.  Use Case Name:       Pre-Encounter Split-Screen Clinical Inspection
-3.  Target System:       MediAssist-AI Doctor Workstation Subsystem
-4.  Primary Actor:       Doctor
-5.  Stakeholders:        Doctor, Patient Safety Officer
-6.  Trigger:             Doctor opens patient case in Clinical Encounter Modal.
-7.  Pre-conditions:
-    - Active appointment in `IN_PROGRESS` or `SCHEDULED` status.
-    - Patient attached a lab document (`medical_document_id != null`).
-8.  Post-conditions:     Split-screen view renders raw lab scan alongside AI SBAR synthesis.
-9.  Priority:            High (P0)
-10. Normal Flow:
-    Step 1: Doctor opens active patient encounter modal on `/doctor`.
-    Step 2: Frontend checks if `appointment.medicalDocumentId` exists.
-    Step 3: Frontend calls HTTP GET `/api/v1/documents/{id}/signed-url` to fetch secure S3 view link.
-    Step 4: Frontend calls HTTP GET `/api/v1/documents/{id}/analysis` to fetch structured extraction.
-    Step 5: Frontend renders Split-Screen Workspace:
-            - Left Pane: Embedded PDF / Image viewer rendering original scan (zoom, pan, rotate).
-            - Right Pane: AI Clinical Synthesis Panel:
-              * Chief complaint and triage urgency.
-              * Extracted Biomarkers table with abnormal flags highlighted (`NORMAL`, `ELEVATED`, `LOW`).
-              * Matched LOINC standard terminology.
-              * AI clinical impressions.
-    Step 6: Doctor cross-examines AI findings against original report prior to physical examination.
-11. Alternative Flows:
-    - Alt Flow 11a: No Document Attached:
-      1. Left pane displays patient's conversational triage history and chief complaint.
-12. Exception Flows: None.
-13. Business Rules:
-    - BR-25: Doctor must review clinical evidence before completing encounter.
-14. Non-Functional Requirements:
-    - NFR-USA: Split-screen optimized for desktop viewports (>= 1280px).
-15. Data Entities Involved: `appointments`, `medical_documents`, `document_analyses`.
-16. User Interface Controls: Split-pane divider, PDF controls, biomarker status pills.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.3.2 Configure Doctor Schedule Slots (UC-DOC-02)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.5 GUARDED PATIENT RECORD ACCESS (UC-DOC-05)
-================================================================================
-1.  Use Case ID:         UC-DOC-05
-2.  Use Case Name:       Access Patient Records via PatientAccessGuard
-3.  Target System:       MediAssist-AI Security Subsystem
-4.  Primary Actor:       Doctor
-5.  Stakeholders:        Doctor, Patient, Data Privacy Officer
-6.  Trigger:             Doctor accesses patient historical medical documents or appointment history.
-7.  Pre-conditions:      Doctor is authenticated.
-8.  Post-conditions:
-    - Access granted ONLY IF doctor has an active care relationship (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED` appointment).
-    - Access event recorded in `audit_logs` (`VIEW_PATIENT_RECORD`).
-9.  Priority:            High (P0 - Security Fix)
-10. Normal Flow:
-    Step 1: Doctor navigates to Patient Records (`/doctor/patients`).
-    Step 2: Frontend calls HTTP GET `/api/v1/appointments/patient/{patientId}` or `/api/v1/documents/patient/{patientId}`.
-    Step 3: Backend invokes `PatientAccessGuard.assertCanAccessPatient(doctorId, DOCTOR, patientId, resource)`.
-    Step 4: Guard executes care relationship check:
-            `appointmentRepository.existsByDoctorIdAndPatientIdAndStatusIn(doctorId, patientId, ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'])`.
-    Step 5: Care relationship confirmed (true).
-    Step 6: Guard records security audit entry in `audit_logs`:
-            `recordView(doctorId, DOCTOR, patientId, resource)`.
-    Step 7: Backend queries records and returns patient clinical history.
-    Step 8: Frontend renders patient encounter timeline and past lab reports.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: BOLA/IDOR Violation (No Care Relationship):
-      1. Doctor attempts to access patient with whom they have no appointment.
-      2. Guard check evaluates to false.
-      3. Guard throws `AppException(HttpStatus.FORBIDDEN, "FORBIDDEN_PATIENT_ACCESS", "Bạn không có quyền xem hồ sơ của bệnh nhân này. Chỉ bác sĩ có lịch hẹn điều trị với bệnh nhân mới được truy cập.")`.
-      4. Backend returns HTTP 403 Forbidden.
-13. Business Rules:
-    - BR-26: Doctors cannot access records of patients they do not treat (BOLA/IDOR Defense).
-14. Non-Functional Requirements:
-    - NFR-SEC: 100% IDOR prevention on all patient clinical endpoints.
-15. Data Entities Involved: `appointments`, `medical_documents`, `audit_logs`.
-16. User Interface Controls: Patient records table, encounter timeline.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-02` |
+| **Use Case Name** | Configure Doctor Schedule Slots |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Scheduling Subsystem — `doctor_schedule_slots` records persisted for days of the week. |
+| **Trigger** | Doctor updates weekly shifts on `/doctor/profile`. |
+| **Pre-conditions** | Doctor is authenticated. |
+| **Post-conditions** | `doctor_schedule_slots` records persisted for days of the week. |
+| **Normal Flow** | Step 1: Doctor navigates to Schedule tab on `/doctor/profile`.<br>Step 2: Frontend calls HTTP GET `/api/v1/doctors/me/schedules`.<br>Step 3: Backend returns existing `doctor_schedule_slots` records.<br>Step 4: Doctor configures operational time windows (Monday through Saturday, 08:00–12:00 and 13:30–17:00).<br>Step 5: Frontend sends HTTP PUT `/api/v1/doctors/me/schedules` with `UpdateDoctorScheduleRequest`.<br>Step 6: Backend validates shifts fall within hospital working hours (Sunday blocked).<br>Step 7: Backend updates `doctor_schedule_slots` table within a transaction.<br>Step 8: Backend invalidates doctor slot cache in Redis.<br>Step 9: Frontend displays toast: "Lịch khám đã được cập nhật thành công." |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Invalid Slot Window:<br>1. Doctor attempts to configure Sunday or hours outside 08:00–17:00.<br>2. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME", ...)`. |
+| **Priority** | High (P0) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-17: Clinic operating hours: Monday–Saturday, 08:00–12:00 and 13:30–17:00. |
+| **Data Entities Involved** | `doctor_schedule_slots`, `doctor_profiles`. |
+| **User Interface Controls** | Weekly schedule matrix, time pickers, save button. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.6 ICD-10 DIAGNOSIS AUTOCOMPLETE (UC-DOC-06)
-================================================================================
-1.  Use Case ID:         UC-DOC-06
-2.  Use Case Name:       Autocomplete Diagnosis with WHO ICD-10
-3.  Target System:       MediAssist-AI Clinical Ontology Subsystem
-4.  Primary Actor:       Doctor
-5.  Stakeholders:        Doctor, Medical Records, BHYT
-6.  Trigger:             Doctor types diagnosis search query in Clinical Encounter Modal.
-7.  Pre-conditions:      Clinical Ontology Service loaded with WHO ICD-10 and MOH Decision 7603/QĐ-BYT.
-8.  Post-conditions:     Standardized ICD-10 code and Vietnamese clinical term selected.
-9.  Priority:            High (P0 - Clinical Standardization)
-10. Normal Flow:
-    Step 1: In the Encounter Modal, doctor focuses on "Mã bệnh / Chẩn đoán (ICD-10)".
-    Step 2: Doctor types query (e.g., "tang huyet ap" or "I10").
-    Step 3: Frontend calls HTTP GET `/api/v1/clinical/ontology/icd10?query=tang+huyet+ap&limit=10`.
-    Step 4: Backend `ClinicalOntologyService` searches in-memory index or database for prefix and text matches.
-    Step 5: Backend returns list of `Icd10DiagnosisDto` (code="I10", name="Bệnh tăng huyết áp vô căn (nguyên phát)", chapter="Bệnh hệ tuần hoàn").
-    Step 6: Frontend renders autocomplete dropdown with ICD-10 badges.
-    Step 7: Doctor clicks item; system populates `icd10Code = 'I10'` and `icd10Name`.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules:
-    - BR-27: Finalized clinical encounter must include at least 1 standardized ICD-10 diagnosis.
-14. Non-Functional Requirements:
-    - NFR-PERF: Autocomplete response latency < 30ms.
-15. Data Entities Involved: `appointments` (icd10_code, icd10_name).
-16. User Interface Controls: ICD-10 autocomplete input, code pill badges, chapter tag.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.7 LOINC LAB AUTOCOMPLETE (UC-DOC-07)
-================================================================================
-1.  Use Case ID:         UC-DOC-07
-2.  Use Case Name:       Autocomplete Lab Indicators with LOINC
-3.  Target System:       MediAssist-AI Clinical Ontology Subsystem
-4.  Primary Actor:       Doctor
-5.  Stakeholders:        Doctor, Hospital Laboratory
-6.  Trigger:             Doctor searches lab test indicator in encounter form.
-7.  Pre-conditions:      LOINC and MOH Decision 3280/QĐ-BYT loaded in `ClinicalOntologyService`.
-8.  Post-conditions:     Standardized LOINC lab test code and description selected.
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: Doctor types test name in "Chỉ định cận lâm sàng" (e.g., "glucose", "2345-7").
-    Step 2: Frontend calls HTTP GET `/api/v1/clinical/ontology/lab-indicators?query=glucose&limit=10`.
-    Step 3: Backend returns `List<LabIndicatorDto>` (loincCode, testName, category, referenceRange).
-    Step 4: Doctor selects test item; test code is appended to clinical notes.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: LOINC search latency < 30ms.
-15. Data Entities Involved: None (in-memory ontology lookup).
-16. User Interface Controls: LOINC search input, test chip list.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.3.3 View Daily Patient Queue & Call Next Patient (UC-DOC-03)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.8 COMPLETE CLINICAL ENCOUNTER (UC-DOC-08)
-================================================================================
-1.  Use Case ID:         UC-DOC-08
-2.  Use Case Name:       Complete Clinical Encounter & Record EMR
-3.  Target System:       MediAssist-AI Doctor Workstation Subsystem
-4.  Primary Actor:       Doctor
-5.  Stakeholders:        Doctor, Patient, Medical Records Department
-6.  Trigger:             Doctor clicks "Hoàn Thành Ca Khám" in Encounter Modal.
-7.  Pre-conditions:
-    - Appointment is in `IN_PROGRESS` status.
-    - Doctor provides vital signs, consultation notes, and ICD-10 diagnosis.
-8.  Post-conditions:
-    - `appointments.status` updated to `COMPLETED`.
-    - Vital signs JSON, ICD-10 code/name, prescription JSON, treatment plan, and notes saved directly on `Appointment` entity.
-    - Medical record locked as legally immutable.
-    - Completion email notification dispatched to patient.
-9.  Priority:            High (P0 - Clinical Closure)
-10. Normal Flow:
-    Step 1: Doctor fills out Clinical Encounter Form in modal:
-            - Vital Signs: Huyết áp (mmHg), Mạch (bpm), Nhiệt độ (°C), SpO2 (%), Chiều cao (cm), Cân nặng (kg), BMI.
-            - ICD-10 Code & Name (e.g., "I10 - Bệnh tăng huyết áp vô căn").
-            - Consultation Notes & Physical Examination findings.
-            - Prescription JSON (Tên thuốc, số lượng, đơn vị, liều dùng, cách dùng).
-            - Treatment Plan & Patient Instructions.
-            - Follow-up date (optional).
-    Step 2: Doctor clicks "Hoàn Thành Ca Khám".
-    Step 3: Frontend calls HTTP POST `/api/v1/appointments/{id}/complete-clinical` with `ClinicalEncounterRequest`.
-    Step 4: Backend verifies user is the assigned doctor (`FORBIDDEN`).
-    Step 5: Backend checks appointment status is `IN_PROGRESS`.
-    Step 6: Backend updates `Appointment` fields:
-            `appt.setVitalSignsJson(req.getVitalSignsJson())`;
-            `appt.setIcd10Code(req.getIcd10Code())`;
-            `appt.setIcd10Name(req.getIcd10Name())`;
-            `appt.setConsultationNotes(req.getConsultationNotes())`;
-            `appt.setPrescriptionJson(req.getPrescriptionJson())`;
-            `appt.setTreatmentPlan(req.getTreatmentPlan())`;
-            `appt.setFollowUpDate(req.getFollowUpDate())`;
-            `appt.setStatus(AppointmentStatus.COMPLETED)`.
-    Step 7: Backend commits transaction.
-    Step 8: Backend triggers `MeddiesPdfGeneratorService` to generate encounter summary.
-    Step 9: Backend returns HTTP 200 OK with finalized `AppointmentDto`.
-    Step 10: Workstation closes modal and refreshes queue.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Invalid Appointment Status:
-      1. Appointment is not `IN_PROGRESS`.
-      2. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_STATUS_TRANSITION", ...)`.
-13. Business Rules:
-    - BR-27: ICD-10 diagnosis mandatory for encounter completion.
-    - BR-29: Finalized encounter records are legally immutable.
-14. Non-Functional Requirements:
-    - NFR-PERF: Encounter completion transaction commits in < 150ms.
-15. Data Entities Involved: `appointments`, `users`.
-16. User Interface Controls: Encounter modal, vital sign inputs, ICD-10 selector, prescription table, "Hoàn Thành" CTA.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-03` |
+| **Use Case Name** | View Daily Patient Queue & Call Next Patient |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Doctor Workstation Subsystem — - Next waiting patient in queue selected by sequential STT.<br>- `appointments.status` transitions from `SCHEDULED` to `IN_PROGRESS`.<br>- Active clinical encounter opened on doctor workstation. |
+| **Trigger** | Doctor clicks "Gọi Bệnh Nhân Tiếp Theo" on workstation. |
+| **Pre-conditions** | There are waiting patients scheduled today. |
+| **Post-conditions** | - Next waiting patient in queue selected by sequential STT.<br>- `appointments.status` transitions from `SCHEDULED` to `IN_PROGRESS`.<br>- Active clinical encounter opened on doctor workstation. |
+| **Normal Flow** | Step 1: Doctor inspects today's patient queue on `/doctor`.<br>Step 2: Doctor clicks "Gọi Khám Tiếp" (`POST /api/v1/doctors/me/call-next`).<br>Step 3: Backend locates next appointment for this doctor today where `status IN ('SCHEDULED')` ordered by `queue_number ASC`.<br>Step 4: If previous appointment was `IN_PROGRESS`, backend marks it completed or requires finalization.<br>Step 5: Backend updates target appointment `status = IN_PROGRESS`.<br>Step 6: Backend logs call event in application log.<br>Step 7: Backend returns `AppointmentDto` with patient details, STT, and attached document ID.<br>Step 8: Frontend opens Split-Screen Clinical Encounter Modal with patient's case loaded. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Queue Empty:<br>1. No patients waiting in queue today.<br>2. Backend throws `AppException(HttpStatus.NOT_FOUND, "QUEUE_EMPTY", "Đã phục vụ hết tất cả bệnh nhân trong hàng đợi hôm nay.")`.<br>3. Frontend displays: "Đã phục vụ hết tất cả bệnh nhân trong hàng đợi hôm nay." |
+| **Priority** | High (P0) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-20: Queue strictly follows sequential STT ordering. |
+| **Data Entities Involved** | `appointments`, `users`. |
+| **User Interface Controls** | "Gọi Khám Tiếp" button, active queue row highlight. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.9 SCHEDULE FOLLOW-UP VISIT (UC-DOC-09)
-================================================================================
-1.  Use Case ID:         UC-DOC-09
-2.  Use Case Name:       Schedule In-Clinic Follow-up Visit
-3.  Target System:       MediAssist-AI Clinical Scheduling Subsystem
-4.  Primary Actor:       Doctor
-5.  Stakeholders:        Doctor, Patient
-6.  Trigger:             Doctor schedules a follow-up appointment for patient.
-7.  Pre-conditions:      Prior appointment exists.
-8.  Post-conditions:     New appointment created linked as follow-up visit.
-9.  Priority:            Medium (P2)
-10. Normal Flow:
-    Step 1: Doctor selects follow-up date and time slot in encounter form.
-    Step 2: Frontend calls HTTP POST `/api/v1/appointments/follow-up` with `FollowUpAppointmentRequest(appointmentId, scheduledStart, scheduledEnd, chiefComplaint)`.
-    Step 3: Backend verifies slot vacancy and clinic hours.
-    Step 4: Backend creates new `Appointment` record for the patient with assigned doctor.
-    Step 5: Backend returns HTTP 201 Created with new appointment details.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: Follow-up booking commits in < 100ms.
-15. Data Entities Involved: `appointments`.
-16. User Interface Controls: Follow-up date picker, slot selector, confirm button.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.10 DOCTOR CANCEL WITH REFUND (UC-DOC-10)
-================================================================================
-1.  Use Case ID:         UC-DOC-10
-2.  Use Case Name:       Doctor Cancel Appointment with 100% Refund
-3.  Target System:       MediAssist-AI Scheduling Subsystem
-4.  Primary Actor:       Doctor
-5.  Stakeholders:        Doctor, Patient, Hospital Admin
-6.  Trigger:             Doctor cancels appointment due to emergency medical duties.
-7.  Pre-conditions:      Appointment status is `SCHEDULED`.
-8.  Post-conditions:
-    - `appointments.status` updated to `CANCELLED`.
-    - 100% full refund automatically issued to patient via `AppointmentRefundService`.
-9.  Priority:            Medium (P1)
-10. Normal Flow:
-    Step 1: Doctor clicks "Hủy Ca Khám" on queue item and inputs reason.
-    Step 2: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/status` with `{"status": "CANCELLED", "cancellationReason": "..."}`.
-    Step 3: Backend verifies user is the assigned doctor.
-    Step 4: Backend invokes `AppointmentRefundService.processRefund(appointment, DOCTOR)`.
-    Step 5: Refund service unconditionally grants 100% full refund because cancellation is doctor-initiated.
-    Step 6: Backend updates appointment status to `CANCELLED`.
-    Step 7: Backend dispatches apology email to patient with refund statement.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules:
-    - BR-30: Doctor-initiated cancellations always issue 100% full patient refunds.
-14. Non-Functional Requirements:
-    - NFR-SEC: Refund executed atomically within transaction.
-15. Data Entities Involved: `appointments`, `payment_transactions`, `audit_logs`.
-16. User Interface Controls: Doctor cancel dialog, reason textarea, confirm button.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.3.4 Pre-Encounter Split-Screen Clinical Inspection (UC-DOC-04)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.11 VIEW PATIENT REVIEWS & RATINGS (UC-DOC-11)
-================================================================================
-1.  Use Case ID:         UC-DOC-11
-2.  Use Case Name:       View Patient Reviews & Ratings
-3.  Target System:       MediAssist-AI Feedback Subsystem
-4.  Primary Actor:       Doctor
-5.  Stakeholders:        Doctor
-6.  Trigger:             Doctor navigates to reviews tab on `/doctor/profile`.
-7.  Pre-conditions:      Doctor is authenticated.
-8.  Post-conditions:     List of patient reviews and rating breakdown rendered.
-9.  Priority:            Low (P3)
-10. Normal Flow:
-    Step 1: Doctor opens reviews section.
-    Step 2: Frontend calls HTTP GET `/api/v1/doctors/{doctorId}/reviews`.
-    Step 3: Backend queries `doctor_reviews` table for `doctor_id = currentUserId` ordered by `created_at DESC`.
-    Step 4: Backend returns `List<DoctorReviewDto>`.
-    Step 5: Frontend renders review cards with star ratings and patient comments.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: Query executed in < 40ms.
-15. Data Entities Involved: `doctor_reviews`.
-16. User Interface Controls: Rating distribution bar, review cards list.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-04` |
+| **Use Case Name** | Pre-Encounter Split-Screen Clinical Inspection |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Doctor Workstation Subsystem — Split-screen view renders raw lab scan alongside AI SBAR synthesis. |
+| **Trigger** | Doctor opens patient case in Clinical Encounter Modal. |
+| **Pre-conditions** | - Active appointment in `IN_PROGRESS` or `SCHEDULED` status.<br>- Patient attached a lab document (`medical_document_id != null`). |
+| **Post-conditions** | Split-screen view renders raw lab scan alongside AI SBAR synthesis. |
+| **Normal Flow** | Step 1: Doctor opens active patient encounter modal on `/doctor`.<br>Step 2: Frontend checks if `appointment.medicalDocumentId` exists.<br>Step 3: Frontend calls HTTP GET `/api/v1/documents/{id}/signed-url` to fetch secure S3 view link.<br>Step 4: Frontend calls HTTP GET `/api/v1/documents/{id}/analysis` to fetch structured extraction.<br>Step 5: Frontend renders Split-Screen Workspace:<br>- Left Pane: Embedded PDF / Image viewer rendering original scan (zoom, pan, rotate).<br>- Right Pane: AI Clinical Synthesis Panel:<br>* Chief complaint and triage urgency.<br>* Extracted Biomarkers table with abnormal flags highlighted (`NORMAL`, `ELEVATED`, `LOW`).<br>* Matched LOINC standard terminology.<br>* AI clinical impressions.<br>Step 6: Doctor cross-examines AI findings against original report prior to physical examination. |
+| **Alternative Flow** | - Alt Flow 11a: No Document Attached:<br>1. Left pane displays patient's conversational triage history and chief complaint. |
+| **Exceptions** | None. |
+| **Priority** | High (P0) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-25: Doctor must review clinical evidence before completing encounter. |
+| **Data Entities Involved** | `appointments`, `medical_documents`, `document_analyses`. |
+| **User Interface Controls** | Split-pane divider, PDF controls, biomarker status pills. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.12 UPDATE DOCTOR PROFILE & BIO (UC-DOC-12)
-================================================================================
-1.  Use Case ID:         UC-DOC-12
-2.  Use Case Name:       Update Doctor Profile & Biography
-3.  Target System:       MediAssist-AI Doctor Subsystem
-4.  Primary Actor:       Doctor
-5.  Stakeholders:        Doctor
-6.  Trigger:             Doctor updates bio, consultation fee, or clinic room.
-7.  Pre-conditions:      Doctor is authenticated.
-8.  Post-conditions:
-    - `doctor_profiles` updated.
-    - If bio changed, 1536-d vector embedding re-computed asynchronously.
-9.  Priority:            Medium (P2)
-10. Normal Flow:
-    Step 1: Doctor edits bio, fee, or clinic room on `/doctor/profile`.
-    Step 2: Frontend calls HTTP PUT `/api/v1/doctors/me/profile` with `UpdateDoctorProfileRequest`.
-    Step 3: Backend updates `doctor_profiles` table.
-    Step 4: If bio was modified, backend triggers asynchronous re-embedding via `EmbeddingService`.
-    Step 5: Backend updates `doctor_profiles.bio_embedding`.
-    Step 6: Backend invalidates doctor cache in Redis.
-    Step 7: Frontend displays success notification.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules:
-    - BR-31: CCHN license number cannot be altered without admin re-vetting.
-14. Non-Functional Requirements:
-    - NFR-PERF: Profile update commits in < 80ms.
-15. Data Entities Involved: `doctor_profiles`.
-16. User Interface Controls: Bio textarea, fee input, clinic room input, save button.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.13 EXPORT MEDICAL RECORD PDF (UC-DOC-13)
-================================================================================
-1.  Use Case ID:         UC-DOC-13
-2.  Use Case Name:       Export Medical Record & Prescription PDF
-3.  Target System:       MediAssist-AI Document Generation Subsystem
-4.  Primary Actor:       Doctor, Patient
-5.  Stakeholders:        Doctor, Patient, Pharmacy
-6.  Trigger:             User clicks "In Đơn Thuốc / Bệnh Án" on completed encounter.
-7.  Pre-conditions:      Appointment status is `COMPLETED`.
-8.  Post-conditions:     Printable PDF file generated via `MeddiesPdfGeneratorService`.
-9.  Priority:            Medium (P2)
-10. Normal Flow:
-    Step 1: User clicks print icon on encounter card.
-    Step 2: Backend generates official medical report PDF including hospital header, patient info, vital signs, ICD-10 diagnosis, prescription table, and doctor sign-off.
-    Step 3: Browser opens PDF print preview.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: PDF byte generation completes in < 350ms.
-15. Data Entities Involved: `appointments`, `doctor_profiles`, `users`.
-16. User Interface Controls: Print / Export PDF button.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.3.5 Access Patient Records via PatientAccessGuard (UC-DOC-05)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.3.14 MANAGE ASSIGNED SPECIALTIES (UC-DOC-14)
-================================================================================
-1.  Use Case ID:         UC-DOC-14
-2.  Use Case Name:       Manage Assigned Clinical Specialties
-3.  Target System:       MediAssist-AI Specialty Subsystem
-4.  Primary Actor:       Doctor, Admin
-5.  Stakeholders:        Doctor, Hospital Administration
-6.  Trigger:             Doctor or Admin links secondary medical specialties to doctor profile.
-7.  Pre-conditions:      Doctor profile exists.
-8.  Post-conditions:     Association records saved in `doctor_specialties` table (Flyway V1).
-9.  Priority:            Low (P3)
-10. Normal Flow:
-    Step 1: Doctor selects additional clinical sub-specialties.
-    Step 2: Backend updates `doctor_specialties` join table.
-    Step 3: Doctor profile reflects multi-specialty clinical scope.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: Commit in < 50ms.
-15. Data Entities Involved: `doctor_specialties`, `specialties`, `doctor_profiles`.
-16. User Interface Controls: Specialty multi-select dropdown.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-05` |
+| **Use Case Name** | Access Patient Records via PatientAccessGuard |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Security Subsystem — - Access granted ONLY IF doctor has an active care relationship (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED` appointment).<br>- Access event recorded in `audit_logs` (`VIEW_PATIENT_RECORD`). |
+| **Trigger** | Doctor accesses patient historical medical documents or appointment history. |
+| **Pre-conditions** | Doctor is authenticated. |
+| **Post-conditions** | - Access granted ONLY IF doctor has an active care relationship (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED` appointment).<br>- Access event recorded in `audit_logs` (`VIEW_PATIENT_RECORD`). |
+| **Normal Flow** | Step 1: Doctor navigates to Patient Records (`/doctor/patients`).<br>Step 2: Frontend calls HTTP GET `/api/v1/appointments/patient/{patientId}` or `/api/v1/documents/patient/{patientId}`.<br>Step 3: Backend invokes `PatientAccessGuard.assertCanAccessPatient(doctorId, DOCTOR, patientId, resource)`.<br>Step 4: Guard executes care relationship check:<br>`appointmentRepository.existsByDoctorIdAndPatientIdAndStatusIn(doctorId, patientId, ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'])`.<br>Step 5: Care relationship confirmed (true).<br>Step 6: Guard records security audit entry in `audit_logs`:<br>`recordView(doctorId, DOCTOR, patientId, resource)`.<br>Step 7: Backend queries records and returns patient clinical history.<br>Step 8: Frontend renders patient encounter timeline and past lab reports. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: BOLA/IDOR Violation (No Care Relationship):<br>1. Doctor attempts to access patient with whom they have no appointment.<br>2. Guard check evaluates to false.<br>3. Guard throws `AppException(HttpStatus.FORBIDDEN, "FORBIDDEN_PATIENT_ACCESS", "Bạn không có quyền xem hồ sơ của bệnh nhân này. Chỉ bác sĩ có lịch hẹn điều trị với bệnh nhân mới được truy cập.")`.<br>4. Backend returns HTTP 403 Forbidden. |
+| **Priority** | High (P0 - Security Fix) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-26: Doctors cannot access records of patients they do not treat (BOLA/IDOR Defense). |
+| **Data Entities Involved** | `appointments`, `medical_documents`, `audit_logs`. |
+| **User Interface Controls** | Patient records table, encounter timeline. |
+
+
+##### 2.3.3.6 Autocomplete Diagnosis with WHO ICD-10 (UC-DOC-06)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-06` |
+| **Use Case Name** | Autocomplete Diagnosis with WHO ICD-10 |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Clinical Ontology Subsystem — Standardized ICD-10 code and Vietnamese clinical term selected. |
+| **Trigger** | Doctor types diagnosis search query in Clinical Encounter Modal. |
+| **Pre-conditions** | Clinical Ontology Service loaded with WHO ICD-10 and MOH Decision 7603/QĐ-BYT. |
+| **Post-conditions** | Standardized ICD-10 code and Vietnamese clinical term selected. |
+| **Normal Flow** | Step 1: In the Encounter Modal, doctor focuses on "Mã bệnh / Chẩn đoán (ICD-10)".<br>Step 2: Doctor types query (e.g., "tang huyet ap" or "I10").<br>Step 3: Frontend calls HTTP GET `/api/v1/clinical/ontology/icd10?query=tang+huyet+ap&limit=10`.<br>Step 4: Backend `ClinicalOntologyService` searches in-memory index or database for prefix and text matches.<br>Step 5: Backend returns list of `Icd10DiagnosisDto` (code="I10", name="Bệnh tăng huyết áp vô căn (nguyên phát)", chapter="Bệnh hệ tuần hoàn").<br>Step 6: Frontend renders autocomplete dropdown with ICD-10 badges.<br>Step 7: Doctor clicks item; system populates `icd10Code = 'I10'` and `icd10Name`. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P0 - Clinical Standardization) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-27: Finalized clinical encounter must include at least 1 standardized ICD-10 diagnosis. |
+| **Data Entities Involved** | `appointments` (icd10_code, icd10_name). |
+| **User Interface Controls** | ICD-10 autocomplete input, code pill badges, chapter tag. |
+
+
+##### 2.3.3.7 Autocomplete Lab Indicators with LOINC (UC-DOC-07)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-07` |
+| **Use Case Name** | Autocomplete Lab Indicators with LOINC |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Clinical Ontology Subsystem — Standardized LOINC lab test code and description selected. |
+| **Trigger** | Doctor searches lab test indicator in encounter form. |
+| **Pre-conditions** | LOINC and MOH Decision 3280/QĐ-BYT loaded in `ClinicalOntologyService`. |
+| **Post-conditions** | Standardized LOINC lab test code and description selected. |
+| **Normal Flow** | Step 1: Doctor types test name in "Chỉ định cận lâm sàng" (e.g., "glucose", "2345-7").<br>Step 2: Frontend calls HTTP GET `/api/v1/clinical/ontology/lab-indicators?query=glucose&limit=10`.<br>Step 3: Backend returns `List<LabIndicatorDto>` (loincCode, testName, category, referenceRange).<br>Step 4: Doctor selects test item; test code is appended to clinical notes. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | None (in-memory ontology lookup). |
+| **User Interface Controls** | LOINC search input, test chip list. |
+
+
+##### 2.3.3.8 Complete Clinical Encounter & Record EMR (UC-DOC-08)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-08` |
+| **Use Case Name** | Complete Clinical Encounter & Record EMR |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Doctor Workstation Subsystem — - `appointments.status` updated to `COMPLETED`.<br>- Vital signs JSON, ICD-10 code/name, prescription JSON, treatment plan, and notes saved directly on `Appointment` entity.<br>- Medical record locked as legally immutable.<br>- Completion email notification dispatched to patient. |
+| **Trigger** | Doctor clicks "Hoàn Thành Ca Khám" in Encounter Modal. |
+| **Pre-conditions** | - Appointment is in `IN_PROGRESS` status.<br>- Doctor provides vital signs, consultation notes, and ICD-10 diagnosis. |
+| **Post-conditions** | - `appointments.status` updated to `COMPLETED`.<br>- Vital signs JSON, ICD-10 code/name, prescription JSON, treatment plan, and notes saved directly on `Appointment` entity.<br>- Medical record locked as legally immutable.<br>- Completion email notification dispatched to patient. |
+| **Normal Flow** | Step 1: Doctor fills out Clinical Encounter Form in modal:<br>- Vital Signs: Huyết áp (mmHg), Mạch (bpm), Nhiệt độ (°C), SpO2 (%), Chiều cao (cm), Cân nặng (kg), BMI.<br>- ICD-10 Code & Name (e.g., "I10 - Bệnh tăng huyết áp vô căn").<br>- Consultation Notes & Physical Examination findings.<br>- Prescription JSON (Tên thuốc, số lượng, đơn vị, liều dùng, cách dùng).<br>- Treatment Plan & Patient Instructions.<br>- Follow-up date (optional).<br>Step 2: Doctor clicks "Hoàn Thành Ca Khám".<br>Step 3: Frontend calls HTTP POST `/api/v1/appointments/{id}/complete-clinical` with `ClinicalEncounterRequest`.<br>Step 4: Backend verifies user is the assigned doctor (`FORBIDDEN`).<br>Step 5: Backend checks appointment status is `IN_PROGRESS`.<br>Step 6: Backend updates `Appointment` fields:<br>`appt.setVitalSignsJson(req.getVitalSignsJson())`;<br>`appt.setIcd10Code(req.getIcd10Code())`;<br>`appt.setIcd10Name(req.getIcd10Name())`;<br>`appt.setConsultationNotes(req.getConsultationNotes())`;<br>`appt.setPrescriptionJson(req.getPrescriptionJson())`;<br>`appt.setTreatmentPlan(req.getTreatmentPlan())`;<br>`appt.setFollowUpDate(req.getFollowUpDate())`;<br>`appt.setStatus(AppointmentStatus.COMPLETED)`.<br>Step 7: Backend commits transaction.<br>Step 8: Backend triggers `MeddiesPdfGeneratorService` to generate encounter summary.<br>Step 9: Backend returns HTTP 200 OK with finalized `AppointmentDto`.<br>Step 10: Workstation closes modal and refreshes queue. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Invalid Appointment Status:<br>1. Appointment is not `IN_PROGRESS`.<br>2. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_STATUS_TRANSITION", ...)`. |
+| **Priority** | High (P0 - Clinical Closure) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-27: ICD-10 diagnosis mandatory for encounter completion.<br>- BR-29: Finalized encounter records are legally immutable. |
+| **Data Entities Involved** | `appointments`, `users`. |
+| **User Interface Controls** | Encounter modal, vital sign inputs, ICD-10 selector, prescription table, "Hoàn Thành" CTA. |
+
+
+##### 2.3.3.9 Schedule In-Clinic Follow-up Visit (UC-DOC-09)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-09` |
+| **Use Case Name** | Schedule In-Clinic Follow-up Visit |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Clinical Scheduling Subsystem — New appointment created linked as follow-up visit. |
+| **Trigger** | Doctor schedules a follow-up appointment for patient. |
+| **Pre-conditions** | Prior appointment exists. |
+| **Post-conditions** | New appointment created linked as follow-up visit. |
+| **Normal Flow** | Step 1: Doctor selects follow-up date and time slot in encounter form.<br>Step 2: Frontend calls HTTP POST `/api/v1/appointments/follow-up` with `FollowUpAppointmentRequest(appointmentId, scheduledStart, scheduledEnd, chiefComplaint)`.<br>Step 3: Backend verifies slot vacancy and clinic hours.<br>Step 4: Backend creates new `Appointment` record for the patient with assigned doctor.<br>Step 5: Backend returns HTTP 201 Created with new appointment details. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `appointments`. |
+| **User Interface Controls** | Follow-up date picker, slot selector, confirm button. |
+
+
+##### 2.3.3.10 Doctor Cancel Appointment with 100% Refund (UC-DOC-10)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-10` |
+| **Use Case Name** | Doctor Cancel Appointment with 100% Refund |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Scheduling Subsystem — - `appointments.status` updated to `CANCELLED`.<br>- 100% full refund automatically issued to patient via `AppointmentRefundService`. |
+| **Trigger** | Doctor cancels appointment due to emergency medical duties. |
+| **Pre-conditions** | Appointment status is `SCHEDULED`. |
+| **Post-conditions** | - `appointments.status` updated to `CANCELLED`.<br>- 100% full refund automatically issued to patient via `AppointmentRefundService`. |
+| **Normal Flow** | Step 1: Doctor clicks "Hủy Ca Khám" on queue item and inputs reason.<br>Step 2: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/status` with `{"status": "CANCELLED", "cancellationReason": "..."}`.<br>Step 3: Backend verifies user is the assigned doctor.<br>Step 4: Backend invokes `AppointmentRefundService.processRefund(appointment, DOCTOR)`.<br>Step 5: Refund service unconditionally grants 100% full refund because cancellation is doctor-initiated.<br>Step 6: Backend updates appointment status to `CANCELLED`.<br>Step 7: Backend dispatches apology email to patient with refund statement. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-30: Doctor-initiated cancellations always issue 100% full patient refunds. |
+| **Data Entities Involved** | `appointments`, `payment_transactions`, `audit_logs`. |
+| **User Interface Controls** | Doctor cancel dialog, reason textarea, confirm button. |
+
+
+##### 2.3.3.11 View Patient Reviews & Ratings (UC-DOC-11)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-11` |
+| **Use Case Name** | View Patient Reviews & Ratings |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Feedback Subsystem — List of patient reviews and rating breakdown rendered. |
+| **Trigger** | Doctor navigates to reviews tab on `/doctor/profile`. |
+| **Pre-conditions** | Doctor is authenticated. |
+| **Post-conditions** | List of patient reviews and rating breakdown rendered. |
+| **Normal Flow** | Step 1: Doctor opens reviews section.<br>Step 2: Frontend calls HTTP GET `/api/v1/doctors/{doctorId}/reviews`.<br>Step 3: Backend queries `doctor_reviews` table for `doctor_id = currentUserId` ordered by `created_at DESC`.<br>Step 4: Backend returns `List<DoctorReviewDto>`.<br>Step 5: Frontend renders review cards with star ratings and patient comments. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Low (P3) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `doctor_reviews`. |
+| **User Interface Controls** | Rating distribution bar, review cards list. |
+
+
+##### 2.3.3.12 Update Doctor Profile & Biography (UC-DOC-12)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-12` |
+| **Use Case Name** | Update Doctor Profile & Biography |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Doctor Subsystem — - `doctor_profiles` updated.<br>- If bio changed, 1536-d vector embedding re-computed asynchronously. |
+| **Trigger** | Doctor updates bio, consultation fee, or clinic room. |
+| **Pre-conditions** | Doctor is authenticated. |
+| **Post-conditions** | - `doctor_profiles` updated.<br>- If bio changed, 1536-d vector embedding re-computed asynchronously. |
+| **Normal Flow** | Step 1: Doctor edits bio, fee, or clinic room on `/doctor/profile`.<br>Step 2: Frontend calls HTTP PUT `/api/v1/doctors/me/profile` with `UpdateDoctorProfileRequest`.<br>Step 3: Backend updates `doctor_profiles` table.<br>Step 4: If bio was modified, backend triggers asynchronous re-embedding via `EmbeddingService`.<br>Step 5: Backend updates `doctor_profiles.bio_embedding`.<br>Step 6: Backend invalidates doctor cache in Redis.<br>Step 7: Frontend displays success notification. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-31: CCHN license number cannot be altered without admin re-vetting. |
+| **Data Entities Involved** | `doctor_profiles`. |
+| **User Interface Controls** | Bio textarea, fee input, clinic room input, save button. |
+
+
+##### 2.3.3.13 Export Medical Record & Prescription PDF (UC-DOC-13)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-13` |
+| **Use Case Name** | Export Medical Record & Prescription PDF |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor, Patient |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Document Generation Subsystem — Printable PDF file generated via `MeddiesPdfGeneratorService`. |
+| **Trigger** | User clicks "In Đơn Thuốc / Bệnh Án" on completed encounter. |
+| **Pre-conditions** | Appointment status is `COMPLETED`. |
+| **Post-conditions** | Printable PDF file generated via `MeddiesPdfGeneratorService`. |
+| **Normal Flow** | Step 1: User clicks print icon on encounter card.<br>Step 2: Backend generates official medical report PDF including hospital header, patient info, vital signs, ICD-10 diagnosis, prescription table, and doctor sign-off.<br>Step 3: Browser opens PDF print preview. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `appointments`, `doctor_profiles`, `users`. |
+| **User Interface Controls** | Print / Export PDF button. |
+
+
+##### 2.3.3.14 Manage Assigned Clinical Specialties (UC-DOC-14)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-14` |
+| **Use Case Name** | Manage Assigned Clinical Specialties |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor, Admin |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Specialty Subsystem — Association records saved in `doctor_specialties` table (Flyway V1). |
+| **Trigger** | Doctor or Admin links secondary medical specialties to doctor profile. |
+| **Pre-conditions** | Doctor profile exists. |
+| **Post-conditions** | Association records saved in `doctor_specialties` table (Flyway V1). |
+| **Normal Flow** | Step 1: Doctor selects additional clinical sub-specialties.<br>Step 2: Backend updates `doctor_specialties` join table.<br>Step 3: Doctor profile reflects multi-specialty clinical scope. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Low (P3) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `doctor_specialties`, `specialties`, `doctor_profiles`. |
+| **User Interface Controls** | Specialty multi-select dropdown. |
+
 
 ---
 
 #### 2.3.4 Admin (Governance & AI FinOps)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.4.1 EXECUTIVE STATISTICS & OVERVIEW (UC-ADM-01)
-================================================================================
-1.  Use Case ID:         UC-ADM-01
-2.  Use Case Name:       View Executive Statistics & Overview
-3.  Target System:       MediAssist-AI Admin Subsystem
-4.  Primary Actor:       Admin
-5.  Stakeholders:        Hospital Director, Operations Manager
-6.  Trigger:             Admin logs in and accesses `/admin`.
-7.  Pre-conditions:      User possesses `ADMIN` role.
-8.  Post-conditions:     Executive telemetry and platform metrics displayed.
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: Admin navigates to `/admin`.
-    Step 2: Frontend calls HTTP GET `/api/v1/admin/stats`.
-    Step 3: Backend aggregates metrics from database:
-            - `totalUsers`: Total registered accounts.
-            - `totalDoctors`: Active doctors.
-            - `totalPatients`: Patient accounts.
-            - `totalAppointments`: System-wide consultations.
-            - `totalRevenue`: Gross revenue settled.
-    Step 4: Backend returns `AdminSystemStatsDto`.
-    Step 5: Frontend renders executive dashboard KPI cards and activity trends.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: Stats query cached in Redis; response < 100ms.
-15. Data Entities Involved: `users`, `appointments`, `doctor_profiles`, `payment_transactions`.
-16. User Interface Controls: KPI cards, refresh button.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.4.1 View Executive Statistics & Overview (UC-ADM-01)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.4.2 MONITOR AI TOKEN USAGE & FINOPS (UC-ADM-02)
-================================================================================
-1.  Use Case ID:         UC-ADM-02
-2.  Use Case Name:       Monitor AI Token Usage & FinOps
-3.  Target System:       MediAssist-AI FinOps Subsystem
-4.  Primary Actor:       Admin
-5.  Stakeholders:        Admin, Financial Controller
-6.  Trigger:             Admin inspects AI usage on `/admin`.
-7.  Pre-conditions:      Admin is authenticated.
-8.  Post-conditions:     Token consumption charts and cost projections displayed.
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: Admin views AI Usage widget on `/admin`.
-    Step 2: Frontend calls HTTP GET `/api/v1/admin/ai-usage`.
-    Step 3: Backend queries `ai_token_usage` table (Flyway V1, V12) aggregating prompt/completion tokens:
-            - Gemini 1.5 Flash tokens and cost.
-            - OpenAI text-embedding-3-small tokens and cost.
-            - OpenRouter tokens and cost.
-            - Total cost converted to VNĐ (`AI_COST_VND_PER_USD = 25450`).
-    Step 4: Backend returns `AiUsageStatsDto`.
-    Step 5: Frontend renders token distribution charts and daily cost trends.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: FinOps aggregation completes in < 80ms using indexed date columns.
-15. Data Entities Involved: `ai_token_usage`.
-16. User Interface Controls: Token count cards, USD/VND toggle, provider donut chart.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-01` |
+| **Use Case Name** | View Executive Statistics & Overview |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Admin Subsystem — Executive telemetry and platform metrics displayed. |
+| **Trigger** | Admin logs in and accesses `/admin`. |
+| **Pre-conditions** | User possesses `ADMIN` role. |
+| **Post-conditions** | Executive telemetry and platform metrics displayed. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/stats`.<br>Step 3: Backend aggregates metrics from database:<br>- `totalUsers`: Total registered accounts.<br>- `totalDoctors`: Active doctors.<br>- `totalPatients`: Patient accounts.<br>- `totalAppointments`: System-wide consultations.<br>- `totalRevenue`: Gross revenue settled.<br>Step 4: Backend returns `AdminSystemStatsDto`.<br>Step 5: Frontend renders executive dashboard KPI cards and activity trends. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `users`, `appointments`, `doctor_profiles`, `payment_transactions`. |
+| **User Interface Controls** | KPI cards, refresh button. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.4.3 TOGGLE AI PROVIDER MODE (UC-ADM-03)
-================================================================================
-1.  Use Case ID:         UC-ADM-03
-2.  Use Case Name:       Toggle System-wide AI Provider & Fallback Mode
-3.  Target System:       MediAssist-AI Inference Routing Subsystem
-4.  Primary Actor:       Admin
-5.  Stakeholders:        Admin, Platform Architect
-6.  Trigger:             Admin switches active AI provider on system console.
-7.  Pre-conditions:      Admin is authenticated.
-8.  Post-conditions:     Runtime AI provider mode updated in Redis and application memory.
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: Frontend calls HTTP GET `/api/v1/system/ai-mode` to check current provider.
-    Step 2: Admin selects target provider mode:
-            - Primary: Google Gemini 1.5 Flash Direct.
-            - Secondary: OpenRouter Free-tier Pool.
-            - Fallback: Local Rule-based Triage & FNV-1a Vector Hashing.
-    Step 3: Frontend calls HTTP POST `/api/v1/system/ai-mode/toggle` (Backend Security Fix BE-1).
-    Step 4: Backend verifies `@PreAuthorize("hasRole('ADMIN')")`.
-    Step 5: Backend updates provider flag in Redis (`system:ai:mode`).
-    Step 6: Backend logs `ADMIN_TOGGLE_AI_MODE` in `audit_logs`.
-    Step 7: Frontend updates active AI mode indicator badge.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Non-Admin Access:
-      1. Backend throws HTTP 403 Forbidden.
-13. Business Rules:
-    - BR-33: Only ADMIN role can modify system-wide AI provider configuration.
-14. Non-Functional Requirements:
-    - NFR-REL: Failover mode propagates instantly across all worker threads.
-15. Data Entities Involved: `audit_logs`.
-16. User Interface Controls: AI Mode toggle buttons, active provider badge.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.4.4 SYNC DOCTOR VECTOR EMBEDDINGS (UC-ADM-04)
-================================================================================
-1.  Use Case ID:         UC-ADM-04
-2.  Use Case Name:       Sync Doctor Vector Embeddings
-3.  Target System:       MediAssist-AI Vector Subsystem
-4.  Primary Actor:       Admin
-5.  Stakeholders:        Admin, Search Quality Board
-6.  Trigger:             Admin clicks "Đồng Bộ Toàn Bộ Vector Bác Sĩ".
-7.  Pre-conditions:      Admin is authenticated.
-8.  Post-conditions:     1536-d vectors generated for all doctor profiles and HNSW index synced.
-9.  Priority:            Medium (P2)
-10. Normal Flow:
-    Step 1: Admin clicks "Sync Vectors" on `/admin/doctors`.
-    Step 2: Frontend calls HTTP POST `/api/v1/admin/doctors/sync-vectors` or `/api/v1/system/ai-mode/sync-vectors`.
-    Step 3: Backend iterates over `doctor_profiles`:
-            - Combines doctor bio, specialty name, and academic title into text string.
-            - Calls `EmbeddingService.generateEmbedding(text)` -> produces 1536-d vector.
-            - Updates `doctor_profiles.bio_embedding`.
-    Step 4: Backend commits updates in batch.
-    Step 5: Backend returns count of synchronized vectors.
-    Step 6: Frontend renders completion toast: "Đã đồng bộ vector thành công cho {count} bác sĩ."
-11. Alternative Flows:
-    - Alt Flow 11a: Single Doctor Vector Sync:
-      1. Admin calls `POST /api/v1/admin/doctors/{id}/sync-vector` for a specific doctor.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: Batch sync processes 100 doctors in < 15 seconds.
-15. Data Entities Involved: `doctor_profiles`.
-16. User Interface Controls: "Sync All Vectors" button, single doctor sync icon.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.4.2 Monitor AI Token Usage & FinOps (UC-ADM-02)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.4.5 VET DOCTOR CCHN LICENSE (UC-ADM-05)
-================================================================================
-1.  Use Case ID:         UC-ADM-05
-2.  Use Case Name:       Vet & Approve Doctor CCHN License
-3.  Target System:       MediAssist-AI Vetting Subsystem
-4.  Primary Actor:       Admin
-5.  Stakeholders:        Admin, Medical Board, Doctor
-6.  Trigger:             Admin reviews pending doctor license applications.
-7.  Pre-conditions:      Doctor account exists with `is_verified = false`.
-8.  Post-conditions:     Doctor verified (`is_verified = true`) and activated for public search.
-9.  Priority:            High (P0 - Legal Compliance)
-10. Normal Flow:
-    Step 1: Admin navigates to `/admin/doctors`.
-    Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/pending`.
-    Step 3: Backend returns doctors with `is_verified = false`.
-    Step 4: Admin inspects CCHN license number, issuing authority, and specialty credentials.
-    Step 5: Admin clicks "Phê Duyệt" (Approve).
-    Step 6: Frontend calls HTTP POST `/api/v1/admin/doctors/{id}/vet` with `VetDoctorRequest(approved=true)`.
-    Step 7: Backend sets `doctor_profiles.is_verified = true`.
-    Step 8: Backend triggers vector embedding generation if missing.
-    Step 9: Backend sends approval email to doctor.
-    Step 10: Frontend removes doctor from pending queue.
-11. Alternative Flows:
-    - Alt Flow 11a: Reject Application:
-      1. Admin calls vetting endpoint with `approved = false` and rejection reason.
-      2. Backend sends rejection email prompting re-submission.
-12. Exception Flows: None.
-13. Business Rules:
-    - BR-13: Unverified doctors are strictly excluded from public search and booking.
-14. Non-Functional Requirements:
-    - NFR-SEC: Vetting decisions audited with Admin ID and timestamp.
-15. Data Entities Involved: `doctor_profiles`, `audit_logs`.
-16. User Interface Controls: Pending doctors tab, "Phê Duyệt" button, "Từ Chối" button.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-02` |
+| **Use Case Name** | Monitor AI Token Usage & FinOps |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI FinOps Subsystem — Token consumption charts and cost projections displayed. |
+| **Trigger** | Admin inspects AI usage on `/admin`. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Token consumption charts and cost projections displayed. |
+| **Normal Flow** | Step 1: Admin views AI Usage widget on `/admin`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/ai-usage`.<br>Step 3: Backend queries `ai_token_usage` table (Flyway V1, V12) aggregating prompt/completion tokens:<br>- Gemini 1.5 Flash tokens and cost.<br>- OpenAI text-embedding-3-small tokens and cost.<br>- OpenRouter tokens and cost.<br>- Total cost converted to VNĐ (`AI_COST_VND_PER_USD = 25450`).<br>Step 4: Backend returns `AiUsageStatsDto`.<br>Step 5: Frontend renders token distribution charts and daily cost trends. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `ai_token_usage`. |
+| **User Interface Controls** | Token count cards, USD/VND toggle, provider donut chart. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.4.6 MANAGE DOCTOR DIRECTORY (UC-ADM-06)
-================================================================================
-1.  Use Case ID:         UC-ADM-06
-2.  Use Case Name:       Manage Doctor Directory
-3.  Target System:       MediAssist-AI Admin Subsystem
-4.  Primary Actor:       Admin
-5.  Stakeholders:        Admin, Doctors
-6.  Trigger:             Admin creates, edits, or toggles status of a doctor.
-7.  Pre-conditions:      Admin is authenticated.
-8.  Post-conditions:     Doctor record in `doctor_profiles` and `users` updated.
-9.  Priority:            Medium (P1)
-10. Normal Flow:
-    Step 1: Admin navigates to `/admin/doctors`.
-    Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/paged?page=0&size=10`.
-    Step 3: Admin clicks "Tạo Bác Sĩ Mới" and inputs Name, Email, License Number, Specialty, Fee, Clinic Room.
-    Step 4: Frontend calls HTTP POST `/api/v1/admin/doctors` with `AdminCreateDoctorRequest`.
-    Step 5: Backend creates `User` (role=`DOCTOR`) and `DoctorProfile` within a transaction.
-    Step 6: Backend sends welcome email with temporary credentials.
-    Step 7: Admin can also toggle doctor status via `PATCH /api/v1/admin/doctors/{id}/toggle-status`.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Duplicate Email or License:
-      1. Backend throws `AppException(HttpStatus.CONFLICT, "EMAIL_EXISTS", ...)` or `"LICENSE_EXISTS"`.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: Directory page load < 150ms.
-15. Data Entities Involved: `doctor_profiles`, `users`, `specialties`.
-16. User Interface Controls: Doctor table, Add/Edit modal, toggle status switch.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.4.7 USER ACCESS CONTROL (UC-ADM-07)
-================================================================================
-1.  Use Case ID:         UC-ADM-07
-2.  Use Case Name:       User Access Control & Account Locking
-3.  Target System:       MediAssist-AI Admin Subsystem
-4.  Primary Actor:       Admin
-5.  Stakeholders:        Admin, Security Compliance
-6.  Trigger:             Admin searches users on `/admin/users` and modifies account status.
-7.  Pre-conditions:      Admin is authenticated.
-8.  Post-conditions:     `users.is_active` updated; user sessions invalidated.
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: Admin navigates to `/admin/users`.
-    Step 2: Frontend calls HTTP GET `/api/v1/admin/users?query=...&page=0&size=20`.
-    Step 3: Admin inspects user details and clicks "Khóa Tài Khoản".
-    Step 4: Admin inputs mandatory lock reason (min 10 characters).
-    Step 5: Frontend calls HTTP PATCH `/api/v1/admin/users/{id}/status` with `UpdateUserStatusRequest(status, reason)`.
-    Step 6: Backend updates `users.is_active = false`.
-    Step 7: Backend logs `ADMIN_LOCK_USER` in `audit_logs`.
-    Step 8: Frontend updates user status badge to `Bị Khóa`.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Lock Reason Too Short:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_REASON", "Lý do khóa tài khoản bắt buộc tối thiểu 10 ký tự")`.
-13. Business Rules:
-    - BR-32: Locking an account immediately terminates active web and mobile sessions.
-14. Non-Functional Requirements:
-    - NFR-SEC: Action logged to audit trail.
-15. Data Entities Involved: `users`, `audit_logs`.
-16. User Interface Controls: User table, role filter, lock modal with reason textarea.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.4.3 Toggle System-wide AI Provider & Fallback Mode (UC-ADM-03)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.4.8 MANAGE CLINICAL SPECIALTIES (UC-ADM-08)
-================================================================================
-1.  Use Case ID:         UC-ADM-08
-2.  Use Case Name:       Manage Clinical Specialties & Taxonomy
-3.  Target System:       MediAssist-AI Clinical Subsystem
-4.  Primary Actor:       Admin
-5.  Stakeholders:        Admin, Doctors, Patients
-6.  Trigger:             Admin creates specialty on `/admin/specialties`.
-7.  Pre-conditions:      Admin is authenticated.
-8.  Post-conditions:     Specialty record created in `specialties` table.
-9.  Priority:            Medium (P2)
-10. Normal Flow:
-    Step 1: Admin navigates to `/admin/specialties`.
-    Step 2: Admin clicks "Thêm Chuyên Khoa Mới".
-    Step 3: Admin enters Name (e.g., "Tim Mạch Can Thiệp"), Code (`CARDIO`), Description, and Icon Name.
-    Step 4: Frontend calls HTTP POST `/api/v1/admin/specialties` with `CreateSpecialtyRequest`.
-    Step 5: Backend verifies code uniqueness (`SPECIALTY_SLUG_EXISTS`).
-    Step 6: Backend saves record in `specialties`.
-    Step 7: Backend refreshes specialty cache in Redis.
-    Step 8: Frontend updates specialties list.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: Cache refresh propagated instantly.
-15. Data Entities Involved: `specialties`.
-16. User Interface Controls: Specialty table, Add modal, icon picker.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-03` |
+| **Use Case Name** | Toggle System-wide AI Provider & Fallback Mode |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Inference Routing Subsystem — Runtime AI provider mode updated in Redis and application memory. |
+| **Trigger** | Admin switches active AI provider on system console. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Runtime AI provider mode updated in Redis and application memory. |
+| **Normal Flow** | Step 1: Frontend calls HTTP GET `/api/v1/system/ai-mode` to check current provider.<br>Step 2: Admin selects target provider mode:<br>- Primary: Google Gemini 1.5 Flash Direct.<br>- Secondary: OpenRouter Free-tier Pool.<br>- Fallback: Local Rule-based Triage & FNV-1a Vector Hashing.<br>Step 3: Frontend calls HTTP POST `/api/v1/system/ai-mode/toggle` (Backend Security Fix BE-1).<br>Step 4: Backend verifies `@PreAuthorize("hasRole('ADMIN')")`.<br>Step 5: Backend updates provider flag in Redis (`system:ai:mode`).<br>Step 6: Backend logs `ADMIN_TOGGLE_AI_MODE` in `audit_logs`.<br>Step 7: Frontend updates active AI mode indicator badge. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Non-Admin Access:<br>1. Backend throws HTTP 403 Forbidden. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-33: Only ADMIN role can modify system-wide AI provider configuration. |
+| **Data Entities Involved** | `audit_logs`. |
+| **User Interface Controls** | AI Mode toggle buttons, active provider badge. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.4.9 SUPERVISE APPOINTMENTS (UC-ADM-09)
-================================================================================
-1.  Use Case ID:         UC-ADM-09
-2.  Use Case Name:       Supervise Appointments & Force Cancel
-3.  Target System:       MediAssist-AI Supervision Subsystem
-4.  Primary Actor:       Admin
-5.  Stakeholders:        Admin, Patients, Doctors
-6.  Trigger:             Admin inspects appointments on `/admin/appointments`.
-7.  Pre-conditions:      Admin is authenticated.
-8.  Post-conditions:     Appointment details audited; force-cancel override executed if needed.
-9.  Priority:            Medium (P2)
-10. Normal Flow:
-    Step 1: Admin navigates to `/admin/appointments`.
-    Step 2: Frontend calls HTTP GET `/api/v1/admin/appointments`.
-    Step 3: Backend returns system-wide appointments list with status filters.
-    Step 4: In case of dispute, Admin clicks "Hủy Bắt Buộc & Hoàn Tiền".
-    Step 5: Admin enters cancellation reason (min 10 characters).
-    Step 6: Frontend calls HTTP PATCH `/api/v1/admin/appointments/{id}/cancel` with reason.
-    Step 7: Backend invokes `AppointmentRefundService` and updates status to `CANCELLED`.
-    Step 8: Backend logs administrative override in `audit_logs`.
-    Step 9: Frontend updates appointment status badge.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-SEC: All overrides require mandatory explanation logged to audit trail.
-15. Data Entities Involved: `appointments`, `payment_transactions`, `audit_logs`.
-16. User Interface Controls: Supervision table, force-cancel button, reason dialog.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.4.10 SUPERVISE AI TRIAGE SESSIONS (UC-ADM-10)
-================================================================================
-1.  Use Case ID:         UC-ADM-10
-2.  Use Case Name:       Supervise AI Triage Sessions
-3.  Target System:       MediAssist-AI Supervision Subsystem
-4.  Primary Actor:       Admin
-5.  Stakeholders:        Admin, Medical Quality Committee
-6.  Trigger:             Admin navigates to `/admin/triage`.
-7.  Pre-conditions:      Admin is authenticated.
-8.  Post-conditions:     Anonymized triage session logs and SBAR summaries rendered.
-9.  Priority:            Low (P3)
-10. Normal Flow:
-    Step 1: Admin accesses `/admin/triage`.
-    Step 2: Frontend calls HTTP GET `/api/v1/admin/triage-sessions`.
-    Step 3: Backend queries `triage_sessions` table (Flyway V1, V15).
-    Step 4: Backend returns list of `AdminTriageSessionDto` (chiefComplaint, sbarSummary, urgencyLevel, recommendedSpecialty, redFlagsDetected, createdAt).
-    Step 5: Frontend renders triage supervision table showing urgency level breakdown and SBAR details.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules: None.
-14. Non-Functional Requirements:
-    - NFR-PERF: Query executed in < 60ms using index `idx_triage_urgency`.
-15. Data Entities Involved: `triage_sessions`.
-16. User Interface Controls: Triage session table, SBAR inspector modal, urgency filters.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.4.4 Sync Doctor Vector Embeddings (UC-ADM-04)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.4.11 VIEW SECURITY AUDIT LOGS (UC-ADM-11)
-================================================================================
-1.  Use Case ID:         UC-ADM-11
-2.  Use Case Name:       View Security Audit Logs & IDOR Records
-3.  Target System:       MediAssist-AI Audit Subsystem
-4.  Primary Actor:       Admin
-5.  Stakeholders:        Security Auditor, Data Privacy Officer
-6.  Trigger:             Admin accesses `/admin/audit-logs`.
-7.  Pre-conditions:      Admin is authenticated.
-8.  Post-conditions:     Immutable audit trail records rendered.
-9.  Priority:            High (P1 - Compliance)
-10. Normal Flow:
-    Step 1: Admin navigates to `/admin/audit-logs`.
-    Step 2: Frontend calls HTTP GET `/api/v1/admin/audit-logs`.
-    Step 3: Backend queries `audit_logs` table (Flyway V1) ordered by `created_at DESC`.
-    Step 4: Admin filters by action:
-            - `VIEW_PATIENT_RECORD` (Doctor patient record inspection under `PatientAccessGuard`).
-            - `USER_LOGIN`, `USER_LOGOUT`, `PASSWORD_RESET`.
-            - `ADMIN_LOCK_USER`, `ADMIN_TOGGLE_AI_MODE`, `FORCE_CANCEL_APPOINTMENT`.
-    Step 5: Backend returns list of `AuditLogDto` (action, entityType, entityId, userId, ipAddress, detailsJson, createdAt).
-    Step 6: Frontend renders audit table with expandable JSON details.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules:
-    - BR-34: Audit logs are append-only and strictly immutable. Deletions/updates blocked.
-14. Non-Functional Requirements:
-    - NFR-SEC: Audit records retained for minimum 3 years.
-15. Data Entities Involved: `audit_logs`.
-16. User Interface Controls: Audit data table, action filter dropdown, JSON inspector.
-17. Open Issues: None.
-================================================================================
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-04` |
+| **Use Case Name** | Sync Doctor Vector Embeddings |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Vector Subsystem — 1536-d vectors generated for all doctor profiles and HNSW index synced. |
+| **Trigger** | Admin clicks "Đồng Bộ Toàn Bộ Vector Bác Sĩ". |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | 1536-d vectors generated for all doctor profiles and HNSW index synced. |
+| **Normal Flow** | Step 1: Admin clicks "Sync Vectors" on `/admin/doctors`.<br>Step 2: Frontend calls HTTP POST `/api/v1/admin/doctors/sync-vectors` or `/api/v1/system/ai-mode/sync-vectors`.<br>Step 3: Backend iterates over `doctor_profiles`:<br>- Combines doctor bio, specialty name, and academic title into text string.<br>- Calls `EmbeddingService.generateEmbedding(text)` -> produces 1536-d vector.<br>- Updates `doctor_profiles.bio_embedding`.<br>Step 4: Backend commits updates in batch.<br>Step 5: Backend returns count of synchronized vectors.<br>Step 6: Frontend renders completion toast: "Đã đồng bộ vector thành công cho {count} bác sĩ." |
+| **Alternative Flow** | - Alt Flow 11a: Single Doctor Vector Sync:<br>1. Admin calls `POST /api/v1/admin/doctors/{id}/sync-vector` for a specific doctor. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `doctor_profiles`. |
+| **User Interface Controls** | "Sync All Vectors" button, single doctor sync icon. |
+
+
+##### 2.3.4.5 Vet & Approve Doctor CCHN License (UC-ADM-05)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-05` |
+| **Use Case Name** | Vet & Approve Doctor CCHN License |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Vetting Subsystem — Doctor verified (`is_verified = true`) and activated for public search. |
+| **Trigger** | Admin reviews pending doctor license applications. |
+| **Pre-conditions** | Doctor account exists with `is_verified = false`. |
+| **Post-conditions** | Doctor verified (`is_verified = true`) and activated for public search. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/pending`.<br>Step 3: Backend returns doctors with `is_verified = false`.<br>Step 4: Admin inspects CCHN license number, issuing authority, and specialty credentials.<br>Step 5: Admin clicks "Phê Duyệt" (Approve).<br>Step 6: Frontend calls HTTP POST `/api/v1/admin/doctors/{id}/vet` with `VetDoctorRequest(approved=true)`.<br>Step 7: Backend sets `doctor_profiles.is_verified = true`.<br>Step 8: Backend triggers vector embedding generation if missing.<br>Step 9: Backend sends approval email to doctor.<br>Step 10: Frontend removes doctor from pending queue. |
+| **Alternative Flow** | - Alt Flow 11a: Reject Application:<br>1. Admin calls vetting endpoint with `approved = false` and rejection reason.<br>2. Backend sends rejection email prompting re-submission. |
+| **Exceptions** | None. |
+| **Priority** | High (P0 - Legal Compliance) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-13: Unverified doctors are strictly excluded from public search and booking. |
+| **Data Entities Involved** | `doctor_profiles`, `audit_logs`. |
+| **User Interface Controls** | Pending doctors tab, "Phê Duyệt" button, "Từ Chối" button. |
+
+
+##### 2.3.4.6 Manage Doctor Directory (UC-ADM-06)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-06` |
+| **Use Case Name** | Manage Doctor Directory |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Admin Subsystem — Doctor record in `doctor_profiles` and `users` updated. |
+| **Trigger** | Admin creates, edits, or toggles status of a doctor. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Doctor record in `doctor_profiles` and `users` updated. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/paged?page=0&size=10`.<br>Step 3: Admin clicks "Tạo Bác Sĩ Mới" and inputs Name, Email, License Number, Specialty, Fee, Clinic Room.<br>Step 4: Frontend calls HTTP POST `/api/v1/admin/doctors` with `AdminCreateDoctorRequest`.<br>Step 5: Backend creates `User` (role=`DOCTOR`) and `DoctorProfile` within a transaction.<br>Step 6: Backend sends welcome email with temporary credentials.<br>Step 7: Admin can also toggle doctor status via `PATCH /api/v1/admin/doctors/{id}/toggle-status`. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Duplicate Email or License:<br>1. Backend throws `AppException(HttpStatus.CONFLICT, "EMAIL_EXISTS", ...)` or `"LICENSE_EXISTS"`. |
+| **Priority** | Medium (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `doctor_profiles`, `users`, `specialties`. |
+| **User Interface Controls** | Doctor table, Add/Edit modal, toggle status switch. |
+
+
+##### 2.3.4.7 User Access Control & Account Locking (UC-ADM-07)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-07` |
+| **Use Case Name** | User Access Control & Account Locking |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Admin Subsystem — `users.is_active` updated; user sessions invalidated. |
+| **Trigger** | Admin searches users on `/admin/users` and modifies account status. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | `users.is_active` updated; user sessions invalidated. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/users`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/users?query=...&page=0&size=20`.<br>Step 3: Admin inspects user details and clicks "Khóa Tài Khoản".<br>Step 4: Admin inputs mandatory lock reason (min 10 characters).<br>Step 5: Frontend calls HTTP PATCH `/api/v1/admin/users/{id}/status` with `UpdateUserStatusRequest(status, reason)`.<br>Step 6: Backend updates `users.is_active = false`.<br>Step 7: Backend logs `ADMIN_LOCK_USER` in `audit_logs`.<br>Step 8: Frontend updates user status badge to `Bị Khóa`. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Lock Reason Too Short:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_REASON", "Lý do khóa tài khoản bắt buộc tối thiểu 10 ký tự")`. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-32: Locking an account immediately terminates active web and mobile sessions. |
+| **Data Entities Involved** | `users`, `audit_logs`. |
+| **User Interface Controls** | User table, role filter, lock modal with reason textarea. |
+
+
+##### 2.3.4.8 Manage Clinical Specialties & Taxonomy (UC-ADM-08)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-08` |
+| **Use Case Name** | Manage Clinical Specialties & Taxonomy |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Clinical Subsystem — Specialty record created in `specialties` table. |
+| **Trigger** | Admin creates specialty on `/admin/specialties`. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Specialty record created in `specialties` table. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/specialties`.<br>Step 2: Admin clicks "Thêm Chuyên Khoa Mới".<br>Step 3: Admin enters Name (e.g., "Tim Mạch Can Thiệp"), Code (`CARDIO`), Description, and Icon Name.<br>Step 4: Frontend calls HTTP POST `/api/v1/admin/specialties` with `CreateSpecialtyRequest`.<br>Step 5: Backend verifies code uniqueness (`SPECIALTY_SLUG_EXISTS`).<br>Step 6: Backend saves record in `specialties`.<br>Step 7: Backend refreshes specialty cache in Redis.<br>Step 8: Frontend updates specialties list. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `specialties`. |
+| **User Interface Controls** | Specialty table, Add modal, icon picker. |
+
+
+##### 2.3.4.9 Supervise Appointments & Force Cancel (UC-ADM-09)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-09` |
+| **Use Case Name** | Supervise Appointments & Force Cancel |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Supervision Subsystem — Appointment details audited; force-cancel override executed if needed. |
+| **Trigger** | Admin inspects appointments on `/admin/appointments`. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Appointment details audited; force-cancel override executed if needed. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/appointments`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/appointments`.<br>Step 3: Backend returns system-wide appointments list with status filters.<br>Step 4: In case of dispute, Admin clicks "Hủy Bắt Buộc & Hoàn Tiền".<br>Step 5: Admin enters cancellation reason (min 10 characters).<br>Step 6: Frontend calls HTTP PATCH `/api/v1/admin/appointments/{id}/cancel` with reason.<br>Step 7: Backend invokes `AppointmentRefundService` and updates status to `CANCELLED`.<br>Step 8: Backend logs administrative override in `audit_logs`.<br>Step 9: Frontend updates appointment status badge. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `appointments`, `payment_transactions`, `audit_logs`. |
+| **User Interface Controls** | Supervision table, force-cancel button, reason dialog. |
+
+
+##### 2.3.4.10 Supervise AI Triage Sessions (UC-ADM-10)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-10` |
+| **Use Case Name** | Supervise AI Triage Sessions |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Supervision Subsystem — Anonymized triage session logs and SBAR summaries rendered. |
+| **Trigger** | Admin navigates to `/admin/triage`. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Anonymized triage session logs and SBAR summaries rendered. |
+| **Normal Flow** | Step 1: Admin accesses `/admin/triage`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/triage-sessions`.<br>Step 3: Backend queries `triage_sessions` table (Flyway V1, V15).<br>Step 4: Backend returns list of `AdminTriageSessionDto` (chiefComplaint, sbarSummary, urgencyLevel, recommendedSpecialty, redFlagsDetected, createdAt).<br>Step 5: Frontend renders triage supervision table showing urgency level breakdown and SBAR details. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Low (P3) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `triage_sessions`. |
+| **User Interface Controls** | Triage session table, SBAR inspector modal, urgency filters. |
+
+
+##### 2.3.4.11 View Security Audit Logs & IDOR Records (UC-ADM-11)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-11` |
+| **Use Case Name** | View Security Audit Logs & IDOR Records |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Audit Subsystem — Immutable audit trail records rendered. |
+| **Trigger** | Admin accesses `/admin/audit-logs`. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Immutable audit trail records rendered. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/audit-logs`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/audit-logs`.<br>Step 3: Backend queries `audit_logs` table (Flyway V1) ordered by `created_at DESC`.<br>Step 4: Admin filters by action:<br>- `VIEW_PATIENT_RECORD` (Doctor patient record inspection under `PatientAccessGuard`).<br>- `USER_LOGIN`, `USER_LOGOUT`, `PASSWORD_RESET`.<br>- `ADMIN_LOCK_USER`, `ADMIN_TOGGLE_AI_MODE`, `FORCE_CANCEL_APPOINTMENT`.<br>Step 5: Backend returns list of `AuditLogDto` (action, entityType, entityId, userId, ipAddress, detailsJson, createdAt).<br>Step 6: Frontend renders audit table with expandable JSON details. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P1 - Compliance) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-34: Audit logs are append-only and strictly immutable. Deletions/updates blocked. |
+| **Data Entities Involved** | `audit_logs`. |
+| **User Interface Controls** | Audit data table, action filter dropdown, JSON inspector. |
+
 
 
 ---

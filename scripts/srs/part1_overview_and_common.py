@@ -388,295 +388,149 @@ graph LR
 
 #### 2.3.1 Common Use Case Specifications
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.1.1 SIGN IN (UC-COMM-01)
-================================================================================
-1.  Use Case ID:         UC-COMM-01
-2.  Use Case Name:       Sign In
-3.  Target System:       MediAssist-AI Identity & Access Management (IAM)
-4.  Primary Actor:       Patient, Doctor, Admin, Guest
-5.  Stakeholders:        All users, Security Compliance Officer, Hospital IT
-6.  Trigger:             User clicks "Sign In" or submits authentication form.
-7.  Pre-conditions:
-    - User has network connection to MediAssist-AI.
-    - If signing in with email/password, account exists in `users` table.
-8.  Post-conditions:
-    - User session is established.
-    - Server issues dual-transport JWT: HttpOnly Secure Cookie + Response JSON Body.
-    - User redirected to role-based dashboard:
-      * `PATIENT` -> `/patient`
-      * `DOCTOR`  -> `/doctor`
-      * `ADMIN`   -> `/admin`
-9.  Priority:            High (P0 - Architectural Blocker)
-10. Normal Flow (Main Scenario):
-    Step 1: User navigates to `/login` and selects authentication mode (Password or Google OAuth2).
-    Step 2: User provides email and password or clicks "Sign in with Google".
-    Step 3: Frontend validates non-empty inputs and valid email format regex.
-    Step 4: Frontend sends HTTP POST request to `/api/v1/auth/login` with `LoginRequest` DTO.
-    Step 5: Backend `AuthenticationManager` verifies credentials against Bcrypt hash (cost 12) in `users`.
-    Step 6: Backend checks account status (`is_active == true` and `email_verified == true`).
-    Step 7: Backend generates signed JWT access token (24-hour expiration).
-    Step 8: Backend attaches `Set-Cookie: jwt_token=...; HttpOnly; Secure; SameSite=Lax; Path=/api`.
-    Step 9: Backend returns HTTP 200 OK with `AuthResponse` DTO containing token and user profile metadata.
-    Step 10: Client stores token in Zustand store (`useAuthStore`) and redirects user to target dashboard.
-11. Alternative Flows:
-    - Alt Flow 11a: Google OAuth2 Sign-In:
-      1. User clicks "Sign in with Google".
-      2. Browser navigates to `/login/oauth2/code/google` authorization endpoint.
-      3. Google returns authorization code; backend exchanges for Google ID and user email.
-      4. If user does not exist, backend auto-provisions account with role `PATIENT` (Flyway V8 `google_id`).
-      5. Backend redirects to frontend `/oauth2/callback` with JWT token.
-    - Alt Flow 11b: Unverified Email Login:
-      1. Backend detects `email_verified == false` (Flyway V22 gate).
-      2. Backend throws `AppException(HttpStatus.FORBIDDEN, "EMAIL_NOT_VERIFIED", ...)`.
-      3. Frontend displays verification notification with "Resend Verification Link" button.
-12. Exception Flows:
-    - Exc Flow 12a: Invalid Credentials (Wrong email or password):
-      1. Backend throws `AppException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", ...)`.
-      2. Backend returns HTTP 401 Unauthorized.
-      3. Frontend displays inline alert: "Email hoặc mật khẩu không chính xác."
-    - Exc Flow 12b: Account Locked:
-      1. Backend detects `is_active == false`.
-      2. Backend throws `AppException(HttpStatus.LOCKED, "ACCOUNT_LOCKED", ...)`.
-      3. Frontend displays modal directing user to contact administrative support.
-13. Business Rules:
-    - BR-01: Password complexity must be enforced (Min 8 chars, 1 uppercase, 1 digit, 1 special char).
-    - BR-02: Maximum 5 consecutive failed login attempts before 15-minute IP/account rate lock.
-    - BR-03: JWT secret key must have at least 256 bits entropy (`APP_JWT_SECRET`).
-14. Non-Functional Requirements:
-    - NFR-PERF: Authentication response latency < 350ms (including Bcrypt evaluation).
-    - NFR-SEC: Stateless tokens with dual-transport mechanism preventing XSS token harvesting.
-15. Data Entities Involved:
-    - `users` (id, email, password_hash, role, is_active, email_verified, google_id).
-    - `audit_logs` (id, user_id, action, ip_address, created_at).
-16. User Interface Controls:
-    - Text inputs: `Email`, `Password`.
-    - Checkbox: `Remember Me`.
-    - Action buttons: `Đăng Nhập`, `Đăng Nhập Với Google`, `Quên Mật Khẩu`.
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.1.1 Sign In (UC-COMM-01)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.1.2 SIGN OUT (UC-COMM-02)
-================================================================================
-1.  Use Case ID:         UC-COMM-02
-2.  Use Case Name:       Sign Out
-3.  Target System:       MediAssist-AI Identity & Access Management (IAM)
-4.  Primary Actor:       All authenticated users (Patient, Doctor, Admin)
-5.  Stakeholders:        All users, Security Compliance Officer
-6.  Trigger:             User clicks "Sign Out" / "Đăng Xuất" in top navbar or drawer.
-7.  Pre-conditions:      User is actively authenticated with a valid JWT token.
-8.  Post-conditions:
-    - Client in-memory auth state, user profile, and cached tokens are wiped.
-    - Server clears the HttpOnly `jwt_token` cookie via zero-max-age expiration header.
-    - User is redirected to `/login` with an informational sign-out toast.
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: User clicks "Đăng Xuất" from the user menu avatar dropdown.
-    Step 2: Frontend dispatches HTTP POST to `/api/v1/auth/logout`.
-    Step 3: Backend invalidates session cookies: `Set-Cookie: jwt_token=; Max-Age=0; Path=/; HttpOnly`.
-    Step 4: Backend logs audit entry: `USER_LOGOUT` for telemetry compliance.
-    Step 5: Backend returns HTTP 200 OK with `{"message": "Logged out successfully"}`.
-    Step 6: Frontend clears Zustand stores (`useAuthStore.getState().logout()`).
-    Step 7: Frontend purges all cached sensitive clinical records from browser memory.
-    Step 8: Frontend redirects browser to `/login`.
-11. Alternative Flows: None.
-12. Exception Flows: None.
-13. Business Rules:
-    - BR-04: Terminating the session must invalidate client access immediately.
-14. Non-Functional Requirements:
-    - NFR-SEC: Zero leftover credentials in `localStorage` or `sessionStorage`.
-15. Data Entities Involved:
-    - `audit_logs` (action = 'LOGOUT').
-16. User Interface Controls:
-    - Menu Item: `Đăng Xuất` with icon `LogOut`.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-01` |
+| **Use Case Name** | Sign In |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Doctor, Admin, Guest |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - User session is established.<br>- Server issues dual-transport JWT: HttpOnly Secure Cookie + Response JSON Body.<br>- User redirected to role-based dashboard:<br>* `PATIENT` -> `/patient`<br>* `DOCTOR`  -> `/doctor`<br>* `ADMIN`   -> `/admin` |
+| **Trigger** | User clicks "Sign In" or submits authentication form. |
+| **Pre-conditions** | - User has network connection to MediAssist-AI.<br>- If signing in with email/password, account exists in `users` table. |
+| **Post-conditions** | - User session is established.<br>- Server issues dual-transport JWT: HttpOnly Secure Cookie + Response JSON Body.<br>- User redirected to role-based dashboard:<br>* `PATIENT` -> `/patient`<br>* `DOCTOR`  -> `/doctor`<br>* `ADMIN`   -> `/admin` |
+| **Normal Flow** | Step 1: User navigates to `/login` and selects authentication mode (Password or Google OAuth2).<br>Step 2: User provides email and password or clicks "Sign in with Google".<br>Step 3: Frontend validates non-empty inputs and valid email format regex.<br>Step 4: Frontend sends HTTP POST request to `/api/v1/auth/login` with `LoginRequest` DTO.<br>Step 5: Backend `AuthenticationManager` verifies credentials against Bcrypt hash (cost 12) in `users`.<br>Step 6: Backend checks account status (`is_active == true` and `email_verified == true`).<br>Step 7: Backend generates signed JWT access token (24-hour expiration).<br>Step 8: Backend attaches `Set-Cookie: jwt_token=...; HttpOnly; Secure; SameSite=Lax; Path=/api`.<br>Step 9: Backend returns HTTP 200 OK with `AuthResponse` DTO containing token and user profile metadata.<br>Step 10: Client stores token in Zustand store (`useAuthStore`) and redirects user to target dashboard. |
+| **Alternative Flow** | - Alt Flow 11a: Google OAuth2 Sign-In:<br>1. User clicks "Sign in with Google".<br>2. Browser navigates to `/login/oauth2/code/google` authorization endpoint.<br>3. Google returns authorization code; backend exchanges for Google ID and user email.<br>4. If user does not exist, backend auto-provisions account with role `PATIENT` (Flyway V8 `google_id`).<br>5. Backend redirects to frontend `/oauth2/callback` with JWT token.<br>- Alt Flow 11b: Unverified Email Login:<br>1. Backend detects `email_verified == false` (Flyway V22 gate).<br>2. Backend throws `AppException(HttpStatus.FORBIDDEN, "EMAIL_NOT_VERIFIED", ...)`.<br>3. Frontend displays verification notification with "Resend Verification Link" button. |
+| **Exceptions** | - Exc Flow 12a: Invalid Credentials (Wrong email or password):<br>1. Backend throws `AppException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", ...)`.<br>2. Backend returns HTTP 401 Unauthorized.<br>3. Frontend displays inline alert: "Email hoặc mật khẩu không chính xác."<br>- Exc Flow 12b: Account Locked:<br>1. Backend detects `is_active == false`.<br>2. Backend throws `AppException(HttpStatus.LOCKED, "ACCOUNT_LOCKED", ...)`.<br>3. Frontend displays modal directing user to contact administrative support. |
+| **Priority** | High (P0 - Architectural Blocker) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-01: Password complexity must be enforced (Min 8 chars, 1 uppercase, 1 digit, 1 special char).<br>- BR-02: Maximum 5 consecutive failed login attempts before 15-minute IP/account rate lock.<br>- BR-03: JWT secret key must have at least 256 bits entropy (`APP_JWT_SECRET`). |
+| **Data Entities Involved** | - `users` (id, email, password_hash, role, is_active, email_verified, google_id).<br>- `audit_logs` (id, user_id, action, ip_address, created_at). |
+| **User Interface Controls** | - Text inputs: `Email`, `Password`.<br>- Checkbox: `Remember Me`.<br>- Action buttons: `Đăng Nhập`, `Đăng Nhập Với Google`, `Quên Mật Khẩu`. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.1.3 CHANGE PASSWORD (UC-COMM-03)
-================================================================================
-1.  Use Case ID:         UC-COMM-03
-2.  Use Case Name:       Change Password
-3.  Target System:       MediAssist-AI Identity & Access Management (IAM)
-4.  Primary Actor:       Patient, Doctor, Admin
-5.  Stakeholders:        Account Owners, Security Auditor
-6.  Trigger:             User submits password update form in settings.
-7.  Pre-conditions:      User is authenticated and knows their current password.
-8.  Post-conditions:
-    - Old password hash in database is replaced with new Bcrypt hash.
-    - Security confirmation notification is dispatched.
-9.  Priority:            Medium (P2)
-10. Normal Flow:
-    Step 1: User navigates to security settings and inputs Current and New Password.
-    Step 2: Client validates matching passwords and complexity regex in real time.
-    Step 3: Frontend sends HTTP POST to `/api/v1/auth/reset-password` with `ResetPasswordRequest`.
-    Step 4: Backend verifies password complexity.
-    Step 5: Backend encodes new password with `BCryptPasswordEncoder(12)`.
-    Step 6: Backend commits update to `users.password_hash` within `@Transactional`.
-    Step 7: Backend publishes `PasswordChangedEvent` -> triggers async security notice email.
-    Step 8: Backend returns HTTP 200 OK.
-    Step 9: Frontend displays success toast: "Mật khẩu đã được cập nhật thành công."
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Weak New Password:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "WEAK_PASSWORD", ...)`.
-      2. Frontend displays: "Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và chữ số."
-13. Business Rules:
-    - BR-01: Minimum 8 characters, at least 1 uppercase letter, 1 number, and 1 special symbol.
-    - BR-05: New password cannot be identical to the previous password.
-14. Non-Functional Requirements:
-    - NFR-SEC: Bcrypt cost factor 12 (approx. 250ms hashing calculation).
-15. Data Entities Involved:
-    - `users` (password_hash, updated_at).
-16. User Interface Controls:
-    - Password inputs: `Mật khẩu mới`, `Xác nhận mật khẩu mới`.
-17. Open Issues: None.
-================================================================================
-```
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.1.4 VIEW & UPDATE PATIENT PROFILE (UC-COMM-04)
-================================================================================
-1.  Use Case ID:         UC-COMM-04
-2.  Use Case Name:       View & Update Patient Profile
-3.  Target System:       MediAssist-AI Patient Profile Subsystem
-4.  Primary Actor:       Patient
-5.  Stakeholders:        Patient, Attending Physician
-6.  Trigger:             Patient navigates to profile view or updates clinical demographics.
-7.  Pre-conditions:      User is authenticated as `PATIENT`.
-8.  Post-conditions:     Patient entity in `patient_profiles` is retrieved or updated.
-9.  Priority:            Medium (P2)
-10. Normal Flow:
-    Step 1: Patient accesses profile modal/page.
-    Step 2: Frontend calls HTTP GET `/api/v1/patient/profile`.
-    Step 3: Backend retrieves `PatientProfile` linked to `user_id`.
-    Step 4: Backend returns `PatientProfileDto` (date of birth, gender, blood type, allergies, emergency contact, remaining AI quota).
-    Step 5: Patient updates Blood Type, Allergies, or Emergency Contact Phone.
-    Step 6: Frontend dispatches HTTP PUT `/api/v1/patient/profile` with updated DTO.
-    Step 7: Backend validates phone format and citizen ID regex if present.
-    Step 8: Backend commits update to `patient_profiles` table.
-    Step 9: Backend returns HTTP 200 OK with refreshed profile.
-    Step 10: Frontend renders toast: "Hồ sơ sức khỏe đã được cập nhật."
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Invalid Phone Format:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_PHONE", ...)`.
-      2. Frontend displays: "Số điện thoại không đúng định dạng Việt Nam (VD: 0901234567)."
-13. Business Rules:
-    - BR-06: Vietnamese phone numbers must match regex `^(0|\\+84)(3|5|7|8|9)[0-9]{8}$`.
-14. Non-Functional Requirements:
-    - NFR-PERF: Profile read/write latency < 150ms.
-15. Data Entities Involved:
-    - `users`, `patient_profiles` (id, user_id, date_of_birth, gender, blood_type, allergies, emergency_contact, remaining_ai_quota).
-16. User Interface Controls:
-    - Text inputs (`Họ và tên`, `Số điện thoại`, `Người liên hệ khẩn cấp`), select (`Nhóm máu`, `Giới tính`), textarea (`Dị ứng thuốc`).
-17. Open Issues: None.
-================================================================================
-```
+##### 2.3.1.2 Sign Out (UC-COMM-02)
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.1.5 FORGOT PASSWORD & TOKEN HASH RESET (UC-COMM-05)
-================================================================================
-1.  Use Case ID:         UC-COMM-05
-2.  Use Case Name:       Forgot Password & Token Hash Reset
-3.  Target System:       MediAssist-AI Identity & Access Management (IAM)
-4.  Primary Actor:       Unauthenticated User (Patient, Doctor, Admin)
-5.  Stakeholders:        Registered Users, Security Architect
-6.  Trigger:             User clicks "Quên mật khẩu?" on login page.
-7.  Pre-conditions:      User account exists with a verified email address.
-8.  Post-conditions:
-    - Single-use SHA-256 hashed password reset token is generated with 15-minute TTL.
-    - Password reset email containing secure redemption link is dispatched asynchronously.
-    - Upon token redemption, user's password is reset and token marked as consumed.
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: User navigates to `/forgot-password`, inputs registered email, and clicks "Gửi Yêu Cầu".
-    Step 2: Frontend sends HTTP POST to `/api/v1/auth/forgot-password` with `ForgotPasswordRequest(email)`.
-    Step 3: Backend searches `userRepository.findByEmail(email)`.
-            (Security note: If email not found, backend still returns 200 OK to prevent account enumeration).
-    Step 4: Backend generates 32-byte cryptographically secure random token (`SecureRandom`).
-    Step 5: Backend computes SHA-256 hash of raw token (`DigestUtils.sha256Hex(rawToken)`).
-    Step 6: Backend stores hash, user ID, expiration timestamp (`now() + 15 minutes`), and `consumed = false`
-            in `password_reset_tokens` table (Flyway V21 migration).
-    Step 7: Backend asynchronously invokes `EmailService.sendPasswordResetMail(email, rawToken)`.
-    Step 8: User opens email, clicks reset link: `https://mediassist.local/reset-password?token={rawToken}`.
-    Step 9: Frontend calls HTTP GET `/api/v1/auth/reset-password/validate?token={rawToken}` to verify validity.
-    Step 10: User enters new password and confirms password on the reset page.
-    Step 11: Frontend sends HTTP POST to `/api/v1/auth/reset-password` with `rawToken` and `newPassword`.
-    Step 12: Backend hashes `rawToken` with SHA-256 and searches `password_reset_tokens.token_hash`.
-    Step 13: Backend verifies token is not expired (`expires_at > now()`) and not consumed (`consumed == false`).
-    Step 14: Backend updates user's `password_hash` with Bcrypt(cost 12) and marks `consumed = true`.
-    Step 15: Backend returns HTTP 200 OK. Frontend redirects to `/login` with success banner.
-11. Alternative Flows: None.
-12. Exception Flows:
-    - Exc Flow 12a: Expired or Already Consumed Token:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", ...)`.
-      2. Backend returns HTTP 400 Bad Request.
-      3. Frontend displays: "Đường dẫn đặt lại mật khẩu đã hết hạn hoặc đã được sử dụng. Vui lòng thử lại."
-13. Business Rules:
-    - BR-07: Plaintext reset tokens must NEVER be stored in the database. Only SHA-256 hashes are persisted (Flyway V21).
-    - BR-08: Token lifespan is strictly limited to 15 minutes.
-14. Non-Functional Requirements:
-    - NFR-SEC: Zero account enumeration via constant-time responses.
-15. Data Entities Involved:
-    - `users`, `password_reset_tokens` (id, user_id, token_hash, expires_at, consumed, consumed_at).
-16. User Interface Controls:
-    - Input: `Email`, `Mật khẩu mới`, `Nhập lại mật khẩu`.
-    - Button: `Gửi Link Đặt Lại`, `Xác Nhận Mật Khẩu Mới`.
-17. Open Issues: None.
-================================================================================
-```
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-02` |
+| **Use Case Name** | Sign Out |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | All authenticated users (Patient, Doctor, Admin) |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - Client in-memory auth state, user profile, and cached tokens are wiped.<br>- Server clears the HttpOnly `jwt_token` cookie via zero-max-age expiration header.<br>- User is redirected to `/login` with an informational sign-out toast. |
+| **Trigger** | User clicks "Sign Out" / "Đăng Xuất" in top navbar or drawer. |
+| **Pre-conditions** | User is actively authenticated with a valid JWT token. |
+| **Post-conditions** | - Client in-memory auth state, user profile, and cached tokens are wiped.<br>- Server clears the HttpOnly `jwt_token` cookie via zero-max-age expiration header.<br>- User is redirected to `/login` with an informational sign-out toast. |
+| **Normal Flow** | Step 1: User clicks "Đăng Xuất" from the user menu avatar dropdown.<br>Step 2: Frontend dispatches HTTP POST to `/api/v1/auth/logout`.<br>Step 3: Backend invalidates session cookies: `Set-Cookie: jwt_token=; Max-Age=0; Path=/; HttpOnly`.<br>Step 4: Backend logs audit entry: `USER_LOGOUT` for telemetry compliance.<br>Step 5: Backend returns HTTP 200 OK with `{"message": "Logged out successfully"}`.<br>Step 6: Frontend clears Zustand stores (`useAuthStore.getState().logout()`).<br>Step 7: Frontend purges all cached sensitive clinical records from browser memory.<br>Step 8: Frontend redirects browser to `/login`. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-04: Terminating the session must invalidate client access immediately. |
+| **Data Entities Involved** | - `audit_logs` (action = 'LOGOUT'). |
+| **User Interface Controls** | - Menu Item: `Đăng Xuất` with icon `LogOut`. |
 
-```
-================================================================================
-USE CASE SPECIFICATION: 2.3.1.6 EMAIL VERIFICATION GATE (UC-COMM-06)
-================================================================================
-1.  Use Case ID:         UC-COMM-06
-2.  Use Case Name:       Email Verification Gate
-3.  Target System:       MediAssist-AI Identity & Access Management (IAM)
-4.  Primary Actor:       Newly registered user
-5.  Stakeholders:        All Users, System Compliance Officer
-6.  Trigger:             User clicks the activation link received upon account registration.
-7.  Pre-conditions:      Account created with `email_verified = false` (Flyway V22).
-8.  Post-conditions:
-    - User account marked `email_verified = true`.
-    - User is permitted to access full clinical features (booking, triage, consultation).
-9.  Priority:            High (P1)
-10. Normal Flow:
-    Step 1: Upon registration, backend generates verification token stored in `email_verification_tokens`.
-    Step 2: Backend dispatches HTML email containing activation link: `/verify-email?token={token}`.
-    Step 3: User clicks activation link in email client navigating to `/verify-email`.
-    Step 4: Frontend calls HTTP POST `/api/v1/auth/verify-email` with `VerifyEmailRequest(token)`.
-    Step 5: Backend verifies token validity, matches user, updates `users.email_verified = true`.
-    Step 6: Backend deletes consumed verification token.
-    Step 7: Backend returns HTTP 200 OK with `TokenValidationResponse`.
-    Step 8: Frontend renders success celebration screen with button to proceed to login.
-11. Alternative Flows:
-    - Alt Flow 11a: Resend Verification Email:
-      1. User calls HTTP POST `/api/v1/auth/resend-verification`.
-      2. Backend enforces rate limiting (`RATE_LIMIT_EXCEEDED`), generates fresh token, and sends new email.
-12. Exception Flows:
-    - Exc Flow 12a: Invalid or Expired Token:
-      1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", "Liên kết xác thực email đã hết hạn.")`.
-      2. Frontend displays error message with option to request a fresh verification link.
-13. Business Rules:
-    - BR-09: Unverified accounts cannot book clinical appointments or access medical records (`EmailVerificationGuard`).
-14. Non-Functional Requirements:
-    - NFR-SEC: Verification token must be cryptographically unpredictable.
-15. Data Entities Involved:
-    - `users` (email_verified), `email_verification_tokens` (id, user_id, token, expires_at).
-16. User Interface Controls:
-    - Activation banner, button `Kích Hoạt Tài Khoản`, `Gửi Lại Email`.
-17. Open Issues: None.
-================================================================================
+
+##### 2.3.1.3 Change Password (UC-COMM-03)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-03` |
+| **Use Case Name** | Change Password |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Doctor, Admin |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - Old password hash in database is replaced with new Bcrypt hash.<br>- Security confirmation notification is dispatched. |
+| **Trigger** | User submits password update form in settings. |
+| **Pre-conditions** | User is authenticated and knows their current password. |
+| **Post-conditions** | - Old password hash in database is replaced with new Bcrypt hash.<br>- Security confirmation notification is dispatched. |
+| **Normal Flow** | Step 1: User navigates to security settings and inputs Current and New Password.<br>Step 2: Client validates matching passwords and complexity regex in real time.<br>Step 3: Frontend sends HTTP POST to `/api/v1/auth/reset-password` with `ResetPasswordRequest`.<br>Step 4: Backend verifies password complexity.<br>Step 5: Backend encodes new password with `BCryptPasswordEncoder(12)`.<br>Step 6: Backend commits update to `users.password_hash` within `@Transactional`.<br>Step 7: Backend publishes `PasswordChangedEvent` -> triggers async security notice email.<br>Step 8: Backend returns HTTP 200 OK.<br>Step 9: Frontend displays success toast: "Mật khẩu đã được cập nhật thành công." |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Weak New Password:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "WEAK_PASSWORD", ...)`.<br>2. Frontend displays: "Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và chữ số." |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-01: Minimum 8 characters, at least 1 uppercase letter, 1 number, and 1 special symbol.<br>- BR-05: New password cannot be identical to the previous password. |
+| **Data Entities Involved** | - `users` (password_hash, updated_at). |
+| **User Interface Controls** | - Password inputs: `Mật khẩu mới`, `Xác nhận mật khẩu mới`. |
+
+
+##### 2.3.1.4 View & Update Patient Profile (UC-COMM-04)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-04` |
+| **Use Case Name** | View & Update Patient Profile |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Patient Profile Subsystem — Patient entity in `patient_profiles` is retrieved or updated. |
+| **Trigger** | Patient navigates to profile view or updates clinical demographics. |
+| **Pre-conditions** | User is authenticated as `PATIENT`. |
+| **Post-conditions** | Patient entity in `patient_profiles` is retrieved or updated. |
+| **Normal Flow** | Step 1: Patient accesses profile modal/page.<br>Step 2: Frontend calls HTTP GET `/api/v1/patient/profile`.<br>Step 3: Backend retrieves `PatientProfile` linked to `user_id`.<br>Step 4: Backend returns `PatientProfileDto` (date of birth, gender, blood type, allergies, emergency contact, remaining AI quota).<br>Step 5: Patient updates Blood Type, Allergies, or Emergency Contact Phone.<br>Step 6: Frontend dispatches HTTP PUT `/api/v1/patient/profile` with updated DTO.<br>Step 7: Backend validates phone format and citizen ID regex if present.<br>Step 8: Backend commits update to `patient_profiles` table.<br>Step 9: Backend returns HTTP 200 OK with refreshed profile.<br>Step 10: Frontend renders toast: "Hồ sơ sức khỏe đã được cập nhật." |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Invalid Phone Format:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_PHONE", ...)`.<br>2. Frontend displays: "Số điện thoại không đúng định dạng Việt Nam (VD: 0901234567)." |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-06: Vietnamese phone numbers must match regex `^(0\|\\+84)(3\|5\|7\|8\|9)[0-9]{8}$`. |
+| **Data Entities Involved** | - `users`, `patient_profiles` (id, user_id, date_of_birth, gender, blood_type, allergies, emergency_contact, remaining_ai_quota). |
+| **User Interface Controls** | - Text inputs (`Họ và tên`, `Số điện thoại`, `Người liên hệ khẩn cấp`), select (`Nhóm máu`, `Giới tính`), textarea (`Dị ứng thuốc`). |
+
+
+##### 2.3.1.5 Forgot Password & Token Hash Reset (UC-COMM-05)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-05` |
+| **Use Case Name** | Forgot Password & Token Hash Reset |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Unauthenticated User (Patient, Doctor, Admin) |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - Single-use SHA-256 hashed password reset token is generated with 15-minute TTL.<br>- Password reset email containing secure redemption link is dispatched asynchronously.<br>- Upon token redemption, user's password is reset and token marked as consumed. |
+| **Trigger** | User clicks "Quên mật khẩu?" on login page. |
+| **Pre-conditions** | User account exists with a verified email address. |
+| **Post-conditions** | - Single-use SHA-256 hashed password reset token is generated with 15-minute TTL.<br>- Password reset email containing secure redemption link is dispatched asynchronously.<br>- Upon token redemption, user's password is reset and token marked as consumed. |
+| **Normal Flow** | Step 1: User navigates to `/forgot-password`, inputs registered email, and clicks "Gửi Yêu Cầu".<br>Step 2: Frontend sends HTTP POST to `/api/v1/auth/forgot-password` with `ForgotPasswordRequest(email)`.<br>Step 3: Backend searches `userRepository.findByEmail(email)`.<br>(Security note: If email not found, backend still returns 200 OK to prevent account enumeration).<br>Step 4: Backend generates 32-byte cryptographically secure random token (`SecureRandom`).<br>Step 5: Backend computes SHA-256 hash of raw token (`DigestUtils.sha256Hex(rawToken)`).<br>Step 6: Backend stores hash, user ID, expiration timestamp (`now() + 15 minutes`), and `consumed = false`<br>in `password_reset_tokens` table (Flyway V21 migration).<br>Step 7: Backend asynchronously invokes `EmailService.sendPasswordResetMail(email, rawToken)`.<br>Step 8: User opens email, clicks reset link: `https://mediassist.local/reset-password?token={rawToken}`.<br>Step 9: Frontend calls HTTP GET `/api/v1/auth/reset-password/validate?token={rawToken}` to verify validity.<br>Step 10: User enters new password and confirms password on the reset page.<br>Step 11: Frontend sends HTTP POST to `/api/v1/auth/reset-password` with `rawToken` and `newPassword`.<br>Step 12: Backend hashes `rawToken` with SHA-256 and searches `password_reset_tokens.token_hash`.<br>Step 13: Backend verifies token is not expired (`expires_at > now()`) and not consumed (`consumed == false`).<br>Step 14: Backend updates user's `password_hash` with Bcrypt(cost 12) and marks `consumed = true`.<br>Step 15: Backend returns HTTP 200 OK. Frontend redirects to `/login` with success banner. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Expired or Already Consumed Token:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", ...)`.<br>2. Backend returns HTTP 400 Bad Request.<br>3. Frontend displays: "Đường dẫn đặt lại mật khẩu đã hết hạn hoặc đã được sử dụng. Vui lòng thử lại." |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-07: Plaintext reset tokens must NEVER be stored in the database. Only SHA-256 hashes are persisted (Flyway V21).<br>- BR-08: Token lifespan is strictly limited to 15 minutes. |
+| **Data Entities Involved** | - `users`, `password_reset_tokens` (id, user_id, token_hash, expires_at, consumed, consumed_at). |
+| **User Interface Controls** | - Input: `Email`, `Mật khẩu mới`, `Nhập lại mật khẩu`.<br>- Button: `Gửi Link Đặt Lại`, `Xác Nhận Mật Khẩu Mới`. |
+
+
+##### 2.3.1.6 Email Verification Gate (UC-COMM-06)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-06` |
+| **Use Case Name** | Email Verification Gate |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Newly registered user |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - User account marked `email_verified = true`.<br>- User is permitted to access full clinical features (booking, triage, consultation). |
+| **Trigger** | User clicks the activation link received upon account registration. |
+| **Pre-conditions** | Account created with `email_verified = false` (Flyway V22). |
+| **Post-conditions** | - User account marked `email_verified = true`.<br>- User is permitted to access full clinical features (booking, triage, consultation). |
+| **Normal Flow** | Step 1: Upon registration, backend generates verification token stored in `email_verification_tokens`.<br>Step 2: Backend dispatches HTML email containing activation link: `/verify-email?token={token}`.<br>Step 3: User clicks activation link in email client navigating to `/verify-email`.<br>Step 4: Frontend calls HTTP POST `/api/v1/auth/verify-email` with `VerifyEmailRequest(token)`.<br>Step 5: Backend verifies token validity, matches user, updates `users.email_verified = true`.<br>Step 6: Backend deletes consumed verification token.<br>Step 7: Backend returns HTTP 200 OK with `TokenValidationResponse`.<br>Step 8: Frontend renders success celebration screen with button to proceed to login. |
+| **Alternative Flow** | - Alt Flow 11a: Resend Verification Email:<br>1. User calls HTTP POST `/api/v1/auth/resend-verification`.<br>2. Backend enforces rate limiting (`RATE_LIMIT_EXCEEDED`), generates fresh token, and sends new email. |
+| **Exceptions** | - Exc Flow 12a: Invalid or Expired Token:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", "Liên kết xác thực email đã hết hạn.")`.<br>2. Frontend displays error message with option to request a fresh verification link. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-09: Unverified accounts cannot book clinical appointments or access medical records (`EmailVerificationGuard`). |
+| **Data Entities Involved** | - `users` (email_verified), `email_verification_tokens` (id, user_id, token, expires_at). |
+| **User Interface Controls** | - Activation banner, button `Kích Hoạt Tài Khoản`, `Gửi Lại Email`. |
+
 """
 
 if __name__ == "__main__":
