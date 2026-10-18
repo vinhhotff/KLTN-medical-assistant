@@ -15,20 +15,30 @@ MediAssist-AI phục vụ hệ sinh thái khám chữa bệnh từ xa (Telehealt
 
 ```mermaid
 erDiagram
-    USERS ||--o| DOCTORS : "mở rộng vai trò"
-    USERS ||--o{ APPOINTMENTS : "đặt lịch (vai trò Patient)"
-    USERS ||--o{ SYMPTOM_TRIAGE_SESSIONS : "thực hiện triage"
-    USERS ||--o{ AUDIT_LOGS : "ghi nhận hành vi"
-    
-    SPECIALTIES ||--o{ DOCTOR_SPECIALTIES : "phân loại"
-    DOCTORS ||--o{ DOCTOR_SPECIALTIES : "sở hữu"
-    DOCTORS ||--o{ APPOINTMENTS : "tiếp nhận khám"
-    
-    SYMPTOM_TRIAGE_SESSIONS ||--o{ MEDICAL_DOCUMENTS : "đính kèm hồ sơ"
-    MEDICAL_DOCUMENTS ||--|| DOCUMENT_ANALYSES : "kết quả phân tích AI"
-    
-    APPOINTMENTS ||--o| SYMPTOM_TRIAGE_SESSIONS : "liên kết phiên triage"
-    USERS ||--o{ AI_TOKEN_USAGE : "tiêu thụ tài nguyên"
+    users ||--o| doctor_profiles : "has profile"
+    users ||--o| patient_profiles : "has profile"
+    users ||--o{ medical_documents : "owns"
+    users ||--o{ appointments : "as patient"
+    users ||--o{ appointments : "as doctor"
+    users ||--o{ triage_sessions : "creates"
+    users ||--o{ payment_transactions : "initiates"
+    users ||--o{ password_reset_tokens : "requests"
+    users ||--o{ email_verification_tokens : "receives"
+    users ||--o{ notifications : "receives"
+    users ||--o{ audit_logs : "triggers"
+
+    doctor_profiles }|--|| specialties : "primary specialty"
+    doctor_profiles ||--o{ doctor_specialties : "sub-specialties"
+    doctor_specialties }|--|| specialties : "references"
+    doctor_profiles ||--o{ doctor_schedule_slots : "schedules"
+    doctor_profiles ||--o{ doctor_reviews : "receives"
+
+    appointments ||--o| payment_transactions : "settled by"
+    appointments }o--o| medical_documents : "attaches"
+    appointments }o--o| triage_sessions : "originates from"
+    appointments ||--o| doctor_reviews : "rated by"
+
+    medical_documents ||--o| document_analyses : "analyzed into"
 ```
 
 ---
@@ -128,10 +138,6 @@ CREATE TABLE specialties (
 CREATE INDEX idx_specialties_code ON specialties(code);
 ```
 
-#### Bảng `doctors`
-Hồ sơ chứng chỉ hành nghề, học vị và vector biểu diễn chuyên môn lâm sàng.
-
-```sql
 #### Bảng `doctor_profiles`
 Hồ sơ chứng chỉ hành nghề, học vị và vector biểu diễn chuyên môn lâm sàng thực tế (`doctor_profiles`).
 
@@ -483,6 +489,9 @@ spring.flyway.table=flyway_schema_history
 | **18** | `17` | `V17__create_doctor_reviews_and_rating_system.sql` | SQL | Thiết lập hệ thống Đánh giá & Chấm sao Bác sĩ: Bảng `doctor_reviews` liên kết ca khám `COMPLETED`, cột `review_count` trong `doctor_profiles`, tự động tái tính điểm và cập nhật WHRF ranking. | **SUCCESS** |
 | **19** | `18` | `V18__align_ai_token_usage_schema.sql` | SQL | Đồng bộ hóa bảng `ai_token_usage` với FinOps Analytics: Thêm `service_type`, `request_status`, `cost_usd`, `appointment_id`, và các chỉ mục phân tích hiệu năng cao. | **SUCCESS** |
 | **20** | `19` | `V19__optimize_clinical_pgvector_hnsw_and_hybrid_gin.sql` | SQL | Nâng cấp toàn diện hạ tầng Vector Search y tế không sai sót: Tái cấu trúc đồ thị HNSW với tham số cao cấp `WITH (m = 24, ef_construction = 128)` nâng độ phủ Recall lên 99.8%, bổ sung GIN Full-Text Index trên `doctor_profiles` và `specialties` hỗ trợ RRF Hybrid Search, và GIN Trigram index trên `users.full_name`. | **SUCCESS** |
+| **21** | `20` | `V20__private_document_storage_path.sql` | SQL | Chuẩn hóa bảo mật lưu trữ tài liệu y tế: Chuyển đổi `medical_documents.storage_url` thành `storage_path` (chỉ lưu internal object key), khóa bucket private và chỉ phát hành URL xem tệp có chữ ký HMAC hết hạn sau 15 phút. | **SUCCESS** |
+| **22** | `21` | `V21__password_reset_token_hash.sql` | SQL | Tăng cường an ninh xác thực mật khẩu (BE-5): Chuyển đổi cột `token` thành `token_hash` (VARCHAR(64)), thanh lọc toàn bộ token dạng plaintext và chỉ lưu trữ mã băm SHA-256 đơn dụng có hạn 15 phút. | **SUCCESS** |
+| **23** | `22` | `V22__email_verification.sql` | SQL | Thiết lập cổng xác thực email bắt buộc (Email Verification Gate): Chuẩn hóa cột `email_verified`, backfill `TRUE` cho tài khoản hiện hữu, và tạo bảng `email_verification_tokens` kích hoạt tài khoản. | **SUCCESS** |
 
 ### 6.3. Chi Tiết Tập Dữ Liệu Bệnh Viện Mẫu (Enterprise Hospital Seed Data)
 1. **12 Chuyên Khoa Toàn Diện:** Tim mạch, Thần kinh, Tiêu hóa - Gan mật, Da liễu, Nhi khoa, Nội tổng quát, Hô hấp & Phổi, Cơ Xương Khớp, Thận & Tiết niệu, Sản Phụ Khoa, Nội tiết & Đái tháo đường, Tai Mũi Họng.
