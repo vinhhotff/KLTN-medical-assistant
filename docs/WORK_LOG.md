@@ -5645,6 +5645,30 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
 4. **Report 4 (`docs/SDD_MediAssist_AI.md`):** Thiết kế Phần mềm chuẩn IEEE 1016, 88 Biểu đồ Mermaid (1 Architecture, 2 Packages, 1 ERD, 28 Class, 56 Sequence), 17 Bảng CSDL với đầy đủ bảng Cột, Chỉ mục vật lý (HNSW, GIN, composite) và Ràng buộc Khóa ngoại, 28 quy trình nghiệp vụ bóc tách 4 tầng chi tiết.
 5. **Report 5 (`docs/TEST_REPORT_MediAssist_AI.md`):** Báo cáo Kiểm thử Phần mềm chuẩn IEEE 829 / ISO 29119, 306/306 bài test tự động trên 37 lớp kiểm thử, Thử nghiệm tải cao k6 (500 VUs, 0% lỗi), Benchmark đồ thị HNSW trên 150.000 ca bệnh Meddies (0.72ms), Ma trận kiểm thử thâm nhập an ninh BOLA/IDOR và Nhật ký xử lý lỗi BE-1 đến BE-16.
 
+### [WORK-LOG-#107] Tích Hợp Bộ Công Cụ Xuất Báo Cáo Học Thuật Đa Định Dạng (Standalone HTML, Word .docx, PDF In Ấn Luận Văn)
+* **Thời gian:** 2026-10-18 13:15:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Xây dựng công cụ tự động hóa `scripts/export_to_academic_doc.py` và cẩm nang `docs/HUONG_DAN_XUAT_FILE_DOC_VA_PDF.md`, giải quyết bài toán xuất các tài liệu Markdown đồ án sang tài liệu chính thức: Microsoft Word (`.docx`) và Adobe PDF in ấn chuẩn A4 kèm rendering tự động cho toàn bộ 88 biểu đồ Mermaid và công thức toán LaTeX MathJax.
+* **Trạng thái Build:**
+  - Backend: **`306 / 306` Tests PASS 100%** (`mvn test` 0 failure, 0 error).
+  - Frontend: **`npm run build` PASS 100%** (2307 modules, 0 lỗi TypeScript, 2.68s).
+  - Tài liệu đã xuất tại `docs/export/`: 7 tệp HTML học thuật độc lập sẵn sàng in ấn PDF hoặc mở trong Word / Google Docs.
+
+#### 1. Các Tệp Tài Liệu Đã Được Biên Dịch Sẵn Sàng (docs/export/):
+1. `Report1_Project_Charter_and_Plan.html` (41.0 KB)
+2. `Report2_Requirements_Analysis_and_Domain_Model.html` (37.8 KB)
+3. `Report3_Software_Requirement_Specification.html` (216.2 KB)
+4. `Report4_Software_Design_Document.html` (311.2 KB)
+5. `Report5_Software_Test_Report.html` (51.6 KB)
+6. `Capstone_Presentation_Slides.html` (57.6 KB)
+7. `Capstone_Defense_QnA_Top25.html` (81.4 KB)
+
+#### 2. Tính Năng Công Cụ Xuất Tài Liệu Học Thuật:
+- Tích hợp Marked.js, Mermaid.js v10 CDN, và MathJax v3 CDN: Tự động vẽ đồ thị vector sắc nét và render công thức toán học.
+- Thanh công cụ nổi với nút bấm "🖨️ In ra PDF / Lưu PDF (Cmd+P)" hỗ trợ in A4 không vỡ trang.
+- Tương thích 100% với Microsoft Word (chọn Open file HTML -> Save As `.docx`) và Google Docs.
+
+
 
 
 
