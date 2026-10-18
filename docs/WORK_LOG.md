@@ -5469,6 +5469,47 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
 4. **`[MOD]` `docs/CAPSTONE_PRESENTATION_SLIDES.md`:**
    - Cập nhật Slide 21 (Huy hiệu chất lượng & Lời thoại thuyết trình) lên **185/185 Backend Tests PASS 100%** và 2.293 modules frontend build sạch.
 
+---
+
+### [WORK-LOG-#102] Mở Rộng Toàn Diện Tài Liệu SRS IEEE 830 Chuẩn Báo Cáo KLTN 108 Trang (FPT Capstone Report 3)
+* **Thời gian:** 2026-10-18 09:15:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Tái cấu trúc và mở rộng toàn diện tệp `docs/SRS_MediAssist_AI.md` (từ 747 dòng lên 3.396 dòng, 228.367 ký tự) ánh xạ 1-1 với cấu trúc Báo cáo Capstone Report 3 (108 trang) của Đại học FPT theo chuẩn IEEE 830-1998 / ISO 29148.
+* **Trạng thái Build:**
+  - Backend: **`306 / 306` Tests PASS 100%** (`mvn test` 0 failure, 0 error).
+  - Frontend: **`npm run build` PASS 100%** (2307 modules, 0 lỗi TypeScript, 2.59s).
+  - Cơ sở dữ liệu: Flyway migrations `V1` đến `V22` baseline hoàn chỉnh.
+
+#### 1. Chi Tiết Các Hạng Mục Đã Triển Khai Trong SRS Mới:
+1. **Phần I: Record of Changes & Mục 1: Product Overview:**
+   - Hoàn chỉnh lịch sử phiên bản từ V1.0.0 đến V2.2.0 (Milestone 7 Capstone Baseline).
+   - Mục 1.1 đến 1.5: Mục đích, Phạm vi hệ thống, Bảng thuật ngữ viết tắt, Tài liệu viện dẫn, và Sơ đồ kiến trúc tổng thể Mermaid C4 Modular Monolith (Spring Boot 3.4 Loom + React 18 + PostgreSQL 16 pgvector + Redis 7 + Supabase S3).
+2. **Mục 2: User Requirements:**
+   - **2.1 Actors:** Định nghĩa chi tiết 7 tác nhân (Bệnh nhân, Bác sĩ, Quản trị viên, Cổng AI Gemini/OpenAI, Cổng Thanh toán Stripe/Mock, Cổng Email SMTP/Mailpit, và Bản thể luận Y khoa).
+   - **2.2 Use Cases:** Sơ đồ tổng thể Mermaid Use Case và Bảng tóm tắt danh mục 48 Use Cases nghiệp vụ.
+   - **2.3 Use Case Specifications (Đặc tả chi tiết 17 trường chuẩn IEEE):**
+     * **2.3.1 Common (UC-COMM-01..06):** Đăng nhập (Mật khẩu & Google OAuth2, dual-transport JWT HttpOnly cookie), Đăng xuất, Đổi mật khẩu Bcrypt 12, Sửa hồ sơ & Avatar Supabase S3, Quên mật khẩu & Token hash SHA-256 (BE-5), Cổng kích hoạt Email (V22).
+     * **2.3.2 Patient (UC-PAT-01..18):** Chatbot sàng lọc AI SBAR, Động cơ phòng thủ 5 tầng (Red-flag 115, Teen-code, NegEx, OOD, Đa triệu chứng), Tìm kiếm bác sĩ pgvector HNSW & WHRF Min-Heap, Xem hồ sơ bác sĩ, Tải lên cận lâm sàng SHA-256, Xem bảng chỉ số sinh hóa LOINC, Đặt lịch khám O2O (08:00-17:00), Thanh toán Stripe/Mock, Phiếu khám điện tử STT và Google Maps, Xuất lịch .ics, Lịch sử khám, Dời lịch hẹn, Hủy lịch hoàn tiền tự động, Sổ sức khỏe EMR, Tải tệp gốc URL 15 phút, Đánh giá bác sĩ, Thông báo hệ thống, Khử định danh PII (giới hạn 20k ký tự BE-12).
+     * **2.3.3 Doctor (UC-DOC-01..14):** Cấu hình ca khám, Hàng đợi bệnh nhân theo STT trong ngày, Khám tiền lâm sàng Split-Screen (Tệp gốc vs Bản bóc tách AI), Truy cập hồ sơ có rào chắn `PatientAccessGuard` (BOLA/IDOR), Ghi nhận sinh hiệu & khám lâm sàng, Autocomplete chẩn đoán WHO ICD-10 & QĐ 7603/QĐ-BYT, Autocomplete cận lâm sàng LOINC & QĐ 3280/QĐ-BYT, Kê đơn thuốc ngoại trú, Hẹn tái khám, Khóa bệnh án bất biến (Finalize), Bác sĩ hủy lịch hoàn tiền 100%, Xuất bệnh án/đơn thuốc PDF, Báo cáo doanh thu & đánh giá, Quản lý hồ sơ CCHN.
+     * **2.3.4 Admin (UC-ADM-01..10):** Dashboard điều hành & Telemetry thời gian thực, Quản trị tài khoản & Khóa người dùng, Thẩm định CCHN bác sĩ, Quản lý danh mục chuyên khoa, Giám sát & Can thiệp lịch hẹn toàn viện, FinOps theo dõi tiêu thụ Token & Chi phí USD/VNĐ, Chuyển đổi nhà cung cấp AI toàn hệ thống (BE-1), Nhật ký kiểm toán an ninh `VIEW_PATIENT_RECORD` bất biến, Giám sát di trú CSDL Flyway V1-V22 & HNSW Index, Phát thông báo khẩn toàn viện.
+3. **Mục 3: Functional Requirements:**
+   - **3.1.1 Screens Flow:** Sơ đồ chuyển trạng thái màn hình (State Machine Diagram) phân luồng cho cả 3 vai trò.
+   - **3.1.2 Screen Descriptions:** Đặc tả chi tiết 18 màn hình (SCR-01 đến SCR-18) gồm bố cục UI, các trường nhập liệu, kiểu dữ liệu, quy tắc validation và các đích chuyển trang.
+   - **3.1.3 Screen Authorization Matrix:** Ma trận phân quyền màn hình theo vai trò (Guest, Patient, Doctor, Admin).
+   - **3.1.4 Non-Screen Functions:** Đặc tả 6 tác vụ ngầm bất đồng bộ (NSF-01..06) trên Java 21 Project Loom Virtual Threads và `@Async("mailExecutor")`.
+   - **3.1.5 Physical ERD:** Sơ đồ thực thể quan hệ hoàn chỉnh của PostgreSQL 16 `pgvector` với 22 migration Flyway.
+   - **3.2 Module Functional Requirements:** Chi tiết từng tiêu chí kỹ thuật của 7 phân hệ FR (FR-AUTH, FR-TRG, FR-VEC, FR-DOC, FR-BOK, FR-CLIN, FR-ADM).
+4. **Mục 4: Non-Functional Requirements & Mục 5: Requirement Appendix:**
+   - **4.1 External Interfaces:** Giao diện người dùng (bảng màu lâm sàng, hỗ trợ split-screen), Phần cứng máy chủ AVX2/AVX-512, Phần mềm bên ngoài.
+   - **4.2 Quality Attributes:** NFR-USA (Usability), NFR-REL (Reliability 99.9%, Fallback 3 tầng), NFR-PERF (Vector search < 12ms, L1/L2 cache), NFR-SEC (BOLA/IDOR, Bcrypt 12, PII 20k, URL 15 phút, Mock payment lockdown), NFR-MAINT (306/306 tests 100%).
+   - **5.1 Business Rules:** Bảng 34 quy tắc nghiệp vụ (BR-01 đến BR-34).
+   - **5.2 Acronyms:** Bảng tra cứu thuật ngữ chuyên ngành y sinh và kỹ thuật phần mềm.
+   - **5.3 Common Requirements:** Ràng buộc kiến trúc (Loom, Seeding, CORS, Secrets Isolation).
+   - **5.4 Application Messages List:** Danh mục song ngữ toàn bộ thông điệp giao diện.
+   - **5.5 Requirements Traceability Matrix (RTM):** Ma trận truy vết 46 yêu cầu chức năng tới Use Case, Flyway Migration và 306 bài test tự động.
+5. **Công Cụ Xây Dựng Tự Động:**
+   - Xây dựng bộ công cụ tạo sinh mô-đun tại `scripts/build_srs_doc.py` và `scripts/srs/` giúp biên dịch và bảo trì tài liệu tức thì.
+
 
 
 
