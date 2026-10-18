@@ -113,7 +113,7 @@ graph TD
 | **Backend** | Java 21 LTS, Spring Boot 3.4.x, Spring Security 6 (JWT + Google OAuth2), Hibernate 6 |
 | **Database** | PostgreSQL 16 LTS với Extension `pgvector` (Vector Cosine Similarity) |
 | **Cache & Queue** | Redis Cluster (L2 Cache, Rate Limiting, Session State) |
-| **Database Migration** | Flyway Migrations (V1 $\rightarrow$ V19) |
+| **Database Migration** | Flyway Migrations (V1 $\rightarrow$ V22) |
 | **AI Models (API Only)**| Google Gemini 1.5 Flash (Vision OCR & Scribe) / OpenAI Embeddings |
-| **Testing** | JUnit 5, Mockito, Spring Boot Test (185/185 Unit Tests PASS 100%) |
+| **Testing** | JUnit 5, Mockito, Spring Boot Test (306/306 Unit & Integration Tests PASS 100%) |
 | **DevOps** | Docker, Docker Compose, Nginx Reverse Proxy, Enforced HTTPS |

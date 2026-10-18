@@ -67,7 +67,7 @@ Tệp nguồn: [`docs/CAPSTONE_PRESENTATION_SLIDES.md`](./CAPSTONE_PRESENTATION_
 * **02:30 - 05:30 (Slide 4 - 6):** Kiến trúc C4, Rào chắn đạo đức y tế và CSDL Flyway.
 * **05:30 - 10:00 (Slide 7 - 13):** **Trọng tâm bảo vệ:** Lệch ngữ nghĩa, kho dữ liệu Meddies 150k ca, Động cơ phòng thủ 5 tầng "Bao Đầu Vào", Vietnamese NegEx, HNSW Session Tuning và kết quả Benchmark.
 * **10:00 - 13:00 (Slide 14 - 19):** Hiện thực hóa phân hệ doanh nghiệp: OCR song song, Khử PII, Two-Layer Cache, Bàn khám Bác sĩ, FinOps Token.
-* **13:00 - 15:00 (Slide 20 - 24):** Kịch bản Live Demo 5 phút, Kiểm thử 185/185 tests, Khả năng mở rộng 16GB RAM và Kết luận.
+* **13:00 - 15:00 (Slide 20 - 24):** Kịch bản Live Demo 5 phút, Kiểm thử 306/306 tests, Khả năng mở rộng 16GB RAM và Kết luận.
 
 ---
 
@@ -96,7 +96,7 @@ Nếu giảng viên yêu cầu nộp bản **Software Requirement Specification 
 * **NFR-PERF-01..05:** Độ trễ L1 Caffeine $< 1\text{ms}$, L2 Redis $< 3\text{ms}$, HNSW Index Scan $< 12\text{ms}$ (Thực tế đạt $0.72\text{ms}$).
 * **NFR-AVAIL-01..02:** Uptime $\ge 99.9\%$, chịu tải $\ge 500$ Virtual Users không tràn connection pool.
 * **NFR-SEC-01..03:** Bcrypt cost 12, HttpOnly Secure Cookie, Khử PII tuân thủ Nghị định 13/2023/NĐ-CP và HIPAA Safe Harbor.
-* **NFR-MAINT-01:** **185/185 Unit Tests PASS 100% (`mvn test`)**, 0 lỗi TypeScript.
+* **NFR-MAINT-01:** **306/306 Unit & Integration Tests PASS 100% (`mvn test`)**, 0 lỗi TypeScript.
 
 ### 3. Trích xuất Ma Trận Truy Vết Yêu Cầu (RTM - Section 6):
 Copy trực tiếp bảng mục 6 trong `SRS_MediAssist_AI.md` vào phần Phụ lục (Appendix) của báo cáo SRS để chứng minh mọi yêu cầu đều có Use Case, Migration SQL và Unit Test tương ứng.
@@ -131,7 +131,7 @@ Khi viết báo cáo Khóa Luận Tốt Nghiệp bằng Word / LaTeX, bạn lấ
 
 * **Chương 1:** Lấy bối cảnh quá tải bệnh viện, 3 Personas (Bác sĩ, Bệnh nhân, Admin) từ [`docs/STORYTELLING.md`](./STORYTELLING.md).
 * **Chương 2:** Lấy kiến trúc Modular Monolith, Dual-Auth, lý thuyết Mạng nơ-ron Transformer và đồ thị HNSW từ [`ARCHITECTURE.md`](../ARCHITECTURE.md) và [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md).
-* **Chương 3:** Lấy 33 Use Cases từ [`docs/USE_CASES.md`](./USE_CASES.md), 19 Flyway DDL từ [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md), và bảng FR/NFR từ [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md).
+* **Chương 3:** Lấy 35 Use Cases từ [`docs/USE_CASES.md`](./USE_CASES.md), 22 Flyway DDL (V1-V22) từ [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md), và bảng FR/NFR từ [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md).
 * **Chương 4:** Lấy quy trình bóc tách OCR từ [`docs/DOCUMENT_SCAN_PIPELINE.md`](./DOCUMENT_SCAN_PIPELINE.md) và Động cơ phòng thủ 5 tầng, Vietnamese NegEx, WHRF-SOTA Re-ranking từ [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md).
 * **Chương 5:** Lấy bảng số liệu đo đạc thực nghiệm trên 500 ca bệnh Meddies từ [`docs/VECTOR_BENCHMARK_REPORT.md`](./VECTOR_BENCHMARK_REPORT.md) và kết quả k6 Load Test từ [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md).
 
@@ -178,14 +178,14 @@ python scripts/run_meddies_pipeline.py --samples 50
 ```
 Script sẽ quét trực tiếp CSDL PostgreSQL, tính toán và in ra ngay bảng Top-1 (23.2%), Recall@3 (33.0%) và Latency (0.72ms).
 
-### 2. Kiểm chứng 185 bài test Backend tự động (15 giây):
+### 2. Kiểm chứng 306 bài test Backend tự động (15 giây):
 ```bash
 cd backend && mvn test
 ```
-Toàn bộ 185 tests PASS 100% (xanh hoàn toàn).
+Toàn bộ 306 tests PASS 100% (xanh hoàn toàn).
 
 ### 3. Kiểm chứng chất lượng Frontend sạch 100% (3 giây):
 ```bash
 cd frontend && npm run build
 ```
-Biên dịch 2273 modules với 0 lỗi TypeScript dưới strict mode.
+Biên dịch 2307 modules với 0 lỗi TypeScript dưới strict mode.
