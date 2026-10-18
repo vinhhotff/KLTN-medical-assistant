@@ -116,7 +116,7 @@
 
 ---
 
-## 4. Top 16 Câu Hỏi Phản Biện Chuyên Sâu & Lời Giải Mẫu (Anticipated Defense Q&A)
+## 4. Top 25 Câu Hỏi Phản Biện Chuyên Sâu & Lời Giải Mẫu (Anticipated Defense Q&A)
 
 ### Câu hỏi 1: Tại sao nhóm chọn kiến trúc Modular Monolith với Spring Boot thay vì Microservices ngay từ đầu?
 * **Trả lời của sinh viên:**  
@@ -420,7 +420,7 @@
 
 ---
 
-### Câu hỏi 15: Theo Nghị định 13/2023/NĐ-CP, dữ liệu sức khỏe là dữ liệu cá nhân nhạy cảm. Một bác sĩ bất kỳ trên hệ thống có thể mở hồ sơ của mọi bệnh nhân không? Nhóm chứng minh việc kiểm soát truy cập như thế nào?
+### Câu hỏi 22: Theo Nghị định 13/2023/NĐ-CP, dữ liệu sức khỏe là dữ liệu cá nhân nhạy cảm. Một bác sĩ bất kỳ trên hệ thống có thể mở hồ sơ của mọi bệnh nhân không? Nhóm chứng minh việc kiểm soát truy cập như thế nào?
 * **Trả lời mẫu:**
   - **Không.** Nhóm đã phát hiện và vá lỗ hổng IDOR: trước đây chỉ cần có vai trò `DOCTOR` và biết UUID là đọc được hồ sơ. Hiện nay mọi endpoint đọc hồ sơ bệnh nhân (hộ chiếu y tế, tài liệu xét nghiệm, tệp gốc, kết quả OCR, lịch sử Triage, lịch sử khám) đều đi qua một điểm kiểm soát duy nhất là `PatientAccessGuard`.
   - **Nguyên tắc tối thiểu cần thiết (Điều 3 & Điều 11 - xử lý dữ liệu đúng mục đích, có sự đồng ý):** Bác sĩ chỉ được xem khi có **quan hệ điều trị** — tức bệnh nhân đã chủ động đặt lịch với chính bác sĩ đó (trạng thái `SCHEDULED`, `IN_PROGRESS` hoặc `COMPLETED`). Việc bệnh nhân đặt lịch chính là hành vi đồng ý chia sẻ hồ sơ cho bác sĩ đó. Lịch đã hủy hoặc vắng mặt không tạo quyền.
@@ -432,14 +432,14 @@
   - **Demo trực tiếp:** Đăng nhập một bác sĩ chưa từng khám bệnh nhân X, gọi `GET /api/v1/triage/patient/{X}` → nhận 403, giao diện hiển thị thông báo thân thiện; sau đó đăng nhập bác sĩ có lịch hẹn → xem được và bản ghi `VIEW_PATIENT_RECORD` xuất hiện trong Nhật ký kiểm toán.
   - **Hạn chế thừa nhận trung thực:** Quyền của bác sĩ hiện chưa hết hạn theo thời gian sau khi ca khám hoàn tất, và tệp lưu trên Supabase có `storageUrl` công khai. Hướng phát triển: giới hạn cửa sổ thời gian truy cập và chuyển sang Signed URL có thời hạn.
 
-### Câu hỏi 17: Vì sao token đặt lại mật khẩu chỉ được lưu dạng SHA-256 hash mà không lưu nguyên văn? Mật khẩu đã băm bằng BCrypt rồi, sao token không băm BCrypt luôn?
+### Câu hỏi 23: Vì sao token đặt lại mật khẩu chỉ được lưu dạng SHA-256 hash mà không lưu nguyên văn? Mật khẩu đã băm bằng BCrypt rồi, sao token không băm BCrypt luôn?
 * **Trả lời mẫu:**
   - **Token chính là "chìa khóa tạm thời" của tài khoản:** ai có token còn hạn thì đặt được mật khẩu mới, tức chiếm được hồ sơ sức khỏe. Nếu lưu nguyên văn, chỉ cần lộ bảng `password_reset_tokens` (file backup, SQL injection, công cụ xem DB như pgweb, nhân viên vận hành tò mò) là kẻ tấn công dựng được liên kết và chiếm mọi tài khoản đang có yêu cầu reset. Lưu hash thì DB bị lộ cũng vô dụng: không thể suy ngược từ hash ra token.
   - **Vì sao SHA-256 mà không phải BCrypt:** BCrypt cố ý chậm để chống dò mật khẩu người dùng đặt (entropy thấp, có thể đoán theo từ điển). Token của hệ thống là 32 byte ngẫu nhiên từ `SecureRandom` (256 bit entropy), dò vét cạn là bất khả thi, nên không cần hàm băm chậm. SHA-256 còn cho phép tra cứu trực tiếp bằng index `UNIQUE` (BCrypt có salt ngẫu nhiên nên không tra cứu được, phải quét toàn bảng).
   - **Các lớp bảo vệ khác:** hiệu lực 30 phút, dùng một lần, yêu cầu mới vô hiệu liên kết cũ; trang đặt lại mật khẩu xóa token khỏi thanh địa chỉ ngay khi đọc; token và liên kết không bao giờ ghi vào log; `forgot-password` luôn trả cùng một thông báo (không lộ email có tồn tại hay không) và có rate limit theo IP lẫn theo email.
   - **Bằng chứng:** `AuthServicePasswordResetTest.tokenIsStoredHashed` khẳng định giá trị lưu DB khác token gửi qua email và bằng `SHA-256(token)`; `AuthControllerPasswordResetTest.sameResponseForExistingAndUnknownEmail` khẳng định hai response giống hệt nhau.
 
-### Câu hỏi 18: Vì sao bệnh nhân chưa xác thực email vẫn đăng nhập được nhưng lại không được đặt lịch và thanh toán? Sao không chặn ngay từ lúc đăng nhập?
+### Câu hỏi 24: Vì sao bệnh nhân chưa xác thực email vẫn đăng nhập được nhưng lại không được đặt lịch và thanh toán? Sao không chặn ngay từ lúc đăng nhập?
 * **Trả lời mẫu:**
   - **Email là kênh vận hành, không chỉ là tên đăng nhập:** xác nhận lịch hẹn, thông báo hủy lịch kèm hoàn tiền, biên nhận thanh toán và liên kết khôi phục mật khẩu đều đi qua email. Nếu email gõ sai, bệnh nhân không nhận được thông tin về lịch khám và tiền của mình. Nếu là email của người khác, người lạ nhận thông tin lịch khám và có thể dùng "Quên mật khẩu" để chiếm tài khoản.
   - **Chặn đúng chỗ, không chặn thừa:** chỉ các hành động tạo nghĩa vụ hoặc giao dịch (đặt lịch, bệnh nhân tự dời lịch, thanh toán, mua gói) mới bị chặn. Bệnh nhân vẫn đăng nhập, xem hướng dẫn, dùng Trợ lý triệu chứng AI để không mất trải nghiệm ban đầu; việc xác thực chỉ mất một cú bấm trong email.
@@ -448,7 +448,7 @@
   - **Pre-hijacking:** kẻ xấu có thể đăng ký trước bằng email của nạn nhân. Khi nạn nhân đăng nhập Google lần đầu, hệ thống liên kết tài khoản nhưng **xóa mật khẩu do người đăng ký trước đặt** và ghi audit `ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED`, nên kẻ xấu mất quyền truy cập.
   - **Bằng chứng:** `AuthServiceEmailVerificationTest` (token đúng/sai/hết hạn, idempotent, resend bị rate limit 60 giây và 5 lần/giờ, guard chỉ chặn PATIENT), `AppointmentServiceTest` (đặt lịch và dời lịch bị chặn, bác sĩ dời lịch vẫn được), `PaymentServiceTest` (checkout bị chặn, không tạo giao dịch), `MedicalDocumentAnalysisServiceTest` (mua gói bị chặn / được phép), `OAuth2SecurityTest` (xóa mật khẩu khi liên kết Google vào tài khoản chưa xác thực).
 
-### Câu hỏi 19: Vì sao email của hệ thống không chứa bất kỳ thông tin y tế nào, kể cả lý do khám hay lý do hủy lịch? Bệnh nhân muốn biết chi tiết thì sao?
+### Câu hỏi 25: Vì sao email của hệ thống không chứa bất kỳ thông tin y tế nào, kể cả lý do khám hay lý do hủy lịch? Bệnh nhân muốn biết chi tiết thì sao?
 * **Trả lời mẫu:**
   - **Email không phải kênh an toàn cho dữ liệu sức khỏe:** email đi qua nhiều máy chủ trung gian, nằm lại vĩnh viễn trong hộp thư, hiện trên màn hình khóa điện thoại, có thể bị chuyển tiếp nhầm hoặc nằm trong hộp thư công ty mà người khác cùng đọc. Theo Nghị định 13/2023/NĐ-CP, dữ liệu sức khỏe là dữ liệu cá nhân **nhạy cảm**, phải có biện pháp bảo vệ tương xứng; trong ứng dụng, mọi lượt xem đều qua kiểm soát quyền và audit (UC-27, UC-28), còn email thì không kiểm soát được sau khi gửi.
   - **Thiết kế "không thể lộ" thay vì "cố gắng không lộ":** event dùng để gửi mail (`AppointmentMailInfo`) **không có trường** lý do khám, ghi chú khám hay lý do hủy. Template email chỉ dùng `th:text` (auto-escape) và chỉ đọc được dữ liệu có trong event, nên kể cả khi ai đó sửa template sai cũng không thể hiển thị dữ liệu y tế.
