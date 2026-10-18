@@ -186,12 +186,12 @@ def get_content():
 | **Created By** | SE-AI Capstone Team |
 | **Created Date** | 15/02/2026 |
 | **Primary Actor** | Patient |
-| **Secondary Actor** | Stripe Payment Gateway, Mock Payment Sandbox |
+| **Secondary Actor** | VNPay Payment Gateway, Mock Payment Sandbox |
 | **Description** | MediAssist-AI Payment & Quota Subsystem — Payment checkout initiated; quota credited upon successful transaction. |
 | **Trigger** | Patient clicks "Mua Thêm Hạn Ngạch" on `/patient/documents`. |
 | **Pre-conditions** | Patient is authenticated. |
 | **Post-conditions** | Payment checkout initiated; quota credited upon successful transaction. |
-| **Normal Flow** | Step 1: Patient opens Quota Purchase modal on `/patient/documents`.<br>Step 2: Frontend calls HTTP GET `/api/v1/payments/packages` to display quota tiers:<br>- Gói Tiêu Chuẩn: 5 lượt phân tích (50.000 VNĐ).<br>- Gói Nâng Cao: 15 lượt phân tích (120.000 VNĐ).<br>- Gói Không Giới Hạn: 50 lượt phân tích (300.000 VNĐ).<br>Step 3: Patient selects package and clicks "Thanh Toán".<br>Step 4: Frontend calls HTTP POST `/api/v1/payments/checkout` with `orderType = QUOTA_PURCHASE`.<br>Step 5: Backend initializes payment via Stripe or Mock Sandbox.<br>Step 6: Patient completes payment; transaction verified via `POST /api/v1/payments/verify`.<br>Step 7: Backend increments `patient_profiles.remaining_ai_quota`.<br>Step 8: Frontend updates quota balance badge. |
+| **Normal Flow** | Step 1: Patient opens Quota Purchase modal on `/patient/documents`.<br>Step 2: Frontend calls HTTP GET `/api/v1/payments/packages` to display quota tiers:<br>- Gói Tiêu Chuẩn: 5 lượt phân tích (50.000 VNĐ).<br>- Gói Nâng Cao: 15 lượt phân tích (120.000 VNĐ).<br>- Gói Không Giới Hạn: 50 lượt phân tích (300.000 VNĐ).<br>Step 3: Patient selects package and clicks "Thanh Toán".<br>Step 4: Frontend calls HTTP POST `/api/v1/payments/create-url` with `orderType = QUOTA_PURCHASE`.<br>Step 5: Backend initializes payment via Stripe or Mock Sandbox.<br>Step 6: Patient completes payment; transaction verified via `POST /api/v1/payments/verify`.<br>Step 7: Backend increments `patient_profiles.remaining_ai_quota`.<br>Step 8: Frontend updates quota balance badge. |
 | **Alternative Flow** | None. |
 | **Exceptions** | None. |
 | **Priority** | Medium (P2) |
@@ -225,28 +225,28 @@ def get_content():
 | **User Interface Controls** | `BookingModal`, slot pills, document select dropdown, "Xác Nhận Đặt Lịch" button. |
 
 
-##### 2.3.2.10 Process Payment via Stripe / Mock Sandbox (UC-PAT-10)
+##### 2.3.2.10 Process Payment via VNPay / Mock Sandbox (UC-PAT-10)
 
 | Attribute | Specification Details |
 | :--- | :--- |
 | **Use Case ID** | `UC-PAT-10` |
-| **Use Case Name** | Process Payment via Stripe / Mock Sandbox |
+| **Use Case Name** | Process Payment via VNPay / Mock Sandbox |
 | **Created By** | SE-AI Capstone Team |
 | **Created Date** | 15/02/2026 |
 | **Primary Actor** | Patient |
-| **Secondary Actor** | Stripe Payment Gateway, Mock Payment Sandbox |
+| **Secondary Actor** | VNPay Payment Gateway, Mock Payment Sandbox |
 | **Description** | MediAssist-AI Payment Gateway Subsystem — - Payment authorized and settled.<br>- `appointments.payment_status` updated to `PAID`.<br>- Record inserted in `payment_transactions` with status `SUCCESS`.<br>- Confirmation notification dispatched to patient. |
 | **Trigger** | Patient proceeds to pay consultation fee for scheduled appointment. |
 | **Pre-conditions** | Appointment exists with `payment_status = UNPAID`. |
 | **Post-conditions** | - Payment authorized and settled.<br>- `appointments.payment_status` updated to `PAID`.<br>- Record inserted in `payment_transactions` with status `SUCCESS`.<br>- Confirmation notification dispatched to patient. |
-| **Normal Flow** | Step 1: Patient selects payment method (Stripe Credit Card or Mock Sandbox).<br>Step 2: Frontend calls HTTP POST `/api/v1/payments/checkout` with `CreatePaymentRequest(orderType=APPOINTMENT_FEE, appointmentId=...)`.<br>Step 3: Backend verifies `app.payment.mock.enabled`:<br>- If production (`mock.enabled = false`): Routes to Stripe Checkout Gateway.<br>- If demo/dev (`mock.enabled = true`): Routes to Mock Payment Gateway.<br>Step 4: Backend creates `PaymentTransaction` record with status `PENDING`.<br>Step 5: Patient submits payment details; gateway returns transaction confirmation.<br>Step 6: Frontend calls HTTP POST `/api/v1/payments/verify` with `VerifyPaymentRequest(transactionCode)`.<br>Step 7: Backend verifies transaction with gateway and updates `payment_transactions.status = SUCCESS`.<br>Step 8: Backend updates `appointments.payment_status = PAID`.<br>Step 9: Backend publishes `PaymentCompletedEvent` -> dispatches confirmation email.<br>Step 10: Frontend redirects to `/payment/success` with receipt details. |
-| **Alternative Flow** | - Alt Flow 11a: Stripe Webhook Asynchronous Capture:<br>1. Stripe posts webhook to `/api/v1/payments/webhook/stripe`.<br>2. Backend validates webhook signature and auto-fulfills appointment payment status. |
+| **Normal Flow** | Step 1: Patient selects payment method (VNPay QR / ATM Card or Mock Sandbox).<br>Step 2: Frontend calls HTTP POST `/api/v1/payments/checkout` with `CreatePaymentRequest(orderType=APPOINTMENT_FEE, appointmentId=...)`.<br>Step 3: Backend verifies `app.payment.mock.enabled`:<br>- If production (`mock.enabled = false`): Routes to VNPay Payment Gateway, generates HMAC-SHA512 checksum URL.<br>- If demo/dev (`mock.enabled = true`): Routes to Mock Payment Gateway.<br>Step 4: Backend creates `PaymentTransaction` record with status `PENDING`.<br>Step 5: Patient submits payment details; gateway returns transaction confirmation.<br>Step 6: Frontend calls HTTP VNPay IPN Webhook `/api/v1/payments/vnpay-ipn` with `VerifyPaymentRequest(transactionCode)`.<br>Step 7: Backend verifies transaction with gateway and updates `payment_transactions.status = SUCCESS`.<br>Step 8: Backend updates `appointments.payment_status = PAID`.<br>Step 9: Backend publishes `PaymentCompletedEvent` -> dispatches confirmation email.<br>Step 10: Frontend redirects to `/payment/success` with receipt details. |
+| **Alternative Flow** | - Alt Flow 11a: VNPay IPN Webhook Asynchronous Capture:<br>1. VNPay posts webhook to `/api/v1/payments/vnpay-ipn`.<br>2. Backend validates HMAC-SHA512 checksum and auto-fulfills with idempotency lock appointment payment status. |
 | **Exceptions** | - Exc Flow 12a: Mock Payment Attempt in Production:<br>1. Backend detects `mock.enabled = false` and throws `AppException(HttpStatus.FORBIDDEN, "MOCK_PAYMENT_DISABLED", ...)`. |
 | **Priority** | High (P0) |
 | **Frequency of Use** | High (Frequent operational use) |
 | **Business Rules** | - BR-19: Mock payment permanently disabled in production mode (Security Audit BE-10). |
 | **Data Entities Involved** | `payment_transactions`, `appointments`. |
-| **User Interface Controls** | Payment modal, Stripe Elements card iframe, "Thanh Toán Ngay" button. |
+| **User Interface Controls** | Payment modal, VNPay QR iframe, "Thanh Toán VNPay" button. |
 
 
 ##### 2.3.2.11 View Electronic Encounter Slip & Admission STT (UC-PAT-11)

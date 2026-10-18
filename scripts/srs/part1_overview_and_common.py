@@ -52,7 +52,7 @@ def get_content():
       - [2.3.2.7 Download Document File via 15-Min Signed URL (UC-PAT-07)](#2327-download-document-file-via-15-min-signed-url-uc-pat-07)
       - [2.3.2.8 Purchase AI Analysis Quota (UC-PAT-08)](#2328-purchase-ai-analysis-quota-uc-pat-08)
       - [2.3.2.9 Book In-Clinic Appointment (UC-PAT-09)](#2329-book-in-clinic-appointment-uc-pat-09)
-      - [2.3.2.10 Process Payment via Stripe / Mock Sandbox (UC-PAT-10)](#23210-process-payment-via-stripe--mock-sandbox-uc-pat-10)
+      - [2.3.2.10 Process Payment via VNPay / Mock Sandbox (UC-PAT-10)](#23210-process-payment-via-stripe--mock-sandbox-uc-pat-10)
       - [2.3.2.11 View Electronic Encounter Slip (STT) (UC-PAT-11)](#23211-view-electronic-encounter-slip-stt-uc-pat-11)
       - [2.3.2.12 View Patient Appointment History (UC-PAT-12)](#23212-view-patient-appointment-history-uc-pat-12)
       - [2.3.2.13 Patient Check-In for Appointment (UC-PAT-13)](#23213-patient-check-in-for-appointment-uc-pat-13)
@@ -221,7 +221,7 @@ graph TD
         Gemini[Google Gemini 1.5 Flash Vision API]
         OpenAI[OpenAI text-embedding-3-small API]
         OpenRouter[OpenRouter Free-tier Resilience Pool]
-        Stripe[Stripe Payment Sandbox Gateway]
+        VNPay[VNPay Payment Gateway / Mock Sandbox]
         SMTP[Mailpit / Production SMTP with STARTTLS]
     end
 
@@ -231,7 +231,7 @@ graph TD
     TriageEngine --> Gemini & OpenRouter
     VectorSearch --> OpenAI
     DocAnalysis --> SupabaseS3 & Gemini
-    PaymentSvc --> Stripe
+    PaymentSvc --> VNPay
     ApptSvc --> SMTP
     AuthSvc & ApptSvc & VectorSearch & OntologySvc --> PostgreSQL
     TriageEngine & VectorSearch & RateLimiter --> RedisCache
@@ -249,7 +249,7 @@ graph TD
 | **Doctor (`DOCTOR`)** | Human (Primary) | Licensed medical practitioner verified by administrators. Manages consultation schedules, views patient appointment queues, calls next patient, inspects pre-encounter split-screen evidence, records vital signs, inputs WHO ICD-10 diagnoses, orders LOINC tests, prescribes medication, and completes clinical encounters. |
 | **Admin (`ADMIN`)** | Human (Secondary) | System administrator and medical director. Audits doctor medical practice certificates (CCHN), manages clinical specialties, supervises system-wide appointments, monitors AI token usage and FinOps costs (USD/VNĐ), controls user accounts, toggles AI provider failover mode, and inspects immutable audit logs. |
 | **AI Inference Gateway** | External System | External LLM and Vision APIs (Google Gemini 1.5 Flash, OpenAI `text-embedding-3-small`, OpenRouter pool). Ingests clinical prompts and document images, returning structured triage classifications, OCR extractions, and dense vector embeddings. |
-| **Payment Gateway** | External System | Payment infrastructure provider (Stripe Sandbox / Mock Payment Gateway). Processes credit card transactions, webhook notifications, and automated refund triggers. |
+| **Payment Gateway** | External System | Payment infrastructure provider (VNPay Gateway HMAC-SHA512 / Mock Payment Sandbox). Processes online banking transactions, IPN webhook notifications with idempotency locking, and automated refund triggers. |
 | **Email Delivery Gateway** | External System | Transactional email provider (Mailpit in development, Production SMTP with STARTTLS). Dispatches account verification links, password reset tokens, and appointment reminders. |
 | **Clinical Ontology Registry** | External / Internal | Official medical terminology database loaded from WHO ICD-10, LOINC, and MOH Decisions 7603/QĐ-BYT & 3280/QĐ-BYT. Provides high-speed prefix search for diagnosis and lab coding. |
 
@@ -259,73 +259,172 @@ graph TD
 
 #### 2.2.1 Diagram(s)
 
+##### Figure 2.2.1.A: Sơ đồ Ca Sử Dụng Cấp Cao Toàn Hệ Thống (Global High-Level Use Case Architecture)
 ```mermaid
-graph LR
-    subgraph "Actors"
-        P((Patient))
-        D((Doctor))
-        A((Admin))
+flowchart LR
+    P(("Patient"))
+    D(("Doctor"))
+    A(("Admin"))
+
+    subgraph System["Hệ Sinh Thái Y Tế Số MediAssist-AI"]
+        direction TB
+        subgraph Sub_Common["Phân Hệ Chung"]
+            UC_C["Xác thực & Bảo mật<br/>(Sign In, Register, Profile, Pwd)"]
+        end
+        subgraph Sub_Patient["Phân Hệ Người Bệnh"]
+            UC_P1["AI Phân luồng & Triage 115"]
+            UC_P2["Tìm kiếm Bác sĩ (WHRF)"]
+            UC_P3["Đặt lịch, STT & Thanh toán VNPay"]
+            UC_P4["OCR & Giải nghĩa Xét nghiệm"]
+        end
+        subgraph Sub_Doctor["Bàn Làm Việc Bác Sĩ"]
+            UC_D1["Hàng đợi tiếp đón & Call Next"]
+            UC_D2["Bệnh án EMR & WHO ICD-10/LOINC"]
+            UC_D3["Lịch khám & Đơn thuốc điện tử"]
+        end
+        subgraph Sub_Admin["Phân Hệ Quản Trị & FinOps"]
+            UC_A1["Thẩm định CCHN & Sync Vector"]
+            UC_A2["Giám sát Toàn viện & Audit Logs"]
+            UC_A3["AI FinOps & Cấu hình Hệ thống"]
+        end
     end
 
-    subgraph "Common System"
-        UC_COMM01(UC-COMM-01: Sign In)
-        UC_COMM02(UC-COMM-02: Sign Out)
-        UC_COMM03(UC-COMM-03: Change Password)
-        UC_COMM04(UC-COMM-04: Update Patient Profile)
-        UC_COMM05(UC-COMM-05: Reset Password)
-        UC_COMM06(UC-COMM-06: Email Verification Gate)
-    end
+    P --> Sub_Common
+    P --> Sub_Patient
 
-    subgraph "Patient Domain"
-        UC_PAT01(UC-PAT-01: AI Symptom Triage)
-        UC_PAT02(UC-PAT-02: 5-Stage Query Defense)
-        UC_PAT03(UC-PAT-03: Semantic Doctor Search)
-        UC_PAT05(UC-PAT-05: Upload Lab Document)
-        UC_PAT06(UC-PAT-06: Inspect Biomarkers & LOINC)
-        UC_PAT09(UC-PAT-09: Book In-Clinic Slot)
-        UC_PAT10(UC-PAT-10: Process Payment)
-        UC_PAT11(UC-PAT-11: View Admission Slip)
-        UC_PAT13(UC-PAT-13: Patient Check-In)
-        UC_PAT14(UC-PAT-14: Reschedule Appointment)
-        UC_PAT15(UC-PAT-15: Cancel & Refund)
-        UC_PAT16(UC-PAT-16: Submit Doctor Review)
-    end
+    D --> Sub_Common
+    D --> Sub_Doctor
 
-    subgraph "Doctor Domain"
-        UC_DOC01(UC-DOC-01: View Workstation & Stats)
-        UC_DOC02(UC-DOC-02: Configure Schedule Slots)
-        UC_DOC03(UC-DOC-03: View Daily Queue & Call Next)
-        UC_DOC04(UC-DOC-04: Split-Screen Pre-Check)
-        UC_DOC05(UC-DOC-05: Guarded Patient Records)
-        UC_DOC06(UC-DOC-06: ICD-10 Autocomplete)
-        UC_DOC07(UC-DOC-07: LOINC Autocomplete)
-        UC_DOC08(UC-DOC-08: Complete Clinical Encounter)
-        UC_DOC09(UC-DOC-09: Schedule Follow-up Visit)
-        UC_DOC10(UC-DOC-10: Doctor Cancel with Refund)
-    end
+    A --> Sub_Common
+    A --> Sub_Admin
+```
 
-    subgraph "Admin Domain"
-        UC_ADM01(UC-ADM-01: Executive Statistics)
-        UC_ADM02(UC-ADM-02: AI FinOps Monitor)
-        UC_ADM03(UC-ADM-03: Toggle AI Mode)
-        UC_ADM04(UC-ADM-04: Sync Doctor Vectors)
-        UC_ADM05(UC-ADM-05: Vet Doctor CCHN License)
-        UC_ADM06(UC-ADM-06: Manage Doctor Directory)
-        UC_ADM07(UC-ADM-07: User Access Control)
-        UC_ADM08(UC-ADM-08: Manage Specialties)
-        UC_ADM09(UC-ADM-09: Supervise Appointments)
-        UC_ADM10(UC-ADM-10: Supervise Triage Sessions)
-        UC_ADM11(UC-ADM-11: Inspect Audit Logs)
+##### Figure 2.2.1.B: Sơ đồ Ca Sử Dụng Phân Hệ Chung (Common System Use Cases)
+```mermaid
+flowchart LR
+    P(("Patient"))
+    D(("Doctor"))
+    A(("Admin"))
+
+    subgraph Common["Phân Hệ Chung (Common System)"]
+        direction TB
+        UC_COMM01["UC-COMM-01: Đăng nhập (Sign In)"]
+        UC_COMM02["UC-COMM-02: Đăng xuất (Sign Out)"]
+        UC_COMM03["UC-COMM-03: Đổi mật khẩu (Change Password)"]
+        UC_COMM04["UC-COMM-04: Cập nhật hồ sơ (Update Profile)"]
+        UC_COMM05["UC-COMM-05: Quên & Đặt lại mật khẩu (Reset Pwd)"]
+        UC_COMM06["UC-COMM-06: Kích hoạt email (Email Gate)"]
     end
 
     P --> UC_COMM01 & UC_COMM02 & UC_COMM03 & UC_COMM04 & UC_COMM05 & UC_COMM06
-    P --> UC_PAT01 & UC_PAT02 & UC_PAT03 & UC_PAT05 & UC_PAT06 & UC_PAT09 & UC_PAT10 & UC_PAT11 & UC_PAT13 & UC_PAT14 & UC_PAT15 & UC_PAT16
+    D --> UC_COMM01 & UC_COMM02 & UC_COMM03 & UC_COMM05
+    A --> UC_COMM01 & UC_COMM02 & UC_COMM03 & UC_COMM05
+```
 
-    D --> UC_COMM01 & UC_COMM02 & UC_COMM03
-    D --> UC_DOC01 & UC_DOC02 & UC_DOC03 & UC_DOC04 & UC_DOC05 & UC_DOC06 & UC_DOC07 & UC_DOC08 & UC_DOC09 & UC_DOC10
+##### Figure 2.2.1.C: Sơ đồ Ca Sử Dụng Phân Hệ Người Bệnh (Patient Domain Use Cases)
+```mermaid
+flowchart LR
+    P(("Patient"))
 
-    A --> UC_COMM01 & UC_COMM02 & UC_COMM03
-    A --> UC_ADM01 & UC_ADM02 & UC_ADM03 & UC_ADM04 & UC_ADM05 & UC_ADM06 & UC_ADM07 & UC_ADM08 & UC_ADM09 & UC_ADM10 & UC_ADM11
+    subgraph PatientDomain["Phân Hệ Người Bệnh (Patient Portal)"]
+        direction TB
+        subgraph TriageGroup["Sàng Lọc & Phân Luồng"]
+            UC_PAT01["UC-PAT-01: AI Phân luồng triệu chứng"]
+            UC_PAT02["UC-PAT-02: Phòng thủ lâm sàng & Cấp cứu 115"]
+            UC_PAT17["UC-PAT-17: Lịch sử phân luồng & SBAR"]
+        end
+        subgraph SearchGroup["Tìm Kiếm Bác Sĩ & Đánh Giá"]
+            UC_PAT03["UC-PAT-03: Tìm kiếm Bác sĩ ngữ nghĩa (WHRF)"]
+            UC_PAT04["UC-PAT-04: Xem chi tiết & Slot lịch khám"]
+            UC_PAT16["UC-PAT-16: Đánh giá & Phản hồi Bác sĩ"]
+        end
+        subgraph DocGroup["Cận Lâm Sàng & Xét Nghiệm"]
+            UC_PAT05["UC-PAT-05: Tải lên phiếu xét nghiệm"]
+            UC_PAT06["UC-PAT-06: Giải nghĩa chỉ số LOINC (OCR)"]
+            UC_PAT07["UC-PAT-07: Tải tệp qua URL ký số 15 phút"]
+            UC_PAT08["UC-PAT-08: Mua gói hạn ngạch phân tích"]
+            UC_PAT18["UC-PAT-18: Khử định danh PII văn bản"]
+        end
+        subgraph BookingGroup["Đặt Lịch & Viện Phí"]
+            UC_PAT09["UC-PAT-09: Đặt lịch khám & Slot Lock"]
+            UC_PAT10["UC-PAT-10: Thanh toán viện phí VNPay"]
+            UC_PAT11["UC-PAT-11: Phiếu khám điện tử & STT"]
+            UC_PAT12["UC-PAT-12: Lịch sử cuộc hẹn khám"]
+            UC_PAT13["UC-PAT-13: Điểm danh tiếp đón tại viện"]
+            UC_PAT14["UC-PAT-14: Dời lịch hẹn khám bệnh"]
+            UC_PAT15["UC-PAT-15: Hủy lịch & Hoàn tiền tự động"]
+        end
+    end
+
+    P --> TriageGroup
+    P --> SearchGroup
+    P --> DocGroup
+    P --> BookingGroup
+```
+
+##### Figure 2.2.1.D: Sơ đồ Ca Sử Dụng Bàn Làm Việc Bác Sĩ (Doctor Workstation Use Cases)
+```mermaid
+flowchart LR
+    D(("Doctor"))
+
+    subgraph DoctorDomain["Bàn Làm Việc Bác Sĩ (Doctor Workstation)"]
+        direction TB
+        subgraph QueueGroup["Quản Lý Hàng Đợi & Lịch Khám"]
+            UC_DOC01["UC-DOC-01: Bàn làm việc & Thống kê KPI"]
+            UC_DOC02["UC-DOC-02: Cấu hình khung giờ làm việc tuần"]
+            UC_DOC03["UC-DOC-03: Hàng đợi khám & Gọi lượt kế tiếp"]
+            UC_DOC09["UC-DOC-09: Lên lịch hẹn tái khám"]
+            UC_DOC10["UC-DOC-10: Bác sĩ hủy ca & Hoàn tiền 100%"]
+        end
+        subgraph ClinicalGroup["Khám Lâm Sàng & Bệnh Án EMR"]
+            UC_DOC04["UC-DOC-04: Màn hình kép soi chiếu xét nghiệm"]
+            UC_DOC05["UC-DOC-05: Rào chắn bệnh án PatientAccessGuard"]
+            UC_DOC06["UC-DOC-06: Gợi ý chẩn đoán WHO ICD-10"]
+            UC_DOC07["UC-DOC-07: Gợi ý chỉ số xét nghiệm LOINC"]
+            UC_DOC08["UC-DOC-08: Hoàn tất ca khám & Kê đơn điện tử"]
+            UC_DOC13["UC-DOC-13: Xuất bệnh án & Đơn thuốc PDF"]
+        end
+        subgraph ProfileGroup["Hồ Sơ & Chuyên Khoa"]
+            UC_DOC11["UC-DOC-11: Xem đánh giá từ bệnh nhân"]
+            UC_DOC12["UC-DOC-12: Cập nhật tiểu sử & Hồ sơ năng lực"]
+            UC_DOC14["UC-DOC-14: Quản lý chuyên khoa chuyên sâu"]
+        end
+    end
+
+    D --> QueueGroup
+    D --> ClinicalGroup
+    D --> ProfileGroup
+```
+
+##### Figure 2.2.1.E: Sơ đồ Ca Sử Dụng Phân Hệ Quản Trị Viên & AI FinOps (Admin Governance Use Cases)
+```mermaid
+flowchart LR
+    A(("Admin"))
+
+    subgraph AdminDomain["Phân Hệ Quản Trị Hệ Thống & AI FinOps"]
+        direction TB
+        subgraph VettingGroup["Thẩm Định Bác Sĩ & Chuyên Khoa"]
+            UC_ADM05["UC-ADM-05: Thẩm định CCHN & Sync Vector"]
+            UC_ADM06["UC-ADM-06: Quản lý danh bạ Bác sĩ"]
+            UC_ADM07["UC-ADM-07: Quản lý tài khoản & Khóa an ninh"]
+            UC_ADM08["UC-ADM-08: Quản lý danh mục Chuyên khoa"]
+        end
+        subgraph SupervisionGroup["Giám Sát Vận Hành & An Ninh"]
+            UC_ADM01["UC-ADM-01: Bảng điều khiển giám sát toàn viện"]
+            UC_ADM09["UC-ADM-09: Giám sát & Hủy cưỡng chế lịch hẹn"]
+            UC_ADM10["UC-ADM-10: Giám sát phiên phân luồng AI Triage"]
+            UC_ADM11["UC-ADM-11: Nhật ký kiểm toán an ninh HIPAA"]
+        end
+        subgraph FinOpsGroup["Quản Trị AI FinOps & Cấu Hình"]
+            UC_ADM02["UC-ADM-02: Giám sát tiêu thụ Token AI & Chi phí"]
+            UC_ADM03["UC-ADM-03: Chuyển đổi chế độ AI Online / Offline"]
+            UC_ADM04["UC-ADM-04: Đồng bộ hóa Vector Embedding hàng loạt"]
+        end
+    end
+
+    A --> VettingGroup
+    A --> SupervisionGroup
+    A --> FinOpsGroup
 ```
 
 #### 2.2.2 Descriptions
@@ -347,7 +446,7 @@ graph LR
 | **UC-PAT-07** | Download Document File | Patient, Doctor | `MedicalDocumentController.getFile` | Retrieve document source bytes via temporary 15-minute HMAC signed Supabase S3 URL. |
 | **UC-PAT-08** | Purchase AI Quota | Patient | `MedicalDocumentController.purchaseQuota` | Purchase document analysis quota packages (QUOTA_PURCHASE order type). |
 | **UC-PAT-09** | Book In-Clinic Appointment | Patient | `AppointmentController.createAppointment` | Reserve 30-min slot (08:00–17:00), assign sequential STT queue number, and lock schedule. |
-| **UC-PAT-10** | Process Payment | Patient | `PaymentController.checkout`, `verify` | Pay appointment consultation fee via Stripe Checkout or Mock Sandbox. |
+| **UC-PAT-10** | Process Payment | Patient | `PaymentController.createPaymentUrl`, `handleVnpayIpn` | Pay appointment consultation fee via VNPay Online Payment Gateway (HMAC-SHA512) or Mock Sandbox. |
 | **UC-PAT-11** | View Admission Slip (STT) | Patient | `AppointmentController.getTicket` | Render digital encounter ticket with queue number, clinic room, and preparation instructions. |
 | **UC-PAT-12** | View Appointment History | Patient | `AppointmentController.getMyAppointments` | List patient appointments with status badges (`SCHEDULED`, `CONFIRMED`, `COMPLETED`, `CANCELLED`). |
 | **UC-PAT-13** | Patient Check-In | Patient | `AppointmentController.checkIn` | Mark patient arrival at clinic (`checked_in_at`), advancing queue status. |

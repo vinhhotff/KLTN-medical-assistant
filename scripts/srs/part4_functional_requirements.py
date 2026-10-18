@@ -175,7 +175,7 @@ stateDiagram-v2
 10. **`document_analyses`:** Structured OCR extractions, biomarker indicators, and LOINC codes.
     - `id` (UUID, PK), `document_id` (UUID, FK, UK), `biomarkers_json` (TEXT), `abnormal_indicators_json` (TEXT), `layperson_summary` (TEXT), `loinc_codes_json` (TEXT), `recommended_specialty_id` (UUID, FK), `created_at` (TIMESTAMPTZ).
 11. **`payment_transactions`:** Financial ledger recording fees, refunds, and gateway interactions.
-    - `id` (UUID, PK), `transaction_code` (VARCHAR(50), UK), `user_id` (UUID, FK), `appointment_id` (UUID, FK), `order_type` (VARCHAR(30): `APPOINTMENT_FEE`, `QUOTA_PURCHASE`), `amount` (NUMERIC(12,2)), `currency` (VARCHAR(10)), `status` (VARCHAR(30): `PENDING`, `SUCCESS`, `FAILED`, `REFUNDED`), `payment_method` (VARCHAR(30): `STRIPE`, `MOCK`), `gateway_transaction_id` (VARCHAR(255)), `metadata_json` (TEXT), `created_at` (TIMESTAMPTZ), `updated_at` (TIMESTAMPTZ).
+    - `id` (UUID, PK), `transaction_code` (VARCHAR(64), UK), `user_id` (UUID, FK), `reference_id` (VARCHAR(100)), `order_type` (VARCHAR(40): `APPOINTMENT_FEE`, `QUOTA_PURCHASE`), `amount` (NUMERIC(12,2)), `currency` (VARCHAR(10)), `status` (VARCHAR(30): `PENDING`, `COMPLETED`, `FAILED`, `CANCELLED`, `REFUNDED`) (UUID, FK), `order_type` (VARCHAR(30): `APPOINTMENT_FEE`, `QUOTA_PURCHASE`), `amount` (NUMERIC(12,2)), `currency` (VARCHAR(10)), `status` (VARCHAR(30): `PENDING`, `SUCCESS`, `FAILED`, `REFUNDED`), `payment_method` (VARCHAR(40): `VNPAY_QR`, `VNPAY_ATM`, `MOCK`), `payment_gateway` (VARCHAR(40): `VNPAY`, `MOCK`), `gateway_reference` (VARCHAR(255)), `metadata_json` (TEXT), `created_at` (TIMESTAMPTZ), `updated_at` (TIMESTAMPTZ).
 12. **`password_reset_tokens`:** Single-use SHA-256 hashed password recovery tokens.
     - `id` (UUID, PK), `user_id` (UUID, FK), `token_hash` (VARCHAR(64)), `expires_at` (TIMESTAMP), `consumed` (BOOLEAN), `consumed_at` (TIMESTAMP), `created_at` (TIMESTAMPTZ).
 13. **`email_verification_tokens`:** Account activation verification tokens.
@@ -375,7 +375,7 @@ Where:
 - External file access is issued strictly via temporary 15-minute HMAC-SHA256 signed URLs (`createSignedUrl(path, 900)`). Public URLs are permanently disabled.
 
 ##### 3.2.5.5 AI Analysis Quota Management & Package Purchase
-- Each patient profile tracks `remaining_ai_quota`. Patients can purchase quota packages via `POST /api/v1/documents/quota/purchase` and Stripe / Mock checkout.
+- Each patient profile tracks `remaining_ai_quota`. Patients can purchase quota packages via `POST /api/v1/documents/quota/purchase` and VNPay / Mock checkout.
 
 ---
 
@@ -387,9 +387,9 @@ Where:
 - Sequential STT allocation per doctor per day starting at STT 01 at 08:00 AM (BR-20).
 
 ##### 3.2.6.2 Multi-Channel Payment Processing
-- `PaymentController.checkout`: Initializes Stripe Checkout Session or Mock Sandbox based on `app.payment.mock.enabled`.
+- `PaymentController.createPaymentUrl`: Initializes VNPay Order or Mock Sandbox based on `app.payment.mock.enabled`.
 - Production lockdown: In production (`mock.enabled = false`), mock verification throws `MOCK_PAYMENT_DISABLED` (Security Audit BE-10).
-- Webhook signature verification: Verifies Stripe HMAC-SHA256 signature on `/api/v1/payments/webhook/stripe`.
+- Webhook signature verification: Verifies VNPay HMAC-SHA512 checksum on `/api/v1/payments/vnpay-ipn` with idempotency locking (`SELECT ... FOR UPDATE`).
 
 ##### 3.2.6.3 Electronic Patient Admission Slip (`AppointmentController.getTicket`)
 - Generates digital admission ticket with Queue Number (`STT 05`), Clinic Room ("Phòng Khám 204"), Doctor Name, Google Maps coordinates, and fasting/preparation instructions.

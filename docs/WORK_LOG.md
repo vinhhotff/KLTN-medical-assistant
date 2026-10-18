@@ -5645,6 +5645,27 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
 4. **Report 4 (`docs/SDD_MediAssist_AI.md`):** Thiết kế Phần mềm chuẩn IEEE 1016, 88 Biểu đồ Mermaid (1 Architecture, 2 Packages, 1 ERD, 28 Class, 56 Sequence), 17 Bảng CSDL với đầy đủ bảng Cột, Chỉ mục vật lý (HNSW, GIN, composite) và Ràng buộc Khóa ngoại, 28 quy trình nghiệp vụ bóc tách 4 tầng chi tiết.
 5. **Report 5 (`docs/TEST_REPORT_MediAssist_AI.md`):** Báo cáo Kiểm thử Phần mềm chuẩn IEEE 829 / ISO 29119, 306/306 bài test tự động trên 37 lớp kiểm thử, Thử nghiệm tải cao k6 (500 VUs, 0% lỗi), Benchmark đồ thị HNSW trên 150.000 ca bệnh Meddies (0.72ms), Ma trận kiểm thử thâm nhập an ninh BOLA/IDOR và Nhật ký xử lý lỗi BE-1 đến BE-16.
 
+### [WORK-LOG-#109] Tái Cấu Trúc Sơ Đồ Ca Sử Dụng SRS Thành 5 Biểu Đồ Mermaid Module Hóa Cực Gọn & Đồng Bộ VNPay
+* **Thời gian:** 2026-10-18 15:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Giải quyết triệt để vấn đề sơ đồ Use Case nguyên khối (Monolithic Diagram) quá dài lê thê gây xấu và vỡ trang tài liệu khi đưa vào văn bản học thuật bằng cách phân rã thành 5 sơ đồ Mermaid module hóa tinh gọn theo từng vai trò và phân hệ; đồng thời đồng bộ hóa toàn diện 100% thuật ngữ cổng thanh toán sang VNPay (HMAC-SHA512) & Mock Sandbox trên toàn bộ SRS Report 3.
+* **Trạng thái Build:**
+  - Backend: **`306 / 306` Tests PASS 100%** (`mvn test` 0 failure, 0 error, 15.14s).
+  - Frontend: **`npm run build` PASS 100%** (2307 modules, 0 lỗi TypeScript, 2.61s).
+  - Quy mô tài liệu SRS: **2.400 dòng (214.158 ký tự)**, 8 khối biểu đồ Mermaid module hóa chuẩn chỉnh.
+
+#### 1. Chi Tiết 5 Biểu Đồ Ca Sử Dụng Module Hóa (Section 2.2.1):
+1. **Figure 2.2.1.A (Global Macro Use Case Architecture):** Sơ đồ cấp cao tổng quan bố cục ngang (`flowchart LR`), thể hiện mối liên kết giữa 3 tác nhân (`Patient`, `Doctor`, `Admin`) và 4 phân hệ nghiệp vụ chính (Common, Patient, Doctor, Admin), vừa vặn nửa trang A4.
+2. **Figure 2.2.1.B (Common System Use Cases):** Tập trung vào 6 ca sử dụng chung (Đăng nhập, Đăng xuất, Đổi mật khẩu, Cập nhật hồ sơ, Quên mật khẩu, Kích hoạt email).
+3. **Figure 2.2.1.C (Patient Domain Use Cases):** Phân nhóm logic theo 4 cụm chức năng (Sàng lọc & Phân luồng, Tìm kiếm Bác sĩ & Đánh giá, Cận lâm sàng & Xét nghiệm, Đặt lịch & Viện phí).
+4. **Figure 2.2.1.D (Doctor Workstation Use Cases):** Phân nhóm logic theo 3 cụm chức năng (Quản lý hàng đợi tiếp đón, Khám lâm sàng & Bệnh án EMR với WHO ICD-10/LOINC, Hồ sơ & Chuyên khoa).
+5. **Figure 2.2.1.E (Admin Governance & AI FinOps Use Cases):** Phân nhóm logic theo 3 cụm chức năng (Thẩm định bác sĩ CCHN, Giám sát vận hành & Kiểm toán HIPAA, Quản trị AI FinOps & Cấu hình).
+
+#### 2. Đồng Bộ Hóa Cổng Thanh Toán VNPay Toàn Diện:
+- Thay thế triệt để các tham chiếu cũ ("Stripe") sang **VNPay National Payment Gateway API (HMAC-SHA512) & Mock Payment Sandbox**.
+- Cập nhật UC-PAT-10, SI-06, lược đồ bảng `payment_transactions` và cơ chế khóa chống trùng lặp Webhook IPN (`SELECT ... FOR UPDATE`).
+
+
 
 
 

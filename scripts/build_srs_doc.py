@@ -18,7 +18,8 @@ from srs import part4_functional_requirements
 from srs import part5_nfr_and_appendix
 
 def main():
-    target_path = os.path.abspath("docs/SRS_MediAssist_AI.md")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    target_path = os.path.abspath(os.path.join(base_dir, "..", "docs", "SRS_MediAssist_AI.md"))
     print(f"Compiling complete Capstone Report 3 SRS to: {target_path}")
 
     p1 = part1_overview_and_common.get_content()
