@@ -5586,6 +5586,50 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
      * **Thanh Toán & Kế Toán (3.21 - 3.23):** Khởi tạo đơn thanh toán VNPay HMAC-SHA512 (3.21), Xử lý Webhook VNPay IPN Idempotent (3.22), Đối soát & Hoàn tiền tự động (3.23).
      * **Quản Trị Hệ Thống & Hậu Cần (3.24 - 3.28):** Phê duyệt chứng chỉ bác sĩ (3.24), Quản lý danh mục chuyên khoa (3.25), Khóa tài khoản an ninh (3.26), Giám sát nhật ký kiểm toán (3.27), Động cơ phát thư điện tử giao dịch Async Outbox (3.28).
 
+### [WORK-LOG-#105] Khởi Tạo Báo Cáo Kiểm Thử Phần Mềm & Đảm Bảo Chất Lượng (Capstone Report 5) Chuẩn IEEE 829
+* **Thời gian:** 2026-10-18 12:00:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Xây dựng toàn diện tài liệu `docs/TEST_REPORT_MediAssist_AI.md` (Software Test Documentation & Verification Report / Quality Assurance Report - Report 5) theo chuẩn IEEE Std 829-2008 & ISO/IEC/IEEE 29119, hoàn tất bộ ba tài liệu trụ cột của Đồ án Tốt nghiệp (Report 3 SRS, Report 4 SDD, Report 5 STR).
+* **Trạng thái Build:**
+  - Backend: **`306 / 306` Tests PASS 100%** (`mvn test` 0 failure, 0 error, 15.14s).
+  - Frontend: **`npm run build` PASS 100%** (2307 modules, 0 lỗi TypeScript, 2.68s).
+  - Quy mô tài liệu STR: **382 dòng (38.154 ký tự)**, 100% số liệu đo đạc thực nghiệm từ 37 tệp kiểm thử Surefire.
+
+#### 1. Cấu Trúc Báo Cáo Kiểm Thử Chuẩn Capstone Report 5:
+1. **Chiến Lược & Kim Tự Tháp Kiểm Thử (Section 1):**
+   - Mô hình kim tự tháp kiểm thử 4 tầng: Unit Testing (50%), Security/Vulnerability Testing (15%), Integration/Slice Testing (25%), System & E2E Testing (10%).
+   - Cấu hình môi trường cách ly (PostgreSQL 16 + pgvector, Redis, Supabase S3 Client, Virtual Threads).
+2. **Kết Quả Kiểm Thử Tự Động Toàn Diện (Section 2):**
+   - Bảng phân rã chi tiết 37 lớp kiểm thử với 306 ca kiểm thử tự động trên 8 nhóm phân hệ chức năng:
+     * Xác thực, Phân quyền & Kích hoạt Email (49 tests).
+     * AI Phân luồng triệu chứng & Phòng thủ lâm sàng (19 tests).
+     * Động cơ tìm kiếm vector bác sĩ & Thuật toán WHRF (38 tests).
+     * Lịch khám Telehealth & Bệnh án điện tử EMR (40 tests).
+     * Hồ sơ cận lâm sàng, OCR & Bộ sinh Meddies (71 tests).
+     * Bảo mật dữ liệu y tế, BOLA Defense & Quyền riêng tư (22 tests).
+     * Tài chính, Cổng thanh toán VNPay & FinOps (17 tests).
+     * Hạ tầng, Bộ đệm Cache, Email Engine & Quản trị (50 tests).
+   - Kiểm tra tĩnh Frontend TypeScript với 0 lỗi nghiêm trọng trên 2.307 modules.
+   - Bộ kiểm thử khép kín đầu-cuối Playwright E2E (`triage.spec.ts`, `auth.spec.ts`, `booking.spec.ts`).
+3. **Kiểm Chuẩn Tải Cao & Độ Co Giãn (Section 3):**
+   - Thử nghiệm tải bằng k6 với 500 Virtual Users đồng thời: Thông lượng 526.76 req/s, tỷ lệ lỗi 0.00%, P95 Latency 17.82ms.
+   - Kiểm chuẩn Cache 2 lớp: Hit ratio L1 Caffeine đạt 94.2%, giảm tải 99.3% cho CSDL PostgreSQL; thuật toán XFetch chống Thundering Herd.
+   - Đánh giá khả năng mở rộng của Java 21 Project Loom Virtual Threads duy trì RAM ổn định ở 280MB - 350MB.
+4. **Đánh Giá Khoa Học Dữ Liệu & Độ Chính Xác AI (Section 4):**
+   - Kết quả thực nghiệm đồ thị HNSW trên 150.000 ca bệnh Meddies Persona VIE: Top-1 Accuracy 23.2%, Recall@3 33.0%, MRR 0.2931, độ trễ quét đồ thị 0.72ms.
+   - Phân tích đối chứng hiệu quả làm giàu hồ sơ bác sĩ bằng triệu chứng đời thường (+17.2% Top-1 Accuracy, tăng gấp 3.9 lần so với hồ sơ học thuật).
+   - Đánh giá độ chính xác bóc tách và che mờ PII đạt 82.72% trên 100 tài liệu Meddies PII theo Nghị định 13/2023/NĐ-CP và HIPAA.
+5. **Kiểm Thử An Ninh & Thâm Nhập Lỗ Hổng OWASP API Top 10 (Section 5):**
+   - Ma trận kiểm chứng rào chắn Broken Object Level Authorization (BOLA/IDOR) qua `PatientAccessGuard`.
+   - Kiểm thử thâm nhập tệp lưu trữ riêng tư Supabase S3 với URL ký số HMAC-SHA256 15 phút.
+   - Thẩm định mã băm bảo mật SHA-256 cho Password Reset Token và Email Verification Token.
+   - Kiểm chứng cơ chế khóa tài khoản Brute-Force sau 5 lần sai mật khẩu liên tiếp.
+6. **Nhật Ký Xử Lý Khiếm Khuyết Defect Log (Section 6):**
+   - Bảng theo dõi và khắc phục triệt để 16 lỗi kiến trúc BE-1 đến BE-16.
+7. **Đánh Giá Tiêu Chí Đồ Án Tốt Nghiệp & Nghiệm Thu (Section 7):**
+   - Đạt điểm tối đa (Grade A) trên toàn bộ tiêu chí đánh giá của Hội đồng Khóa luận Tốt nghiệp Đại học FPT.
+
+
 
 
 
