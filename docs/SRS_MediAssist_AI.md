@@ -251,33 +251,33 @@ graph TD
 
 #### 2.2.1 Diagram(s)
 
-##### Figure 2.2.1.A: Sơ đồ Ca Sử Dụng Cấp Cao Toàn Hệ Thống (Global High-Level Use Case Architecture)
+##### Figure 2.2.1.A: Global High-Level Use Case Architecture
 ```mermaid
 flowchart LR
     P(("Patient"))
     D(("Doctor"))
     A(("Admin"))
 
-    subgraph System["Hệ Sinh Thái Y Tế Số MediAssist-AI"]
+    subgraph System["MediAssist-AI Telehealth Ecosystem"]
         direction TB
-        subgraph Sub_Common["Phân Hệ Chung"]
-            UC_C["Xác thực & Bảo mật<br/>(Sign In, Register, Profile, Pwd)"]
+        subgraph Sub_Common["Common Subsystem"]
+            UC_C["Identity & Security<br/>(Sign In, Register, Profile, Pwd)"]
         end
-        subgraph Sub_Patient["Phân Hệ Người Bệnh"]
-            UC_P1["AI Phân luồng & Triage 115"]
-            UC_P2["Tìm kiếm Bác sĩ (WHRF)"]
-            UC_P3["Đặt lịch, STT & Thanh toán VNPay"]
-            UC_P4["OCR & Giải nghĩa Xét nghiệm"]
+        subgraph Sub_Patient["Patient Subsystem"]
+            UC_P1["AI Symptom Triage & Red-Flag 115"]
+            UC_P2["Semantic Doctor Matching (WHRF)"]
+            UC_P3["In-Clinic Booking, STT & Payment"]
+            UC_P4["Vision OCR & Lab Interpretation"]
         end
-        subgraph Sub_Doctor["Bàn Làm Việc Bác Sĩ"]
-            UC_D1["Hàng đợi tiếp đón & Call Next"]
-            UC_D2["Bệnh án EMR & WHO ICD-10/LOINC"]
-            UC_D3["Lịch khám & Đơn thuốc điện tử"]
+        subgraph Sub_Doctor["Doctor Workstation Subsystem"]
+            UC_D1["Daily Queue & Call Next Dispatcher"]
+            UC_D2["Longitudinal EMR, ICD-10 & LOINC"]
+            UC_D3["Schedule Slots & E-Prescription"]
         end
-        subgraph Sub_Admin["Phân Hệ Quản Trị & FinOps"]
-            UC_A1["Thẩm định CCHN & Sync Vector"]
-            UC_A2["Giám sát Toàn viện & Audit Logs"]
-            UC_A3["AI FinOps & Cấu hình Hệ thống"]
+        subgraph Sub_Admin["Admin Governance & FinOps"]
+            UC_A1["Doctor CCHN Vetting & Vector Sync"]
+            UC_A2["Hospital Supervision & Audit Logs"]
+            UC_A3["AI FinOps Telemetry & System Config"]
         end
     end
 
@@ -291,21 +291,21 @@ flowchart LR
     A --> Sub_Admin
 ```
 
-##### Figure 2.2.1.B: Sơ đồ Ca Sử Dụng Phân Hệ Chung (Common System Use Cases)
+##### Figure 2.2.1.B: Common System Use Cases
 ```mermaid
 flowchart LR
     P(("Patient"))
     D(("Doctor"))
     A(("Admin"))
 
-    subgraph Common["Phân Hệ Chung (Common System)"]
+    subgraph Common["Common System Functions"]
         direction TB
-        UC_COMM01["UC-COMM-01: Đăng nhập (Sign In)"]
-        UC_COMM02["UC-COMM-02: Đăng xuất (Sign Out)"]
-        UC_COMM03["UC-COMM-03: Đổi mật khẩu (Change Password)"]
-        UC_COMM04["UC-COMM-04: Cập nhật hồ sơ (Update Profile)"]
-        UC_COMM05["UC-COMM-05: Quên & Đặt lại mật khẩu (Reset Pwd)"]
-        UC_COMM06["UC-COMM-06: Kích hoạt email (Email Gate)"]
+        UC_COMM01["UC-COMM-01: Sign In"]
+        UC_COMM02["UC-COMM-02: Sign Out"]
+        UC_COMM03["UC-COMM-03: Change Password"]
+        UC_COMM04["UC-COMM-04: Update Profile"]
+        UC_COMM05["UC-COMM-05: Reset Password via Token Hash"]
+        UC_COMM06["UC-COMM-06: Email Verification Gate"]
     end
 
     P --> UC_COMM01 & UC_COMM02 & UC_COMM03 & UC_COMM04 & UC_COMM05 & UC_COMM06
@@ -313,38 +313,38 @@ flowchart LR
     A --> UC_COMM01 & UC_COMM02 & UC_COMM03 & UC_COMM05
 ```
 
-##### Figure 2.2.1.C: Sơ đồ Ca Sử Dụng Phân Hệ Người Bệnh (Patient Domain Use Cases)
+##### Figure 2.2.1.C: Patient Domain Use Cases
 ```mermaid
 flowchart LR
     P(("Patient"))
 
-    subgraph PatientDomain["Phân Hệ Người Bệnh (Patient Portal)"]
+    subgraph PatientDomain["Patient Telehealth Portal"]
         direction TB
-        subgraph TriageGroup["Sàng Lọc & Phân Luồng"]
-            UC_PAT01["UC-PAT-01: AI Phân luồng triệu chứng"]
-            UC_PAT02["UC-PAT-02: Phòng thủ lâm sàng & Cấp cứu 115"]
-            UC_PAT17["UC-PAT-17: Lịch sử phân luồng & SBAR"]
+        subgraph TriageGroup["Clinical Triage & Screening"]
+            UC_PAT01["UC-PAT-01: Conversational AI Triage"]
+            UC_PAT02["UC-PAT-02: 5-Stage Defense & 115 Interception"]
+            UC_PAT17["UC-PAT-17: View Triage History & SBAR"]
         end
-        subgraph SearchGroup["Tìm Kiếm Bác Sĩ & Đánh Giá"]
-            UC_PAT03["UC-PAT-03: Tìm kiếm Bác sĩ ngữ nghĩa (WHRF)"]
-            UC_PAT04["UC-PAT-04: Xem chi tiết & Slot lịch khám"]
-            UC_PAT16["UC-PAT-16: Đánh giá & Phản hồi Bác sĩ"]
+        subgraph SearchGroup["Doctor Discovery & Feedback"]
+            UC_PAT03["UC-PAT-03: Semantic Vector Search (WHRF)"]
+            UC_PAT04["UC-PAT-04: View Doctor Profile & Slot Picker"]
+            UC_PAT16["UC-PAT-16: Submit Consultation Review"]
         end
-        subgraph DocGroup["Cận Lâm Sàng & Xét Nghiệm"]
-            UC_PAT05["UC-PAT-05: Tải lên phiếu xét nghiệm"]
-            UC_PAT06["UC-PAT-06: Giải nghĩa chỉ số LOINC (OCR)"]
-            UC_PAT07["UC-PAT-07: Tải tệp qua URL ký số 15 phút"]
-            UC_PAT08["UC-PAT-08: Mua gói hạn ngạch phân tích"]
-            UC_PAT18["UC-PAT-18: Khử định danh PII văn bản"]
+        subgraph DocGroup["Medical Document & OCR"]
+            UC_PAT05["UC-PAT-05: Upload Lab Record & Imaging"]
+            UC_PAT06["UC-PAT-06: Interpret Biomarkers & LOINC"]
+            UC_PAT07["UC-PAT-07: Download File via 15-Min Signed URL"]
+            UC_PAT08["UC-PAT-08: Purchase AI Quota Package"]
+            UC_PAT18["UC-PAT-18: De-identify Medical PII"]
         end
-        subgraph BookingGroup["Đặt Lịch & Viện Phí"]
-            UC_PAT09["UC-PAT-09: Đặt lịch khám & Slot Lock"]
-            UC_PAT10["UC-PAT-10: Thanh toán viện phí VNPay"]
-            UC_PAT11["UC-PAT-11: Phiếu khám điện tử & STT"]
-            UC_PAT12["UC-PAT-12: Lịch sử cuộc hẹn khám"]
-            UC_PAT13["UC-PAT-13: Điểm danh tiếp đón tại viện"]
-            UC_PAT14["UC-PAT-14: Dời lịch hẹn khám bệnh"]
-            UC_PAT15["UC-PAT-15: Hủy lịch & Hoàn tiền tự động"]
+        subgraph BookingGroup["Scheduling & Settlement"]
+            UC_PAT09["UC-PAT-09: Book In-Clinic Slot & Concurrency Lock"]
+            UC_PAT10["UC-PAT-10: Process Payment via VNPay / Mock"]
+            UC_PAT11["UC-PAT-11: View Admission Slip & STT Queue"]
+            UC_PAT12["UC-PAT-12: View Appointment History"]
+            UC_PAT13["UC-PAT-13: Patient Arrival Check-In"]
+            UC_PAT14["UC-PAT-14: Reschedule Active Booking"]
+            UC_PAT15["UC-PAT-15: Cancel Booking with Tiered Refund"]
         end
     end
 
@@ -354,32 +354,32 @@ flowchart LR
     P --> BookingGroup
 ```
 
-##### Figure 2.2.1.D: Sơ đồ Ca Sử Dụng Bàn Làm Việc Bác Sĩ (Doctor Workstation Use Cases)
+##### Figure 2.2.1.D: Doctor Workstation Use Cases
 ```mermaid
 flowchart LR
     D(("Doctor"))
 
-    subgraph DoctorDomain["Bàn Làm Việc Bác Sĩ (Doctor Workstation)"]
+    subgraph DoctorDomain["Doctor Clinical Workstation"]
         direction TB
-        subgraph QueueGroup["Quản Lý Hàng Đợi & Lịch Khám"]
-            UC_DOC01["UC-DOC-01: Bàn làm việc & Thống kê KPI"]
-            UC_DOC02["UC-DOC-02: Cấu hình khung giờ làm việc tuần"]
-            UC_DOC03["UC-DOC-03: Hàng đợi khám & Gọi lượt kế tiếp"]
-            UC_DOC09["UC-DOC-09: Lên lịch hẹn tái khám"]
-            UC_DOC10["UC-DOC-10: Bác sĩ hủy ca & Hoàn tiền 100%"]
+        subgraph QueueGroup["Queue & Schedule Management"]
+            UC_DOC01["UC-DOC-01: View Workstation Dashboard & Stats"]
+            UC_DOC02["UC-DOC-02: Configure Schedule Slots"]
+            UC_DOC03["UC-DOC-03: Daily Queue & Call Next Patient"]
+            UC_DOC09["UC-DOC-09: Schedule In-Clinic Follow-up Visit"]
+            UC_DOC10["UC-DOC-10: Doctor Cancel with 100% Refund"]
         end
-        subgraph ClinicalGroup["Khám Lâm Sàng & Bệnh Án EMR"]
-            UC_DOC04["UC-DOC-04: Màn hình kép soi chiếu xét nghiệm"]
-            UC_DOC05["UC-DOC-05: Rào chắn bệnh án PatientAccessGuard"]
-            UC_DOC06["UC-DOC-06: Gợi ý chẩn đoán WHO ICD-10"]
-            UC_DOC07["UC-DOC-07: Gợi ý chỉ số xét nghiệm LOINC"]
-            UC_DOC08["UC-DOC-08: Hoàn tất ca khám & Kê đơn điện tử"]
-            UC_DOC13["UC-DOC-13: Xuất bệnh án & Đơn thuốc PDF"]
+        subgraph ClinicalGroup["Clinical Encounter & EMR Record"]
+            UC_DOC04["UC-DOC-04: Split-Screen Pre-Check Inspection"]
+            UC_DOC05["UC-DOC-05: PatientAccessGuard BOLA Verification"]
+            UC_DOC06["UC-DOC-06: Autocomplete Diagnosis (WHO ICD-10)"]
+            UC_DOC07["UC-DOC-07: Autocomplete Lab Indicator (LOINC)"]
+            UC_DOC08["UC-DOC-08: Complete Encounter & E-Prescription"]
+            UC_DOC13["UC-DOC-13: Export Medical Record & Prescription PDF"]
         end
-        subgraph ProfileGroup["Hồ Sơ & Chuyên Khoa"]
-            UC_DOC11["UC-DOC-11: Xem đánh giá từ bệnh nhân"]
-            UC_DOC12["UC-DOC-12: Cập nhật tiểu sử & Hồ sơ năng lực"]
-            UC_DOC14["UC-DOC-14: Quản lý chuyên khoa chuyên sâu"]
+        subgraph ProfileGroup["Credentials & Specialties"]
+            UC_DOC11["UC-DOC-11: View Patient Reviews & Ratings"]
+            UC_DOC12["UC-DOC-12: Update Doctor Bio & Practice Profile"]
+            UC_DOC14["UC-DOC-14: Manage Assigned Specialties"]
         end
     end
 
@@ -388,29 +388,29 @@ flowchart LR
     D --> ProfileGroup
 ```
 
-##### Figure 2.2.1.E: Sơ đồ Ca Sử Dụng Phân Hệ Quản Trị Viên & AI FinOps (Admin Governance Use Cases)
+##### Figure 2.2.1.E: Admin Governance & AI FinOps Use Cases
 ```mermaid
 flowchart LR
     A(("Admin"))
 
-    subgraph AdminDomain["Phân Hệ Quản Trị Hệ Thống & AI FinOps"]
+    subgraph AdminDomain["Admin Governance & AI FinOps Platform"]
         direction TB
-        subgraph VettingGroup["Thẩm Định Bác Sĩ & Chuyên Khoa"]
-            UC_ADM05["UC-ADM-05: Thẩm định CCHN & Sync Vector"]
-            UC_ADM06["UC-ADM-06: Quản lý danh bạ Bác sĩ"]
-            UC_ADM07["UC-ADM-07: Quản lý tài khoản & Khóa an ninh"]
-            UC_ADM08["UC-ADM-08: Quản lý danh mục Chuyên khoa"]
+        subgraph VettingGroup["Credential Vetting & Directory"]
+            UC_ADM05["UC-ADM-05: Vet & Approve Doctor CCHN License"]
+            UC_ADM06["UC-ADM-06: Manage Medical Staff Directory"]
+            UC_ADM07["UC-ADM-07: User Access Control & Account Lockout"]
+            UC_ADM08["UC-ADM-08: Manage Clinical Specialty Taxonomy"]
         end
-        subgraph SupervisionGroup["Giám Sát Vận Hành & An Ninh"]
-            UC_ADM01["UC-ADM-01: Bảng điều khiển giám sát toàn viện"]
-            UC_ADM09["UC-ADM-09: Giám sát & Hủy cưỡng chế lịch hẹn"]
-            UC_ADM10["UC-ADM-10: Giám sát phiên phân luồng AI Triage"]
-            UC_ADM11["UC-ADM-11: Nhật ký kiểm toán an ninh HIPAA"]
+        subgraph SupervisionGroup["Operations & Security Supervision"]
+            UC_ADM01["UC-ADM-01: Executive Telemetry & System Stats"]
+            UC_ADM09["UC-ADM-09: Supervise Appointments & Force Cancel"]
+            UC_ADM10["UC-ADM-10: Supervise AI Triage & SBAR Audit"]
+            UC_ADM11["UC-ADM-11: Security Audit Log & BOLA Monitoring"]
         end
-        subgraph FinOpsGroup["Quản Trị AI FinOps & Cấu Hình"]
-            UC_ADM02["UC-ADM-02: Giám sát tiêu thụ Token AI & Chi phí"]
-            UC_ADM03["UC-ADM-03: Chuyển đổi chế độ AI Online / Offline"]
-            UC_ADM04["UC-ADM-04: Đồng bộ hóa Vector Embedding hàng loạt"]
+        subgraph FinOpsGroup["AI FinOps & Engine Control"]
+            UC_ADM02["UC-ADM-02: Monitor AI Token Usage & FinOps Costs"]
+            UC_ADM03["UC-ADM-03: Toggle AI Engine Online/Offline Mode"]
+            UC_ADM04["UC-ADM-04: Batch Sync Doctor Vector Embeddings"]
         end
     end
 
