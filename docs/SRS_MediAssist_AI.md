@@ -44,7 +44,7 @@
       - [2.3.2.7 Download Document File via 15-Min Signed URL (UC-PAT-07)](#2327-download-document-file-via-15-min-signed-url-uc-pat-07)
       - [2.3.2.8 Purchase AI Analysis Quota (UC-PAT-08)](#2328-purchase-ai-analysis-quota-uc-pat-08)
       - [2.3.2.9 Book In-Clinic Appointment (UC-PAT-09)](#2329-book-in-clinic-appointment-uc-pat-09)
-      - [2.3.2.10 Process Payment via Stripe / Mock Sandbox (UC-PAT-10)](#23210-process-payment-via-stripe--mock-sandbox-uc-pat-10)
+      - [2.3.2.10 Process Payment via VNPay / Mock Sandbox (UC-PAT-10)](#23210-process-payment-via-vnpay--mock-sandbox-uc-pat-10)
       - [2.3.2.11 View Electronic Encounter Slip (STT) (UC-PAT-11)](#23211-view-electronic-encounter-slip-stt-uc-pat-11)
       - [2.3.2.12 View Patient Appointment History (UC-PAT-12)](#23212-view-patient-appointment-history-uc-pat-12)
       - [2.3.2.13 Patient Check-In for Appointment (UC-PAT-13)](#23213-patient-check-in-for-appointment-uc-pat-13)
@@ -213,7 +213,7 @@ graph TD
         Gemini[Google Gemini 1.5 Flash Vision API]
         OpenAI[OpenAI text-embedding-3-small API]
         OpenRouter[OpenRouter Free-tier Resilience Pool]
-        Stripe[Stripe Payment Sandbox Gateway]
+        VNPay[VNPay Payment Gateway / Mock Sandbox]
         SMTP[Mailpit / Production SMTP with STARTTLS]
     end
 
@@ -223,7 +223,7 @@ graph TD
     TriageEngine --> Gemini & OpenRouter
     VectorSearch --> OpenAI
     DocAnalysis --> SupabaseS3 & Gemini
-    PaymentSvc --> Stripe
+    PaymentSvc --> VNPay
     ApptSvc --> SMTP
     AuthSvc & ApptSvc & VectorSearch & OntologySvc --> PostgreSQL
     TriageEngine & VectorSearch & RateLimiter --> RedisCache
@@ -241,7 +241,7 @@ graph TD
 | **Doctor (`DOCTOR`)** | Human (Primary) | Licensed medical practitioner verified by administrators. Manages consultation schedules, views patient appointment queues, calls next patient, inspects pre-encounter split-screen evidence, records vital signs, inputs WHO ICD-10 diagnoses, orders LOINC tests, prescribes medication, and completes clinical encounters. |
 | **Admin (`ADMIN`)** | Human (Secondary) | System administrator and medical director. Audits doctor medical practice certificates (CCHN), manages clinical specialties, supervises system-wide appointments, monitors AI token usage and FinOps costs (USD/VNĐ), controls user accounts, toggles AI provider failover mode, and inspects immutable audit logs. |
 | **AI Inference Gateway** | External System | External LLM and Vision APIs (Google Gemini 1.5 Flash, OpenAI `text-embedding-3-small`, OpenRouter pool). Ingests clinical prompts and document images, returning structured triage classifications, OCR extractions, and dense vector embeddings. |
-| **Payment Gateway** | External System | Payment infrastructure provider (Stripe Sandbox / Mock Payment Gateway). Processes credit card transactions, webhook notifications, and automated refund triggers. |
+| **Payment Gateway** | External System | Payment infrastructure provider (VNPay Gateway HMAC-SHA512 / Mock Payment Sandbox). Processes online banking transactions, IPN webhook notifications with idempotency locking, and automated refund triggers. |
 | **Email Delivery Gateway** | External System | Transactional email provider (Mailpit in development, Production SMTP with STARTTLS). Dispatches account verification links, password reset tokens, and appointment reminders. |
 | **Clinical Ontology Registry** | External / Internal | Official medical terminology database loaded from WHO ICD-10, LOINC, and MOH Decisions 7603/QĐ-BYT & 3280/QĐ-BYT. Provides high-speed prefix search for diagnosis and lab coding. |
 
@@ -339,7 +339,7 @@ graph LR
 | **UC-PAT-07** | Download Document File | Patient, Doctor | `MedicalDocumentController.getFile` | Retrieve document source bytes via temporary 15-minute HMAC signed Supabase S3 URL. |
 | **UC-PAT-08** | Purchase AI Quota | Patient | `MedicalDocumentController.purchaseQuota` | Purchase document analysis quota packages (QUOTA_PURCHASE order type). |
 | **UC-PAT-09** | Book In-Clinic Appointment | Patient | `AppointmentController.createAppointment` | Reserve 30-min slot (08:00–17:00), assign sequential STT queue number, and lock schedule. |
-| **UC-PAT-10** | Process Payment | Patient | `PaymentController.checkout`, `verify` | Pay appointment consultation fee via Stripe Checkout or Mock Sandbox. |
+| **UC-PAT-10** | Process Payment | Patient | `PaymentController.createPaymentUrl`, `handleVnpayIpn` | Pay appointment consultation fee via VNPay Online Payment Gateway (HMAC-SHA512) or Mock Sandbox. |
 | **UC-PAT-11** | View Admission Slip (STT) | Patient | `AppointmentController.getTicket` | Render digital encounter ticket with queue number, clinic room, and preparation instructions. |
 | **UC-PAT-12** | View Appointment History | Patient | `AppointmentController.getMyAppointments` | List patient appointments with status badges (`SCHEDULED`, `CONFIRMED`, `COMPLETED`, `CANCELLED`). |
 | **UC-PAT-13** | Patient Check-In | Patient | `AppointmentController.checkIn` | Mark patient arrival at clinic (`checked_in_at`), advancing queue status. |
@@ -704,12 +704,12 @@ graph LR
 | **Created By** | SE-AI Capstone Team |
 | **Created Date** | 15/02/2026 |
 | **Primary Actor** | Patient |
-| **Secondary Actor** | Stripe Payment Gateway, Mock Payment Sandbox |
+| **Secondary Actor** | VNPay Payment Gateway, Mock Payment Sandbox |
 | **Description** | MediAssist-AI Payment & Quota Subsystem — Payment checkout initiated; quota credited upon successful transaction. |
 | **Trigger** | Patient clicks "Mua Thêm Hạn Ngạch" on `/patient/documents`. |
 | **Pre-conditions** | Patient is authenticated. |
 | **Post-conditions** | Payment checkout initiated; quota credited upon successful transaction. |
-| **Normal Flow** | Step 1: Patient opens Quota Purchase modal on `/patient/documents`.<br>Step 2: Frontend calls HTTP GET `/api/v1/payments/packages` to display quota tiers:<br>- Gói Tiêu Chuẩn: 5 lượt phân tích (50.000 VNĐ).<br>- Gói Nâng Cao: 15 lượt phân tích (120.000 VNĐ).<br>- Gói Không Giới Hạn: 50 lượt phân tích (300.000 VNĐ).<br>Step 3: Patient selects package and clicks "Thanh Toán".<br>Step 4: Frontend calls HTTP POST `/api/v1/payments/checkout` with `orderType = QUOTA_PURCHASE`.<br>Step 5: Backend initializes payment via Stripe or Mock Sandbox.<br>Step 6: Patient completes payment; transaction verified via `POST /api/v1/payments/verify`.<br>Step 7: Backend increments `patient_profiles.remaining_ai_quota`.<br>Step 8: Frontend updates quota balance badge. |
+| **Normal Flow** | Step 1: Patient opens Quota Purchase modal on `/patient/documents`.<br>Step 2: Frontend calls HTTP GET `/api/v1/payments/packages` to display quota tiers:<br>- Gói Tiêu Chuẩn: 5 lượt phân tích (50.000 VNĐ).<br>- Gói Nâng Cao: 15 lượt phân tích (120.000 VNĐ).<br>- Gói Không Giới Hạn: 50 lượt phân tích (300.000 VNĐ).<br>Step 3: Patient selects package and clicks "Thanh Toán".<br>Step 4: Frontend calls HTTP POST `/api/v1/payments/create-url` with `orderType = QUOTA_PURCHASE`.<br>Step 5: Backend initializes payment order via VNPay (HMAC-SHA512) or Mock Sandbox.<br>Step 6: Patient completes payment; transaction verified via VNPay IPN Webhook.<br>Step 7: Backend increments `patient_profiles.remaining_ai_quota`.<br>Step 8: Frontend updates quota balance badge. |
 | **Alternative Flow** | None. |
 | **Exceptions** | None. |
 | **Priority** | Medium (P2) |
@@ -743,28 +743,28 @@ graph LR
 | **User Interface Controls** | `BookingModal`, slot pills, document select dropdown, "Xác Nhận Đặt Lịch" button. |
 
 
-##### 2.3.2.10 Process Payment via Stripe / Mock Sandbox (UC-PAT-10)
+##### 2.3.2.10 Process Payment via VNPay / Mock Sandbox (UC-PAT-10)
 
 | Attribute | Specification Details |
 | :--- | :--- |
 | **Use Case ID** | `UC-PAT-10` |
-| **Use Case Name** | Process Payment via Stripe / Mock Sandbox |
+| **Use Case Name** | Process Payment via VNPay / Mock Sandbox |
 | **Created By** | SE-AI Capstone Team |
 | **Created Date** | 15/02/2026 |
 | **Primary Actor** | Patient |
-| **Secondary Actor** | Stripe Payment Gateway, Mock Payment Sandbox |
-| **Description** | MediAssist-AI Payment Gateway Subsystem — - Payment authorized and settled.<br>- `appointments.payment_status` updated to `PAID`.<br>- Record inserted in `payment_transactions` with status `SUCCESS`.<br>- Confirmation notification dispatched to patient. |
+| **Secondary Actor** | VNPay Payment Gateway, Mock Payment Sandbox |
+| **Description** | MediAssist-AI Payment Gateway Subsystem — - Payment authorized and settled via VNPay HMAC-SHA512 checksum.<br>- `appointments.payment_status` updated to `PAID`.<br>- Record inserted in `payment_transactions` with status `COMPLETED`.<br>- Confirmation notification dispatched to patient. |
 | **Trigger** | Patient proceeds to pay consultation fee for scheduled appointment. |
 | **Pre-conditions** | Appointment exists with `payment_status = UNPAID`. |
-| **Post-conditions** | - Payment authorized and settled.<br>- `appointments.payment_status` updated to `PAID`.<br>- Record inserted in `payment_transactions` with status `SUCCESS`.<br>- Confirmation notification dispatched to patient. |
-| **Normal Flow** | Step 1: Patient selects payment method (Stripe Credit Card or Mock Sandbox).<br>Step 2: Frontend calls HTTP POST `/api/v1/payments/checkout` with `CreatePaymentRequest(orderType=APPOINTMENT_FEE, appointmentId=...)`.<br>Step 3: Backend verifies `app.payment.mock.enabled`:<br>- If production (`mock.enabled = false`): Routes to Stripe Checkout Gateway.<br>- If demo/dev (`mock.enabled = true`): Routes to Mock Payment Gateway.<br>Step 4: Backend creates `PaymentTransaction` record with status `PENDING`.<br>Step 5: Patient submits payment details; gateway returns transaction confirmation.<br>Step 6: Frontend calls HTTP POST `/api/v1/payments/verify` with `VerifyPaymentRequest(transactionCode)`.<br>Step 7: Backend verifies transaction with gateway and updates `payment_transactions.status = SUCCESS`.<br>Step 8: Backend updates `appointments.payment_status = PAID`.<br>Step 9: Backend publishes `PaymentCompletedEvent` -> dispatches confirmation email.<br>Step 10: Frontend redirects to `/payment/success` with receipt details. |
-| **Alternative Flow** | - Alt Flow 11a: Stripe Webhook Asynchronous Capture:<br>1. Stripe posts webhook to `/api/v1/payments/webhook/stripe`.<br>2. Backend validates webhook signature and auto-fulfills appointment payment status. |
+| **Post-conditions** | - Payment authorized and settled.<br>- `appointments.payment_status` updated to `PAID`.<br>- Record inserted in `payment_transactions` with status `COMPLETED`.<br>- Confirmation notification dispatched to patient. |
+| **Normal Flow** | Step 1: Patient selects payment method (VNPay QR / ATM Card or Mock Sandbox).<br>Step 2: Frontend calls HTTP POST `/api/v1/payments/create-url` with `CreatePaymentRequest(orderType=APPOINTMENT_FEE, appointmentId=...)`.<br>Step 3: Backend verifies `app.payment.mock.enabled`:<br>- If production (`mock.enabled = false`): Routes to VNPay Payment Gateway, generates HMAC-SHA512 checksum URL.<br>- If demo/dev (`mock.enabled = true`): Routes to Mock Payment Gateway.<br>Step 4: Backend creates `PaymentTransaction` record with status `PENDING`.<br>Step 5: Patient scans QR code or submits banking details on VNPay portal; gateway returns confirmation.<br>Step 6: VNPay dispatches Server-to-Server IPN Webhook to `GET /api/v1/payments/vnpay-ipn`.<br>Step 7: Backend verifies HMAC-SHA512 checksum with idempotency locking (`SELECT ... FOR UPDATE`) and updates `payment_transactions.status = COMPLETED`.<br>Step 8: Backend updates `appointments.payment_status = PAID`.<br>Step 9: Backend publishes `PaymentCompletedEvent` -> dispatches confirmation email.<br>Step 10: Frontend redirects to `/payment/success` with receipt details. |
+| **Alternative Flow** | - Alt Flow 11a: VNPay IPN Webhook Asynchronous Capture:<br>1. VNPay posts webhook to `/api/v1/payments/vnpay-ipn`.<br>2. Backend validates checksum signature and auto-fulfills appointment payment status with idempotency lock. |
 | **Exceptions** | - Exc Flow 12a: Mock Payment Attempt in Production:<br>1. Backend detects `mock.enabled = false` and throws `AppException(HttpStatus.FORBIDDEN, "MOCK_PAYMENT_DISABLED", ...)`. |
 | **Priority** | High (P0) |
 | **Frequency of Use** | High (Frequent operational use) |
 | **Business Rules** | - BR-19: Mock payment permanently disabled in production mode (Security Audit BE-10). |
 | **Data Entities Involved** | `payment_transactions`, `appointments`. |
-| **User Interface Controls** | Payment modal, Stripe Elements card iframe, "Thanh Toán Ngay" button. |
+| **User Interface Controls** | Payment modal, VNPay QR iframe, "Thanh Toán VNPay" button. |
 
 
 ##### 2.3.2.11 View Electronic Encounter Slip & Admission STT (UC-PAT-11)
@@ -1721,7 +1721,7 @@ stateDiagram-v2
 10. **`document_analyses`:** Structured OCR extractions, biomarker indicators, and LOINC codes.
     - `id` (UUID, PK), `document_id` (UUID, FK, UK), `biomarkers_json` (TEXT), `abnormal_indicators_json` (TEXT), `layperson_summary` (TEXT), `loinc_codes_json` (TEXT), `recommended_specialty_id` (UUID, FK), `created_at` (TIMESTAMPTZ).
 11. **`payment_transactions`:** Financial ledger recording fees, refunds, and gateway interactions.
-    - `id` (UUID, PK), `transaction_code` (VARCHAR(50), UK), `user_id` (UUID, FK), `appointment_id` (UUID, FK), `order_type` (VARCHAR(30): `APPOINTMENT_FEE`, `QUOTA_PURCHASE`), `amount` (NUMERIC(12,2)), `currency` (VARCHAR(10)), `status` (VARCHAR(30): `PENDING`, `SUCCESS`, `FAILED`, `REFUNDED`), `payment_method` (VARCHAR(30): `STRIPE`, `MOCK`), `gateway_transaction_id` (VARCHAR(255)), `metadata_json` (TEXT), `created_at` (TIMESTAMPTZ), `updated_at` (TIMESTAMPTZ).
+    - `id` (UUID, PK), `transaction_code` (VARCHAR(64), UK), `user_id` (UUID, FK), `reference_id` (VARCHAR(100)), `order_type` (VARCHAR(40): `APPOINTMENT_FEE`, `QUOTA_PURCHASE`), `amount` (NUMERIC(12,2)), `currency` (VARCHAR(10)), `status` (VARCHAR(30): `PENDING`, `COMPLETED`, `FAILED`, `CANCELLED`, `REFUNDED`), `payment_method` (VARCHAR(40): `VNPAY_QR`, `VNPAY_ATM`, `MOCK`), `payment_gateway` (VARCHAR(40): `VNPAY`, `MOCK`), `gateway_reference` (VARCHAR(255)), `metadata_json` (TEXT), `created_at` (TIMESTAMPTZ), `updated_at` (TIMESTAMPTZ).
 12. **`password_reset_tokens`:** Single-use SHA-256 hashed password recovery tokens.
     - `id` (UUID, PK), `user_id` (UUID, FK), `token_hash` (VARCHAR(64)), `expires_at` (TIMESTAMP), `consumed` (BOOLEAN), `consumed_at` (TIMESTAMP), `created_at` (TIMESTAMPTZ).
 13. **`email_verification_tokens`:** Account activation verification tokens.
@@ -1921,7 +1921,7 @@ Where:
 - External file access is issued strictly via temporary 15-minute HMAC-SHA256 signed URLs (`createSignedUrl(path, 900)`). Public URLs are permanently disabled.
 
 ##### 3.2.5.5 AI Analysis Quota Management & Package Purchase
-- Each patient profile tracks `remaining_ai_quota`. Patients can purchase quota packages via `POST /api/v1/documents/quota/purchase` and Stripe / Mock checkout.
+- Each patient profile tracks `remaining_ai_quota`. Patients can purchase quota packages via `POST /api/v1/documents/quota/purchase` and VNPay / Mock checkout.
 
 ---
 
@@ -1933,9 +1933,9 @@ Where:
 - Sequential STT allocation per doctor per day starting at STT 01 at 08:00 AM (BR-20).
 
 ##### 3.2.6.2 Multi-Channel Payment Processing
-- `PaymentController.checkout`: Initializes Stripe Checkout Session or Mock Sandbox based on `app.payment.mock.enabled`.
+- `PaymentController.createPaymentUrl`: Initializes VNPay Order or Mock Sandbox based on `app.payment.mock.enabled`.
 - Production lockdown: In production (`mock.enabled = false`), mock verification throws `MOCK_PAYMENT_DISABLED` (Security Audit BE-10).
-- Webhook signature verification: Verifies Stripe HMAC-SHA256 signature on `/api/v1/payments/webhook/stripe`.
+- Webhook signature verification: Verifies VNPay HMAC-SHA512 checksum on `/api/v1/payments/vnpay-ipn` with idempotency locking (`SELECT ... FOR UPDATE`).
 
 ##### 3.2.6.3 Electronic Patient Admission Slip (`AppointmentController.getTicket`)
 - Generates digital admission ticket with Queue Number (`STT 05`), Clinic Room ("Phòng Khám 204"), Doctor Name, Google Maps coordinates, and fasting/preparation instructions.
@@ -2066,7 +2066,7 @@ public void assertCanAccessPatient(UUID actorUserId, Role role, UUID patientId, 
 - **SI-03 Object Storage Service:** Supabase S3-compatible cloud storage. Stores patient avatars and private medical documents. External access mediated via HMAC-SHA256 signed URLs with a 15-minute TTL.
 - **SI-04 Multimodal Vision AI Gateway:** Google Gemini 1.5 Flash Vision API (`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`) for PDF/Image OCR and biomarker extraction.
 - **SI-05 Dense Vector Embedding API:** OpenAI API (`https://api.openai.com/v1/embeddings`) with model `text-embedding-3-small` producing 1536-dimensional continuous vectors. Fallback: Local Unsupervised Feature Hashing (FNV-1a Character N-gram).
-- **SI-06 Payment Processing Gateway:** Stripe Payments API Sandbox (`https://api.stripe.com/v1`) for card processing, alongside MediAssist Mock Payment Gateway for development and testing.
+- **SI-06 Payment Processing Gateway:** VNPay National Payment Gateway API (HMAC-SHA512) for online banking and VietQR processing, alongside MediAssist Mock Payment Gateway for development and testing.
 - **SI-07 Transactional Email Gateway:** SMTP server with STARTTLS on port 587 (Production) and Mailpit local SMTP on port 1025 / Web UI 8025 (Development/Demo) for dispatching verification links and admission slips.
 
 ---
