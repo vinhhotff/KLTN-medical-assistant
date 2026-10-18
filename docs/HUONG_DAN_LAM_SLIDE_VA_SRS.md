@@ -98,8 +98,8 @@ Nếu giảng viên yêu cầu nộp bản **Software Requirement Specification 
 * **NFR-SEC-01..03:** Bcrypt cost 12, HttpOnly Secure Cookie, Khử PII tuân thủ Nghị định 13/2023/NĐ-CP và HIPAA Safe Harbor.
 * **NFR-MAINT-01:** **306/306 Unit & Integration Tests PASS 100% (`mvn test`)**, 0 lỗi TypeScript.
 
-### 3. Trích xuất Ma Trận Truy Vết Yêu Cầu (RTM - Section 6):
-Copy trực tiếp bảng mục 6 trong `SRS_MediAssist_AI.md` vào phần Phụ lục (Appendix) của báo cáo SRS để chứng minh mọi yêu cầu đều có Use Case, Migration SQL và Unit Test tương ứng.
+### 3. Trích xuất Ma Trận Truy Vết Yêu Cầu (RTM - Mục 5.5):
+Copy trực tiếp bảng mục 5.5 trong `SRS_MediAssist_AI.md` vào phần Phụ lục (Appendix) của báo cáo SRS để chứng minh mọi yêu cầu đều có Use Case, Migration SQL và Unit Test tương ứng (306/306 tests PASS 100%).
 
 ---
 
@@ -131,7 +131,7 @@ Khi viết báo cáo Khóa Luận Tốt Nghiệp bằng Word / LaTeX, bạn lấ
 
 * **Chương 1:** Lấy bối cảnh quá tải bệnh viện, 3 Personas (Bác sĩ, Bệnh nhân, Admin) từ [`docs/STORYTELLING.md`](./STORYTELLING.md).
 * **Chương 2:** Lấy kiến trúc Modular Monolith, Dual-Auth, lý thuyết Mạng nơ-ron Transformer và đồ thị HNSW từ [`ARCHITECTURE.md`](../ARCHITECTURE.md) và [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md).
-* **Chương 3:** Lấy 35 Use Cases từ [`docs/USE_CASES.md`](./USE_CASES.md), 22 Flyway DDL (V1-V22) từ [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md), và bảng FR/NFR từ [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md).
+* **Chương 3:** Lấy 49 Use Cases chuẩn 17 trường từ [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md), 22 Flyway DDL (V1-V22) từ [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md), và bảng FR/NFR từ [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md).
 * **Chương 4:** Lấy quy trình bóc tách OCR từ [`docs/DOCUMENT_SCAN_PIPELINE.md`](./DOCUMENT_SCAN_PIPELINE.md) và Động cơ phòng thủ 5 tầng, Vietnamese NegEx, WHRF-SOTA Re-ranking từ [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md).
 * **Chương 5:** Lấy bảng số liệu đo đạc thực nghiệm trên 500 ca bệnh Meddies từ [`docs/VECTOR_BENCHMARK_REPORT.md`](./VECTOR_BENCHMARK_REPORT.md) và kết quả k6 Load Test từ [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md).
 
