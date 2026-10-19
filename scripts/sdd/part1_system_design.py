@@ -136,80 +136,52 @@ Hệ thống **MediAssist-AI** được kiến trúc theo mô hình **Tiered Mic
 ##### 1.1.2 System Architecture Diagram
 
 ```mermaid
-graph TB
-    subgraph Client_Tier["1. Client Presentation Tier (Browser & Mobile Responsive SPA)"]
-        SPA["React 18 SPA (TypeScript + Vite + Tailwind CSS)"]
-        Landing["Landing Page (Three.js 3D Visualizer & Live Simulator)"]
-        DoctorDesk["Doctor Workstation (Live WHO ICD-10 & LOINC Auto-complete)"]
-        PatientPortal["Patient Portal (Triage, Search, Telehealth EMR, Quota)"]
-        AdminDesk["Admin Management Console (Supervision, Vetting & Auditing)"]
+flowchart TB
+    subgraph Tier1["1. Client Presentation Tier (React 18 SPA)"]
+        UI["Patient Portal & Doctor Workstation | Admin Operations Console"]
     end
 
-    subgraph Edge_Gateway["2. Edge Gateway & Security Ingress Tier"]
-        Nginx["Nginx Reverse Proxy 1.25+ (SSL/TLS 1.3, HTTP/2, Gzip, Rate Limiting 100 req/min)"]
+    subgraph Tier2["2. Edge Ingress & Security Filter"]
+        Sec["Nginx Reverse Proxy 1.25+ (SSL/TLS 1.3 & Rate Limiting)<br/>Spring Security 6 (Stateless JWT) & PatientAccessGuard (BOLA/IDOR)"]
     end
 
-    subgraph App_Tier["3. Application Core Tier (Spring Boot 3.4 - Project Loom Virtual Threads)"]
-        WebMVC["Spring WebMVC REST Controllers (@Valid, @RestControllerAdvice)"]
-        SecFilter["Spring Security 6.x Filter Chain (Stateless JWT + HttpOnly Cookie)"]
-        AccessGuard["PatientAccessGuard (BOLA / IDOR Care-Relationship Verification)"]
-
-        subgraph Core_Services["Business & Clinical Service Modules"]
-            AuthSvc["AuthService & EmailVerificationService"]
-            TriageSvc["SymptomTriageService (5-Stage Clinical Pipeline + NegEx)"]
-            DocSearchSvc["DoctorSemanticSearchService (WHRF SOTA Engine)"]
-            ApptSvc["AppointmentService & AppointmentRefundService"]
-            DocEncounterSvc["DoctorService & ClinicalOntologyService (EMR, ICD-10, LOINC)"]
-            DocOcrSvc["MedicalDocumentAnalysisService (OCR & Multimodal Summarizer)"]
-            PiiSvc["MedicalPiiService (Decree 13/2023/ND-CP Privacy Shield)"]
-            PaymentSvc["PaymentService & VNPayGatewayAdapter"]
-            EmailEngine["EmailService (@Async mailExecutor + Email Outbox)"]
-            AuditSvc["AuditLogService & SystemConfigService"]
+    subgraph Tier3["3. Core Application Services (Spring Boot 3.4 Loom)"]
+        direction TB
+        subgraph SubAI["Clinical AI Engine"]
+            Svc_Triage["5-Stage Symptom Triage & NegEx"]
+            Svc_Search["Doctor Semantic Search (pgvector WHRF)"]
+        end
+        subgraph SubClinical["Telehealth & Encounter"]
+            Svc_Booking["Slot Booking & Daily Queue STT"]
+            Svc_EMR["Doctor EMR (WHO ICD-10 & LOINC)"]
+        end
+        subgraph SubOps["Diagnostics & Finance"]
+            Svc_OCR["Medical Document OCR (Gemini Flash)"]
+            Svc_Pay["VNPay Gateway & Async Mail Engine"]
         end
     end
 
-    subgraph Cache_Tier["4. Hybrid 2-Layer Cache Tier"]
-        L1["L1: Caffeine In-Memory Cache (Specialties, ICD-10, LOINC, Cache-Aside)"]
-        L2["L2: Redis Distributed Cache (User Sessions, Slot Lock Semaphores)"]
+    subgraph Tier4["4. Persistence, Cache & Cloud Storage"]
+        DB[("PostgreSQL 16 LTS<br/>+ pgvector HNSW")]
+        Cache[("Redis 7 L2 Cache<br/>+ Caffeine L1")]
+        S3[("Supabase S3<br/>Private 15m HMAC")]
     end
 
-    subgraph Persistence_Tier["5. Persistence & Vector Retrieval Tier"]
-        PG[("PostgreSQL 16 LTS (3NF Relational Tables)")]
-        PGV["pgvector 0.7+ Extension (HNSW Index: m=24, ef_construction=128)"]
-        Flyway["Flyway Migration Engine (V1 - V22 Versioned DDL)"]
+    subgraph Tier5["5. External Cloud Integration"]
+        AI_Ext["OpenAI & Gemini 1.5 Flash"]
+        Pay_Ext["VNPay National Gateway"]
+        Mail_Ext["SMTP Transactional Mail"]
     end
 
-    subgraph Storage_Tier["6. Object Storage & Cloud Infrastructure Tier"]
-        S3["Supabase Private S3 Storage (Encrypted at Rest, 15-Min HMAC Signed URLs)"]
-    end
-
-    subgraph External_Cloud["7. External AI & Financial Services"]
-        OpenAI["OpenAI API (text-embedding-3-small, 1536-dim) / Local Hashing Fallback"]
-        Gemini["Google Gemini 1.5 Flash (Clinical OCR & Indicator Extraction)"]
-        VNPay["VNPay National Payment Gateway (HMAC-SHA512 Checksum)"]
-        SMTP["SMTP Mail Server (Brevo / Transactional Delivery via TLS 587)"]
-    end
-
-    SPA -->|HTTPS / WSS| Nginx
-    Nginx -->|Proxy Pass 8080| WebMVC
-    WebMVC --> SecFilter
-    SecFilter --> AccessGuard
-    AccessGuard --> Core_Services
-
-    Core_Services --> L1
-    Core_Services --> L2
-    Core_Services --> PG
-    PG --- PGV
-    PG --- Flyway
-    Core_Services --> S3
-
-    DocSearchSvc -->|Embeddings| OpenAI
-    DocOcrSvc -->|Vision / LLM| Gemini
-    PaymentSvc -->|IPN Webhook / Redirect| VNPay
-    EmailEngine -->|TLS SMTP| SMTP
+    Tier1 --> Tier2
+    Tier2 --> Tier3
+    Tier3 --> Tier4
+    Tier3 --> Tier5
 ```
 
 ##### Figure 1.1. MediAssist-AI Tiered Micro-Modular Monolith System Architecture
+
+> 💡 **Interactive Vector Zoom:** Mở [🔍 Trình Xem Biểu Đồ Vector Tương Tác (Hỗ trợ Phóng to / Thu nhỏ 1500% bằng chuột)](./diagrams/interactive_viewer.html?diagram=architecture) để soi rõ từng phân hệ, cổng kết nối và ranh giới bảo mật trên toàn màn hình.
 
 ---
 

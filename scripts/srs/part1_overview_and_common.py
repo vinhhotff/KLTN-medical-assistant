@@ -184,57 +184,47 @@ The MediAssist-AI platform encompasses five tightly coupled operational subsyste
 MediAssist-AI follows an enterprise Modular Monolith architecture implemented with Spring Boot 3.4 (Java 21 LTS Project Loom Virtual Threads) and React 18 (TypeScript Vite SPA), integrated with PostgreSQL 16 `pgvector`, Redis distributed cache, Supabase S3 private storage, and AI inference gateways:
 
 ```mermaid
-graph TD
-    subgraph "Client Layer (Presentation - React 18 / Vite / TypeScript)"
-        Landing[SCR-01: LandingPage]
-        Login[SCR-02: LoginPage]
-        PatientApp[SCR-07..10: Patient Portal SPA]
-        DoctorApp[SCR-12..14: Doctor Workstation SPA]
-        AdminApp[SCR-15..18: Admin Operations Console]
+flowchart TB
+    subgraph Tier1["1. Client Tier (React 18 SPA)"]
+        UI["Patient Portal & Doctor Workstation | Admin Operations Console"]
     end
 
-    subgraph "Security & API Gateway (Spring Boot 3.4 / Spring Security 6)"
-        SecurityFilterChain[Stateless Dual-Transport Security Filter]
-        JWTFilter[JwtAuthenticationFilter: Cookie + Header]
-        AccessGuard[PatientAccessGuard BOLA/IDOR Enforcer]
-        RateLimiter[SecurityRateLimiterService: Sliding Bucket]
+    subgraph Tier2["2. Edge Ingress & Security Filter"]
+        Sec["Nginx Reverse Proxy (SSL/TLS 1.3 & Rate Limiting)<br/>Spring Security 6 (Stateless JWT) & PatientAccessGuard (BOLA/IDOR)"]
     end
 
-    subgraph "Core Business Logic Services"
-        AuthSvc[AuthService]
-        TriageEngine[ClinicalQueryDefenseEngine & TriageService]
-        VectorSearch[DoctorSemanticSearchService & EmbeddingService]
-        DocAnalysis[MedicalDocumentAnalysisService & Validator]
-        ApptSvc[AppointmentService & RefundService]
-        OntologySvc[ClinicalOntologyService: ICD-10 & LOINC]
-        PaymentSvc[PaymentService & GatewayRouter]
-        VettingSvc[AdminVettingService & AiUsageAnalyticsService]
+    subgraph Tier3["3. Core Application Services (Spring Boot 3.4 Loom)"]
+        direction TB
+        subgraph SubAI["Clinical AI Engine"]
+            Svc_Triage["5-Stage Symptom Triage & NegEx"]
+            Svc_Search["Doctor Semantic Search (pgvector WHRF)"]
+        end
+        subgraph SubClinical["Telehealth & Encounter"]
+            Svc_Booking["Slot Booking & Daily Queue STT"]
+            Svc_EMR["Doctor EMR (WHO ICD-10 & LOINC)"]
+        end
+        subgraph SubOps["Diagnostics & Finance"]
+            Svc_OCR["Medical Document OCR (Gemini Flash)"]
+            Svc_Pay["VNPay Gateway & Async Mail Engine"]
+        end
     end
 
-    subgraph "Data Persistence & Cache Layer"
-        PostgreSQL[(PostgreSQL 16 LTS + pgvector HNSW)]
-        RedisCache[(Redis 7 LTS: L2 Cache & Distributed Rate Limits)]
-        SupabaseS3[(Supabase S3 Private Storage: 15-min HMAC Signed URLs)]
+    subgraph Tier4["4. Persistence, Cache & Cloud Storage"]
+        DB[("PostgreSQL 16 LTS<br/>+ pgvector HNSW")]
+        Cache[("Redis 7 L2 Cache<br/>+ Caffeine L1")]
+        S3[("Supabase S3<br/>Private 15m HMAC")]
     end
 
-    subgraph "External Integration Gateways"
-        Gemini[Google Gemini 1.5 Flash Vision API]
-        OpenAI[OpenAI text-embedding-3-small API]
-        OpenRouter[OpenRouter Free-tier Resilience Pool]
-        VNPay[VNPay Payment Gateway / Mock Sandbox]
-        SMTP[Mailpit / Production SMTP with STARTTLS]
+    subgraph Tier5["5. External Cloud Integration"]
+        AI_Ext["OpenAI & Gemini 1.5 Flash"]
+        Pay_Ext["VNPay National Gateway"]
+        Mail_Ext["SMTP Transactional Mail"]
     end
 
-    Landing & Login & PatientApp & DoctorApp & AdminApp --> SecurityFilterChain
-    SecurityFilterChain --> JWTFilter --> AccessGuard --> RateLimiter
-    RateLimiter --> AuthSvc & TriageEngine & VectorSearch & DocAnalysis & ApptSvc & OntologySvc & PaymentSvc & VettingSvc
-    TriageEngine --> Gemini & OpenRouter
-    VectorSearch --> OpenAI
-    DocAnalysis --> SupabaseS3 & Gemini
-    PaymentSvc --> VNPay
-    ApptSvc --> SMTP
-    AuthSvc & ApptSvc & VectorSearch & OntologySvc --> PostgreSQL
-    TriageEngine & VectorSearch & RateLimiter --> RedisCache
+    Tier1 --> Tier2
+    Tier2 --> Tier3
+    Tier3 --> Tier4
+    Tier3 --> Tier5
 ```
 
 > 💡 **Interactive Vector Zoom:** Open [🔍 Interactive Vector Viewer (Pan & Zoom up to 1500%)](./diagrams/interactive_viewer.html?diagram=architecture) to inspect every subsystem, port, and security boundary in full-screen mode with smooth trackpad panning.

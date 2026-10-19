@@ -5687,6 +5687,24 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
 - **Figure 2.4 (Diagnostics & Financial ERD):** 4 bảng (`medical_documents`, `document_analyses`, `payment_transactions`, `ai_token_usage`).
 - Mỗi sơ đồ phân hệ chỉ có 3 - 5 bảng, khi chèn vào Word hoặc PDF sẽ hiển thị to rõ từng trường, từng kiểu dữ liệu, vừa vặn từng trang A4 mà không cần phóng to.
 
+### [WORK-LOG-#111] Tái Thiết Kế Sơ Đồ Kiến Trúc Hệ Thống (System Overview) Thành Mô Hình 5 Phân Tầng Cực Kỳ Tinh Gọn
+* **Thời gian:** 2026-10-19 07:45:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Khắc phục triệt để lỗi biểu đồ System Overview / Architecture quá to (rộng > 1200px do dàn ngang 8-10 service cạnh nhau) khiến trình hiển thị tài liệu co nhỏ lại thành chữ li ti không đọc được trên khổ A4; tái cấu trúc thành mô hình 5 phân tầng dọc với tỷ lệ khung hình 4:3 cân đối, hiển thị chữ to rõ nét mà không bị co lại.
+* **Trạng thái Build:**
+  - Backend: **`306 / 306` Tests PASS 100%** (`mvn test` 0 failure, 0 error).
+  - Frontend: **`npm run build` PASS 100%** (2307 modules, 0 lỗi TypeScript, 2.51s).
+  - Đồng bộ hóa: Cập nhật đồng bộ trên cả `docs/SRS_MediAssist_AI.md` (Mục 1.5), `scripts/srs/part1_overview_and_common.py`, `docs/SDD_MediAssist_AI.md` (Mục 1.1.2), `scripts/sdd/part1_system_design.py`, và `docs/diagrams/interactive_viewer.html`.
+
+#### 1. Cải Tiến Kiến Trúc Biểu Đồ 5 Phân Tầng:
+- **Tier 1 (Client Presentation Tier):** Gộp các cổng giao diện người dùng thành 1 khối tinh gọn (Patient Portal, Doctor Workstation, Admin Console).
+- **Tier 2 (Edge Ingress & Security Filter):** Nginx TLS 1.3 Reverse Proxy, Spring Security 6 (Stateless JWT), và rào chắn `PatientAccessGuard` (BOLA/IDOR).
+- **Tier 3 (Core Application Services):** Thay vì dàn 8-10 nút thành 1 hàng ngang khổng lồ, gom thành 3 cụm nghiệp vụ dọc cân xứng: (1) Clinical AI Engine (`Triage & NegEx`, `Semantic Search WHRF`); (2) Telehealth & Encounter (`Slot Booking STT`, `Doctor EMR ICD-10/LOINC`); (3) Diagnostics & Finance (`Document OCR Gemini Flash`, `VNPay Gateway & Async Mail`).
+- **Tier 4 (Persistence, Cache & Storage):** PostgreSQL 16 pgvector HNSW, Redis 7 L2 + Caffeine L1, Supabase S3 Private Storage.
+- **Tier 5 (External Cloud Integration):** OpenAI & Gemini 1.5 Flash, VNPay National Gateway, SMTP Mail.
+- **Kích thước sau tối ưu:** Chiều rộng giảm từ 1200px xuống **600px**, chiều cao **450px** (tỷ lệ 4:3), chữ to từ 12-14pt, vừa vặn 1/2 trang A4 mà không bị thu nhỏ!
+
+
 
 
 
