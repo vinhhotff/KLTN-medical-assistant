@@ -229,6 +229,8 @@ graph TD
     TriageEngine & VectorSearch & RateLimiter --> RedisCache
 ```
 
+> 💡 **Interactive Vector Zoom:** Open [🔍 Interactive Vector Viewer (Pan & Zoom up to 1500%)](./diagrams/interactive_viewer.html?diagram=architecture) to inspect every subsystem, port, and security boundary in full-screen mode with smooth trackpad panning.
+
 ---
 
 ## 2. USER REQUIREMENTS
@@ -290,6 +292,8 @@ flowchart LR
     A --> Sub_Common
     A --> Sub_Admin
 ```
+
+> 💡 **Interactive Vector Zoom:** Open [🔍 Interactive Vector Viewer (Pan & Zoom up to 1500%)](./diagrams/interactive_viewer.html?diagram=usecase_macro) to inspect the global macro use case architecture with full pan and zoom controls.
 
 ##### Figure 2.2.1.B: Common System Use Cases
 ```mermaid

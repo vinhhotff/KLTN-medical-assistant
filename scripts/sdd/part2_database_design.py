@@ -39,6 +39,209 @@ erDiagram
 
 ##### Figure 2. MediAssist-AI Physical Database Design Entity-Relationship Diagram (PostgreSQL 16 + pgvector)
 
+> 💡 **Mẹo xem biểu đồ kích thước lớn (Interactive Vector Zoom):**
+> Do biểu đồ ERD tổng thể bao gồm 17 bảng dữ liệu nên khi đưa vào trang tài liệu in ấn A4 sẽ bị thu nhỏ. Bạn có thể:
+> 1. Mở trực tiếp **[🔍 Trình Xem Biểu Đồ Vector Tương Tác (Hỗ trợ Phóng to / Thu nhỏ 1000% bằng chuột)](./diagrams/interactive_viewer.html?diagram=erd_full)** để soi rõ từng trường dữ liệu và quan hệ khóa ngoại trên toàn màn hình.
+> 2. Hoặc xem **4 Sơ đồ ERD phân hệ chi tiết** dưới đây (mỗi sơ đồ chỉ từ 3 - 5 bảng, chữ to, rõ nét từng kiểu dữ liệu, vừa vặn từng trang in A4):
+
+##### Figure 2.1. Sơ Đồ ERD Phân Hệ Định Danh & Bảo Mật (Identity, Security & Auditing)
+```mermaid
+erDiagram
+    users ||--o{ password_reset_tokens : "has tokens"
+    users ||--o{ email_verification_tokens : "activates email"
+    users ||--o{ notifications : "receives alerts"
+    users ||--o{ audit_logs : "triggers events"
+
+    users {
+        UUID id PK
+        VARCHAR email UK
+        VARCHAR password_hash
+        VARCHAR full_name
+        VARCHAR role "ADMIN, DOCTOR, PATIENT"
+        VARCHAR status "ACTIVE, SUSPENDED"
+        BOOLEAN email_verified
+        INT failed_login_attempts
+        TIMESTAMPTZ locked_until
+    }
+    password_reset_tokens {
+        UUID id PK
+        UUID user_id FK
+        VARCHAR token_hash UK "SHA-256 (64 hex)"
+        TIMESTAMPTZ expires_at
+        BOOLEAN used
+    }
+    email_verification_tokens {
+        UUID id PK
+        UUID user_id FK
+        VARCHAR token_hash UK "SHA-256 (64 hex)"
+        TIMESTAMPTZ expires_at
+        TIMESTAMPTZ used_at
+    }
+    audit_logs {
+        UUID id PK
+        VARCHAR action "VIEW_PATIENT_RECORD, LOGIN..."
+        VARCHAR actor
+        UUID user_id FK
+        VARCHAR resource
+        VARCHAR ip_address
+        TIMESTAMPTZ created_at
+    }
+    notifications {
+        UUID id PK
+        UUID user_id FK
+        VARCHAR type
+        VARCHAR title
+        TEXT message
+        BOOLEAN is_read
+    }
+```
+
+##### Figure 2.2. Sơ Đồ ERD Phân Hệ Bác Sĩ & Chuyên Khoa (Clinical Provider & Taxonomy)
+```mermaid
+erDiagram
+    doctor_profiles ||--o{ doctor_specialties : "has specialties"
+    specialties ||--o{ doctor_specialties : "categorizes"
+    doctor_profiles ||--o{ doctor_schedule_slots : "schedules slots"
+    doctor_profiles ||--o{ doctor_reviews : "evaluated by"
+
+    doctor_profiles {
+        UUID id PK
+        UUID user_id FK, UK
+        TEXT bio
+        VARCHAR license_number UK
+        NUMERIC consultation_fee
+        INT years_of_experience
+        VARCHAR academic_title "GS, PGS, TS, BSCKII"
+        VARCHAR hospital_affiliation
+        DOUBLE_PRECISION rating
+        INT review_count
+        BOOLEAN is_verified
+        vector bio_embedding "HNSW (1536-dim)"
+    }
+    specialties {
+        UUID id PK
+        VARCHAR name
+        VARCHAR slug UK
+        TEXT description
+    }
+    doctor_specialties {
+        UUID doctor_profile_id PK, FK
+        UUID specialty_id PK, FK
+    }
+    doctor_schedule_slots {
+        UUID id PK
+        UUID doctor_profile_id FK
+        VARCHAR day_of_week
+        TIME start_time
+        TIME end_time
+        INT slot_duration_minutes
+        BOOLEAN is_active
+    }
+    doctor_reviews {
+        UUID id PK
+        UUID appointment_id UK, FK
+        UUID doctor_id FK
+        UUID patient_id FK
+        INT rating "1 to 5"
+        TEXT comment
+    }
+```
+
+##### Figure 2.3. Sơ Đồ ERD Phân Hệ Lịch Khám & Bệnh Án EMR (Appointment & Encounters)
+```mermaid
+erDiagram
+    appointments }o--o| patient_profiles : "for patient"
+    appointments }o--o| triage_sessions : "originates from"
+
+    appointments {
+        UUID id PK
+        VARCHAR appointment_code UK
+        UUID patient_id FK
+        UUID doctor_id FK
+        TIMESTAMPTZ scheduled_start
+        TIMESTAMPTZ scheduled_end
+        VARCHAR status "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED"
+        VARCHAR payment_status "UNPAID, PAID, REFUNDED"
+        NUMERIC fee_amount
+        VARCHAR queue_number "STT 01, STT 02..."
+        VARCHAR clinic_room
+        TEXT vital_signs_json "BP, HR, SpO2, Temp, BMI"
+        VARCHAR icd10_code "WHO ICD-10 (I10, E11.9)"
+        VARCHAR icd10_name "Tên bệnh chuẩn Bộ Y Tế"
+        TEXT prescription_json "Đơn thuốc điện tử"
+        TEXT treatment_plan
+        DATE follow_up_date
+        NUMERIC refund_amount
+        TIMESTAMPTZ checked_in_at
+    }
+    patient_profiles {
+        UUID id PK
+        UUID user_id UK, FK
+        VARCHAR patient_code UK
+        VARCHAR citizen_id UK "CCCD 12 số"
+        VARCHAR health_insurance_number "BHYT"
+        VARCHAR blood_group
+        TEXT allergies
+        TEXT medical_history
+    }
+    triage_sessions {
+        UUID id PK
+        UUID user_id FK
+        TEXT symptoms_text
+        BOOLEAN is_emergency "Hotline 115 Flag"
+        VARCHAR urgency_level "ROUTINE, URGENT, EMERGENCY"
+        VARCHAR primary_specialty
+        TEXT sbar_summary "SBAR Structured Report"
+    }
+```
+
+##### Figure 2.4. Sơ Đồ ERD Phân Hệ Xét Nghiệm & Tài Chính (Diagnostics & Financial Ledger)
+```mermaid
+erDiagram
+    medical_documents ||--o| document_analyses : "OCR analyzed"
+    users ||--o{ payment_transactions : "pays"
+    users ||--o{ ai_token_usage : "consumes tokens"
+
+    medical_documents {
+        UUID id PK
+        UUID user_id FK
+        VARCHAR file_name
+        BIGINT file_size_bytes
+        VARCHAR content_type "application/pdf, image/jpeg"
+        VARCHAR storage_path "Private S3 Storage Key"
+        VARCHAR status "PROCESSED"
+    }
+    document_analyses {
+        UUID id PK
+        UUID document_id UK, FK
+        TEXT clinical_summary
+        TEXT plain_language_explanation
+        TEXT abnormal_indicators_json "LOINC Standard Indicators"
+        VARCHAR recommended_specialty_slug
+        VARCHAR recommended_specialty_name
+    }
+    payment_transactions {
+        UUID id PK
+        VARCHAR transaction_code UK
+        UUID user_id FK
+        VARCHAR order_type "APPOINTMENT_FEE, QUOTA"
+        DECIMAL amount
+        VARCHAR currency "VND"
+        VARCHAR payment_method "VNPAY_QR, VNPAY_ATM"
+        VARCHAR payment_gateway "VNPAY, MOCK"
+        VARCHAR status "PENDING, COMPLETED, REFUNDED"
+        VARCHAR gateway_reference "vnp_TransactionNo"
+    }
+    ai_token_usage {
+        UUID id PK
+        UUID user_id FK
+        VARCHAR model_name "text-embedding-3-small, gemini-flash"
+        INT prompt_tokens
+        INT completion_tokens
+        NUMERIC estimated_cost_usd
+    }
+```
+
 ---
 
 #### 2.2 Database Design Summary Table

@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trình Xem Biểu Đồ Tương Tác Vector (Pan & Zoom) | MediAssist-AI</title>
+    <!-- Mermaid.js for Vector Rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <!-- svg-pan-zoom for Pan & Zoom control -->
+    <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Navigation Header */
+        header {
+            background-color: #1e293b;
+            border-bottom: 1px solid #334155;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-title h1 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #38bdf8;
+            letter-spacing: -0.01em;
+        }
+
+        .header-title span {
+            background: #0284c7;
+            color: #ffffff;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* Selector & Controls */
+        .controls-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        select {
+            background-color: #0f172a;
+            color: #f8fafc;
+            border: 1px solid #475569;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+            max-width: 320px;
+        }
+
+        select:hover, select:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+        }
+
+        .btn-group {
+            display: flex;
+            background: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        button {
+            background: transparent;
+            color: #94a3b8;
+            border: none;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        button:hover {
+            background-color: #334155;
+            color: #f8fafc;
+        }
+
+        button:active {
+            background-color: #0284c7;
+            color: #ffffff;
+        }
+
+        /* Main Workspace Canvas */
+        main {
+            flex: 1;
+            position: relative;
+            background-color: #0b1120;
+            background-image:
+                radial-gradient(circle at 1px 1px, #1e293b 1px, transparent 0);
+            background-size: 24px 24px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #diagram-viewport {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Floating Helper Hint */
+        .helper-pill {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            padding: 8px 18px;
+            border-radius: 9999px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+
+        .helper-pill kbd {
+            background: #334155;
+            color: #f8fafc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #38bdf8;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Control Bar -->
+    <header>
+        <div class="header-title">
+            <h1>MediAssist-AI Vector Studio</h1>
+            <span>Interactive Viewer</span>
+        </div>
+
+        <div class="controls-wrapper">
+            <select id="diagram-select" onchange="loadSelectedDiagram()">
+                <optgroup label="Biểu Đồ Cốt Lõi Hệ Thống">
+                    <option value="architecture">1. Kiến Trúc Hệ Thống (7 Tầng Micro-Modular)</option>
+                    <option value="erd_full" selected>2. Cơ Sở Dữ Liệu Vật Lý (Toàn bộ 17 Bảng ERD)</option>
+                    <option value="usecase_macro">3. Ca Sử Dụng Tổng Thể (Global Macro Use Case)</option>
+                    <option value="frontend_pkg">4. Cấu Trúc Gói Front-end (14 Packages)</option>
+                    <option value="backend_pkg">5. Cấu Trúc Gói Back-end Clean Architecture</option>
+                </optgroup>
+                <optgroup label="Sơ Đồ Phân Hệ CSDL (Chia Nhỏ Để In Ấn)">
+                    <option value="erd_sub_identity">2.1 ERD Phân Hệ Định Danh & Bảo Mật</option>
+                    <option value="erd_sub_doctor">2.2 ERD Phân Hệ Bác Sĩ & Chuyên Khoa</option>
+                    <option value="erd_sub_appointment">2.3 ERD Phân Hệ Lịch Khám & Bệnh Án EMR</option>
+                    <option value="erd_sub_diagnostics">2.4 ERD Phân Hệ Xét Nghiệm & Tài Chính</option>
+                </optgroup>
+                <optgroup label="Quy Trình Nghiệp Vụ Lâm Sàng Trọng Điểm">
+                    <option value="seq_login">3.1 Đăng Nhập Dual-Transport & Khóa Brute-Force</option>
+                    <option value="seq_triage">3.9 Phân Luồng Triệu Chứng & NegEx & 115</option>
+                    <option value="seq_search">3.10 Tìm Kiếm Bác Sĩ HNSW & WHRF-SOTA</option>
+                    <option value="seq_booking">3.11 Đặt Lịch & Khóa Phân Tán Slot Lock</option>
+                    <option value="seq_encounter">3.15 Bàn Làm Việc Bác Sĩ & WHO ICD-10</option>
+                    <option value="seq_ocr">3.19 Bóc Tách Xét Nghiệm Gemini Flash & LOINC</option>
+                    <option value="seq_bola">3.20 Rào Chắn BOLA/IDOR PatientAccessGuard</option>
+                    <option value="seq_vnpay">3.22 Xử Lý VNPay IPN Webhook Idempotency</option>
+                </optgroup>
+            </select>
+
+            <div class="btn-group">
+                <button onclick="zoomIn()" title="Phóng to">🔍+ Phóng to</button>
+                <button onclick="zoomOut()" title="Thu nhỏ">🔍- Thu nhỏ</button>
+                <button onclick="resetZoom()" title="Đặt lại kích thước chuẩn">🔄 Đặt lại</button>
+            </div>
+
+            <button onclick="downloadSvg()" style="background: #0284c7; color: #fff; border-radius: 6px;" title="Tải file vector SVG gốc">
+                📥 Tải SVG Gốc
+            </button>
+        </div>
+    </header>
+
+    <!-- Canvas Viewport -->
+    <main>
+        <div id="diagram-viewport">
+            <div class="spinner"></div>
+        </div>
+
+        <div class="helper-pill">
+            <span>💡 <b>Mẹo xem biểu đồ:</b> Cuộn chuột / Vuốt trackpad 2 ngón để <b>Phóng to / Thu nhỏ</b>. Nhấn giữ chuột trái để <b>Kéo rê (Pan)</b> khắp biểu đồ.</span>
+        </div>
+    </main>
+
+    <!-- Pre-defined Mermaid Diagrams Registry -->
+    <script>
+        const DIAGRAMS = {
+            architecture: `graph TB
+    subgraph Client_Tier["Client Presentation Tier (Browser & Mobile Responsive SPA)"]
+        SPA["React 18 SPA (TypeScript + Vite + Tailwind CSS)"]
+        Landing["Landing Page (Three.js 3D Visualizer & Live Simulator)"]
+        DoctorDesk["Doctor Workstation (Live WHO ICD-10 & LOINC Auto-complete)"]
+        PatientPortal["Patient Portal (Triage, Search, Telehealth EMR, Quota)"]
+        AdminDesk["Admin Management Console (Supervision, Vetting & Auditing)"]
+    end
+
+    subgraph Edge_Gateway["Edge Gateway & Security Ingress Tier"]
+        Nginx["Nginx Reverse Proxy 1.25+ (SSL/TLS 1.3, HTTP/2, Gzip, Rate Limiting 100 req/min)"]
+    end
+
+    subgraph App_Tier["Application Core Tier (Spring Boot 3.4 - Project Loom Virtual Threads)"]
+        WebMVC["Spring WebMVC REST Controllers (@Valid, @RestControllerAdvice)"]
+        SecFilter["Spring Security 6.x Filter Chain (Stateless JWT + HttpOnly Cookie)"]
+        AccessGuard["PatientAccessGuard (BOLA / IDOR Care-Relationship Verification)"]
+
+        subgraph Core_Services["Business & Clinical Service Modules"]
+            AuthSvc["AuthService & EmailVerificationService"]
+            TriageSvc["SymptomTriageService (5-Stage Clinical Pipeline + NegEx)"]
+            DocSearchSvc["DoctorSemanticSearchService (WHRF SOTA Engine)"]
+            ApptSvc["AppointmentService & AppointmentRefundService"]
+            DocEncounterSvc["DoctorService & ClinicalOntologyService (EMR, ICD-10, LOINC)"]
+            DocOcrSvc["MedicalDocumentAnalysisService (OCR & Multimodal Summarizer)"]
+            PiiSvc["MedicalPiiService (Decree 13/2023/ND-CP Privacy Shield)"]
+            PaymentSvc["PaymentService & VNPayGatewayAdapter"]
+            EmailEngine["EmailService (@Async mailExecutor + Email Outbox)"]
+            AuditSvc["AuditLogService & SystemConfigService"]
+        end
+    end
+
+    subgraph Cache_Tier["Hybrid 2-Layer Cache Tier"]
+        L1["L1: Caffeine In-Memory Cache (Specialties, ICD-10, LOINC, Cache-Aside)"]
+        L2["L2: Redis Distributed Cache (User Sessions, Slot Lock Semaphores)"]
+    end
+
+    subgraph Persistence_Tier["Persistence & Vector Retrieval Tier"]
+        PG[("PostgreSQL 16 LTS (3NF Relational Tables)")]
+        PGV["pgvector 0.7+ Extension (HNSW Index: m=24, ef_construction=128)"]
+        Flyway["Flyway Migration Engine (V1 - V22 Versioned DDL)"]
+    end
+
+    subgraph Storage_Tier["Object Storage & Cloud Infrastructure Tier"]
+        S3["Supabase Private S3 Storage (Encrypted at Rest, 15-Min HMAC Signed URLs)"]
+    end
+
+    subgraph External_Cloud["External AI & Financial Services"]
+        OpenAI["OpenAI API (text-embedding-3-small, 1536-dim) / Local Hashing Fallback"]
+        Gemini["Google Gemini 1.5 Flash (Clinical OCR & Indicator Extraction)"]
+        VNPay["VNPay National Payment Gateway (HMAC-SHA512 Checksum)"]
+        SMTP["SMTP Mail Server (Brevo / Transactional Delivery via TLS 587)"]
+    end
+
+    SPA -->|HTTPS / WSS| Nginx
+    Nginx -->|Proxy Pass 8080| WebMVC
+    WebMVC --> SecFilter
+    SecFilter --> AccessGuard
+    AccessGuard --> Core_Services
+
+    Core_Services --> L1
+    Core_Services --> L2
+    Core_Services --> PG
+    PG --- PGV
+    PG --- Flyway
+    Core_Services --> S3
+
+    DocSearchSvc -->|Embeddings| OpenAI
+    DocOcrSvc -->|Vision / LLM| Gemini
+    PaymentSvc -->|IPN Webhook / Redirect| VNPay
+    EmailEngine -->|TLS SMTP| SMTP`,
+
+            erd_full: `erDiagram
+    users ||--o| doctor_profiles : "1:1 owns profile"
+    users ||--o| patient_profiles : "1:1 owns EMR passport"
+    users ||--o{ appointments : "1:N books as patient"
+    users ||--o{ appointments : "1:N attends as doctor"
+    users ||--o{ triage_sessions : "1:N initiates"
+    users ||--o{ medical_documents : "1:N uploads"
+    users ||--o{ payment_transactions : "1:N transacts"
+    users ||--o{ password_reset_tokens : "1:N requests"
+    users ||--o{ email_verification_tokens : "1:N receives"
+    users ||--o{ notifications : "1:N receives"
+    users ||--o{ audit_logs : "1:N triggers"
+    users ||--o{ doctor_reviews : "1:N evaluates"
+
+    doctor_profiles ||--o{ doctor_specialties : "1:N specialized"
+    specialties ||--o{ doctor_specialties : "1:N categorized"
+    doctor_profiles ||--o{ doctor_schedule_slots : "1:N schedules availability"
+    doctor_profiles ||--o{ doctor_reviews : "1:N rated by patients"
+
+    appointments ||--o| doctor_reviews : "1:1 reviewed after completed"
+    appointments }o--o| medical_documents : "N:1 attaches lab report"
+    appointments }o--o| triage_sessions : "N:1 originates from triage"
+    appointments ||--o| payment_transactions : "1:1 settled via transaction"
+
+    medical_documents ||--o| document_analyses : "1:1 OCR analyzed"
+    users ||--o{ ai_token_usage : "1:N LLM token auditing"`,
+
+            erd_sub_identity: `erDiagram
+    users ||--o{ password_reset_tokens : "has tokens"
+    users ||--o{ email_verification_tokens : "activates email"
+    users ||--o{ notifications : "receives alerts"
+    users ||--o{ audit_logs : "triggers events"
+
+    users {
+        UUID id PK
+        VARCHAR email UK
+        VARCHAR password_hash
+        VARCHAR full_name
+        VARCHAR role "ADMIN, DOCTOR, PATIENT"
+        VARCHAR status "ACTIVE, SUSPENDED"
+        BOOLEAN email_verified
+        INT failed_login_attempts
+        TIMESTAMPTZ locked_until
+    }
+    password_reset_tokens {
+        UUID id PK
+        UUID user_id FK
+        VARCHAR token_hash UK "SHA-256 (64 hex)"
+        TIMESTAMPTZ expires_at
+        BOOLEAN used
+    }
+    email_verification_tokens {
+        UUID id PK
+        UUID user_id FK
+        VARCHAR token_hash UK "SHA-256 (64 hex)"
+        TIMESTAMPTZ expires_at
+        TIMESTAMPTZ used_at
+    }
+    audit_logs {
+        UUID id PK
+        VARCHAR action "VIEW_PATIENT_RECORD, LOGIN..."
+        VARCHAR actor
+        UUID user_id FK
+        VARCHAR resource
+        VARCHAR ip_address
+        TIMESTAMPTZ created_at
+    }
+    notifications {
+        UUID id PK
+        UUID user_id FK
+        VARCHAR type
+        VARCHAR title
+        TEXT message
+        BOOLEAN is_read
+    }`,
+
+            erd_sub_doctor: `erDiagram
+    doctor_profiles ||--o{ doctor_specialties : "has specialties"
+    specialties ||--o{ doctor_specialties : "categorizes"
+    doctor_profiles ||--o{ doctor_schedule_slots : "schedules slots"
+    doctor_profiles ||--o{ doctor_reviews : "evaluated by"
+
+    doctor_profiles {
+        UUID id PK
+        UUID user_id FK, UK
+        TEXT bio
+        VARCHAR license_number UK
+        NUMERIC consultation_fee
+        INT years_of_experience
+        VARCHAR academic_title "GS, PGS, TS, BSCKII"
+        VARCHAR hospital_affiliation
+        DOUBLE_PRECISION rating
+        INT review_count
+        BOOLEAN is_verified
+        vector bio_embedding "HNSW (1536-dim)"
+    }
+    specialties {
+        UUID id PK
+        VARCHAR name
+        VARCHAR slug UK
+        TEXT description
+    }
+    doctor_specialties {
+        UUID doctor_profile_id PK, FK
+        UUID specialty_id PK, FK
+    }
+    doctor_schedule_slots {
+        UUID id PK
+        UUID doctor_profile_id FK
+        VARCHAR day_of_week
+        TIME start_time
+        TIME end_time
+        INT slot_duration_minutes
+        BOOLEAN is_active
+    }
+    doctor_reviews {
+        UUID id PK
+        UUID appointment_id UK, FK
+        UUID doctor_id FK
+        UUID patient_id FK
+        INT rating "1 to 5"
+        TEXT comment
+    }`,
+
+            erd_sub_appointment: `erDiagram
+    appointments }o--o| patient_profiles : "for patient"
+    appointments }o--o| triage_sessions : "originates from"
+
+    appointments {
+        UUID id PK
+        VARCHAR appointment_code UK
+        UUID patient_id FK
+        UUID doctor_id FK
+        TIMESTAMPTZ scheduled_start
+        TIMESTAMPTZ scheduled_end
+        VARCHAR status "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED"
+        VARCHAR payment_status "UNPAID, PAID, REFUNDED"
+        NUMERIC fee_amount
+        VARCHAR queue_number "STT 01, STT 02..."
+        VARCHAR clinic_room
+        TEXT vital_signs_json "BP, HR, SpO2, Temp, BMI"
+        VARCHAR icd10_code "WHO ICD-10 (I10, E11.9)"
+        VARCHAR icd10_name "Tên bệnh chuẩn Bộ Y Tế"
+        TEXT prescription_json "Đơn thuốc điện tử"
+        TEXT treatment_plan
+        DATE follow_up_date
+        NUMERIC refund_amount
+        TIMESTAMPTZ checked_in_at
+    }
+    patient_profiles {
+        UUID id PK
+        UUID user_id UK, FK
+        VARCHAR patient_code UK
+        VARCHAR citizen_id UK "CCCD 12 số"
+        VARCHAR health_insurance_number "BHYT"
+        VARCHAR blood_group
+        TEXT allergies
+        TEXT medical_history
+    }
+    triage_sessions {
+        UUID id PK
+        UUID user_id FK
+        TEXT symptoms_text
+        BOOLEAN is_emergency "Hotline 115 Flag"
+        VARCHAR urgency_level "ROUTINE, URGENT, EMERGENCY"
+        VARCHAR primary_specialty
+        TEXT sbar_summary "SBAR Structured Report"
+    }`,
+
+            erd_sub_diagnostics: `erDiagram
+    medical_documents ||--o| document_analyses : "OCR analyzed"
+    users ||--o{ payment_transactions : "pays"
+    users ||--o{ ai_token_usage : "consumes tokens"
+
+    medical_documents {
+        UUID id PK
+        UUID user_id FK
+        VARCHAR file_name
+        BIGINT file_size_bytes
+        VARCHAR content_type "application/pdf, image/jpeg"
+        VARCHAR storage_path "Private S3 Storage Key"
+        VARCHAR status "PROCESSED"
+    }
+    document_analyses {
+        UUID id PK
+        UUID document_id UK, FK
+        TEXT clinical_summary
+        TEXT plain_language_explanation
+        TEXT abnormal_indicators_json "LOINC Standard Indicators"
+        VARCHAR recommended_specialty_slug
+        VARCHAR recommended_specialty_name
+    }
+    payment_transactions {
+        UUID id PK
+        VARCHAR transaction_code UK
+        UUID user_id FK
+        VARCHAR order_type "APPOINTMENT_FEE, QUOTA"
+        DECIMAL amount
+        VARCHAR currency "VND"
+        VARCHAR payment_method "VNPAY_QR, VNPAY_ATM"
+        VARCHAR payment_gateway "VNPAY, MOCK"
+        VARCHAR status "PENDING, COMPLETED, REFUNDED"
+        VARCHAR gateway_reference "vnp_TransactionNo"
+    }
+    ai_token_usage {
+        UUID id PK
+        UUID user_id FK
+        VARCHAR model_name "text-embedding-3-small, gemini-flash"
+        INT prompt_tokens
+        INT completion_tokens
+        NUMERIC estimated_cost_usd
+    }`,
+
+            usecase_macro: `flowchart LR
+    P(("Patient"))
+    D(("Doctor"))
+    A(("Admin"))
+
+    subgraph System["MediAssist-AI Telehealth Ecosystem"]
+        direction TB
+        subgraph Sub_Common["Common Subsystem"]
+            UC_C["Identity & Security<br/>(Sign In, Register, Profile, Pwd)"]
+        end
+        subgraph Sub_Patient["Patient Subsystem"]
+            UC_P1["AI Symptom Triage & Red-Flag 115"]
+            UC_P2["Semantic Doctor Matching (WHRF)"]
+            UC_P3["In-Clinic Booking, STT & Payment"]
+            UC_P4["Vision OCR & Lab Interpretation"]
+        end
+        subgraph Sub_Doctor["Doctor Workstation Subsystem"]
+            UC_D1["Daily Queue & Call Next Dispatcher"]
+            UC_D2["Longitudinal EMR, ICD-10 & LOINC"]
+            UC_D3["Schedule Slots & E-Prescription"]
+        end
+        subgraph Sub_Admin["Admin Governance & FinOps"]
+            UC_A1["Doctor CCHN Vetting & Vector Sync"]
+            UC_A2["Hospital Supervision & Audit Logs"]
+            UC_A3["AI FinOps Telemetry & System Config"]
+        end
+    end
+
+    P --> Sub_Common
+    P --> Sub_Patient
+
+    D --> Sub_Common
+    D --> Sub_Doctor
+
+    A --> Sub_Common
+    A --> Sub_Admin`,
+
+            frontend_pkg: `graph TD
+    subgraph UI_Presentation["Presentation & Routing Tier"]
+        App["App.tsx (Root Contexts, ToastProvider, ErrorBoundary)"]
+        Routes["Routes Configuration (React Router DOM v6)"]
+        Layouts["Layouts/ (AdminLayout, DoctorLayout, PatientLayout)"]
+        Pages["Pages/ (18 Màn hình SCR-01 đến SCR-18)"]
+    end
+
+    subgraph Feature_Pages["Page Domain Groups"]
+        AuthPages["pages/auth/ (LoginPage, RegisterPage, ForgotPwd, ResetPwd, VerifyEmail)"]
+        PatientPages["pages/patient/ (PatientDashboard, DoctorSearch, Triage, DocumentSummarizer)"]
+        DoctorPages["pages/doctor/ (DoctorDashboard, DoctorWorkstation, DoctorProfile, PatientRecords)"]
+        AdminPages["pages/admin/ (AdminDashboard, DoctorManagement, UserManagement, AuditLogPage)"]
+    end
+
+    subgraph UI_Components["Shared UI Components"]
+        CommonComp["components/common/ (ProtectedRoute, ErrorBoundary, Header, Footer)"]
+        AtomicUI["components/ui/ (Modal, Toast, Pagination, ConfirmDialog, Badge, SlotPicker, VitalValue)"]
+    end
+
+    subgraph Business_Client["Client Business Logic & State"]
+        Hooks["hooks/ (useAuth, useDebounce, useDoctorSearch, useToast, useAutoScroll)"]
+        Services["services/ (apiClient, authApi, appointmentApi, triageApi, doctorApi, documentFileService)"]
+        Types["types/ (auth.ts, appointment.ts, triage.ts, doctor.ts, document.ts)"]
+        Utils["utils/ (formatters.ts, dateUtils.ts, tokenStorage.ts, apiError.ts)"]
+    end
+
+    App --> Routes
+    Routes --> Layouts
+    Layouts --> Pages
+    Pages --> Feature_Pages
+    Feature_Pages --> CommonComp
+    Feature_Pages --> AtomicUI
+    Feature_Pages --> Hooks
+    Hooks --> Services
+    Services --> Types
+    Services --> Utils`,
+
+            backend_pkg: `graph TD
+    subgraph Presentation_Tier["1. Presentation Layer (Ingress & Controllers)"]
+        Controllers["REST Controllers (AuthController, AppointmentController, DoctorController, TriageController...)"]
+        SecurityConfig["SecurityFilterChain, JwtAuthenticationFilter, OAuth2SuccessHandler"]
+        GlobalException["GlobalExceptionHandler (@RestControllerAdvice, ErrorCode mapping)"]
+    end
+
+    subgraph Application_Tier["2. Application Service Layer (Core Business Workflows)"]
+        AuthSvc["AuthService, EmailVerificationService, PasswordResetService"]
+        TriageSvc["TriageService, RedFlagService, ClinicalQueryDefenseEngine"]
+        DocSearchSvc["DoctorSemanticSearchService, EmbeddingService (WHRF SOTA)"]
+        ApptSvc["AppointmentService, AppointmentRefundService"]
+        DoctorSvc["DoctorService, DoctorReviewService"]
+        OntologySvc["ClinicalOntologyService (WHO ICD-10 & LOINC Auto-complete)"]
+        DocumentSvc["MedicalDocumentAnalysisService, MedicalDocumentFileAccessService"]
+        PiiShield["MedicalPiiService (Decree 13/2023/ND-CP Privacy Shield)"]
+        PaymentSvc["PaymentService, VNPayGatewayAdapter"]
+        GuardSvc["PatientAccessGuard (BOLA / IDOR Verification)"]
+        VettingSvc["AdminVettingService, AiUsageAnalyticsService, AuditLogService"]
+    end
+
+    subgraph Domain_Tier["3. Domain Model Layer (Entities, DTOs & Value Objects)"]
+        Entities["17 JPA Entities (User, Appointment, DoctorProfile, MedicalDocument...)"]
+        DTOs["Request / Response DTOs (@Valid, @NotBlank, @Size(max=20000))"]
+        Enums["Business Enums (Role, AppointmentStatus, PaymentStatus, TriageUrgency)"]
+    end
+
+    subgraph Infrastructure_Tier["4. Infrastructure & Persistence Layer"]
+        Repositories["Spring Data JPA Repositories (Native Queries + pgvector HNSW)"]
+        Cache["TwoLayerCacheService (Caffeine L1 + Redis L2)"]
+        Storage["SupabaseStorageService (Private S3 Bucket + 15-min HMAC Signed URLs)"]
+        Mail["EmailService (@Async mailExecutor + Email Outbox)"]
+        RateLimit["SecurityRateLimiterService, TriageRateLimiterService"]
+        FlywayEngine["Flyway Database Migration Engine (V1 - V22)"]
+    end
+
+    Presentation_Tier --> Application_Tier
+    Application_Tier --> Domain_Tier
+    Application_Tier --> Infrastructure_Tier
+    Infrastructure_Tier --> Domain_Tier`,
+
+            seq_login: `sequenceDiagram
+    autonumber
+    actor Patient as Bệnh nhân (Client)
+    participant UI as React 18 SPA (LoginPage)
+    participant Ctrl as AuthController
+    participant Svc as AuthService
+    participant Mgr as AuthenticationManager
+    participant Token as JwtTokenProvider
+    participant DB as PostgreSQL (users)
+    participant Audit as AuditLogService
+
+    Patient->>UI: Nhập Email và Mật khẩu, nhấn "Đăng nhập"
+    UI->>Ctrl: POST /api/v1/auth/login (LoginRequest)
+    Ctrl->>Svc: authenticateUser(request, response)
+    Svc->>DB: findByEmail(request.getEmail())
+    DB-->>Svc: User Entity (Active, email_verified=true)
+    Svc->>Svc: checkAccountLockout(user) -> Hợp lệ (locked_until == null)
+    Svc->>Mgr: authenticate(UsernamePasswordAuthenticationToken)
+    Mgr-->>Svc: Authentication (BCrypt hash khớp)
+    Svc->>Token: generateAccessToken(auth)
+    Token-->>Svc: accessToken (Bearer JWT, hạn 60 phút)
+    Svc->>Token: generateRefreshToken(auth)
+    Token-->>Svc: refreshToken (JWT, hạn 7 ngày)
+    Svc->>Token: createHttpOnlyCookie(refreshToken)
+    Token-->>Svc: ResponseCookie (Name="refresh_token", Path="/", HttpOnly, Secure, SameSite=Lax)
+    Svc->>DB: UPDATE users SET failed_login_attempts=0, last_login_at=NOW()
+    Svc->>Audit: logAction("LOGIN", user.getId(), "Đăng nhập thành công", ipAddress)
+    Svc-->>Ctrl: AuthResponse(accessToken, userDto)
+    Ctrl-->>UI: 200 OK + Set-Cookie Header + Body: { accessToken: "...", user: {...} }
+    UI->>UI: Lưu accessToken vào Bộ nhớ RAM / Cấu hình Axios Header
+    UI-->>Patient: Chuyển hướng tới màn hình Dashboard tương ứng vai trò`,
+
+            seq_triage: `sequenceDiagram
+    autonumber
+    actor Patient as Bệnh nhân
+    participant UI as React 18 SPA (SymptomTriagePage)
+    participant Ctrl as TriageController
+    participant Svc as TriageService
+    participant RedFlag as RedFlagService (Stage 1)
+    participant Defense as ClinicalQueryDefenseEngine (Stage 2-4)
+    participant AI as Google Gemini 1.5 Flash (Stage 5)
+    participant DB as PostgreSQL (triage_sessions)
+
+    Patient->>UI: Nhập: "Tôi bị đau tức ngực âm ỉ 3 ngày, nhưng không khó thở, không sốt"
+    UI->>Ctrl: POST /api/v1/triage/analyze (TriageRequest)
+    Ctrl->>Svc: processTriage(request, userId)
+    Svc->>RedFlag: detectEmergency(text)
+    RedFlag-->>Svc: RedFlagResult (isEmergency = false) -> Vượt qua Stage 1 an toàn
+    Svc->>Defense: sanitizeAndFilter(text)
+    Note over Defense: Stage 2: Chuẩn hóa teen-code & phương ngữ<br/>Stage 3 (Vietnamese NegEx): Tách mệnh đề khẳng định C_aff ("đau tức ngực âm ỉ 3 ngày") và cách ly mệnh đề phủ định C_neg ("không khó thở", "không sốt")<br/>Stage 4: Xác nhận câu hỏi hoàn toàn thuộc phạm vi y khoa lâm sàng
+    Defense-->>Svc: ClinicalQueryDefenseResult (cleanSymptoms: "đau tức ngực âm ỉ 3 ngày")
+    Svc->>AI: generateSbarTriage(cleanSymptoms)
+    AI-->>Svc: JSON (primarySpecialty="Tim mạch", urgencyLevel="URGENT", sbarSummary=..., aiAdvice=...)
+    Svc->>DB: INSERT INTO triage_sessions (user_id, symptoms_text, is_emergency=false, urgency_level='URGENT', primary_specialty='Tim mạch', sbar_summary=...)
+    DB-->>Svc: TriageSession Entity Saved
+    Svc-->>Ctrl: TriageResponse (Khuyên khám Tim mạch, Huy hiệu Vàng)
+    Ctrl-->>UI: 200 OK + TriageResponse
+    UI-->>Patient: Hiển thị kết quả phân tích SBAR & Nút "Đặt lịch ngay với Bác sĩ Tim mạch"`,
+
+            seq_search: `sequenceDiagram
+    autonumber
+    actor Patient as Bệnh nhân
+    participant UI as React 18 SPA (DoctorSearchPage)
+    participant Ctrl as DoctorController
+    participant Svc as DoctorSemanticSearchService
+    participant Embed as EmbeddingService
+    participant AI as OpenAI API (text-embedding-3-small)
+    participant DB as PostgreSQL 16 (doctor_profiles + pgvector HNSW)
+
+    Patient->>UI: Nhập: "Bác sĩ chuyên điều trị đau nửa đầu mãn tính và mất ngủ"
+    UI->>Ctrl: GET /api/v1/doctors/search?query=...
+    Ctrl->>Svc: searchDoctors(query, specialty, maxFee)
+    Svc->>Embed: getEmbedding(query)
+    Embed->>AI: POST /v1/embeddings (input: query)
+    AI-->>Embed: Vector float[1536] (queryVector)
+    Embed-->>Svc: queryVector
+    Svc->>DB: HNSW Query: SET LOCAL hnsw.ef_search = 120 -- SELECT dp.*, cosine_sim FROM doctor_profiles WHERE is_verified=true ORDER BY bio_embedding <=> queryVector LIMIT 20
+    DB-->>Svc: Top 20 Ứng viên Bác sĩ có khoảng cách Cosine gần nhất
+    loop Áp dụng Thuật toán WHRF-SOTA cho từng Bác sĩ
+        Svc->>Svc: S_dense = 1 / (1 + exp(-8.0 * (cosine_sim - 0.65)))
+        Svc->>Svc: W_cred = log10(review_count + 1) / log10(100)
+        Svc->>Svc: Điểm thưởng Chuyên khoa (+0.12) & Điểm thưởng Học vị (+0.08 nếu GS, +0.05 nếu PGS)
+        Svc->>Svc: WHRF_Score = 0.50*S_dense + 0.20*S_sparse + 0.15*Rating*W_cred + SpecialtyBonus
+    end
+    Svc->>Svc: Sắp xếp lấy Top 10 bác sĩ có điểm WHRF cao nhất
+    Svc-->>Ctrl: List DoctorMatchDto
+    Ctrl-->>UI: 200 OK + List DoctorMatchDto
+    UI-->>Patient: Hiển thị danh sách bác sĩ với huy hiệu tỷ lệ phù hợp (%) và nút "Đặt lịch khám"`,
+
+            seq_booking: `sequenceDiagram
+    autonumber
+    actor Patient as Bệnh nhân
+    participant UI as React 18 SPA (BookingModal)
+    participant Ctrl as AppointmentController
+    participant Svc as AppointmentService
+    participant Redis as Redis (Slot Semaphore)
+    participant DB as PostgreSQL (appointments)
+    participant Mail as EmailService (@Async Loom)
+
+    Patient->>UI: Chọn Bác sĩ, Ngày khám 19/10/2026, Khung giờ 09:00 - 09:30, bấm "Xác nhận đặt lịch"
+    UI->>Ctrl: POST /api/v1/appointments (CreateAppointmentRequest)
+    Ctrl->>Svc: bookAppointment(patientId, request)
+    Svc->>Svc: validateOperatingHours(): Giờ 09:00 thuộc ca sáng (08:00-12:00), Thứ 2 (Hợp lệ)
+    Svc->>Redis: SET lock:slot:docId:202610190900 NX EX 10 (Khóa phân tán 10s)
+    Redis-->>Svc: OK (Giữ khóa độc quyền thành công)
+    Svc->>DB: existsConflictSlot(doctorId, start, end, ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'])
+    DB-->>Svc: false (Khung giờ còn trống)
+    Svc->>DB: countTodayAppointments(doctorId, 2026-10-19)
+    DB-->>Svc: 3 (Đã có 3 ca trước đó)
+    Svc->>Svc: queueNumber = String.format("STT %02d", 3 + 1) -> "STT 04"
+    Svc->>DB: INSERT INTO appointments (appointment_code='APT-20261019-7712', patient_id=patientId, doctor_id=doctorId, scheduled_start=start, scheduled_end=end, status='SCHEDULED', payment_status='UNPAID', queue_number='STT 04', clinic_room='Phòng 302 - Tòa A', fee_amount=500000)
+    DB-->>Svc: Appointment Entity Created
+    Svc->>Redis: DEL lock:slot:docId:202610190900 (Giải phóng khóa phân tán)
+    Svc->>Mail: sendAppointmentBookedNotification(patient, appointment)
+    Svc-->>Ctrl: AppointmentDto(queueNumber='STT 04', status='SCHEDULED')
+    Ctrl-->>UI: 201 Created + AppointmentDto
+    UI-->>Patient: Hiển thị màn hình đặt lịch thành công, phiếu khám điện tử và nút "Thanh toán VNPay"`,
+
+            seq_encounter: `sequenceDiagram
+    autonumber
+    actor Doctor as Bác sĩ điều trị
+    participant UI as React 18 SPA (DoctorWorkstation / EncounterModal)
+    participant Ctrl as AppointmentController
+    participant Svc as AppointmentService
+    participant Guard as PatientAccessGuard
+    participant Ontology as ClinicalOntologyService
+    participant DB as PostgreSQL (appointments)
+    participant Mail as EmailService (@Async Loom)
+
+    Doctor->>UI: Nhập sinh hiệu (BP: 120/80, HR: 75), chọn mã ICD-10 (I10 - Tăng huyết áp vô căn), kê đơn thuốc Amlodipine 5mg, bấm "Hoàn tất ca khám"
+    UI->>Ctrl: POST /api/v1/appointments/{id}/complete-clinical (ClinicalEncounterRequest)
+    Ctrl->>Svc: completeClinicalEncounter(id, doctorId, request)
+    Svc->>DB: findById(id)
+    DB-->>Svc: Appointment Entity (patient_id = patientId, doctor_id = doctorId)
+    Svc->>Guard: assertCanAccessPatient(doctorId, Role.DOCTOR, patientId, "COMPLETE_CLINICAL_ENCOUNTER")
+    Guard->>DB: existsCareRelationship(doctorId, patientId) -> true
+    Guard-->>Svc: Phân quyền Hợp lệ
+    Svc->>Ontology: validateIcd10Code(request.getIcd10Code())
+    Ontology-->>Svc: true (Mã I10 chuẩn danh mục WHO/BYT)
+    Svc->>DB: UPDATE appointments SET status='COMPLETED', vital_signs_json=request.vitalSignsJson, icd10_code='I10', icd10_name='Tăng huyết áp vô căn', prescription_json=request.prescriptionJson, treatment_plan=request.treatmentPlan, follow_up_date=request.followUpDate, consultation_notes=request.consultationNotes, updated_at=NOW() WHERE id = id
+    DB-->>Svc: Lưu bệnh án thành công
+    Svc->>Mail: sendPrescriptionAndSummaryEmail(patient, appointment)
+    Svc-->>Ctrl: AppointmentDto (status='COMPLETED')
+    Ctrl-->>UI: 200 OK + AppointmentDto
+    UI-->>Doctor: Hiển thị thông báo: "Đã hoàn thành ca khám và ban hành đơn thuốc điện tử thành công."`,
+
+            seq_ocr: `sequenceDiagram
+    autonumber
+    actor Patient as Bệnh nhân
+    participant UI as React 18 SPA (DocumentSummarizerPage)
+    participant Ctrl as MedicalDocumentController
+    participant Svc as MedicalDocumentAnalysisService
+    participant PII as MedicalPiiService (Decree 13 Shield)
+    participant AI as Google Gemini 1.5 Flash Vision
+    participant Ontology as ClinicalOntologyService (LOINC)
+    participant DB as PostgreSQL (document_analyses)
+
+    Patient->>UI: Bấm "Xem kết quả giải nghĩa xét nghiệm"
+    UI->>Ctrl: GET /api/v1/documents/{id}/analysis
+    Ctrl->>Svc: processDocumentOcr(id)
+    Svc->>PII: maskPii(rawExtractedText) -> Loại bỏ Họ tên, CCCD, BHYT, Địa chỉ
+    PII-->>Svc: SanitizedPayload (Dữ liệu y tế an toàn không chứa PII)
+    Svc->>AI: analyzeLaboratoryDocument(SanitizedPayload)
+    AI-->>Svc: Raw OCR JSON (Chỉ số Glucose: 8.2 mmol/L, Cholesterol: 6.5 mmol/L)
+    loop Chuẩn hóa từng chỉ số với Bản thể luận Bộ Y Tế
+        Svc->>Ontology: matchLoincIndicator("Glucose", "8.2")
+        Ontology-->>Svc: LabIndicatorDto(loincCode="1558-6", standardName="Đường huyết lúc đói", status="HIGH", normalRange="3.9 - 6.4 mmol/L")
+    end
+    Svc->>DB: INSERT INTO document_analyses (document_id, clinical_summary=..., plain_language_explanation='Chỉ số đường huyết của bạn đang ở mức cao...', abnormal_indicators_json='[...]', recommended_specialty_slug='noi-tiet', recommended_specialty_name='Chuyên khoa Nội tiết')
+    DB-->>Svc: Analysis Entity Saved
+    Svc-->>Ctrl: DocumentAnalysisResponse
+    Ctrl-->>UI: 200 OK + DocumentAnalysisResponse
+    UI-->>Patient: Hiển thị bảng chỉ số cận lâm sàng nổi bật màu đỏ: "Đường huyết cao", Lời khuyên dinh dưỡng và Nút đặt lịch Chuyên khoa Nội tiết`,
+
+            seq_bola: `sequenceDiagram
+    autonumber
+    actor Doctor as Bác sĩ điều trị
+    participant UI as React 18 SPA (DoctorWorkstation)
+    participant Ctrl as MedicalDocumentController
+    participant Svc as MedicalDocumentFileAccessService
+    participant Guard as PatientAccessGuard
+    participant DB as PostgreSQL (appointments, audit_logs)
+    participant S3 as Supabase S3 Storage
+
+    Doctor->>UI: Bấm vào tệp xét nghiệm của bệnh nhân trong ca khám đang diễn ra
+    UI->>Ctrl: GET /api/v1/documents/{id}/signed-url
+    Ctrl->>Svc: issueAccess(doctorUser, id, download=false)
+    Svc->>DB: findDocumentById(id)
+    DB-->>Svc: MedicalDocument (owner_id = patientId, storage_path="patients/.../doc.pdf")
+    Svc->>Guard: assertCanAccessPatient(doctorId, Role.DOCTOR, patientId, "medical_documents/" + id)
+    Guard->>DB: existsByDoctorIdAndPatientIdAndStatusIn(doctorId, patientId, ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'])
+    DB-->>Guard: true (Tồn tại ca khám hợp lệ!)
+    Guard->>DB: INSERT INTO audit_logs (action='VIEW_PATIENT_RECORD', actor=doctorId, resource='medical_documents/'+id, ip_address=ip)
+    Guard-->>Svc: Phân quyền Hợp lệ
+    Svc->>S3: generatePresignedUrl(storagePath, Duration.ofMinutes(15))
+    S3-->>Svc: Presigned URL: "https://supabase.co/storage/v1/object/sign/medical-documents/...&token=HMAC_SHA256"
+    Svc-->>Ctrl: DocumentFileAccessDto(signedUrl, expiresInSeconds=900)
+    Ctrl-->>UI: 200 OK + DocumentFileAccessDto
+    UI-->>Doctor: Tự động mở xem tệp PDF an toàn trong tab trình duyệt`,
+
+            seq_vnpay: `sequenceDiagram
+    autonumber
+    actor VNPayServer as Máy chủ VNPay (IPN Gateway)
+    participant Ctrl as PaymentWebhookController
+    participant Svc as PaymentService
+    participant Adapter as VNPayGatewayAdapter
+    participant DB as PostgreSQL (payment_transactions, appointments)
+    participant Mail as EmailService (@Async Loom)
+
+    VNPayServer->>Ctrl: GET /api/v1/payments/vnpay-ipn?vnp_Amount=50000000&vnp_ResponseCode=00&vnp_TxnRef=TX-9912&vnp_SecureHash=...
+    Ctrl->>Svc: processVnpayIpn(vnpParams)
+    Svc->>Adapter: verifySecureHash(vnpParams)
+    Adapter-->>Svc: true (Chữ ký HMAC-SHA512 chuẩn xác từ VNPay)
+    Svc->>DB: SELECT * FROM payment_transactions WHERE transaction_code='TX-9912' FOR UPDATE
+    DB-->>Svc: PaymentTransaction (status='PENDING', reference_id='APT-7712')
+    alt Transaction đã ở trạng thái COMPLETED (Idempotency Check)
+        Svc-->>Ctrl: Map: { RspCode: "02", Message: "Order already confirmed" }
+    else Transaction đang PENDING và vnp_ResponseCode == "00"
+        Svc->>DB: UPDATE payment_transactions SET status='COMPLETED', gateway_reference=vnp_TransactionNo, updated_at=NOW() WHERE transaction_code='TX-9912'
+        Svc->>DB: UPDATE appointments SET payment_status='PAID', status='SCHEDULED', updated_at=NOW() WHERE appointment_code='APT-7712'
+        Svc->>Mail: sendPaymentSuccessReceipt(patientEmail, appointmentCode, 500000)
+        Svc-->>Ctrl: Map: { RspCode: "00", Message: "Confirm Success" }
+    end
+    Ctrl-->>VNPayServer: 200 OK + JSON { "RspCode": "00", "Message": "Confirm Success" }`
+        };
+
+        let panZoomInstance = null;
+
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'dark',
+            securityLevel: 'loose',
+            flowchart: { useMaxWidth: false, htmlLabels: true },
+            sequence: { useMaxWidth: false, showSequenceNumbers: true },
+            er: { useMaxWidth: false }
+        });
+
+        async function renderDiagram(code) {
+            const viewport = document.getElementById("diagram-viewport");
+            viewport.innerHTML = '<div class="spinner"></div>';
+
+            if (panZoomInstance) {
+                panZoomInstance.destroy();
+                panZoomInstance = null;
+            }
+
+            try {
+                const id = "mermaid-svg-" + Date.now();
+                const { svg } = await mermaid.render(id, code);
+                viewport.innerHTML = svg;
+
+                const svgElement = viewport.querySelector("svg");
+                svgElement.setAttribute("id", "active-svg");
+                svgElement.style.width = "100%";
+                svgElement.style.height = "100%";
+
+                // Initialize pan-zoom
+                panZoomInstance = svgPanZoom(svgElement, {
+                    zoomEnabled: true,
+                    controlIconsEnabled: false,
+                    fit: true,
+                    center: true,
+                    minZoom: 0.2,
+                    maxZoom: 15,
+                    zoomScaleSensitivity: 0.25
+                });
+            } catch (err) {
+                console.error("Mermaid Render Error:", err);
+                viewport.innerHTML = '<div style="color: #f87171; padding: 20px; font-weight: 600;">Lỗi dựng biểu đồ: ' + err.message + '</div>';
+            }
+        }
+
+        function loadSelectedDiagram() {
+            const select = document.getElementById("diagram-select");
+            const key = select.value;
+            const code = DIAGRAMS[key];
+            if (code) {
+                renderDiagram(code);
+                // Update URL query parameter
+                const url = new URL(window.location);
+                url.searchParams.set('diagram', key);
+                window.history.replaceState({}, '', url);
+            }
+        }
+
+        function zoomIn() {
+            if (panZoomInstance) panZoomInstance.zoomIn();
+        }
+
+        function zoomOut() {
+            if (panZoomInstance) panZoomInstance.zoomOut();
+        }
+
+        function resetZoom() {
+            if (panZoomInstance) {
+                panZoomInstance.resetZoom();
+                panZoomInstance.center();
+            }
+        }
+
+        function downloadSvg() {
+            const svgElement = document.getElementById("active-svg");
+            if (!svgElement) return;
+            const serializer = new XMLSerializer();
+            let source = serializer.serializeToString(svgElement);
+            if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+                source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+            }
+            const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            const select = document.getElementById("diagram-select");
+            a.href = url;
+            a.download = select.value + ".svg";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // On Page Load: Check URL parameter
+        document.addEventListener("DOMContentLoaded", () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const diagramParam = urlParams.get('diagram');
+            const select = document.getElementById("diagram-select");
+
+            if (diagramParam && DIAGRAMS[diagramParam]) {
+                select.value = diagramParam;
+            }
+            loadSelectedDiagram();
+        });
+    </script>
+</body>
+</html>

@@ -5665,6 +5665,29 @@ Hiện thực hóa trọn vẹn luồng khám bệnh cốt lõi (Milestone 2):
 - Thay thế triệt để các tham chiếu cũ ("Stripe") sang **VNPay National Payment Gateway API (HMAC-SHA512) & Mock Payment Sandbox**.
 - Cập nhật UC-PAT-10, SI-06, lược đồ bảng `payment_transactions` và cơ chế khóa chống trùng lặp Webhook IPN (`SELECT ... FOR UPDATE`).
 
+### [WORK-LOG-#110] Tích Hợp Trình Xem Biểu Đồ Vector Tương Tác (Pan & Zoom 1500%) & Phân Rã 4 Sơ Đồ Sub-ERD Cho Báo Cáo In Ấn
+* **Thời gian:** 2026-10-19 07:15:00 (GMT+7)
+* **Tác nhân thực hiện:** Claude Code Senior Lead Engineer
+* **Mục tiêu:** Giải quyết triệt để vấn đề biểu đồ lớn (như Kiến trúc 7 tầng, ERD 17 bảng) khi đưa vào văn bản in ấn A4 bị co nhỏ không thể zoom/đọc được bằng cách: (1) Phân rã sơ đồ CSDL thành 4 Sub-ERD phân hệ chi tiết vừa khít nửa trang A4; (2) Xây dựng ứng dụng web độc lập `docs/diagrams/interactive_viewer.html` hỗ trợ Pan-Zoom vector SVG tới 1500% và tải SVG gốc; (3) Nhúng liên kết zoom tương tác dưới mọi biểu đồ lớn trong toàn bộ tài liệu đồ án.
+* **Trạng thái Build:**
+  - Backend: **`306 / 306` Tests PASS 100%** (`mvn test` 0 failure, 0 error).
+  - Frontend: **`npm run build` PASS 100%** (2307 modules, 0 lỗi TypeScript, 2.50s).
+  - Hệ thống Biểu đồ: 17 nhóm biểu đồ tích hợp sẵn trong trình xem vector, 4 sơ đồ Sub-ERD bóc tách chi tiết.
+
+#### 1. Các Tính Năng Đột Phá Của Trình Xem Biểu Đồ Tương Tác (`docs/diagrams/interactive_viewer.html`):
+- Tích hợp `svg-pan-zoom` và `mermaid.js v10`: Hỗ trợ cuộn chuột hoặc vuốt trackpad 2 ngón để phóng to/thu nhỏ từ 20% đến 1500% hoàn toàn không vỡ hạt (Vector SVG).
+- Kéo rê (Pan) khắp canvas tự do và mượt mà bằng chuột trái.
+- Menu chuyển đổi nhanh 17 biểu đồ hệ thống (Kiến trúc, ERD tổng thể, 4 Sub-ERD, Macro Use Case, Frontend/Backend Packages, và 8 luồng Sequence lâm sàng).
+- Nút bấm tải trực tiếp tệp vector SVG gốc độ phân giải vô hạn để chèn slide bảo vệ.
+
+#### 2. Phân Rã 4 Sơ Đồ Sub-ERD Phân Hệ CSDL (DATABASE_DESIGN.md & SDD_MediAssist_AI.md):
+- **Figure 2.1 (Identity & Security ERD):** 5 bảng (`users`, `password_reset_tokens`, `email_verification_tokens`, `audit_logs`, `notifications`).
+- **Figure 2.2 (Clinical Provider ERD):** 5 bảng (`doctor_profiles`, `specialties`, `doctor_specialties`, `doctor_schedule_slots`, `doctor_reviews`).
+- **Figure 2.3 (Appointment & EMR ERD):** 3 bảng (`appointments`, `patient_profiles`, `triage_sessions`).
+- **Figure 2.4 (Diagnostics & Financial ERD):** 4 bảng (`medical_documents`, `document_analyses`, `payment_transactions`, `ai_token_usage`).
+- Mỗi sơ đồ phân hệ chỉ có 3 - 5 bảng, khi chèn vào Word hoặc PDF sẽ hiển thị to rõ từng trường, từng kiểu dữ liệu, vừa vặn từng trang A4 mà không cần phóng to.
+
+
 
 
 
