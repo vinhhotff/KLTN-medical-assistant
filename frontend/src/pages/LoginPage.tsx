@@ -340,10 +340,10 @@ export const LoginPage: React.FC = () => {
     >
       {/* ==================== 1. TOP ARCHITECTURAL HEADER ==================== */}
       <header className="gsap-vault-header w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
-        <div className="bg-[#FCFBF8]/95 backdrop-blur-xl border-2 border-slate-900 rounded-2xl shadow-[0_4px_0_0_#12100E] px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.04)] px-6 h-16 flex items-center justify-between">
           {/* Brand Logo */}
           <Link to="/" className="flex items-center gap-3 group cursor-pointer">
-            <div className="w-10 h-10 rounded-xl bg-slate-900 text-[#F6F3EC] flex items-center justify-center font-display font-bold text-base shadow-[0_2px_0_0_#4338CA] group-hover:bg-teal-600 transition-colors">
+            <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-display font-bold text-base shadow-md shadow-teal-600/20 group-hover:scale-105 transition-transform duration-200">
               M+
             </div>
             <div className="flex flex-col">
@@ -358,16 +358,16 @@ export const LoginPage: React.FC = () => {
 
           {/* Right Badges & Home Link */}
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-1.5 bg-slate-900 text-[#F6F3EC] px-3 py-1.5 rounded-xl font-mono text-[10px] font-bold shadow-[0_2px_0_0_#4338CA]">
-              <ShieldCheck className="w-3.5 h-3.5 text-teal-400" />
+            <div className="hidden sm:flex items-center gap-1.5 bg-teal-50 text-teal-800 border border-teal-200 px-3.5 py-1.5 rounded-full font-mono text-[10px] font-bold">
+              <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
               <span className="tracking-wider">HIPAA COMPLIANT VAULT</span>
             </div>
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-display text-xs font-bold text-slate-900 bg-[#F6F3EC] hover:bg-slate-200 border border-slate-900 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full font-display text-xs font-bold text-slate-700 bg-[#FCFBF8] hover:bg-slate-100 border border-slate-200/90 transition shadow-2xs cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Home</span>
+              <span>Về Trang Chủ</span>
             </Link>
           </div>
         </div>
@@ -377,10 +377,10 @@ export const LoginPage: React.FC = () => {
       <main className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex-1 flex items-center">
         <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* ==================== LEFT COLUMN: NEO-SWISS BIO-VAULT FORM CARD ==================== */}
-          <div className="gsap-vault-card lg:col-span-7 bg-[#FCFBF8] rounded-3xl shadow-[0_6px_0_0_#12100E] border-2 border-slate-900 p-6 sm:p-8">
+          <div className="gsap-vault-card lg:col-span-7 bg-white rounded-3xl shadow-[0_10px_35px_rgba(0,0,0,0.03)] border border-slate-200/90 p-6 sm:p-8">
             {/* Top Security Indicators */}
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-3 pb-3 border-b border-dashed border-slate-300">
-              <div className="flex items-center gap-2 font-mono uppercase tracking-widest text-[11px] text-teal-600 font-bold">
+            <div className="flex items-center justify-between text-xs text-slate-500 mb-3 pb-3 border-b border-dashed border-slate-200">
+              <div className="flex items-center gap-2 font-mono uppercase tracking-widest text-[11px] text-teal-700 font-bold">
                 <span className="w-2 h-2 rounded-full bg-teal-600 animate-pulse" />
                 <span>Cổng Khởi Tạo Danh Tính Y Tế</span>
               </div>
@@ -401,17 +401,17 @@ export const LoginPage: React.FC = () => {
             </p>
 
             {/* Role Switcher Pills */}
-            <div className="grid grid-cols-2 gap-2.5 mb-4 p-1.5 bg-[#F6F3EC] rounded-2xl border border-slate-300">
+            <div className="grid grid-cols-2 gap-2 p-1.5 bg-[#F6F3EC] rounded-2xl border border-slate-200">
               <button
                 type="button"
                 onClick={() => setRoleType('PATIENT')}
                 className={`py-2.5 px-3 rounded-xl font-display text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   roleType === 'PATIENT'
-                    ? 'bg-slate-900 text-[#F6F3EC] shadow-[0_2px_0_0_#4338CA]'
+                    ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/20'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <UserIcon className="w-3.5 h-3.5 text-teal-400" />
+                <UserIcon className="w-3.5 h-3.5 text-white" />
                 <span>Dành Cho Bệnh Nhân</span>
               </button>
               <button
@@ -419,11 +419,11 @@ export const LoginPage: React.FC = () => {
                 onClick={() => setRoleType('DOCTOR')}
                 className={`py-2.5 px-3 rounded-xl font-display text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   roleType === 'DOCTOR'
-                    ? 'bg-slate-900 text-[#F6F3EC] shadow-[0_2px_0_0_#4338CA]'
+                    ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/20'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <Stethoscope className="w-3.5 h-3.5 text-teal-400" />
+                <Stethoscope className="w-3.5 h-3.5 text-white" />
                 <span>Bác Sĩ &amp; Phòng Khám</span>
               </button>
             </div>
@@ -497,7 +497,7 @@ export const LoginPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleRandomFill('RANDOM')}
-                        className="px-3 py-1.5 rounded-xl font-display text-xs font-bold bg-slate-900 hover:bg-teal-600 text-[#F6F3EC] shadow-[0_2px_0_0_#4338CA] transition-all flex items-center gap-1 cursor-pointer"
+                        className="px-3 py-1.5 rounded-xl font-display text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm shadow-teal-600/20 transition-all flex items-center gap-1 cursor-pointer"
                       >
                         <span className="material-symbols-outlined text-[15px]">casino</span>
                         <span>🎲 Random Bệnh Nhân</span>
@@ -750,7 +750,7 @@ export const LoginPage: React.FC = () => {
                   type="submit"
                   disabled={loading || !agreeTerms}
                   title={!agreeTerms ? 'Cần đồng ý điều khoản trước khi tạo tài khoản' : undefined}
-                  className="w-full py-3.5 bg-slate-900 hover:bg-teal-600 text-[#F6F3EC] rounded-2xl font-display text-xs font-bold transition-all shadow-[0_4px_0_0_#4338CA] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-display text-xs font-bold transition-all shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -778,36 +778,36 @@ export const LoginPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleQuickPreset('doctor@mediassist.local', 'Doctor@SecurePass2026!')}
-                        className="px-2.5 py-1.5 rounded-xl font-mono text-[10px] font-bold bg-slate-900 hover:bg-teal-600 text-[#F6F3EC] transition cursor-pointer flex items-center gap-1"
+                        className="px-2.5 py-1.5 rounded-xl font-mono text-[10px] font-bold bg-teal-600 hover:bg-teal-700 text-white transition cursor-pointer flex items-center gap-1 shadow-2xs"
                       >
-                        <Stethoscope className="w-3 h-3 text-teal-300" />
+                        <Stethoscope className="w-3 h-3 text-teal-100" />
                         Bác Sĩ (TS.BS Nguyễn Văn An)
                       </button>
                       <button
                         type="button"
                         onClick={() => handleQuickPreset('dr.tuan@mediassist.local', 'Doctor@SecurePass2026!')}
-                        className="px-2.5 py-1.5 rounded-xl font-mono text-[10px] font-bold bg-[#FCFBF8] hover:bg-slate-200 border border-slate-300 text-slate-800 transition cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-xl font-mono text-[10px] font-bold bg-white hover:bg-slate-100 border border-slate-200/90 text-slate-800 transition cursor-pointer shadow-2xs"
                       >
                         Bác Sĩ (BS.CKII Phạm Quốc Tuấn)
                       </button>
                       <button
                         type="button"
                         onClick={() => handleQuickPreset('dr.huong@mediassist.local', 'Doctor@SecurePass2026!')}
-                        className="px-2.5 py-1.5 rounded-xl font-mono text-[10px] font-bold bg-[#FCFBF8] hover:bg-slate-200 border border-slate-300 text-slate-800 transition cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-xl font-mono text-[10px] font-bold bg-white hover:bg-slate-100 border border-slate-200/90 text-slate-800 transition cursor-pointer shadow-2xs"
                       >
                         Bác Sĩ (ThS.BS Mai Hương)
                       </button>
                       <button
                         type="button"
                         onClick={() => handleQuickPreset('patient@mediassist.local', 'Patient@SecurePass2026!')}
-                        className="px-2.5 py-1.5 rounded-xl font-mono text-[10px] font-bold bg-[#FCFBF8] hover:bg-slate-200 border border-slate-300 text-slate-800 transition cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-xl font-mono text-[10px] font-bold bg-white hover:bg-slate-100 border border-slate-200/90 text-slate-800 transition cursor-pointer shadow-2xs"
                       >
                         Bệnh Nhân (Trần Thị Bình)
                       </button>
                       <button
                         type="button"
                         onClick={() => handleQuickPreset('admin@mediassist.local', 'Admin@SecurePass2026!')}
-                        className="px-2.5 py-1.5 rounded-xl font-mono text-[10px] font-bold bg-[#FCFBF8] hover:bg-slate-200 border border-slate-300 text-slate-800 transition cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-xl font-mono text-[10px] font-bold bg-white hover:bg-slate-100 border border-slate-200/90 text-slate-800 transition cursor-pointer shadow-2xs"
                       >
                         Quản Trị Viên (Admin)
                       </button>
@@ -873,7 +873,7 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loading || !loginEmail.trim() || !loginPassword}
-                  className="w-full py-3.5 bg-slate-900 hover:bg-teal-600 text-[#F6F3EC] rounded-2xl font-display text-xs font-bold transition-all shadow-[0_4px_0_0_#4338CA] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-display text-xs font-bold transition-all shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <>
@@ -912,75 +912,75 @@ export const LoginPage: React.FC = () => {
             </div>
           </div>
 
-          {/* ==================== RIGHT COLUMN: DARK OBSIDIAN CLINICAL OBSERVATORY SIDEBAR ==================== */}
+          {/* ==================== RIGHT COLUMN: LUMINOUS BIO-CARE OBSERVATORY SIDEBAR ==================== */}
           <div className="hidden lg:flex lg:col-span-5 flex-col gap-5">
-            {/* Box 1: Dark Obsidian Bio-Scanner Card */}
-            <div className="gsap-vault-sidebar rounded-3xl p-6 bg-slate-950 text-[#F6F3EC] shadow-[0_6px_0_0_#4338CA] border-2 border-slate-900 bg-obsidian-dots">
-              <span className="inline-block px-2.5 py-1 rounded-lg bg-teal-500/20 text-teal-300 font-mono font-bold text-[10px] tracking-widest uppercase border border-teal-400/30 mb-3">
+            {/* Box 1: Luminous Bio-Scanner Card */}
+            <div className="gsap-vault-sidebar rounded-3xl p-6 bg-white text-slate-900 shadow-sm border border-slate-200/90">
+              <span className="inline-block px-3 py-1 rounded-full bg-teal-50 text-teal-800 font-mono font-bold text-[10px] tracking-widest uppercase border border-teal-200 mb-3">
                 Ưu Đãi Đặc Quyền Bệnh Nhân Mới
               </span>
-              <h2 className="font-display text-xl font-bold text-white tracking-tight leading-snug mb-2">
+              <h2 className="font-display text-xl font-bold text-slate-900 tracking-tight leading-snug mb-2">
                 Miễn phí phân tích báo cáo PDF xét nghiệm đầu tiên
               </h2>
-              <p className="text-xs text-slate-300 leading-relaxed mb-4">
+              <p className="text-xs text-slate-600 leading-relaxed mb-4">
                 Chỉ cần tải lên file chụp hoặc file PDF kết quả máu, CT/MRI, nước tiểu. Hệ thống bóc tách 45+ chỉ số sinh hóa và chỉ điểm bất thường trong 30 giây.
               </p>
 
               {/* Sample OCR Interactive Result Box */}
-              <div className="p-3.5 bg-slate-900 rounded-2xl border border-slate-800 space-y-2.5">
-                <div className="flex items-center justify-between font-mono text-[11px] pb-2 border-b border-slate-800">
-                  <div className="flex items-center gap-1.5 text-slate-200 font-bold">
-                    <FileText className="w-3.5 h-3.5 text-teal-400" />
+              <div className="p-3.5 bg-[#FCFBF8] rounded-2xl border border-slate-200/80 space-y-2.5">
+                <div className="flex items-center justify-between font-mono text-[11px] pb-2 border-b border-slate-200">
+                  <div className="flex items-center gap-1.5 text-slate-800 font-bold">
+                    <FileText className="w-3.5 h-3.5 text-teal-600" />
                     <span>KQ_SinhHoa_Mau_2025.pdf</span>
                   </div>
-                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
                     Hoàn tất OCR 100%
                   </span>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 font-mono text-[11px]">
-                  <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold">
+                  <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 font-bold">
                     ● HbA1c: 7.2% (Tăng cao)
                   </span>
-                  <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700 font-medium">
+                  <span className="px-2 py-0.5 rounded-md bg-white text-slate-700 border border-slate-200 font-medium">
                     ● Creatinine: 82 µmol/L (Bình thường)
                   </span>
                 </div>
 
-                <div className="pt-1 flex items-center gap-1.5 font-mono text-[11px] text-teal-300 font-bold">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />
+                <div className="pt-1 flex items-center gap-1.5 font-mono text-[11px] text-teal-800 font-bold">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
                   <span>98% khớp Chuyên khoa Nội Tiết</span>
                 </div>
               </div>
             </div>
 
             {/* Box 2: Doctor Network Card */}
-            <div className="gsap-vault-sidebar bg-[#FCFBF8] rounded-3xl p-6 border-2 border-slate-900 shadow-[0_5px_0_0_#12100E] space-y-4">
+            <div className="gsap-vault-sidebar bg-white rounded-3xl p-6 border border-slate-200/90 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-display text-xl font-bold text-slate-900 tracking-tight">1.200+ Bác Sĩ</div>
                   <div className="font-mono text-xs text-slate-500 font-medium">Sẵn sàng hội chẩn trực tuyến</div>
                 </div>
-                <div className="w-11 h-11 rounded-2xl bg-slate-900 text-[#F6F3EC] flex items-center justify-center shadow-[0_2px_0_0_#4338CA]">
-                  <span className="material-symbols-outlined text-[22px] text-teal-300">local_hospital</span>
+                <div className="w-11 h-11 rounded-2xl bg-teal-50 text-teal-700 border border-teal-200/80 flex items-center justify-center shadow-2xs">
+                  <span className="material-symbols-outlined text-[22px] text-teal-600">local_hospital</span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-1 pb-2 border-b border-dashed border-slate-300">
+              <div className="flex items-center gap-3 pt-1 pb-2 border-b border-dashed border-slate-200">
                 <div className="flex -space-x-2 overflow-hidden">
                   <img
                     alt="Doctor 1"
-                    className="inline-block h-8 w-8 rounded-full ring-2 ring-[#FCFBF8] object-cover"
+                    className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
                     src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9dNw07t-qFJgqPYpgTRow1U8l_j39x3P-q9tb_n0VzsrsEN9vLwalX_fEWLBV_yVhCIdggIsmpbL4yOTxmNgt7tvsvspQCq0JIBYMidO6EOOpxxdiQuEXr2x5T6vpHCCKF_kf6mEPGFHm5vNI-a1LpmGs5DByOpQYJfwQVYMvhNv84Rr4vR26Lw7v6EXNA4YHb26fSzZNCqE2Eau4B4mgcmDTtSVXgBYAVj1I9IkSCv4ir_SzFe9m7A"
                   />
                   <img
                     alt="Doctor 2"
-                    className="inline-block h-8 w-8 rounded-full ring-2 ring-[#FCFBF8] object-cover"
+                    className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
                     src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9cJehecZXYTwfOiCCLiPD-OUTDDjCmmHEziK1Uv0tNPqNrHoLh7svXrLl27ip7z5If6dVLpfNVYWjp2sEBO4pFqZNpky6Bezg8HcpfTl5XzS8TMBG0kNgPvUdHyl3uSm450LngbLp4T9ZWuEiYjL6jDVOpU_RuhvunIxvtafIiK6qHJ6ORo3b4asi05dvoiW7RDKDNAaR-SDUPP6Qoef7cU5a9dqyeUdDcSwBTtjnE1Og1lflk3TUuw"
                   />
                   <img
                     alt="Doctor 3"
-                    className="inline-block h-8 w-8 rounded-full ring-2 ring-[#FCFBF8] object-cover"
+                    className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
                     src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9uyDi1trgqaS24jm6kY_UkDTY6dgNsu-F4UsPKYAsoAAieXS1tOyTq3kLEe7HPhu5sSbTPpZqsg_tGjKkT1iRtXg-X9pIJa4xsr_LxwDcTp6T9pt0MY4pylx2xdIMW34AQuegw3o0a7hMqtBlOV1V5BSa8Z5aApIuka3NxhlFL1tulF16UgD4tq84WiOZNWUHgWhQuRC1ZyPZApHgqUi9HEHS235KSeEOtqYdxk9xHCa1kuT_KamI5g"
                   />
                 </div>
@@ -1009,9 +1009,9 @@ export const LoginPage: React.FC = () => {
             </div>
 
             {/* Box 3: Security Standard Notice */}
-            <div className="gsap-vault-sidebar bg-[#FCFBF8] border-2 border-slate-900 rounded-2xl p-4 flex items-start gap-3 shadow-[0_3px_0_0_#12100E]">
-              <div className="p-2 rounded-xl bg-emerald-100 text-emerald-800 shrink-0">
-                <ShieldCheck className="w-5 h-5" />
+            <div className="gsap-vault-sidebar bg-white border border-slate-200/90 rounded-2xl p-4 flex items-start gap-3 shadow-2xs">
+              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
+                <ShieldCheck className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
                 <div className="font-display text-xs font-bold text-slate-900">Tiêu Chuẩn Bảo Mật Y Tế Cấp 4</div>
@@ -1067,12 +1067,12 @@ export const LoginPage: React.FC = () => {
 
       {/* SSO Federation Modal */}
       {ssoModalType && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-[#FCFBF8] rounded-3xl max-w-lg w-full p-6 shadow-[0_8px_0_0_#12100E] border-2 border-slate-900 space-y-5">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-xl border border-slate-200/90 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-slate-900 text-teal-300 flex items-center justify-center">
-                  <ShieldCheck className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-700 border border-teal-200/80 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-teal-600" />
                 </div>
                 <div>
                   <h3 className="font-display text-base font-bold text-slate-900">
@@ -1083,7 +1083,7 @@ export const LoginPage: React.FC = () => {
               </div>
               <button
                 onClick={() => setSsoModalType(null)}
-                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-800 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1095,7 +1095,7 @@ export const LoginPage: React.FC = () => {
                   <p>
                     Hệ thống <strong>MediAssist-AI</strong> đã xây dựng sẵn hạ tầng lọc bảo mật Spring Security JWT tương thích với chuẩn <strong>Google OAuth 2.0 / OpenID Connect</strong>.
                   </p>
-                  <div className="p-3.5 bg-slate-900 rounded-2xl space-y-1 text-[11px] text-teal-300 font-mono">
+                  <div className="p-3.5 bg-[#FCFBF8] border border-slate-200/90 rounded-2xl space-y-1 text-[11px] text-teal-800 font-mono">
                     <p>• Endpoint Whitelist: /api/v1/auth/google/**</p>
                     <p>• Protocol: OAuth 2.0 Auth Code Flow with PKCE</p>
                     <p>• Security Layer: Dual-Transport JWT (Bearer + HttpOnly Cookie)</p>
@@ -1109,7 +1109,7 @@ export const LoginPage: React.FC = () => {
                   <p>
                     Hệ sinh thái liên thông căn cước công dân gắn chip <strong>VNeID Cấp độ 2</strong> tuân thủ Đề án 06/CP của Chính phủ về phát triển ứng dụng dữ liệu dân cư, định danh và xác thực điện tử phục vụ chuyển đổi số y tế quốc gia.
                   </p>
-                  <div className="p-3.5 bg-slate-900 rounded-2xl space-y-1 text-[11px] text-teal-300 font-mono">
+                  <div className="p-3.5 bg-[#FCFBF8] border border-slate-200/90 rounded-2xl space-y-1 text-[11px] text-teal-800 font-mono">
                     <p>• Tích hợp: Mã định danh công dân 12 số (Citizen ID)</p>
                     <p>• Đồng bộ: Thẻ Bảo hiểm Y tế (BHYT) &amp; Sổ Sức Khỏe Điện Tử</p>
                     <p>• Tuân thủ: Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân</p>
@@ -1125,7 +1125,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSsoModalType(null)}
-                className="px-5 py-2.5 font-display text-xs font-bold text-[#F6F3EC] bg-slate-900 hover:bg-teal-600 rounded-xl transition cursor-pointer"
+                className="px-5 py-2.5 font-display text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 shadow-sm shadow-teal-600/20 rounded-xl transition cursor-pointer"
               >
                 Đã Hiểu &amp; Đóng
               </button>
@@ -1136,12 +1136,12 @@ export const LoginPage: React.FC = () => {
 
       {/* Compliance & Policy Modal */}
       {complianceModalType && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-[#FCFBF8] rounded-3xl max-w-lg w-full p-6 shadow-[0_8px_0_0_#12100E] border-2 border-slate-900 space-y-5">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-xl border border-slate-200/90 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-slate-900 text-teal-300 flex items-center justify-center">
-                  <FileText className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-700 border border-teal-200/80 flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-teal-600" />
                 </div>
                 <div>
                   <h3 className="font-display text-base font-bold text-slate-900">
@@ -1156,7 +1156,7 @@ export const LoginPage: React.FC = () => {
               </div>
               <button
                 onClick={() => setComplianceModalType(null)}
-                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-800 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1195,7 +1195,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setComplianceModalType(null)}
-                className="px-5 py-2.5 font-display text-xs font-bold text-[#F6F3EC] bg-slate-900 hover:bg-teal-600 rounded-xl transition cursor-pointer"
+                className="px-5 py-2.5 font-display text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 shadow-sm shadow-teal-600/20 rounded-xl transition cursor-pointer"
               >
                 Đã Rõ
               </button>

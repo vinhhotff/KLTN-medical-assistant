@@ -178,30 +178,30 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-slate-950 bg-obsidian-dots text-[#F6F3EC] rounded-3xl border-2 border-slate-900 shadow-[0_6px_0_0_#4338CA] p-6">
+      {/* Header — Light Operations Observatory */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white text-slate-900 rounded-3xl border border-slate-200/90 shadow-[0_10px_35px_rgba(0,0,0,0.03)] p-6 sm:p-7">
         <div>
-          <div className="font-mono text-[11px] uppercase tracking-widest text-teal-300 font-bold mb-1">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 border border-teal-200 font-mono text-[11px] uppercase tracking-widest text-teal-800 font-bold mb-2">
             AD-01 // OPERATIONS OBSERVATORY
           </div>
-          <h2 className="font-display text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Trung Tâm Chỉ Huy &amp; <span className="font-serif italic font-normal text-teal-300">Giám Sát Toàn Viện</span>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+            Trung Tâm Chỉ Huy &amp; <span className="font-serif italic font-normal text-teal-600">Giám Sát Toàn Viện</span>
           </h2>
-          <p className="text-slate-300 text-sm mt-1">
+          <p className="text-slate-600 text-sm mt-1">
             Tổng hợp dữ liệu vận hành theo thời gian thực: Bác sĩ, Lịch hẹn Telehealth, Cận lâm sàng EMR và Phân luồng AI.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 font-mono text-xs text-slate-300 bg-slate-900 px-3 py-2 rounded-xl border border-slate-700">
+          <div className="hidden sm:flex items-center gap-1.5 font-mono text-xs text-slate-700 bg-[#FCFBF8] px-3.5 py-2 rounded-xl border border-slate-200/90 shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
           </div>
           <button
             onClick={handleManualRefresh}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#FCFBF8] text-slate-900 font-display text-xs font-bold rounded-xl hover:bg-teal-300 transition shadow-[0_2px_0_0_#4338CA] disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-display text-xs font-bold rounded-xl transition shadow-md shadow-teal-600/20 disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-600' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-teal-100' : ''}`} />
             {refreshing ? 'Đang làm mới...' : 'Làm mới dữ liệu'}
           </button>
         </div>
@@ -214,7 +214,7 @@ export const AdminDashboard: React.FC = () => {
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Card 1: Users & Doctors */}
-        <div className="bg-[#FCFBF8] p-5 rounded-2xl border-2 border-slate-900 shadow-[0_4px_0_0_#12100E] hover:-translate-y-0.5 transition">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:border-indigo-200 hover:-translate-y-0.5 transition duration-200">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nhân Lực Y Tế</span>
             <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">

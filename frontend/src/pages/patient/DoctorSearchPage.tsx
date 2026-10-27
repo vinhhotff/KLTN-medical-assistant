@@ -264,24 +264,24 @@ export const DoctorSearchPage: React.FC = () => {
 
       {/* AI mode switch: affects the WHOLE system → admin, or demo tools for the defense */}
       {canToggleAiMode && (
-        <div className="gsap-doc-search bg-slate-950 bg-obsidian-dots text-white rounded-2xl p-4 shadow-[0_4px_0_0_#4338CA] border-2 border-slate-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="gsap-doc-search bg-white text-slate-900 rounded-2xl p-4 shadow-sm border border-slate-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-xl flex-shrink-0 ${aiModeStatus?.forcedOfflineSimulation ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+            <div className={`p-2.5 rounded-xl flex-shrink-0 ${aiModeStatus?.forcedOfflineSimulation ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-teal-50 text-teal-700 border border-teal-200'}`}>
               <Wrench className="w-5 h-5" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                   {isAdmin ? 'Công cụ quản trị' : 'Công cụ demo'} · Chế độ AI toàn hệ thống
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-white/10">{aiModeStatus?.statusLabel || 'Đang tải...'}</span>
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80">{aiModeStatus?.statusLabel || 'Đang tải...'}</span>
               </div>
-              <p className="text-[11px] text-amber-300 mt-0.5">Ảnh hưởng tới mọi người dùng</p>
+              <p className="text-[11px] text-amber-700 font-medium mt-0.5">Ảnh hưởng tới mọi người dùng</p>
               <details className="mt-1">
-                <summary className="text-[11px] text-slate-400 cursor-pointer">Chi tiết kỹ thuật</summary>
-                <p className="text-xs text-slate-300 mt-1 font-mono">{aiModeStatus?.activeEngineDescription || '—'}</p>
+                <summary className="text-[11px] text-slate-500 hover:text-teal-700 cursor-pointer">Chi tiết kỹ thuật</summary>
+                <p className="text-xs text-slate-700 mt-1 font-mono">{aiModeStatus?.activeEngineDescription || '—'}</p>
                 {aiModeStatus && (
-                  <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
+                  <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
                     {aiModeStatus.modelName} · {aiModeStatus.vectorDimensions} chiều
                   </p>
                 )}
@@ -292,8 +292,8 @@ export const DoctorSearchPage: React.FC = () => {
             type="button"
             onClick={handleToggleAiMode}
             disabled={togglingAiMode || !aiModeStatus}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap disabled:opacity-50 ${
-              aiModeStatus?.forcedOfflineSimulation ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-amber-600 hover:bg-amber-500'
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap shadow-xs disabled:opacity-50 text-white ${
+              aiModeStatus?.forcedOfflineSimulation ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20' : 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'
             }`}
             title="Ảnh hưởng tới mọi người dùng"
           >
@@ -305,7 +305,7 @@ export const DoctorSearchPage: React.FC = () => {
 
       {/* Filter & Search Toolbar */}
       <div className="gsap-doc-search grid grid-cols-1 md:grid-cols-3 gap-3">
-        <label className="md:col-span-2 bg-[#FCFBF8] p-3.5 rounded-2xl border-2 border-slate-900 shadow-[0_3px_0_0_#12100E] flex items-center gap-3 focus-within:ring-2 focus-within:ring-teal-500">
+        <label className="md:col-span-2 bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs flex items-center gap-3 focus-within:ring-2 focus-within:ring-teal-500">
           {searchingSemantic ? (
             <Loader2 className="w-5 h-5 text-teal-600 animate-spin flex-shrink-0" aria-hidden />
           ) : semanticResults !== null ? (
@@ -319,7 +319,7 @@ export const DoctorSearchPage: React.FC = () => {
             placeholder="VD: đau thắt ngực, Tim mạch, tên bác sĩ, bệnh viện..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full text-sm bg-transparent outline-none placeholder:text-slate-400"
+            className="w-full text-sm bg-transparent outline-none placeholder:text-slate-400 text-slate-900"
           />
           {semanticResults !== null && (
             <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-700 border border-teal-200 whitespace-nowrap">
@@ -328,7 +328,7 @@ export const DoctorSearchPage: React.FC = () => {
           )}
         </label>
 
-        <div className="bg-[#FCFBF8] p-2 rounded-2xl border-2 border-slate-900 shadow-[0_3px_0_0_#12100E] flex items-center gap-2">
+        <div className="bg-white p-2 rounded-2xl border border-slate-200/90 shadow-2xs flex items-center gap-2">
           <Filter className="w-4 h-4 text-teal-600 ml-2 flex-shrink-0" aria-hidden />
           <select
             aria-label="Lọc theo chuyên khoa"
@@ -365,10 +365,10 @@ export const DoctorSearchPage: React.FC = () => {
             return (
               <div
                 key={doc.id}
-                className="bg-[#FCFBF8] rounded-3xl border-2 border-slate-900 p-5 sm:p-6 shadow-[0_4px_0_0_#12100E] hover:-translate-y-0.5 hover:shadow-[0_6px_0_0_#4338CA] transition flex flex-col md:flex-row md:items-center justify-between gap-5"
+                className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-5"
               >
                 <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-900 text-teal-300 shadow-[0_2px_0_0_#4338CA] flex items-center justify-center font-display font-bold text-xl flex-shrink-0" aria-hidden>
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-teal-50 text-teal-700 border border-teal-200/80 shadow-2xs flex items-center justify-center font-display font-bold text-xl flex-shrink-0" aria-hidden>
                     {doc.fullName.trim().split(' ').pop()?.charAt(0)}
                   </div>
                   <div className="space-y-1.5 min-w-0">

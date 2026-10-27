@@ -727,7 +727,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-slate-900 text-teal-300 rounded-2xl shadow-[0_3px_0_0_#4338CA]">
+          <div className="p-3 bg-teal-600 text-white rounded-2xl shadow-md shadow-teal-600/20">
             <UploadCloud className="w-6 h-6" />
           </div>
           <div>
@@ -751,7 +751,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
               <span>Hội Viên MediPass VIP</span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-[#FCFBF8] border-2 border-slate-900 text-slate-800 rounded-xl font-mono text-xs font-bold shadow-[0_2px_0_0_#12100E]">
+            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-white border border-slate-200/90 text-slate-800 rounded-xl font-mono text-xs font-semibold shadow-xs">
               <Zap className="w-4 h-4 text-teal-600" />
               <span className="inline-flex items-center gap-1" data-testid="quota-badge">
                 Lượt quét:{' '}
@@ -801,7 +801,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             ? 'bg-[#EDE8DF] border-slate-400 opacity-80'
             : isDragging
             ? 'bg-teal-50/70 border-teal-600 ring-4 ring-teal-500/20'
-            : 'bg-[#FCFBF8] border-slate-900 hover:bg-[#F6F3EC]'
+            : 'bg-white border-slate-300 hover:border-teal-500 hover:bg-teal-50/20'
         }`}
       >
         <UploadCloud

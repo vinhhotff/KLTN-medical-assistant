@@ -367,47 +367,47 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div ref={pageRef} className="bg-[#F6F3EC] bg-atelier-dots font-sans text-slate-900 antialiased min-h-screen overflow-x-hidden">
-      {/* 1. Top Clinical Emergency Telemetry Strip */}
-      <div className="bg-slate-950 text-[#F6F3EC] border-b border-slate-800 px-4 sm:px-8 py-2 relative z-50">
+      {/* 1. Top Clinical Emergency Telemetry Strip — Soft Clinical Rose Palette */}
+      <div className="bg-rose-50/90 text-rose-950 border-b border-rose-200/80 px-4 sm:px-8 py-2 relative z-50">
         <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-3 font-mono text-[11px]">
           <div className="flex items-center gap-2 overflow-hidden">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300/80 font-bold shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
               RED-FLAG 115
             </span>
-            <span className="truncate text-slate-300">
-              Clinical Emergency or Immediate Threat: Call 115 or 911 or visit the nearest ER immediately.
+            <span className="truncate text-rose-900/90 font-medium">
+              Cấp cứu lâm sàng hoặc đe dọa tức thì: Bỏ qua chờ khám, liên hệ ngay 115 hoặc khoa Cấp cứu gần nhất.
             </span>
           </div>
           <div className="flex items-center gap-4 shrink-0">
-            <a className="underline font-bold text-amber-300 hover:text-white transition-colors" href="tel:115">
-              Crisis Hotline (115)
+            <a className="underline font-bold text-rose-700 hover:text-rose-900 transition-colors" href="tel:115">
+              Cấp Cứu Toàn Quốc (115)
             </a>
-            <span className="hidden md:inline text-slate-600">//</span>
-            <span className="hidden md:inline text-slate-400">Hỗ trợ khẩn cấp: 1-800-555-0199</span>
+            <span className="hidden md:inline text-rose-300">//</span>
+            <span className="hidden md:inline text-rose-800/80">Hỗ trợ khẩn cấp: 1-800-555-0199</span>
           </div>
         </div>
       </div>
 
-      {/* 2. Floating Architectural Pill Command Header */}
+      {/* 2. Floating Architectural Pill Command Header — Smooth Frosted Glass Pill */}
       <header className="gsap-nav-shell sticky top-3 z-40 px-4 sm:px-8 mt-3">
-        <div className="max-w-[1440px] mx-auto bg-[#FCFBF8]/95 backdrop-blur-xl border-2 border-slate-900 rounded-2xl shadow-[0_4px_0_0_#12100E] px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-[1440px] mx-auto bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.04)] px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 flex-shrink-0">
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 rounded-xl bg-slate-900 text-[#F6F3EC] flex items-center justify-center font-display font-bold text-base shadow-[0_2px_0_0_#4338CA] group-hover:bg-teal-600 transition-colors">
+              <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-display font-bold text-base shadow-md shadow-teal-600/20 group-hover:scale-105 transition-transform duration-300">
                 M+
               </div>
               <div>
                 <span className="font-display text-lg text-slate-900 tracking-tight font-bold block leading-none">
                   MediAssist <span className="font-serif italic font-normal text-teal-600">Atelier</span>
                 </span>
-                <span className="font-mono text-[9px] uppercase tracking-widest text-slate-500 block mt-0.5">
-                  SWISS CLINICAL AI // V4.8
+                <span className="font-mono text-[9px] uppercase tracking-widest text-slate-400 block mt-0.5">
+                  CLINICAL AI // V4.8
                 </span>
               </div>
             </Link>
 
-            <div className="hidden xl:flex items-center gap-1.5 bg-slate-100 text-slate-800 px-3 py-1 rounded-lg border border-slate-300 font-mono text-[10px] font-bold">
+            <div className="hidden xl:flex items-center gap-1.5 bg-teal-50 text-teal-800 px-3 py-1 rounded-full border border-teal-200/80 font-mono text-[10px] font-bold">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
               <span>HIPAA &amp; HL7 FHIR V4</span>
             </div>
@@ -415,34 +415,34 @@ export const LandingPage: React.FC = () => {
 
           <nav className="hidden lg:flex items-center gap-1 font-display text-xs font-bold">
             <a
-              className="px-3.5 py-2 text-slate-900 bg-slate-200/70 rounded-xl transition-colors"
+              className="px-3.5 py-2 text-teal-700 bg-teal-50/80 rounded-full transition-colors"
               href="#"
             >
               01 // Trang chủ
             </a>
             <a
-              className="px-3.5 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
+              className="px-3.5 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors"
               href="#quick-demo"
             >
-              02 // Report Analysis
+              02 // Phân Tích Bệnh Án
             </a>
             <a
-              className="px-3.5 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
+              className="px-3.5 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors"
               href="#specialists-section"
             >
-              03 // Doctor Matches
+              03 // Mạng Lưới Bác Sĩ
             </a>
             <button
               onClick={() => handleDoctorBooking()}
-              className="px-3.5 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              className="px-3.5 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
             >
-              04 // Live Consultation
+              04 // Hội Chẩn Trực Tuyến
             </button>
             <button
               onClick={() => navigate('/doctor')}
-              className="px-3.5 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              className="px-3.5 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
             >
-              05 // Doctor Workspace
+              05 // Bàn Khám Bác Sĩ
             </button>
           </nav>
 
@@ -451,23 +451,23 @@ export const LandingPage: React.FC = () => {
               <div className="flex items-center gap-2.5">
                 <button
                   onClick={() => navigate(user.role === 'ADMIN' ? '/admin' : user.role === 'DOCTOR' ? '/doctor' : '/patient')}
-                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900 text-[#F6F3EC] border border-slate-900 shadow-[0_2px_0_0_#4338CA] cursor-pointer text-left"
+                  className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 transition-colors cursor-pointer text-left"
                   type="button"
                 >
-                  <div className="w-6 h-6 rounded-lg bg-teal-600 text-white font-mono font-bold flex items-center justify-center text-xs">
+                  <div className="w-6 h-6 rounded-full bg-teal-600 text-white font-mono font-bold flex items-center justify-center text-xs">
                     {user.fullName ? user.fullName.split(' ').slice(-1)[0][0].toUpperCase() : 'U'}
                   </div>
                   <div className="hidden sm:block">
                     <span className="font-display font-bold text-xs block leading-none truncate max-w-[120px]">{user.fullName}</span>
-                    <span className="font-mono text-[9px] text-teal-300 uppercase">
-                      {user.role === 'ADMIN' ? 'Quản Trị' : user.role === 'DOCTOR' ? 'Bác Sĩ' : 'Bệnh Nhân'} Portal
+                    <span className="font-mono text-[9px] text-teal-700 uppercase">
+                      {user.role === 'ADMIN' ? 'Quản Trị' : user.role === 'DOCTOR' ? 'Bác Sĩ' : 'Bệnh Nhân'}
                     </span>
                   </div>
                 </button>
                 <button
                   onClick={() => logout()}
                   title="Đăng xuất"
-                  className="p-2 text-slate-600 hover:text-rose-600 hover:bg-slate-200/60 rounded-xl border border-slate-300 transition-colors cursor-pointer"
+                  className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-full border border-slate-200 transition-colors cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[18px]">logout</span>
                 </button>
@@ -476,13 +476,13 @@ export const LandingPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Link
                   to="/login"
-                  className="px-4 py-2 font-display text-xs font-bold text-slate-900 hover:bg-slate-200/70 rounded-xl border border-slate-300 transition-colors"
+                  className="px-4 py-2 font-display text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors"
                 >
                   Đăng Nhập
                 </Link>
                 <button
                   onClick={() => navigate('/login')}
-                  className="px-4 py-2 font-display text-xs font-bold bg-slate-900 hover:bg-teal-600 text-[#F6F3EC] rounded-xl border border-slate-900 shadow-[0_2px_0_0_#4338CA] transition-all cursor-pointer"
+                  className="px-5 py-2 font-display text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-md shadow-teal-600/20 transition-all cursor-pointer"
                 >
                   Khám Ngay →
                 </button>
@@ -495,24 +495,24 @@ export const LandingPage: React.FC = () => {
       {/* Main Content */}
       <main className="w-full pt-8 pb-16">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-8">
-          {/* ==================== ASYMMETRIC SWISS EDITORIAL BENTO HERO ==================== */}
+          {/* ==================== ASYMMETRIC CLINICAL BENTO HERO ==================== */}
           <section className="relative pb-12">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
               {/* Left 7 Columns: Editorial Manifesto & Metrics Bento */}
-              <div className="lg:col-span-7 bg-[#FCFBF8] border-2 border-slate-900 rounded-3xl p-6 sm:p-10 shadow-[0_6px_0_0_#12100E] flex flex-col justify-between relative overflow-hidden">
+              <div className="lg:col-span-7 bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-10 shadow-[0_10px_35px_rgba(0,0,0,0.03)] flex flex-col justify-between relative overflow-hidden">
                 <div className="absolute -right-16 -top-16 w-56 h-56 rounded-full bg-teal-500/10 blur-2xl pointer-events-none" />
 
                 <div>
                   {/* Live Status Pill */}
-                  <div className="gsap-hero-badge inline-flex items-center gap-2 bg-slate-900 text-[#F6F3EC] px-3.5 py-1.5 rounded-xl shadow-[0_2px_0_0_#4338CA] mb-6">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <div className="gsap-hero-badge inline-flex items-center gap-2 bg-teal-50 text-teal-800 border border-teal-200/80 px-3.5 py-1.5 rounded-full mb-6">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                     <span className="font-mono text-[11px] uppercase tracking-wider font-bold">
                       Hệ Thống Trực Tuyến • AI Chẩn Đoán v4.8 Active
                     </span>
                   </div>
 
                   {/* Editorial Display Heading */}
-                  <h1 className="gsap-hero-title font-display text-3xl sm:text-5xl lg:text-[54px] text-slate-900 tracking-tight leading-[1.06] font-bold mb-6">
+                  <h1 className="gsap-hero-title font-display text-3xl sm:text-5xl lg:text-[54px] text-slate-900 tracking-tight leading-[1.08] font-bold mb-6">
                     Chẩn Đoán Thông Minh Từ{' '}
                     <span className="font-serif italic font-normal text-teal-600 underline decoration-teal-400/50 decoration-2 underline-offset-4">
                       Bệnh Án PDF
@@ -528,14 +528,14 @@ export const LandingPage: React.FC = () => {
                   {/* CTA Buttons Group */}
                   <div className="flex flex-wrap items-center gap-3.5">
                     <a
-                      className="gsap-hero-cta inline-flex items-center justify-center gap-2.5 bg-slate-900 hover:bg-teal-600 text-[#F6F3EC] font-display text-sm px-6 py-4 rounded-2xl border-2 border-slate-900 shadow-[0_4px_0_0_#4338CA] transition-all duration-150 hover:-translate-y-0.5 cursor-pointer font-bold"
+                      className="gsap-hero-cta inline-flex items-center justify-center gap-2.5 bg-teal-600 hover:bg-teal-700 text-white font-display text-sm px-6 py-3.5 rounded-2xl shadow-md shadow-teal-600/20 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer font-bold"
                       href="#quick-demo"
                     >
                       <span className="material-symbols-outlined text-[20px]">upload_file</span>
                       <span>Tải Lên Bệnh Án PDF Miễn Phí</span>
                     </a>
                     <a
-                      className="gsap-hero-cta inline-flex items-center justify-center gap-2 bg-[#F6F3EC] text-slate-900 hover:bg-slate-200/80 font-display text-sm px-5 py-4 rounded-2xl border-2 border-slate-900 shadow-[0_4px_0_0_#12100E] transition-all duration-150 hover:-translate-y-0.5 cursor-pointer font-bold"
+                      className="gsap-hero-cta inline-flex items-center justify-center gap-2 bg-[#F6F3EC] text-slate-800 hover:bg-slate-200/70 font-display text-sm px-5 py-3.5 rounded-2xl border border-slate-300/80 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer font-bold"
                       href="#specialists-section"
                     >
                       <span className="material-symbols-outlined text-[20px] text-teal-600">stethoscope</span>
@@ -545,16 +545,16 @@ export const LandingPage: React.FC = () => {
                 </div>
 
                 {/* Bottom Architectural Telemetry Strip */}
-                <div className="mt-10 pt-6 border-t-2 border-dashed border-slate-300 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="p-3.5 rounded-2xl bg-[#F6F3EC] border border-slate-300">
-                    <div className="font-mono text-[10px] text-slate-500 font-bold uppercase tracking-widest">01 // QUYỀN RIÊNG TƯ</div>
+                <div className="mt-10 pt-6 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-3.5 rounded-2xl bg-[#FCFBF8] border border-slate-200/80">
+                    <div className="font-mono text-[10px] text-slate-400 font-bold uppercase tracking-widest">01 // QUYỀN RIÊNG TƯ</div>
                     <div className="font-display text-sm text-slate-900 font-bold mt-1">Ẩn thông tin cá nhân</div>
                   </div>
-                  <div className="p-3.5 rounded-2xl bg-[#F6F3EC] border border-slate-300">
-                    <div className="font-mono text-[10px] text-teal-600 font-bold uppercase tracking-widest">02 // AI HỖ TRỢ</div>
+                  <div className="p-3.5 rounded-2xl bg-teal-50/50 border border-teal-200/60">
+                    <div className="font-mono text-[10px] text-teal-700 font-bold uppercase tracking-widest">02 // AI HỖ TRỢ</div>
                     <div className="font-display text-sm text-slate-900 font-bold mt-1">Giải thích dễ hiểu</div>
                   </div>
-                  <div className="p-3.5 rounded-2xl bg-[#F6F3EC] border border-slate-300">
+                  <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-200/60">
                     <div className="font-mono text-[10px] text-emerald-700 font-bold uppercase tracking-widest">03 // CHUYÊN GIA</div>
                     <div className="font-display text-sm text-slate-900 font-bold mt-1">
                       {isLoadingData ? '…' : doctors.length > 0 ? `${doctors.length} bác sĩ` : 'Đang cập nhật'}
@@ -563,17 +563,17 @@ export const LandingPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Right 5 Columns: Dark Obsidian Clinical Observatory Card */}
-              <div className="gsap-bento-card lg:col-span-5 bg-slate-950 text-[#F6F3EC] border-2 border-slate-900 rounded-3xl shadow-[0_6px_0_0_#4338CA] flex flex-col justify-between overflow-hidden bg-obsidian-dots">
+              {/* Right 5 Columns: Luminous Clinical Observatory Card */}
+              <div className="gsap-bento-card lg:col-span-5 bg-white text-slate-800 border border-slate-200/90 rounded-3xl shadow-[0_10px_35px_rgba(0,0,0,0.04)] flex flex-col justify-between overflow-hidden">
                 {/* Console Header Bar */}
-                <div className="px-5 py-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                <div className="px-5 py-3.5 bg-slate-50/90 border-b border-slate-200/80 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
                   </div>
-                  <div className="flex items-center gap-2 font-mono text-[10px] text-teal-300 font-bold tracking-widest">
-                    <span className="w-2 h-2 rounded-full bg-teal-400 animate-ping" />
+                  <div className="flex items-center gap-2 font-mono text-[10px] text-teal-700 font-bold tracking-widest">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                     <span>TELEHEALTH LIVE // #MC-2026</span>
                   </div>
                   <span className="font-mono text-[10px] text-slate-400 font-bold">FHIR-R4</span>
@@ -581,25 +581,25 @@ export const LandingPage: React.FC = () => {
 
                 {/* Clinical Visual Showcase */}
                 <div className="relative p-5 pb-0">
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-800">
+                  <div className="relative rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs">
                     <img
                       alt="Bác sĩ chuyên khoa đang tư vấn kết quả phân tích tim mạch trên màn hình cho bệnh nhân"
                       className="w-full h-64 sm:h-72 object-cover"
                       src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKapt12RlJP5C-7szFWNFCLng5nuqRmQ9wnAu6Ozez8-0PKzsEXvMjZY_DN5nQEdWzlLdTLn-x_YWuDHq_uvflmLJQqy4J27uqbKmua_WECsQ0jExiRWvEKL8qCjqr_Bmxbsj_Tsst4a7HeYpEOrQP-M_gKrCy5M9Aigv_08JIhU-pb4vomjnZLR3YTHdgrwhc4oI6ci24GJyyuim1d7RVAR13TQMU-ONgVHzeRkPz0oywlL5sX5Qcfw"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent pointer-events-none" />
-                    <div className="absolute top-3 right-3 px-3 py-1 rounded-lg bg-slate-950/90 backdrop-blur-md border border-teal-400/50 text-teal-300 font-mono text-[10px] font-bold flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-[14px]">vital_signs</span>
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute top-3 right-3 px-3 py-1 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200/90 text-teal-800 font-mono text-[10px] font-bold flex items-center gap-1.5 shadow-sm">
+                      <span className="material-symbols-outlined text-[14px] text-teal-600">vital_signs</span>
                       <span>OCR VISION: 0.8s • VERIFIED</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Featured Specialist Card inside Obsidian Console */}
+                {/* Featured Specialist Card inside Luminous Console */}
                 <div className="p-5 flex flex-col gap-3">
                   <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center gap-1.5 text-teal-300 font-mono text-[10px] uppercase tracking-wider font-bold bg-teal-500/15 border border-teal-400/30 px-2.5 py-1 rounded-md">
-                      <span className="material-symbols-outlined text-[14px]">bolt</span>
+                    <span className="inline-flex items-center gap-1.5 text-teal-800 font-mono text-[10px] uppercase tracking-wider font-bold bg-teal-50 border border-teal-200/70 px-2.5 py-1 rounded-lg">
+                      <span className="material-symbols-outlined text-[14px] text-teal-600">bolt</span>
                       Bác sĩ trên hệ thống
                     </span>
                     <span className="font-mono text-[10px] text-slate-400 truncate max-w-[180px]">
@@ -607,25 +607,25 @@ export const LandingPage: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3">
+                  <div className="p-3.5 rounded-2xl bg-[#FCFBF8] border border-slate-200/80 flex items-center justify-between gap-3 shadow-xs">
                     <div className="flex items-center gap-3 min-w-0">
                       <img
                         alt={topDoctor?.fullName || "Bác sĩ tiêu biểu"}
-                        className="w-12 h-12 rounded-xl object-cover border border-teal-400/40 flex-shrink-0"
+                        className="w-12 h-12 rounded-xl object-cover border border-slate-200 flex-shrink-0"
                         src={topDoctor ? getDoctorAvatar(topDoctor, 0) : DOCTOR_PORTRAITS[0]}
                       />
                       <div className="min-w-0">
-                        <div className="font-display text-sm text-white font-bold truncate">
+                        <div className="font-display text-sm text-slate-900 font-bold truncate">
                           {topDoctor ? [topDoctor.academicTitle, topDoctor.fullName].filter(Boolean).join(' ') : isLoadingData ? 'Đang tải...' : 'Chưa có bác sĩ'}
                         </div>
-                        <div className="font-mono text-[11px] text-teal-300 truncate">
+                        <div className="font-mono text-[11px] text-slate-500 truncate">
                           {[topDoctor?.specialties?.[0], topDoctor?.yearsOfExperience ? `${topDoctor.yearsOfExperience} năm kinh nghiệm` : null].filter(Boolean).join(' • ')}
                         </div>
-                        <div className="flex items-center gap-1 text-xs text-amber-400 font-semibold mt-0.5">
+                        <div className="flex items-center gap-1 text-xs text-amber-500 font-semibold mt-0.5">
                           {formatRating(topDoctor?.rating, topDoctor?.reviewCount) ? (
                             <>
                               <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                              <span className="text-white font-mono text-[11px] font-bold">{formatRating(topDoctor?.rating, topDoctor?.reviewCount)}</span>
+                              <span className="text-slate-800 font-mono text-[11px] font-bold">{formatRating(topDoctor?.rating, topDoctor?.reviewCount)}</span>
                               <span className="text-slate-400 text-[10px]">({topDoctor?.reviewCount} đánh giá)</span>
                             </>
                           ) : (
@@ -637,7 +637,7 @@ export const LandingPage: React.FC = () => {
 
                     <button
                       onClick={() => handleDoctorBooking(topDoctor?.id)}
-                      className="px-3.5 py-2.5 bg-[#FCFBF8] hover:bg-teal-400 text-slate-900 rounded-xl font-display text-xs font-bold transition-all cursor-pointer flex-shrink-0 flex items-center gap-1"
+                      className="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-display text-xs font-bold transition-all cursor-pointer flex-shrink-0 flex items-center gap-1 shadow-sm"
                     >
                       <span className="material-symbols-outlined text-[14px]">calendar_month</span>
                       <span>Đặt Khám</span>
@@ -648,20 +648,20 @@ export const LandingPage: React.FC = () => {
             </div>
           </section>
 
-          {/* ==================== INTERACTIVE PDF DEMO DROPZONE (BIO-SCANNER TERMINAL) ==================== */}
+          {/* ==================== INTERACTIVE PDF DEMO DROPZONE (BIO-SCANNER TERMINAL) — Light Atelier Laboratory ==================== */}
           <section className="my-12" id="quick-demo">
-            <div className="bg-slate-950 text-[#F6F3EC] border-2 border-slate-900 rounded-3xl p-6 sm:p-10 shadow-[0_8px_0_0_#4338CA] bg-obsidian-dots">
-              <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-8 gap-4 border-b border-slate-800 pb-6">
+            <div className="bg-white text-slate-900 border border-slate-200/90 rounded-3xl p-6 sm:p-10 shadow-[0_10px_35px_rgba(0,0,0,0.03)]">
+              <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-8 gap-4 border-b border-slate-200 pb-6">
                 <div>
-                  <div className="font-mono text-xs text-teal-300 uppercase tracking-widest font-bold mb-2">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-200 font-mono text-xs uppercase tracking-widest font-bold mb-2">
                     MODULE 02 // TRẢI NGHIỆM TRỰC QUAN VISION OCR
                   </div>
-                  <h2 className="font-display text-2xl sm:text-4xl text-white tracking-tight font-bold">
+                  <h2 className="font-display text-2xl sm:text-4xl text-slate-900 tracking-tight font-bold">
                     Thử Nghiệm Tải Lên &amp;{' '}
-                    <span className="font-serif italic font-normal text-teal-300">Phân Tích Bệnh Án Mẫu</span>
+                    <span className="font-serif italic font-normal text-teal-600">Phân Tích Bệnh Án Mẫu</span>
                   </h2>
                 </div>
-                <p className="text-sm text-slate-400 max-w-md leading-relaxed">
+                <p className="text-sm text-slate-600 max-w-md leading-relaxed">
                   Chọn một hồ sơ xét nghiệm có sẵn dưới đây hoặc kéo thả file PDF của bạn để quan sát cách trí tuệ nhân tạo giải mã kết quả y khoa chỉ trong vài giây.
                 </p>
               </div>
@@ -669,15 +669,15 @@ export const LandingPage: React.FC = () => {
               {/* Main Interactive Sandbox Area */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
                 {/* Left 7 cols: Upload and File Selector */}
-                <div className="lg:col-span-7 flex flex-col justify-between bg-[#FCFBF8] text-slate-900 p-6 rounded-2xl border-2 border-slate-900">
+                <div className="lg:col-span-7 flex flex-col justify-between bg-[#FCFBF8] text-slate-900 p-6 sm:p-7 rounded-2xl border border-slate-200/90 shadow-xs">
                   {/* Test Action Bar */}
-                  <div className="mb-5 p-3.5 bg-[#F6F3EC] rounded-xl border border-slate-300">
+                  <div className="mb-5 p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-xs">
                     <div className="flex flex-wrap items-center gap-2.5">
                       <button
                         type="button"
                         onClick={handleRunRealSampleScan}
                         disabled={isScanning}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-teal-600 text-[#F6F3EC] font-display text-xs font-bold transition-all shadow-[0_2px_0_0_#4338CA] cursor-pointer disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-display text-xs font-bold transition-all shadow-sm shadow-teal-600/20 cursor-pointer disabled:opacity-50"
                       >
                         <span className={`material-symbols-outlined text-[16px] ${isScanning ? 'animate-spin' : ''}`}>
                           {isScanning ? 'sync' : 'bolt'}
@@ -688,11 +688,11 @@ export const LandingPage: React.FC = () => {
                       <a
                         href="/sample_medical_report.pdf"
                         download="benh_an_xet_nghiem_mau_mediassist.pdf"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-display text-xs font-bold transition-all border border-slate-300"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#F6F3EC] hover:bg-slate-200/70 text-slate-800 font-display text-xs font-bold transition-all border border-slate-300/80"
                         title="Tải về file PDF mẫu có 5 chỉ số sinh hóa hợp lệ để kiểm thử tải lên"
                       >
                         <span className="material-symbols-outlined text-[16px] text-teal-600">download</span>
-                        <span>Tải phiếu mẫu (PDF minh hoạ)</span>
+                        <span>Tải phiếu mẫu (PDF)</span>
                       </a>
 
                       <button
@@ -708,57 +708,57 @@ export const LandingPage: React.FC = () => {
 
                   {/* Sample Files Selector */}
                   <div>
-                    <span className="font-mono text-[11px] uppercase tracking-wider text-slate-600 mb-2.5 block font-bold">
+                    <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500 mb-2.5 block font-bold">
                       1. Hoặc chọn nhanh hồ sơ y tế mẫu có sẵn:
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-5">
                       <button
-                        className={`text-left p-3.5 rounded-xl transition-all duration-150 cursor-pointer border ${
+                        className={`text-left p-3.5 rounded-2xl transition-all duration-200 cursor-pointer border ${
                           scanMode === 'sample' && activeSample === 'lipid'
-                            ? 'bg-slate-900 text-[#F6F3EC] border-slate-900 shadow-[0_3px_0_0_#4338CA]'
-                            : 'bg-[#F6F3EC] hover:bg-slate-200/70 text-slate-800 border-slate-300'
+                            ? 'bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-600/20'
+                            : 'bg-white hover:bg-slate-100/80 text-slate-800 border-slate-200/90 shadow-xs'
                         }`}
                         onClick={() => handleSelectSample('lipid')}
                       >
                         <div className="flex items-center gap-1.5 font-display text-xs font-bold mb-0.5">
-                          <span className="material-symbols-outlined text-[16px] text-teal-500">bloodtype</span>
+                          <span className={`material-symbols-outlined text-[16px] ${scanMode === 'sample' && activeSample === 'lipid' ? 'text-teal-100' : 'text-teal-600'}`}>bloodtype</span>
                           <span>Lipid Panel</span>
                         </div>
-                        <div className={`text-[11px] ${scanMode === 'sample' && activeSample === 'lipid' ? 'text-slate-300' : 'text-slate-500'}`}>
+                        <div className={`text-[11px] ${scanMode === 'sample' && activeSample === 'lipid' ? 'text-teal-100' : 'text-slate-500'}`}>
                           Xét nghiệm mỡ máu &amp; Triglyceride
                         </div>
                       </button>
 
                       <button
-                        className={`text-left p-3.5 rounded-xl transition-all duration-150 cursor-pointer border ${
+                        className={`text-left p-3.5 rounded-2xl transition-all duration-200 cursor-pointer border ${
                           scanMode === 'sample' && activeSample === 'respiratory'
-                            ? 'bg-slate-900 text-[#F6F3EC] border-slate-900 shadow-[0_3px_0_0_#4338CA]'
-                            : 'bg-[#F6F3EC] hover:bg-slate-200/70 text-slate-800 border-slate-300'
+                            ? 'bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-600/20'
+                            : 'bg-white hover:bg-slate-100/80 text-slate-800 border-slate-200/90 shadow-xs'
                         }`}
                         onClick={() => handleSelectSample('respiratory')}
                       >
                         <div className="flex items-center gap-1.5 font-display text-xs font-bold mb-0.5">
-                          <span className="material-symbols-outlined text-[16px] text-teal-500">pulmonology</span>
+                          <span className={`material-symbols-outlined text-[16px] ${scanMode === 'sample' && activeSample === 'respiratory' ? 'text-teal-100' : 'text-teal-600'}`}>pulmonology</span>
                           <span>Hô Hấp &amp; Khí Máu</span>
                         </div>
-                        <div className={`text-[11px] ${scanMode === 'sample' && activeSample === 'respiratory' ? 'text-slate-300' : 'text-slate-500'}`}>
+                        <div className={`text-[11px] ${scanMode === 'sample' && activeSample === 'respiratory' ? 'text-teal-100' : 'text-slate-500'}`}>
                           Chỉ số FEV1, SpO2, PaO2
                         </div>
                       </button>
 
                       <button
-                        className={`text-left p-3.5 rounded-xl transition-all duration-150 cursor-pointer border ${
+                        className={`text-left p-3.5 rounded-2xl transition-all duration-200 cursor-pointer border ${
                           scanMode === 'sample' && activeSample === 'general'
-                            ? 'bg-slate-900 text-[#F6F3EC] border-slate-900 shadow-[0_3px_0_0_#4338CA]'
-                            : 'bg-[#F6F3EC] hover:bg-slate-200/70 text-slate-800 border-slate-300'
+                            ? 'bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-600/20'
+                            : 'bg-white hover:bg-slate-100/80 text-slate-800 border-slate-200/90 shadow-xs'
                         }`}
                         onClick={() => handleSelectSample('general')}
                       >
                         <div className="flex items-center gap-1.5 font-display text-xs font-bold mb-0.5">
-                          <span className="material-symbols-outlined text-[16px] text-teal-500">assignment</span>
+                          <span className={`material-symbols-outlined text-[16px] ${scanMode === 'sample' && activeSample === 'general' ? 'text-teal-100' : 'text-teal-600'}`}>assignment</span>
                           <span>Đa Khoa Tổng Hợp</span>
                         </div>
-                        <div className={`text-[11px] ${scanMode === 'sample' && activeSample === 'general' ? 'text-slate-300' : 'text-slate-500'}`}>
+                        <div className={`text-[11px] ${scanMode === 'sample' && activeSample === 'general' ? 'text-teal-100' : 'text-slate-500'}`}>
                           Tóm tắt bệnh án xuất viện
                         </div>
                       </button>
@@ -767,10 +767,10 @@ export const LandingPage: React.FC = () => {
 
                   {/* Validation Error Warning Banner */}
                   {uploadError && (
-                    <div className="mb-4 p-3.5 rounded-xl bg-rose-50 text-rose-900 border-2 border-rose-300 text-xs flex items-start gap-2.5">
+                    <div className="mb-4 p-3.5 rounded-2xl bg-rose-50 text-rose-900 border border-rose-200 text-xs flex items-start gap-2.5">
                       <span className="material-symbols-outlined text-[20px] text-rose-600 shrink-0 mt-0.5">error</span>
                       <div className="flex-1">
-                        <div className="font-bold text-rose-700">Hệ thống từ chối tệp không hợp lệ:</div>
+                        <div className="font-bold text-rose-800">Hệ thống từ chối tệp không hợp lệ:</div>
                         <div className="mt-0.5 text-xs text-rose-900 leading-relaxed">{uploadError}</div>
                       </div>
                       <button
@@ -785,7 +785,7 @@ export const LandingPage: React.FC = () => {
 
                   {/* Drag & Drop zone */}
                   <div
-                    className={`relative cursor-pointer bg-[#F6F3EC] hover:bg-slate-200/60 border-2 border-dashed border-slate-400 rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-all ${
+                    className={`relative cursor-pointer bg-white hover:bg-teal-50/20 border-2 border-dashed border-slate-300 rounded-3xl p-8 flex flex-col items-center justify-center text-center transition-all ${
                       isScanning ? 'ring-2 ring-teal-500 bg-teal-50/40' : ''
                     }`}
                   >
@@ -797,8 +797,8 @@ export const LandingPage: React.FC = () => {
                       disabled={isScanning}
                       type="file"
                     />
-                    <div className="w-14 h-14 rounded-2xl bg-slate-900 text-[#F6F3EC] flex items-center justify-center mb-3 shadow-[0_3px_0_0_#4338CA]">
-                      <span className={`material-symbols-outlined text-[28px] text-teal-300 ${isScanning ? 'animate-bounce' : ''}`}>
+                    <div className="w-14 h-14 rounded-2xl bg-teal-50 text-teal-600 border border-teal-200/80 flex items-center justify-center mb-3 shadow-xs">
+                      <span className={`material-symbols-outlined text-[28px] text-teal-600 ${isScanning ? 'animate-bounce' : ''}`}>
                         {isScanning ? 'vital_signs' : 'cloud_upload'}
                       </span>
                     </div>
@@ -809,7 +809,7 @@ export const LandingPage: React.FC = () => {
                       Hỗ trợ PDF, PNG, JPG • Tệp cần có nội dung xét nghiệm • Bản xem trước không lưu vào hồ sơ
                     </div>
                     <div className="mt-4 inline-flex items-center gap-2 bg-[#FCFBF8] px-4 py-2 rounded-xl border border-slate-300 shadow-xs text-slate-900 font-display text-xs font-bold">
-                      <span className="material-symbols-outlined text-[18px]">folder_open</span> Duyệt file từ máy tính
+                      <span className="material-symbols-outlined text-[18px] text-teal-600">folder_open</span> Duyệt file từ máy tính
                     </div>
                   </div>
 
@@ -819,7 +819,7 @@ export const LandingPage: React.FC = () => {
                       <span className="text-slate-600 font-medium">{scanStatus}</span>
                       <span className="text-teal-700 font-bold font-mono">{scanPercent}</span>
                     </div>
-                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
                       <div
                         className="bg-teal-600 h-full rounded-full transition-all duration-500"
                         style={{ width: `${progressWidth}%` }}
@@ -828,34 +828,34 @@ export const LandingPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Right 5 cols: Instant Live Diagnosis Simulator Panel */}
+                {/* Right 5 cols: Instant Live Diagnosis Simulator Panel — Light Clinical Card */}
                 {uploadError ? (
-                  <div className="lg:col-span-5 bg-slate-900 p-6 rounded-2xl flex flex-col justify-between border-2 border-rose-500/60">
+                  <div className="lg:col-span-5 bg-white p-6 rounded-2xl flex flex-col justify-between border border-rose-300 shadow-sm">
                     <div>
                       <div className="flex items-center justify-between mb-4">
-                        <span className="font-mono text-xs font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <span className="font-mono text-xs font-bold text-rose-700 uppercase tracking-wider flex items-center gap-1.5">
                           <span className="material-symbols-outlined text-[20px]">cancel</span>
                           Từ Chối Phân Tích
                         </span>
-                        <span className="font-mono text-[10px] px-2.5 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold">
+                        <span className="font-mono text-[10px] px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold">
                           Không Hợp Lệ
                         </span>
                       </div>
 
-                      <div className="p-4 bg-rose-950/50 border border-rose-500/40 rounded-xl mb-4">
-                        <div className="font-display text-sm text-rose-300 font-bold mb-1 flex items-center gap-1.5">
+                      <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl mb-4">
+                        <div className="font-display text-sm text-rose-800 font-bold mb-1 flex items-center gap-1.5">
                           <span className="material-symbols-outlined text-[18px]">report</span>
                           Lý do từ chối từ Gatekeeper Y Tế:
                         </div>
-                        <p className="text-xs text-rose-100 leading-relaxed">{uploadError}</p>
+                        <p className="text-xs text-rose-900 leading-relaxed">{uploadError}</p>
                       </div>
 
-                      <div className="p-4 bg-slate-800/80 rounded-xl mb-4 border border-slate-700">
-                        <div className="font-display text-xs text-white font-bold mb-1.5 flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-[16px] text-teal-400">verified_user</span>
+                      <div className="p-4 bg-slate-50 rounded-xl mb-4 border border-slate-200">
+                        <div className="font-display text-xs text-slate-800 font-bold mb-1.5 flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[16px] text-teal-600">verified_user</span>
                           Nguyên tắc an toàn y tế &amp; Trách nhiệm lâm sàng:
                         </div>
-                        <p className="text-xs text-slate-300 leading-relaxed">
+                        <p className="text-xs text-slate-600 leading-relaxed">
                           Hệ thống <strong>TUYỆT ĐỐI KHÔNG</strong> tự động suy đoán, bịa đặt hoặc đề xuất bệnh án đối với tệp tin không chứa dữ liệu xét nghiệm rõ ràng.
                         </p>
                       </div>
@@ -864,56 +864,56 @@ export const LandingPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleRunRealSampleScan}
-                      className="w-full flex items-center justify-center gap-2 bg-[#FCFBF8] text-slate-900 hover:bg-teal-300 font-display text-xs py-3 rounded-xl transition-colors cursor-pointer font-bold"
+                      className="w-full flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white font-display text-xs py-3 rounded-xl transition-colors cursor-pointer font-bold shadow-sm"
                     >
                       <span className="material-symbols-outlined text-[16px]">restart_alt</span>
                       <span>Thử Lại Với Phiếu Xét Nghiệm Mẫu Chuẩn BYT</span>
                     </button>
                   </div>
                 ) : realAnalysis ? (
-                  <div className="lg:col-span-5 bg-slate-900 p-6 rounded-2xl flex flex-col justify-between border-2 border-teal-400/50 animate-fadeIn">
+                  <div className="lg:col-span-5 bg-white p-6 rounded-2xl flex flex-col justify-between border border-teal-300 shadow-md animate-fadeIn">
                     <div>
                       <div className="flex items-center justify-between mb-4">
-                        <span className="font-mono text-xs font-bold text-teal-300 uppercase tracking-wider flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-[20px]">verified</span>
+                        <span className="font-mono text-xs font-bold text-teal-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[20px] text-teal-600">verified</span>
                           Kết quả phân tích
                         </span>
-                        <span className="font-mono text-[10px] px-2.5 py-1 rounded bg-teal-500/20 text-teal-200 border border-teal-400/30 font-bold">
+                        <span className="font-mono text-[10px] px-2.5 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-200 font-bold">
                           {realAnalysis.recommendedSpecialtyName || 'Chuyên Khoa'}
                         </span>
                       </div>
 
-                      <div className="flex flex-col gap-2 mb-4 max-h-56 overflow-y-auto">
+                      <div className="flex flex-col gap-2 mb-4 max-h-56 overflow-y-auto pr-1">
                         {realAnalysis.indicators && realAnalysis.indicators.length > 0 ? (
                           realAnalysis.indicators.map((item, idx) => (
-                            <div key={idx} className="p-3 bg-slate-950/90 rounded-xl flex items-center justify-between border border-slate-800">
+                            <div key={idx} className="p-3 bg-[#FCFBF8] rounded-xl flex items-center justify-between border border-slate-200/80">
                               <div>
-                                <div className="font-display text-xs font-bold text-white">{item.name}</div>
+                                <div className="font-display text-xs font-bold text-slate-900">{item.name}</div>
                                 <div className="font-mono text-[10px] text-slate-400">Tham chiếu: {item.referenceRange}</div>
                               </div>
                               <div className="text-right">
-                                <div className={`font-mono text-sm font-bold ${item.status === 'ELEVATED' || item.status === 'LOW' ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                <div className={`font-mono text-sm font-bold ${item.status === 'ELEVATED' || item.status === 'LOW' ? 'text-rose-600' : 'text-emerald-600'}`}>
                                   {item.value} {item.unit}
                                 </div>
-                                <span className={`font-mono text-[10px] font-bold ${item.status === 'ELEVATED' || item.status === 'LOW' ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                <span className={`font-mono text-[10px] font-bold ${item.status === 'ELEVATED' || item.status === 'LOW' ? 'text-rose-600' : 'text-emerald-600'}`}>
                                   {item.status === 'ELEVATED' ? 'Tăng cao ↑' : item.status === 'LOW' ? 'Giảm ↓' : 'Bình thường ✓'}
                                 </span>
                               </div>
                             </div>
                           ))
                         ) : (
-                          <div className="p-3 bg-slate-950 rounded-xl text-xs text-slate-400 text-center">
+                          <div className="p-3 bg-slate-50 rounded-xl text-xs text-slate-500 text-center border border-slate-200">
                             Không phát hiện chỉ số sinh hóa vượt ngưỡng bất thường.
                           </div>
                         )}
                       </div>
 
-                      <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl mb-4">
-                        <div className="font-mono text-[11px] text-teal-300 font-bold mb-1 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[16px]">forum</span>
+                      <div className="p-3.5 bg-teal-50/70 border border-teal-200/80 rounded-xl mb-4">
+                        <div className="font-mono text-[11px] text-teal-800 font-bold mb-1 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[16px] text-teal-600">forum</span>
                           Tóm Tắt Lâm Sàng (AI Phân Tích Thật)
                         </div>
-                        <p className="text-xs text-slate-300 leading-relaxed">
+                        <p className="text-xs text-slate-700 leading-relaxed">
                           {realAnalysis.plainLanguageExplanation || realAnalysis.clinicalSummary}
                         </p>
                       </div>
@@ -921,17 +921,17 @@ export const LandingPage: React.FC = () => {
 
                     <div className="pt-2">
                       {realAnalysis.matchedDoctors && realAnalysis.matchedDoctors.length > 0 ? (
-                        <div className="flex items-center gap-3 p-3 bg-slate-950 rounded-xl mb-3 border border-slate-800">
+                        <div className="flex items-center gap-3 p-3 bg-[#FCFBF8] rounded-xl mb-3 border border-slate-200">
                           <img
                             alt={realAnalysis.matchedDoctors[0].fullName}
-                            className="w-11 h-11 rounded-xl object-cover border border-teal-400/40"
+                            className="w-11 h-11 rounded-xl object-cover border border-slate-200"
                             src={getDoctorAvatar(realAnalysis.matchedDoctors[0], 0)}
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="font-display text-sm text-white truncate font-bold">
+                            <div className="font-display text-sm text-slate-900 truncate font-bold">
                               {realAnalysis.matchedDoctors[0].academicTitle} {realAnalysis.matchedDoctors[0].fullName}
                             </div>
-                            <div className="font-mono text-[11px] text-teal-300 truncate">
+                            <div className="font-mono text-[11px] text-slate-500 truncate">
                               {realAnalysis.matchedDoctors[0].specialties?.[0] || 'Chuyên Khoa'} • {realAnalysis.matchedDoctors[0].hospitalAffiliation}
                             </div>
                           </div>
@@ -941,7 +941,7 @@ export const LandingPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleDoctorBooking(realAnalysis.matchedDoctors?.[0]?.id)}
-                        className="w-full flex items-center justify-center gap-2 bg-teal-600 text-white hover:bg-teal-500 font-display text-xs py-3 rounded-xl transition-colors cursor-pointer font-bold"
+                        className="w-full flex items-center justify-center gap-2 bg-teal-600 text-white hover:bg-teal-700 font-display text-xs py-3 rounded-xl transition-all cursor-pointer font-bold shadow-md shadow-teal-600/20"
                       >
                         <span className="material-symbols-outlined text-[18px]">video_call</span>
                         <span>Đặt Khám Với Bác Sĩ Chuyên Khoa Phù Hợp Này</span>
@@ -949,23 +949,23 @@ export const LandingPage: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="lg:col-span-5 bg-slate-900 p-6 rounded-2xl border border-slate-800 flex flex-col justify-between">
+                  <div className="lg:col-span-5 bg-white p-6 sm:p-7 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between mb-4">
-                        <span className="font-mono text-xs font-bold text-teal-300 uppercase tracking-wider flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-[18px]">psychology</span>
+                        <span className="font-mono text-xs font-bold text-teal-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[18px] text-teal-600">psychology</span>
                           Bóc Tách Mẫu Minh Họa
                         </span>
-                        <span className={`font-mono text-[10px] px-2.5 py-0.5 rounded-md font-bold ${currentSample.riskClass}`}>
+                        <span className={`font-mono text-[10px] px-2.5 py-0.5 rounded-full font-bold ${currentSample.riskClass}`}>
                           {currentSample.risk}
                         </span>
                       </div>
 
                       <div className="flex flex-col gap-2.5 mb-4">
                         {currentSample.items.map((item, idx) => (
-                          <div key={idx} className="p-3 bg-slate-950/90 border border-slate-800 rounded-xl flex items-center justify-between">
+                          <div key={idx} className="p-3 bg-[#FCFBF8] border border-slate-200/80 rounded-xl flex items-center justify-between shadow-2xs">
                             <div>
-                              <div className="font-display text-xs font-bold text-white">{item.name}</div>
+                              <div className="font-display text-xs font-bold text-slate-900">{item.name}</div>
                               <div className="font-mono text-[10px] text-slate-400">{item.ref}</div>
                             </div>
                             <div className="text-right">
@@ -976,27 +976,27 @@ export const LandingPage: React.FC = () => {
                         ))}
                       </div>
 
-                      <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl mb-4">
-                        <div className="font-mono text-[11px] text-teal-300 font-bold mb-1 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[16px]">forum</span> Tóm Tắt Dễ Hiểu
+                      <div className="p-3.5 bg-teal-50/60 border border-teal-200/70 rounded-xl mb-4">
+                        <div className="font-mono text-[11px] text-teal-800 font-bold mb-1 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[16px] text-teal-600">forum</span> Tóm Tắt Dễ Hiểu
                         </div>
-                        <p className="text-xs text-slate-300 leading-relaxed">{currentSample.summary}</p>
+                        <p className="text-xs text-slate-700 leading-relaxed">{currentSample.summary}</p>
                       </div>
                     </div>
 
                     <div className="pt-2">
                       {recommendedDoctorForSample ? (
-                        <div className="flex items-center gap-3 p-3 bg-slate-950 border border-slate-800 rounded-xl mb-3">
+                        <div className="flex items-center gap-3 p-3 bg-[#FCFBF8] border border-slate-200/80 rounded-xl mb-3 shadow-2xs">
                           <img
                             alt={recommendedDoctorForSample.fullName}
-                            className="w-11 h-11 rounded-xl object-cover border border-teal-400/40"
+                            className="w-11 h-11 rounded-xl object-cover border border-slate-200"
                             src={getDoctorAvatar(recommendedDoctorForSample, 1)}
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="font-display text-sm text-white truncate font-bold">
+                            <div className="font-display text-sm text-slate-900 truncate font-bold">
                               {recommendedDoctorForSample.academicTitle} {recommendedDoctorForSample.fullName}
                             </div>
-                            <div className="font-mono text-[11px] text-teal-300 truncate">
+                            <div className="font-mono text-[11px] text-slate-500 truncate">
                               {recommendedDoctorForSample.specialties?.[0] || 'Chuyên Khoa'} • {recommendedDoctorForSample.hospitalAffiliation}
                             </div>
                           </div>
@@ -1006,7 +1006,7 @@ export const LandingPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleDoctorBooking(recommendedDoctorForSample?.id)}
-                        className="w-full flex items-center justify-center gap-2 bg-[#FCFBF8] text-slate-900 hover:bg-teal-300 font-display text-xs py-3 rounded-xl transition-colors cursor-pointer font-bold shadow-[0_3px_0_0_#4338CA]"
+                        className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-display text-xs py-3 rounded-xl transition-all cursor-pointer font-bold shadow-md shadow-teal-600/20"
                       >
                         <span className="material-symbols-outlined text-[18px]">video_call</span>
                         <span>Đặt Khám Với Bác Sĩ Này Ngay</span>
@@ -1018,11 +1018,11 @@ export const LandingPage: React.FC = () => {
             </div>
           </section>
 
-          {/* ==================== 3-STEP ARCHITECTURAL PROTOCOL ==================== */}
+          {/* ==================== 3-STEP PROTOCOL ==================== */}
           <section className="my-14">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
               <div>
-                <div className="font-mono text-xs text-teal-600 uppercase tracking-widest font-bold mb-1">
+                <div className="font-mono text-xs text-teal-700 uppercase tracking-widest font-bold mb-1">
                   PROTOCOL // QUY TRÌNH HOẠT ĐỘNG
                 </div>
                 <h2 className="font-display text-2xl sm:text-4xl text-slate-900 tracking-tight font-bold">
@@ -1061,19 +1061,19 @@ export const LandingPage: React.FC = () => {
               ].map((step) => (
                 <div
                   key={step.num}
-                  className="bg-[#FCFBF8] p-7 rounded-3xl border-2 border-slate-900 shadow-[0_5px_0_0_#12100E] hover:-translate-y-1 transition-transform flex flex-col justify-between"
+                  className="bg-white p-7 rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-6">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-900 text-[#F6F3EC] flex items-center justify-center shadow-[0_3px_0_0_#4338CA]">
-                        <span className="material-symbols-outlined text-[24px] text-teal-300">{step.icon}</span>
+                      <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-700 border border-teal-200/80 flex items-center justify-center shadow-2xs">
+                        <span className="material-symbols-outlined text-[24px] text-teal-600">{step.icon}</span>
                       </div>
-                      <span className="font-mono text-3xl font-bold text-slate-300">//{step.num}</span>
+                      <span className="font-mono text-3xl font-bold text-slate-200">//{step.num}</span>
                     </div>
                     <h3 className="font-display text-lg text-slate-900 mb-2 font-bold">{step.title}</h3>
                     <p className="text-sm text-slate-600 mb-6 leading-relaxed">{step.desc}</p>
                   </div>
-                  <div className="pt-4 border-t border-dashed border-slate-300 font-mono text-[11px] text-teal-700 font-bold">
+                  <div className="pt-4 border-t border-slate-100 font-mono text-[11px] text-teal-700 font-bold">
                     ✓ {step.tag}
                   </div>
                 </div>
@@ -1082,41 +1082,41 @@ export const LandingPage: React.FC = () => {
           </section>
 
           {/* ==================== METRICS & CLINICAL ACCREDITATION ==================== */}
-          <section className="my-14 bg-slate-950 text-[#F6F3EC] border-2 border-slate-900 rounded-3xl p-8 sm:p-10 shadow-[0_6px_0_0_#4338CA] bg-obsidian-dots">
+          <section className="my-14 bg-white text-slate-900 border border-slate-200/90 rounded-3xl p-8 sm:p-10 shadow-sm">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 text-center">
-              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
-                <div className="font-mono text-3xl sm:text-4xl text-teal-300 font-bold tracking-tight">
+              <div className="p-4 rounded-2xl bg-[#FCFBF8] border border-slate-200/80">
+                <div className="font-mono text-3xl sm:text-4xl text-teal-700 font-bold tracking-tight">
                   {totalConsultationsCount ?? '—'}
                 </div>
-                <div className="font-mono text-[11px] text-slate-400 mt-1 uppercase">Lượt khám đã hoàn tất</div>
+                <div className="font-mono text-[11px] text-slate-500 mt-1 uppercase">Lượt khám đã hoàn tất</div>
               </div>
-              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
-                <div className="font-mono text-3xl sm:text-4xl text-emerald-400 font-bold tracking-tight">24/7</div>
-                <div className="font-mono text-[11px] text-slate-400 mt-1 uppercase">Trợ lý triệu chứng luôn sẵn sàng</div>
+              <div className="p-4 rounded-2xl bg-[#FCFBF8] border border-slate-200/80">
+                <div className="font-mono text-3xl sm:text-4xl text-emerald-600 font-bold tracking-tight">24/7</div>
+                <div className="font-mono text-[11px] text-slate-500 mt-1 uppercase">Trợ lý triệu chứng sẵn sàng</div>
               </div>
-              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
-                <div className="font-mono text-3xl sm:text-4xl text-[#F6F3EC] font-bold tracking-tight">
+              <div className="p-4 rounded-2xl bg-[#FCFBF8] border border-slate-200/80">
+                <div className="font-mono text-3xl sm:text-4xl text-slate-900 font-bold tracking-tight">
                   {isLoadingData ? '…' : doctors.length > 0 ? `${doctors.length} Bác Sĩ` : '—'}
                 </div>
-                <div className="font-mono text-[11px] text-slate-400 mt-1 uppercase">Bác sĩ đã thẩm định chứng chỉ</div>
+                <div className="font-mono text-[11px] text-slate-500 mt-1 uppercase">Bác sĩ thẩm định chứng chỉ</div>
               </div>
-              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
-                <div className="font-mono text-3xl sm:text-4xl text-amber-300 font-bold tracking-tight">
+              <div className="p-4 rounded-2xl bg-[#FCFBF8] border border-slate-200/80">
+                <div className="font-mono text-3xl sm:text-4xl text-amber-600 font-bold tracking-tight">
                   {isLoadingData ? '…' : specialties.length > 0 ? `${specialties.length} Khoa` : '—'}
                 </div>
-                <div className="font-mono text-[11px] text-slate-400 mt-1 uppercase">Chuyên khoa lâm sàng trọng điểm</div>
+                <div className="font-mono text-[11px] text-slate-500 mt-1 uppercase">Chuyên khoa lâm sàng trọng điểm</div>
               </div>
             </div>
 
-            <div className="pt-6 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4 font-mono text-xs">
+            <div className="pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4 font-mono text-xs">
               <span className="uppercase tracking-wider text-slate-400 font-bold">
-                Nguyên tắc thiết kế (định hướng, chưa phải chứng nhận):
+                Nguyên tắc thiết kế an toàn y tế:
               </span>
-              <div className="flex flex-wrap items-center gap-6 text-slate-200">
+              <div className="flex flex-wrap items-center gap-6 text-slate-600 font-medium">
                 <span>● Bảo vệ dữ liệu sức khoẻ (HIPAA)</span>
-                <span>● HL7 FHIR v4</span>
-                <span>● Mã hoá đường truyền</span>
-                <span>● Nghị định 13/2023</span>
+                <span>● Chuẩn giao tiếp HL7 FHIR v4</span>
+                <span>● Mã hoá kênh truyền SSL/TLS</span>
+                <span>● Nghị định 13/2023/NĐ-CP</span>
               </div>
             </div>
           </section>
@@ -1125,7 +1125,7 @@ export const LandingPage: React.FC = () => {
           <section className="my-14" id="specialists-section">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
               <div>
-                <div className="font-mono text-xs text-teal-600 uppercase tracking-widest font-bold mb-1">
+                <div className="font-mono text-xs text-teal-700 uppercase tracking-widest font-bold mb-1">
                   DIRECTORY // MẠNG LƯỚI CHUYÊN GIA THỰC TẾ
                 </div>
                 <h2 className="font-display text-2xl sm:text-4xl text-slate-900 tracking-tight font-bold">
@@ -1135,7 +1135,7 @@ export const LandingPage: React.FC = () => {
               </div>
               <button
                 onClick={() => handleDoctorBooking()}
-                className="inline-flex items-center gap-1.5 text-slate-900 font-display text-sm font-bold hover:text-teal-600 cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-slate-900 font-display text-sm font-bold hover:text-teal-600 cursor-pointer transition-colors"
               >
                 <span>Xem toàn bộ {doctors.length > 0 ? doctors.length : 12} bác sĩ</span>
                 <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
@@ -1146,10 +1146,10 @@ export const LandingPage: React.FC = () => {
               <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6">
                 <button
                   onClick={() => setSelectedSpecialty('ALL')}
-                  className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all shrink-0 cursor-pointer border ${
+                  className={`px-4 py-2 rounded-full font-mono text-xs font-bold transition-all shrink-0 cursor-pointer border ${
                     selectedSpecialty === 'ALL'
-                      ? 'bg-slate-900 text-[#F6F3EC] border-slate-900 shadow-[0_2px_0_0_#4338CA]'
-                      : 'bg-[#FCFBF8] text-slate-700 border-slate-300 hover:border-slate-900'
+                      ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   Tất Cả ({doctors.length})
@@ -1163,10 +1163,10 @@ export const LandingPage: React.FC = () => {
                     <button
                       key={spec.id}
                       onClick={() => setSelectedSpecialty(isSelected ? 'ALL' : spec.name)}
-                      className={`px-4 py-2 rounded-xl font-mono text-xs transition-all shrink-0 cursor-pointer border ${
+                      className={`px-4 py-2 rounded-full font-mono text-xs transition-all shrink-0 cursor-pointer border ${
                         isSelected
-                          ? 'bg-slate-900 text-[#F6F3EC] border-slate-900 font-bold shadow-[0_2px_0_0_#4338CA]'
-                          : 'bg-[#FCFBF8] text-slate-700 border-slate-300 hover:border-slate-900 font-semibold'
+                          ? 'bg-teal-600 text-white border-teal-600 font-bold shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 font-semibold'
                       }`}
                     >
                       {displayName}
@@ -1181,7 +1181,7 @@ export const LandingPage: React.FC = () => {
                 Đang kết nối cơ sở dữ liệu bệnh viện...
               </div>
             ) : filteredDoctors.length === 0 ? (
-              <div className="p-8 text-center bg-[#FCFBF8] rounded-3xl border-2 border-slate-300 text-slate-600">
+              <div className="p-8 text-center bg-white rounded-3xl border border-slate-200 text-slate-600">
                 Chưa có bác sĩ nào thuộc chuyên khoa đã chọn.
               </div>
             ) : (
@@ -1189,17 +1189,17 @@ export const LandingPage: React.FC = () => {
                 {filteredDoctors.slice(0, 6).map((doc, idx) => (
                   <div
                     key={doc.id}
-                    className="bg-[#FCFBF8] rounded-3xl p-6 border-2 border-slate-900 shadow-[0_5px_0_0_#12100E] hover:-translate-y-1 transition-all flex flex-col justify-between"
+                    className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex items-center gap-4 mb-4">
                         <img
                           alt={doc.fullName}
-                          className="w-16 h-16 rounded-2xl object-cover border-2 border-slate-900"
+                          className="w-16 h-16 rounded-2xl object-cover border border-slate-200 shadow-2xs"
                           src={getDoctorAvatar(doc, idx)}
                         />
                         <div className="min-w-0">
-                          <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-teal-100 text-teal-900 font-bold">
+                          <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200/80 font-bold">
                             {doc.specialties?.[0] || "Đa Khoa"}
                           </span>
                           <h4 className="font-display text-base text-slate-900 mt-1 font-bold truncate">
@@ -1215,7 +1215,7 @@ export const LandingPage: React.FC = () => {
                         {doc.bio || (doc.hospitalAffiliation ? `Công tác tại ${doc.hospitalAffiliation}.` : 'Bác sĩ chưa cập nhật giới thiệu.')}
                       </p>
 
-                      <div className="flex items-center justify-between text-xs mb-4 bg-[#F6F3EC] p-2.5 rounded-xl border border-slate-200">
+                      <div className="flex items-center justify-between text-xs mb-4 bg-[#FCFBF8] p-2.5 rounded-xl border border-slate-200/80">
                         <span className="font-mono text-[11px] text-slate-500">Đánh giá:</span>
                         {formatRating(doc.rating, doc.reviewCount) ? (
                           <span className="font-mono font-bold text-slate-900 flex items-center gap-1">
@@ -1238,7 +1238,7 @@ export const LandingPage: React.FC = () => {
                       </div>
                       <button
                         onClick={() => handleDoctorBooking(doc.id)}
-                        className="w-full py-3 rounded-xl bg-slate-900 text-[#F6F3EC] font-display text-xs font-bold hover:bg-teal-600 transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-[0_2px_0_0_#4338CA]"
+                        className="w-full py-3 rounded-xl bg-teal-600 text-white font-display text-xs font-bold hover:bg-teal-700 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm shadow-teal-600/20"
                       >
                         <span className="material-symbols-outlined text-[16px]">calendar_today</span> Đặt Lịch Tư Vấn
                       </button>
@@ -1252,13 +1252,13 @@ export const LandingPage: React.FC = () => {
       </main>
 
       {/* ==================== FOOTER ==================== */}
-      <footer className="w-full bg-slate-950 text-[#F6F3EC] border-t-2 border-slate-900 py-8">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 flex flex-col md:flex-row items-center justify-between gap-4 font-mono text-xs text-slate-400">
-          <div>© 2026 MediAssist — Đồ án tốt nghiệp. Thông tin chỉ mang tính tham khảo, không thay thế chẩn đoán của bác sĩ.</div>
+      <footer className="w-full bg-[#FCFBF8] text-slate-600 border-t border-slate-200/90 py-8">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 flex flex-col md:flex-row items-center justify-between gap-4 font-mono text-xs text-slate-500">
+          <div>© 2026 MediAssist — Đồ án tốt nghiệp Kỹ sư phần mềm. Thông tin mang tính hỗ trợ tham khảo lâm sàng.</div>
           <div className="flex items-center gap-6 font-bold">
-            <a className="hover:text-white" href="#">HIPAA Notice</a>
-            <a className="hover:text-white" href="#">Security Protocol</a>
-            <a className="hover:text-white text-rose-400" href="tel:115">Khẩn Cấp 115</a>
+            <a className="hover:text-teal-700 transition-colors" href="#">HIPAA Compliance</a>
+            <a className="hover:text-teal-700 transition-colors" href="#">HL7 FHIR v4</a>
+            <a className="hover:text-rose-700 text-rose-600 transition-colors" href="tel:115">Cấp Cứu 115</a>
           </div>
         </div>
       </footer>

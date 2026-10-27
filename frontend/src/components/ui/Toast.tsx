@@ -19,14 +19,14 @@ const ToastContext = createContext<ToastApi | null>(null);
 
 const ICONS = { success: CheckCircle2, error: AlertCircle, info: Info };
 const STYLES: Record<ToastTone, string> = {
-  success: 'bg-slate-900 border-emerald-500 text-[#F6F3EC]',
-  error: 'bg-rose-950 border-rose-500 text-rose-50',
-  info: 'bg-slate-900 border-teal-400 text-[#F6F3EC]',
+  success: 'bg-white border-emerald-200/90 text-emerald-950',
+  error: 'bg-white border-rose-200/90 text-rose-950',
+  info: 'bg-white border-teal-200/90 text-teal-950',
 };
 const ICON_COLORS: Record<ToastTone, string> = {
-  success: 'text-emerald-400',
-  error: 'text-rose-400',
-  info: 'text-teal-400',
+  success: 'text-emerald-600',
+  error: 'text-rose-600',
+  info: 'text-teal-600',
 };
 
 /** App-wide toast stack. Replaces alert() for success/failure feedback. */
@@ -69,7 +69,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               role={t.tone === 'error' ? 'alert' : 'status'}
               data-testid={`toast-${t.tone}`}
               className={cn(
-                'pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl border-2 shadow-[0_4px_0_0_rgba(18,16,14,0.4),0_12px_24px_rgba(0,0,0,0.25)] text-sm animate-scaleUp',
+                'pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl border shadow-[0_10px_25px_rgba(0,0,0,0.08)] text-sm animate-scaleUp',
                 STYLES[t.tone]
               )}
             >

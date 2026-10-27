@@ -1327,44 +1327,46 @@ export const DoctorDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Header Banner */}
-      <div className="bg-slate-950 bg-obsidian-dots text-[#F6F3EC] p-6 rounded-3xl border-2 border-slate-900 shadow-[0_6px_0_0_#4338CA] flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Header Banner — Light Clinical Workstation Atelier */}
+      <div className="bg-white text-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200/90 shadow-[0_10px_35px_rgba(0,0,0,0.03)] flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="font-mono text-[11px] uppercase font-bold text-teal-300 tracking-widest flex items-center gap-2">
-            <span>DR-01 // Bàn Khám Bệnh Điện Tử & Giám Sát Ca Lâm Sàng (HIS / EMR)</span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
+          <div className="font-mono text-[11px] uppercase font-bold text-teal-800 tracking-widest flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 border border-teal-200 font-bold">
+              DR-01 // Bàn Khám Bệnh Điện Tử &amp; Giám Sát Ca Lâm Sàng (HIS / EMR)
+            </span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
               Live Realtime
             </span>
           </div>
-          <h2 className="font-display text-2xl sm:text-3xl font-bold mt-1 tracking-tight">
-            Chào Bác sĩ, <span className="font-serif italic font-normal text-teal-300">{user?.fullName || 'Đồng nghiệp'}</span>!
+          <h2 className="font-display text-2xl sm:text-3xl font-bold mt-2 tracking-tight text-slate-900">
+            Chào Bác sĩ, <span className="font-serif italic font-normal text-teal-600">{user?.fullName || 'Đồng nghiệp'}</span>!
           </h2>
-          <p className="text-slate-400 text-sm mt-0.5">
+          <p className="text-slate-600 text-sm mt-1">
             Quản lý hàng đợi tiếp đón, chẩn đoán ICD-10, kê đơn thuốc điện tử và đồng bộ lịch trực khám bệnh viện.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           {/* Realtime Live Pulse Badge */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-300 bg-slate-800/80 px-3.5 py-2 rounded-xl border border-slate-700 shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+          <div className="flex items-center gap-1.5 text-xs text-slate-700 bg-[#FCFBF8] px-3.5 py-2 rounded-xl border border-slate-200/90 shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
             <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
           </div>
 
           <button
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition shadow-xs cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FCFBF8] hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200/90 transition shadow-2xs cursor-pointer disabled:opacity-50"
             title="Làm mới dữ liệu tức thì"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-teal-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-teal-600' : ''}`} />
             <span>Làm mới</span>
           </button>
 
           <button
             onClick={handleCallNextPatient}
             disabled={callingNext}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold rounded-xl shadow-md transition cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-md shadow-teal-600/20 transition cursor-pointer disabled:opacity-50"
             title="Tự động tiếp nhận và gọi ca chờ sớm nhất hôm nay vào bàn khám"
           >
             <UserCheck className={`w-3.5 h-3.5 ${callingNext ? 'animate-bounce' : ''}`} />
@@ -1373,9 +1375,9 @@ export const DoctorDashboard: React.FC = () => {
 
           <button
             onClick={openScheduleModal}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FCFBF8] hover:bg-teal-50 text-teal-800 hover:text-teal-900 text-xs font-bold rounded-xl border border-teal-200/80 transition cursor-pointer shadow-2xs"
           >
-            <Settings className="w-3.5 h-3.5" />
+            <Settings className="w-3.5 h-3.5 text-teal-600" />
             <span>Cấu Hình Lịch Trực</span>
           </button>
         </div>

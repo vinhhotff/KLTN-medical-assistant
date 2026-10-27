@@ -411,40 +411,40 @@ export const PatientDashboard: React.FC = () => {
     <div ref={rootRef} className="space-y-8">
       {loadError && <ErrorState message={loadError} onRetry={loadData} retrying={loading} />}
 
-      {/* Aether Bio-Atelier Hero Observatory */}
-      <div className="gsap-patient-block bg-slate-950 rounded-3xl p-6 sm:p-8 text-[#F6F3EC] border-2 border-slate-900 shadow-[0_6px_0_0_#4338CA] relative overflow-hidden bg-obsidian-dots">
+      {/* Aether Bio-Atelier Hero Observatory — Light Clinical Palette */}
+      <div className="gsap-patient-block bg-white rounded-3xl p-6 sm:p-8 text-slate-900 border border-slate-200/90 shadow-[0_10px_35px_rgba(0,0,0,0.03)] relative overflow-hidden">
         <div className="max-w-3xl relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-teal-500/20 border border-teal-400/40 font-mono text-[11px] uppercase tracking-widest text-teal-300 font-bold mb-3">
-            <Activity className="w-3.5 h-3.5 text-teal-400" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 border border-teal-200 font-mono text-[11px] uppercase tracking-widest text-teal-800 font-bold mb-3">
+            <Activity className="w-3.5 h-3.5 text-teal-600" />
             <span>BIO-CARE OBSERVATORY // HOSPITAL PATIENT PORTAL</span>
           </div>
-          <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-white">
+          <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-slate-900">
             Quản Lý Hồ Sơ Bệnh Án &amp;{' '}
-            <span className="font-serif italic font-normal text-teal-300">Chăm Sóc Sức Khỏe Toàn Diện</span>
+            <span className="font-serif italic font-normal text-teal-600">Chăm Sóc Sức Khỏe Toàn Diện</span>
           </h1>
-          <p className="mt-2.5 text-slate-300 text-sm md:text-base leading-relaxed">
+          <p className="mt-2.5 text-slate-600 text-sm md:text-base leading-relaxed">
             Hệ thống Bệnh án Điện tử (EMR) chuẩn hóa Bộ Y Tế. Theo dõi kết quả xét nghiệm, lịch sử thăm khám, dấu hiệu sinh tồn và đơn thuốc ngoại trú minh bạch.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               to="/patient/triage"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FCFBF8] text-slate-900 font-display font-bold text-xs sm:text-sm shadow-[0_3px_0_0_#4338CA] hover:bg-teal-300 transition"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-teal-600 text-white font-display font-bold text-xs sm:text-sm shadow-md shadow-teal-600/20 hover:bg-teal-700 transition"
             >
-              <MessageSquare className="w-4 h-4 text-teal-600" />
+              <MessageSquare className="w-4 h-4 text-teal-100" />
               Khám Sàng Lọc AI
             </Link>
             <Link
               to="/patient/doctors"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-display font-bold text-xs sm:text-sm hover:border-teal-400 transition"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#FCFBF8] border border-slate-200/90 text-slate-800 font-display font-bold text-xs sm:text-sm hover:bg-slate-100/80 transition shadow-2xs"
             >
-              <Calendar className="w-4 h-4 text-teal-300" />
+              <Calendar className="w-4 h-4 text-teal-600" />
               Đặt Lịch Bác Sĩ
             </Link>
             <Link
               to="/patient/documents"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-display font-bold text-xs sm:text-sm hover:border-teal-400 transition"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#FCFBF8] border border-slate-200/90 text-slate-800 font-display font-bold text-xs sm:text-sm hover:bg-slate-100/80 transition shadow-2xs"
             >
-              <UploadCloud className="w-4 h-4 text-teal-300" />
+              <UploadCloud className="w-4 h-4 text-teal-600" />
               Quét Phiếu Xét Nghiệm
             </Link>
           </div>
@@ -452,7 +452,7 @@ export const PatientDashboard: React.FC = () => {
       </div>
 
       {actionError && (
-        <div className="p-4 bg-rose-50 border-2 border-rose-300 rounded-2xl text-rose-800 text-sm flex items-center gap-2">
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-sm flex items-center gap-2">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span>{actionError}</span>
         </div>
@@ -461,7 +461,7 @@ export const PatientDashboard: React.FC = () => {
 
       {/* Missing CCCD or Blood Group Clinical Alert */}
       {profile && (!profile.citizenId || !profile.bloodGroup) && (
-        <div className="gsap-patient-block p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-amber-900 text-sm flex items-start gap-3">
+        <div className="gsap-patient-block p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-sm flex items-start gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
           <div className="space-y-1">
             <h5 className="font-display font-bold">Hồ sơ định danh y tế chưa hoàn thiện</h5>
@@ -473,18 +473,18 @@ export const PatientDashboard: React.FC = () => {
       )}
 
       {/* PATIENT MEDICAL PASSPORT & EMR IDENTITY CARD */}
-      <div className="gsap-patient-block bg-[#FCFBF8] rounded-3xl border-2 border-slate-900 shadow-[0_5px_0_0_#12100E] overflow-hidden">
-        <div className="bg-slate-900 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white border-b-2 border-slate-900">
+      <div className="gsap-patient-block bg-[#FCFBF8] rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+        <div className="bg-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-900 border-b border-slate-200/90">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-600 flex items-center justify-center font-bold text-white shadow-[0_2px_0_0_#F6F3EC]">
+            <div className="w-10 h-10 rounded-2xl bg-teal-600 flex items-center justify-center font-bold text-white shadow-md shadow-teal-600/20">
               <Heart className="w-5 h-5 text-white" />
             </div>
             <div>
-              <div className="font-mono text-[10px] uppercase tracking-widest text-teal-300 font-bold">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-teal-700 font-bold">
                 Thẻ Bệnh Án Điện Tử &amp; Căn Cước Y Tế (EMR Medical Passport)
               </div>
               <div className="font-display text-lg font-bold">
-                Mã Bệnh Nhân: {profile?.patientCode ? <span className="font-mono text-emerald-400">{profile.patientCode}</span> : <span className="text-sm font-normal text-slate-300 italic">Chưa được cấp</span>}
+                Mã Bệnh Nhân: {profile?.patientCode ? <span className="font-mono text-emerald-700 font-bold">{profile.patientCode}</span> : <span className="text-sm font-normal text-slate-400 italic">Chưa được cấp</span>}
               </div>
             </div>
           </div>
@@ -493,9 +493,9 @@ export const PatientDashboard: React.FC = () => {
               setEditForm(profile || {});
               setIsEditProfileOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FCFBF8] hover:bg-teal-300 font-display text-xs font-bold text-slate-900 transition cursor-pointer self-start sm:self-auto shadow-[0_2px_0_0_#4338CA]"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100/80 font-display text-xs font-bold text-teal-800 border border-teal-200/80 transition cursor-pointer self-start sm:self-auto shadow-2xs"
           >
-            <Edit3 className="w-3.5 h-3.5" />
+            <Edit3 className="w-3.5 h-3.5 text-teal-600" />
             Cập Nhật Hồ Sơ Y Tế
           </button>
         </div>

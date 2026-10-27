@@ -86,7 +86,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, description,
   return createPortal(
     <div
       ref={backdropRef}
-      className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-xs"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !busy) onClose();
       }}
@@ -98,12 +98,12 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, description,
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          'bg-[#FCFBF8] w-full rounded-t-3xl sm:rounded-3xl shadow-[0_8px_0_0_rgba(18,16,14,0.35),0_24px_48px_rgba(0,0,0,0.35)] border-2 border-slate-900 max-h-[92vh] flex flex-col focus:outline-none overflow-hidden',
+          'bg-white w-full rounded-t-3xl sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-200/90 max-h-[92vh] flex flex-col focus:outline-none overflow-hidden',
           SIZES[size],
           className,
         )}
       >
-        <div className="flex items-start justify-between gap-3 px-6 py-4 bg-slate-100/80 border-b border-slate-200 shrink-0">
+        <div className="flex items-start justify-between gap-3 px-6 py-4 bg-[#FCFBF8] border-b border-slate-200/90 shrink-0">
           <div className="min-w-0">
             <span className="block font-mono text-[10px] uppercase tracking-widest text-teal-600 font-bold mb-0.5">
               AETHER // DIALOG TERMINAL
@@ -118,14 +118,14 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, description,
             onClick={onClose}
             disabled={busy}
             aria-label="Đóng"
-            className="p-1.5 rounded-xl border border-slate-300 bg-white text-slate-600 hover:text-slate-900 hover:border-slate-900 disabled:opacity-40 cursor-pointer transition"
+            className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-900 hover:border-slate-300 disabled:opacity-40 cursor-pointer transition"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="px-6 py-5 overflow-y-auto flex-1">{children}</div>
         {footer && (
-          <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-100/70 flex flex-wrap justify-end gap-2.5 shrink-0">
+          <div className="px-6 py-3.5 border-t border-slate-200/90 bg-[#FCFBF8] flex flex-wrap justify-end gap-2.5 shrink-0">
             {footer}
           </div>
         )}

@@ -302,22 +302,22 @@ export const SymptomTriagePage: React.FC = () => {
 
   return (
     <div ref={rootRef} className="max-w-5xl mx-auto flex flex-col h-[calc(100vh-110px)] min-h-[560px] pb-4">
-      {/* 🤖 Dark Obsidian AI Triage Console Header */}
-      <div className="gsap-triage-shell flex items-center justify-between px-5 py-3.5 bg-slate-950 text-[#F6F3EC] rounded-2xl border-2 border-slate-900 shadow-[0_4px_0_0_#4338CA] mb-3 bg-obsidian-dots">
+      {/* 🤖 Luminous AI Triage Console Header */}
+      <div className="gsap-triage-shell flex items-center justify-between px-5 py-3.5 bg-white text-slate-900 rounded-2xl border border-slate-200/90 shadow-sm mb-3">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-[0_2px_0_0_#F6F3EC]">
-            <Bot className="w-6 h-6" />
+          <div className="w-11 h-11 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20">
+            <Bot className="w-6 h-6 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-display text-base sm:text-lg font-bold text-white tracking-tight">
+              <h1 className="font-display text-base sm:text-lg font-bold text-slate-900 tracking-tight">
                 🤖 Trợ lý Triệu chứng AI
               </h1>
-              <span className="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+              <span className="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 Online
               </span>
             </div>
-            <p className="font-mono text-[11px] text-slate-400">
+            <p className="font-mono text-[11px] text-slate-500">
               Mô tả triệu chứng để được tư vấn chuyên khoa phù hợp (O2O In-Person Visit)
             </p>
           </div>
@@ -325,17 +325,17 @@ export const SymptomTriagePage: React.FC = () => {
 
         <button
           onClick={handleResetChat}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 font-display text-xs font-bold text-slate-900 bg-[#FCFBF8] hover:bg-teal-300 border border-slate-900 rounded-xl transition cursor-pointer shadow-[0_2px_0_0_#4338CA]"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 font-display text-xs font-bold text-slate-700 bg-[#FCFBF8] hover:bg-teal-50 hover:text-teal-800 border border-slate-200/90 rounded-xl transition cursor-pointer shadow-2xs"
           title="Bắt đầu phiên phân tích mới"
         >
-          <RotateCcw className="w-3.5 h-3.5" />
+          <RotateCcw className="w-3.5 h-3.5 text-teal-600" />
           <span>Làm mới hội thoại</span>
         </button>
       </div>
 
       {/* 🚨 Full-Width Persistent Emergency Banner (when emergency is triggered) */}
       {isEmergencyLocked && (
-        <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-[0_4px_0_0_#12100E] border-2 border-slate-900 mb-3 animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-md border border-rose-700 mb-3 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-xl animate-pulse">
@@ -354,7 +354,7 @@ export const SymptomTriagePage: React.FC = () => {
 
             <a
               href={`tel:${EMERGENCY_NUMBER}`}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FCFBF8] text-rose-700 hover:bg-rose-50 font-display font-bold text-sm rounded-xl border border-slate-900 shadow-[0_2px_0_0_#12100E] transition shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-rose-700 hover:bg-rose-50 font-display font-bold text-sm rounded-xl border border-rose-200 shadow-sm transition shrink-0 cursor-pointer"
             >
               <PhoneCall className="w-4 h-4 animate-bounce" />
               <span>📞 Gọi 115</span>
@@ -364,7 +364,7 @@ export const SymptomTriagePage: React.FC = () => {
       )}
 
       {/* 💬 Chat Area Container */}
-      <div className="gsap-triage-shell flex-1 bg-[#FCFBF8] rounded-3xl border-2 border-slate-900 overflow-y-auto p-4 md:p-6 space-y-4 shadow-[0_5px_0_0_#12100E]">
+      <div className="gsap-triage-shell flex-1 bg-white rounded-3xl border border-slate-200/90 overflow-y-auto p-4 md:p-6 space-y-4 shadow-sm">
         {messages.map((msg) => {
           const isUser = msg.role === 'user';
 
@@ -376,21 +376,21 @@ export const SymptomTriagePage: React.FC = () => {
               <div className={`flex items-start gap-2.5 max-w-[90%] md:max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
                 {/* Avatar Icon */}
                 <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold border border-slate-900 ${
+                  className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 text-xs font-bold border ${
                     isUser
-                      ? 'bg-teal-600 text-white shadow-[0_2px_0_0_#12100E]'
-                      : 'bg-slate-900 text-[#F6F3EC] shadow-[0_2px_0_0_#4338CA]'
+                      ? 'bg-teal-600 text-white border-teal-600 shadow-sm shadow-teal-600/20'
+                      : 'bg-[#FCFBF8] text-teal-700 border-slate-200/90 shadow-2xs'
                   }`}
                 >
-                  {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4 text-teal-300" />}
+                  {isUser ? <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4 text-teal-600" />}
                 </div>
 
                 {/* Bubble Container */}
                 <div
                   className={`px-4 py-3.5 text-sm leading-relaxed border ${
                     isUser
-                      ? 'bg-slate-900 text-[#F6F3EC] border-slate-900 rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl rounded-br-xs shadow-[0_3px_0_0_#4338CA]'
-                      : 'bg-[#F6F3EC] border-slate-300 text-slate-900 rounded-tr-2xl rounded-br-2xl rounded-tl-2xl rounded-bl-xs'
+                      ? 'bg-teal-600 text-white border-teal-600 rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl rounded-br-xs shadow-sm shadow-teal-600/20'
+                      : 'bg-[#FCFBF8] border-slate-200/90 text-slate-900 rounded-tr-2xl rounded-br-2xl rounded-tl-2xl rounded-bl-xs shadow-2xs'
                   }`}
                 >
                   {/* Text Content */}

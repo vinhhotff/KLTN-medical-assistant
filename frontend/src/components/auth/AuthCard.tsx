@@ -42,8 +42,8 @@ export const AuthCard: React.FC<AuthCardProps> = ({ icon, title, subtitle, child
     >
       <div className="auth-atelier-anim flex items-center gap-3 mb-7">
         <Link to="/" className="flex items-center gap-3 text-slate-900 group">
-          <div className="w-11 h-11 rounded-2xl bg-slate-900 text-[#F6F3EC] border-2 border-slate-900 flex items-center justify-center shadow-[0_3px_0_0_#4338CA] group-hover:-translate-y-0.5 transition-transform">
-            <ShieldCheck className="w-5 h-5 text-teal-400" />
+          <div className="w-11 h-11 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20 group-hover:scale-105 transition-transform duration-200">
+            <ShieldCheck className="w-5 h-5 text-white" />
           </div>
           <div>
             <span className="text-lg font-display font-bold tracking-tight block leading-none">
@@ -56,10 +56,10 @@ export const AuthCard: React.FC<AuthCardProps> = ({ icon, title, subtitle, child
         </Link>
       </div>
 
-      <div className="auth-atelier-anim w-full max-w-md bg-[#FCFBF8] rounded-3xl shadow-[0_6px_0_0_#12100E,0_20px_40px_rgba(18,16,14,0.1)] border-2 border-slate-900 p-6 sm:p-8 space-y-5 relative">
+      <div className="auth-atelier-anim w-full max-w-md bg-white rounded-3xl shadow-[0_10px_35px_rgba(0,0,0,0.03)] border border-slate-200/90 p-6 sm:p-8 space-y-5 relative">
         <div className="flex items-center justify-between border-b border-slate-200 pb-4">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 border border-teal-200 flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-700 border border-teal-200/80 flex items-center justify-center shrink-0">
               {icon}
             </div>
             <div>
