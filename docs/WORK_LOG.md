@@ -11,6 +11,8 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#104** | 27/10/2026 | Tách biệt hoàn toàn Docker (Zero-Docker In-Memory Vite Connect Middleware Plugin) & Tinh chỉnh toàn diện thiết kế Aether Bio-Atelier: loại bỏ toàn bộ mảng màu đen/obsidian gây lệch tông tại Hero Section, Aside, Navigation, Dropzone; làm mịn bo góc organic rounded-2xl/3xl, loại bỏ toàn bộ 3D block shadows và thay bằng soft atmospheric elevation; chuẩn hóa màu y tế ấm sáng hài hòa; build 0 lỗi TS, 32/32 screenshots đạt chuẩn | AI Assistant | 🟢 Sẵn sàng Review |
+| **#103** | 27/10/2026 | Thiết kế lại toàn bộ giao diện (Aether Bio-Atelier // Swiss Clinical Precision): bảng màu giấy ấm + Obsidian + Cobalt, bộ font mới, thanh điều hướng dọc cho 3 cổng, GSAP `useGSAP` tôn trọng reduced-motion. Frontend build 0 lỗi TS; E2E 36/40 (4 lỗi ở đoạn mã không sửa) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#083** | 02/10/2026 | Hệ Thống Email (Email Notifications), gồm 4 phần A–D hoàn chỉnh: (1) `spring-boot-starter-mail` + Thymeleaf, template HTML tiếng Việt auto-escape, Mailpit (SMTP 1025, UI 8025), (2) V21 `token_hash` SHA-256, TTL 30 phút, rate limit IP + email, `/forgot-password` & `/reset-password`, (3) V22 `email_verified` + `email_verification_tokens`, guard 403 `EMAIL_NOT_VERIFIED` ở tầng service (đặt/dời lịch, checkout), chống pre-hijacking khi liên kết Google, banner + trang `/verify-email`, (4) email đặt lịch (bệnh nhân + bác sĩ, kể cả tái khám), hủy lịch (cả 2 đường, ghi người hủy + hoàn tiền, không kèm lý do), biên nhận thanh toán (verify + Stripe webhook); hoàn tiền dùng chung qua `AppointmentRefundService`. 290/290 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#082** | 02/10/2026 | Lưu Trữ Tài Liệu Y Tế Riêng Tư (Private Document Storage): (1) Flyway V20 đổi `storage_url` thành `storage_path` (object key) và chuyển URL public cũ về key, (2) Endpoint `GET /documents/{id}/signed-url` cấp signed URL 15 phút sau `PatientAccessGuard`, audit `DOCUMENT_SIGNED_URL_ISSUED` cho mọi role, rate limit 30/phút, (3) `/documents/{id}/file` redirect 302, **xóa fallback sinh PDF giả**, (4) DTO bỏ `storageUrl` thay bằng `hasFile`, (5) Frontend helper signed URL + modal có trạng thái 403/404/503/hết hạn, (6) Xóa service_role key và OpenRouter key khỏi file đã commit, hỗ trợ secret key `sb_secret_...` (chỉ header `apikey`), (7) 190/190 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#081** | 02/10/2026 | Triển Khai Bảng Giám Sát Chi Phí & Tài Nguyên AI Toàn Viện (Phase 4 Admin AI Token & Cost Analytics Dashboard): (1) Flyway migration V18 chuẩn hóa bảng `ai_token_usage`, (2) Entity `AiTokenUsage`, repository `AiTokenUsageRepository`, service `AiUsageAnalyticsService`, DTO `AiUsageStatsDto`, (3) Hook tự động ghi nhận lượng tiêu thụ token, (4) Giao diện AdminDashboard tích hợp Recharts với 5 KPI Cards, Line Chart và Pie Chart | AI Assistant | 🟢 Sẵn sàng Review |
@@ -33,6 +35,58 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#104] Tinh Chỉnh Đồng Nhất Aether Bio-Atelier & Zero-Docker Local Development
+* **Thời gian:** 2026-10-27 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Core Developer & Technical Lead)
+* **Nhánh:** `feature/ui-aether-redesign`
+* **Mã Use Cases:** UI Overhaul (UC-01 .. UC-17 giữ nguyên logic nghiệp vụ).
+* **Tệp tin:**
+  - `[NEW]` `frontend/src/mocks/viteMockPlugin.ts`: Vite Connect middleware plugin đánh chặn trực tiếp `/api/v1/*` trả về dữ liệu mock chân thực, cho phép chạy FE độc lập không phụ thuộc Docker/Backend/DB.
+  - `[MOD]` `frontend/vite.config.ts`: Đăng ký `viteMockPlugin` vào Vite pipeline.
+  - `[MOD]` `frontend/src/layouts/{PatientLayout,DoctorLayout,AdminLayout}.tsx`: Đổi Sidebar/Aside từ màu tối sang tone sáng ấm `#FCFBF8`, viền mềm `border-slate-200/90`, active pill `bg-teal-600 text-white rounded-2xl`, loại bỏ hoàn toàn thanh command rail đen.
+  - `[MOD]` `frontend/src/pages/LandingPage.tsx`: Chuyển đổi toàn diện các khối hero bento, dropzone OCR `#quick-demo`, 3-step protocol, metrics bento, doctor directory sang nền trắng sáng `#FFFFFF` / `#FCFBF8`, bo góc `rounded-3xl`, viền tinh tế và shadow mềm.
+  - `[MOD]` `frontend/src/pages/LoginPage.tsx`: Tinh chỉnh header viên thuốc tròn, khối vault trắng sáng, khối thẻ căn cước mẫu sáng màu, role pill `bg-teal-600 text-white`, nút bấm teal bo góc mịn.
+  - `[MOD]` `frontend/src/pages/patient/{PatientDashboard,SymptomTriagePage,DoctorSearchPage,DocumentSummarizerPage}.tsx`: Chuyển đổi toàn bộ hero header banner, console AI, bong bóng tin nhắn, dropzone bóc tách sang tone ấm sáng hài hòa, bo góc mịn.
+  - `[MOD]` `frontend/src/pages/doctor/DoctorDashboard.tsx` & `frontend/src/pages/admin/AdminDashboard.tsx`: Chuyển đổi hero banner từ `bg-slate-950 bg-obsidian-dots` sang `bg-white rounded-3xl border border-slate-200/90 shadow-[0_10px_35px_rgba(0,0,0,0.03)]`.
+  - `[MOD]` `frontend/src/components/ui/{Button,Modal,Toast}.tsx`, `frontend/src/components/common/MedicalDisclaimerBanner.tsx`, `frontend/src/components/auth/AuthCard.tsx`: Làm mềm toàn diện hệ thống UI components (xóa bỏ neo-brutalist block shadow `shadow-[0_4px_0_0_#12100E]`, viền thô `border-2 border-slate-900`, thay bằng `rounded-2xl`, `rounded-3xl`, soft atmospheric elevation).
+* **Bằng chứng kiểm thử & Verification:**
+  - `npm run build`: Hoàn thành 100%, 0 lỗi TypeScript (`tsc && vite build` built in 2.72s).
+  - Playwright visual audit: 32/32 tests full-page capture hoàn tất, toàn bộ ảnh chụp màn hình kiểm định trực quan đạt chuẩn thẩm mỹ cao cấp.
+* **Điểm nóng Tech Lead cần Review:**
+  - Khởi chạy Frontend siêu tốc chỉ với `npm run dev` trong `frontend/`, không cần cài đặt hay khởi động Docker containers.
+
+### [WORK-LOG-#103] Thiết Kế Lại Toàn Bộ Giao Diện: Aether Bio-Atelier // Swiss Clinical Precision + GSAP
+* **Thời gian:** 2026-10-27 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Core Developer — Frontend)
+* **Nhánh:** `feature/ui-aether-redesign`, tách từ `develop`.
+* **Mã Use Cases:** Không đổi luồng nghiệp vụ hay API — chỉ đổi giao diện (UC-01..UC-17 giữ nguyên hành vi).
+* **Tệp tin:**
+  - `[NEW]` `skills-lock.json`, `.agents/skills/gsap-*` (8 skill GSAP: core, frameworks, performance, plugins, react, scrolltrigger, timeline, utils)
+  - `[MOD]` `frontend/package.json`, `frontend/package-lock.json` (thêm `gsap`, `@gsap/react`), `frontend/index.html` (font Space Grotesk / Instrument Serif / DM Sans / JetBrains Mono), `frontend/tailwind.config.js` (bảng màu mới, map lại `teal`/`slate`), `frontend/src/index.css`
+  - `[MOD]` `frontend/src/components/ui/{Button,Field,Modal,States,Toast}.tsx`, `frontend/src/components/common/MedicalDisclaimerBanner.tsx`, `frontend/src/components/auth/AuthCard.tsx`
+  - `[MOD]` `frontend/src/layouts/{PatientLayout,DoctorLayout,AdminLayout}.tsx`
+  - `[MOD]` `frontend/src/pages/{LandingPage,LoginPage}.tsx`, `frontend/src/pages/patient/{PatientDashboard,SymptomTriagePage,DoctorSearchPage,DocumentSummarizerPage}.tsx`, `frontend/src/pages/doctor/DoctorDashboard.tsx`, `frontend/src/pages/admin/AdminDashboard.tsx`
+  - `[DEL]` không có
+* **Tài liệu đã đồng bộ:** `STORYTELLING.md` mục 2.3 (ngôn ngữ thiết kế mới). Không đổi DB/API nên không sửa `DATABASE_DESIGN.md`, `USE_CASES.md`.
+* **Nội dung chính:**
+  1. **Bảng màu:** nền giấy ấm Alabaster `#F6F3EC` / Travertine `#EDE8DF`, mực Obsidian `#12100E`, nhấn Cobalt-Indigo `#4338CA`. Thang `teal`/`slate` trong Tailwind được map lại nên các trang chưa sửa tay vẫn tự nhận màu mới.
+  2. **Kiểu chữ:** Space Grotesk (tiêu đề), Instrument Serif nghiêng (điểm nhấn), DM Sans (nội dung), JetBrains Mono (mã module, nhãn, chỉ số).
+  3. **Bố cục:** bỏ navbar ngang trắng; 3 cổng Bệnh nhân / Bác sĩ / Quản trị dùng **thanh điều hướng dọc màu Obsidian** bên trái với thẻ module đánh số (`01–04`, `DR-01–03`, `AD-01–07`) + thanh trạng thái trên cùng; di động giữ bottom-nav / hamburger / drawer như cũ.
+  4. **Thành phần:** viền đen 2px, bóng đổ lệch cứng (Neo-Swiss), nhãn trường dạng mono in hoa, toast nền tối.
+  5. **Chuyển động:** `useGSAP()` có `scope` + `gsap.matchMedia('(prefers-reduced-motion: no-preference)')` cho hiệu ứng vào trang (Landing, Login, Dashboard, Triage, Search) và chuyển route trong layout; người dùng bật giảm chuyển động sẽ không thấy animation.
+  6. **Giữ nguyên:** Medical Disclaimer Banner cố định ở cổng bệnh nhân, liên kết `tel:115`, toàn bộ selector E2E (`data-testid`, `aria-label`, placeholder, tên nút).
+* **Bằng chứng kiểm thử:**
+  - `npm run build` (frontend): PASS, 0 lỗi TypeScript.
+  - Playwright `auth`, `mobile-nav`, `patient-dashboard`, `triage` (chromium + mobile-chrome): **36 passed, 4 failed**. 4 lỗi là 2 test × 2 viewport, đều nằm ở đoạn mã **không bị sửa** trong phiên này:
+    - `auth.spec.ts › forgot password…`: test chờ dialog "Khôi phục mật khẩu" trên trang login, nhưng link "Quên mật khẩu?" vẫn điều hướng sang trang `/forgot-password` (giống bản trước).
+    - `patient-dashboard.spec.ts › reschedule…`: modal dời lịch render nút "Xác nhận dời lịch" hai lần (footer + trong thân) → Playwright strict mode báo trùng.
+  - Backend **không thay đổi** nên **không chạy `mvn test`**.
+* **Điểm nóng Tech Lead cần Review:**
+  1. Map lại `teal`/`slate` ở cấp Tailwind là thay đổi toàn cục — các trang phụ (admin CRUD, doctor records, modal) đổi màu mà không qua sửa tay; nên rà nhanh độ tương phản.
+  2. Một số trang vẫn còn class `indigo`/`blue` riêng lẻ trong thân trang (DoctorDashboard, PatientDashboard phần dưới) — chưa đổi hết.
+  3. 2 test E2E lỗi sẵn ở trên cần quyết định: sửa test hay sửa UI (xoá nút trùng trong modal dời lịch; hoặc đổi "Quên mật khẩu?" thành dialog).
+
 
 ### [WORK-LOG-#102] Sửa Frontend Theo Phiếu Review (P0-1..P0-5, P1-6, P1-7)
 * **Thời gian:** 2026-10-12 (GMT+7)
