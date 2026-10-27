@@ -17,7 +17,11 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { api } from '../../services/api';
+
+gsap.registerPlugin(useGSAP);
 import { BookingModal, type BookableDoctor } from '../../components/booking/BookingModal';
 import { EMERGENCY_NUMBER } from '../../config/app';
 import { formatRating, formatVnd } from '../../utils/display';
@@ -77,6 +81,24 @@ interface ChatMessage {
 
 export const SymptomTriagePage: React.FC = () => {
   const navigate = useNavigate();
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+      mm.add('(prefers-reduced-motion: no-preference)', () => {
+        gsap.from('.gsap-triage-shell', {
+          y: 18,
+          autoAlpha: 0,
+          stagger: 0.08,
+          duration: 0.45,
+          ease: 'power3.out',
+        });
+      });
+      return () => mm.revert();
+    },
+    { scope: rootRef }
+  );
 
   // Multi-turn Chatbot State
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -279,23 +301,23 @@ export const SymptomTriagePage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col h-[calc(100vh-100px)] min-h-[550px] pb-4">
-      {/* 🤖 Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white rounded-2xl border border-slate-200 shadow-2xs mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center shadow-xs">
+    <div ref={rootRef} className="max-w-5xl mx-auto flex flex-col h-[calc(100vh-110px)] min-h-[560px] pb-4">
+      {/* 🤖 Dark Obsidian AI Triage Console Header */}
+      <div className="gsap-triage-shell flex items-center justify-between px-5 py-3.5 bg-slate-950 text-[#F6F3EC] rounded-2xl border-2 border-slate-900 shadow-[0_4px_0_0_#4338CA] mb-3 bg-obsidian-dots">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-[0_2px_0_0_#F6F3EC]">
             <Bot className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold text-slate-900 tracking-tight">
+              <h1 className="font-display text-base sm:text-lg font-bold text-white tracking-tight">
                 🤖 Trợ lý Triệu chứng AI
               </h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
                 Online
               </span>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="font-mono text-[11px] text-slate-400">
               Mô tả triệu chứng để được tư vấn chuyên khoa phù hợp (O2O In-Person Visit)
             </p>
           </div>
@@ -303,7 +325,7 @@ export const SymptomTriagePage: React.FC = () => {
 
         <button
           onClick={handleResetChat}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-xl transition cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 font-display text-xs font-bold text-slate-900 bg-[#FCFBF8] hover:bg-teal-300 border border-slate-900 rounded-xl transition cursor-pointer shadow-[0_2px_0_0_#4338CA]"
           title="Bắt đầu phiên phân tích mới"
         >
           <RotateCcw className="w-3.5 h-3.5" />
@@ -313,14 +335,14 @@ export const SymptomTriagePage: React.FC = () => {
 
       {/* 🚨 Full-Width Persistent Emergency Banner (when emergency is triggered) */}
       {isEmergencyLocked && (
-        <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-lg border-2 border-rose-700 mb-3 animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-[0_4px_0_0_#12100E] border-2 border-slate-900 mb-3 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-xl animate-pulse">
                 <AlertTriangle className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="font-extrabold text-sm uppercase tracking-wide">
+                <h3 className="font-display font-bold text-sm uppercase tracking-wide">
                   🚨 TÌNH TRẠNG KHẨN CẤP — Gọi ngay 115 hoặc đến phòng cấp cứu gần nhất!
                 </h3>
                 <p className="text-xs text-rose-100 mt-0.5 font-medium">
@@ -332,7 +354,7 @@ export const SymptomTriagePage: React.FC = () => {
 
             <a
               href={`tel:${EMERGENCY_NUMBER}`}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-rose-700 hover:bg-rose-50 font-black text-sm rounded-xl shadow-md transition shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FCFBF8] text-rose-700 hover:bg-rose-50 font-display font-bold text-sm rounded-xl border border-slate-900 shadow-[0_2px_0_0_#12100E] transition shrink-0 cursor-pointer"
             >
               <PhoneCall className="w-4 h-4 animate-bounce" />
               <span>📞 Gọi 115</span>
@@ -342,7 +364,7 @@ export const SymptomTriagePage: React.FC = () => {
       )}
 
       {/* 💬 Chat Area Container */}
-      <div className="flex-1 bg-slate-50/80 rounded-2xl border border-slate-200 overflow-y-auto p-4 md:p-6 space-y-4 shadow-inner">
+      <div className="gsap-triage-shell flex-1 bg-[#FCFBF8] rounded-3xl border-2 border-slate-900 overflow-y-auto p-4 md:p-6 space-y-4 shadow-[0_5px_0_0_#12100E]">
         {messages.map((msg) => {
           const isUser = msg.role === 'user';
 
@@ -354,21 +376,21 @@ export const SymptomTriagePage: React.FC = () => {
               <div className={`flex items-start gap-2.5 max-w-[90%] md:max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
                 {/* Avatar Icon */}
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold shadow-2xs ${
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold border border-slate-900 ${
                     isUser
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white border border-slate-200 text-indigo-600'
+                      ? 'bg-teal-600 text-white shadow-[0_2px_0_0_#12100E]'
+                      : 'bg-slate-900 text-[#F6F3EC] shadow-[0_2px_0_0_#4338CA]'
                   }`}
                 >
-                  {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                  {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4 text-teal-300" />}
                 </div>
 
                 {/* Bubble Container */}
                 <div
-                  className={`px-4 py-3 text-sm leading-relaxed shadow-xs ${
+                  className={`px-4 py-3.5 text-sm leading-relaxed border ${
                     isUser
-                      ? 'bg-blue-600 text-white rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl rounded-br-xs'
-                      : 'bg-white border border-slate-200 text-gray-800 rounded-tr-2xl rounded-br-2xl rounded-tl-2xl rounded-bl-xs'
+                      ? 'bg-slate-900 text-[#F6F3EC] border-slate-900 rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl rounded-br-xs shadow-[0_3px_0_0_#4338CA]'
+                      : 'bg-[#F6F3EC] border-slate-300 text-slate-900 rounded-tr-2xl rounded-br-2xl rounded-tl-2xl rounded-bl-xs'
                   }`}
                 >
                   {/* Text Content */}

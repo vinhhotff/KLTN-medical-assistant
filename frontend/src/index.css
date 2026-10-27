@@ -6,9 +6,16 @@
   html, body {
     margin: 0;
     padding: 0;
+    background-color: #F6F3EC;
+    color: #12100E;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   }
   body {
     overscroll-behavior: none;
+  }
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -0.025em;
   }
   main > :first-child {
     margin-top: 0 !important;
@@ -19,12 +26,22 @@
 }
 
 ::-webkit-scrollbar {
-  display: none;
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #EDE8DF;
+}
+::-webkit-scrollbar-thumb {
+  background: #C6BDB0;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9A9083;
 }
 
-/* --- MEDICAL ANIMATIONS & UTILITIES --- */
+/* --- AETHER BIO-ATELIER ARCHITECTURAL SURFACES & MOTION --- */
 
-/* 1. Authentic Cardiac Double-Beat (Tâm thu & Tâm trương) */
 @keyframes cardiac-pulse {
   0% { transform: scale(1); }
   14% { transform: scale(1.18); }
@@ -39,7 +56,6 @@
   transform-origin: center center;
 }
 
-/* 2. ECG Sweep Waveform Animation */
 @keyframes ecg-sweep {
   0% { stroke-dashoffset: 1000; }
   100% { stroke-dashoffset: 0; }
@@ -50,7 +66,6 @@
   animation: ecg-sweep 3.5s linear infinite;
 }
 
-/* 3. Soft Floating Medical Badges */
 @keyframes float-gentle {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-8px); }
@@ -64,7 +79,6 @@
   animation: float-gentle 4.5s ease-in-out 1.5s infinite;
 }
 
-/* 4. Medical Radar / Ultrasound Wave */
 @keyframes medical-radar {
   0% { transform: scale(0.9); opacity: 0.8; }
   50% { transform: scale(1.4); opacity: 0.3; }
@@ -75,28 +89,36 @@
   animation: medical-radar 2.8s cubic-bezier(0, 0.2, 0.8, 1) infinite;
 }
 
-/* 5. Clinical Glow Ripples */
 @keyframes glow-cyan {
-  0%, 100% { box-shadow: 0 0 15px -3px rgba(6, 182, 212, 0.3), 0 0 6px -2px rgba(6, 182, 212, 0.2); }
-  50% { box-shadow: 0 0 25px 2px rgba(14, 165, 233, 0.5), 0 0 12px 1px rgba(14, 165, 233, 0.3); }
+  0%, 100% { box-shadow: 0 0 15px -3px rgba(67, 56, 202, 0.35), 0 0 6px -2px rgba(67, 56, 202, 0.2); }
+  50% { box-shadow: 0 0 25px 2px rgba(86, 88, 246, 0.55), 0 0 12px 1px rgba(86, 88, 246, 0.35); }
 }
 
 .animate-glow-cyan {
   animation: glow-cyan 3s ease-in-out infinite;
 }
 
-/* 6. Subtle Clinical Grid (Giấy đo điện tim / màn hình lâm sàng số) */
+/* Architectural Swiss Dot & Grid Canvases */
 .bg-medical-grid {
-  background-size: 32px 32px;
-  background-image: 
-    linear-gradient(to right, rgba(14, 165, 233, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(14, 165, 233, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-image:
+    linear-gradient(to right, rgba(18, 16, 14, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(18, 16, 14, 0.05) 1px, transparent 1px);
 }
 
 .bg-medical-grid-dense {
   background-size: 16px 16px;
-  background-image: 
-    linear-gradient(to right, rgba(6, 182, 212, 0.08) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(6, 182, 212, 0.08) 1px, transparent 1px);
+  background-image:
+    linear-gradient(to right, rgba(67, 56, 202, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(67, 56, 202, 0.08) 1px, transparent 1px);
 }
 
+.bg-atelier-dots {
+  background-image: radial-gradient(rgba(18, 16, 14, 0.14) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.bg-obsidian-dots {
+  background-image: radial-gradient(rgba(246, 243, 236, 0.12) 1px, transparent 1px);
+  background-size: 22px 22px;
+}

@@ -1328,16 +1328,16 @@ export const DoctorDashboard: React.FC = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Header Banner */}
-      <div className="bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-slate-950 bg-obsidian-dots text-[#F6F3EC] p-6 rounded-3xl border-2 border-slate-900 shadow-[0_6px_0_0_#4338CA] flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="text-xs uppercase font-black text-teal-400 tracking-wider flex items-center gap-2">
-            <span>Bàn Khám Bệnh Điện Tử & Giám Sát Ca Lâm Sàng (HIS / EMR)</span>
+          <div className="font-mono text-[11px] uppercase font-bold text-teal-300 tracking-widest flex items-center gap-2">
+            <span>DR-01 // Bàn Khám Bệnh Điện Tử & Giám Sát Ca Lâm Sàng (HIS / EMR)</span>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
               Live Realtime
             </span>
           </div>
-          <h2 className="text-2xl font-black mt-1">
-            Chào Bác sĩ, {user?.fullName || 'Đồng nghiệp'}!
+          <h2 className="font-display text-2xl sm:text-3xl font-bold mt-1 tracking-tight">
+            Chào Bác sĩ, <span className="font-serif italic font-normal text-teal-300">{user?.fullName || 'Đồng nghiệp'}</span>!
           </h2>
           <p className="text-slate-400 text-sm mt-0.5">
             Quản lý hàng đợi tiếp đón, chẩn đoán ICD-10, kê đơn thuốc điện tử và đồng bộ lịch trực khám bệnh viện.

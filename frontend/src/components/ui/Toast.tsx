@@ -19,9 +19,14 @@ const ToastContext = createContext<ToastApi | null>(null);
 
 const ICONS = { success: CheckCircle2, error: AlertCircle, info: Info };
 const STYLES: Record<ToastTone, string> = {
-  success: 'bg-emerald-50 border-emerald-300 text-emerald-900',
-  error: 'bg-rose-50 border-rose-300 text-rose-900',
-  info: 'bg-white border-slate-300 text-slate-800',
+  success: 'bg-slate-900 border-emerald-500 text-[#F6F3EC]',
+  error: 'bg-rose-950 border-rose-500 text-rose-50',
+  info: 'bg-slate-900 border-teal-400 text-[#F6F3EC]',
+};
+const ICON_COLORS: Record<ToastTone, string> = {
+  success: 'text-emerald-400',
+  error: 'text-rose-400',
+  info: 'text-teal-400',
 };
 
 /** App-wide toast stack. Replaces alert() for success/failure feedback. */
@@ -53,7 +58,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <ToastContext.Provider value={api}>
       {children}
       <div
-        className="fixed z-[90] bottom-4 inset-x-4 sm:inset-x-auto sm:right-4 sm:w-96 flex flex-col gap-2 pointer-events-none"
+        className="fixed z-[90] bottom-5 inset-x-4 sm:inset-x-auto sm:right-5 sm:w-96 flex flex-col gap-2.5 pointer-events-none"
         aria-live="polite"
       >
         {items.map((t) => {
@@ -63,10 +68,13 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               key={t.id}
               role={t.tone === 'error' ? 'alert' : 'status'}
               data-testid={`toast-${t.tone}`}
-              className={cn('pointer-events-auto flex items-start gap-2.5 p-3 rounded-xl border shadow-lg text-sm', STYLES[t.tone])}
+              className={cn(
+                'pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl border-2 shadow-[0_4px_0_0_rgba(18,16,14,0.4),0_12px_24px_rgba(0,0,0,0.25)] text-sm animate-scaleUp',
+                STYLES[t.tone]
+              )}
             >
-              <Icon className="w-5 h-5 shrink-0 mt-0.5" aria-hidden />
-              <p className="flex-1 leading-snug">{t.message}</p>
+              <Icon className={cn('w-5 h-5 shrink-0 mt-0.5', ICON_COLORS[t.tone])} aria-hidden />
+              <p className="flex-1 leading-snug font-medium">{t.message}</p>
               <button
                 type="button"
                 onClick={() => dismiss(t.id)}

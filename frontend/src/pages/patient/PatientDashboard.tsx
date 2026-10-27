@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   MessageSquare,
   UploadCloud,
@@ -20,7 +20,11 @@ import {
   QrCode
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { api, DoctorReviewDto, EMAIL_NOT_VERIFIED_MESSAGE, EMAIL_NOT_VERIFIED_TOOLTIP, isEmailNotVerified } from '../../services/api';
+
+gsap.registerPlugin(useGSAP);
 import { useEmailVerification } from '../../hooks/useEmailVerification';
 import { Pagination } from '../../components/common/Pagination';
 import { DoctorReviewModal } from '../../components/common/DoctorReviewModal';
@@ -132,7 +136,25 @@ const STATUS_LABEL: Record<AppointmentItem['status'], { text: string; className:
 
 export const PatientDashboard: React.FC = () => {
   const toast = useToast();
+  const rootRef = useRef<HTMLDivElement>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+      mm.add('(prefers-reduced-motion: no-preference)', () => {
+        gsap.from('.gsap-patient-block', {
+          y: 22,
+          autoAlpha: 0,
+          stagger: 0.08,
+          duration: 0.5,
+          ease: 'power3.out',
+        });
+      });
+      return () => mm.revert();
+    },
+    { scope: rootRef }
+  );
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [profile, setProfile] = useState<PatientProfileData | null>(null);
   const [triageHistory, setTriageHistory] = useState<TriageHistoryItem[]>([]);
@@ -386,42 +408,43 @@ export const PatientDashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div ref={rootRef} className="space-y-8">
       {loadError && <ErrorState message={loadError} onRetry={loadData} retrying={loading} />}
 
-      {/* Hero Header */}
-      <div className="bg-gradient-to-r from-indigo-700 via-indigo-800 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+      {/* Aether Bio-Atelier Hero Observatory */}
+      <div className="gsap-patient-block bg-slate-950 rounded-3xl p-6 sm:p-8 text-[#F6F3EC] border-2 border-slate-900 shadow-[0_6px_0_0_#4338CA] relative overflow-hidden bg-obsidian-dots">
         <div className="max-w-3xl relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/30 border border-indigo-300/30 text-xs font-semibold mb-3">
-            <Activity className="w-3.5 h-3.5 text-indigo-300" />
-            Cổng Thông Tin Bệnh Nhân Điện Tử (Hospital Patient Portal)
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-teal-500/20 border border-teal-400/40 font-mono text-[11px] uppercase tracking-widest text-teal-300 font-bold mb-3">
+            <Activity className="w-3.5 h-3.5 text-teal-400" />
+            <span>BIO-CARE OBSERVATORY // HOSPITAL PATIENT PORTAL</span>
           </div>
-          <h1 className="text-3xl font-black tracking-tight">
-            Quản Lý Hồ Sơ Bệnh Án & Chăm Sóc Sức Khỏe Toàn Diện
+          <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-white">
+            Quản Lý Hồ Sơ Bệnh Án &amp;{' '}
+            <span className="font-serif italic font-normal text-teal-300">Chăm Sóc Sức Khỏe Toàn Diện</span>
           </h1>
-          <p className="mt-2 text-indigo-100 text-sm md:text-base leading-relaxed">
+          <p className="mt-2.5 text-slate-300 text-sm md:text-base leading-relaxed">
             Hệ thống Bệnh án Điện tử (EMR) chuẩn hóa Bộ Y Tế. Theo dõi kết quả xét nghiệm, lịch sử thăm khám, dấu hiệu sinh tồn và đơn thuốc ngoại trú minh bạch.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               to="/patient/triage"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-indigo-800 font-bold text-sm shadow-md hover:bg-indigo-50 transition"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FCFBF8] text-slate-900 font-display font-bold text-xs sm:text-sm shadow-[0_3px_0_0_#4338CA] hover:bg-teal-300 transition"
             >
-              <MessageSquare className="w-4 h-4" />
+              <MessageSquare className="w-4 h-4 text-teal-600" />
               Khám Sàng Lọc AI
             </Link>
             <Link
               to="/patient/doctors"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600/40 border border-white/20 text-white font-semibold text-sm hover:bg-indigo-600/60 transition"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-display font-bold text-xs sm:text-sm hover:border-teal-400 transition"
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-4 h-4 text-teal-300" />
               Đặt Lịch Bác Sĩ
             </Link>
             <Link
               to="/patient/documents"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600/40 border border-white/20 text-white font-semibold text-sm hover:bg-indigo-600/60 transition"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-display font-bold text-xs sm:text-sm hover:border-teal-400 transition"
             >
-              <UploadCloud className="w-4 h-4" />
+              <UploadCloud className="w-4 h-4 text-teal-300" />
               Quét Phiếu Xét Nghiệm
             </Link>
           </div>
@@ -429,7 +452,7 @@ export const PatientDashboard: React.FC = () => {
       </div>
 
       {actionError && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-sm flex items-center gap-2">
+        <div className="p-4 bg-rose-50 border-2 border-rose-300 rounded-2xl text-rose-800 text-sm flex items-center gap-2">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span>{actionError}</span>
         </div>
@@ -438,10 +461,10 @@ export const PatientDashboard: React.FC = () => {
 
       {/* Missing CCCD or Blood Group Clinical Alert */}
       {profile && (!profile.citizenId || !profile.bloodGroup) && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-sm flex items-start gap-3 shadow-xs">
+        <div className="gsap-patient-block p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-amber-900 text-sm flex items-start gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
           <div className="space-y-1">
-            <h5 className="font-bold">Hồ sơ định danh y tế chưa hoàn thiện</h5>
+            <h5 className="font-display font-bold">Hồ sơ định danh y tế chưa hoàn thiện</h5>
             <p className="text-xs text-amber-800 leading-relaxed">
               Bạn chưa cập nhật {!profile.citizenId ? 'Số CCCD (12 số)' : ''} {!profile.citizenId && !profile.bloodGroup ? 'và' : ''} {!profile.bloodGroup ? 'Nhóm máu' : ''}. Vui lòng nhấn nút <strong>"Cập Nhật Hồ Sơ Y Tế"</strong> bên dưới để hoàn thiện thông tin, phục vụ tra cứu bảo hiểm y tế và an toàn truyền máu cấp cứu.
             </p>
@@ -450,17 +473,17 @@ export const PatientDashboard: React.FC = () => {
       )}
 
       {/* PATIENT MEDICAL PASSPORT & EMR IDENTITY CARD */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="bg-slate-900 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white">
+      <div className="gsap-patient-block bg-[#FCFBF8] rounded-3xl border-2 border-slate-900 shadow-[0_5px_0_0_#12100E] overflow-hidden">
+        <div className="bg-slate-900 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white border-b-2 border-slate-900">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600/80 flex items-center justify-center font-bold text-white shadow-inner">
-              <Heart className="w-5 h-5 text-rose-300" />
+            <div className="w-10 h-10 rounded-xl bg-teal-600 flex items-center justify-center font-bold text-white shadow-[0_2px_0_0_#F6F3EC]">
+              <Heart className="w-5 h-5 text-white" />
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wider text-indigo-300 font-semibold">
-                Thẻ Bệnh Án Điện Tử & Căn Cước Y Tế (EMR Medical Passport)
+              <div className="font-mono text-[10px] uppercase tracking-widest text-teal-300 font-bold">
+                Thẻ Bệnh Án Điện Tử &amp; Căn Cước Y Tế (EMR Medical Passport)
               </div>
-              <div className="text-lg font-bold">
+              <div className="font-display text-lg font-bold">
                 Mã Bệnh Nhân: {profile?.patientCode ? <span className="font-mono text-emerald-400">{profile.patientCode}</span> : <span className="text-sm font-normal text-slate-300 italic">Chưa được cấp</span>}
               </div>
             </div>
@@ -470,7 +493,7 @@ export const PatientDashboard: React.FC = () => {
               setEditForm(profile || {});
               setIsEditProfileOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-700 hover:bg-indigo-600 text-xs font-semibold text-white transition cursor-pointer self-start sm:self-auto border border-indigo-500"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FCFBF8] hover:bg-teal-300 font-display text-xs font-bold text-slate-900 transition cursor-pointer self-start sm:self-auto shadow-[0_2px_0_0_#4338CA]"
           >
             <Edit3 className="w-3.5 h-3.5" />
             Cập Nhật Hồ Sơ Y Tế

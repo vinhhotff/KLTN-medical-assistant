@@ -1,7 +1,11 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Calendar, BadgeCheck, CheckCircle2, Building2, Star, Filter, Sparkles, Loader2, Zap, PowerOff, Wrench } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { api } from '../../services/api';
+
+gsap.registerPlugin(useGSAP);
 import { useAuthStore } from '../../store/useAuthStore';
 import { Pagination } from '../../components/common/Pagination';
 import { DoctorReviewsListModal } from '../../components/common/DoctorReviewsListModal';
@@ -54,6 +58,24 @@ const normalizeDoctor = (d: DoctorDetail): DoctorDetail => ({ ...d, id: d.id || 
 export const DoctorSearchPage: React.FC = () => {
   const { user } = useAuthStore();
   const toast = useToast();
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+      mm.add('(prefers-reduced-motion: no-preference)', () => {
+        gsap.from('.gsap-doc-search', {
+          y: 20,
+          autoAlpha: 0,
+          stagger: 0.08,
+          duration: 0.48,
+          ease: 'power3.out',
+        });
+      });
+      return () => mm.revert();
+    },
+    { scope: rootRef }
+  );
   const [searchParams] = useSearchParams();
   const queryDoctorId = searchParams.get('doctorId');
   const querySpecialty = searchParams.get('specialty');
@@ -227,9 +249,14 @@ export const DoctorSearchPage: React.FC = () => {
   }, [filteredDoctors, page, pageSize]);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tìm & Đặt Lịch Bác Sĩ</h1>
+    <div ref={rootRef} className="max-w-5xl mx-auto space-y-6">
+      <div className="gsap-doc-search border-b-2 border-dashed border-slate-300 pb-5">
+        <div className="font-mono text-[11px] uppercase tracking-widest text-teal-600 font-bold mb-1">
+          MODULE 03 // MẠNG LƯỚI CHUYÊN GIA
+        </div>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+          Tìm &amp; Đặt Lịch <span className="font-serif italic font-normal text-teal-600">Bác Sĩ</span>
+        </h1>
         <p className="text-slate-600 text-sm mt-1">
           Tìm bác sĩ theo tên, chuyên khoa hoặc mô tả triệu chứng — hệ thống sẽ gợi ý bác sĩ phù hợp nhất.
         </p>
@@ -237,7 +264,7 @@ export const DoctorSearchPage: React.FC = () => {
 
       {/* AI mode switch: affects the WHOLE system → admin, or demo tools for the defense */}
       {canToggleAiMode && (
-        <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-sm border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="gsap-doc-search bg-slate-950 bg-obsidian-dots text-white rounded-2xl p-4 shadow-[0_4px_0_0_#4338CA] border-2 border-slate-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className={`p-2.5 rounded-xl flex-shrink-0 ${aiModeStatus?.forcedOfflineSimulation ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
               <Wrench className="w-5 h-5" />
@@ -277,8 +304,8 @@ export const DoctorSearchPage: React.FC = () => {
       )}
 
       {/* Filter & Search Toolbar */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <label className="md:col-span-2 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3 focus-within:ring-2 focus-within:ring-teal-500">
+      <div className="gsap-doc-search grid grid-cols-1 md:grid-cols-3 gap-3">
+        <label className="md:col-span-2 bg-[#FCFBF8] p-3.5 rounded-2xl border-2 border-slate-900 shadow-[0_3px_0_0_#12100E] flex items-center gap-3 focus-within:ring-2 focus-within:ring-teal-500">
           {searchingSemantic ? (
             <Loader2 className="w-5 h-5 text-teal-600 animate-spin flex-shrink-0" aria-hidden />
           ) : semanticResults !== null ? (
@@ -301,7 +328,7 @@ export const DoctorSearchPage: React.FC = () => {
           )}
         </label>
 
-        <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-2">
+        <div className="bg-[#FCFBF8] p-2 rounded-2xl border-2 border-slate-900 shadow-[0_3px_0_0_#12100E] flex items-center gap-2">
           <Filter className="w-4 h-4 text-teal-600 ml-2 flex-shrink-0" aria-hidden />
           <select
             aria-label="Lọc theo chuyên khoa"
@@ -338,10 +365,10 @@ export const DoctorSearchPage: React.FC = () => {
             return (
               <div
                 key={doc.id}
-                className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs hover:border-teal-300 hover:shadow-md transition flex flex-col md:flex-row md:items-center justify-between gap-5"
+                className="bg-[#FCFBF8] rounded-3xl border-2 border-slate-900 p-5 sm:p-6 shadow-[0_4px_0_0_#12100E] hover:-translate-y-0.5 hover:shadow-[0_6px_0_0_#4338CA] transition flex flex-col md:flex-row md:items-center justify-between gap-5"
               >
                 <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-teal-50 border border-teal-100 text-teal-700 flex items-center justify-center font-bold text-xl flex-shrink-0" aria-hidden>
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-900 text-teal-300 shadow-[0_2px_0_0_#4338CA] flex items-center justify-center font-display font-bold text-xl flex-shrink-0" aria-hidden>
                     {doc.fullName.trim().split(' ').pop()?.charAt(0)}
                   </div>
                   <div className="space-y-1.5 min-w-0">
@@ -349,7 +376,7 @@ export const DoctorSearchPage: React.FC = () => {
                       {doc.academicTitle && (
                         <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">{doc.academicTitle}</span>
                       )}
-                      <h2 className="text-base font-bold text-slate-900">{doc.fullName}</h2>
+                      <h2 className="font-display text-base font-bold text-slate-900">{doc.fullName}</h2>
                       {doc.similarityScore != null && (
                         <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200 flex items-center gap-1">
                           <Sparkles className="w-3 h-3" />

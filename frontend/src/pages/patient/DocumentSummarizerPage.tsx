@@ -727,14 +727,17 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-teal-600 text-white rounded-xl shadow-xs">
+          <div className="p-3 bg-slate-900 text-teal-300 rounded-2xl shadow-[0_3px_0_0_#4338CA]">
             <UploadCloud className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Đọc Kết Quả Xét Nghiệm & Gợi Ý Bác Sĩ
+            <div className="font-mono text-[11px] uppercase tracking-widest text-teal-600 font-bold">
+              MODULE 04 // VISION OCR &amp; SINH HÓA
+            </div>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+              Đọc Kết Quả Xét Nghiệm &amp; <span className="font-serif italic font-normal text-teal-600">Gợi Ý Bác Sĩ</span>
             </h1>
-            <p className="text-slate-500 text-sm mt-0.5">
+            <p className="text-slate-600 text-sm mt-0.5">
               Tải lên phiếu xét nghiệm, đơn thuốc hoặc bệnh án (PDF/ảnh). Hệ thống giải thích các chỉ số bất thường bằng lời dễ hiểu và gợi ý bác sĩ chuyên khoa phù hợp.
             </p>
           </div>
@@ -748,7 +751,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
               <span>Hội Viên MediPass VIP</span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-full text-xs font-semibold shadow-xs">
+            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-[#FCFBF8] border-2 border-slate-900 text-slate-800 rounded-xl font-mono text-xs font-bold shadow-[0_2px_0_0_#12100E]">
               <Zap className="w-4 h-4 text-teal-600" />
               <span className="inline-flex items-center gap-1" data-testid="quota-badge">
                 Lượt quét:{' '}
@@ -793,12 +796,12 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
             handleFilesSelected(Array.from(e.dataTransfer.files));
           }
         }}
-        className={`p-5 sm:p-8 rounded-3xl border-2 border-dashed transition text-center space-y-4 shadow-xs ${
+        className={`p-5 sm:p-8 rounded-3xl border-2 border-dashed transition text-center space-y-4 ${
           analyzing
-            ? 'bg-slate-50 border-slate-200 opacity-80'
+            ? 'bg-[#EDE8DF] border-slate-400 opacity-80'
             : isDragging
-            ? 'bg-teal-50/70 border-teal-500 ring-4 ring-teal-500/20'
-            : 'bg-white border-slate-300 hover:border-teal-500'
+            ? 'bg-teal-50/70 border-teal-600 ring-4 ring-teal-500/20'
+            : 'bg-[#FCFBF8] border-slate-900 hover:bg-[#F6F3EC]'
         }`}
       >
         <UploadCloud
@@ -807,7 +810,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
           }`}
         />
         <div>
-          <p className="text-base font-bold text-slate-800">
+          <p className="font-display text-base font-bold text-slate-900">
             Kéo thả tệp PDF và Ảnh phiếu xét nghiệm vào đây hoặc bấm để chọn tệp
           </p>
           <p className="text-xs text-slate-400 mt-1">
