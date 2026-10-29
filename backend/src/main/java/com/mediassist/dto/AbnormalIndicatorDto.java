@@ -9,6 +9,11 @@ public class AbnormalIndicatorDto {
     private String status; // ELEVATED, NORMAL, LOW
     private String clinicalSignificance;
 
+    // Evidence-grounding fields (LOINC / QĐ 3280/BYT)
+    private String loincCode;           // International LOINC code (e.g., "2345-7")
+    private String bytReferenceRange;   // MOH Vietnam standard ref range (e.g., "3.9 - 6.4 mmol/L")
+    private String scientificBasis;     // Citation trail (e.g., "QĐ 3280/QĐ-BYT, LOINC 2345-7")
+
     public AbnormalIndicatorDto() {}
 
     public AbnormalIndicatorDto(String name, String value, String unit, String referenceRange, String status, String clinicalSignificance) {
@@ -37,4 +42,13 @@ public class AbnormalIndicatorDto {
 
     public String getClinicalSignificance() { return clinicalSignificance; }
     public void setClinicalSignificance(String clinicalSignificance) { this.clinicalSignificance = clinicalSignificance; }
+
+    public String getLoincCode() { return loincCode; }
+    public void setLoincCode(String loincCode) { this.loincCode = loincCode; }
+
+    public String getBytReferenceRange() { return bytReferenceRange; }
+    public void setBytReferenceRange(String bytReferenceRange) { this.bytReferenceRange = bytReferenceRange; }
+
+    public String getScientificBasis() { return scientificBasis; }
+    public void setScientificBasis(String scientificBasis) { this.scientificBasis = scientificBasis; }
 }

@@ -7,6 +7,7 @@ import com.mediassist.dto.DoctorMatchDto;
 import com.mediassist.dto.DocumentAnalysisResponse;
 import com.mediassist.dto.PurchaseQuotaRequest;
 import com.mediassist.dto.UserQuotaDto;
+import com.mediassist.dto.clinical.LabIndicatorDto;
 import com.mediassist.model.entity.DocumentAnalysis;
 import com.mediassist.model.entity.MedicalDocument;
 import com.mediassist.model.entity.User;
@@ -41,6 +42,7 @@ public class MedicalDocumentAnalysisService {
     private final StorageService storageService;
     private final ClinicalRagService clinicalRagService;
     private final SecurityRateLimiterService rateLimiterService;
+    private final ClinicalOntologyService clinicalOntologyService;
     private com.mediassist.service.AiUsageAnalyticsService aiUsageAnalyticsService;
 
     @Autowired(required = false)
@@ -61,7 +63,8 @@ public class MedicalDocumentAnalysisService {
                                           MedicalDocumentValidator medicalDocumentValidator,
                                           StorageService storageService,
                                           ClinicalRagService clinicalRagService,
-                                          SecurityRateLimiterService rateLimiterService) {
+                                          SecurityRateLimiterService rateLimiterService,
+                                          ClinicalOntologyService clinicalOntologyService) {
         this.pdfExtractionService = pdfExtractionService;
         this.doctorSemanticSearchService = doctorSemanticSearchService;
         this.medicalDocumentRepository = medicalDocumentRepository;
@@ -72,6 +75,7 @@ public class MedicalDocumentAnalysisService {
         this.storageService = storageService;
         this.clinicalRagService = clinicalRagService;
         this.rateLimiterService = rateLimiterService;
+        this.clinicalOntologyService = clinicalOntologyService;
     }
 
     public MedicalDocumentAnalysisService(PdfExtractionService pdfExtractionService,
@@ -85,7 +89,7 @@ public class MedicalDocumentAnalysisService {
                                           ClinicalRagService clinicalRagService) {
         this(pdfExtractionService, doctorSemanticSearchService, medicalDocumentRepository,
              documentAnalysisRepository, userRepository, objectMapper, medicalDocumentValidator,
-             storageService, clinicalRagService, null);
+             storageService, clinicalRagService, null, null);
     }
 
     private final java.util.concurrent.Semaphore ocrSemaphore = new java.util.concurrent.Semaphore(5, true);
@@ -727,6 +731,9 @@ public class MedicalDocumentAnalysisService {
             // 7. Comprehensive Lab Scanning across all files
             List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName, patientGender);
 
+            // 7b. Evidence-Grounding: Match indicators against LOINC/BYT ontology (QĐ 3280/QĐ-BYT)
+            parsedIndicators = enrichWithOntology(parsedIndicators);
+
             // 8. Smart Clinical Windowing for Verbose Documents
             String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
 
@@ -1173,6 +1180,9 @@ public class MedicalDocumentAnalysisService {
 
         // 5. Comprehensive Lab Scanning across all files
         List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName, patientGender);
+
+        // 5b. Evidence-Grounding: Match indicators against LOINC/BYT ontology (QĐ 3280/QĐ-BYT)
+        parsedIndicators = enrichWithOntology(parsedIndicators);
 
         // 6. Smart Clinical Windowing
         String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
@@ -1663,6 +1673,96 @@ public class MedicalDocumentAnalysisService {
         return list;
     }
 
+    /**
+     * Evidence-Grounding Enrichment: Matches each parsed indicator against the LOINC/BYT ontology
+     * (QĐ 3280/QĐ-BYT) to replace OCR-derived reference ranges with scientifically validated
+     * standard ranges, attach LOINC codes, clinical relevance, and re-verify ELEVATED/LOW/NORMAL
+     * status using canonical Ministry of Health reference bounds.
+     *
+     * This ensures all downstream analysis (LLM prompt, clinical summary, doctor matching) is
+     * grounded in peer-reviewed medical standards rather than potentially blurry/incorrect OCR data.
+     */
+    private List<AbnormalIndicatorDto> enrichWithOntology(List<AbnormalIndicatorDto> indicators) {
+        if (indicators == null || indicators.isEmpty() || clinicalOntologyService == null) {
+            return indicators;
+        }
+
+        int enrichedCount = 0;
+        for (AbnormalIndicatorDto ind : indicators) {
+            Optional<LabIndicatorDto> match = clinicalOntologyService.fuzzyMatchIndicator(ind.getName());
+            if (match.isEmpty()) continue;
+
+            LabIndicatorDto loinc = match.get();
+            enrichedCount++;
+
+            // 1. Attach LOINC code and scientific citation
+            ind.setLoincCode(loinc.getLoincCode());
+            ind.setScientificBasis(String.format("QĐ 3280/QĐ-BYT (Bộ Y Tế Việt Nam), LOINC %s v2.76 (Regenstrief Institute)", loinc.getLoincCode()));
+
+            // 2. Override reference range with BYT standard (more reliable than OCR-extracted range)
+            String bytRef = loinc.getRefRangeText();
+            if (bytRef != null && !bytRef.isBlank()) {
+                ind.setBytReferenceRange(String.format("%s %s", bytRef, loinc.getUnit()));
+                // Keep original OCR range in referenceRange for traceability, but note BYT standard
+                if (ind.getReferenceRange() == null || ind.getReferenceRange().equals("-") || ind.getReferenceRange().isBlank()) {
+                    ind.setReferenceRange(bytRef);
+                }
+            }
+
+            // 3. Re-verify status using canonical BYT min/max bounds (overrides OCR-derived status)
+            Double valNum = null;
+            try { valNum = Double.parseDouble(ind.getValue().replace(',', '.')); } catch (Exception ignored) {}
+
+            if (valNum != null && loinc.getRefRangeMin() != null && loinc.getRefRangeMax() != null) {
+                String recalculatedStatus;
+                if (valNum > loinc.getRefRangeMax()) {
+                    recalculatedStatus = "ELEVATED";
+                } else if (valNum < loinc.getRefRangeMin()) {
+                    recalculatedStatus = "LOW";
+                } else {
+                    recalculatedStatus = "NORMAL";
+                }
+
+                // Log if BYT standard disagrees with OCR-derived status
+                if (!recalculatedStatus.equals(ind.getStatus())) {
+                    log.info("🔬 [LOINC CORRECTION] {} ({}) status corrected: {} → {} (BYT ref: {} - {} {})",
+                            ind.getName(), loinc.getLoincCode(), ind.getStatus(), recalculatedStatus,
+                            loinc.getRefRangeMin(), loinc.getRefRangeMax(), loinc.getUnit());
+                }
+                ind.setStatus(recalculatedStatus);
+            }
+
+            // 4. Enrich clinical significance with evidence-based explanation
+            String evidenceSignificance;
+            if ("ELEVATED".equals(ind.getStatus())) {
+                evidenceSignificance = String.format(
+                        "Chỉ số %s (%s) đo được %s %s, VƯỢT NGƯỠNG tham chiếu chuẩn Bộ Y Tế (%s). " +
+                        "Ý nghĩa lâm sàng: %s. [Cơ sở: QĐ 3280/QĐ-BYT, mã LOINC %s]",
+                        loinc.getNameVi(), ind.getName(), ind.getValue(), ind.getUnit(),
+                        bytRef, loinc.getClinicalRelevance(), loinc.getLoincCode());
+            } else if ("LOW".equals(ind.getStatus())) {
+                evidenceSignificance = String.format(
+                        "Chỉ số %s (%s) đo được %s %s, THẤP HƠN ngưỡng tham chiếu chuẩn Bộ Y Tế (%s). " +
+                        "Ý nghĩa lâm sàng: %s. [Cơ sở: QĐ 3280/QĐ-BYT, mã LOINC %s]",
+                        loinc.getNameVi(), ind.getName(), ind.getValue(), ind.getUnit(),
+                        bytRef, loinc.getClinicalRelevance(), loinc.getLoincCode());
+            } else {
+                evidenceSignificance = String.format(
+                        "Chỉ số %s (%s) đo được %s %s, nằm trong giới hạn an toàn theo chuẩn Bộ Y Tế (%s). " +
+                        "[Cơ sở: QĐ 3280/QĐ-BYT, mã LOINC %s]",
+                        loinc.getNameVi(), ind.getName(), ind.getValue(), ind.getUnit(),
+                        bytRef, loinc.getLoincCode());
+            }
+            ind.setClinicalSignificance(evidenceSignificance);
+        }
+
+        if (enrichedCount > 0) {
+            log.info("🧬 [LOINC ENRICHED] Matched {}/{} indicators against QĐ 3280/QĐ-BYT ontology with LOINC codes",
+                    enrichedCount, indicators.size());
+        }
+        return indicators;
+    }
+
     private String calculateStatus(Double valNum, String refRange, Double defaultLow, Double defaultHigh, String line) {
         return calculateStatus(valNum, refRange, defaultLow, defaultHigh, line, null);
     }
@@ -2081,6 +2181,7 @@ public class MedicalDocumentAnalysisService {
         String patientGender = rawMeta.get("patientGender");
 
         List<AbnormalIndicatorDto> parsedIndicators = parseIndicators(extractedText, fileName, patientGender);
+        parsedIndicators = enrichWithOntology(parsedIndicators);
         String clinicalContext = distillClinicalContext(extractedText, fileName, parsedIndicators);
 
         String preRagQuery = buildInitialDoctorQuery(parsedIndicators, clinicalContext);

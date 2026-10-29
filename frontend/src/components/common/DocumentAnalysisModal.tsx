@@ -34,12 +34,17 @@ import {
 } from '../../services/documentFileService';
 
 export interface AbnormalIndicator {
-  indicatorName: string;
+  name?: string;
+  indicatorName?: string;
   value: string | number;
   unit: string;
   referenceRange: string;
-  status: 'NORMAL' | 'HIGH' | 'LOW';
-  clinicalMeaning: string;
+  status: 'NORMAL' | 'HIGH' | 'LOW' | 'ELEVATED';
+  clinicalMeaning?: string;
+  clinicalSignificance?: string;
+  loincCode?: string;
+  bytReferenceRange?: string;
+  scientificBasis?: string;
 }
 
 export interface DocumentAnalysisDetail {
@@ -451,9 +456,11 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {data.indicators.map((ind, idx) => {
-                          const isHigh = ind.status === 'HIGH';
+                          const isHigh = ind.status === 'HIGH' || ind.status === 'ELEVATED';
                           const isLow = ind.status === 'LOW';
                           const isAbnormal = isHigh || isLow;
+                          const displayName = ind.indicatorName || ind.name || 'Chỉ số xét nghiệm';
+                          const displayMeaning = ind.clinicalMeaning || ind.clinicalSignificance;
 
                           return (
                             <tr
@@ -467,7 +474,12 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
                               }`}
                             >
                               <td className="py-2.5 px-3 font-bold text-slate-900">
-                                {ind.indicatorName}
+                                <div>{displayName}</div>
+                                {ind.loincCode && (
+                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono bg-indigo-50 text-indigo-700 border border-indigo-200 mt-0.5">
+                                    LOINC: {ind.loincCode}
+                                  </span>
+                                )}
                               </td>
                               <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
                                 <span className={isAbnormal ? (isHigh ? 'text-rose-700 text-sm' : 'text-amber-700 text-sm') : 'text-slate-800'}>
@@ -475,8 +487,13 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
                                 </span>{' '}
                                 <span className="text-[10px] text-slate-400 font-normal">{ind.unit}</span>
                               </td>
-                              <td className="py-2.5 px-3 font-mono text-slate-500">
-                                {ind.referenceRange || 'Chưa định chuẩn'}
+                              <td className="py-2.5 px-3 font-mono text-slate-500 text-xs">
+                                <div>{ind.referenceRange || 'Chưa định chuẩn'}</div>
+                                {ind.bytReferenceRange && ind.bytReferenceRange !== ind.referenceRange && (
+                                  <div className="text-[10px] text-emerald-700 font-sans font-medium mt-0.5">
+                                    BYT: {ind.bytReferenceRange}
+                                  </div>
+                                )}
                               </td>
                               <td className="py-2.5 px-3 text-center">
                                 {isHigh && (
@@ -496,7 +513,12 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
                                 )}
                               </td>
                               <td className="py-2.5 px-3 text-slate-600 text-[11px] max-w-xs">
-                                {ind.clinicalMeaning || 'Trong giới hạn sinh lý an toàn.'}
+                                <div>{displayMeaning || 'Trong giới hạn sinh lý an toàn.'}</div>
+                                {ind.scientificBasis && (
+                                  <div className="text-[10px] text-teal-800 bg-teal-50/70 px-1.5 py-0.5 rounded border border-teal-200/60 mt-1 inline-block">
+                                    🔬 {ind.scientificBasis}
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           );

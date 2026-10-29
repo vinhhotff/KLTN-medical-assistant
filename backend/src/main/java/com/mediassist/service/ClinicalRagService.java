@@ -1,11 +1,13 @@
 package com.mediassist.service;
 import com.mediassist.ai.AiModelRouter;
 import com.mediassist.ai.ClinicalAiResult;
+import com.mediassist.dto.AbnormalIndicatorDto;
 import com.mediassist.dto.DoctorMatchDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,12 +36,18 @@ public class ClinicalRagService {
     }
 
     public ClinicalAiResult performDocumentRagAnalysis(String extractedText, String fileName, List<DoctorMatchDto> candidateDoctors) {
-        log.info("Assembling Clinical RAG Prompt for document '{}' with {} candidate doctors", fileName, candidateDoctors != null ? candidateDoctors.size() : 0);
+        return performDocumentRagAnalysis(extractedText, fileName, candidateDoctors, Collections.emptyList());
+    }
+
+    public ClinicalAiResult performDocumentRagAnalysis(String extractedText, String fileName, List<DoctorMatchDto> candidateDoctors, List<AbnormalIndicatorDto> verifiedIndicators) {
+        log.info("Assembling Clinical RAG Prompt for document '{}' with {} candidate doctors, {} verified indicators",
+                fileName, candidateDoctors != null ? candidateDoctors.size() : 0, verifiedIndicators != null ? verifiedIndicators.size() : 0);
 
         String systemPrompt = """
-                Bạn là Bác sĩ Trưởng Khoa Cố Vấn Y Khoa cấp cao của nền tảng MediAssist-AI.
-                Nhiệm vụ của bạn là đọc và phân tích chuyên sâu hồ sơ y tế / phiếu kết quả xét nghiệm của bệnh nhân bằng tư duy suy luận y khoa thực thụ (Clinical Reasoning & Differential Diagnosis).
-                
+                Bạn là Cố Vấn Hỗ Trợ Ra Quyết Định Tiền Lâm Sàng (Clinical Decision Support - CDSS) cấp cao của nền tảng MediAssist-AI.
+                Nhiệm vụ của bạn là đọc và phân tích chuyên sâu hồ sơ y tế / phiếu kết quả xét nghiệm của bệnh nhân bằng phương pháp Y học Chứng cứ (Evidence-based Medicine), Chẩn đoán Phân biệt định hướng (Differential Reasoning - DDx) và đối soát chuẩn WHO LOINC (Quyết định 3280/QĐ-BYT của Bộ Y Tế).
+                LƯU Ý PHÁP LÝ & Y ĐỨC: Hệ thống KHÔNG đưa ra chẩn đoán độc nhất xác định thay thế Bác sĩ lâm sàng (tuân thủ Luật Khám bệnh, chữa bệnh số 15/2023/QH15). Mục tiêu là giải nghĩa rõ ràng các chỉ số xét nghiệm, phân luồng đúng chuyên khoa và ghép nối bác sĩ phù hợp nhất.
+
                 QUY TẮC SUY LUẬN LÂM SÀNG & BÓC TÁCH DỮ LIỆU:
                 0. BÓC TÁCH HÀNH CHÍNH & CƠ SỞ Y TẾ (metadata):
                    - hospitalName: Tên chính thức của bệnh viện / trung tâm y tế / phòng khám in trên phiếu (ví dụ: Bệnh viện Chợ Rẫy, Bệnh viện Bạch Mai, Trung tâm Xét nghiệm Medlatec, Bệnh viện ĐH Y Dược TP.HCM, v.v.). Tuyệt đối không bịa đặt tên bệnh viện giả. Nếu tài liệu không ghi, để null.
@@ -51,15 +59,16 @@ public class ClinicalRagService {
                    - patientAge: Tuổi hoặc năm sinh của người bệnh.
                    - patientGender: Giới tính người bệnh ("Nam" hoặc "Nữ").
                    - deviceModel: Thiết bị xét nghiệm tự động (nếu có ghi trên phiếu, ví dụ: Cobas 8000, Sysmex XN-1000, AU5800...).
-                
+
                 1. Đọc và bóc tách TOÀN BỘ các chỉ số xét nghiệm cận lâm sàng xuất hiện trong tài liệu (cả bình thường và bất thường).
+                   ĐẶC BIỆT: BẮT BUỘC ĐỐI CHIẾU VÀ SỬ DỤNG BẢNG ĐỐI SOÁT Y HỌC CHỨNG CỨ CHUẨN BỘ Y TẾ (QĐ 3280/QĐ-BYT & LOINC) ĐÃ ĐƯỢC CUNG CẤP TRONG DỮ LIỆU ĐẦU VÀO để gán đúng khoảng tham chiếu chuẩn và đánh giá tình trạng "ELEVATED" / "LOW" / "NORMAL". TUYỆT ĐỐI KHÔNG TỰ BỊA KHOẢNG THAM CHIẾU SAI LỆCH VỚI CHUẨN BỘ Y TẾ.
                    Mỗi chỉ số bao gồm:
                    - name: Tên đầy đủ của xét nghiệm (ví dụ: TSH, FT4, Creatinine, eGFR, Glucose, AST, ALT, Acid Uric, v.v.).
                    - value: Giá trị số hoặc định tính đo được.
                    - unit: Đơn vị đo lường (mmol/L, U/L, µmol/L, ng/mL, pg/mL, v.v.).
-                   - referenceRange: Khoảng tham chiếu chuẩn ghi trong tài liệu hoặc theo chuẩn y khoa.
+                   - referenceRange: Khoảng tham chiếu chuẩn (ưu tiên theo bảng chuẩn Bộ Y Tế / LOINC nếu có).
                    - status: Đánh giá lâm sàng ("ELEVATED" nếu vượt ngưỡng cao, "LOW" nếu dưới ngưỡng thấp, "NORMAL" nếu trong giới hạn an toàn).
-                   - clinicalSignificance: Giải thích ý nghĩa y khoa của giá trị này đối với cơ thể và gợi ý bệnh lý liên quan.
+                   - clinicalSignificance: Giải thích ý nghĩa y khoa dựa trên chứng cứ khoa học thực tế, cơ chế sinh bệnh lý và mức độ ảnh hưởng cơ quan.
                 2. Tóm tắt lâm sàng (clinicalSummary): Tổng hợp bệnh cảnh y khoa cô đọng, nêu rõ các phát hiện bất thường chủ yếu và mức độ tổn thương cơ quan.
                 3. Giải thích bình dân (plainLanguageExplanation): Lời giải thích ân cần, dễ hiểu bằng tiếng Việt cho người bệnh không có chuyên môn y tế.
                 4. Phân luồng chuyên khoa (recommendedSpecialtySlug & recommendedSpecialtyName): Suy luận chuyên khoa phù hợp nhất từ 12 chuyên khoa bệnh viện sau:
@@ -142,11 +151,31 @@ public class ClinicalRagService {
                     piiResult.getPiiEntitiesCount(), piiResult.getMaskedTypes(), fileName);
         }
 
+        // Build Scientific Evidence Grounding Table (QĐ 3280/QĐ-BYT & LOINC v2.76)
+        StringBuilder evidenceTable = new StringBuilder();
+        if (verifiedIndicators != null && !verifiedIndicators.isEmpty()) {
+            boolean hasEvidence = false;
+            for (AbnormalIndicatorDto ind : verifiedIndicators) {
+                if (ind.getLoincCode() != null && !ind.getLoincCode().isBlank()) {
+                    if (!hasEvidence) {
+                        evidenceTable.append("\n\n[BẢNG ĐỐI SOÁT Y HỌC CHỨNG CỨ CHUẨN BỘ Y TẾ (QĐ 3280/QĐ-BYT) & LOINC v2.76]:\n");
+                        evidenceTable.append("Các chỉ số sau đây đã được hệ thống đối chiếu chính xác với Ngưỡng Tham Chiếu Sinh Học Chuẩn Quốc Gia:\n");
+                        hasEvidence = true;
+                    }
+                    evidenceTable.append(String.format("• %s [LOINC: %s]: Giá trị đo = %s %s | Ngưỡng chuẩn BYT: %s | Đánh giá: %s\n  -> Định hướng lâm sàng: %s\n",
+                            ind.getName(), ind.getLoincCode(), ind.getValue(), ind.getUnit(),
+                            ind.getBytReferenceRange() != null ? ind.getBytReferenceRange() : ind.getReferenceRange(),
+                            ind.getStatus(), ind.getClinicalSignificance()));
+                }
+            }
+        }
+
+        String evidenceSection = evidenceTable.toString();
         String docsSection = docsContext.length() > 0
                 ? String.format("\n\n[BAC SI UNG VIEN PGVECTOR]:%s", docsContext.toString())
                 : "";
-        String userPrompt = String.format("[TAI LIEU]: %s\n\n[NOI DUNG XET NGHIEM (DA KHU DINH DANH PII)]:\n%s%s\n\nHay phan tich va tra ve JSON.",
-                fileName, (safeExtractedText != null && !safeExtractedText.isBlank()) ? safeExtractedText : "(Chua co noi dung)", docsSection);
+        String userPrompt = String.format("[TAI LIEU]: %s%s\n\n[NOI DUNG XET NGHIEM (DA KHU DINH DANH PII)]:\n%s%s\n\nHay phan tich va tra ve JSON.",
+                fileName, evidenceSection, (safeExtractedText != null && !safeExtractedText.isBlank()) ? safeExtractedText : "(Chua co noi dung)", docsSection);
 
         ClinicalAiResult result = aiModelRouter.routeClinicalAnalysis(systemPrompt, userPrompt);
 

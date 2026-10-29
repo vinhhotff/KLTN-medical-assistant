@@ -119,4 +119,54 @@ class ClinicalOntologyServiceTest {
         Optional<LabIndicatorDto> resNotFound = ontologyService.getLabIndicatorByLoinc("99999-9");
         assertTrue(resNotFound.isEmpty());
     }
+
+    @Test
+    @DisplayName("Should fuzzy match laboratory indicators by OCR name, alias, and substring")
+    void testFuzzyMatchIndicator_Variations() {
+        // 1. Direct name match (Vietnamese / ID)
+        Optional<LabIndicatorDto> exactMatch = ontologyService.fuzzyMatchIndicator("Glucose máu lúc đói");
+        assertTrue(exactMatch.isPresent());
+        assertEquals("2345-7", exactMatch.get().getLoincCode());
+
+        // 2. Alias match (e.g. OCR reports "men gan AST" or "SGOT")
+        Optional<LabIndicatorDto> aliasAst = ontologyService.fuzzyMatchIndicator("Men gan AST");
+        assertTrue(aliasAst.isPresent());
+        assertEquals("AST_GOT", aliasAst.get().getId());
+        assertEquals("1920-8", aliasAst.get().getLoincCode());
+
+        Optional<LabIndicatorDto> aliasSgpt = ontologyService.fuzzyMatchIndicator("SGPT");
+        assertTrue(aliasSgpt.isPresent());
+        assertEquals("ALT_GPT", aliasSgpt.get().getId());
+
+        // 3. Common Vietnamese alias: "Đường huyết", "Axit Uric", "Độ lọc cầu thận"
+        Optional<LabIndicatorDto> aliasDuongHuyet = ontologyService.fuzzyMatchIndicator("Đường huyết mao mạch");
+        assertTrue(aliasDuongHuyet.isPresent());
+        assertEquals("GLUCOSE_FASTING", aliasDuongHuyet.get().getId());
+
+        Optional<LabIndicatorDto> aliasUric = ontologyService.fuzzyMatchIndicator("Acid uric máu");
+        assertTrue(aliasUric.isPresent());
+        assertEquals("URIC_ACID", aliasUric.get().getId());
+
+        // 4. Substring containment
+        Optional<LabIndicatorDto> subMatch = ontologyService.fuzzyMatchIndicator("Creatinine huyết thanh (Serum)");
+        assertTrue(subMatch.isPresent());
+        assertEquals("2160-0", subMatch.get().getLoincCode());
+
+        // 5. Unrecognized indicator
+        Optional<LabIndicatorDto> unknown = ontologyService.fuzzyMatchIndicator("Chỉ số không xác định XYZ123");
+        assertTrue(unknown.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should retrieve lab indicator by internal ID and bulk list")
+    void testGetLabIndicatorById_AndGetAll() {
+        Optional<LabIndicatorDto> byId = ontologyService.getLabIndicatorById("HBA1C");
+        assertTrue(byId.isPresent());
+        assertEquals("4548-4", byId.get().getLoincCode());
+        assertEquals("Nội tiết - Chuyển hóa", byId.get().getCategory());
+
+        List<LabIndicatorDto> all = ontologyService.getAllLabIndicators();
+        assertNotNull(all);
+        assertEquals(23, all.size());
+    }
 }

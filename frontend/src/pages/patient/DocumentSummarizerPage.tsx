@@ -105,6 +105,9 @@ interface AbnormalIndicator {
   referenceRange: string;
   status: 'ELEVATED' | 'NORMAL' | 'LOW';
   clinicalSignificance: string;
+  loincCode?: string;
+  bytReferenceRange?: string;
+  scientificBasis?: string;
 }
 
 interface DoctorMatch {
@@ -1688,11 +1691,27 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                         <tbody className="divide-y divide-slate-100">
                           {displayIndicators.map((ind, idx) => (
                             <tr key={idx} className="hover:bg-slate-50/60 transition">
-                              <td className="py-3 px-4 font-bold text-slate-800">{ind.name}</td>
+                              <td className="py-3 px-4 text-slate-800">
+                                <div className="font-bold">{ind.name}</div>
+                                {ind.loincCode && (
+                                  <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Mã chuẩn hóa quốc tế LOINC">
+                                      LOINC: {ind.loincCode}
+                                    </span>
+                                  </div>
+                                )}
+                              </td>
                               <td className="py-3 px-4 font-mono font-bold text-indigo-700">
                                 {ind.value} {ind.unit}
                               </td>
-                              <td className="py-3 px-4 text-slate-500">{ind.referenceRange}</td>
+                              <td className="py-3 px-4 text-slate-500">
+                                <div>{ind.referenceRange}</div>
+                                {ind.bytReferenceRange && ind.bytReferenceRange !== ind.referenceRange && (
+                                  <div className="mt-0.5 text-[10px] font-medium text-emerald-700 flex items-center gap-1">
+                                    <span className="font-semibold">Chuẩn BYT:</span> {ind.bytReferenceRange}
+                                  </div>
+                                )}
+                              </td>
                               <td className="py-3 px-4">
                                 <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
                                   ind.status === 'ELEVATED' || (ind.status as string) === 'HIGH'
@@ -1705,7 +1724,13 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                                 </span>
                               </td>
                               <td className="py-3 px-4 text-slate-600 text-[11px] leading-relaxed">
-                                {ind.clinicalSignificance}
+                                <div>{ind.clinicalSignificance}</div>
+                                {ind.scientificBasis && (
+                                  <div className="mt-1 text-[10px] text-teal-800 bg-teal-50/80 px-2 py-0.5 rounded border border-teal-200/60 inline-flex items-center gap-1">
+                                    <span>🔬 Luận cứ:</span>
+                                    <span>{ind.scientificBasis}</span>
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           ))}
