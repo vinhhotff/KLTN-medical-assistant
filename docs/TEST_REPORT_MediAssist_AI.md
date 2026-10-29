@@ -72,7 +72,7 @@ Mục tiêu cốt lõi của chiến lược đảm bảo chất lượng (QA) c
 1. **100% Pass Rate trên toàn bộ Test Suite:** Mọi bài kiểm thử tự động trên Backend (306/306) và Frontend (0 lỗi TypeScript) phải chạy thành công hoàn toàn trước khi cho phép đóng gói triển khai.
 2. **An toàn lâm sàng tuyệt đối (Zero Clinical Regression):** Động cơ phòng thủ 5 tầng phải phát hiện và khóa luồng 100% các dấu hiệu cấp cứu tối khẩn (Red-Flag 115); thuật toán Vietnamese NegEx phải cách ly hoàn toàn các triệu chứng phủ định.
 3. **Bảo mật dữ liệu y tế cấp ngân hàng:** Không có bất kỳ lỗ hổng Broken Object Level Authorization (BOLA/IDOR) nào tồn tại; 100% hồ sơ tài liệu y tế lưu trữ riêng tư trên Supabase S3 chỉ được truy cập qua URL ký số HMAC-SHA256 có hạn 15 phút.
-4. **Hiệu năng thời gian thực:** Độ trễ tìm kiếm vector trên đồ thị HNSW duy trì dưới 1ms ($0.72	ext{ms}$ thực tế); hệ thống chịu tải $500+$ người dùng đồng thời với tỷ lệ lỗi $0.00\%$.
+4. **Hiệu năng thời gian thực:** Độ trễ tìm kiếm vector trên đồ thị HNSW duy trì dưới 1ms ($0.72\text{ms}$ thực tế); hệ thống chịu tải $500+$ người dùng đồng thời với tỷ lệ lỗi $0.00\%$.
 
 #### 1.2 Testing Levels & Pyramid
 Kiến trúc kiểm thử của MediAssist-AI được xây dựng theo mô hình **Kim tự tháp kiểm thử chuẩn mực (Testing Pyramid)**:
@@ -92,7 +92,7 @@ graph TD
 
 * **Unit Testing (Tầng Đáy - 50%):** Kiểm thử cô lập các hàm logic nghiệp vụ thuần túy, các công thức toán học (Sigmoid Contrastive Sharpening, Credibility Damper), bộ tách mệnh đề NegEx, chuẩn hóa teen-code và các hàm băm mật mã SHA-256. Khởi chạy tức thì trong bộ nhớ.
 * **Security & Vulnerability Testing (15%):** Kiểm thử rào chắn phân quyền đối tượng BOLA/IDOR `PatientAccessGuard`, cơ chế chống dò quét tài khoản User Enumeration, chính sách khóa tài khoản Brute-Force sau 5 lần sai mật khẩu, và bảo mật thông tin nhạy cảm trong email giao dịch.
-* **Integration & Slice Testing (25%):** Kiểm thử tương tác giữa các tầng kiến trúc (Controller $ightarrow$ Service $ightarrow$ Repository), tích hợp cơ sở dữ liệu PostgreSQL 16 thật với extension `pgvector` trên chỉ mục HNSW, kiểm tra tính đúng đắn của 22 bản di trú Flyway và bộ đệm 2 lớp Caffeine + Redis.
+* **Integration & Slice Testing (25%):** Kiểm thử tương tác giữa các tầng kiến trúc (Controller $\rightarrow$ Service $\rightarrow$ Repository), tích hợp cơ sở dữ liệu PostgreSQL 16 thật với extension `pgvector` trên chỉ mục HNSW, kiểm tra tính đúng đắn của 22 bản di trú Flyway và bộ đệm 2 lớp Caffeine + Redis.
 * **System & E2E Testing (Tầng Đỉnh - 10%):** Sử dụng Playwright kiểm thử đầu-cuối giao diện người dùng trên các luồng người bệnh quan trọng: Phân luồng triệu chứng, tìm kiếm bác sĩ, đặt lịch hẹn và xem hồ sơ xét nghiệm.
 
 #### 1.3 Test Environment, Hardware & Isolation Setup
@@ -251,7 +251,7 @@ Kiểm chuẩn bộ nhớ đệm lai 2 tầng bằng k6 (`tests/k6/cache_benchma
 * **Tầng L1 Caffeine (In-Memory Heap):** Tỷ lệ Cache Hit đạt **94.2%** đối với danh mục chuyên khoa và bản thể luận ICD-10. Thời gian truy xuất trung bình chỉ **0.04 ms**, triệt tiêu hoàn toàn chi phí I/O mạng.
 * **Tầng L2 Redis (Distributed Cache):** Tỷ lệ Cache Hit đạt **5.1%** đối với các truy vấn xuyên máy chủ.
 * **Tải tới CSDL PostgreSQL:** Chỉ có **0.7%** yêu cầu phải truy vấn trực tiếp vào CSDL vật lý, giảm tải tới **99.3%** cho tầng Persistence.
-* **Thuật toán XFetch Probabilistic Early Recomputation:** Tự động tính toán lại giá trị cache trước khi hết hạn $e^{-eta \cdot rac{\Delta}{TTL}}$, ngăn ngừa tình trạng hàng ngàn luồng cùng đọc DB khi cache vừa hết hạn.
+* **Thuật toán XFetch Probabilistic Early Recomputation:** Tự động tính toán lại giá trị cache trước khi hết hạn $e^{-\beta \cdot \frac{\Delta}{TTL}}$, ngăn ngừa tình trạng hàng ngàn luồng cùng đọc DB khi cache vừa hết hạn.
 
 #### 3.3 Project Loom Virtual Threads Scalability Analysis vs Platform Threads
 * **Mô hình Platform Threads cũ (1 Thread = 1 OS Thread):** Tiêu tốn ~1MB bộ nhớ ngăn xếp per thread. Khi đạt 500 yêu cầu đồng thời có I/O chặn (Blocking I/O), máy chủ ngốn hơn 500MB RAM chỉ cho quản lý luồng, CPU tốn 40% chu kỳ cho việc chuyển ngữ cảnh (Context Switching Overhead).
@@ -314,10 +314,10 @@ Kiểm thử thâm nhập an ninh chống leo quyền truy cập trái phép h�
 | **SEC-05** | Quản trị viên | Toàn bộ tài liệu y tế | Vai trò `ADMIN` | `200 OK` | `200 OK` + Ghi Audit | **HỢP LỆ (Giám sát)** |
 
 #### 5.2 Private S3 Cloud Storage & 15-Minute HMAC Signed URL Security Verification
-* **Thử nghiệm truy cập trực tiếp (Public Access Probe):** Gửi yêu cầu HTTP GET tới URL công khai của tệp tài liệu y tế trên Supabase Storage $ightarrow$ Nhận phản hồi **`403 Access Denied`** (Public Access bị vô hiệu hóa hoàn toàn theo Flyway V20).
+* **Thử nghiệm truy cập trực tiếp (Public Access Probe):** Gửi yêu cầu HTTP GET tới URL công khai của tệp tài liệu y tế trên Supabase Storage $\rightarrow$ Nhận phản hồi **`403 Access Denied`** (Public Access bị vô hiệu hóa hoàn toàn theo Flyway V20).
 * **Thử nghiệm URL ký số (Presigned URL Probe):**
-  - Truy cập bằng Presigned URL HMAC-SHA256 trong khoảng thời gian $\le 15	ext{ phút}$ $ightarrow$ Nhận phản hồi **`200 OK`** và tải dữ liệu an toàn.
-  - Truy cập lại bằng cùng URL đó sau phút thứ 16 $ightarrow$ Nhận phản hồi **`403 Signature Expired`**, triệt tiêu nguy cơ rò rỉ dữ liệu qua liên kết cũ.
+  - Truy cập bằng Presigned URL HMAC-SHA256 trong khoảng thời gian $\le 15\text{ phút}$ $\rightarrow$ Nhận phản hồi **`200 OK`** và tải dữ liệu an toàn.
+  - Truy cập lại bằng cùng URL đó sau phút thứ 16 $\rightarrow$ Nhận phản hồi **`403 Signature Expired`**, triệt tiêu nguy cơ rò rỉ dữ liệu qua liên kết cũ.
 
 #### 5.3 Cryptographic Token Security (SHA-256 vs Plaintext)
 * Kiểm chứng CSDL bảng `password_reset_tokens` và `email_verification_tokens`: Toàn bộ giá trị token đều là chuỗi băm 64 ký tự hex (`token_hash = SHA-256(rawToken)`).
@@ -327,7 +327,7 @@ Kiểm thử thâm nhập an ninh chống leo quyền truy cập trái phép h�
 * Kiểm thử mô phỏng gửi 6 yêu cầu đăng nhập sai mật khẩu liên tiếp:
   - Lần 1 đến lần 4: Nhận `401 Unauthorized` (`INVALID_CREDENTIALS`).
   - Lần 5: Kích hoạt rào chắn `ACCOUNT_LOCKED`, tài khoản bị tạm khóa 15 phút (`locked_until = NOW() + 15m`).
-  - Lần 6: Gửi mật khẩu đúng $ightarrow$ Vẫn nhận phản hồi **`401 Unauthorized (ACCOUNT_LOCKED)`**, bảo vệ tài khoản khỏi các đòn tấn công từ điển tự động.
+  - Lần 6: Gửi mật khẩu đúng $\rightarrow$ Vẫn nhận phản hồi **`401 Unauthorized (ACCOUNT_LOCKED)`**, bảo vệ tài khoản khỏi các đòn tấn công từ điển tự động.
 
 ---
 
@@ -366,7 +366,7 @@ Bảng theo dõi và xử lý triệt để 16 lỗi kiến trúc và lỗ hổn
 | :--- | :--- | :--- | :---: |
 | **Tỷ lệ Pass của Unit/Integration Test** | $\ge 90\%$ | **100% (306/306 Tests PASS)** | **XUẤT SẮC (GRADE A)** |
 | **Độ tin cậy biên dịch Frontend** | 0 lỗi nghiêm trọng | **0 Lỗi TypeScript Strict (2.307 Modules)** | **XUẤT SẮC (GRADE A)** |
-| **Năng lực chịu tải hệ thống (Load Test)** | $\ge 100	ext{ req/s}$, Error $< 2\%$ | **526.76 req/s, Error = 0.00% (500 VUs)** | **XUẤT SẮC (GRADE A)** |
+| **Năng lực chịu tải hệ thống (Load Test)** | $\ge 100\text{ req/s}$, Error $< 2\%$ | **526.76 req/s, Error = 0.00% (500 VUs)** | **XUẤT SẮC (GRADE A)** |
 | **Bảo mật dữ liệu y tế nhạy cảm (PII & HIPAA)**| Tuân thủ quy định pháp luật | **Đạt 4 Khiên chắn bảo vệ, 0 BOLA/IDOR** | **XUẤT SẮC (GRADE A)** |
 | **Độ chuẩn xác của động cơ AI** | Top-1 $> 15\%$, Recall@3 $> 25\%$ | **Top-1: 23.2%, Recall@3: 33.0%, Latency: 0.72ms** | **XUẤT SẮC (GRADE A)** |
 | **Quản lý phiên bản CSDL (Migrations)** | $100\%$ tự động hóa di trú | **22 bản di trú Flyway V1 – V22 hoàn chỉnh** | **XUẤT SẮC (GRADE A)** |

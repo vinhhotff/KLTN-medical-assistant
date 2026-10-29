@@ -15,30 +15,48 @@ MediAssist-AI phục vụ hệ sinh thái khám chữa bệnh từ xa (Telehealt
 
 ```mermaid
 erDiagram
-    users ||--o| doctor_profiles : "has profile"
-    users ||--o| patient_profiles : "has profile"
-    users ||--o{ medical_documents : "owns"
-    users ||--o{ appointments : "as patient"
-    users ||--o{ appointments : "as doctor"
-    users ||--o{ triage_sessions : "creates"
-    users ||--o{ payment_transactions : "initiates"
-    users ||--o{ password_reset_tokens : "requests"
-    users ||--o{ email_verification_tokens : "receives"
-    users ||--o{ notifications : "receives"
-    users ||--o{ audit_logs : "triggers"
+    %% ==========================================
+    %% 1. CORE IDENTITY & USER PROFILES (1:0..1)
+    %% ==========================================
+    users ||--o| doctor_profiles : "owns profile (1:0..1)"
+    users ||--o| patient_profiles : "owns EMR passport (1:0..1)"
 
-    doctor_profiles }|--|| specialties : "primary specialty"
-    doctor_profiles ||--o{ doctor_specialties : "sub-specialties"
-    doctor_specialties }|--|| specialties : "references"
-    doctor_profiles ||--o{ doctor_schedule_slots : "schedules"
-    doctor_profiles ||--o{ doctor_reviews : "receives"
+    %% ==========================================
+    %% 2. SECURITY, AUDIT & NOTIFICATIONS (1:N)
+    %% ==========================================
+    users ||--o{ password_reset_tokens : "requests (1:N)"
+    users ||--o{ email_verification_tokens : "receives (1:N)"
+    users ||--o{ notifications : "receives alerts (1:N)"
+    users ||--o{ audit_logs : "triggers audit (1:N)"
+    users ||--o{ ai_token_usage : "consumes AI tokens (1:N)"
 
-    appointments ||--o| payment_transactions : "settled by"
-    appointments }o--o| medical_documents : "attaches"
-    appointments }o--o| triage_sessions : "originates from"
-    appointments ||--o| doctor_reviews : "rated by"
+    %% ==========================================
+    %% 3. PROVIDER TAXONOMY & SCHEDULING (M:N)
+    %% ==========================================
+    doctor_profiles ||--|{ doctor_specialties : "specialized in (1:1..N)"
+    specialties ||--o{ doctor_specialties : "categorizes (1:0..N)"
+    doctor_profiles ||--o{ doctor_schedule_slots : "defines availability (1:0..N)"
 
-    medical_documents ||--o| document_analyses : "analyzed into"
+    %% ==========================================
+    %% 4. CLINICAL ENCOUNTERS & TRIAGE
+    %% ==========================================
+    users ||--o{ appointments : "books as patient (1:0..N)"
+    users ||--o{ appointments : "attends as doctor (1:0..N)"
+    users ||--o{ triage_sessions : "initiates triage (1:0..N)"
+    triage_sessions ||--o{ appointments : "converts to encounter (1:0..N)"
+
+    %% ==========================================
+    %% 5. MULTIMODAL LAB OCR & FINANCIAL LEDGER
+    %% ==========================================
+    users ||--o{ medical_documents : "uploads (1:0..N)"
+    medical_documents ||--o| document_analyses : "generates OCR report (1:0..1)"
+    medical_documents ||--o{ appointments : "attached to encounter (1:0..N)"
+
+    users ||--o{ payment_transactions : "initiates payment (1:0..N)"
+    appointments ||--o{ payment_transactions : "billed for (1:0..N)"
+    appointments ||--o| doctor_reviews : "evaluated after completion (1:0..1)"
+    users ||--o{ doctor_reviews : "submits as patient (1:0..N)"
+    users ||--o{ doctor_reviews : "rated as doctor (1:0..N)"
 ```
 
 > 💡 **Mẹo xem biểu đồ kích thước lớn:**  
@@ -152,14 +170,18 @@ erDiagram
 #### 1.3 Sơ Đồ ERD Phân Hệ Lịch Khám & Bệnh Án EMR (Appointment & Encounters)
 ```mermaid
 erDiagram
-    appointments }o--o| patient_profiles : "for patient"
-    appointments }o--o| triage_sessions : "originates from"
+    users ||--o| patient_profiles : "owns EMR passport (1:0..1)"
+    users ||--o{ appointments : "books as patient (1:N)"
+    triage_sessions ||--o{ appointments : "originates from triage (1:0..N)"
+    appointments ||--o| doctor_reviews : "evaluated after completed (1:0..1)"
 
     appointments {
         UUID id PK
         VARCHAR appointment_code UK
-        UUID patient_id FK
-        UUID doctor_id FK
+        UUID patient_id FK "REFERENCES users(id)"
+        UUID doctor_id FK "REFERENCES users(id)"
+        UUID triage_session_id FK "REFERENCES triage_sessions(id)"
+        UUID medical_document_id FK "REFERENCES medical_documents(id)"
         TIMESTAMPTZ scheduled_start
         TIMESTAMPTZ scheduled_end
         VARCHAR status "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED"
@@ -178,7 +200,7 @@ erDiagram
     }
     patient_profiles {
         UUID id PK
-        UUID user_id UK, FK
+        UUID user_id UK, FK "REFERENCES users(id)"
         VARCHAR patient_code UK
         VARCHAR citizen_id UK "CCCD 12 số"
         VARCHAR health_insurance_number "BHYT"
@@ -188,25 +210,36 @@ erDiagram
     }
     triage_sessions {
         UUID id PK
-        UUID user_id FK
+        UUID user_id FK "REFERENCES users(id)"
         TEXT symptoms_text
         BOOLEAN is_emergency "Hotline 115 Flag"
         VARCHAR urgency_level "ROUTINE, URGENT, EMERGENCY"
         VARCHAR primary_specialty
         TEXT sbar_summary "SBAR Structured Report"
     }
+    doctor_reviews {
+        UUID id PK
+        UUID appointment_id UK, FK "REFERENCES appointments(id)"
+        UUID doctor_id FK "REFERENCES users(id)"
+        UUID patient_id FK "REFERENCES users(id)"
+        INT rating "1 to 5"
+        TEXT comment
+    }
 ```
 
 #### 1.4 Sơ Đồ ERD Phân Hệ Xét Nghiệm & Tài Chính (Diagnostics & Financial Ledger)
 ```mermaid
 erDiagram
-    medical_documents ||--o| document_analyses : "OCR analyzed"
-    users ||--o{ payment_transactions : "pays"
-    users ||--o{ ai_token_usage : "consumes tokens"
+    users ||--o{ medical_documents : "uploads (1:N)"
+    medical_documents ||--o| document_analyses : "generates OCR report (1:0..1)"
+    medical_documents ||--o{ appointments : "attached in encounter (1:0..N)"
+    users ||--o{ payment_transactions : "initiates payment (1:N)"
+    appointments ||--o{ payment_transactions : "settles encounter fee (1:0..N)"
+    users ||--o{ ai_token_usage : "consumes AI quota (1:N)"
 
     medical_documents {
         UUID id PK
-        UUID user_id FK
+        UUID user_id FK "REFERENCES users(id)"
         VARCHAR file_name
         BIGINT file_size_bytes
         VARCHAR content_type "application/pdf, image/jpeg"
@@ -215,7 +248,7 @@ erDiagram
     }
     document_analyses {
         UUID id PK
-        UUID document_id UK, FK
+        UUID document_id UK, FK "REFERENCES medical_documents(id)"
         TEXT clinical_summary
         TEXT plain_language_explanation
         TEXT abnormal_indicators_json "LOINC Standard Indicators"
@@ -225,7 +258,7 @@ erDiagram
     payment_transactions {
         UUID id PK
         VARCHAR transaction_code UK
-        UUID user_id FK
+        UUID user_id FK "REFERENCES users(id)"
         VARCHAR order_type "APPOINTMENT_FEE, QUOTA"
         DECIMAL amount
         VARCHAR currency "VND"
@@ -236,7 +269,7 @@ erDiagram
     }
     ai_token_usage {
         UUID id PK
-        UUID user_id FK
+        UUID user_id FK "REFERENCES users(id)"
         VARCHAR model_name "text-embedding-3-small, gemini-flash"
         INT prompt_tokens
         INT completion_tokens

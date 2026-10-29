@@ -1,150 +1,154 @@
-# 🗺️ BẢN ĐỒ ĐIỀU HƯỚNG TÀI LIỆU KHOÁ LUẬN TỐT NGHIỆP (KLTN)
-## HỆ THỐNG TRỢ LÝ Y TẾ THÔNG MINH MEDIASSIST-AI
+# 🏛️ HỒ SƠ KHÓA LUẬN TỐT NGHIỆP CHUẨN HỘI ĐỒNG TIẾN SĨ
+## CAPSTONE THESIS MASTER ACADEMIC DOSSIER & DEFENSE DIRECTORY
+### HỆ THỐNG TRỢ LÝ Y TẾ THÔNG MINH MEDIASSIST-AI
 
-> **Dành cho:** Tech Lead, Thành viên nhóm, QA, Người viết báo cáo luận văn, và Hội đồng phản biện.  
-> **Mục tiêu:** Cung cấp luồng đọc hiểu (Reading Flow) khoa học, phân loại rõ ràng hệ thống tài liệu, và định vị **bộ file tối thiểu** giúp người mới nắm trọn vẹn 100% dự án trong thời gian ngắn nhất.
+> **Đơn vị đào tạo:** Đại học FPT – Khoa Công nghệ Thông tin  
+> **Chuyên ngành:** Kỹ thuật Phần mềm (Software Engineering) – Định hướng AI Lâm sàng  
+> **Mã dự án (Capstone ID):** `FPTU-KLTN-2026-MEDIASSIST`  
+> **Thời gian thực hiện:** 15/05/2026 – 24/10/2026  
+> **Đối tượng sử dụng tài liệu:** Hội đồng Giảng viên & Chuyên gia Phản biện (Tiến sĩ CNTT & Y tế), Tech Lead, Developers và QA Engineers.  
+> **Quy chuẩn quốc tế tuân thủ:** ISO/IEC/IEEE 29148:2018, IEEE 830, IEEE 1016, IEEE 829, PMBOK 7th Edition, HL7 FHIR v4.0.1, WHO LOINC (QĐ 3280/QĐ-BYT), WHO ICD-10 (QĐ 7603/QĐ-BYT), Luật Khám bệnh, chữa bệnh số 15/2023/QH15 và Nghị định 13/2023/NĐ-CP.
 
 ---
 
-## 🧭 PHẦN 1: BỘ 6 TỆP TỐI THIỂU ĐỂ HIỂU TRỌN VẸN DỰ ÁN (MINIMUM ESSENTIAL SET)
+## 📑 MỤC LỤC TỔNG THỂ
 
-Nếu bạn là thành viên mới vào nhóm hoặc không có nhiều thời gian, bạn **CHỈ CẦN ĐỌC ĐÚNG 6 FILE NÀY THEO THỨ TỰ TỪ 1 ĐẾN 6**:
+1. [Cấu Trúc Hồ Sơ Khóa Luận 4 Phân Tầng Học Thuật](#1-cấu-trúc-hồ-sơ-khóa-luận-4-phân-tầng-học-thuật)
+2. [Tầng 1: Bộ 5 Báo Cáo Khóa Luận Master Chuẩn Quốc Tế](#2-tầng-1-bộ-5-báo-cáo-khóa-luận-master-chuẩn-quốc-tế)
+3. [Tầng 2: Hồ Sơ Luận Chứng Y Học & Kịch Bản Phản Biện Hội Đồng](#3-tầng-2-hồ-sơ-luận-chứng-y-học--kịch-bản-phản-biện-hội-đồng)
+4. [Tầng 3: Đặc Tả Kiến Trúc Kỹ Thuật & Giải Thuật Doanh Nghiệp](#4-tầng-3-đặc-tả-kiến-trúc-kỹ-thuật--giải-thuật-doanh-nghiệp)
+5. [Tầng 4: Tài Liệu Lưu Trữ Nội Bộ & Nhật Ký Phát Triển (`docs/internal/`)](#5-tầng-4-tài-liệu-lưu-trữ-nội-bộ--nhật-ký-phát-triển-docsinternal)
+6. [Hướng Dẫn Duyệt Tài Liệu Offline Qua WordCraft Studio (0đ Token, Không Lỗi CORS)](#6-hướng-dẫn-duyệt-tài-liệu-offline-qua-wordcraft-studio)
+
+---
+
+## 1. CẤU TRÚC HỒ SƠ KHÓA LUẬN 4 PHÂN TẦNG HỌC THUẬT
+
+Toàn bộ tài liệu của dự án MediAssist-AI được tổ chức theo cấu trúc phân tầng nghiêm ngặt, loại bỏ hoàn toàn các tệp rác hoặc tệp nháp để phục vụ bảo vệ đồ án trước Hội đồng Tiến sĩ:
 
 ```
-[1. README.md] ──────> [2. STORYTELLING.md] ──────> [3. ARCHITECTURE.md]
-  (Dự án là gì?)         (Tại sao làm đề tài này?)    (Khung kỹ thuật gồm gì?)
-        │
-        ▼
-[4. DATABASE_DESIGN.md] ─> [5. ENTERPRISE_ALGORITHMS] ─> [6. USE_CASES.md]
-  (Dữ liệu & pgvector)       (5 thuật toán & tối ưu)       (33 chức năng chi tiết)
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│ TẦNG 1: BỘ 5 BÁO CÁO KHÓA LUẬN MASTER CHUẨN QUỐC TẾ (OFFICIAL CAPSTONE REPORTS)          │
+│ • Report 1: Project Charter & Management Plan (PMBOK 7th / IEEE 1058)                   │
+│ • Report 2: Requirements Analysis & Domain Modeling (ISO 29148 / DDD 7 Bounded Contexts)│
+│ • Report 3: Software Requirements Specification (IEEE 830 / 49 Use Cases)              │
+│ • Report 4: Software Design Document (IEEE 1016 / 5-Tier Architecture / C4 Model)       │
+│ • Report 5: Software Test Report & Verification (IEEE 829 / 306 Tests / k6 500 VUs)     │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│ TẦNG 2: HỒ SƠ LUẬN CHỨNG Y HỌC & KỊCH BẢN PHẢN BIỆN HỘI ĐỒNG (ACADEMIC DEFENSE DOSSIER)  │
+│ • CLINICAL_GROUNDING_AND_EVIDENCE_DEFENSE.md (Biện Luận SOTA AMIE Nature 2024, Luật KCB)│
+│ • CAPSTONE_DEFENSE.md (Top 25 Câu Hỏi & Kịch Bản Đối Đáp Hội Đồng Phản Biện)            │
+│ • CAPSTONE_PRESENTATION_SLIDES.md (Giáo Án Slide Thuyết Trình Hội Đồng 24 Trang)         │
+│ • DATA_PROVENANCE_AND_CLINICAL_STANDARDS.md (Meddies 150k, LOINC QĐ 3280, Nghị Định 13) │
+│ • STORYTELLING.md (Bối Cảnh Y Tế Việt Nam, Nỗi Đau 4 Điểm Nghẽn & Chuyển Đổi Số O2O)    │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│ TẦNG 3: ĐẶC TẢ KIẾN TRÚC KỸ THUẬT & GIẢI THUẬT CHUYÊN SÂU (ENGINEERING DEEP DIVES)      │
+│ • DATABASE_DESIGN.md (CSDL 17 Bảng Chuẩn 3NF, pgvector HNSW & 22 Flyway Migrations)     │
+│ • ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md (5 Thuật Toán Độc Quyền: WHRF, XFetch, P99)  │
+│ • DOCUMENT_SCAN_PIPELINE.md (Kiến Trúc OCR Đa Phương Thức & Clinical RAG Gateway)       │
+│ • MASTER_TRACEABILITY_INDEX.md (Ma Trận Truy Vết 1-1: Use Cases ➔ Code ➔ DB ➔ Tests)    │
+│ • USE_CASES.md (Đặc Tả Chi Tiết 49 Ca Sử Dụng Lâm Sàng & Quản Trị)                     │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│ TẦNG 4: LƯU TRỮ NỘI BỘ & NHẬT KÝ PHÁT TRIỂN (INTERNAL ARCHIVE - `docs/internal/`)      │
+│ • WORK_LOG.md (Nhật Ký Commit 680KB)           • TEAM_WORKFLOW.md (Quy Trình Gitflow)   │
+│ • REVIEW_CHECKLIST.md (Checklist Sprint)       • CAPSTONE_SPECIFICATION.md (Đề Cương)   │
+│ • FRONTEND_UX_AUDIT.md (Ghi Chép UI/UX)         • VECTOR_BENCHMARK_REPORT.md (Đo Đạc)   │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-| Thứ Tự | Tệp Tin | Thời Gian Đọc | Bạn Sẽ Hiểu Được Gì? |
-| :---: | :--- | :---: | :--- |
-| **#1** | [**`README.md`**](../README.md) | 10 phút | Tổng quan dự án, công nghệ sử dụng, cách khởi động nhanh hệ thống trong 3 phút. |
-| **#2** | [**`docs/STORYTELLING.md`**](./STORYTELLING.md) | 15 phút | **Bối cảnh & Nỗi đau:** Tại sao bệnh viện Việt Nam bị quá tải? Bệnh nhân gặp khó khăn gì? Personas người bệnh & bác sĩ. |
-| **#3** | [**`ARCHITECTURE.md`**](../ARCHITECTURE.md) | 25 phút | **Kiến trúc tổng thể:** Modular Monolith Spring Boot 3.4, Java 21 Loom, Two-Layer Cache (Caffeine + Redis), Dual-Transport Auth. |
-| **#4** | [**`docs/DATABASE_DESIGN.md`**](./DATABASE_DESIGN.md) | 30 phút | **Thiết kế dữ liệu:** Toàn bộ 19 bản Flyway Migration, mô hình bảng, đồ thị `pgvector HNSW` 1536 chiều, rào chắn khóa lạc quan. |
-| **#5** | [**`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`**](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md) | 35 phút | ⭐ **Lõi công nghệ & thuật toán:** 5 thuật toán độc quyền, công thức toán học, HNSW tuning, sub-word hashing, chấm sao WHRF. |
-| **#6** | [**`docs/USE_CASES.md`**](./USE_CASES.md) | 30 phút | **Nghiệp vụ chi tiết:** Đặc tả 33 Use Cases thực tế từ đặt khám O2O, Triage AI, Bàn khám đôi Bác sĩ, đến FinOps quản trị viện phí. |
+---
+
+## 2. TẦNG 1: BỘ 5 BÁO CÁO KHÓA LUẬN MASTER CHUẨN QUỐC TẾ
+
+Đây là bộ 5 báo cáo kỹ nghệ phần mềm đóng vai trò là sản phẩm nghiệm thu chính thức của đồ án:
+
+| Báo Cáo | Tên Tài Liệu Chi Tiết | Tiêu Chuẩn Áp Dụng | Vị Trí Tệp Nguồn | Bản Tương Tác WordCraft Studio |
+| :---: | :--- | :---: | :--- | :--- |
+| **Report 1** | **Project Charter & Management Plan** | PMBOK 7th / IEEE 1058 | `docs/PROJECT_CHARTER_AND_PLAN.md` | [📖 Mở Báo Cáo Report 1](#report_1_main) |
+| **Report 2** | **Requirements Analysis & Domain Modeling** | ISO/IEC/IEEE 29148:2018 | `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` | [📖 Mở Báo Cáo Report 2](#report_2_main) |
+| **Report 3** | **Software Requirements Specification (SRS)** | IEEE 830 / ISO 29148 | `docs/SRS_MediAssist_AI.md` | [📖 Mở Báo Cáo Report 3](#report_3_main) |
+| **Report 4** | **Software Design Document (SDD)** | IEEE 1016 / C4 Model | `docs/SDD_MediAssist_AI.md` | [📖 Mở Báo Cáo Report 4](#report_4_main) |
+| **Report 5** | **Software Test & Verification Report** | IEEE 829 Software Test | `docs/TEST_REPORT_MediAssist_AI.md` | [📖 Mở Báo Cáo Report 5](#report_5_main) |
 
 ---
 
-## 🏛️ PHẦN 2: CẤU TRÚC 4 TẦNG HỒ SƠ TÀI LIỆU KHOÁ LUẬN TỐT NGHIỆP
+## 3. TẦNG 2: HỒ SƠ LUẬN CHỨNG Y HỌC & KỊCH BẢN PHẢN BIỆN HỘI ĐỒNG
 
-Toàn bộ 14 tài liệu trong thư mục `docs/` và gốc dự án được tổ chức chặt chẽ theo mô hình 4 tầng tiêu chuẩn:
+Dành cho Hội đồng Tiến sĩ chấm điểm tính sáng tạo, độ tin cậy khoa học và tính an toàn y đức:
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│  TẦNG 0: ONBOARDING & KHỞI ĐỘNG NHANH                                  │
-│  • README.md                   • CONTRIBUTING.md                       │
-├────────────────────────────────────────────────────────────────────────┤
-│  TẦNG 1: BỐI CẢNH ĐỀ TÀI & ĐẶC TẢ YÊU CẦU (REQUIREMENTS)              │
-│  • docs/STORYTELLING.md        • docs/SRS_MediAssist_AI.md             │
-│  • docs/USE_CASES.md           • docs/CAPSTONE_SPECIFICATION.md        │
-├────────────────────────────────────────────────────────────────────────┤
-│  TẦNG 2: THIẾT KẾ KỸ THUẬT & THUẬT TOÁN (ARCHITECTURE & ENGINEERING)  │
-│  • ARCHITECTURE.md             • docs/DATABASE_DESIGN.md               │
-│  • docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md                        │
-│  • docs/DOCUMENT_SCAN_PIPELINE.md                                      │
-├────────────────────────────────────────────────────────────────────────┤
-│  TẦNG 3: KIỂM THỬ, VẬN HÀNH & BẢO VỆ LUẬN VĂN (OPS, QA & DEFENSE)      │
-│  • docs/HUONG_DAN_LAM_SLIDE_VA_SRS.md • docs/CAPSTONE_DEFENSE.md       │
-│  • docs/CAPSTONE_PRESENTATION_SLIDES  • docs/MASTER_TRACEABILITY_INDEX │
-│  • docs/VECTOR_BENCHMARK_REPORT.md    • pgvector_scaling_16gb/         │
-│  • docs/TEAM_WORKFLOW.md              • docs/WORK_LOG.md               │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-### 1. Tầng 0: Khởi Động Nhanh (Onboarding)
-* [`README.md`](../README.md): Bản đồ tổng quan, các lệnh cài đặt và chạy thử hệ thống.
-* [`CONTRIBUTING.md`](../CONTRIBUTING.md): Quy chuẩn GitFlow, cách đặt tên nhánh (`feature/UC-xx`), chuẩn commit.
-
-### 2. Tầng 1: Đề Tài & Đặc Tả Nghiệp Vụ (Requirements)
-* [`docs/STORYTELLING.md`](./STORYTELLING.md): Bối cảnh lâm sàng, lý do chọn đề tài, tính nhân văn và bài toán thực tế tại các bệnh viện Việt Nam.
-* [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md): Bản đặc tả yêu cầu phần mềm đạt chuẩn quốc tế **IEEE 830** (Yêu cầu chức năng FR-VEC-01..07, Động cơ phòng thủ 5 tầng "Bao Đầu Vào", phi chức năng NFR, tuân thủ Nghị định 13/2023/NĐ-CP và HIPAA).
-* [`docs/USE_CASES.md`](./USE_CASES.md): Danh mục chi tiết 33 Use Cases (Pre-condition, Happy Path, Alternative Flows, Exception Flows) phân bổ cho 4 tác nhân: Bệnh nhân, Bác sĩ, Lễ tân và Quản trị viên.
-* [`docs/CAPSTONE_SPECIFICATION.md`](./CAPSTONE_SPECIFICATION.md): Bảng yêu cầu đề cương tốt nghiệp và barem chấm điểm của nhà trường.
-
-### 3. Tầng 2: Thiết Kế Kỹ Thuật & Thuật Toán (Engineering)
-* [`ARCHITECTURE.md`](../ARCHITECTURE.md): Kiến trúc hệ thống Modular Monolith, Dual-Transport Auth (Bearer + HttpOnly Cookie), kiến trúc bộ nhớ đệm 2 tầng (L1 Caffeine + L2 Redis).
-* [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md): Thiết kế CSDL PostgreSQL 16, toàn bộ 19 script Flyway, kiểu dữ liệu vector, trigger tính điểm đánh giá bác sĩ và chiến lược connection pool HikariCP.
-* [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md): Đặc tả toán học 5 thuật toán độc quyền:
-  1. *Hedged Requests & Speculative Failover* (Triệt tiêu độ trễ đuôi P99).
-  2. *Progressive Sieve* (Kim tự tháp lọc AI 4 tầng tiết kiệm 90% token).
-  3. *Cân bằng hàng đợi lâm sàng 2 chiều* (Giảm thời gian chờ khám từ 45p xuống 12p).
-  4. *XFetch Probabilistic Cache Renewal* (Chống sập Cache Stampede dưới 100k CCU).
-  5. *Rào chắn bản thể luận LOINC + ICD-10* (Triệt tiêu ảo giác y khoa).
-* [`docs/DOCUMENT_SCAN_PIPELINE.md`](./DOCUMENT_SCAN_PIPELINE.md): Đường ống bóc tách hồ sơ y tế: Tesseract OCR đa luồng + Vision AI + Bộ khử nhiễu lâm sàng.
-
-### 4. Tầng 3: Kiểm Thử, Vận Hành, Slide & Bảo Vệ (QA, Slides & Defense)
-* [`docs/HUONG_DAN_LAM_SLIDE_VA_SRS.md`](./HUONG_DAN_LAM_SLIDE_VA_SRS.md): 🌟 **Kim chỉ nam toàn diện bảo vệ KLTN**: Hướng dẫn từng bước làm Slide Canva/PPT, cách trích xuất hoàn thiện file SRS IEEE 830, cách viết báo cáo luận văn 5 chương, top 5 câu hỏi phản biện "tử huyệt" và lệnh terminal kiểm chứng nhanh!
-* [`docs/DATA_PROVENANCE_AND_CLINICAL_STANDARDS.md`](./DATA_PROVENANCE_AND_CLINICAL_STANDARDS.md): 🔬 **Bản tuyên bố nguồn gốc dữ liệu & Chuẩn lâm sàng (Zero-Mock Mandate)**: Cam kết 100% dữ liệu y tế dựa trên dữ liệu thật (kho Meddies 150k ca, từ điển mã LOINC quốc tế, QĐ 3280/QĐ-BYT Bộ Y Tế, WHO ICD-10, HL7 FHIR Practitioner và đo đạc PII 82.72%).
-* [`docs/CAPSTONE_PRESENTATION_SLIDES.md`](./CAPSTONE_PRESENTATION_SLIDES.md): 🌟 **Bộ khung 24 slide thuyết trình bảo vệ KLTN**: Bố cục visual Canva/PPT, nội dung súc tích, kịch bản lời thoại MC/Thuyết trình từng giây (Speaker notes) và bẫy phản biện dự phòng cho từng slide!
-* [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md): Cẩm nang bảo vệ tốt nghiệp: Kịch bản thuyết trình 15 phút, checklist live demo, và bộ **35+ câu hỏi phản biện gài bẫy kèm câu trả lời mẫu**.
-* [`docs/VECTOR_BENCHMARK_REPORT.md`](./VECTOR_BENCHMARK_REPORT.md): ⭐ **Báo cáo thực nghiệm huấn luyện vector & pgvector HNSW**: Số liệu định lượng đo trên 500 ca bệnh từ tập dữ liệu Hugging Face `Meddies/meddies-persona-vie` và `Meddies/meddies-pii` (Top-1 Accuracy tăng 3.9 lần, độ trễ $0.72\text{ms}$).
-* [`pgvector_scaling_16gb/`](../pgvector_scaling_16gb/README.md): 🚀 **Cẩm nang mở rộng pgvector trên máy 16GB RAM / 512GB SSD**: Hướng dẫn scale lên 50.000 bác sĩ / 150.000 ca Meddies, cấu hình Docker Compose 4GB shared_buffers, script SQL HNSW Siêu Phân Giải ($m=32, ef\_construction=256$) và Cheat Sheet bảo vệ KLTN.
-* [`docs/MASTER_TRACEABILITY_INDEX.md`](./MASTER_TRACEABILITY_INDEX.md): Ma trận truy vết yêu cầu 2 chiều ($33\text{ Use Cases} \leftrightarrow \text{API} \leftrightarrow \text{Database Tables} \leftrightarrow \text{Thuật Toán} \leftrightarrow \text{Câu hỏi Hội đồng}$).
-* [`docs/TEAM_WORKFLOW.md`](./TEAM_WORKFLOW.md): Ma trận phân chia trách nhiệm 3 vai trò trong nhóm (Tech Lead 30/50/20, Core Dev 80/15/5, QA & Doc 15/25/60).
-* [`docs/WORK_LOG.md`](./WORK_LOG.md): Nhật ký phát triển liên tục ghi nhận chi tiết từng file thay đổi, bằng chứng lệnh test và kết quả nghiệm thu.
+* [**`docs/CLINICAL_GROUNDING_AND_EVIDENCE_DEFENSE.md`**](#clinical_defense):  
+  ⭐ **Vũ khí phản biện tối thượng:**
+  - Tuyên bố định vị hệ thống là **Hỗ trợ Ra quyết định Tiền lâm sàng (CDSS)**, tuyệt đối không chẩn đoán độc nhất thay thế Bác sĩ (tuân thủ Điều 19 & 28 **Luật Khám bệnh, chữa bệnh số 15/2023/QH15**).
+  - Nghiên cứu đối chuẩn với **Google AMIE (Nature 2024)**, **Ada Health (The Lancet Digital Health / BMJ)** và **ClinicalRAG (ACL 2024)**.
+  - Kiến trúc phòng thủ 4 tầng triệt tiêu ảo giác (Anti-Hallucination) và Bộ 6 kịch bản đối đáp "bẫy" phản biện.
+* [**`docs/CAPSTONE_DEFENSE.md`**](#capstone_defense):  
+  Bộ **Top 25 Câu hỏi và Kịch bản Đối đáp Hội đồng** bao phủ toàn diện 4 góc độ: Nghiệp vụ Y tế, Kỹ thuật Kiến trúc, Khả năng chịu tải cao và Tính nguyên bản của mã nguồn.
+* [**`docs/CAPSTONE_PRESENTATION_SLIDES.md`**](#presentation_slides):  
+  Giáo án Slide thuyết trình 24 trang chuẩn mực gồm cấu trúc bối cảnh, kiến trúc hệ thống, demo tương tác và ma trận chứng minh kết quả thực nghiệm.
+* [**`docs/DATA_PROVENANCE_AND_CLINICAL_STANDARDS.md`**](#data_provenance):  
+  Bản tuyên bố nguồn gốc dữ liệu lâm sàng: Chính sách **Zero-Mock Policy**, tập dữ liệu đối chứng chuẩn **Meddies Persona** ($N = 500$ ca vàng trên kho 150.000 ca bệnh), danh mục chỉ số **WHO LOINC (QĐ 3280/QĐ-BYT)** và bản thể luận **WHO ICD-10 (QĐ 7603/BYT)**.
+* [**`docs/STORYTELLING.md`**](#storytelling):  
+  Câu chuyện thực tiễn tại các bệnh viện Việt Nam: Nỗi đau chờ 6-8 tiếng cho 3 phút khám, hiện tượng định tuyến sai chuyên khoa và rào cản thuật ngữ cận lâm sàng.
 
 ---
 
-## 👥 PHẦN 3: LUỒNG ĐỌC HIỂU THEO TỪNG VAI TRÒ (READING FLOW)
+## 4. TẦNG 3: ĐẶC TẢ KIẾN TRÚC KỸ THUẬT & GIẢI THUẬT DOANH NGHIỆP
 
-Tùy theo mục đích công việc, bạn hãy chọn đúng luồng đọc dưới đây để đạt hiệu quả cao nhất:
+Dành cho các chuyên gia CNTT và Kỹ sư phần mềm thẩm định kiến trúc và mã nguồn:
 
-### 🚀 Luồng A: Dành Cho Developer Mới Vào Nhóm (Thời gian: 1 - 2 ngày)
-1. **Bước 1:** Đọc [`README.md`](../README.md) $\rightarrow$ Cài đặt môi trường, chạy Docker và khởi động app.
-2. **Bước 2:** Đọc [`ARCHITECTURE.md`](../ARCHITECTURE.md) $\rightarrow$ Nắm luồng request từ React Vite qua Spring Boot.
-3. **Bước 3:** Đọc [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md) $\rightarrow$ Hiểu các bảng dữ liệu mình sẽ thao tác.
-4. **Bước 4:** Đọc [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md) $\rightarrow$ Nắm thuật toán tìm kiếm vector và cơ chế cache trước khi code.
-5. **Bước 5:** Đọc [`CONTRIBUTING.md`](../CONTRIBUTING.md) $\rightarrow$ Tạo branch và viết code theo đúng quy chuẩn.
-
----
-
-### 📝 Luồng B: Dành Cho Người Viết Báo Cáo Luận Văn KLTN (5 Chương)
-Nếu bạn được phân công viết báo cáo Khóa Luận Tốt Nghiệp, hãy lấy nội dung trực tiếp từ các file tài liệu tương ứng:
-
-| Chương Luận Văn | Tên Chương | Tệp Markdown Nguồn Cần Lấy Dữ Liệu |
-| :---: | :--- | :--- |
-| **Chương 1** | **Tổng Quan & Đặt Vấn Đề** | [`docs/STORYTELLING.md`](./STORYTELLING.md) + [`docs/CAPSTONE_SPECIFICATION.md`](./CAPSTONE_SPECIFICATION.md) |
-| **Chương 2** | **Cơ Sở Lý Thuyết & Công Nghệ** | [`ARCHITECTURE.md`](../ARCHITECTURE.md) + [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md) (§2 pgvector & Transformers) |
-| **Chương 3** | **Phân Tích & Thiết Kế Hệ Thống** | [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md) + [`docs/USE_CASES.md`](./USE_CASES.md) + [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md) |
-| **Chương 4** | **Hiện Thực Hóa & Thuật Toán Lõi** | [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md) + [`docs/DOCUMENT_SCAN_PIPELINE.md`](./DOCUMENT_SCAN_PIPELINE.md) |
-| **Chương 5** | **Thực Nghiệm, Đánh Giá & Kết Luận** | [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md) (Kết quả k6, Playwright, Cache hit) + [`docs/MASTER_TRACEABILITY_INDEX.md`](./MASTER_TRACEABILITY_INDEX.md) |
+* [**`docs/DATABASE_DESIGN.md`**](#database_design):  
+  Đặc tả CSDL PostgreSQL 16 chuẩn 3NF gồm 17 bảng dữ liệu, cấu hình chỉ mục đồ thị vector `pgvector` HNSW 1536 chiều, 4 phân hệ ERD Crow's Foot chuẩn mực, và lộ trình 22 bản di trú Flyway (`V1` – `V22`).
+* [**`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`**](#algorithms_resilience):  
+  Chứng minh toán học và cài đặt 5 giải thuật độc quyền:
+  1. *Hedged Requests & Speculative Failover:* Triệt tiêu 95% độ trễ đuôi, giảm P99 từ $25.4\text{s} \rightarrow 1.8\text{s}$.
+  2. *Progressive AI Sieve:* Kim tự tháp lọc AI 4 tầng tiết kiệm $85\% - 92\%$ chi phí token điện toán đám mây.
+  3. *Clinical Queue Dispatcher:* Cân bằng hàng đợi lâm sàng hai chiều, giảm thời gian chờ khám từ $45\text{p} \rightarrow 12\text{p}$.
+  4. *XFetch Probabilistic Cache Renewal:* Chống sập Cache Stampede dưới áp lực $100.000\text{ CCU}$.
+  5. *WHRF-SOTA Min-Heap Re-ranking:* Tái xếp hạng đa tiêu chí bác sĩ với Credibility Damper chống đánh giá ảo.
+* [**`docs/DOCUMENT_SCAN_PIPELINE.md`**](#scan_pipeline):  
+  Kiến trúc đa luồng bóc tách OCR phiếu xét nghiệm bằng Gemini 1.5 Flash Vision, che mờ PII theo Nghị định 13/2023/NĐ-CP và cấp URL ký số 15 phút.
+* [**`docs/MASTER_TRACEABILITY_INDEX.md`**](#traceability_index):  
+  Ma trận truy vết toàn diện liên kết 1-1 giữa: **49 Use Cases $\longleftrightarrow$ Lớp Controller / Service $\longleftrightarrow$ Bảng CSDL $\longleftrightarrow$ 306 Test Cases $\longleftrightarrow$ Báo Cáo Khóa Luận**.
+* [**`docs/USE_CASES.md`**](./USE_CASES.md):  
+  Đặc tả chi tiết 49 Ca sử dụng (Use Cases) phân bổ cho 4 nhóm tác nhân (Bệnh nhân, Bác sĩ, Lễ tân, Quản trị viên).
 
 ---
 
-### 🎓 Luồng C: Dành Cho Thầy/Cô Hướng Dẫn & Hội Đồng Chấm Điểm
-Thầy/Cô chấm thi thường chỉ có 15 - 20 phút để thẩm định dự án. Hãy hướng dẫn Thầy/Cô xem theo trình tự:
-1. **Xem tính thực tiễn:** [`docs/STORYTELLING.md`](./STORYTELLING.md) (Nỗi đau y tế được giải quyết).
-2. **Xem độ khó học thuật & tính độc quyền:** [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md) (Bộ 5 thuật toán, đồ thị HNSW và công thức toán).
-3. **Xem tính bao phủ nghiệp vụ:** [`docs/MASTER_TRACEABILITY_INDEX.md`](./MASTER_TRACEABILITY_INDEX.md) (33 Use Cases ánh xạ thẳng vào CSDL).
-4. **Xem kết quả thực nghiệm:** [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md) (§4 Benchmark k6 $P_{95}=42\text{ms}$ và câu hỏi vấn đáp).
+## 5. TẦNG 4: TÀI LIỆU LƯU TRỮ NỘI BỘ (`docs/internal/`)
+
+Nhằm bảo đảm tính tinh gọn và sự trang nghiêm của bộ tài liệu bảo vệ trước Hội đồng, các bản nháp ghi chép nội bộ của nhóm trong suốt 6 tháng thực hiện đã được di dời vào thư mục riêng biệt:
+
+* `docs/internal/WORK_LOG.md`: Nhật ký lập trình chi tiết (680 KB, ghi vết toàn bộ commit và quá trình phát triển).
+* `docs/internal/TEAM_WORKFLOW.md`: Quy trình nội bộ về Gitflow, PR Review và Daily Standup.
+* `docs/internal/REVIEW_CHECKLIST.md`: Bảng kiểm soát chất lượng qua từng cột mốc Sprint.
+* `docs/internal/CAPSTONE_SPECIFICATION.md`: Bản đề cương và barem đánh giá ban đầu của nhà trường.
+* `docs/internal/HUONG_DAN_LAM_SLIDE_VA_SRS.md`: Hướng dẫn kỹ thuật nội bộ dành cho các thành viên.
+* `docs/internal/FRONTEND_UX_AUDIT.md`: Ghi chép rà soát giao diện người dùng.
+* `docs/internal/VECTOR_BENCHMARK_REPORT.md`: Báo cáo đo đạc vector thô (đã được tích hợp vào `ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`).
 
 ---
 
-### 🧪 Luồng D: Dành Cho QA & Kiểm Thử Hệ Thống (Testing)
-1. **Kiểm thử chức năng:** Đọc [`docs/USE_CASES.md`](./USE_CASES.md) để đối soát từng Acceptance Criteria.
-2. **Kiểm thử tải cao (k6):** Xem hướng dẫn trong [`tests/k6/`](../tests/k6/run_load_test.sh) và kết quả tại [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md).
-3. **Kiểm thử tự động E2E:** Xem các kịch bản tại [`frontend/e2e/`](../frontend/e2e/).
+## 6. HƯỚNG DẪN DUYỆT TÀI LIỆU OFFLINE QUA WORDCRAFT STUDIO
 
----
+Toàn bộ 17 tài liệu chính thức đã được đóng gói thành dữ liệu ngoại tuyến `docs-bundle.js` và tích hợp trình xem **WordCraft Document Workbench**. 
 
-### 🎤 Luồng E: Dành Cho Soạn Slide Thuyết Trình & Chuẩn Bị Bảo Vệ KLTN (Defense Presentation Flow)
-Nếu bạn đang chuẩn bị cho ngày bảo vệ Khóa luận tốt nghiệp hoặc viết Slide Canva/PowerPoint, hãy làm theo đúng 4 bước sau:
-1. **Bước 1 - Lên khung Slide:** Mở [`docs/CAPSTONE_PRESENTATION_SLIDES.md`](./CAPSTONE_PRESENTATION_SLIDES.md) lấy nguyên văn bố cục 24 slide, layout visual gợi ý và kịch bản lời thoại MC từng giây.
-2. **Bước 2 - Lấy đặc tả SRS & Yêu cầu:** Mở [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md) để trích xuất các yêu cầu chức năng chuẩn IEEE 830 (FR-VEC-01..07) và ma trận kiểm thử RTM.
-3. **Bước 3 - Luyện phản biện Q&A:** Mở [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md) và [`pgvector_scaling_16gb/CAPSTONE_DEFENSE_CHEAT_SHEET.md`](../pgvector_scaling_16gb/CAPSTONE_DEFENSE_CHEAT_SHEET.md) để luyện tập 20+ câu hỏi vấn đáp hóc búa của Hội đồng.
-4. **Bước 4 - Trích dẫn số liệu khoa học:** Lấy bảng số liệu thực nghiệm Top-1 (23.2%), Recall@3 (33.0%), độ trễ 0.72ms từ [`docs/VECTOR_BENCHMARK_REPORT.md`](./VECTOR_BENCHMARK_REPORT.md).
+### 🚀 Cách mở trực tiếp (Không cần chạy Local Web Server):
+Bạn có thể mở tệp trực tiếp trong trình duyệt bằng phím tắt hoặc thanh địa chỉ:
+* **Mở Portal Tổng Thể:**
+  ```
+  file:///Users/thanvinh/Desktop/KLTN/index.html
+  ```
+* **Mở WordCraft Studio Đọc 17 Tài Liệu Khóa Luận:**
+  ```
+  file:///Users/thanvinh/Desktop/KLTN/report_1/index.html
+  ```
+* **Mở Trình Xem Biểu Đồ Vector Phóng To 1500%:**
+  ```
+  file:///Users/thanvinh/Desktop/KLTN/docs/diagrams/interactive_viewer.html
+  ```
 
----
-
-## 📌 PHẦN 4: NGUYÊN TẮC GIỮ TÀI LIỆU LUÔN "SỐNG" (LIVING DOCUMENTATION)
-
-Để tài liệu không bao giờ bị lạc hậu hay lộn xộn trong quá trình phát triển tiếp theo:
-1. **Khi sửa Schema Database (Flyway):** Bắt buộc cập nhật ngay [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md).
-2. **Khi thêm/sửa Endpoint hoặc Logic:** Bắt buộc cập nhật [`docs/USE_CASES.md`](./USE_CASES.md).
-3. **Khi tối ưu thuật toán hoặc thêm công thức:** Bắt buộc ghi nhận vào [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md).
-4. **Mỗi phiên làm việc:** Ghi nhật ký vào [`docs/WORK_LOG.md`](./WORK_LOG.md) để lưu vết tiến độ.
+### ⚡ Các phím tắt tiện ích khi thuyết trình bảo vệ:
+* <kbd>Ctrl + B</kbd>: Ẩn/Hiện thanh danh sách tài liệu bên trái.
+* <kbd>Ctrl + M</kbd>: Ẩn/Hiện thanh mục lục Outline bên phải.
+* **Nút Xuất PDF:** Chuẩn hóa lề trang in sắc nét, không vỡ bảng hay đè chữ.
+* **Chuyển Đổi Giao Diện:** Hỗ trợ 4 chế độ màu (WordCraft Light, Obsidian Dark, Warm Sepia, Nordic Slate) và hiển thị công thức toán học KaTeX phân giải cao.

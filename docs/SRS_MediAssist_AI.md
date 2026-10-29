@@ -44,7 +44,7 @@
       - [2.3.2.7 Download Document File via 15-Min Signed URL (UC-PAT-07)](#2327-download-document-file-via-15-min-signed-url-uc-pat-07)
       - [2.3.2.8 Purchase AI Analysis Quota (UC-PAT-08)](#2328-purchase-ai-analysis-quota-uc-pat-08)
       - [2.3.2.9 Book In-Clinic Appointment (UC-PAT-09)](#2329-book-in-clinic-appointment-uc-pat-09)
-      - [2.3.2.10 Process Payment via VNPay / Mock Sandbox (UC-PAT-10)](#23210-process-payment-via-stripe--mock-sandbox-uc-pat-10)
+      - [2.3.2.10 Process Payment via VNPay / Mock Sandbox (UC-PAT-10)](#23210-process-payment-via-vnpay--mock-sandbox-uc-pat-10)
       - [2.3.2.11 View Electronic Encounter Slip (STT) (UC-PAT-11)](#23211-view-electronic-encounter-slip-stt-uc-pat-11)
       - [2.3.2.12 View Patient Appointment History (UC-PAT-12)](#23212-view-patient-appointment-history-uc-pat-12)
       - [2.3.2.13 Patient Check-In for Appointment (UC-PAT-13)](#23213-patient-check-in-for-appointment-uc-pat-13)
@@ -156,7 +156,7 @@ The MediAssist-AI platform encompasses five tightly coupled operational subsyste
 - **LOINC:** Logical Observation Identifiers Names and Codes for clinical laboratory test standardization.
 - **MOH:** Ministry of Health of Vietnam (Bộ Y Tế).
 - **NegEx:** Clinical Negation Extraction algorithm adapted for Vietnamese syntactic clause boundaries.
-- **O2O:** Online-to-Offline clinical workflow (Online triage/scheduling $ightarrow$ In-person physical examination).
+- **O2O:** Online-to-Offline clinical workflow (Online triage/scheduling $\rightarrow$ In-person physical examination).
 - **OCR:** Optical Character Recognition.
 - **PII:** Personally Identifiable Information governed by Decree 13/2023/NĐ-CP and HIPAA Safe Harbor.
 - **RBAC:** Role-Based Access Control enforcing `PATIENT`, `DOCTOR`, and `ADMIN` privileges.
@@ -166,11 +166,16 @@ The MediAssist-AI platform encompasses five tightly coupled operational subsyste
 ### 1.4 References
 1. IEEE Std 830-1998: *IEEE Recommended Practice for Software Requirements Specifications*.
 2. ISO/IEC/IEEE 29148:2018: *Systems and Software Engineering — Life Cycle Processes — Requirements Engineering*.
-3. Ministry of Health Vietnam: *Decision 7603/QĐ-BYT promulgating the Master List of ICD-10 Medical Diagnoses*.
-4. Ministry of Health Vietnam: *Decision 3280/QĐ-BYT promulgating the Catalog of Technical Services and LOINC Codes*.
-5. Government of Vietnam: *Decree 13/2023/NĐ-CP on Personal Data Protection (PDPD)*.
-6. Malkov, Y. A., & Yashunin, D. A. (2018). *Efficient and robust approximate nearest neighbors using Hierarchical Navigable Small World graphs*. IEEE TPAMI.
-7. Chapman, W. W., et al. (2001). *A simple algorithm for identifying negated findings and diseases in discharge summaries (NegEx)*. Journal of Biomedical Informatics.
+3. National Assembly of Vietnam: *Law on Medical Examination and Treatment No. 15/2023/QH15 (Luật Khám bệnh, chữa bệnh)*, Articles 19 & 28 governing certified clinician diagnosis mandate.
+4. Government of Vietnam: *Decree 13/2023/NĐ-CP on Personal Data Protection (Nghị định Bảo vệ Dữ liệu Cá nhân - PDPD)*.
+5. Ministry of Health Vietnam: *Circular 46/2018/TT-BYT promulgating regulations on Electronic Medical Records (Hồ sơ Bệnh án Điện tử - EMR)*.
+6. Ministry of Health Vietnam: *Decision 7603/QĐ-BYT promulgating the Master List of ICD-10 Medical Diagnoses*.
+7. Ministry of Health Vietnam: *Decision 3280/QĐ-BYT promulgating the Reference Range Catalog and LOINC Codes for Biochemical Lab Indicators*.
+8. Google Research: Tu, T., et al. (2024). *Towards conversational diagnostic AI: Conversational history-taking and clinical reasoning (AMIE)*. Nature.
+9. Gilbert, S., et al. (2020-2023). *Differences in risk-averse triage accuracy between artificial intelligence and human clinicians*. The Lancet Digital Health / BMJ.
+10. ClinicalRAG Framework: Zhang, Y., et al. (2024). *Ontology-grounded Clinical Retrieval-Augmented Generation for Hallucination Suppression*. Proceedings of ACL 2024.
+11. Malkov, Y. A., & Yashunin, D. A. (2018). *Efficient and robust approximate nearest neighbors using Hierarchical Navigable Small World graphs*. IEEE TPAMI.
+12. Chapman, W. W., et al. (2001). *A simple algorithm for identifying negated findings and diseases in discharge summaries (NegEx)*. Journal of Biomedical Informatics.
 
 ### 1.5 System Overview & High-Level Architecture
 MediAssist-AI follows an enterprise Modular Monolith architecture implemented with Spring Boot 3.4 (Java 21 LTS Project Loom Virtual Threads) and React 18 (TypeScript Vite SPA), integrated with PostgreSQL 16 `pgvector`, Redis distributed cache, Supabase S3 private storage, and AI inference gateways:
@@ -682,7 +687,7 @@ flowchart LR
 | **Trigger** | Patient enters symptoms into search bar on `/patient/doctors`. |
 | **Pre-conditions** | - Verified doctor profiles have pre-computed 1536-d embeddings in `doctor_profiles.bio_embedding`.<br>- PostgreSQL 16 HNSW index `idx_doctor_bio_hnsw_verified` is active (Flyway V11). |
 | **Post-conditions** | - System executes session-tuned vector similarity query.<br>- Candidates re-ranked using Weighted Hybrid Re-Ranking Formula (WHRF) in a bounded min-heap.<br>- Ranked list of qualified specialist doctors returned with match compatibility scores. |
-| **Normal Flow** | Step 1: Patient types symptoms on `/patient/doctors` (e.g., "đau dạ dày ợ chua trào ngược").<br>Step 2: Frontend dispatches HTTP GET to `/api/v1/triage/search/semantic?query=...&limit=5`.<br>Step 3: Backend passes query through `ClinicalQueryDefenseEngine`.<br>Step 4: Backend calls `EmbeddingService` to compute 1536-d dense vector using `openai/text-embedding-3-small`.<br>Step 5: Backend applies PostgreSQL session tuning:<br>- `SET LOCAL hnsw.ef_search = 120;`<br>- `SET LOCAL enable_seqscan = off;`<br>- `SET LOCAL work_mem = '64MB';`<br>Step 6: Backend executes vector similarity query against `doctor_profiles`:<br>`SELECT d.*, 1 - (d.bio_embedding <=> :queryEmbedding) AS cosine_sim FROM doctor_profiles d WHERE d.is_verified = true ...`<br>Step 7: Candidates processed through Bounded Min-Heap executing WHRF Re-ranking:<br>- Sigmoid Contrastive Sharpening: $S_{dense} = rac{1}{1 + e^{-8.0(cosine\_sim - 0.65)}}$<br>- Sparse lexical overlap bonus<br>- Specialty Match Boost: $+0.12$<br>- Divergence Penalty: $-0.10$<br>- Credibility Damper: $\log_{10}(	ext{review\_count} + 1) / \log_{10}(100)$<br>Step 8: Top $K=5$ doctors serialized into `DoctorMatchDto` list.<br>Step 9: Frontend renders doctor cards with match percentage, specialty badge, rating, fee, and available slots. |
+| **Normal Flow** | Step 1: Patient types symptoms on `/patient/doctors` (e.g., "đau dạ dày ợ chua trào ngược").<br>Step 2: Frontend dispatches HTTP GET to `/api/v1/triage/search/semantic?query=...&limit=5`.<br>Step 3: Backend passes query through `ClinicalQueryDefenseEngine`.<br>Step 4: Backend calls `EmbeddingService` to compute 1536-d dense vector using `openai/text-embedding-3-small`.<br>Step 5: Backend applies PostgreSQL session tuning:<br>- `SET LOCAL hnsw.ef_search = 120;`<br>- `SET LOCAL enable_seqscan = off;`<br>- `SET LOCAL work_mem = '64MB';`<br>Step 6: Backend executes vector similarity query against `doctor_profiles`:<br>`SELECT d.*, 1 - (d.bio_embedding <=> :queryEmbedding) AS cosine_sim FROM doctor_profiles d WHERE d.is_verified = true ...`<br>Step 7: Candidates processed through Bounded Min-Heap executing WHRF Re-ranking:<br>- Sigmoid Contrastive Sharpening: $S_{dense} = \frac{1}{1 + e^{-8.0(cosine\_sim - 0.65)}}$<br>- Sparse lexical overlap bonus<br>- Specialty Match Boost: $+0.12$<br>- Divergence Penalty: $-0.10$<br>- Credibility Damper: $\log_{10}(\text{review\_count} + 1) / \log_{10}(100)$<br>Step 8: Top $K=5$ doctors serialized into `DoctorMatchDto` list.<br>Step 9: Frontend renders doctor cards with match percentage, specialty badge, rating, fee, and available slots. |
 | **Alternative Flow** | - Alt Flow 11a: Embedding Service Offline:<br>1. Backend falls back to local Unsupervised Feature Hashing (Character N-gram FNV-1a).<br>2. Search completes with degraded semantic precision. |
 | **Exceptions** | None. |
 | **Priority** | High (P0 - Core Differentiator) |
@@ -802,7 +807,7 @@ flowchart LR
 | **Trigger** | Patient clicks "Mua Thêm Hạn Ngạch" on `/patient/documents`. |
 | **Pre-conditions** | Patient is authenticated. |
 | **Post-conditions** | Payment checkout initiated; quota credited upon successful transaction. |
-| **Normal Flow** | Step 1: Patient opens Quota Purchase modal on `/patient/documents`.<br>Step 2: Frontend calls HTTP GET `/api/v1/payments/packages` to display quota tiers:<br>- Gói Tiêu Chuẩn: 5 lượt phân tích (50.000 VNĐ).<br>- Gói Nâng Cao: 15 lượt phân tích (120.000 VNĐ).<br>- Gói Không Giới Hạn: 50 lượt phân tích (300.000 VNĐ).<br>Step 3: Patient selects package and clicks "Thanh Toán".<br>Step 4: Frontend calls HTTP POST `/api/v1/payments/create-url` with `orderType = QUOTA_PURCHASE`.<br>Step 5: Backend initializes payment via Stripe or Mock Sandbox.<br>Step 6: Patient completes payment; transaction verified via `POST /api/v1/payments/verify`.<br>Step 7: Backend increments `patient_profiles.remaining_ai_quota`.<br>Step 8: Frontend updates quota balance badge. |
+| **Normal Flow** | Step 1: Patient opens Quota Purchase modal on `/patient/documents`.<br>Step 2: Frontend calls HTTP GET `/api/v1/payments/packages` to display quota tiers:<br>- Gói Tiêu Chuẩn: 5 lượt phân tích (50.000 VNĐ).<br>- Gói Nâng Cao: 15 lượt phân tích (120.000 VNĐ).<br>- Gói Không Giới Hạn: 50 lượt phân tích (300.000 VNĐ).<br>Step 3: Patient selects package and clicks "Thanh Toán".<br>Step 4: Frontend calls HTTP POST `/api/v1/payments/create-url` with `orderType = QUOTA_PURCHASE`.<br>Step 5: Backend initializes payment via VNPay or Mock Sandbox.<br>Step 6: Patient completes payment; transaction verified via `POST /api/v1/payments/verify`.<br>Step 7: Backend increments `patient_profiles.remaining_ai_quota`.<br>Step 8: Frontend updates quota balance badge. |
 | **Alternative Flow** | None. |
 | **Exceptions** | None. |
 | **Priority** | Medium (P2) |
@@ -1858,8 +1863,8 @@ stateDiagram-v2
 | 6 | `forgotLink` | Navigation Link | Text "Quên mật khẩu?" | Opens recovery flow | Routes to `/forgot-password` |
 
 - **Algorithmic Logic:**
-  * Bcrypt password verification: $	ext{verify}(	ext{rawPassword}, 	ext{storedHash})$ computed with cost factor 12.
-  * Brute-force protection: Tracks failed attempts in `users.failed_login_attempts`. If $\ge 5$, sets `locked_until = 	ext{now}() + 15	ext{ minutes}$ and throws `AppException(HttpStatus.LOCKED, "ACCOUNT_LOCKED")`.
+  * Bcrypt password verification: $\text{verify}(\text{rawPassword}, \text{storedHash})$ computed with cost factor 12.
+  * Brute-force protection: Tracks failed attempts in `users.failed_login_attempts`. If $\ge 5$, sets `locked_until = \text{now}() + 15\text{ minutes}$ and throws `AppException(HttpStatus.LOCKED, "ACCOUNT_LOCKED")`.
   * Dual-Transport issuance: Generates signed JWT (HMAC-SHA256, 24h TTL) injected into `Set-Cookie: jwt_token=...; HttpOnly; Secure; SameSite=Lax; Path=/api` and returned in `AuthResponse` body.
 
 ##### 3.2.1.3 Google OAuth2 Sign-In Flow (`SCR-06`)
@@ -1876,12 +1881,12 @@ stateDiagram-v2
 - **Function Description:** Secure password recovery using single-use SHA-256 token hashing.
 - **Function Trigger:** User requests recovery via `/forgot-password` and redeems via `/reset-password?token=...`.
 - **Algorithmic Logic (BE-5 / Flyway V21):**
-  1. Backend generates 32-byte cryptographically secure random token: $	ext{rawToken} \leftarrow 	ext{SecureRandom}$.
-  2. Computes SHA-256 hash: $	ext{tokenHash} = 	ext{SHA-256}(	ext{rawToken})$.
-  3. Persists $	ext{tokenHash}$ into `password_reset_tokens` with $	ext{expires\_at} = 	ext{now}() + 15	ext{ minutes}$.
-  4. Dispatches email containing $	ext{rawToken}$. Plaintext token is NEVER persisted in database.
-  5. Upon reset submission, hashes inbound token and verifies: $	ext{expires\_at} > 	ext{now}() \land 	ext{consumed} = 	ext{false}$.
-  6. Replaces password with Bcrypt hash and sets $	ext{consumed} = 	ext{true}$.
+  1. Backend generates 32-byte cryptographically secure random token: $\text{rawToken} \leftarrow \text{SecureRandom}$.
+  2. Computes SHA-256 hash: $\text{tokenHash} = \text{SHA-256}(\text{rawToken})$.
+  3. Persists $\text{tokenHash}$ into `password_reset_tokens` with $\text{expires\_at} = \text{now}() + 15\text{ minutes}$.
+  4. Dispatches email containing $\text{rawToken}$. Plaintext token is NEVER persisted in database.
+  5. Upon reset submission, hashes inbound token and verifies: $\text{expires\_at} > \text{now}() \land \text{consumed} = \text{false}$.
+  6. Replaces password with Bcrypt hash and sets $\text{consumed} = \text{true}$.
 
 ---
 
@@ -1927,12 +1932,12 @@ graph TD
    *Action:* Immediately sets `isEmergency = true`, halts inference, and displays flashing red banner directing user to call **115**.
 2. **Stage 2 — Vietnamese Slang & Teen-Code Normalization:**
    Maps colloquialisms and unaccented phrases:
-   $	ext{Normalize}(	ext{text}) = \{	ext{"ko"} ightarrow 	ext{"không"}, 	ext{"bs"} ightarrow 	ext{"bác sĩ"}, 	ext{"dau da day"} ightarrow 	ext{"đau dạ dày"}, 	ext{"met"} ightarrow 	ext{"mệt mỏi"}, 	ext{"sot cao"} ightarrow 	ext{"sốt cao"}\}$
+   $\text{Normalize}(\text{text}) = \{\text{"ko"} \rightarrow \text{"không"}, \text{"bs"} \rightarrow \text{"bác sĩ"}, \text{"dau da day"} \rightarrow \text{"đau dạ dày"}, \text{"met"} \rightarrow \text{"mệt mỏi"}, \text{"sot cao"} \rightarrow \text{"sốt cao"}\}$
 3. **Stage 3 — Vietnamese NegEx Clause-Level Negation Splitting:**
-   Scans for negation triggers $T_{neg} \in \{	ext{"không bị"}, 	ext{"chưa từng"}, 	ext{"không có"}, 	ext{"không sốt"}, 	ext{"không đau"}\}$. Splits query into:
+   Scans for negation triggers $T_{neg} \in \{\text{"không bị"}, \text{"chưa từng"}, \text{"không có"}, \text{"không sốt"}, \text{"không đau"}\}$. Splits query into:
    - Affirmative Clause $C_{aff}$: Symptoms present (passed to vector embedding).
    - Negated Clause $C_{neg}$: Symptoms explicitly denied (quarantined).
-   *Example:* "Tôi bị đau tức ngực dữ dội nhưng không bị sốt" $ightarrow C_{aff} = 	ext{"Tôi bị đau tức ngực dữ dội"}$ (routes to Cardiology), $C_{neg} = 	ext{"không bị sốt"}$ (quarantined to eliminate false routing to Pulmonology/Infectious Disease).
+   *Example:* "Tôi bị đau tức ngực dữ dội nhưng không bị sốt" $\rightarrow C_{aff} = \text{"Tôi bị đau tức ngực dữ dội"}$ (routes to Cardiology), $C_{neg} = \text{"không bị sốt"}$ (quarantined to eliminate false routing to Pulmonology/Infectious Disease).
 4. **Stage 4 — Out-of-Domain (OOD) Intent Gating:**
    Detects non-clinical administrative chatter (viện phí, giờ khám, bảo hiểm) and provides customer support hotline guidance.
 5. **Stage 5 — Compound Multi-Symptom Decomposition:**
@@ -1970,17 +1975,18 @@ graph TD
 ##### 3.2.4.3 WHRF-SOTA Bounded Min-Heap Re-Ranking Algorithm
 Candidates retrieved from HNSW index scan are processed through a Bounded Min-Heap executing the Weighted Hybrid Re-Ranking Formula (WHRF):
 
-$$	ext{FinalScore} = S_{dense} + 0.15 \cdot S_{sparse} + \Delta_{specialty} + W_{cred} \cdot \left(rac{	ext{Rating} - 3.0}{2.0}ight) + \Delta_{academic}$$
+$$\text{FinalScore} = S_{dense} + 0.15 \cdot S_{sparse} + \Delta_{specialty} + W_{cred} \cdot \left(\frac{\text{Rating} - 3.0}{2.0}
+ight) + \Delta_{academic}$$
 
 Where:
 1. **Sigmoid Contrastive Sharpening:**
-   $$S_{dense} = rac{1}{1 + e^{-8.0 \cdot (	ext{CosineSim} - 0.65)}}$$
+   $$S_{dense} = \frac{1}{1 + e^{-8.0 \cdot (\text{CosineSim} - 0.65)}}$$
    Amplifies subtle clinical differentiation above the 0.65 cosine threshold while dampening irrelevant matches.
 2. **Sparse Lexical Overlap ($S_{sparse}$):** Jaccard/BM25 token overlap between patient query and doctor clinical keywords.
 3. **Specialty Differential ($\Delta_{specialty}$):**
-   $$\Delta_{specialty} = egin{cases} +0.12 & 	ext{if candidate specialty matches recommended triage specialty} \ -0.10 & 	ext{if candidate specialty contradicts clinical presentation} \ 0.00 & 	ext{otherwise} \end{cases}$$
+   $$\Delta_{specialty} = \begin{cases} +0.12 & \text{if candidate specialty matches recommended triage specialty} \ -0.10 & \text{if candidate specialty contradicts clinical presentation} \ 0.00 & \text{otherwise} \end{cases}$$
 4. **Review Credibility Damper ($W_{cred}$):**
-   $$W_{cred} = rac{\log_{10}(	ext{review\_count} + 1)}{\log_{10}(100)}$$
+   $$W_{cred} = \frac{\log_{10}(\text{review\_count} + 1)}{\log_{10}(100)}$$
    Suppresses rating bias for doctors with very few reviews, preventing rating manipulation.
 5. **Academic Credential Multiplier ($\Delta_{academic}$):**
    Prof (+0.08), Assoc Prof (+0.05), PhD / CKII (+0.03).
@@ -1988,15 +1994,15 @@ Where:
 ##### 3.2.4.4 In-Clinic Appointment Slot Booking Modal (`BookingModal.tsx`)
 - Date picker (Monday through Saturday, Sundays disabled - BR-17).
 - 30-minute consultation slots (08:00–12:00 and 13:30–17:00).
-- Assigns sequential queue number: $	ext{STT} = 	ext{String.format}("STT\ \%02d", 	ext{countToday} + 1)$ (BR-20).
+- Assigns sequential queue number: $\text{STT} = \text{String.format}("STT\ \%02d", \text{countToday} + 1)$ (BR-20).
 
 ---
 
 #### 3.2.5 Multimodal Medical Document Ingestion & LOINC Interpretation (FR-DOC)
 
 ##### 3.2.5.1 Document Upload Portal & SHA-256 Deduplication (`SCR-10`)
-- Validates file format (PDF, PNG, JPEG), file size ($\le 10	ext{MB}$), and PDF pages ($\le 10$ pages) via `MedicalDocumentValidator`.
-- Computes SHA-256 cryptographic hash: $	ext{fileHash} = 	ext{SHA-256}(	ext{fileBytes})$. If duplicate exists for patient, returns cached analysis without re-billing AI tokens (0 token, 0đ).
+- Validates file format (PDF, PNG, JPEG), file size ($\le 10\text{MB}$), and PDF pages ($\le 10$ pages) via `MedicalDocumentValidator`.
+- Computes SHA-256 cryptographic hash: $\text{fileHash} = \text{SHA-256}(\text{fileBytes})$. If duplicate exists for patient, returns cached analysis without re-billing AI tokens (0 token, 0đ).
 
 ##### 3.2.5.2 Gemini 1.5 Flash Vision OCR & Biomarker Extraction Engine
 - Ingests document image bytes and prompts Google Gemini 1.5 Flash Vision to extract structured JSON:
@@ -2036,8 +2042,7 @@ Where:
 ##### 3.2.6.4 Appointment Rescheduling & Automated Refund Engine
 - **Rescheduling (`PATCH /appointments/{id}/reschedule`):** Permitted up to 2 hours prior to scheduled appointment time (`PAST_DATE` - BR-21).
 - **Automated Refund Calculation (`AppointmentRefundService.java` - BR-22):**
-  $$	ext{RefundAmount} = egin{cases} 1.00 	imes 	ext{Fee} & 	ext{if cancelled } > 24	ext{ hours before appointment} \ 0.80 	imes 	ext{Fee} & 	ext{if cancelled between } 2 	ext{ and } 24	ext{ hours (20\% admin retention)} \ 0.00 & 	ext{if cancelled } < 2	ext{ hours before appointment} \ 1.00 	imes 	ext{Fee} & 	ext{if cancellation is doctor-initiated (unconditional 100\% refund)} \end{cases}$$
-
+  $$\text{RefundAmount} = \begin{cases} 1.00 \times \text{Fee} & \text{if cancelled } > 24\text{ hours before appointment} \\ 0.80 \times \text{Fee} & \text{if cancelled between } 2 \text{ and } 24\text{ hours (20\% admin retention)} \\ 0.00 & \text{if cancelled } < 2\text{ hours before appointment} \\ 1.00 \times \text{Fee} & \text{if cancellation is doctor-initiated (unconditional 100\% refund)} \end{cases}$$\n
 ##### 3.2.6.5 Patient Arrival Check-In Protocol
 - Patient or reception triggers `PATCH /api/v1/appointments/{id}/check-in`. Records `checked_in_at = now()`, advancing patient in doctor queue.
 
@@ -2076,7 +2081,7 @@ public void assertCanAccessPatient(UUID actorUserId, Role role, UUID patientId, 
 *Enforcement:* A doctor CANNOT access a patient's records unless an appointment exists in `SCHEDULED`, `IN_PROGRESS`, or `COMPLETED` status. Every authorized access records an immutable `VIEW_PATIENT_RECORD` audit entry (BR-26).
 
 ##### 3.2.7.4 WHO ICD-10 & MOH Decision 7603/QĐ-BYT Autocomplete Engine
-- Provides high-speed prefix search over standardized WHO ICD-10 codes (`GET /api/v1/clinical/ontology/icd10?query=...`) in $< 30	ext{ms}$. Primary diagnosis code is mandatory for encounter finalization (BR-27).
+- Provides high-speed prefix search over standardized WHO ICD-10 codes (`GET /api/v1/clinical/ontology/icd10?query=...`) in $< 30\text{ms}$. Primary diagnosis code is mandatory for encounter finalization (BR-27).
 
 ##### 3.2.7.5 LOINC Lab Indicator Autocomplete Engine (Decision 3280/QĐ-BYT)
 - Provides autocomplete search for standardized clinical laboratory test orders (`GET /api/v1/clinical/ontology/lab-indicators`).

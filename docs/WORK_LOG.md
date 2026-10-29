@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#105** | 29/10/2026 | Tích Hợp Toàn Diện Chuẩn Y Học Chứng Cứ LOINC & Quyết Định 3280/QĐ-BYT vào Luồng Bóc Tách Xét Nghiệm Cận Lâm Sàng (Evidence-Grounded Clinical Laboratory Pipeline): (1) Nạp bản thể luận 23 chỉ số LOINC chuẩn Bộ Y Tế, (2) Thuật toán Fuzzy Matching 3 tầng (Exact, Alias 50+ thuật ngữ XN Việt Nam, Substring) hỗ trợ Unicode tiếng Việt NFD, (3) Tái thẩm định trạng thái ELEVATED/LOW/NORMAL theo chuẩn BYT thay vì tin OCR mờ, (4) Tiêm bảng đối soát chứng cứ y học vào User Prompt RAG và siết luật System Prompt chống ảo giác, (5) DTO & Frontend hiển thị huy hiệu LOINC, chuẩn BYT và trích dẫn luận cứ khoa học. 308/308 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#104** | 27/10/2026 | Tách biệt hoàn toàn Docker (Zero-Docker In-Memory Vite Connect Middleware Plugin) & Tinh chỉnh toàn diện thiết kế Aether Bio-Atelier: loại bỏ toàn bộ mảng màu đen/obsidian gây lệch tông tại Hero Section, Aside, Navigation, Dropzone; làm mịn bo góc organic rounded-2xl/3xl, loại bỏ toàn bộ 3D block shadows và thay bằng soft atmospheric elevation; chuẩn hóa màu y tế ấm sáng hài hòa; build 0 lỗi TS, 32/32 screenshots đạt chuẩn | AI Assistant | 🟢 Sẵn sàng Review |
 | **#103** | 27/10/2026 | Thiết kế lại toàn bộ giao diện (Aether Bio-Atelier // Swiss Clinical Precision): bảng màu giấy ấm + Obsidian + Cobalt, bộ font mới, thanh điều hướng dọc cho 3 cổng, GSAP `useGSAP` tôn trọng reduced-motion. Frontend build 0 lỗi TS; E2E 36/40 (4 lỗi ở đoạn mã không sửa) | AI Assistant | 🟢 Sẵn sàng Review |
 | **#083** | 02/10/2026 | Hệ Thống Email (Email Notifications), gồm 4 phần A–D hoàn chỉnh: (1) `spring-boot-starter-mail` + Thymeleaf, template HTML tiếng Việt auto-escape, Mailpit (SMTP 1025, UI 8025), (2) V21 `token_hash` SHA-256, TTL 30 phút, rate limit IP + email, `/forgot-password` & `/reset-password`, (3) V22 `email_verified` + `email_verification_tokens`, guard 403 `EMAIL_NOT_VERIFIED` ở tầng service (đặt/dời lịch, checkout), chống pre-hijacking khi liên kết Google, banner + trang `/verify-email`, (4) email đặt lịch (bệnh nhân + bác sĩ, kể cả tái khám), hủy lịch (cả 2 đường, ghi người hủy + hoàn tiền, không kèm lý do), biên nhận thanh toán (verify + Stripe webhook); hoàn tiền dùng chung qua `AppointmentRefundService`. 290/290 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
@@ -35,6 +36,29 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#105] Tích Hợp Toàn Diện Chuẩn Y Học Chứng Cứ LOINC & Quyết Định 3280/QĐ-BYT vào Luồng Bóc Tách Xét Nghiệm Cận Lâm Sàng
+* **Thời gian:** 2026-10-29 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Core Developer & Technical Lead)
+* **Nhánh:** `feature/ui-aether-redesign`
+* **Mã Use Cases:** `UC-AI-36` (Evidence-Grounded Clinical Laboratory Analysis & LOINC Standardization), `UC-DOC-21`, `UC-DOC-22`.
+* **Tệp tin:**
+  - `[MOD]` `backend/src/main/resources/clinical_ontology/lab_indicators_loinc_byt.json`: Cập nhật và bổ sung 23 chỉ số cận lâm sàng huyết học & sinh hóa chuẩn Bộ Y Tế Việt Nam (QĐ 3280/QĐ-BYT) và mã quốc tế LOINC v2.76.
+  - `[MOD]` `backend/src/main/java/com/mediassist/dto/AbnormalIndicatorDto.java`: Bổ sung 3 trường khoa học `loincCode`, `bytReferenceRange`, `scientificBasis` kèm getter/setter đầy đủ.
+  - `[MOD]` `backend/src/main/java/com/mediassist/service/ClinicalOntologyService.java`: Hiện thực hóa động cơ tra cứu và đối soát 3 tầng `fuzzyMatchIndicator(ocrName)` với bộ từ điển hơn 50 bí danh (aliases) xét nghiệm thường gặp tại các bệnh viện Việt Nam, tối ưu hóa xử lý Unicode NFD tiếng Việt cho các ký tự có dấu và chữ Đ/đ; bổ sung `getLabIndicatorById` và `getAllLabIndicators`.
+  - `[MOD]` `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`: Tiêm `ClinicalOntologyService`, tích hợp hàm `enrichWithOntology(List<AbnormalIndicatorDto>)` tự động ánh xạ chỉ số OCR sang mã LOINC chuẩn, ghi đè khoảng tham chiếu BYT, tính toán lại trạng thái bất thường (ELEVATED, LOW, NORMAL) theo ngưỡng chuẩn quốc gia, và gắn luận cứ khoa học vào kết quả bóc tách tại mọi luồng quét.
+  - `[MOD]` `backend/src/main/java/com/mediassist/service/ClinicalRagService.java`: Bổ sung nạp bảng chứng cứ lâm sàng LOINC/BYT định dạng Markdown Table vào `userPrompt` của RAG prompt, cập nhật Rule 1 trong `systemPrompt` buộc mô hình AI đối soát kết quả cận lâm sàng với bảng chứng cứ Bộ Y Tế, triệt tiêu ảo giác (hallucination).
+  - `[MOD]` `backend/src/test/java/com/mediassist/service/ClinicalOntologyServiceTest.java`: Thêm test suite kiểm định toàn diện thuật toán Fuzzy Match (Exact Match, Alias AST/SGPT/Glucose/Axit Uric, Substring Containment, Unrecognized Indicator) và Bulk retrieval.
+  - `[MOD]` `frontend/src/pages/patient/DocumentSummarizerPage.tsx`: Cập nhật giao diện Bảng chỉ số xét nghiệm hiển thị badge mã chuẩn hóa `LOINC: {code}`, khoảng tham chiếu chuẩn BYT, và hộp trích dẫn luận cứ khoa học `🔬 Luận cứ: QĐ 3280/QĐ-BYT...`.
+  - `[MOD]` `frontend/src/components/common/DocumentAnalysisModal.tsx`: Đồng bộ giao diện modal phân tích tài liệu của Bác sĩ và Bệnh nhân với thông tin LOINC và luận cứ khoa học.
+  - `[MOD]` `docs/USE_CASES.md`: Đặc tả chi tiết Use Case mới `UC-AI-36`.
+  - `[MOD]` `docs/CAPSTONE_DEFENSE.md`: Cập nhật câu trả lời Câu hỏi 9 bảo vệ luận văn, làm rõ sự khác biệt giữa AI suy luận tự do (ảo giác) và Hệ thống neo giữ y học chứng cứ (Evidence-Grounded AI) kết hợp thuật toán xếp hạng bác sĩ WHRF-SOTA.
+* **Bằng chứng kiểm thử & Verification:**
+  - Backend tests: `mvn test` $\rightarrow$ **308/308 tests PASS (0 failures, 0 errors, 100% clean)** trong 14.096s.
+  - Frontend build: `npm run build` $\rightarrow$ **0 lỗi TypeScript, 2311 modules transformed**, built in 2.68s.
+* **Điểm nóng Tech Lead cần Review:**
+  - Chuẩn hóa khoảng tham chiếu Bộ Y Tế có độ ưu tiên cao hơn giá trị in trên phiếu trong trường hợp ảnh chụp mờ hoặc sai lệch cục bộ từ lab tư nhân.
+  - Bảng đối soát chứng cứ được inject nguyên khối vào ngữ cảnh RAG giúp LLM dẫn chứng chính xác điều khoản y khoa mà không tốn chi phí fine-tuning phức tạp.
 
 ### [WORK-LOG-#104] Tinh Chỉnh Đồng Nhất Aether Bio-Atelier & Zero-Docker Local Development
 * **Thời gian:** 2026-10-27 (GMT+7)

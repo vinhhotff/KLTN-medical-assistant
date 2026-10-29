@@ -292,31 +292,31 @@
     Tier3 --> Tier5`,
 
             erd_full: `erDiagram
-    users ||--o| doctor_profiles : "1:1 owns profile"
-    users ||--o| patient_profiles : "1:1 owns EMR passport"
-    users ||--o{ appointments : "1:N books as patient"
-    users ||--o{ appointments : "1:N attends as doctor"
-    users ||--o{ triage_sessions : "1:N initiates"
-    users ||--o{ medical_documents : "1:N uploads"
-    users ||--o{ payment_transactions : "1:N transacts"
-    users ||--o{ password_reset_tokens : "1:N requests"
-    users ||--o{ email_verification_tokens : "1:N receives"
-    users ||--o{ notifications : "1:N receives"
-    users ||--o{ audit_logs : "1:N triggers"
-    users ||--o{ doctor_reviews : "1:N evaluates"
+    users ||--o| doctor_profiles : "owns profile (1:0..1)"
+    users ||--o| patient_profiles : "owns EMR passport (1:0..1)"
+    users ||--o{ appointments : "books as patient (1:N)"
+    users ||--o{ appointments : "attends as doctor (1:N)"
+    users ||--o{ triage_sessions : "initiates triage (1:N)"
+    users ||--o{ medical_documents : "uploads (1:N)"
+    users ||--o{ payment_transactions : "initiates payment (1:N)"
+    users ||--o{ password_reset_tokens : "requests (1:N)"
+    users ||--o{ email_verification_tokens : "receives (1:N)"
+    users ||--o{ notifications : "receives alerts (1:N)"
+    users ||--o{ audit_logs : "triggers audit (1:N)"
+    users ||--o{ doctor_reviews : "submits as patient (1:N)"
+    users ||--o{ doctor_reviews : "rated as doctor (1:N)"
+    users ||--o{ ai_token_usage : "consumes AI tokens (1:N)"
 
-    doctor_profiles ||--o{ doctor_specialties : "1:N specialized"
-    specialties ||--o{ doctor_specialties : "1:N categorized"
-    doctor_profiles ||--o{ doctor_schedule_slots : "1:N schedules availability"
-    doctor_profiles ||--o{ doctor_reviews : "1:N rated by patients"
+    doctor_profiles ||--|{ doctor_specialties : "specialized in (1:1..N)"
+    specialties ||--o{ doctor_specialties : "categorizes (1:0..N)"
+    doctor_profiles ||--o{ doctor_schedule_slots : "defines availability (1:N)"
 
-    appointments ||--o| doctor_reviews : "1:1 reviewed after completed"
-    appointments }o--o| medical_documents : "N:1 attaches lab report"
-    appointments }o--o| triage_sessions : "N:1 originates from triage"
-    appointments ||--o| payment_transactions : "1:1 settled via transaction"
+    appointments ||--o| doctor_reviews : "evaluated after completed (1:0..1)"
+    medical_documents ||--o{ appointments : "attached to encounter (1:0..N)"
+    triage_sessions ||--o{ appointments : "converts to encounter (1:0..N)"
+    appointments ||--o{ payment_transactions : "billed for encounter (1:0..N)"
 
-    medical_documents ||--o| document_analyses : "1:1 OCR analyzed"
-    users ||--o{ ai_token_usage : "1:N LLM token auditing"`,
+    medical_documents ||--o| document_analyses : "generates OCR report (1:0..1)"`,
 
             erd_sub_identity: `erDiagram
     users ||--o{ password_reset_tokens : "has tokens"
@@ -416,14 +416,18 @@
     }`,
 
             erd_sub_appointment: `erDiagram
-    appointments }o--o| patient_profiles : "for patient"
-    appointments }o--o| triage_sessions : "originates from"
+    users ||--o| patient_profiles : "owns EMR passport (1:0..1)"
+    users ||--o{ appointments : "books as patient (1:N)"
+    triage_sessions ||--o{ appointments : "originates from triage (1:0..N)"
+    appointments ||--o| doctor_reviews : "evaluated after completed (1:0..1)"
 
     appointments {
         UUID id PK
         VARCHAR appointment_code UK
-        UUID patient_id FK
-        UUID doctor_id FK
+        UUID patient_id FK "REFERENCES users(id)"
+        UUID doctor_id FK "REFERENCES users(id)"
+        UUID triage_session_id FK "REFERENCES triage_sessions(id)"
+        UUID medical_document_id FK "REFERENCES medical_documents(id)"
         TIMESTAMPTZ scheduled_start
         TIMESTAMPTZ scheduled_end
         VARCHAR status "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED"
@@ -442,7 +446,7 @@
     }
     patient_profiles {
         UUID id PK
-        UUID user_id UK, FK
+        UUID user_id UK, FK "REFERENCES users(id)"
         VARCHAR patient_code UK
         VARCHAR citizen_id UK "CCCD 12 số"
         VARCHAR health_insurance_number "BHYT"
@@ -452,18 +456,29 @@
     }
     triage_sessions {
         UUID id PK
-        UUID user_id FK
+        UUID user_id FK "REFERENCES users(id)"
         TEXT symptoms_text
         BOOLEAN is_emergency "Hotline 115 Flag"
         VARCHAR urgency_level "ROUTINE, URGENT, EMERGENCY"
         VARCHAR primary_specialty
         TEXT sbar_summary "SBAR Structured Report"
+    }
+    doctor_reviews {
+        UUID id PK
+        UUID appointment_id UK, FK "REFERENCES appointments(id)"
+        UUID doctor_id FK "REFERENCES users(id)"
+        UUID patient_id FK "REFERENCES users(id)"
+        INT rating "1 to 5"
+        TEXT comment
     }`,
 
             erd_sub_diagnostics: `erDiagram
-    medical_documents ||--o| document_analyses : "OCR analyzed"
-    users ||--o{ payment_transactions : "pays"
-    users ||--o{ ai_token_usage : "consumes tokens"
+    users ||--o{ medical_documents : "uploads (1:N)"
+    medical_documents ||--o| document_analyses : "generates OCR report (1:0..1)"
+    medical_documents ||--o{ appointments : "attached in encounter (1:0..N)"
+    users ||--o{ payment_transactions : "initiates payment (1:N)"
+    appointments ||--o{ payment_transactions : "settles encounter fee (1:0..N)"
+    users ||--o{ ai_token_usage : "consumes AI quota (1:N)"
 
     medical_documents {
         UUID id PK

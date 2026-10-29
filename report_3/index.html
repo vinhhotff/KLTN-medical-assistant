@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediAssist-AI | Report 3 – Software Requirements Specification (SRS)</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              900: '#0c4a6e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Marked.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Mermaid.js v10 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <!-- KaTeX LaTeX Math Rendering CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet">
+
+  <!-- Pre-bundled Documents Data (Enables 100% offline file:// access without CORS errors) -->
+  <script src="docs-bundle.js"></script>
+
+  <style>
+    /* Typography Font Classes */
+    .font-sans-ui { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+    .font-serif-read { font-family: 'Merriweather', Georgia, serif; }
+    .font-mono-code { font-family: 'JetBrains Mono', monospace; }
+
+    /* Theme Styles */
+    body.theme-light { background-color: #f8fafc; color: #1e293b; }
+    body.theme-dark { background-color: #090d16; color: #cbd5e1; }
+    body.theme-sepia { background-color: #fbf7ee; color: #433422; }
+    body.theme-slate { background-color: #0f172a; color: #94a3b8; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    .theme-dark ::-webkit-scrollbar-thumb { background: #334155; }
+    .theme-sepia ::-webkit-scrollbar-thumb { background: #d7cca8; }
+
+    /* Markdown Document Prose Styling */
+    .doc-content h1 {
+      font-weight: 800;
+      font-size: 2.15rem;
+      margin-top: 2rem;
+      margin-bottom: 1.25rem;
+      line-height: 1.25;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid rgba(148, 163, 184, 0.25);
+    }
+    .theme-light .doc-content h1 { color: #0f172a; }
+    .theme-dark .doc-content h1 { color: #f8fafc; border-bottom-color: #1e293b; }
+    .theme-sepia .doc-content h1 { color: #2c2013; border-bottom-color: #e5dac1; }
+
+    .doc-content h2 {
+      font-weight: 700;
+      font-size: 1.55rem;
+      margin-top: 2.25rem;
+      margin-bottom: 0.85rem;
+      line-height: 1.3;
+      padding-bottom: 0.35rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    .theme-light .doc-content h2 { color: #1e293b; }
+    .theme-dark .doc-content h2 { color: #e2e8f0; border-bottom-color: #1e293b; }
+    .theme-sepia .doc-content h2 { color: #3d2d1b; border-bottom-color: #e5dac1; }
+
+    .doc-content h3 {
+      font-weight: 600;
+      font-size: 1.25rem;
+      margin-top: 1.75rem;
+      margin-bottom: 0.6rem;
+    }
+    .theme-light .doc-content h3 { color: #334155; }
+    .theme-dark .doc-content h3 { color: #cbd5e1; }
+    .theme-sepia .doc-content h3 { color: #4e3a24; }
+
+    .doc-content h4 {
+      font-weight: 600;
+      font-size: 1.05rem;
+      margin-top: 1.35rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .doc-content p {
+      margin-top: 0.85rem;
+      margin-bottom: 0.85rem;
+      line-height: 1.75;
+    }
+
+    .doc-content ul {
+      list-style-type: disc;
+      padding-left: 1.6rem;
+      margin-top: 0.65rem;
+      margin-bottom: 0.65rem;
+    }
+    .doc-content ol {
+      list-style-type: decimal;
+      padding-left: 1.6rem;
+      margin-top: 0.65rem;
+      margin-bottom: 0.65rem;
+    }
+    .doc-content li {
+      margin-top: 0.25rem;
+      margin-bottom: 0.25rem;
+      line-height: 1.65;
+    }
+
+    .doc-content table {
+      width: 100%;
+      min-width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+      word-break: normal;
+      overflow-wrap: normal;
+    }
+    .table-responsive {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      margin: 1.25rem 0;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      -webkit-overflow-scrolling: touch;
+    }
+    .theme-light .table-responsive { background-color: #ffffff; }
+    .theme-dark .table-responsive { border-color: #1e293b; background-color: #0b1120; }
+    .theme-sepia .table-responsive { border-color: #e5dac1; background-color: #fbf7ee; }
+    .table-responsive table {
+      margin: 0 !important;
+      border: none !important;
+    }
+    .doc-content {
+      overflow-wrap: break-word;
+      word-break: break-word;
+      max-width: 100%;
+    }
+    .doc-content th {
+      padding: 0.65rem 0.85rem;
+      font-weight: 700;
+      text-align: left;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      vertical-align: top;
+      line-height: 1.4;
+      word-break: normal;
+    }
+    .theme-light .doc-content th { background-color: #f1f5f9; color: #0f172a; }
+    .theme-dark .doc-content th { background-color: #131c2e; color: #f1f5f9; border-color: #1e293b; }
+    .theme-sepia .doc-content th { background-color: #f1ebd8; color: #2c2013; border-color: #e5dac1; }
+
+    .doc-content td {
+      padding: 0.65rem 0.85rem;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      vertical-align: top;
+      word-break: normal;
+    }
+    /* Keep badge and status columns tight on 1 line without wrapping */
+    .doc-content table th:first-child, .doc-content table td:first-child {
+      white-space: nowrap;
+      width: 1%;
+    }
+    .doc-content table th:nth-child(2), .doc-content table td:nth-child(2) {
+      white-space: nowrap;
+      width: 1%;
+    }
+    .doc-content table th:last-child, .doc-content table td:last-child {
+      white-space: nowrap;
+      width: 1%;
+      text-align: center;
+    }
+    .theme-light .doc-content tr:nth-child(even) { background-color: #f8fafc; }
+    .theme-dark .doc-content td { border-color: #1e293b; }
+    .theme-dark .doc-content tr:nth-child(even) { background-color: #0c121e; }
+    .theme-sepia .doc-content td { border-color: #e5dac1; }
+    .theme-sepia .doc-content tr:nth-child(even) { background-color: #f7f1e1; }
+
+    .doc-content blockquote {
+      border-left: 4px solid #0284c7;
+      padding: 0.75rem 1.25rem;
+      margin: 1.25rem 0;
+      border-radius: 0 0.5rem 0.5rem 0;
+    }
+    .theme-light .doc-content blockquote { background-color: #f0f9ff; color: #0369a1; }
+    .theme-dark .doc-content blockquote { background-color: #082f49; color: #bae6fd; border-left-color: #38bdf8; }
+    .theme-sepia .doc-content blockquote { background-color: #f3ecdb; color: #78350f; border-left-color: #d97706; }
+
+    .doc-content pre {
+      border-radius: 0.5rem;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+      overflow-x: auto;
+      max-width: 100%;
+      box-sizing: border-box;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    .theme-light .doc-content pre { background-color: #0f172a; color: #e2e8f0; }
+    .theme-dark .doc-content pre { background-color: #020617; color: #f1f5f9; border: 1px solid #1e293b; }
+    .theme-sepia .doc-content pre { background-color: #2c2013; color: #fbf7ee; }
+
+    /* Fluid and adaptive container */
+    #content-wrapper {
+      width: 100%;
+      max-width: 880px;
+      transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    /* When left sidebar is collapsed and right sidebar is collapsed: near full screen! */
+    #left-sidebar.is-collapsed ~ #main-viewport #content-wrapper {
+      max-width: 95% !important;
+      width: 95% !important;
+    }
+
+    /* Collapsible Sidebars */
+    #left-sidebar.is-collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      max-width: 0 !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      border-right-width: 0 !important;
+      opacity: 0;
+      pointer-events: none;
+      overflow: hidden !important;
+    }
+    #right-toc.is-collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      max-width: 0 !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      border-left-width: 0 !important;
+      opacity: 0;
+      pointer-events: none;
+      overflow: hidden !important;
+    }
+
+    .doc-content code:not(pre code) {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85em;
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.25rem;
+    }
+    .theme-light .doc-content code:not(pre code) { background-color: #e2e8f0; color: #0f172a; }
+    .theme-dark .doc-content code:not(pre code) { background-color: #1e293b; color: #38bdf8; }
+    .theme-sepia .doc-content code:not(pre code) { background-color: #edd5a8; color: #502b0c; }
+
+    .doc-content a {
+      color: #0284c7;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .theme-dark .doc-content a { color: #38bdf8; }
+    .theme-sepia .doc-content a { color: #b45309; }
+
+    /* Mermaid Container */
+    .mermaid {
+      display: flex;
+      justify-content: center;
+      background: #ffffff;
+      padding: 1.5rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      margin: 1.75rem 0;
+      overflow-x: auto;
+    }
+    .theme-dark .mermaid { background: #0f172a; border-color: #1e293b; }
+
+    /* Print Styles */
+    @media print {
+      #left-sidebar, #right-toc, #top-bar, #wordcraft-controls, #back-to-top { display: none !important; }
+      #content-wrapper { margin: 0 !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; }
+      body { background: #ffffff !important; color: #000000 !important; }
+    }
+  </style>
+</head>
+<body class="theme-light font-sans-ui h-full flex flex-col selection:bg-sky-500 selection:text-white">
+
+  <!-- TOP WORDCRAFT APP BAR -->
+  <header id="top-bar" class="h-14 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur px-4 flex items-center justify-between sticky top-0 z-40 transition-colors shadow-sm">
+    <!-- Left: Brand & Sidebar Toggles -->
+    <div class="flex items-center space-x-2 sm:space-x-3">
+      <!-- Toggle Left Sidebar Button -->
+      <button onclick="toggleLeftSidebar()" id="btn-toggle-left" class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center space-x-1.5 transition shadow-sm" title="Ẩn/Hiện Danh sách Tài liệu (Ctrl+B)">
+        <svg class="w-4 h-4 text-sky-600 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
+        <span class="hidden sm:inline">Tài Liệu</span>
+      </button>
+
+      <div class="flex items-center space-x-2.5">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-sm shadow-md shadow-sky-500/20">
+          W
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold tracking-wider uppercase text-sky-600 dark:text-sky-400">WordCraft Studio</span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-mono">FPTU KLTN</span>
+          </div>
+          <h1 id="top-doc-title" class="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate max-w-xs md:max-w-md">
+            Biện Luận Y Học Chứng Cứ, SOTA & An Toàn Lâm Sàng
+          </h1>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: WordCraft Live Reading Statistics -->
+    <div class="hidden md:flex items-center space-x-4 text-xs text-slate-500 dark:text-slate-400 font-mono">
+      <div class="flex items-center space-x-1.5 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-md">
+        <span>⏱️</span>
+        <span id="stat-read-time">12 phút đọc</span>
+      </div>
+      <div class="flex items-center space-x-1.5 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-md">
+        <span>📝</span>
+        <span id="stat-word-count">3,450 từ</span>
+      </div>
+    </div>
+
+    <!-- Right: WordCraft Controls (Theme, Typography, Print, Export) -->
+    <div class="flex items-center space-x-2">
+      <!-- Toggle Right TOC Button -->
+      <button onclick="toggleRightToc()" id="btn-toggle-right" class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center space-x-1.5 transition shadow-sm" title="Ẩn/Hiện Mục Lục">
+        <svg class="w-4 h-4 text-sky-600 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+        <span class="hidden sm:inline">Mục Lục</span>
+      </button>
+
+      <!-- Search Input -->
+      <div class="relative hidden sm:block">
+        <input type="text" id="doc-search" oninput="filterDocuments(this.value)" placeholder="Tìm tài liệu..."
+               class="w-32 lg:w-44 pl-7 pr-2 py-1 text-xs rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500">
+        <svg class="w-3.5 h-3.5 absolute left-2 top-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+      </div>
+
+      <!-- Typography Settings Button -->
+      <div class="relative">
+        <button onclick="toggleSettingsMenu()" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition" title="Cài đặt hiển thị & Phông chữ">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+        </button>
+
+        <!-- Dropdown Settings Panel -->
+        <div id="settings-menu" class="hidden absolute right-0 mt-2 w-64 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 p-4 z-50 text-xs space-y-4">
+          <div>
+            <label class="font-bold text-slate-700 dark:text-slate-200 block mb-1.5">Giao diện (Themes)</label>
+            <div class="grid grid-cols-4 gap-1.5">
+              <button onclick="setTheme('light')" class="px-2 py-1.5 rounded border border-slate-300 bg-white text-slate-900 text-center font-medium hover:border-sky-500">Light</button>
+              <button onclick="setTheme('dark')" class="px-2 py-1.5 rounded border border-slate-700 bg-slate-900 text-slate-100 text-center font-medium hover:border-sky-500">Dark</button>
+              <button onclick="setTheme('sepia')" class="px-2 py-1.5 rounded border border-amber-300 bg-[#fbf7ee] text-amber-900 text-center font-medium hover:border-amber-600">Sepia</button>
+              <button onclick="setTheme('slate')" class="px-2 py-1.5 rounded border border-slate-700 bg-slate-800 text-slate-300 text-center font-medium hover:border-sky-400">Slate</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="font-bold text-slate-700 dark:text-slate-200 block mb-1.5">Kiểu chữ (Font Family)</label>
+            <select onchange="setFontFamily(this.value)" class="w-full px-2 py-1.5 rounded bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200">
+              <option value="font-sans-ui">Inter (Hiện Đại / Sans-serif)</option>
+              <option value="font-serif-read">Merriweather (Học Thuật / Serif)</option>
+              <option value="font-mono-code">JetBrains Mono (Kỹ Thuật / Code)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="font-bold text-slate-700 dark:text-slate-200 block mb-1.5">Cỡ chữ (Font Size)</label>
+            <div class="flex items-center space-x-2">
+              <button onclick="adjustFontSize(-1)" class="w-8 h-8 rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-200">A-</button>
+              <span id="font-size-display" class="flex-1 text-center font-mono">16px</span>
+              <button onclick="adjustFontSize(1)" class="w-8 h-8 rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-200">A+</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="font-bold text-slate-700 dark:text-slate-200 block mb-1.5">Độ rộng trang (Page Width)</label>
+            <div class="grid grid-cols-2 gap-1.5 text-center mb-1.5">
+              <button onclick="setContentWidth('auto')" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-sky-100 dark:hover:bg-sky-950 text-slate-700 dark:text-slate-200 text-[11px] font-semibold border border-sky-400">⚡ Tự Động (Theo Aside)</button>
+              <button onclick="setContentWidth('95%')" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-sky-100 dark:hover:bg-sky-950 text-slate-700 dark:text-slate-200 text-[11px]">🖥️ Toàn Màn Hình (95%)</button>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5 text-center">
+              <button onclick="setContentWidth('880px')" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-sky-100 dark:hover:bg-sky-950 text-slate-700 dark:text-slate-200 text-[11px]">📄 Tiêu Chuẩn (880px)</button>
+              <button onclick="setContentWidth('1200px')" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-sky-100 dark:hover:bg-sky-950 text-slate-700 dark:text-slate-200 text-[11px]">📖 Rộng Rãi (1200px)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Copy Markdown Button -->
+      <button onclick="copyCurrentMarkdown()" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition" title="Sao chép toàn bộ Markdown">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+      </button>
+
+      <!-- Toggle Raw / Rendered View -->
+      <button onclick="toggleRawView()" id="btn-toggle-raw" class="px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition">
+        RAW
+      </button>
+
+      <!-- Print / PDF Button -->
+      <button onclick="window.print()" class="px-3 py-1 text-xs font-semibold rounded-md bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition flex items-center space-x-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+        <span class="hidden sm:inline">Xuất PDF</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- WORKSPACE BODY (SIDEBAR + MAIN CANVAS + OUTLINE TOC) -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- LEFT DOCUMENT NAVIGATOR SIDEBAR (COLLAPSIBLE) -->
+    <aside id="left-sidebar" class="w-72 lg:w-80 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 transition-all duration-300 ease-in-out z-30">
+
+      <!-- Upload / Open Local File & Collapse Button -->
+      <div class="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Danh Sách Tài Liệu</span>
+        <div class="flex items-center space-x-2">
+          <label class="cursor-pointer text-[11px] text-sky-600 dark:text-sky-400 hover:underline flex items-center space-x-0.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            <span>Mở .md</span>
+            <input type="file" id="local-file-picker" accept=".md,.markdown,.txt" onchange="loadLocalFile(event)" class="hidden">
+          </label>
+          <button onclick="toggleLeftSidebar()" class="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition" title="Thu gọn danh sách (Ctrl+B)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Document Navigation Tree -->
+      <nav id="doc-tree" class="flex-1 overflow-y-auto p-3 space-y-5 text-sm">
+        <!-- Rendered dynamically by JavaScript -->
+      </nav>
+
+      <!-- Sidebar Footer -->
+      <div class="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 text-[11px] text-slate-500 flex items-center justify-between">
+        <span>17 Tài Liệu Sẵn Sàng (Offline)</span>
+        <span class="font-mono text-emerald-600 dark:text-emerald-400">● 100% SOTA</span>
+      </div>
+    </aside>
+
+    <!-- CENTER DOCUMENT VIEWPORT CANVAS (ZERO HORIZONTAL SCROLL) -->
+    <main id="main-viewport" class="flex-1 overflow-y-auto overflow-x-hidden relative flex justify-center px-4 sm:px-6 lg:px-8 py-8 min-w-0 transition-all duration-300">
+      <div id="content-wrapper" class="w-full max-w-3xl transition-all duration-200 min-w-0">
+
+        <!-- Document Header Card -->
+        <div class="mb-8 pb-6 border-b border-slate-200 dark:border-slate-800">
+          <div class="flex items-center space-x-2 text-xs text-sky-600 dark:text-sky-400 font-semibold mb-2">
+            <span id="doc-category-badge">🎯 Khóa Luận & Phản Biện (Defense)</span>
+            <span>•</span>
+            <span id="doc-filename-badge" class="font-mono text-slate-400">CLINICAL_GROUNDING_AND_EVIDENCE_DEFENSE.md</span>
+          </div>
+          <h1 id="doc-hero-title" class="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+            Biện Luận Y Học Chứng Cứ, SOTA & An Toàn Lâm Sàng
+          </h1>
+        </div>
+
+        <!-- Rendered Content Box -->
+        <div id="content-rendered" class="doc-content">
+          <!-- Rendered Markdown goes here -->
+        </div>
+
+        <!-- Raw Markdown Textarea (Hidden by default) -->
+        <div id="content-raw-wrapper" class="hidden">
+          <textarea id="content-raw-text" class="w-full h-[75vh] p-4 font-mono-code text-xs bg-slate-900 text-slate-100 rounded-lg border border-slate-700 focus:outline-none" readonly></textarea>
+        </div>
+
+        <!-- Footer Notice -->
+        <div class="mt-16 pt-8 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-400 text-center space-y-1">
+          <p>© 2026 MediAssist-AI • Khóa Luận Tốt Nghiệp Đại Học FPT • Chuyên Ngành Kỹ Thuật Phần Mềm</p>
+          <p>Tài liệu tuân thủ chuẩn ISO 29148, DDD Bounded Contexts, WHO ICD-10 & LOINC QĐ 3280/BYT</p>
+        </div>
+      </div>
+
+      <!-- Floating Back to Top Button -->
+      <button id="back-to-top" onclick="scrollToTop()" class="fixed bottom-6 right-8 p-3 rounded-full bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-600/30 transition opacity-0 pointer-events-none z-20">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+      </button>
+    </main>
+
+    <!-- RIGHT TABLE OF CONTENTS (OUTLINE TOC - COLLAPSIBLE) -->
+    <aside id="right-toc" class="w-64 bg-slate-50/60 dark:bg-slate-950/60 border-l border-slate-200 dark:border-slate-800 p-4 flex flex-col shrink-0 overflow-y-auto text-xs transition-all duration-300 ease-in-out">
+      <div class="flex items-center justify-between pb-3 mb-2 border-b border-slate-200 dark:border-slate-800">
+        <span class="font-bold uppercase tracking-wider text-slate-400 text-[10px]">Mục Lục Văn Bản</span>
+        <div class="flex items-center space-x-2">
+          <span class="text-slate-400 font-mono text-[11px]" id="toc-heading-count">0 mục</span>
+          <button onclick="toggleRightToc()" class="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition" title="Thu gọn mục lục">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+          </button>
+        </div>
+      </div>
+      <nav id="toc-nav" class="space-y-1.5 flex-1 overflow-y-auto pr-1">
+        <!-- Rendered TOC headings -->
+      </nav>
+    </aside>
+
+  </div>
+
+  <!-- APPLICATION LOGIC SCRIPT -->
+  <script>
+    // State Management
+    let currentDocId = 'clinical_defense';
+    let currentMarkdown = '';
+    let isRawView = false;
+    let currentFontSize = 16;
+
+    // Initialize Mermaid
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      securityLevel: 'loose',
+      themeVariables: {
+        fontFamily: 'Inter, sans-serif',
+        primaryColor: '#e0f2fe',
+        primaryBorderColor: '#0284c7',
+        lineColor: '#64748b'
+      }
+    });
+
+    // Populate Sidebar Document Tree
+    function renderDocTree(filter = '') {
+      const treeNav = document.getElementById('doc-tree');
+      treeNav.innerHTML = '';
+
+      if (!window.MEDIASSIST_DOCS) {
+        treeNav.innerHTML = `<div class="p-4 text-xs text-red-500 bg-red-50 rounded">Chưa tìm thấy docs-bundle.js!</div>`;
+        return;
+      }
+
+      // Group documents by category
+      const categories = {};
+      Object.values(window.MEDIASSIST_DOCS).forEach(doc => {
+        if (filter && !doc.title.toLowerCase().includes(filter.toLowerCase()) && !doc.id.toLowerCase().includes(filter.toLowerCase())) {
+          return;
+        }
+        if (!categories[doc.category]) {
+          categories[doc.category] = [];
+        }
+        categories[doc.category].push(doc);
+      });
+
+      Object.keys(categories).forEach(cat => {
+        const catBox = document.createElement('div');
+        catBox.className = 'space-y-1';
+
+        const catTitle = document.createElement('div');
+        catTitle.className = 'text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-2 py-1';
+        catTitle.textContent = cat;
+        catBox.appendChild(catTitle);
+
+        categories[cat].forEach(doc => {
+          const btn = document.createElement('button');
+          btn.onclick = () => selectDocument(doc.id);
+          const isActive = doc.id === currentDocId;
+          btn.className = `w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between transition group ${
+            isActive
+              ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-semibold border border-sky-200 dark:border-sky-800'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
+          }`;
+
+          btn.innerHTML = `
+            <span class="truncate pr-2">${doc.title}</span>
+            <span class="text-[9px] px-1.5 py-0.5 rounded font-mono font-medium shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:bg-sky-100 dark:group-hover:bg-sky-900">
+              ${doc.badge}
+            </span>
+          `;
+          catBox.appendChild(btn);
+        });
+
+        treeNav.appendChild(catBox);
+      });
+    }
+
+    // Filter documents
+    function filterDocuments(keyword) {
+      renderDocTree(keyword);
+    }
+
+    // Select and load a document
+    async function selectDocument(docId) {
+      currentDocId = docId;
+      renderDocTree(document.getElementById('doc-search').value);
+
+      const doc = window.MEDIASSIST_DOCS ? window.MEDIASSIST_DOCS[docId] : null;
+      if (!doc) return;
+
+      currentMarkdown = doc.content;
+
+      // Update Header info
+      document.getElementById('top-doc-title').textContent = doc.title;
+      document.getElementById('doc-hero-title').textContent = doc.title;
+      document.getElementById('doc-category-badge').textContent = doc.category;
+      document.getElementById('doc-filename-badge').textContent = doc.filename;
+
+      // Update WordCraft Statistics
+      calculateStats(currentMarkdown);
+
+      // Render Markdown
+      await renderMarkdownContent(currentMarkdown);
+
+      // Scroll viewport to top
+      document.getElementById('main-viewport').scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Calculate Word & Read Time Stats
+    function calculateStats(md) {
+      const cleanText = md.replace(/[#*`_\[\]()]/g, ' ');
+      const words = cleanText.trim().split(/\s+/).filter(w => w.length > 0);
+      const wordCount = words.length;
+      const readTime = Math.max(1, Math.ceil(wordCount / 220));
+
+      document.getElementById('stat-word-count').textContent = `${wordCount.toLocaleString()} từ`;
+      document.getElementById('stat-read-time').textContent = `~${readTime} phút đọc`;
+    }
+
+    // Slugify helper supporting Vietnamese characters
+    function slugify(text) {
+      if (!text) return '';
+      return text
+        .toLowerCase()
+        .replace(/[`~!@#$%^&*()+=|{}[\]:;"'<>,.?\\/]/g, '')
+        .trim()
+        .replace(/[\s_]+/g, '-');
+    }
+
+    // Remove Vietnamese accents for loose matching
+    function removeVietnameseAccents(str) {
+      if (!str) return '';
+      return str
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D');
+    }
+
+    // Scroll smoothly to target element in #main-viewport
+    function scrollToElement(targetId) {
+      if (!targetId) return false;
+      try { targetId = decodeURIComponent(targetId); } catch(e){}
+      const cleanId = targetId.replace(/^#/, '').trim();
+      if (!cleanId) return false;
+
+      let el = document.getElementById(cleanId);
+      if (!el) {
+        el = document.querySelector(`[data-slug="${cleanId}"]`) ||
+             document.querySelector(`[data-unaccented="${removeVietnameseAccents(cleanId)}"]`);
+      }
+      if (!el) {
+        const headings = document.querySelectorAll('#content-rendered h1, #content-rendered h2, #content-rendered h3, #content-rendered h4');
+        for (const h of headings) {
+          const hSlug = slugify(h.textContent);
+          const hUnaccent = removeVietnameseAccents(hSlug);
+          const cleanUnaccent = removeVietnameseAccents(cleanId);
+          if (hSlug === cleanId || hUnaccent === cleanUnaccent || hSlug.includes(cleanId) || cleanId.includes(hSlug)) {
+            el = h;
+            break;
+          }
+        }
+      }
+
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Pulse visual highlight
+        el.classList.add('bg-sky-100', 'dark:bg-sky-950/70', 'ring-2', 'ring-sky-500', 'rounded', 'p-1', 'transition-all', 'duration-500');
+        setTimeout(() => {
+          el.classList.remove('bg-sky-100', 'dark:bg-sky-950/70', 'ring-2', 'ring-sky-500', 'rounded', 'p-1');
+        }, 2500);
+        return true;
+      }
+      return false;
+    }
+
+    // Cross-document and intra-document hash navigation
+    async function handleHashNavigation(rawHash) {
+      if (!rawHash) return;
+      try { rawHash = decodeURIComponent(rawHash); } catch(e){}
+      const cleanSlug = rawHash.replace(/^#/, '').trim();
+      if (!cleanSlug) return;
+
+      // 0. Check if hash directly matches a document ID in window.MEDIASSIST_DOCS
+      if (window.MEDIASSIST_DOCS && window.MEDIASSIST_DOCS[cleanSlug]) {
+        await selectDocument(cleanSlug);
+        scrollToTop();
+        return;
+      }
+
+      // 1. Try to scroll within currently loaded document
+      if (scrollToElement(cleanSlug)) {
+        return;
+      }
+
+      // 2. If not found in current document, scan across all docs in window.MEDIASSIST_DOCS
+      if (window.MEDIASSIST_DOCS) {
+        for (const [docId, doc] of Object.entries(window.MEDIASSIST_DOCS)) {
+          const lines = doc.content.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('#')) {
+              const hText = line.replace(/^#+\s*/, '').replace(/[`*_[\]]/g, '').trim();
+              const hSlug = slugify(hText);
+              const hUnaccent = removeVietnameseAccents(hSlug);
+              const cleanUnaccent = removeVietnameseAccents(cleanSlug);
+              if (hSlug === cleanSlug || hUnaccent === cleanUnaccent || hSlug.includes(cleanSlug) || cleanSlug.includes(hSlug)) {
+                await selectDocument(docId);
+                setTimeout(() => scrollToElement(cleanSlug), 250);
+                return;
+              }
+            }
+          }
+        }
+
+        // Broad content search fallback
+        for (const [docId, doc] of Object.entries(window.MEDIASSIST_DOCS)) {
+          const searchPlain = cleanSlug.replace(/-/g, ' ').toLowerCase();
+          if (doc.content.toLowerCase().includes(searchPlain)) {
+            await selectDocument(docId);
+            setTimeout(() => scrollToElement(cleanSlug), 250);
+            return;
+          }
+        }
+      }
+    }
+
+    // Protect and render LaTeX Math formulas before and after Marked
+    function renderMathFormulas(markdown) {
+      const mathTokens = [];
+
+      // 1. Display math $$...$$
+      let protectedText = markdown.replace(/\$\$([\s\S]+?)\$\$/g, (match, formula) => {
+        formula = formula.replace(/(?<!\\)%/g, '\\%');
+        const token = `@@MATH_DISPLAY_${mathTokens.length}@@`;
+        mathTokens.push({ token, formula, display: true });
+        return token;
+      });
+
+      // 2. Inline math $...$
+      protectedText = protectedText.replace(/\$([^\$\n]+?)\$/g, (match, formula) => {
+        formula = formula.replace(/(?<!\\)%/g, '\\%');
+        const token = `@@MATH_INLINE_${mathTokens.length}@@`;
+        mathTokens.push({ token, formula, display: false });
+        return token;
+      });
+
+      return { protectedText, mathTokens };
+    }
+
+    // Render Markdown to HTML, LaTeX Math, and Mermaid diagrams
+    async function renderMarkdownContent(markdown) {
+      const renderedDiv = document.getElementById('content-rendered');
+      const rawTextarea = document.getElementById('content-raw-text');
+      rawTextarea.value = markdown;
+
+      // Protect math blocks before Marked parses
+      const { protectedText, mathTokens } = renderMathFormulas(markdown);
+
+      // Parse with Marked
+      let parsedHtml = marked.parse(protectedText);
+
+      // Restore and render KaTeX math expressions
+      mathTokens.forEach(({ token, formula, display }) => {
+        let renderedMath = formula;
+        if (window.katex) {
+          try {
+            renderedMath = katex.renderToString(formula, {
+              displayMode: display,
+              throwOnError: false
+            });
+          } catch (e) {
+            renderedMath = `<span class="katex-error font-mono text-red-500">${display ? '$$' : '$'}${formula}${display ? '$$' : '$'}</span>`;
+          }
+        } else {
+          renderedMath = `<span class="font-mono text-sky-600">${display ? '$$' : '$'}${formula}${display ? '$$' : '$'}</span>`;
+        }
+        parsedHtml = parsedHtml.replace(token, renderedMath);
+      });
+
+      renderedDiv.innerHTML = parsedHtml;
+
+      // Wrap all tables into responsive container to eliminate page horizontal scrollbar
+      const tables = renderedDiv.querySelectorAll('table');
+      tables.forEach(table => {
+        if (!table.parentElement.classList.contains('table-responsive')) {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'table-responsive';
+          table.parentNode.insertBefore(wrapper, table);
+          wrapper.appendChild(table);
+        }
+      });
+
+      // Assign slug IDs to headings for precise anchor navigation
+      const headings = renderedDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      headings.forEach((heading, idx) => {
+        const cleanText = heading.textContent.replace(/#.*$/, '').trim();
+        const slug = slugify(cleanText) || `heading-${idx}`;
+        heading.id = slug;
+        heading.setAttribute('data-slug', slug);
+        heading.setAttribute('data-unaccented', removeVietnameseAccents(slug));
+      });
+
+      // Transform Mermaid code blocks
+      const codeBlocks = renderedDiv.querySelectorAll('pre code.language-mermaid');
+      for (let i = 0; i < codeBlocks.length; i++) {
+        const block = codeBlocks[i];
+        const pre = block.parentElement;
+        const mermaidCode = block.textContent;
+        const div = document.createElement('div');
+        div.className = 'mermaid';
+        div.textContent = mermaidCode;
+        pre.parentNode.replaceChild(div, pre);
+      }
+
+      // Execute Mermaid
+      try {
+        await mermaid.run();
+      } catch (e) {
+        console.warn('Mermaid rendering error:', e);
+      }
+
+      // Generate Table of Contents
+      generateToc();
+    }
+
+    // Generate Dynamic Table of Contents (Right sidebar)
+    function generateToc() {
+      const tocNav = document.getElementById('toc-nav');
+      tocNav.innerHTML = '';
+      const renderedDiv = document.getElementById('content-rendered');
+      const headings = renderedDiv.querySelectorAll('h1, h2, h3');
+
+      document.getElementById('toc-heading-count').textContent = `${headings.length} mục`;
+
+      headings.forEach((heading, index) => {
+        const id = heading.id || `heading-${index}`;
+        heading.id = id;
+
+        const link = document.createElement('a');
+        link.href = `#${id}`;
+        link.textContent = heading.textContent;
+
+        const level = heading.tagName.toLowerCase();
+        let indent = '';
+        if (level === 'h2') indent = 'pl-2 text-slate-600 dark:text-slate-400 font-medium';
+        else if (level === 'h3') indent = 'pl-4 text-slate-500 dark:text-slate-500 text-[11px]';
+        else indent = 'font-bold text-slate-800 dark:text-slate-200';
+
+        link.className = `block py-1 rounded truncate hover:text-sky-600 dark:hover:text-sky-400 transition ${indent}`;
+
+        link.onclick = (e) => {
+          e.preventDefault();
+          history.pushState(null, null, `#${id}`);
+          scrollToElement(id);
+        };
+
+        tocNav.appendChild(link);
+      });
+    }
+
+    let userCustomWidth = null;
+
+    // Adaptive fluid container width: Automatically expands near full screen when asides are collapsed!
+    function updateAdaptiveContainerWidth() {
+      const wrapper = document.getElementById('content-wrapper');
+      if (!wrapper) return;
+
+      if (userCustomWidth) {
+        wrapper.style.maxWidth = userCustomWidth;
+        return;
+      }
+
+      const leftCollapsed = document.getElementById('left-sidebar')?.classList.contains('is-collapsed');
+      const rightCollapsed = document.getElementById('right-toc')?.classList.contains('is-collapsed');
+
+      if (leftCollapsed && rightCollapsed) {
+        // Both asides collapsed: Expand near FULL SCREEN (95%) for huge, legible tables!
+        wrapper.style.maxWidth = '95%';
+      } else if (leftCollapsed || rightCollapsed) {
+        // One aside collapsed: Generous wide view (1200px)
+        wrapper.style.maxWidth = '1200px';
+      } else {
+        // Both asides open: Standard comfortable reading width (880px)
+        wrapper.style.maxWidth = '880px';
+      }
+    }
+
+    // Toggle Left Sidebar (Document Navigator)
+    function toggleLeftSidebar() {
+      const sidebar = document.getElementById('left-sidebar');
+      sidebar.classList.toggle('is-collapsed');
+      const btn = document.getElementById('btn-toggle-left');
+      if (btn) {
+        btn.classList.toggle('bg-sky-100', !sidebar.classList.contains('is-collapsed'));
+        btn.classList.toggle('dark:bg-slate-800', !sidebar.classList.contains('is-collapsed'));
+      }
+      updateAdaptiveContainerWidth();
+    }
+
+    // Toggle Right TOC (Table of Contents)
+    function toggleRightToc() {
+      const toc = document.getElementById('right-toc');
+      toc.classList.toggle('is-collapsed');
+      const btn = document.getElementById('btn-toggle-right');
+      if (btn) {
+        btn.classList.toggle('bg-sky-100', !toc.classList.contains('is-collapsed'));
+        btn.classList.toggle('dark:bg-slate-800', !toc.classList.contains('is-collapsed'));
+      }
+      updateAdaptiveContainerWidth();
+    }
+
+    // Backward compatibility
+    function toggleSidebar() {
+      toggleLeftSidebar();
+    }
+
+    // Toggle Settings Dropdown Menu
+    function toggleSettingsMenu() {
+      const menu = document.getElementById('settings-menu');
+      menu.classList.toggle('hidden');
+    }
+
+    // Set Theme
+    function setTheme(theme) {
+      document.body.className = `theme-${theme} ${document.body.className.match(/font-[a-z-]+/)?.[0] || 'font-sans-ui'} h-full flex flex-col selection:bg-sky-500 selection:text-white`;
+      if (theme === 'dark' || theme === 'slate') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+
+    // Set Font Family
+    function setFontFamily(fontClass) {
+      document.body.classList.remove('font-sans-ui', 'font-serif-read', 'font-mono-code');
+      document.body.classList.add(fontClass);
+    }
+
+    // Adjust Font Size
+    function adjustFontSize(delta) {
+      currentFontSize = Math.min(22, Math.max(13, currentFontSize + delta));
+      document.getElementById('font-size-display').textContent = `${currentFontSize}px`;
+      document.getElementById('content-rendered').style.fontSize = `${currentFontSize}px`;
+    }
+
+    // Set Content Width
+    function setContentWidth(widthVal) {
+      if (widthVal === 'auto') {
+        userCustomWidth = null;
+        updateAdaptiveContainerWidth();
+      } else {
+        userCustomWidth = widthVal;
+        const wrapper = document.getElementById('content-wrapper');
+        if (wrapper) wrapper.style.maxWidth = widthVal;
+      }
+    }
+
+    // Toggle Raw / Rendered
+    function toggleRawView() {
+      isRawView = !isRawView;
+      const rendered = document.getElementById('content-rendered');
+      const raw = document.getElementById('content-raw-wrapper');
+      const btn = document.getElementById('btn-toggle-raw');
+
+      if (isRawView) {
+        rendered.classList.add('hidden');
+        raw.classList.remove('hidden');
+        btn.textContent = 'PREVIEW';
+        btn.classList.add('bg-sky-600', 'text-white');
+      } else {
+        rendered.classList.remove('hidden');
+        raw.classList.add('hidden');
+        btn.textContent = 'RAW';
+        btn.classList.remove('bg-sky-600', 'text-white');
+      }
+    }
+
+    // Copy Current Markdown
+    function copyCurrentMarkdown() {
+      navigator.clipboard.writeText(currentMarkdown).then(() => {
+        alert('Đã sao chép toàn bộ mã nguồn Markdown vào Clipboard!');
+      });
+    }
+
+    // Load Local Markdown file via File Input
+    function loadLocalFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        const customId = 'custom_' + Date.now();
+        if (!window.MEDIASSIST_DOCS) window.MEDIASSIST_DOCS = {};
+
+        window.MEDIASSIST_DOCS[customId] = {
+          id: customId,
+          category: '📂 File Cục Bộ Đã Mở',
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          badge: 'Local',
+          badgeColor: 'sky',
+          filename: file.name,
+          content: text
+        };
+
+        renderDocTree();
+        selectDocument(customId);
+      };
+      reader.readAsText(file);
+    }
+
+    // Scroll to Top Button
+    const viewport = document.getElementById('main-viewport');
+    const bttBtn = document.getElementById('back-to-top');
+    viewport.addEventListener('scroll', () => {
+      if (viewport.scrollTop > 350) {
+        bttBtn.classList.remove('opacity-0', 'pointer-events-none');
+      } else {
+        bttBtn.classList.add('opacity-0', 'pointer-events-none');
+      }
+    });
+    function scrollToTop() {
+      viewport.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Intercept clicks on internal markdown anchor links and relative document files
+    document.addEventListener('DOMContentLoaded', () => {
+      const rendered = document.getElementById('content-rendered');
+      if (rendered) {
+        rendered.addEventListener('click', async (e) => {
+          const a = e.target.closest('a');
+          if (!a) return;
+          const href = a.getAttribute('href');
+          if (!href) return;
+
+          // 1. Anchor links: #...
+          if (href.startsWith('#')) {
+            e.preventDefault();
+            history.pushState(null, null, href);
+            await handleHashNavigation(href);
+            return;
+          }
+
+          // 2. Relative report directory index links: ../report_2/index.html -> report_2_main
+          const reportMatch = href.match(/report_(\d+)/);
+          if (reportMatch && href.includes('index.html')) {
+            const docId = `report_${reportMatch[1]}_main`;
+            if (window.MEDIASSIST_DOCS && window.MEDIASSIST_DOCS[docId]) {
+              e.preventDefault();
+              history.pushState(null, null, '#' + docId);
+              await selectDocument(docId);
+              scrollToTop();
+              return;
+            }
+          }
+
+          // 3. Relative markdown file links: ./PROJECT_CHARTER_AND_PLAN.md or file.md#heading
+          if (href.includes('.md')) {
+            e.preventDefault();
+            const [filePath, hashPart] = href.split('#');
+            const fileName = filePath.split('/').pop();
+
+            // Look up document in window.MEDIASSIST_DOCS
+            if (window.MEDIASSIST_DOCS) {
+              const matchedEntry = Object.entries(window.MEDIASSIST_DOCS).find(([id, doc]) =>
+                doc.filename === fileName || id === fileName.replace('.md', '')
+              );
+              if (matchedEntry) {
+                const [docId] = matchedEntry;
+                await selectDocument(docId);
+                if (hashPart) {
+                  history.pushState(null, null, '#' + hashPart);
+                  setTimeout(() => handleHashNavigation('#' + hashPart), 300);
+                } else {
+                  history.pushState(null, null, '#' + docId);
+                  scrollToTop();
+                }
+                return;
+              }
+            }
+          }
+        });
+      }
+    });
+
+    // Close Settings menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('settings-menu');
+      if (!e.target.closest('#settings-menu') && !e.target.closest('button[onclick="toggleSettingsMenu()"]')) {
+        menu.classList.add('hidden');
+      }
+    });
+
+    // Keyboard Shortcuts (Ctrl+B: Sidebar, Ctrl+M: TOC)
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        toggleLeftSidebar();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'm') {
+        e.preventDefault();
+        toggleRightToc();
+      }
+    });
+
+    // Handle hash change dynamically
+    window.addEventListener('hashchange', () => {
+      if (window.location.hash) {
+        handleHashNavigation(window.location.hash);
+      }
+    });
+
+    // Initial Load
+    window.addEventListener('DOMContentLoaded', async () => {
+      renderDocTree();
+      updateAdaptiveContainerWidth();
+      if (window.location.hash) {
+        await handleHashNavigation(window.location.hash);
+      } else {
+        await selectDocument('clinical_defense');
+      }
+    });
+  </script>
+</body>
+</html>

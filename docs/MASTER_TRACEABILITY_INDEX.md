@@ -36,9 +36,9 @@ Khi cần tìm kiếm tài liệu phục vụ viết báo cáo luận văn, slid
 | **`USE_CASES.md`** | Đặc tả 33 Use Cases chi tiết chuẩn RUP/IEEE 830, luồng sự kiện, ngoại lệ, API endpoints | Dev 1 & Dev 3 | [`docs/USE_CASES.md`](./USE_CASES.md) |
 | **`DATABASE_DESIGN.md`** | Thiết kế CSDL 3NF, sơ đồ Mermaid ERD, HNSW Indexing, 22 bản di trú Flyway V1-V22 | Dev 1 & Tech Lead | [`docs/DATABASE_DESIGN.md`](./DATABASE_DESIGN.md) |
 | **`STORYTELLING.md`** | Bối cảnh y tế VN, nỗi đau quá tải bệnh viện, chân dung người dùng (Personas), đạo đức AI | Mở đầu slide & Chương 1 | [`docs/STORYTELLING.md`](./STORYTELLING.md) |
-| **`CAPSTONE_SPECIFICATION.md`** | Đặc tả mô hình O2O (Online-to-Offline), 5 phân hệ lâm sàng chuẩn FPT Capstone | Báo cáo môn học | [`docs/CAPSTONE_SPECIFICATION.md`](./CAPSTONE_SPECIFICATION.md) |
-| **`WORK_LOG.md`** | Nhật ký kiểm duyệt kiến trúc 85 phiên làm việc (`#001` đến `#085`), bằng chứng test | Tech Lead Audit | [`docs/WORK_LOG.md`](./WORK_LOG.md) |
-| **`TEAM_WORKFLOW.md`** | Cơ cấu 3 vai trò, ma trận trách nhiệm RACI, tiêu chuẩn DoD (Definition of Done) | Quản lý nhóm | [`docs/TEAM_WORKFLOW.md`](./TEAM_WORKFLOW.md) |
+| **`CAPSTONE_SPECIFICATION.md`** | Đặc tả mô hình O2O (Online-to-Offline), 5 phân hệ lâm sàng chuẩn FPT Capstone | Lưu trữ nội bộ | [`docs/internal/CAPSTONE_SPECIFICATION.md`](./internal/CAPSTONE_SPECIFICATION.md) |
+| **`WORK_LOG.md`** | Nhật ký kiểm duyệt kiến trúc 85 phiên làm việc (`#001` đến `#085`), bằng chứng test | Lưu trữ nội bộ | [`docs/internal/WORK_LOG.md`](./internal/WORK_LOG.md) |
+| **`TEAM_WORKFLOW.md`** | Cơ cấu 3 vai trò, ma trận trách nhiệm RACI, tiêu chuẩn DoD (Definition of Done) | Lưu trữ nội bộ | [`docs/internal/TEAM_WORKFLOW.md`](./internal/TEAM_WORKFLOW.md) |
 | **`ROADMAP.md`** | Lộ trình 7 Milestones, tiến độ hoàn thiện 100%, bảng đánh giá DoD từng giai đoạn | Sprint Tracker | [`ROADMAP.md`](../ROADMAP.md) |
 | **`ARCHITECTURE.md`** | Kiến trúc tổng thể Modular Monolith, Two-Layer Cache, Nginx SSL, Docker network | Kiến trúc sư | [`ARCHITECTURE.md`](../ARCHITECTURE.md) |
 
@@ -69,7 +69,7 @@ Bảng dưới đây ánh xạ toàn bộ 33 Use Cases sang mã nguồn Frontend
 | **UC-16** | Phân Trang Offset Toàn Diện & Supabase Storage | System | `PaginationControls.tsx` | `PageResponse.java`, `SupabaseStorageService.java` | `medical_documents(storage_url)` (V4) | `StorageServiceTest.java` | M6 |
 | **UC-17** | Giám Sát Vận Hành Toàn Viện & Audit Trail | Admin | `AdminDashboard.tsx`, `AuditLogsPage.tsx` | `AdminController.java`, `AuditLogRepository.java` | `audit_logs` (V1, V6, V12) | `AdminSupervisionTest.java` | M4 |
 | **UC-18** | Bàn Khám Bác Sĩ Thời Gian Thực & Ca Trực | Doctor | `DoctorDashboard.tsx` | `DoctorController.java`, `AppointmentService.java` | `appointments`, `doctor_schedule_slots` | `DoctorDashboardTest.java` | M4 |
-| **UC-19** | Cổng Thanh Toán Đa Kênh Stripe & Sổ Cái | Patient | `StripeCheckoutPage.tsx`, `PaymentResultPage.tsx` | `PaymentController.java`, `PaymentService.java` | `payment_transactions` (V13) | `PaymentTransactionTest.java` | M4 |
+| **UC-19** | Cổng Thanh Toán Quốc Gia VNPay & Sổ Cái | Patient | `PaymentModal.tsx`, `PaymentResultPage.tsx` | `PaymentController.java`, `PaymentService.java` | `payment_transactions` (V13) | `PaymentTransactionTest.java` | M4 |
 | **UC-20** | Tương Tác Lâm Sàng 360° & Cảnh Báo Dị Ứng | Doctor | `DoctorPatientRecordsPage.tsx`, `EncounterModal.tsx` | `DoctorController.java`, `AppointmentService.java` | `appointments(vital_signs_json, prescription_json)` | `ClinicalEncounterTest.java` | M4 |
 | **UC-21** | Phân Tách Lâm Sàng Đa Bệnh Nhân | Caregiver | `DocumentSummarizerPage.tsx` (Tabs Đa BN) | `MedicalDocumentAnalysisService.java` | `document_analyses(metadata_json)` (V5) | `MultiPatientAnalysisTest.java` | M4 |
 | **UC-22** | Bác Sĩ Xem Phiếu Xét Nghiệm Từ Lịch Hẹn | Doctor | `DocumentAnalysisModal.tsx` | `MedicalDocumentController.java` | `appointments(medical_document_id)` (V14) | `DocumentViewingTest.java` | M4 |
@@ -118,7 +118,7 @@ Toàn bộ các tệp di trú nằm tại thư mục: `backend/src/main/resource
 | **V10** | `V10__optimize_doctor_hnsw_index.sql` | Partial HNSW `idx_doctor_bio_hnsw_verified` | Tối ưu pgvector Pre-pruning: chỉ quét bác sĩ verified, phản hồi $< 12\text{ms}$. |
 | **V11** | `V11__add_composite_performance_indexes.sql` | Composite indexes trên lịch hẹn, hồ sơ xét nghiệm | Triệt tiêu lỗi N+1 Query và Full Table Scan khi truy vấn danh sách lớn. |
 | **V12** | `V12__supervision_and_realtime_performance_indexes.sql` | Partial indexes cho ca cấp cứu và chỉ số bất thường | Tối ưu màn hình giám sát thời gian thực của Admin và Doctor. |
-| **V13** | `V13__create_payment_transactions.sql` | Bảng sổ cái `payment_transactions` | Hỗ trợ thanh toán đa kênh (Stripe Sandbox, VietQR) và kiểm toán tài chính. |
+| **V13** | `V13__create_payment_transactions.sql` | Bảng sổ cái `payment_transactions` | Hỗ trợ thanh toán VNPay Gateway (HMAC-SHA512) / Mock Sandbox và kiểm toán tài chính. |
 | **V14** | `V14__add_medical_document_to_appointments.sql` | `appointments(medical_document_id)` | Liên kết trực tiếp ca khám với hồ sơ xét nghiệm bệnh nhân đã tải lên. |
 | **V15** | `V15__add_triage_session_and_refund_to_appointments.sql` | `appointments(triage_session_id, status=REFUNDED)` | Liên kết ca khám với phiên AI Triage và hỗ trợ hoàn tiền khi hủy lịch. |
 | **V16** | `V16__create_password_reset_and_notifications.sql` | Bảng `password_reset_tokens` và `notifications` | Chuông thông báo in-app Navbar và luồng đặt lại mật khẩu an toàn. |

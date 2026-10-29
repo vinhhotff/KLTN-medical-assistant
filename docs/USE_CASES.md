@@ -1030,3 +1030,30 @@ graph TD
   - **E2 - Lỗi nghiệp vụ (trùng slot, thanh toán thất bại, admin hủy lịch đã kết thúc):** không phát event.
   - **E3 - SMTP/Mailpit không chạy:** nghiệp vụ vẫn thành công; email bị bỏ, log WARN (chưa có outbox/retry - xem WORK_LOG #083).
   - **Không gửi email khi dời lịch** (để làm sau). `POST /documents/quota/purchase` cộng quota trực tiếp, không qua cổng thanh toán, nên không có biên nhận.
+
+---
+
+### UC-36: Chuẩn Hóa Cận Lâm Sàng Theo Bản Thể Luận LOINC & Tiêm Chứng Cứ Y Tế (QĐ 3280/QĐ-BYT) Vào RAG Pipeline (Evidence-Grounded Clinical Laboratory Analysis & LOINC Standardization)
+
+* **Mã Use Case:** `UC-AI-36`
+* **Tác nhân chính:** Patient (Bệnh nhân nộp phiếu xét nghiệm), AI Scribe & RAG Pipeline (`MedicalDocumentAnalysisService`, `ClinicalOntologyService`, `ClinicalRagService`), OpenRouter LLM Gateway.
+* **Mục tiêu:** Chuyển đổi toàn diện luồng phân tích cận lâm sàng từ việc phụ thuộc vào suy đoán tự do của LLM (dễ gây ảo giác) sang **mô hình neo giữ y học chứng cứ (Evidence-Grounded Clinical Reasoning)** dựa trên Bản thể luận 23 chỉ số xét nghiệm chuẩn theo Quyết định 3280/QĐ-BYT của Bộ Y Tế Việt Nam và danh mục mã quốc tế LOINC v2.76.
+* **REST Endpoints:**
+  - `POST /api/v1/documents/analyze`: Bóc tách tệp xét nghiệm, chuẩn hóa LOINC, tái thẩm định ngưỡng tham chiếu BYT và suy luận RAG.
+  - `POST /api/v1/documents/analyze-preview`: Bản xem trước phân tích cận lâm sàng tích hợp LOINC chuẩn hóa.
+  - `GET /api/v1/documents/{id}/analysis`: Truy xuất kết quả phân tích đầy đủ kèm mã LOINC, khoảng tham chiếu BYT và cơ sở chứng minh khoa học.
+* **Quy Trình Nghiệp Vụ Chính:**
+  1. **Bóc Tách & Chuẩn Hóa Cú Pháp Ban Đầu:** OCR và Regex Parser bóc tách tên chỉ số thô, giá trị, đơn vị và khoảng tham chiếu in trên phiếu.
+  2. **Đối Soát 3 Tầng Qua Bản Thể Luận (`ClinicalOntologyService.fuzzyMatchIndicator`):**
+     - Tầng 1: So khớp chính xác (Exact match) trên ID chuẩn hóa hoặc tên tiếng Việt/tiếng Anh.
+     - Tầng 2: So khớp từ điển viết tắt/tên lóng bệnh viện Việt Nam (Alias Map) xử lý ~50 biến thể (vd: "duong huyet", "men gan ast", "sgpt", "do loc cau than", "acid uric", "tnths").
+     - Tầng 3: So khớp chuỗi con (Substring containment match) loại bỏ nhiễu OCR.
+  3. **Tái Thẩm Định Ngưỡng Lâm Sàng Bằng QĐ 3280/QĐ-BYT:**
+     - Thay vì tin khoảng tham chiếu in mờ trên giấy, hệ thống lấy `refRangeMin` và `refRangeMax` chuẩn Bộ Y Tế để tự động tính toán lại trạng thái lâm sàng (`ELEVATED` / `LOW` / `NORMAL`).
+     - Tự động gán cơ sở chứng minh khoa học (`scientificBasis` = *"QĐ 3280/QĐ-BYT (Bộ Y Tế Việt Nam), LOINC {loincCode} v2.76"*).
+  4. **Tiêm Bảng Đối Soát Lâm Sàng Vào RAG Prompt:**
+     - Các chỉ số đã được đối soát được dựng thành bảng Markdown `[BẢNG ĐỐI SOÁT Y HỌC CHỨNG CỨ CHUẨN BỘ Y TẾ (QĐ 3280/QĐ-BYT) & LOINC v2.76]` và tiêm trực tiếp vào User Prompt của `ClinicalRagService`.
+     - System Prompt bổ sung Điều khoản bắt buộc mô hình AI phải đối soát kết quả cận lâm sàng với bảng chứng cứ chuẩn Bộ Y Tế, triệt tiêu ảo giác (hallucination).
+  5. **Hiển Thị Minh Bạch Trên Giao Diện Người Dùng:**
+     - Bảng chỉ số xét nghiệm (`DocumentSummarizerPage.tsx` và `DocumentAnalysisModal.tsx`) hiển thị huy hiệu `LOINC: {code}`, khoảng tham chiếu chuẩn Bộ Y Tế, và trích dẫn văn bản quy chuẩn `🔬 Luận cứ: QĐ 3280/QĐ-BYT...`.
+
