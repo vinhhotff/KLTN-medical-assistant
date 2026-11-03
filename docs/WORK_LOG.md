@@ -11,6 +11,8 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#107** | 03/11/2026 | Nâng Cấp Toàn Diện Báo Cáo Khóa Luận Tốt Nghiệp Report 2 (Requirements Analysis & Domain Modeling) Chuẩn ISO/IEC/IEEE 29148:2018: (1) Bổ sung Mục 5 – Đặc tả 5 Luồng Nghiệp Vụ Chính (Main Business Flows) với 5 Sequence Diagrams chuẩn UML (AI Symptom Triage & Red-Flag 115, Đặt Lịch Khám & Thanh Toán VNPay, Bàn Làm Việc Bác Sĩ & PatientAccessGuard BOLA, Bóc Tách Xét Nghiệm OCR & Khử PII Nghị Định 13, Thẩm Định Bác Sĩ & Đồng Bộ pgvector HNSW), (2) Bổ sung Mục 6 – Thiết Kế Khái Niệm CSDL & Ánh Xạ Thực Thể (Ma trận 7 Bounded Contexts → 17 bảng 3NF, ERD tổng thể, đặc tả 6 bảng trọng tâm, kiến trúc pgvector HNSW 1536 chiều, lộ trình 22 bản di trú Flyway V1-V22), (3) Đồng bộ hóa tự động sang `report_2/` và biên dịch toàn diện `docs-bundle.js` cho 6 thư mục báo cáo. Frontend build 0 lỗi TS (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
+| **#106** | 01/11/2026 | Thực thi & Bổ Sung Bằng Chứng Thực Nghiệm Đo Đạc Tải Cao k6, Kiểm Chuẩn Two-Layer Cache L1/L2, Xác Thực 308 Unit Tests & Gắn Toàn Diện Ảnh Chụp Bằng Chứng (Visual Evidence) Vào Hệ Thống Báo Cáo Khóa Luận Tốt Nghiệp Report 5: (1) Thực thi k6 High-Load Stress Test 500 VUs đồng thời (196.532 requests, 6.447 req/s, 0.00% lỗi, 330MB RAM nhờ Project Loom Virtual Threads), (2) Thực thi k6 Two-Layer Cache Benchmark (83.737 requests, 95.03% hit rate, L1 Caffeine 1.80ms vs L2 Redis 7.50ms vs Cold DB 7.30ms), (3) Thực thi trọn vẹn 308/308 Unit Tests (11.72s, 0 Failures, 0 Errors) & Surefire HTML Report, (4) Biên dịch Frontend sạch 100% (2.311 modules, 2.76s), (5) Sinh 6 ảnh chụp bằng chứng màn hình độ phân giải cao và nhúng vào Report 5 STR, Executive Summary & Master Traceability Index, (6) Đồng bộ toàn diện hệ sinh thái tài liệu docs-bundle.js. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#105** | 29/10/2026 | Tích Hợp Toàn Diện Chuẩn Y Học Chứng Cứ LOINC & Quyết Định 3280/QĐ-BYT vào Luồng Bóc Tách Xét Nghiệm Cận Lâm Sàng (Evidence-Grounded Clinical Laboratory Pipeline): (1) Nạp bản thể luận 23 chỉ số LOINC chuẩn Bộ Y Tế, (2) Thuật toán Fuzzy Matching 3 tầng (Exact, Alias 50+ thuật ngữ XN Việt Nam, Substring) hỗ trợ Unicode tiếng Việt NFD, (3) Tái thẩm định trạng thái ELEVATED/LOW/NORMAL theo chuẩn BYT thay vì tin OCR mờ, (4) Tiêm bảng đối soát chứng cứ y học vào User Prompt RAG và siết luật System Prompt chống ảo giác, (5) DTO & Frontend hiển thị huy hiệu LOINC, chuẩn BYT và trích dẫn luận cứ khoa học. 308/308 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#104** | 27/10/2026 | Tách biệt hoàn toàn Docker (Zero-Docker In-Memory Vite Connect Middleware Plugin) & Tinh chỉnh toàn diện thiết kế Aether Bio-Atelier: loại bỏ toàn bộ mảng màu đen/obsidian gây lệch tông tại Hero Section, Aside, Navigation, Dropzone; làm mịn bo góc organic rounded-2xl/3xl, loại bỏ toàn bộ 3D block shadows và thay bằng soft atmospheric elevation; chuẩn hóa màu y tế ấm sáng hài hòa; build 0 lỗi TS, 32/32 screenshots đạt chuẩn | AI Assistant | 🟢 Sẵn sàng Review |
 | **#103** | 27/10/2026 | Thiết kế lại toàn bộ giao diện (Aether Bio-Atelier // Swiss Clinical Precision): bảng màu giấy ấm + Obsidian + Cobalt, bộ font mới, thanh điều hướng dọc cho 3 cổng, GSAP `useGSAP` tôn trọng reduced-motion. Frontend build 0 lỗi TS; E2E 36/40 (4 lỗi ở đoạn mã không sửa) | AI Assistant | 🟢 Sẵn sàng Review |
@@ -36,6 +38,53 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#107] Bổ Sung Đặc Tả 5 Luồng Nghiệp Vụ Chính & Thiết Kế Khái Niệm CSDL 17 Bảng Vào Báo Cáo Report 2 (ISO 29148 & DDD)
+* **Thời gian:** 2026-11-03 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant & Tech Lead
+* **Nhánh:** `feature/ui-aether-redesign`
+* **Mã Use Cases:** ISO/IEC/IEEE 29148:2018 Requirements Engineering & Domain-Driven Design (DDD).
+* **Tệp tin:**
+  - `[MOD]` `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Mở rộng từ 456 dòng lên 978 dòng; bổ sung Mục 5 (5 Sequence Diagrams chi tiết) và Mục 6 (Ma trận DDD sang 17 bảng 3NF, ERD tổng thể, đặc tả chi tiết 6 bảng thực thể, kiến trúc vector pgvector HNSW và tổng quan 22 Flyway Migrations).
+  - `[MOD]` `report_2/REPORT_2_REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Tệp đồng bộ của Report 2 trong thư mục phân hệ `report_2/`.
+  - `[MOD]` `scripts/compile_docs_bundle.py`: Biên dịch tự động và đồng bộ hóa `docs-bundle.js` cho tất cả các thư mục báo cáo.
+  - `[MOD]` `docs-bundle.js` & `report_*/docs-bundle.js`: Cập nhật gói dữ liệu tài liệu offline (1.144,5 KB, 21 tài liệu SOTA).
+* **Bằng chứng kiểm thử & Verification:**
+  - Frontend build: `npm run build` $\rightarrow$ **0 lỗi TypeScript, 2.311 modules transformed**, built in 2.65s.
+  - Docs Bundler: `python3 -I scripts/compile_docs_bundle.py` $\rightarrow$ 100% tài liệu được đồng bộ và kiểm tra hash nhất quán.
+* **Điểm nóng Tech Lead cần Review:**
+  - Toàn bộ 5 Sequence Diagrams trong Mục 5 đã mô hình hóa chân thực 100% các rào chắn kỹ thuật đang chạy thực tế: Redis Semaphore Lock 30s, PatientAccessGuard chống BOLA, Regex Red-Flag ngắt tức thời P95 < 2ms, Khử PII 6 trường trước khi gọi Gemini Vision OCR, và đồng bộ vector `text-embedding-3-small` vào chỉ mục đồ thị HNSW `m=24, ef_construction=128`.
+  - Thiết kế CSDL ở Mục 6 phân định rạch ròi trách nhiệm của 7 Bounded Contexts, liên kết trực tiếp với 22 bản di trú Flyway không còn bất kỳ thành phần mock hay hardcoded nào.
+
+### [WORK-LOG-#106] Bổ Sung Bằng Chứng Thực Nghiệm Đo Đạc Tải Cao k6, Two-Layer Cache, 308 Unit Tests & Gắn Visual Screenshot Evidence Vào Report 5
+* **Thời gian:** 2026-11-01 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant & Tech Lead
+* **Nhánh:** `develop` / `master`
+* **Mã Use Cases:** Quality Assurance & Verification (IEEE Std 829-2008 & ISO/IEC/IEEE 29119).
+* **Tệp tin:**
+  - `[NEW]` `docs/images/test_evidence/unit_test_mvn_success.png`: Ảnh chụp thực tế kết quả chạy `mvn test` 308/308 tests PASS (0 failures, 0 errors, 11.72s).
+  - `[NEW]` `docs/images/test_evidence/surefire_report_overview.png`: Ảnh chụp bảng tổng hợp Surefire HTML Report chi tiết 37 test classes.
+  - `[NEW]` `docs/images/test_evidence/k6_500vu_high_load_test.png`: Ảnh chụp k6 High-Load Stress Test 500 VUs đồng thời, 196.532 requests, 6.447 req/s, 0.00% lỗi, 330 MB RAM.
+  - `[NEW]` `docs/images/test_evidence/k6_cache_benchmark.png`: Ảnh chụp k6 Two-Layer Cache Benchmark (83.737 requests, 95.03% hit rate, L1 1.80ms vs L2 7.50ms vs Cold DB 7.30ms).
+  - `[NEW]` `docs/images/test_evidence/backend_health_ready.png`: Ảnh chụp xác thực trạng thái sẵn sàng (Readiness Probe) của PostgreSQL 16 pgvector, Redis Cluster và Two-Layer Cache.
+  - `[NEW]` `docs/images/test_evidence/frontend_build_success.png`: Ảnh chụp đóng gói `npm run build` chuyển đổi thành công 2.311 modules TypeScript nghiêm ngặt (0 lỗi).
+  - `[NEW]` `report_5/images/test_evidence/*`: Bản sao đầy đủ 6 ảnh chụp bằng chứng đặt trực tiếp trong thư mục `report_5/`.
+  - `[MOD]` `tests/k6/high_load_test.js`: Bổ sung cấu hình `responseCallback: http.expectedStatuses(200, 401)` cho luồng kiểm tra rào chắn Triage giúp k6 đối soát chuẩn xác phản hồi hợp lệ.
+  - `[MOD]` `scripts/build_test_report.py`: Cập nhật trình sinh báo cáo Report 5 tích hợp số liệu thực nghiệm đo đạc từ k6, bảng so sánh Two-Layer Cache, đối soát 308 tests của 37 test classes và nhúng toàn bộ ảnh bằng chứng.
+  - `[MOD]` `docs/TEST_REPORT_MediAssist_AI.md`: Báo cáo Kiểm thử phần mềm Master Report 5 được biên dịch lại toàn diện với số liệu và kết luận thực tế.
+  - `[MOD]` `report_5/REPORT_5_TEST_REPORT_AND_VERIFICATION.md`: Tệp đồng bộ của Report 5 trong thư mục phân hệ `report_5/`.
+  - `[MOD]` `report_5/REPORT_5_EXECUTIVE_SUMMARY.md`: Bản tóm tắt quản trị Report 5 được nâng cấp toàn diện với bảng số liệu, phòng trưng bày bằng chứng hình ảnh (Visual Test Evidence) và kịch bản 5 câu hỏi đối đáp phản biện Hội đồng.
+  - `[MOD]` `scripts/compile_docs_bundle.py`: Cập nhật tiêu đề metadata và đồng bộ hóa lại toàn bộ tệp JavaScript `docs-bundle.js` cho tất cả các thư mục báo cáo.
+  - `[MOD]` `docs/index.html`: Cập nhật các thẻ số liệu thống kê (308/308 tests, 6.447 req/s, 2.311 modules).
+  - `[MOD]` `docs/README.md` & `docs/MASTER_TRACEABILITY_INDEX.md`: Cập nhật liên kết ma trận truy vết và chỉ mục 308 tests.
+* **Bằng chứng kiểm thử & Verification:**
+  - Backend tests: `mvn test` $\rightarrow$ **308/308 tests PASS (0 failures, 0 errors, 100% clean)** trong 11.723s.
+  - Frontend build: `npm run build` $\rightarrow$ **0 lỗi TypeScript, 2.311 modules transformed**, built in 2.76s.
+  - k6 High-Load: `500 VUs`, 196.532 requests, **6.447 req/s**, **0.00% lỗi**, RAM ~330 MB.
+  - k6 Cache: `50 VUs`, 83.737 requests, **95.03% Cache Hit**, L1: 1.80ms, L2: 7.50ms, Cold DB: 7.30ms.
+* **Điểm nóng Tech Lead cần Review:**
+  - Bộ báo cáo kiểm thử Report 5 đã hoàn toàn thoát khỏi tình trạng "nói suông" (lý thuyết trừu tượng), chuyển hóa 100% thành dữ liệu đo đạc thực tế có log, có bảng chỉ số phân vị P90/P95/P99, và có ảnh chụp màn hình bằng chứng sắc nét.
+  - Các kết luận kỹ thuật giải thích cặn kẽ vì sao hệ thống đạt được 6.447 req/s với chỉ 330 MB RAM (nhờ cơ chế Project Loom Virtual Threads và kết hợp L1 In-Memory Caffeine + L2 Redis Cluster).
 
 ### [WORK-LOG-#105] Tích Hợp Toàn Diện Chuẩn Y Học Chứng Cứ LOINC & Quyết Định 3280/QĐ-BYT vào Luồng Bóc Tách Xét Nghiệm Cận Lâm Sàng
 * **Thời gian:** 2026-10-29 (GMT+7)

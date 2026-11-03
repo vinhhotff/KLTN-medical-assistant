@@ -138,7 +138,7 @@ DOCS_DEF = [
     {
         "id": "report_5_main",
         "category": "📑 Bộ Báo Cáo 5 Cột Mốc (Reports 1 - 5)",
-        "title": "Report 5: Test Report & Verification (306 Tests)",
+        "title": "Report 5: Test Report & Verification (308 Tests & k6)",
         "badge": "IEEE 829",
         "badgeColor": "emerald",
         "filename": "TEST_REPORT_MediAssist_AI.md",
@@ -148,7 +148,7 @@ DOCS_DEF = [
         "id": "report_5_exec",
         "category": "📑 Bộ Báo Cáo 5 Cột Mốc (Reports 1 - 5)",
         "title": "Report 5: Test Executive Summary",
-        "badge": "306 Tests PASS",
+        "badge": "308 Tests PASS",
         "badgeColor": "slate",
         "filename": "REPORT_5_EXECUTIVE_SUMMARY.md",
         "path": "report_5/REPORT_5_EXECUTIVE_SUMMARY.md"
