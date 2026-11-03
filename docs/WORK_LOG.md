@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#108** | 03/11/2026 | Kh?c Ph?c To?n Di?n ???ng D?n HTML & ?i?u H??ng Li?n Th?ng Gi?a C?ng H? S? KLTN (`index.html`), `docs/index.html`, 5 B?o C?o WordCraft (`report_1` - `report_5`) & Vector Studio (`interactive_viewer.html`): (1) S?a l?i g?y ???ng d?n 404 trong `index.html` g?c khi m? Vector Viewer (`docs/diagrams/interactive_viewer.html`) v? c?c t?p t?i li?u trong `docs/`, (2) Chu?n h?a 10 ???ng d?n relative trong `docs/index.html` tr? ch?nh x?c v? `../report_X/` v? b? sung n?t ?i?u h??ng v? Portal g?c, (3) Th?m n?t ?i?u h??ng 2 chi?u "?? Portal" v? "?? Vector" tr?n thanh c?ng c? c?a c? 5 b?o c?o `report_1/index.html` ??n `report_5/index.html`, (4) C?u h?nh m?c ??nh m? ??ng t?i li?u c?a t?ng b?o c?o (`report_X_main`) thay v? c?ng tr? v?o `clinical_defense`, (5) Th?m n?t tr? v? Portal t? `docs/diagrams/interactive_viewer.html`. ??t 100% link test PASS kh?ng c?n l?i 404. | AI Assistant | ?? S?n s?ng Review |
 | **#107** | 03/11/2026 | Nâng Cấp Toàn Diện Báo Cáo Khóa Luận Tốt Nghiệp Report 2 (Requirements Analysis & Domain Modeling) Chuẩn ISO/IEC/IEEE 29148:2018: (1) Bổ sung Mục 5 – Đặc tả 5 Luồng Nghiệp Vụ Chính (Main Business Flows) với 5 Sequence Diagrams chuẩn UML (AI Symptom Triage & Red-Flag 115, Đặt Lịch Khám & Thanh Toán VNPay, Bàn Làm Việc Bác Sĩ & PatientAccessGuard BOLA, Bóc Tách Xét Nghiệm OCR & Khử PII Nghị Định 13, Thẩm Định Bác Sĩ & Đồng Bộ pgvector HNSW), (2) Bổ sung Mục 6 – Thiết Kế Khái Niệm CSDL & Ánh Xạ Thực Thể (Ma trận 7 Bounded Contexts → 17 bảng 3NF, ERD tổng thể, đặc tả 6 bảng trọng tâm, kiến trúc pgvector HNSW 1536 chiều, lộ trình 22 bản di trú Flyway V1-V22), (3) Đồng bộ hóa tự động sang `report_2/` và biên dịch toàn diện `docs-bundle.js` cho 6 thư mục báo cáo. Frontend build 0 lỗi TS (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#106** | 01/11/2026 | Thực thi & Bổ Sung Bằng Chứng Thực Nghiệm Đo Đạc Tải Cao k6, Kiểm Chuẩn Two-Layer Cache L1/L2, Xác Thực 308 Unit Tests & Gắn Toàn Diện Ảnh Chụp Bằng Chứng (Visual Evidence) Vào Hệ Thống Báo Cáo Khóa Luận Tốt Nghiệp Report 5: (1) Thực thi k6 High-Load Stress Test 500 VUs đồng thời (196.532 requests, 6.447 req/s, 0.00% lỗi, 330MB RAM nhờ Project Loom Virtual Threads), (2) Thực thi k6 Two-Layer Cache Benchmark (83.737 requests, 95.03% hit rate, L1 Caffeine 1.80ms vs L2 Redis 7.50ms vs Cold DB 7.30ms), (3) Thực thi trọn vẹn 308/308 Unit Tests (11.72s, 0 Failures, 0 Errors) & Surefire HTML Report, (4) Biên dịch Frontend sạch 100% (2.311 modules, 2.76s), (5) Sinh 6 ảnh chụp bằng chứng màn hình độ phân giải cao và nhúng vào Report 5 STR, Executive Summary & Master Traceability Index, (6) Đồng bộ toàn diện hệ sinh thái tài liệu docs-bundle.js. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#105** | 29/10/2026 | Tích Hợp Toàn Diện Chuẩn Y Học Chứng Cứ LOINC & Quyết Định 3280/QĐ-BYT vào Luồng Bóc Tách Xét Nghiệm Cận Lâm Sàng (Evidence-Grounded Clinical Laboratory Pipeline): (1) Nạp bản thể luận 23 chỉ số LOINC chuẩn Bộ Y Tế, (2) Thuật toán Fuzzy Matching 3 tầng (Exact, Alias 50+ thuật ngữ XN Việt Nam, Substring) hỗ trợ Unicode tiếng Việt NFD, (3) Tái thẩm định trạng thái ELEVATED/LOW/NORMAL theo chuẩn BYT thay vì tin OCR mờ, (4) Tiêm bảng đối soát chứng cứ y học vào User Prompt RAG và siết luật System Prompt chống ảo giác, (5) DTO & Frontend hiển thị huy hiệu LOINC, chuẩn BYT và trích dẫn luận cứ khoa học. 308/308 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
@@ -38,6 +39,20 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#108] Kh?c Ph?c To?n Di?n ???ng D?n HTML & ?i?u H??ng Li?n Th?ng Gi?a C?ng H? S? KLTN (`index.html`), `docs/index.html`, 5 B?o C?o WordCraft & Vector Studio
+* **Th?i gian:** 2026-11-03 (GMT+7)
+* **T?c nh?n th?c hi?n:** AI Assistant (Senior Pair Programming)
+* **Nh?nh:** `develop`
+* **M?c ti?u k? thu?t:** X? l? tri?t ?? t?nh tr?ng g?y ???ng d?n (404 File Not Found) khi ng??i d?ng m? `index.html` ho?c `docs/index.html` ?? truy c?p c?c trang HTML kh?c (5 B?o c?o WordCraft, Tr?nh xem bi?u ?? Vector Studio). T?o h? th?ng ?i?u h??ng 2 chi?u li?n th?ng th?ng su?t.
+* **T?p tin:**
+  - `[MOD]` `index.html`: C?p nh?t ???ng d?n Vector Viewer t? `diagrams/interactive_viewer.html` th?nh `docs/diagrams/interactive_viewer.html`; chu?n h?a c?c link `docs/CAPSTONE_DEFENSE.md`, `docs/CAPSTONE_PRESENTATION_SLIDES.md`, `docs/MASTER_TRACEABILITY_INDEX.md`; c?p nh?t s? li?u 308/308 tests pass.
+  - `[MOD]` `docs/index.html`: S?a 10 li?n k?t relative sang `../report_X/index.html` v? `../report_X/REPORT_X_...` do `docs/index.html` n?m trong th? m?c con `docs/`; th?m n?t quay v? `../index.html` (Portal G?c).
+  - `[MOD]` `docs/diagrams/interactive_viewer.html`: B? sung n?t quay v? `../../index.html` (Portal G?c).
+  - `[MOD]` `report_1/index.html` ??n `report_5/index.html`: B? sung 2 n?t ?i?u h??ng tr?n thanh c?ng c? ("?? Portal" tr? v? `../index.html`, "?? Vector" tr? v? `../docs/diagrams/interactive_viewer.html`); c?u h?nh m?c ??nh m? ??ng t?i li?u c?a t?ng b?o c?o (`report_X_main`) thay v? c?ng m? `clinical_defense`.
+* **B?ng ch?ng ki?m th?:**
+  - Ch?y script ki?m tra t? ??ng to?n b? 28 li?n k?t gi?a c?c t?p HTML: **100% OK, 0 l?i 404**.
+  - ??ng b? `docs-bundle.js` s?ch s? v?i `scripts/compile_docs_bundle.py`.
 
 ### [WORK-LOG-#107] Bổ Sung Đặc Tả 5 Luồng Nghiệp Vụ Chính & Thiết Kế Khái Niệm CSDL 17 Bảng Vào Báo Cáo Report 2 (ISO 29148 & DDD)
 * **Thời gian:** 2026-11-03 (GMT+7)
