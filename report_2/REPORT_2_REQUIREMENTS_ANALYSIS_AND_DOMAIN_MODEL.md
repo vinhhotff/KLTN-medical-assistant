@@ -217,86 +217,386 @@ graph TD
 
 ---
 
-### 3.2 Conceptual Domain Model Diagram
+### 3.2 Conceptual Domain Model Diagram (Mô Hình Miền Khái Niệm Toàn Diện Chuẩn DDD)
+
+#### 3.2.1 Đánh Giá Khoa Học Hiện Trạng & Động Lực Tái Thiết Kế (Architectural Critique & Rationale)
+Nhằm đáp ứng yêu cầu khắt khe của một Hệ thống Y tế Thông minh cấp Enterprise, mô hình khái niệm miền (Conceptual Domain Model) của MediAssist-AI được tái cấu trúc triệt để nhằm khắc phục ba hạn chế mang tính nền tảng của các bản phác thảo sơ khai:
+
+1. **Khắc phục lỗi vi phạm ngữ nghĩa hướng đối tượng & DDD (Inheritance Anti-Pattern):**
+   * *Sai lệch sơ khai:* Bản phác thảo trước đây sử dụng ký hiệu kế thừa UML `<|--` giữa `User` và `PatientProfile` / `DoctorProfile`. Điều này hoàn toàn sai lệch về mặt lý thuyết và kiến trúc: `PatientProfile` và `DoctorProfile` không phải là các lớp con (subclasses) kế thừa các đặc tính cơ sở của `User` (quan hệ *is-a*), mà là các **Hồ sơ chuyên biệt (Domain Roles / Profiles)** thuộc mối quan hệ sở hữu/kết hợp chặt chẽ (quan hệ *has-a* / composition `User "1" *-- "0..1" PatientProfile`). Một `User` có thể có hồ sơ bệnh nhân, hồ sơ bác sĩ, hoặc quản trị viên; các hành vi EMR thuộc về Bệnh nhân, trong khi hành vi cấp phép hành nghề thuộc về Bác sĩ.
+2. **Loại bỏ mô hình miền thiếu sức sống (Anemic Domain Model Elimination):**
+   * *Hạn chế sơ khai:* Các thực thể chỉ chứa các thuộc tính dữ liệu thụ động (getters/setters thuần túy), biến miền nghiệp vụ thành "kho chứa dữ liệu" và đẩy toàn bộ logic phán đoán sang tầng dịch vụ (Service layer).
+   * *Kiến trúc nâng cấp:* Bổ sung đầy đủ các **Phương thức miền (Domain Behaviors)** và **Rào chắn bất biến (Domain Invariants)** trực tiếp vào các Aggregate Root (ví dụ: `Appointment.completeEncounter()` kiểm soát chặt chẽ việc hoàn tất ca khám chỉ khi đã check-in, `TriageSession.evaluateEmergencyRedFlag()` kích hoạt rào chắn cấp cứu 115, `DoctorScheduleSlot.acquireLock()` ngăn chặn race condition đặt trùng lịch P99).
+3. **Phản ánh trọn vẹn quy mô 7 Bounded Contexts & 17 Bảng Dữ Liệu:**
+   * Hệ thống thực tế vận hành trên 7 Bounded Contexts và 17 bảng CSDL chuẩn 3NF. Mô hình mới bổ sung đầy đủ 8 thực thể trọng yếu từng bị bỏ sót: `DoctorScheduleSlot` (khóa lịch khám Redis), `TriageMessage` (hội thoại phân luồng đa lượt), `DoctorSpecialty` / `Specialty` (danh mục chuyên khoa đa cấp), `AiTokenUsage` (FinOps kiểm soát chi phí LLM), `AuditLog` (nhật ký an ninh bất biến HIPAA/Nghị định 13), `Notification` (thông báo in-app), `EmailVerificationToken` & `PasswordResetToken` (phân hệ bảo vệ định danh); đồng thời chuẩn hóa hệ thống **Value Objects (Đối tượng giá trị bất biến)** lâm sàng gồm `VitalSigns`, `ICDDiagnosis`, `PrescriptionItem`, `AdmissionTicket`, `SBARSummary`, và `LOINCIndicator`.
+
+---
+
+#### 3.2.2 Biểu Đồ Miền Khái Niệm Toàn Thể (Master Conceptual Domain Model Diagram)
+
+Biểu đồ lớp UML bên dưới thể hiện cấu trúc phân rã của 26 lớp thực thể, Value Objects và Aggregates qua 7 Ngữ cảnh Bounded Contexts, làm rõ ranh giới bất biến và quan hệ ràng buộc:
 
 ```mermaid
 classDiagram
+    %% ========================================================
+    %% 1. IDENTITY & ACCESS MANAGEMENT CONTEXT (BC1)
+    %% ========================================================
     class User {
+        <<AggregateRoot>>
         +UUID id
         +String email
-        +String fullName
+        +String passwordHash
         +Role role
         +UserStatus status
         +boolean emailVerified
+        +int failedLoginAttempts
+        +Instant lockedUntil
+        +verifyEmail() boolean
+        +recordFailedLogin() void
+        +resetFailedLogins() void
+        +lockAccount(int minutes) void
     }
+    class Role {
+        <<Enumeration>>
+        ROLE_PATIENT
+        ROLE_DOCTOR
+        ROLE_ADMIN
+    }
+    class EmailVerificationToken {
+        <<Entity>>
+        +UUID id
+        +String tokenHash
+        +Instant expiresAt
+        +Instant usedAt
+        +isValid() boolean
+        +consume() void
+    }
+    class PasswordResetToken {
+        <<Entity>>
+        +UUID id
+        +String tokenHash
+        +Instant expiresAt
+        +Instant usedAt
+        +isValid() boolean
+        +consume() void
+    }
+
+    %% ========================================================
+    %% 2. CLINICAL TRIAGE & DECISION SUPPORT CONTEXT (BC2)
+    %% ========================================================
+    class TriageSession {
+        <<AggregateRoot>>
+        +UUID id
+        +String chiefComplaint
+        +TriageUrgency urgencyLevel
+        +boolean isEmergency
+        +String suggestedSpecialtySlug
+        +int turnCount
+        +appendTurn(String userText, String aiResponse) void
+        +evaluateEmergencyRedFlag() boolean
+        +synthesizeSBAR() SBARSummary
+        +recommendSpecialty() String
+    }
+    class TriageMessage {
+        <<Entity>>
+        +UUID id
+        +MessageRole senderRole
+        +String content
+        +List~String~ suggestionChips
+        +String clinicalReasoningTrace
+        +Instant sentAt
+    }
+    class SBARSummary {
+        <<ValueObject>>
+        +String situation
+        +String background
+        +String assessment
+        +String recommendation
+        +toJson() String
+    }
+    class RedFlagAlert {
+        <<ValueObject>>
+        +boolean isTriggered
+        +String emergencyCategory
+        +String hotlineNotice
+    }
+
+    %% ========================================================
+    %% 3. PROVIDER TAXONOMY & AVAILABILITY CONTEXT (BC3)
+    %% ========================================================
+    class DoctorProfile {
+        <<AggregateRoot>>
+        +UUID id
+        +String licenseNumber
+        +String academicTitle
+        +BigDecimal consultationFee
+        +int experienceYears
+        +double averageRating
+        +int reviewCount
+        +Vector bioEmbedding
+        +boolean isVerified
+        +boolean isActive
+        +recalculateRating(int newScore) void
+        +updateBioEmbedding(float[] vector) void
+        +verifyCredentials(String adminNotes) void
+    }
+    class Specialty {
+        <<Entity>>
+        +UUID id
+        +String name
+        +String slug
+        +String iconUrl
+        +String description
+    }
+    class DoctorSpecialty {
+        <<Entity>>
+        +UUID id
+        +int experienceYearsInSpecialty
+        +boolean isPrimarySpecialty
+    }
+    class DoctorScheduleSlot {
+        <<Entity>>
+        +UUID id
+        +LocalDate slotDate
+        +LocalTime startTime
+        +LocalTime endTime
+        +SlotStatus status
+        +UUID lockedBySessionId
+        +Instant lockExpiresAt
+        +acquireLock(UUID sessionId, int ttlSeconds) boolean
+        +releaseLock() void
+        +confirmBooking() void
+    }
+
+    %% ========================================================
+    %% 4. PATIENT & HEALTH PASSPORT CONTEXT (BC5)
+    %% ========================================================
     class PatientProfile {
+        <<AggregateRoot>>
+        +UUID id
         +String patientCode
         +String citizenId
         +String healthInsuranceNumber
         +String bloodGroup
-        +String allergies
+        +List~String~ chronicConditions
+        +List~String~ drugAllergies
+        +updateMedicalHistory(String allergy, String chronic) void
+        +hasAllergyConflict(String medication) boolean
     }
-    class DoctorProfile {
-        +String licenseNumber
-        +String academicTitle
-        +double rating
-        +int reviewCount
-        +Vector bioEmbedding
-        +boolean isVerified
-    }
-    class Specialty {
-        +String name
-        +String slug
-        +String description
-    }
+
+    %% ========================================================
+    %% 5. CLINICAL ENCOUNTER & TELEHEALTH SCHEDULING (BC4 & BC5)
+    %% ========================================================
     class Appointment {
+        <<AggregateRoot>>
+        +UUID id
         +String appointmentCode
-        +DateTime scheduledStart
+        +LocalDateTime scheduledStart
+        +LocalDateTime scheduledEnd
         +AppointmentStatus status
         +PaymentStatus paymentStatus
         +String queueNumber
-        +String vitalSignsJson
-        +String icd10Code
-        +String prescriptionJson
+        +String anamnesis
+        +String clinicalNotes
+        +LocalDate followUpDate
+        +assignQueueNumber(int dailySeq) void
+        +checkIn() void
+        +callNextPatient() void
+        +recordVitals(VitalSigns vitals) void
+        +diagnoseICD(ICDDiagnosis diagnosis) void
+        +prescribe(List~PrescriptionItem~ items) void
+        +completeEncounter() void
+        +cancelAppointment(String reason) void
     }
-    class TriageSession {
-        +String symptomsText
-        +boolean isEmergency
-        +TriageUrgency urgencyLevel
-        +String sbarSummary
+    class VitalSigns {
+        <<ValueObject>>
+        +int systolicBp
+        +int diastolicBp
+        +int heartRate
+        +double temperatureCelsius
+        +int spO2Percent
+        +int respiratoryRate
+        +isHypertensiveCrisis() boolean
+        +isHypoxemic() boolean
     }
-    class MedicalDocument {
-        +String fileName
-        +String storagePath
-        +String contentType
+    class ICDDiagnosis {
+        <<ValueObject>>
+        +String icdCode
+        +String icdVersion
+        +String diseaseNameVi
+        +boolean isPrimary
     }
-    class DocumentAnalysis {
-        +String clinicalSummary
-        +String plainLanguageExplanation
-        +String abnormalIndicatorsJson
+    class PrescriptionItem {
+        <<ValueObject>>
+        +String medicationName
+        +String activeIngredient
+        +String dosage
+        +String frequency
+        +int durationDays
+        +String instructions
     }
-    class PaymentTransaction {
-        +String transactionCode
-        +BigDecimal amount
-        +PaymentStatus status
-        +String paymentGateway
-    }
-    class DoctorReview {
-        +int rating
-        +String comment
+    class AdmissionTicket {
+        <<ValueObject>>
+        +String queueNumber
+        +String qrCodePayload
+        +String clinicRoom
+        +LocalTime estimatedCallTime
     }
 
-    User <|-- PatientProfile : owns
-    User <|-- DoctorProfile : owns
-    DoctorProfile "1" -- "N" Specialty : specializes in
-    User "1" -- "N" Appointment : participates as patient
-    User "1" -- "N" Appointment : participates as doctor
-    Appointment "1" -- "1" DoctorReview : rated after completed
-    Appointment "N" -- "0..1" MedicalDocument : references
-    Appointment "N" -- "0..1" TriageSession : originates from
-    Appointment "1" -- "0..1" PaymentTransaction : settled via
-    MedicalDocument "1" -- "1" DocumentAnalysis : parsed into
+    %% ========================================================
+    %% 6. MULTIMODAL LAB OCR & EVIDENCE CONTEXT (BC6)
+    %% ========================================================
+    class MedicalDocument {
+        <<AggregateRoot>>
+        +UUID id
+        +String originalFileName
+        +String storagePath
+        +String contentType
+        +long fileSize
+        +String sha256Checksum
+        +DocumentStatus status
+        +generateSignedDownloadUrl(int ttlMinutes) String
+        +attachToAppointment(UUID appointmentId) void
+    }
+    class DocumentAnalysis {
+        <<Entity>>
+        +UUID id
+        +String clinicalSummary
+        +String plainLanguageExplanation
+        +double confidenceScore
+        +Instant analyzedAt
+        +maskPII(String regexPattern) void
+        +extractAbnormalities() List~LOINCIndicator~
+    }
+    class LOINCIndicator {
+        <<ValueObject>>
+        +String loincCode
+        +String indicatorName
+        +String testCategory
+        +double numericValue
+        +String unit
+        +String referenceRange
+        +IndicatorStatus clinicalFlag
+    }
+
+    %% ========================================================
+    %% 7. FINANCIAL SETTLEMENT CONTEXT (BC7)
+    %% ========================================================
+    class PaymentTransaction {
+        <<AggregateRoot>>
+        +UUID id
+        +String transactionCode
+        +BigDecimal amount
+        +String paymentGateway
+        +PaymentStatus status
+        +String idempotencyKey
+        +String gatewayTransactionRef
+        +Instant paidAt
+        +verifyHmacSignature(String signature) boolean
+        +fulfillPayment() void
+        +initiateRefund(BigDecimal refundAmount) void
+    }
+
+    %% ========================================================
+    %% 8. GOVERNANCE, REPUTATION & AUDIT
+    %% ========================================================
+    class DoctorReview {
+        <<Entity>>
+        +UUID id
+        +int rating
+        +String comment
+        +String maskedPatientName
+        +Instant createdAt
+        +validateEligibility(Appointment appt) boolean
+    }
+    class AiTokenUsage {
+        <<Entity>>
+        +UUID id
+        +String serviceType
+        +int promptTokens
+        +int completionTokens
+        +int totalTokens
+        +BigDecimal costUsd
+        +BigDecimal costVnd
+        +long latencyMs
+        +calculateCost(double inputRate, double outputRate) void
+    }
+    class AuditLog {
+        <<Entity>>
+        +UUID id
+        +String action
+        +String entityName
+        +UUID entityId
+        +String clientIp
+        +String userAgent
+        +String detailJson
+        +Instant timestamp
+    }
+    class Notification {
+        <<Entity>>
+        +UUID id
+        +NotificationType type
+        +String title
+        +String message
+        +String deepLink
+        +boolean isRead
+        +markAsRead() void
+    }
+
+    %% ========================================================
+    %% DOMAIN RELATIONSHIPS & AGGREGATE BOUNDARIES
+    %% ========================================================
+    User "1" *-- "0..1" PatientProfile : owns EMR
+    User "1" *-- "0..1" DoctorProfile : owns clinical profile
+    User "1" o-- "0..*" EmailVerificationToken : security
+    User "1" o-- "0..*" PasswordResetToken : security
+    User "1" --> "0..*" AuditLog : audit trail
+    User "1" --> "0..*" Notification : receives
+    User "1" --> "0..*" AiTokenUsage : consumes quota
+
+    DoctorProfile "1" *-- "1..*" DoctorSpecialty : specializes
+    Specialty "1" o-- "0..*" DoctorSpecialty : classifies
+    DoctorProfile "1" *-- "0..*" DoctorScheduleSlot : publishes availability
+
+    User "1" --> "0..*" TriageSession : patient initiates
+    TriageSession "1" *-- "1..*" TriageMessage : dialogue turns
+    TriageSession "1" *-- "0..1" SBARSummary : synthesizes
+    TriageSession "1" *-- "0..1" RedFlagAlert : screens
+    TriageSession "1" ..> "0..1" Appointment : leads to booking
+
+    User "1" --> "0..*" Appointment : patient booked
+    DoctorProfile "1" --> "0..*" Appointment : attending physician
+    DoctorScheduleSlot "1" <-- "1" Appointment : allocates slot
+    Appointment "1" *-- "1" VitalSigns : clinical intake
+    Appointment "1" *-- "1..*" ICDDiagnosis : encoded diagnosis
+    Appointment "1" *-- "0..*" PrescriptionItem : medication orders
+    Appointment "1" *-- "0..1" AdmissionTicket : O2O QR ticket
+
+    User "1" --> "0..*" MedicalDocument : uploads lab result
+    MedicalDocument "1" *-- "0..1" DocumentAnalysis : parsed by AI OCR
+    DocumentAnalysis "1" *-- "0..*" LOINCIndicator : standardized lab indicators
+    Appointment "1" o-- "0..*" MedicalDocument : references for encounter
+
+    Appointment "1" *-- "0..1" PaymentTransaction : settled via
+    Appointment "1" *-- "0..1" DoctorReview : clinical review after completion
 ```
+
+---
+
+#### 3.2.3 Ma Trận Thực Thể Miền, Ranh Giới Aggregate & Rào Chắn Bất Biến (Domain Invariants Matrix)
+
+##### Table 3.2: Domain Aggregates, Entities, Value Objects & Domain Invariants Matrix
+
+| Aggregate Root / Phân Hệ | Thực Thể & Value Objects Bên Trong | Quy Tắc & Rào Chắn Bất Biến Miền (Domain Invariants) | Sự Kiện Miền Phát Ra (Domain Events) | Bảng CSDL Vật Lý |
+| :--- | :--- | :--- | :--- | :--- |
+| **User (Identity & Access - BC1)** | • `User` (Root)<br>• `Role` (Enum)<br>• `EmailVerificationToken`<br>• `PasswordResetToken` | • Tự động khóa tài khoản 15 phút nếu nhập sai mật khẩu $\ge 5$ lần liên tiếp (`failedLoginAttempts`).<br>• Cổng bảo vệ bắt buộc kích hoạt email (`emailVerified = true`) trước khi được đặt lịch khám hoặc thanh toán.<br>• Token xác thực và đặt lại mật khẩu có TTL 30 phút, mã hóa một chiều SHA-256, vô hiệu hóa sau 1 lần dùng. | • `UserRegistered`<br>• `EmailVerified`<br>• `AccountLocked`<br>• `PasswordReset` | `users`<br>`email_verification_tokens`<br>`password_reset_tokens` |
+| **TriageSession (Clinical Triage - BC2)** | • `TriageSession` (Root)<br>• `TriageMessage`<br>• `SBARSummary` (VO)<br>• `RedFlagAlert` (VO) | • Rào chắn Red-Flag cấp cứu cứng: Nếu phát hiện dấu hiệu đe dọa tính mạng (đột quỵ, nhồi máu cơ tim, sốc phản vệ), phiên hội thoại lập tức bị khóa (`isEmergency = true`), ngắt gọi LLM và phát cảnh báo gọi Cấp cứu 115.<br>• Bóc tách phủ định NegEx trước khi tính trọng số chuyên khoa.<br>• Tóm tắt bệnh án bắt buộc tuân thủ cấu trúc chuẩn quốc tế SBAR. | • `TriageStarted`<br>• `RedFlagDetected`<br>• `SBARSynthesized`<br>• `SpecialtySuggested` | `triage_sessions` |
+| **DoctorProfile (Provider & Scheduling - BC3 & BC4)** | • `DoctorProfile` (Root)<br>• `Specialty`<br>• `DoctorSpecialty`<br>• `DoctorScheduleSlot` | • Bác sĩ chỉ được mở lịch khám và xuất hiện trên tìm kiếm khi đã được Quản trị viên duyệt CCHN (`isVerified = true`) và đang hoạt động (`isActive = true`).<br>• Điểm đánh giá trung bình `averageRating` áp dụng hệ số suy giảm độ tin cậy (Credibility Damper) theo số lượt đánh giá $N$.<br>• Khóa giữ chỗ slot áp dụng Redis Distributed Lock TTL 10 phút, tự động giải phóng nếu không hoàn tất thanh toán. | • `DoctorVetted`<br>• `BioEmbeddingUpdated`<br>• `SlotLocked`<br>• `SlotReleased` | `doctor_profiles`<br>`specialties`<br>`doctor_specialties`<br>`doctor_schedule_slots` |
+| **PatientProfile (Health & EMR Passport - BC5)** | • `PatientProfile` (Root)<br>• `AllergyRecord` (VO)<br>• `ChronicCondition` (VO) | • Dữ liệu CCCD, số BHYT được bảo vệ an mật chuẩn HIPAA và Nghị định 13.<br>• Hồ sơ tiền sử dị ứng thuốc (`drugAllergies`) là chốt chặn an toàn: Bác sĩ không thể hoàn tất đơn thuốc nếu chứa hoạt chất trùng với tiền sử dị ứng của bệnh nhân mà không có xác nhận lâm sàng đặc biệt. | • `PatientProfileCreated`<br>• `MedicalHistoryUpdated`<br>• `AllergyConflictDetected` | `patient_profiles` |
+| **Appointment (Clinical Encounter - BC4 & BC5)** | • `Appointment` (Root)<br>• `VitalSigns` (VO)<br>• `ICDDiagnosis` (VO)<br>• `PrescriptionItem` (VO)<br>• `AdmissionTicket` (VO) | • Máy trạng thái hữu hạn (FSM) nghiêm ngặt: `SCHEDULED` $\rightarrow$ `CHECKED_IN` $\rightarrow$ `IN_PROGRESS` $\rightarrow$ `COMPLETED` (hoặc `CANCELLED` / `NO_SHOW`).<br>• Bác sĩ chỉ được ký duyệt bệnh án (`completeEncounter`) khi ca khám đang ở trạng thái `CHECKED_IN` hoặc `IN_PROGRESS`.<br>• Chẩn đoán lâm sàng bắt buộc gắn mã ICD chuẩn hóa (`icd_code` và `icd_version` mặc định `ICD-10` theo QĐ 7603/QĐ-BYT).<br>• Phiếu khám điện tử (Admission Ticket) chỉ cấp mã QR và STT khi lịch khám hợp lệ, cấm xuất vé cho ca đã hủy hoặc vắng mặt. | • `AppointmentBooked`<br>• `PatientCheckedIn`<br>• `EncounterCompleted`<br>• `AppointmentCancelled` | `appointments` |
+| **MedicalDocument (Multimodal Lab OCR - BC6)** | • `MedicalDocument` (Root)<br>• `DocumentAnalysis`<br>• `LOINCIndicator` (VO) | • Lưu trữ tệp xét nghiệm gốc trong bucket S3 riêng tư (private bucket), tuyệt đối không công khai URL; chỉ cấp Pre-signed URL có thời hạn tối đa 15 phút qua rào chắn `PatientAccessGuard`.<br>• Tự động khử định danh PII (họ tên, CCCD, địa chỉ, số BHYT) theo Nghị định 13/2023/NĐ-CP trước khi gửi ảnh đến mô hình thị giác AI.<br>• Các chỉ số xét nghiệm cận lâm sàng bắt buộc đối soát với danh mục 23 chỉ số LOINC chuẩn Bộ Y Tế theo Quyết định 3280/QĐ-BYT để xác định ngưỡng bất thường (`ELEVATED`, `LOW`, `NORMAL`). | • `DocumentUploaded`<br>• `OCRAnalysisCompleted`<br>• `AbnormalLabDetected` | `medical_documents`<br>`document_analyses` |
+| **PaymentTransaction (Financial Settlement - BC7)** | • `PaymentTransaction` (Root)<br>• `RefundRecord` (VO) | • Kiểm soát tính bất biến và nguyên tử (Atomicity): Xác thực chữ ký số HMAC-SHA512 từ Webhook VNPay/Stripe, xử lý idempotency chống cộng tiền trùng lặp qua `@Version` Optimistic Locking.<br>• Chính sách hoàn tiền tự động khi bệnh nhân hủy lịch khám: Hoàn 100% nếu hủy trước giờ hẹn $\ge 24$ giờ, hoàn 50% nếu hủy trước 2–24 giờ, cấm hủy và không hoàn tiền nếu dưới 2 giờ. | • `PaymentInitiated`<br>• `PaymentSettled`<br>• `RefundIssued` | `payment_transactions` |
+| **Governance & Observability (Cross-Cutting)** | • `DoctorReview`<br>• `AiTokenUsage`<br>• `AuditLog`<br>• `Notification` | • Đánh giá bác sĩ (`DoctorReview`): Ràng buộc 1 ca khám hoàn tất (`COMPLETED`) chỉ được đánh giá duy nhất 1 lần; ẩn danh họ tên bệnh nhân theo chuẩn HIPAA.<br>• FinOps AI Token (`AiTokenUsage`): Mọi lệnh gọi API LLM/OCR đều phải ghi vết số lượng token đầu vào/đầu ra, chi phí USD/VND và độ trễ P95; giao dịch log token được cô lập (`REQUIRES_NEW`) tránh ảnh hưởng luồng chính.<br>• Audit Log: Bất biến (Append-only), lưu trữ IP, User-Agent, thao tác CRUD trên dữ liệu bệnh lý. | • `DoctorReviewed`<br>• `TokenQuotaExceeded`<br>• `AuditRecorded`<br>• `NotificationDispatched` | `doctor_reviews`<br>`ai_token_usage`<br>`audit_logs`<br>`notifications` |
 
 ---
 

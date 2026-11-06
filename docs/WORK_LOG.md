@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#110** | 06/11/2026 | Tái Cấu Trúc Toàn Diện Mô Hình Miền Khái Niệm 3.2 (Conceptual Domain Model & Aggregate Boundaries) Chuẩn Enterprise DDD: (1) Khắc phục lỗi sai ngữ nghĩa kế thừa `<|--` (Inheritance Anti-Pattern) thành quan hệ sở hữu/kết hợp chặt chẽ `1:0..1` Composition, (2) Xóa bỏ hoàn toàn Anemic Domain Model bằng cách bổ sung phương thức miền (Domain Behaviors) và rào chắn bất biến (Domain Invariants), (3) Mở rộng từ 10 thực thể sơ khai lên 26 thực thể, Aggregates và Value Objects bao phủ trọn vẹn 7 Bounded Contexts và 17 bảng CSDL (khóa slot Redis, hội thoại đa lượt, FinOps AI Token, HIPAA Audit Log, LOINC QĐ 3280, WHO ICD-10, E-Admission Ticket), (4) Bổ sung Bảng 3.2 Ma trận Ranh giới Aggregate & Bất biến miền, đồng bộ hóa sang `report_2/` và biên dịch 21 tài liệu offline `docs-bundle.js`. Frontend build 0 lỗi TS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#109** | 06/11/2026 | Tái Cấu Trúc & Phân Bổ Lại Toàn Diện Bảng 1.3 (Stakeholder & Actor Identification): (1) Khắc phục triệt để lỗi CSS toàn cục ép `white-space: nowrap; width: 1%` lên cột thứ hai và cột cuối khiến Cột 2 ("Bản Chất & Vai Trò") chiếm quá nhiều chiều ngang và Cột 3 ("Mục Tiêu & Nhu Cầu Cốt Lõi") bị bóp nghẹt, (2) Thiết lập bộ quy tắc CSS và cơ chế tự động nhận diện bảng `.table-stakeholders` theo tỷ lệ vàng 16% / 25% / 37% / 22% trên 5 tệp giao diện báo cáo (`report_1` đến `report_5`), (3) Làm giàu và cân bằng mật độ nội dung (Content Density) giữa các cột trong `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` và `report_2/`, (4) Đồng bộ tự động 21 tài liệu qua `compile_docs_bundle.py`, kiểm thử trọn vẹn 308/308 Backend Unit Tests PASS và Frontend Build 0 lỗi TypeScript (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#108** | 06/11/2026 | Chuẩn Hóa Lược Đồ Cột Chẩn Đoán Quốc Tế Đa Phiên Bản (Flyway V23 – `icd_code` & `icd_version`): (1) Thiết lập bản di trú Flyway `V23__refactor_icd_code_and_version.sql` đổi tên an toàn (Idempotent PL/pgSQL) cột `"icd-10"` / `icd10` / `icd10_code` thành `icd_code VARCHAR(20)`, bổ sung cột `icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10'` và tạo Partial B-Tree Index `idx_appointments_icd_code`, kèm kịch bản Rollback (Down migration), (2) Đồng bộ ánh xạ JPA Entity `Appointment`, `AppointmentDto`, `ClinicalEncounterRequest`, `DoctorPatientItemDto`, `AppointmentService`, `AppointmentRepository` đảm bảo tương thích ngược 100%, (3) Cập nhật `docs/DATABASE_DESIGN.md` và xác thực 308/308 Backend Unit Tests PASS, Frontend Build 0 lỗi TS (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#107** | 03/11/2026 | Nâng Cấp Toàn Diện Báo Cáo Khóa Luận Tốt Nghiệp Report 2 (Requirements Analysis & Domain Modeling) Chuẩn ISO/IEC/IEEE 29148:2018: (1) Bổ sung Mục 5 – Đặc tả 5 Luồng Nghiệp Vụ Chính (Main Business Flows) với 5 Sequence Diagrams chuẩn UML (AI Symptom Triage & Red-Flag 115, Đặt Lịch Khám & Thanh Toán VNPay, Bàn Làm Việc Bác Sĩ & PatientAccessGuard BOLA, Bóc Tách Xét Nghiệm OCR & Khử PII Nghị Định 13, Thẩm Định Bác Sĩ & Đồng Bộ pgvector HNSW), (2) Bổ sung Mục 6 – Thiết Kế Khái Niệm CSDL & Ánh Xạ Thực Thể (Ma trận 7 Bounded Contexts → 17 bảng 3NF, ERD tổng thể, đặc tả 6 bảng trọng tâm, kiến trúc pgvector HNSW 1536 chiều, lộ trình 22 bản di trú Flyway V1-V22), (3) Đồng bộ hóa tự động sang `report_2/` và biên dịch toàn diện `docs-bundle.js` cho 6 thư mục báo cáo. Frontend build 0 lỗi TS (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
@@ -40,6 +41,26 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#110] Tái Cấu Trúc Toàn Diện Mô Hình Miền Khái Niệm 3.2 Chuẩn Enterprise DDD
+* **Thời gian:** 2026-11-06 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant & Tech Lead
+* **Nhánh:** `feature/ui-aether-redesign`
+* **Tệp tin:**
+  - `[MOD]` `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Nâng cấp triệt để Mục 3.2: Biện luận khoa học về 3 sai sót của bản phác thảo cũ (sai ngữ nghĩa kế thừa `<|--`, Anemic Domain Model không có phương thức, thiếu 16 thực thể/VO trọng yếu); thiết kế Master Conceptual Domain Model Mermaid Class Diagram với 26 classes chuẩn DDD bao trùm 7 Bounded Contexts; bổ sung Bảng 3.2 Ma trận Ranh giới Aggregate & Bất biến miền.
+  - `[MOD]` `report_2/REPORT_2_REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Đồng bộ toàn diện nội dung Mục 3.2 sang Báo cáo Khóa luận Report 2.
+  - `[MOD]` `docs-bundle.js`, `report_*/docs-bundle.js`: Biên dịch lại 21 tài liệu Markdown sang 6 gói offline bundle (1.168 KB).
+* **Tài liệu đã đồng bộ:**
+  - `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` (Mục 3.2 hoàn thiện chuẩn ISO/IEC/IEEE 29148:2018).
+  - `report_2/REPORT_2_REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` (Đồng bộ tuyệt đối).
+* **Bằng chứng kiểm thử & Xác thực:**
+  - `python3 -I scripts/compile_docs_bundle.py`: Đồng bộ 21/21 tài liệu thành công.
+  - Frontend Build: `npm run build` thành công trong `2.59s`, 2.311 modules transformed, 0 lỗi TypeScript.
+* **Điểm nóng Tech Lead cần Review:**
+  - Mô hình miền không còn mâu thuẫn với ERD 17 bảng ở Mục 6 hay 7 Bounded Contexts ở Mục 3.3.
+  - Tất cả quan hệ kế thừa sai bản chất đã được chuẩn hóa sang quan hệ kết hợp Composition/Association (`User "1" *-- "0..1" PatientProfile`).
+
+---
 
 ### [WORK-LOG-#109] Tái Cấu Trúc & Phân Bổ Lại Toàn Diện Bảng 1.3 (Stakeholder & Actor Identification)
 * **Thời gian:** 2026-11-06 (GMT+7)
