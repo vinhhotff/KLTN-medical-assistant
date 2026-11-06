@@ -15,7 +15,8 @@ import java.util.UUID;
         @Index(name = "idx_appointment_patient", columnList = "patient_id"),
         @Index(name = "idx_appointment_doctor", columnList = "doctor_id"),
         @Index(name = "idx_appointment_status", columnList = "status"),
-        @Index(name = "idx_appointment_schedule", columnList = "doctor_id, scheduled_start")
+        @Index(name = "idx_appointment_schedule", columnList = "doctor_id, scheduled_start"),
+        @Index(name = "idx_appointments_icd_code", columnList = "icd_code")
 })
 public class Appointment {
 
@@ -62,8 +63,11 @@ public class Appointment {
     @Column(columnDefinition = "TEXT")
     private String vitalSignsJson; // Huyết áp, Mạch, Nhiệt độ, Nhịp thở, Chiều cao, Cân nặng, BMI, SpO2
 
-    @Column(length = 50)
-    private String icd10Code; // Mã ICD-10 chính (VD: I10, I20.9, K21.0)
+    @Column(name = "icd_code", length = 20)
+    private String icd10Code; // Mã chẩn đoán ICD chính (VD: I10, I20.9, K21.0) - Đổi tên cột sang icd_code (V23)
+
+    @Column(name = "icd_version", length = 10, nullable = false)
+    private String icdVersion = "ICD-10"; // Phiên bản bảng phân loại bệnh quốc tế (Mặc định: ICD-10, hỗ trợ ICD-11)
 
     @Column(length = 255)
     private String icd10Name; // Tên chẩn đoán quốc tế
@@ -172,6 +176,14 @@ public class Appointment {
 
     public String getIcd10Code() { return icd10Code; }
     public void setIcd10Code(String icd10Code) { this.icd10Code = icd10Code; }
+
+    public String getIcdCode() { return icd10Code; }
+    public void setIcdCode(String icdCode) { this.icd10Code = icdCode; }
+
+    public String getIcdVersion() { return icdVersion; }
+    public void setIcdVersion(String icdVersion) {
+        this.icdVersion = (icdVersion != null && !icdVersion.isBlank()) ? icdVersion : "ICD-10";
+    }
 
     public String getIcd10Name() { return icd10Name; }
     public void setIcd10Name(String icd10Name) { this.icd10Name = icd10Name; }

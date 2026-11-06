@@ -11,6 +11,8 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#109** | 06/11/2026 | Tái Cấu Trúc & Phân Bổ Lại Toàn Diện Bảng 1.3 (Stakeholder & Actor Identification): (1) Khắc phục triệt để lỗi CSS toàn cục ép `white-space: nowrap; width: 1%` lên cột thứ hai và cột cuối khiến Cột 2 ("Bản Chất & Vai Trò") chiếm quá nhiều chiều ngang và Cột 3 ("Mục Tiêu & Nhu Cầu Cốt Lõi") bị bóp nghẹt, (2) Thiết lập bộ quy tắc CSS và cơ chế tự động nhận diện bảng `.table-stakeholders` theo tỷ lệ vàng 16% / 25% / 37% / 22% trên 5 tệp giao diện báo cáo (`report_1` đến `report_5`), (3) Làm giàu và cân bằng mật độ nội dung (Content Density) giữa các cột trong `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` và `report_2/`, (4) Đồng bộ tự động 21 tài liệu qua `compile_docs_bundle.py`, kiểm thử trọn vẹn 308/308 Backend Unit Tests PASS và Frontend Build 0 lỗi TypeScript (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
+| **#108** | 06/11/2026 | Chuẩn Hóa Lược Đồ Cột Chẩn Đoán Quốc Tế Đa Phiên Bản (Flyway V23 – `icd_code` & `icd_version`): (1) Thiết lập bản di trú Flyway `V23__refactor_icd_code_and_version.sql` đổi tên an toàn (Idempotent PL/pgSQL) cột `"icd-10"` / `icd10` / `icd10_code` thành `icd_code VARCHAR(20)`, bổ sung cột `icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10'` và tạo Partial B-Tree Index `idx_appointments_icd_code`, kèm kịch bản Rollback (Down migration), (2) Đồng bộ ánh xạ JPA Entity `Appointment`, `AppointmentDto`, `ClinicalEncounterRequest`, `DoctorPatientItemDto`, `AppointmentService`, `AppointmentRepository` đảm bảo tương thích ngược 100%, (3) Cập nhật `docs/DATABASE_DESIGN.md` và xác thực 308/308 Backend Unit Tests PASS, Frontend Build 0 lỗi TS (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#107** | 03/11/2026 | Nâng Cấp Toàn Diện Báo Cáo Khóa Luận Tốt Nghiệp Report 2 (Requirements Analysis & Domain Modeling) Chuẩn ISO/IEC/IEEE 29148:2018: (1) Bổ sung Mục 5 – Đặc tả 5 Luồng Nghiệp Vụ Chính (Main Business Flows) với 5 Sequence Diagrams chuẩn UML (AI Symptom Triage & Red-Flag 115, Đặt Lịch Khám & Thanh Toán VNPay, Bàn Làm Việc Bác Sĩ & PatientAccessGuard BOLA, Bóc Tách Xét Nghiệm OCR & Khử PII Nghị Định 13, Thẩm Định Bác Sĩ & Đồng Bộ pgvector HNSW), (2) Bổ sung Mục 6 – Thiết Kế Khái Niệm CSDL & Ánh Xạ Thực Thể (Ma trận 7 Bounded Contexts → 17 bảng 3NF, ERD tổng thể, đặc tả 6 bảng trọng tâm, kiến trúc pgvector HNSW 1536 chiều, lộ trình 22 bản di trú Flyway V1-V22), (3) Đồng bộ hóa tự động sang `report_2/` và biên dịch toàn diện `docs-bundle.js` cho 6 thư mục báo cáo. Frontend build 0 lỗi TS (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#106** | 01/11/2026 | Thực thi & Bổ Sung Bằng Chứng Thực Nghiệm Đo Đạc Tải Cao k6, Kiểm Chuẩn Two-Layer Cache L1/L2, Xác Thực 308 Unit Tests & Gắn Toàn Diện Ảnh Chụp Bằng Chứng (Visual Evidence) Vào Hệ Thống Báo Cáo Khóa Luận Tốt Nghiệp Report 5: (1) Thực thi k6 High-Load Stress Test 500 VUs đồng thời (196.532 requests, 6.447 req/s, 0.00% lỗi, 330MB RAM nhờ Project Loom Virtual Threads), (2) Thực thi k6 Two-Layer Cache Benchmark (83.737 requests, 95.03% hit rate, L1 Caffeine 1.80ms vs L2 Redis 7.50ms vs Cold DB 7.30ms), (3) Thực thi trọn vẹn 308/308 Unit Tests (11.72s, 0 Failures, 0 Errors) & Surefire HTML Report, (4) Biên dịch Frontend sạch 100% (2.311 modules, 2.76s), (5) Sinh 6 ảnh chụp bằng chứng màn hình độ phân giải cao và nhúng vào Report 5 STR, Executive Summary & Master Traceability Index, (6) Đồng bộ toàn diện hệ sinh thái tài liệu docs-bundle.js. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#105** | 29/10/2026 | Tích Hợp Toàn Diện Chuẩn Y Học Chứng Cứ LOINC & Quyết Định 3280/QĐ-BYT vào Luồng Bóc Tách Xét Nghiệm Cận Lâm Sàng (Evidence-Grounded Clinical Laboratory Pipeline): (1) Nạp bản thể luận 23 chỉ số LOINC chuẩn Bộ Y Tế, (2) Thuật toán Fuzzy Matching 3 tầng (Exact, Alias 50+ thuật ngữ XN Việt Nam, Substring) hỗ trợ Unicode tiếng Việt NFD, (3) Tái thẩm định trạng thái ELEVATED/LOW/NORMAL theo chuẩn BYT thay vì tin OCR mờ, (4) Tiêm bảng đối soát chứng cứ y học vào User Prompt RAG và siết luật System Prompt chống ảo giác, (5) DTO & Frontend hiển thị huy hiệu LOINC, chuẩn BYT và trích dẫn luận cứ khoa học. 308/308 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
@@ -38,6 +40,52 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#109] Tái Cấu Trúc & Phân Bổ Lại Toàn Diện Bảng 1.3 (Stakeholder & Actor Identification)
+* **Thời gian:** 2026-11-06 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant & Tech Lead
+* **Nhánh:** `feature/ui-aether-redesign`
+* **Tệp tin:**
+  - `[MOD]` `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Tái cấu trúc nội dung Bảng 1.3 ("Stakeholder Analysis & Requirements Matrix"), bổ sung các gạch đầu dòng chi tiết cho Cột 2 ("Bản Chất & Vai Trò Trong Hệ Thống") nhằm cân đối mật độ thông tin với Cột 3 ("Mục Tiêu & Nhu Cầu Cốt Lõi") và Cột 4 ("Thách Thức Nghiệp Vụ Cần Giải Quyết").
+  - `[MOD]` `report_2/REPORT_2_REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Đồng bộ nội dung Bảng 1.3 sang báo cáo Luận văn Report 2.
+  - `[MOD]` `report_1/index.html`, `report_2/index.html`, `report_3/index.html`, `report_4/index.html`, `report_5/index.html`:
+    - Loại bỏ quy tắc CSS ép cứng `.doc-content table th:nth-child(2), .doc-content table td:nth-child(2) { white-space: nowrap; width: 1%; }` và `last-child` vốn gây lỗi không cho phép ngắt dòng câu dài ở cột 2 trên toàn bộ bảng tài liệu.
+    - Bổ sung class `.table-stakeholders` với tỉ lệ phân bổ tối ưu: Cột 1 (Tác nhân): 16% (min 130px), Cột 2 (Bản chất & Vai trò): 25% (min 200px), Cột 3 (Mục tiêu & Nhu cầu cốt lõi): 37% (min 300px), Cột 4 (Thách thức): 22% (min 180px).
+    - Cập nhật hàm xử lý Markdown `renderMarkdownContent` tự động gắn class `.table-stakeholders` và kích hoạt `.col-compact` cho các cột nhãn ngắn/ID/mã số.
+  - `[MOD]` `docs-bundle.js`, `report_*/docs-bundle.js`: Biên dịch và cập nhật gói dữ liệu 21 tài liệu offline sẵn sàng chạy không vướng lỗi CORS.
+* **Tài liệu đã đồng bộ:**
+  - `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` (Bảng 1.3 hoàn thiện tỷ lệ và nội dung).
+  - `report_2/REPORT_2_REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` (Đồng bộ chuẩn ISO/IEC/IEEE 29148:2018).
+* **Bằng chứng kiểm thử & Xác thực:**
+  - `python3 -I scripts/compile_docs_bundle.py`: Biên dịch thành công 21/21 tài liệu (1.149 KB) sang 6 đích đến `docs-bundle.js`.
+  - Frontend Build: `npm run build` trong `frontend/` hoàn thành trong 2.62s, 2.311 modules transformed, 0 lỗi TypeScript.
+  - Backend Tests: `mvn test` trong `backend/` vượt qua 308/308 Unit Tests (0 Failures, 0 Errors, 0 Skipped).
+* **Điểm nóng Tech Lead cần Review:**
+  - Không còn tình trạng cột "Bản Chất & Vai Trò" trải dài vô tận trên 1 hàng ngang làm ép hẹp cột "Mục Tiêu & Nhu Cầu Cốt Lõi".
+  - Bảng tự động co giãn thích ứng với màn hình responsive, hỗ trợ thanh cuộn ngang mượt mà khi xem trên màn hình nhỏ.
+
+---
+
+### [WORK-LOG-#108] Chuẩn Hóa Cột Chẩn Đoán Quốc Tế Đa Phiên Bản ICD (`icd_code` & `icd_version`) – Flyway V23
+* **Thời gian:** 2026-11-06 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant & Tech Lead
+* **Nhánh:** `feature/ui-aether-redesign`
+* **Tệp tin:**
+  - `[NEW]` `backend/src/main/resources/db/migration/V23__refactor_icd_code_and_version.sql`: Kịch bản di trú Flyway V23 (chuẩn PostgreSQL 16) đổi tên cột `"icd-10"` / `icd10` / `icd10_code` thành `icd_code VARCHAR(20)`, bổ sung cột `icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10'`, tạo Partial B-Tree Index `idx_appointments_icd_code` và `idx_appointments_icd_version_code`, kèm hướng dẫn Down Migration (Rollback).
+  - `[MOD]` `backend/src/main/java/com/mediassist/model/entity/Appointment.java`: Ánh xạ `@Column(name = "icd_code", length = 20)` và bổ sung thuộc tính `icdVersion` (`@Column(name = "icd_version", length = 10, nullable = false)`), duy trì getter/setter tương thích ngược.
+  - `[MOD]` `backend/src/main/java/com/mediassist/dto/AppointmentDto.java`: Bổ sung `icdCode` và `icdVersion` đồng bộ hai chiều với `icd10Code`.
+  - `[MOD]` `backend/src/main/java/com/mediassist/dto/ClinicalEncounterRequest.java`: Hỗ trợ nhận `icdCode`, `icd10Code` và `icdVersion`.
+  - `[MOD]` `backend/src/main/java/com/mediassist/dto/DoctorPatientItemDto.java` & `DoctorService.java`: Bổ sung `lastIcdCode` và `lastIcdVersion`.
+  - `[MOD]` `backend/src/main/java/com/mediassist/service/AppointmentService.java` & `AppointmentRepository.java`: Xử lý lưu `icdCode`, `icdVersion` (mặc định `'ICD-10'`) và bổ sung truy vấn `findByIcdCode`.
+  - `[MOD]` `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`: Bổ sung kiểm thử xác nhận `icdCode` và `icdVersion`.
+  - `[MOD]` `frontend/src/mocks/mockData.ts` & `frontend/src/mocks/mockHandlers.ts`: Đồng bộ trường `icdCode` và `icdVersion` cho Mock API.
+  - `[MOD]` `docs/DATABASE_DESIGN.md`: Cập nhật ERD, bảng `appointments`, danh sách 23 bản di trú Flyway (V1-V23) và thêm Mục 16 đặc tả chi tiết Flyway V23.
+* **Bằng chứng kiểm thử & Verification:**
+  - Backend test: `mvn test` $\rightarrow$ **308/308 tests PASS** (0 Failures, 0 Errors).
+  - Frontend build: `npm run build` $\rightarrow$ **0 lỗi TypeScript, 2.311 modules transformed**.
+* **Điểm nóng Tech Lead cần Review:**
+  - Kịch bản `V23__refactor_icd_code_and_version.sql` được thiết kế Idempotent bằng PL/pgSQL `DO $$` block: tự động nhận diện cả 3 biến thể tên cột cũ (`"icd-10"`, `icd10`, `icd10_code`) hoặc trường hợp Hibernate đã tạo cột `icd_code` trước đó.
+  - Giữ tương thích ngược 100% ở tầng JSON API (`icdCode` và `icd10Code` đều hoạt động song song) để không làm gãy bất kỳ giao diện hay bài kiểm thử hiện hữu nào.
 
 ### [WORK-LOG-#107] Bổ Sung Đặc Tả 5 Luồng Nghiệp Vụ Chính & Thiết Kế Khái Niệm CSDL 17 Bảng Vào Báo Cáo Report 2 (ISO 29148 & DDD)
 * **Thời gian:** 2026-11-03 (GMT+7)

@@ -190,7 +190,8 @@ erDiagram
         VARCHAR queue_number "STT 01, STT 02..."
         VARCHAR clinic_room
         TEXT vital_signs_json "BP, HR, SpO2, Temp, BMI"
-        VARCHAR icd10_code "WHO ICD-10 (I10, E11.9)"
+        VARCHAR icd_code "WHO ICD Code (I10, E11.9) [V23]"
+        VARCHAR icd_version "DEFAULT ICD-10 [V23]"
         VARCHAR icd10_name "Tên bệnh chuẩn Bộ Y Tế"
         TEXT prescription_json "Đơn thuốc điện tử"
         TEXT treatment_plan
@@ -509,8 +510,9 @@ CREATE TABLE appointments (
     clinic_room VARCHAR(100),                    -- Phòng khám lâm sàng trực tiếp/trực tuyến (Ví dụ: Phòng Khám 204)
     chief_complaint TEXT,                        -- Lý do vào viện / Triệu chứng chính
     vital_signs_json TEXT,                       -- JSON chỉ số sinh hiệu (Huyết áp, Mạch, Thân nhiệt, Nhịp thở, SpO2, Chiều cao, Cân nặng, BMI)
-    icd10_code VARCHAR(20),                      -- Mã chẩn đoán quốc tế ICD-10 (Ví dụ: I10, I20.9, K21.0, E78.0)
-    icd10_name VARCHAR(255),                     -- Tên bệnh danh ICD-10 tiếng Việt
+    icd_code VARCHAR(20),                        -- [V23] Mã chẩn đoán quốc tế ICD chuẩn hóa (Đổi tên từ icd10_code; VD: I10, I20.9, K21.0, E78.0)
+    icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10', -- [V23] Phiên bản danh mục phân loại bệnh quốc tế (Mặc định 'ICD-10', sẵn sàng cho 'ICD-11')
+    icd10_name VARCHAR(255),                     -- Tên bệnh danh ICD tiếng Việt
     prescription_json TEXT,                      -- JSON đơn thuốc điện tử (Tên thuốc, hàm lượng, cách dùng, liều dùng, số lượng, lưu ý)
     treatment_plan TEXT,                         -- Kế hoạch điều trị & Dặn dò y lệnh của Bác sĩ
     follow_up_date DATE,                         -- Ngày hẹn tái khám
@@ -536,6 +538,8 @@ CREATE INDEX idx_appointments_patient ON appointments(patient_id);
 CREATE INDEX idx_appointments_doctor ON appointments(doctor_id);
 CREATE INDEX idx_appointments_status ON appointments(status);
 CREATE INDEX idx_appointments_medical_document_id ON appointments(medical_document_id);
+CREATE INDEX idx_appointments_icd_code ON appointments(icd_code) WHERE icd_code IS NOT NULL;
+CREATE INDEX idx_appointments_icd_version_code ON appointments(icd_version, icd_code) WHERE icd_code IS NOT NULL;
 ```
 
 #### Bảng `doctor_schedule_slots`
@@ -728,6 +732,7 @@ spring.flyway.table=flyway_schema_history
 | **21** | `20` | `V20__private_document_storage_path.sql` | SQL | Chuẩn hóa bảo mật lưu trữ tài liệu y tế: Chuyển đổi `medical_documents.storage_url` thành `storage_path` (chỉ lưu internal object key), khóa bucket private và chỉ phát hành URL xem tệp có chữ ký HMAC hết hạn sau 15 phút. | **SUCCESS** |
 | **22** | `21` | `V21__password_reset_token_hash.sql` | SQL | Tăng cường an ninh xác thực mật khẩu (BE-5): Chuyển đổi cột `token` thành `token_hash` (VARCHAR(64)), thanh lọc toàn bộ token dạng plaintext và chỉ lưu trữ mã băm SHA-256 đơn dụng có hạn 15 phút. | **SUCCESS** |
 | **23** | `22` | `V22__email_verification.sql` | SQL | Thiết lập cổng xác thực email bắt buộc (Email Verification Gate): Chuẩn hóa cột `email_verified`, backfill `TRUE` cho tài khoản hiện hữu, và tạo bảng `email_verification_tokens` kích hoạt tài khoản. | **SUCCESS** |
+| **24** | `23` | `V23__refactor_icd_code_and_version.sql` | SQL | Chuẩn hóa lược đồ phân loại bệnh quốc tế đa phiên bản (ICD-10 / ICD-11): Đổi tên cột `icd10_code` (hoặc `"icd-10"` / `icd10`) thành `icd_code VARCHAR(20)`, bổ sung cột `icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10'`, và tạo Partial B-Tree Index `idx_appointments_icd_code` phục vụ truy vấn dịch tễ học tốc độ cao. | **SUCCESS** |
 
 ### 6.3. Chi Tiết Tập Dữ Liệu Bệnh Viện Mẫu (Enterprise Hospital Seed Data)
 1. **12 Chuyên Khoa Toàn Diện:** Tim mạch, Thần kinh, Tiêu hóa - Gan mật, Da liễu, Nhi khoa, Nội tổng quát, Hô hấp & Phổi, Cơ Xương Khớp, Thận & Tiết niệu, Sản Phụ Khoa, Nội tiết & Đái tháo đường, Tai Mũi Họng.
@@ -1026,6 +1031,71 @@ USING gin (full_name gin_trgm_ops);
 ```
 
 - **Ứng dụng lâm sàng:** Hỗ trợ thuật toán **Reciprocal Rank Fusion (RRF)** kết hợp giữa tìm kiếm ngữ nghĩa mờ (Vector Cosine Embedding) và tìm kiếm từ khóa chính xác (Lexical BM25 / Trigram), mang lại độ chính xác vượt trội khi người bệnh tìm kiếm theo tên bác sĩ hoặc thuật ngữ viết tắt.
+
+---
+
+## 16. Chuẩn Hóa Mã Chẩn Đoán Quốc Tế Đa Phiên Bản ICD-10 / ICD-11 (Flyway V23)
+
+Bản di trú `V23__refactor_icd_code_and_version.sql` tái cấu trúc lược đồ lưu trữ mã bệnh trong bảng `appointments`, giúp hệ thống thoát khỏi sự phụ thuộc cứng vào tên cột `icd10_code` (hoặc `"icd-10"`), sẵn sàng tương thích với lộ trình chuyển đổi sang **WHO ICD-11** của Bộ Y Tế:
+
+### 16.1. Kịch Bản Up Migration (Idempotent PL/pgSQL)
+```sql
+DO $$
+DECLARE
+    has_hyphen_col BOOLEAN;
+    has_icd10_col  BOOLEAN;
+    has_legacy_col BOOLEAN;
+    has_new_col    BOOLEAN;
+BEGIN
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema() AND table_name = 'appointments' AND column_name = 'icd-10'
+    ) INTO has_hyphen_col;
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema() AND table_name = 'appointments' AND column_name = 'icd10'
+    ) INTO has_icd10_col;
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema() AND table_name = 'appointments' AND column_name = 'icd10_code'
+    ) INTO has_legacy_col;
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema() AND table_name = 'appointments' AND column_name = 'icd_code'
+    ) INTO has_new_col;
+
+    IF NOT has_new_col THEN
+        IF has_hyphen_col THEN
+            ALTER TABLE appointments RENAME COLUMN "icd-10" TO icd_code;
+        ELSIF has_icd10_col THEN
+            ALTER TABLE appointments RENAME COLUMN icd10 TO icd_code;
+        ELSIF has_legacy_col THEN
+            ALTER TABLE appointments RENAME COLUMN icd10_code TO icd_code;
+        ELSE
+            ALTER TABLE appointments ADD COLUMN icd_code VARCHAR(20);
+        END IF;
+    END IF;
+END $$;
+
+ALTER TABLE appointments ALTER COLUMN icd_code TYPE VARCHAR(20);
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10';
+
+CREATE INDEX IF NOT EXISTS idx_appointments_icd_code
+    ON appointments(icd_code) WHERE icd_code IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_appointments_icd_version_code
+    ON appointments(icd_version, icd_code) WHERE icd_code IS NOT NULL;
+```
+
+### 16.2. Kịch Bản Down Migration (Rollback An Toàn)
+```sql
+BEGIN;
+DROP INDEX IF EXISTS idx_appointments_icd_version_code;
+DROP INDEX IF EXISTS idx_appointments_icd_code;
+ALTER TABLE appointments DROP COLUMN IF EXISTS icd_version;
+ALTER TABLE appointments RENAME COLUMN icd_code TO icd10_code;
+COMMIT;
+```
+
 
 ---
 

@@ -329,7 +329,12 @@ export async function handleMockRequest(
     const apt = appointments.find((a) => a.id === id);
     if (apt) {
       apt.status = 'COMPLETED';
-      if (body?.icd10Code) apt.icd10Code = body.icd10Code;
+      const resolvedCode = body?.icdCode ?? body?.icd10Code;
+      if (resolvedCode) {
+        apt.icd10Code = resolvedCode;
+        apt.icdCode = resolvedCode;
+      }
+      apt.icdVersion = body?.icdVersion || 'ICD-10';
       if (body?.icd10Name) apt.icd10Name = body.icd10Name;
       if (body?.prescriptionJson) apt.prescriptionJson = body.prescriptionJson;
       if (body?.treatmentPlan) apt.treatmentPlan = body.treatmentPlan;

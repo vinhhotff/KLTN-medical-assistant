@@ -179,19 +179,43 @@
       vertical-align: top;
       word-break: normal;
     }
-    /* Keep badge and status columns tight on 1 line without wrapping */
-    .doc-content table th:first-child, .doc-content table td:first-child {
-      white-space: nowrap;
-      width: 1%;
+    /* Table column distribution & typography rules */
+    .doc-content table th, .doc-content table td {
+      white-space: normal;
+      word-break: normal;
+      overflow-wrap: break-word;
     }
-    .doc-content table th:nth-child(2), .doc-content table td:nth-child(2) {
-      white-space: nowrap;
-      width: 1%;
-    }
-    .doc-content table th:last-child, .doc-content table td:last-child {
-      white-space: nowrap;
-      width: 1%;
+    /* Compact index/badge/status columns */
+    .doc-content table th.col-compact, .doc-content table td.col-compact {
+      white-space: nowrap !important;
+      width: 1% !important;
       text-align: center;
+    }
+    /* Balanced layout for Stakeholder Analysis & Requirements Matrix (Table 1.3) */
+    .table-stakeholders {
+      table-layout: fixed;
+      width: 100%;
+    }
+    .table-stakeholders th:nth-child(1),
+    .table-stakeholders td:nth-child(1) {
+      width: 16%;
+      min-width: 130px;
+      font-weight: 600;
+    }
+    .table-stakeholders th:nth-child(2),
+    .table-stakeholders td:nth-child(2) {
+      width: 25%;
+      min-width: 200px;
+    }
+    .table-stakeholders th:nth-child(3),
+    .table-stakeholders td:nth-child(3) {
+      width: 37%;
+      min-width: 300px;
+    }
+    .table-stakeholders th:nth-child(4),
+    .table-stakeholders td:nth-child(4) {
+      width: 22%;
+      min-width: 180px;
     }
     .theme-light .doc-content tr:nth-child(even) { background-color: #f8fafc; }
     .theme-dark .doc-content td { border-color: #1e293b; }
@@ -798,6 +822,26 @@
           wrapper.className = 'table-responsive';
           table.parentNode.insertBefore(wrapper, table);
           wrapper.appendChild(table);
+        }
+
+        // Auto-detect and optimize Stakeholder Analysis & Actor Identification table
+        const firstRowHeader = table.querySelector('thead tr, tr:first-child');
+        if (firstRowHeader) {
+          const headerText = firstRowHeader.textContent.toLowerCase();
+          if (headerText.includes('tác nhân') || headerText.includes('actor') || headerText.includes('bản chất & vai trò')) {
+            table.classList.add('table-stakeholders');
+          }
+
+          // Compact index / code / method / status columns when appropriate
+          const headerCells = firstRowHeader.querySelectorAll('th, td');
+          headerCells.forEach((th, colIdx) => {
+            const txt = th.textContent.trim().toLowerCase();
+            if (['#', 'stt', 'id', 'mã', 'method', 'http', 'status', 'verdict', 'trạng thái'].includes(txt)) {
+              table.querySelectorAll(`tr > :nth-child(${colIdx + 1})`).forEach(cell => {
+                cell.classList.add('col-compact');
+              });
+            }
+          });
         }
       });
 
