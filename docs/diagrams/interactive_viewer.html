@@ -9,7 +9,65 @@
     <!-- svg-pan-zoom for Pan & Zoom control -->
     <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        :root {
+            /* Light Clinical Theme (Default - Swiss Precision) */
+            --bg-body: #f8fafc;
+            --bg-header: #ffffff;
+            --border-header: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --brand-primary: #0284c7;
+            --brand-primary-hover: #0369a1;
+            --brand-accent: #2563eb;
+            --canvas-bg: #f8fafc;
+            --canvas-dot: #cbd5e1;
+            --select-bg: #ffffff;
+            --select-border: #cbd5e1;
+            --select-text: #0f172a;
+            --btn-bg: #ffffff;
+            --btn-border: #cbd5e1;
+            --btn-text: #334155;
+            --btn-hover: #f1f5f9;
+            --helper-bg: rgba(255, 255, 255, 0.96);
+            --helper-border: #cbd5e1;
+            --helper-text: #334155;
+            --helper-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            --pill-kbd-bg: #e2e8f0;
+            --pill-kbd-text: #0f172a;
+            --spinner-border: #e2e8f0;
+            --spinner-active: #0284c7;
+        }
+
+        body.theme-dark {
+            /* Cyber-Clinical Dark Theme */
+            --bg-body: #0b1329;
+            --bg-header: #0f172a;
+            --border-header: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --brand-primary: #38bdf8;
+            --brand-primary-hover: #0284c7;
+            --brand-accent: #38bdf8;
+            --canvas-bg: #0b1120;
+            --canvas-dot: #1e293b;
+            --select-bg: #0f172a;
+            --select-border: #334155;
+            --select-text: #f8fafc;
+            --btn-bg: #0f172a;
+            --btn-border: #334155;
+            --btn-text: #94a3b8;
+            --btn-hover: #1e293b;
+            --helper-bg: rgba(15, 23, 42, 0.92);
+            --helper-border: rgba(255, 255, 255, 0.12);
+            --helper-text: #94a3b8;
+            --helper-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+            --pill-kbd-bg: #334155;
+            --pill-kbd-text: #f8fafc;
+            --spinner-border: rgba(255, 255, 255, 0.1);
+            --spinner-active: #38bdf8;
+        }
 
         * {
             box-sizing: border-box;
@@ -19,114 +77,163 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
+            background-color: var(--bg-body);
+            color: var(--text-primary);
             height: 100vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            transition: background-color 0.2s, color 0.2s;
         }
 
         /* Top Navigation Header */
         header {
-            background-color: #1e293b;
-            border-bottom: 1px solid #334155;
-            padding: 12px 24px;
+            background-color: var(--bg-header);
+            border-bottom: 1px solid var(--border-header);
+            padding: 10px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             z-index: 100;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
         .header-title {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
+        }
+
+        .header-title a {
+            text-decoration: none;
+            color: var(--btn-text);
+            font-size: 13px;
+            font-weight: 600;
+            padding: 6px 12px;
+            background: var(--btn-bg);
+            border: 1px solid var(--btn-border);
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.15s;
+        }
+
+        .header-title a:hover {
+            background: var(--btn-hover);
+            color: var(--brand-primary);
+            border-color: var(--brand-primary);
         }
 
         .header-title h1 {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 700;
-            color: #38bdf8;
+            color: var(--brand-primary);
             letter-spacing: -0.01em;
         }
 
         .header-title span {
             background: #0284c7;
             color: #ffffff;
-            font-size: 11px;
+            font-size: 10px;
             padding: 2px 8px;
             border-radius: 9999px;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         /* Selector & Controls */
         .controls-wrapper {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         select {
-            background-color: #0f172a;
-            color: #f8fafc;
-            border: 1px solid #475569;
-            padding: 8px 14px;
+            background-color: var(--select-bg);
+            color: var(--select-text);
+            border: 1px solid var(--select-border);
+            padding: 7px 12px;
             font-size: 13px;
-            font-weight: 500;
+            font-weight: 600;
             border-radius: 6px;
             cursor: pointer;
             outline: none;
             transition: all 0.2s;
-            max-width: 320px;
+            max-width: 330px;
         }
 
         select:hover, select:focus {
-            border-color: #38bdf8;
-            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+            border-color: var(--brand-primary);
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
         }
 
         .btn-group {
             display: flex;
-            background: #0f172a;
-            border: 1px solid #475569;
+            background: var(--btn-bg);
+            border: 1px solid var(--btn-border);
             border-radius: 6px;
             overflow: hidden;
         }
 
         button {
             background: transparent;
-            color: #94a3b8;
+            color: var(--btn-text);
             border: none;
-            padding: 8px 12px;
-            font-size: 13px;
+            padding: 7px 12px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.15s;
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 5px;
+            border-right: 1px solid var(--btn-border);
+        }
+
+        button:last-child {
+            border-right: none;
         }
 
         button:hover {
-            background-color: #334155;
-            color: #f8fafc;
+            background-color: var(--btn-hover);
+            color: var(--brand-primary);
         }
 
         button:active {
-            background-color: #0284c7;
+            background-color: var(--brand-primary);
             color: #ffffff;
+        }
+
+        .btn-standalone {
+            border: 1px solid var(--btn-border);
+            border-radius: 6px;
+            background: var(--btn-bg);
+        }
+
+        .btn-primary {
+            background: #0284c7 !important;
+            color: #ffffff !important;
+            border: 1px solid #0284c7 !important;
+            border-radius: 6px;
+        }
+
+        .btn-primary:hover {
+            background: #0369a1 !important;
+            color: #ffffff !important;
         }
 
         /* Main Workspace Canvas */
         main {
             flex: 1;
             position: relative;
-            background-color: #0b1120;
+            background-color: var(--canvas-bg);
             background-image:
-                radial-gradient(circle at 1px 1px, #1e293b 1px, transparent 0);
+                radial-gradient(circle at 1px 1px, var(--canvas-dot) 1.2px, transparent 0);
             background-size: 24px 24px;
             overflow: hidden;
             display: flex;
@@ -148,42 +255,122 @@
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.85);
+            background: var(--helper-bg);
             backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #94a3b8;
+            border: 1px solid var(--helper-border);
+            color: var(--helper-text);
             padding: 8px 18px;
             border-radius: 9999px;
             font-size: 12px;
             display: flex;
             align-items: center;
             gap: 8px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            box-shadow: var(--helper-shadow);
             pointer-events: none;
+            transition: all 0.2s;
         }
 
         .helper-pill kbd {
-            background: #334155;
-            color: #f8fafc;
+            background: var(--pill-kbd-bg);
+            color: var(--pill-kbd-text);
             padding: 2px 6px;
             border-radius: 4px;
-            font-size: 10px;
-            font-weight: 600;
+            font-size: 11px;
+            font-weight: 700;
         }
 
         /* Loading spinner */
         .spinner {
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top: 3px solid #38bdf8;
+            border: 3px solid var(--spinner-border);
+            border-top: 3px solid var(--spinner-active);
             border-radius: 50%;
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             animation: spin 0.8s linear infinite;
         }
 
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* ========================================================
+           HIGH-CONTRAST MERMAID SVG OVERRIDES (LIGHT & DARK)
+           ======================================================== */
+        /* Light Theme Overrides (Crystal Clear Clinical) */
+        body:not(.theme-dark) .er.entityBox {
+            fill: #ffffff !important;
+            stroke: #0284c7 !important;
+            stroke-width: 2px !important;
+            rx: 6px !important;
+            ry: 6px !important;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.06));
+        }
+        body:not(.theme-dark) .er.entityLabel {
+            fill: #0369a1 !important;
+            font-family: 'Inter', sans-serif !important;
+            font-weight: 700 !important;
+            font-size: 14px !important;
+        }
+        body:not(.theme-dark) .er.attributeBoxOdd,
+        body:not(.theme-dark) .er.attributeBoxEven {
+            fill: #f8fafc !important;
+            stroke: #e2e8f0 !important;
+            stroke-width: 1px !important;
+        }
+        body:not(.theme-dark) .er.relationshipLine {
+            stroke: #0284c7 !important;
+            stroke-width: 2.2px !important;
+        }
+        body:not(.theme-dark) .er.relationshipLabel {
+            fill: #0f172a !important;
+            font-family: 'Inter', sans-serif !important;
+            font-weight: 700 !important;
+            font-size: 11px !important;
+        }
+        body:not(.theme-dark) .er.relationshipLabelBox {
+            fill: #ffffff !important;
+            stroke: #93c5fd !important;
+            stroke-width: 1.2px !important;
+            rx: 4px !important;
+        }
+
+        /* Dark Theme Overrides (High-Tech Glowing Contrast) */
+        body.theme-dark .er.entityBox {
+            fill: #111c38 !important;
+            stroke: #38bdf8 !important;
+            stroke-width: 2px !important;
+            rx: 6px !important;
+            ry: 6px !important;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+        }
+        body.theme-dark .er.entityLabel {
+            fill: #38bdf8 !important;
+            font-family: 'Inter', sans-serif !important;
+            font-weight: 700 !important;
+            font-size: 14px !important;
+        }
+        body.theme-dark .er.attributeBoxOdd,
+        body.theme-dark .er.attributeBoxEven {
+            fill: #0b1329 !important;
+            stroke: #1e293b !important;
+            stroke-width: 1px !important;
+        }
+        body.theme-dark .er.relationshipLine {
+            stroke: #38bdf8 !important;
+            stroke-width: 2px !important;
+        }
+        body.theme-dark .er.relationshipLabel {
+            fill: #f8fafc !important;
+            font-family: 'Inter', sans-serif !important;
+            font-weight: 700 !important;
+            font-size: 11px !important;
+        }
+        body.theme-dark .er.relationshipLabelBox {
+            fill: #0f172a !important;
+            stroke: #0284c7 !important;
+            stroke-width: 1.2px !important;
+            rx: 4px !important;
         }
     </style>
 </head>
@@ -192,7 +379,7 @@
     <!-- Header Control Bar -->
     <header>
         <div class="header-title">
-            <a href="../../index.html" style="text-decoration: none; color: #94a3b8; font-size: 13px; font-weight: 600; padding: 6px 10px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;" title="Quay về Cổng Hồ Sơ KLTN">🏠 Portal</a>
+            <a href="../../index.html" title="Quay về Cổng Hồ Sơ KLTN">🏠 Portal</a>
             <h1>MediAssist-AI Vector Studio</h1>
             <span>Interactive Viewer</span>
         </div>
@@ -201,7 +388,7 @@
             <select id="diagram-select" onchange="loadSelectedDiagram()">
                 <optgroup label="Biểu Đồ Cốt Lõi Hệ Thống">
                     <option value="architecture">1. Kiến Trúc Hệ Thống (7 Tầng Micro-Modular)</option>
-                    <option value="erd_full" selected>2. Cơ Sở Dữ Liệu Vật Lý (Toàn bộ 17 Bảng ERD)</option>
+                    <option value="erd_full" selected>2. Cơ Sở Dữ Liệu Vật Lý (Toàn bộ 17 Bảng ERD Chuẩn 3NF)</option>
                     <option value="usecase_macro">3. Ca Sử Dụng Tổng Thể (Global Macro Use Case)</option>
                     <option value="frontend_pkg">4. Cấu Trúc Gói Front-end (14 Packages)</option>
                     <option value="backend_pkg">5. Cấu Trúc Gói Back-end Clean Architecture</option>
@@ -209,7 +396,7 @@
                 <optgroup label="Sơ Đồ Phân Hệ CSDL (Chia Nhỏ Để In Ấn)">
                     <option value="erd_sub_identity">2.1 ERD Phân Hệ Định Danh & Bảo Mật</option>
                     <option value="erd_sub_doctor">2.2 ERD Phân Hệ Bác Sĩ & Chuyên Khoa</option>
-                    <option value="erd_sub_appointment">2.3 ERD Phân Hệ Lịch Khám & Bệnh Án EMR</option>
+                    <option value="erd_sub_appointment">2.3 ERD Phân Hệ Lịch Khám & Bệnh Án EMR (V23)</option>
                     <option value="erd_sub_diagnostics">2.4 ERD Phân Hệ Xét Nghiệm & Tài Chính</option>
                 </optgroup>
                 <optgroup label="Quy Trình Nghiệp Vụ Lâm Sàng Trọng Điểm">
@@ -217,7 +404,7 @@
                     <option value="seq_triage">3.9 Phân Luồng Triệu Chứng & NegEx & 115</option>
                     <option value="seq_search">3.10 Tìm Kiếm Bác Sĩ HNSW & WHRF-SOTA</option>
                     <option value="seq_booking">3.11 Đặt Lịch & Khóa Phân Tán Slot Lock</option>
-                    <option value="seq_encounter">3.15 Bàn Làm Việc Bác Sĩ & WHO ICD-10</option>
+                    <option value="seq_encounter">3.15 Bàn Làm Việc Bác Sĩ & WHO ICD-10 (V23)</option>
                     <option value="seq_ocr">3.19 Bóc Tách Xét Nghiệm Gemini Flash & LOINC</option>
                     <option value="seq_bola">3.20 Rào Chắn BOLA/IDOR PatientAccessGuard</option>
                     <option value="seq_vnpay">3.22 Xử Lý VNPay IPN Webhook Idempotency</option>
@@ -230,7 +417,11 @@
                 <button onclick="resetZoom()" title="Đặt lại kích thước chuẩn">🔄 Đặt lại</button>
             </div>
 
-            <button onclick="downloadSvg()" style="background: #0284c7; color: #fff; border-radius: 6px;" title="Tải file vector SVG gốc">
+            <button id="theme-toggle-btn" class="btn-standalone" onclick="toggleTheme()" title="Chuyển đổi giao diện Sáng / Tối">
+                ☀️ Giao Diện Sáng
+            </button>
+
+            <button onclick="downloadSvg()" class="btn-primary" title="Tải file vector SVG gốc">
                 📥 Tải SVG Gốc
             </button>
         </div>
@@ -249,7 +440,7 @@
 
     <!-- Pre-defined Mermaid Diagrams Registry -->
     <script>
-        const DIAGRAMS = {
+const DIAGRAMS = {
             architecture: `flowchart TB
     subgraph Tier1["1. Client Presentation Tier (React 18 SPA)"]
         UI["Patient Portal & Doctor Workstation | Admin Operations Console"]
@@ -293,31 +484,240 @@
     Tier3 --> Tier5`,
 
             erd_full: `erDiagram
-    users ||--o| doctor_profiles : "owns profile (1:0..1)"
-    users ||--o| patient_profiles : "owns EMR passport (1:0..1)"
-    users ||--o{ appointments : "books as patient (1:N)"
-    users ||--o{ appointments : "attends as doctor (1:N)"
-    users ||--o{ triage_sessions : "initiates triage (1:N)"
-    users ||--o{ medical_documents : "uploads (1:N)"
-    users ||--o{ payment_transactions : "initiates payment (1:N)"
-    users ||--o{ password_reset_tokens : "requests (1:N)"
-    users ||--o{ email_verification_tokens : "receives (1:N)"
-    users ||--o{ notifications : "receives alerts (1:N)"
-    users ||--o{ audit_logs : "triggers audit (1:N)"
-    users ||--o{ doctor_reviews : "submits as patient (1:N)"
-    users ||--o{ doctor_reviews : "rated as doctor (1:N)"
-    users ||--o{ ai_token_usage : "consumes AI tokens (1:N)"
+    %% ========================================================
+    %% 1. CORE IDENTITY, ACCESS & SECURITY (5 TABLES)
+    %% ========================================================
+    users ||--o| doctor_profiles : "gan_ho_so_bac_si (user_id)"
+    users ||--o| patient_profiles : "gan_ho_so_benh_nhan (user_id)"
+    users ||--o{ password_reset_tokens : "yeu_cau_doi_mat_khau (user_id)"
+    users ||--o{ email_verification_tokens : "xac_thuc_email (user_id)"
+    users ||--o{ notifications : "nhan_thong_bao (user_id)"
+    users ||--o{ audit_logs : "ghi_nhat_ky_an_ninh (user_id)"
 
-    doctor_profiles ||--|{ doctor_specialties : "specialized in (1:1..N)"
-    specialties ||--o{ doctor_specialties : "categorizes (1:0..N)"
-    doctor_profiles ||--o{ doctor_schedule_slots : "defines availability (1:N)"
+    %% ========================================================
+    %% 2. CLINICAL PROVIDER & TAXONOMY (4 TABLES)
+    %% ========================================================
+    doctor_profiles ||--|{ doctor_specialties : "thuoc_chuyen_khoa (doctor_profile_id)"
+    specialties ||--o{ doctor_specialties : "phan_loai_bac_si (specialty_id)"
+    doctor_profiles ||--o{ doctor_schedule_slots : "dang_ky_ca_kham (doctor_profile_id)"
 
-    appointments ||--o| doctor_reviews : "evaluated after completed (1:0..1)"
-    medical_documents ||--o{ appointments : "attached to encounter (1:0..N)"
-    triage_sessions ||--o{ appointments : "converts to encounter (1:0..N)"
-    appointments ||--o{ payment_transactions : "billed for encounter (1:0..N)"
+    %% ========================================================
+    %% 3. CLINICAL TRIAGE & MULTIMODAL LAB OCR (3 TABLES)
+    %% ========================================================
+    users ||--o{ triage_sessions : "thuc_hien_triage (user_id)"
+    users ||--o{ medical_documents : "tai_len_tai_lieu (user_id)"
+    medical_documents ||--o| document_analyses : "ket_qua_ocr_loinc (document_id)"
 
-    medical_documents ||--o| document_analyses : "generates OCR report (1:0..1)"`,
+    %% ========================================================
+    %% 4. CLINICAL ENCOUNTERS, REPUTATION & FINOPS (5 TABLES)
+    %% ========================================================
+    users ||--o{ appointments : "benh_nhan_dat_kham (patient_id)"
+    doctor_profiles ||--o{ appointments : "bac_si_tiep_nhan (doctor_id)"
+    triage_sessions ||--o| appointments : "chuyen_thanh_ca_kham (triage_session_id)"
+    medical_documents ||--o{ appointments : "dinh_kem_ho_so (medical_document_id)"
+
+    appointments ||--o| doctor_reviews : "danh_gia_sau_kham (appointment_id)"
+    appointments ||--o{ payment_transactions : "thanh_toan_vien_phi (reference_id)"
+    users ||--o{ payment_transactions : "chu_thanh_toan (user_id)"
+    appointments ||--o{ ai_token_usage : "tieu_thu_ai_token (appointment_id)"
+    users ||--o{ ai_token_usage : "quota_ai_nguoi_dung (user_id)"
+
+    users {
+        UUID id PK
+        VARCHAR email UK
+        VARCHAR password_hash
+        VARCHAR full_name
+        VARCHAR phone UK
+        VARCHAR role "ADMIN, DOCTOR, PATIENT"
+        VARCHAR status "ACTIVE, SUSPENDED"
+        BOOLEAN is_email_verified
+        INT failed_login_attempts
+        TIMESTAMPTZ locked_until
+        TIMESTAMPTZ last_login_at
+        TIMESTAMPTZ created_at
+    }
+
+    doctor_profiles {
+        UUID id PK
+        UUID user_id FK,UK "users(id)"
+        VARCHAR license_number UK "CCHN"
+        NUMERIC consultation_fee
+        INT years_of_experience
+        VARCHAR academic_title "GS, PGS, TS, BSCKII"
+        VARCHAR hospital_affiliation
+        DOUBLE_PRECISION rating
+        INT review_count
+        BOOLEAN is_verified
+        vector bio_embedding "HNSW (1536-dim)"
+    }
+
+    patient_profiles {
+        UUID id PK
+        UUID user_id FK,UK "users(id)"
+        VARCHAR patient_code UK
+        VARCHAR citizen_id UK "CCCD"
+        VARCHAR health_insurance_number "BHYT"
+        DATE date_of_birth
+        VARCHAR gender
+        VARCHAR blood_group
+        TEXT allergies
+        TEXT medical_history
+    }
+
+    specialties {
+        UUID id PK
+        VARCHAR name
+        VARCHAR slug UK
+        TEXT description
+        TEXT icon_url
+    }
+
+    doctor_specialties {
+        UUID doctor_profile_id PK,FK "doctor_profiles(id)"
+        UUID specialty_id PK,FK "specialties(id)"
+    }
+
+    doctor_schedule_slots {
+        UUID id PK
+        UUID doctor_profile_id FK "doctor_profiles(id)"
+        VARCHAR day_of_week
+        TIME start_time
+        TIME end_time
+        INT slot_duration_minutes
+        BOOLEAN is_active
+    }
+
+    appointments {
+        UUID id PK
+        VARCHAR appointment_code UK
+        UUID patient_id FK "users(id)"
+        UUID doctor_id FK "users(id)"
+        UUID triage_session_id FK "triage_sessions(id)"
+        UUID medical_document_id FK "medical_documents(id)"
+        TIMESTAMPTZ scheduled_start
+        TIMESTAMPTZ scheduled_end
+        VARCHAR status "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED"
+        VARCHAR payment_status "UNPAID, PAID, REFUNDED"
+        NUMERIC fee_amount
+        VARCHAR queue_number "STT 01, STT 02..."
+        VARCHAR clinic_room
+        TEXT vital_signs_json "BP, HR, SpO2, Temp"
+        VARCHAR icd_code "WHO ICD-10 (I10, E11.9) [V23]"
+        VARCHAR icd_version "ICD-10 [V23]"
+        VARCHAR icd10_name "Ten benh chuan Bo Y Te"
+        TEXT prescription_json "Don thuoc dien tu"
+        TEXT treatment_plan
+        DATE follow_up_date
+        NUMERIC refund_amount
+        TIMESTAMPTZ checked_in_at
+    }
+
+    doctor_reviews {
+        UUID id PK
+        UUID appointment_id FK,UK "appointments(id)"
+        UUID doctor_id FK "users(id)"
+        UUID patient_id FK "users(id)"
+        INT rating "1 den 5"
+        TEXT comment
+        VARCHAR tags
+        TIMESTAMPTZ created_at
+    }
+
+    triage_sessions {
+        UUID id PK
+        UUID user_id FK "users(id)"
+        TEXT symptoms_text
+        BOOLEAN is_emergency "115 Flag"
+        VARCHAR urgency_level "ROUTINE, URGENT, EMERGENCY"
+        VARCHAR primary_specialty
+        TEXT sbar_summary "SBAR Report"
+        TEXT ai_advice
+        TIMESTAMPTZ created_at
+    }
+
+    medical_documents {
+        UUID id PK
+        UUID user_id FK "users(id)"
+        VARCHAR file_name
+        BIGINT file_size_bytes
+        VARCHAR content_type
+        VARCHAR storage_path "Private S3 Key"
+        VARCHAR status "PROCESSED"
+        TIMESTAMPTZ created_at
+    }
+
+    document_analyses {
+        UUID id PK
+        UUID document_id FK,UK "medical_documents(id)"
+        TEXT clinical_summary
+        TEXT plain_language_explanation
+        TEXT abnormal_indicators_json "LOINC Standard"
+        VARCHAR recommended_specialty_slug
+        TIMESTAMPTZ analyzed_at
+    }
+
+    payment_transactions {
+        UUID id PK
+        VARCHAR transaction_code UK
+        UUID user_id FK "users(id)"
+        VARCHAR order_type "APPOINTMENT_FEE, QUOTA"
+        VARCHAR reference_id "appointment_code"
+        DECIMAL amount
+        VARCHAR currency "VND"
+        VARCHAR payment_method "VNPAY_QR, VNPAY_ATM"
+        VARCHAR payment_gateway "VNPAY, MOCK"
+        VARCHAR status "PENDING, COMPLETED, REFUNDED"
+        VARCHAR gateway_reference
+        TIMESTAMPTZ created_at
+    }
+
+    password_reset_tokens {
+        UUID id PK
+        UUID user_id FK "users(id)"
+        VARCHAR token_hash UK "SHA-256"
+        TIMESTAMPTZ expires_at
+        BOOLEAN used
+    }
+
+    email_verification_tokens {
+        UUID id PK
+        UUID user_id FK "users(id)"
+        VARCHAR token_hash UK "SHA-256"
+        TIMESTAMPTZ expires_at
+        TIMESTAMPTZ used_at
+    }
+
+    notifications {
+        UUID id PK
+        UUID user_id FK "users(id)"
+        VARCHAR type
+        VARCHAR title
+        TEXT message
+        BOOLEAN is_read
+        TIMESTAMPTZ created_at
+    }
+
+    audit_logs {
+        UUID id PK
+        UUID user_id FK "users(id)"
+        VARCHAR action "VIEW_PATIENT_RECORD, LOGIN..."
+        VARCHAR actor
+        VARCHAR resource
+        VARCHAR ip_address
+        TIMESTAMPTZ created_at
+    }
+
+    ai_token_usage {
+        UUID id PK
+        UUID user_id FK "users(id)"
+        UUID appointment_id FK "appointments(id)"
+        VARCHAR service_type "TRIAGE, OCR"
+        VARCHAR model_name "text-embedding-3-small, gemini-flash"
+        INT prompt_tokens
+        INT completion_tokens
+        DECIMAL cost_usd
+        TIMESTAMPTZ created_at
+    }`,
 
             erd_sub_identity: `erDiagram
     users ||--o{ password_reset_tokens : "has tokens"
@@ -437,7 +837,8 @@
         VARCHAR queue_number "STT 01, STT 02..."
         VARCHAR clinic_room
         TEXT vital_signs_json "BP, HR, SpO2, Temp, BMI"
-        VARCHAR icd10_code "WHO ICD-10 (I10, E11.9)"
+        VARCHAR icd_code "WHO ICD-10 (I10, E11.9) [V23]"
+        VARCHAR icd_version "ICD-10 [V23]"
         VARCHAR icd10_name "Tên bệnh chuẩn Bộ Y Tế"
         TEXT prescription_json "Đơn thuốc điện tử"
         TEXT treatment_plan
@@ -863,15 +1264,63 @@
         };
 
         let panZoomInstance = null;
+        let currentTheme = localStorage.getItem('vector_studio_theme') || 'light';
 
-        mermaid.initialize({
-            startOnLoad: false,
-            theme: 'dark',
-            securityLevel: 'loose',
-            flowchart: { useMaxWidth: false, htmlLabels: true },
-            sequence: { useMaxWidth: false, showSequenceNumbers: true },
-            er: { useMaxWidth: false }
-        });
+        function applyTheme(theme) {
+            currentTheme = theme;
+            const isDark = theme === 'dark';
+            document.body.classList.toggle('theme-dark', isDark);
+            document.body.classList.toggle('theme-light', !isDark);
+            localStorage.setItem('vector_studio_theme', theme);
+
+            const toggleBtn = document.getElementById('theme-toggle-btn');
+            if (toggleBtn) {
+                toggleBtn.innerHTML = isDark ? '🌙 Chế Độ Tối' : '☀️ Chế Độ Sáng';
+                toggleBtn.title = isDark ? 'Nhấn để chuyển sang Chế độ Sáng' : 'Nhấn để chuyển sang Chế độ Tối';
+            }
+
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: isDark ? 'dark' : 'default',
+                securityLevel: 'loose',
+                themeVariables: isDark ? {
+                    darkMode: true,
+                    background: '#0b1120',
+                    primaryColor: '#0284c7',
+                    primaryTextColor: '#ffffff',
+                    primaryBorderColor: '#38bdf8',
+                    lineColor: '#38bdf8',
+                    secondaryColor: '#1e293b',
+                    tertiaryColor: '#0f172a',
+                    mainBkg: '#111c38',
+                    nodeBorder: '#38bdf8',
+                    edgeLabelBackground: '#0f172a',
+                    textColor: '#f8fafc'
+                } : {
+                    darkMode: false,
+                    background: '#f8fafc',
+                    primaryColor: '#0284c7',
+                    primaryTextColor: '#ffffff',
+                    primaryBorderColor: '#0284c7',
+                    lineColor: '#2563eb',
+                    secondaryColor: '#ffffff',
+                    tertiaryColor: '#f1f5f9',
+                    mainBkg: '#ffffff',
+                    nodeBorder: '#0284c7',
+                    edgeLabelBackground: '#ffffff',
+                    textColor: '#0f172a'
+                },
+                flowchart: { useMaxWidth: false, htmlLabels: true },
+                sequence: { useMaxWidth: false, showSequenceNumbers: true },
+                er: { useMaxWidth: false }
+            });
+        }
+
+        function toggleTheme() {
+            const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            applyTheme(nextTheme);
+            loadSelectedDiagram();
+        }
 
         async function renderDiagram(code) {
             const viewport = document.getElementById("diagram-viewport");
@@ -898,13 +1347,13 @@
                     controlIconsEnabled: false,
                     fit: true,
                     center: true,
-                    minZoom: 0.2,
-                    maxZoom: 15,
+                    minZoom: 0.15,
+                    maxZoom: 20,
                     zoomScaleSensitivity: 0.25
                 });
             } catch (err) {
                 console.error("Mermaid Render Error:", err);
-                viewport.innerHTML = '<div style="color: #f87171; padding: 20px; font-weight: 600;">Lỗi dựng biểu đồ: ' + err.message + '</div>';
+                viewport.innerHTML = '<div style="color: #ef4444; padding: 24px; font-weight: 600; text-align: center; background: rgba(239, 68, 68, 0.1); border-radius: 8px; margin: 20px;">⚠️ Lỗi dựng biểu đồ: ' + err.message + '</div>';
             }
         }
 
@@ -956,8 +1405,10 @@
             URL.revokeObjectURL(url);
         }
 
-        // On Page Load: Check URL parameter
+        // On Page Load: Apply Theme and Check URL parameter
         document.addEventListener("DOMContentLoaded", () => {
+            applyTheme(currentTheme);
+
             const urlParams = new URLSearchParams(window.location.search);
             const diagramParam = urlParams.get('diagram');
             const select = document.getElementById("diagram-select");

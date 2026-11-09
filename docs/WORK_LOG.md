@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#112** | 09/11/2026 | Nâng Cấp Toàn Diện Vector Studio (`interactive_viewer.html`), Tái Thiết Kế ERD 17 Bảng Chuẩn 3NF & Bổ Sung Giao Diện Sáng / Tối: (1) Khắc phục triệt để lỗi màn hình tối đen ("tối đen thui không thấy gì") bằng việc thiết lập Giao diện Sáng (Clinical Light Theme) làm mặc định, tích hợp nút chuyển đổi Sáng/Tối (☀️/🌙) lưu trạng thái qua `localStorage`, cùng bộ CSS High-Contrast Overrides cho Mermaid SVG giúp hiển thị rõ nét 100%, (2) Tái thiết kế toàn diện sơ đồ ERD tổng thể (`erd_full`): Bổ sung đầy đủ thuộc tính, kiểu dữ liệu, khóa PK/UK/FK cho toàn bộ 17 bảng dữ liệu (Flyway V1-V23), (3) Chuẩn hóa triệt để quan hệ 1-N và 1:0..1: Loại bỏ mạng nhện nối lộn xộn từ `users`, làm rõ chiều quan hệ (bác sĩ tiếp nhận khám, bệnh nhân đặt khám, ca khám đính kèm tài liệu OCR, phân luồng triage chuyển thành ca khám, đánh giá sau khám 1:0..1, thanh toán viện phí), (4) Đồng bộ hóa sang 5 tài liệu `docs/` và tái biên dịch 21 tài liệu `docs-bundle.js`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#111** | 06/11/2026 | Tái Cấu Trúc Toàn Diện Mô Hình Miền Khái Niệm 3.2 (Conceptual Domain Model & Aggregate Boundaries) Chuẩn Enterprise DDD: (1) Khắc phục lỗi sai ngữ nghĩa kế thừa `<|--` (Inheritance Anti-Pattern) thành quan hệ sở hữu/kết hợp chặt chẽ `1:0..1` Composition, (2) Xóa bỏ hoàn toàn Anemic Domain Model bằng cách bổ sung phương thức miền (Domain Behaviors) và rào chắn bất biến (Domain Invariants), (3) Mở rộng từ 10 thực thể sơ khai lên 26 thực thể, Aggregates và Value Objects bao phủ trọn vẹn 7 Bounded Contexts và 17 bảng CSDL (khóa slot Redis, hội thoại đa lượt, FinOps AI Token, HIPAA Audit Log, LOINC QĐ 3280, WHO ICD-10, E-Admission Ticket), (4) Bổ sung Bảng 3.2 Ma trận Ranh giới Aggregate & Bất biến miền, đồng bộ hóa sang `report_2/` và biên dịch 21 tài liệu offline `docs-bundle.js`. Frontend build 0 lỗi TS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#110** | 06/11/2026 | Tái Cấu Trúc & Phân Bổ Lại Toàn Diện Bảng 1.3 (Stakeholder & Actor Identification): (1) Khắc phục triệt để lỗi CSS toàn cục ép `white-space: nowrap; width: 1%` lên cột thứ hai và cột cuối khiến Cột 2 ("Bản Chất & Vai Trò") chiếm quá nhiều chiều ngang và Cột 3 ("Mục Tiêu & Nhu Cầu Cốt Lõi") bị bóp nghẹt, (2) Thiết lập bộ quy tắc CSS và cơ chế tự động nhận diện bảng `.table-stakeholders` theo tỷ lệ vàng 16% / 25% / 37% / 22% trên 5 tệp giao diện báo cáo (`report_1` đến `report_5`), (3) Làm giàu và cân bằng mật độ nội dung (Content Density) giữa các cột trong `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` và `report_2/`, (4) Đồng bộ tự động 21 tài liệu qua `compile_docs_bundle.py`, kiểm thử trọn vẹn 308/308 Backend Unit Tests PASS và Frontend Build 0 lỗi TypeScript (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#109** | 06/11/2026 | Chuẩn Hóa Lược Đồ Cột Chẩn Đoán Quốc Tế Đa Phiên Bản (Flyway V23 – `icd_code` & `icd_version`): (1) Thiết lập bản di trú Flyway `V23__refactor_icd_code_and_version.sql` đổi tên an toàn (Idempotent PL/pgSQL) cột `"icd-10"` / `icd10` / `icd10_code` thành `icd_code VARCHAR(20)`, bổ sung cột `icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10'` và tạo Partial B-Tree Index `idx_appointments_icd_code`, kèm kịch bản Rollback (Down migration), (2) Đồng bộ ánh xạ JPA Entity `Appointment`, `AppointmentDto`, `ClinicalEncounterRequest`, `DoctorPatientItemDto`, `AppointmentService`, `AppointmentRepository` đảm bảo tương thích ngược 100%, (3) Cập nhật `docs/DATABASE_DESIGN.md` và xác thực 308/308 Backend Unit Tests PASS, Frontend Build 0 lỗi TS (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
@@ -42,6 +43,37 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#112] Nâng Cấp Toàn Diện Vector Studio (`interactive_viewer.html`), Tái Thiết Kế ERD 17 Bảng & Chuẩn Hóa Quan Hệ 1-N Chuẩn 3NF
+* **Thời gian:** 2026-11-09 19:30:00 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant & Tech Lead
+* **Nhánh:** `develop`
+* **Mục tiêu kỹ thuật:** Xử lý dứt điểm 2 lỗi nghiêm trọng do Tech Lead phản ánh trên trình xem biểu đồ vector `docs/diagrams/interactive_viewer.html?diagram=erd_full`: (1) Màn hình tối đen không nhìn thấy nội dung biểu đồ; (2) Các quan hệ 1-N trong ERD bị nối tứ lung tung, thiếu thuộc tính bảng và lộn xộn.
+* **Tệp tin:**
+  - `[MOD]` `docs/diagrams/interactive_viewer.html`:
+    - Bổ sung bộ biến màu CSS Variables hỗ trợ 2 chế độ: Chế độ Sáng Lâm Sàng (Clinical Light Precision - Mặc định) và Chế độ Tối (Cyber Dark).
+    - Thêm nút chuyển đổi giao diện `☀️ Chế Độ Sáng` / `🌙 Chế Độ Tối` trên Header Bar, ghi nhớ trạng thái qua `localStorage`.
+    - Thêm bộ quy tắc CSS High-Contrast Overrides trực tiếp cho các phần tử Mermaid SVG (`.er.entityBox`, `.er.entityLabel`, `.er.relationshipLine`, `.er.relationshipLabel`, `.er.relationshipLabelBox`), loại bỏ hoàn toàn tình trạng chữ tối trên nền tối.
+    - Cấu hình hàm `applyTheme()` tự động nạp `themeVariables` chuẩn theo theme đang kích hoạt.
+    - Tái cấu trúc toàn diện biểu đồ `erd_full`: Khai báo chi tiết 100% thuộc tính, kiểu dữ liệu, đánh dấu PK/UK/FK cho toàn bộ 17 bảng CSDL (chuẩn Flyway V1-V23 và PostgreSQL 16 LTS).
+    - Chuẩn hóa toàn bộ quan hệ 1-N và 1:0..1: Gỡ bỏ mạng nhện 14 đường nối từ bảng `users`, phân định rõ ràng vai trò `patient_id` và `doctor_id` trên `appointments`, quan hệ 1:0..1 của `doctor_reviews` và `document_analyses`, quan hệ liên kết `triage_sessions` và `medical_documents` vào `appointments`.
+    - Đồng bộ `erd_sub_appointment` với các cột chẩn đoán Flyway V23 (`icd_code` & `icd_version`).
+  - `[MOD]` `docs/DATABASE_DESIGN.md`: Cập nhật khối sơ đồ Mermaid ERD tổng thể chuẩn hóa quan hệ 1-N.
+  - `[MOD]` `report_4/DATABASE_DESIGN.md`: Đồng bộ sơ đồ ERD tổng thể.
+  - `[MOD]` `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Cập nhật Mục 6.2 Sơ đồ ERD tổng thể 17 bảng.
+  - `[MOD]` `report_2/REPORT_2_REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Đồng bộ Mục 6.2 sang Report 2.
+  - `[MOD]` `docs/SDD_MediAssist_AI.md`: Cập nhật sơ đồ ERD tương ứng.
+  - `[MOD]` `docs-bundle.js` & `report_*/docs-bundle.js`: Biên dịch lại 21 tài liệu Markdown sang 6 gói offline bundle.
+* **Bằng chứng kiểm thử & Xác thực:**
+  - Headless Chrome Render Test: Dựng thành công SVG hoàn chỉnh cho `interactive_viewer.html?diagram=erd_full` với độ dài 212.786 ký tự, 0 lỗi cú pháp Mermaid.
+  - Docs Bundler: `python -X utf8 scripts/compile_docs_bundle.py` biên dịch thành công 21/21 tài liệu (1.168,8 KB).
+  - Frontend Build: `npm run build` chạy sạch sẽ (2.311 modules transformed, 0 lỗi TypeScript).
+  - Backend Tests: `mvn test` vượt qua 308/308 Unit Tests (0 Failures, 0 Errors).
+* **Điểm nóng Tech Lead cần Review:**
+  - Trình duyệt khi mở `interactive_viewer.html?diagram=erd_full` sẽ tự động hiển thị nền sáng y tế trắng xám thanh lịch, các khối bảng có viền xanh dương `#0284c7`, tiêu đề đậm rõ nét và các đường quan hệ 1-N màu xanh biển đậm sắc sảo.
+  - Không còn tình trạng một bảng `users` nối ra 14 mũi tên chằng chịt; các quan hệ được nhóm theo 4 phân hệ chuẩn mực và thể hiện chính xác khóa ngoại vật lý.
+
+---
 
 ### [WORK-LOG-#111] Tái Cấu Trúc Toàn Diện Mô Hình Miền Khái Niệm 3.2 Chuẩn Enterprise DDD
 * **Thời gian:** 2026-11-06 (GMT+7)
@@ -103,8 +135,10 @@
   - `[MOD]` `frontend/src/mocks/mockData.ts` & `frontend/src/mocks/mockHandlers.ts`: Đồng bộ trường `icdCode` và `icdVersion` cho Mock API.
   - `[MOD]` `docs/DATABASE_DESIGN.md`: Cập nhật ERD, bảng `appointments`, danh sách 23 bản di trú Flyway (V1-V23) và thêm Mục 16 đặc tả chi tiết Flyway V23.
 * **Bằng chứng kiểm thử & Verification:**
-  - Backend test: `mvn test` $ightarrow$ **308/308 tests PASS** (0 Failures, 0 Errors).
-  - Frontend build: `npm run build` $ightarrow$ **0 lỗi TypeScript, 2.311 modules transformed**.
+  - Backend test: `mvn test` $
+ightarrow$ **308/308 tests PASS** (0 Failures, 0 Errors).
+  - Frontend build: `npm run build` $
+ightarrow$ **0 lỗi TypeScript, 2.311 modules transformed**.
 * **Điểm nóng Tech Lead cần Review:**
   - Kịch bản `V23__refactor_icd_code_and_version.sql` được thiết kế Idempotent bằng PL/pgSQL `DO $$` block: tự động nhận diện cả 3 biến thể tên cột cũ (`"icd-10"`, `icd10`, `icd10_code`) hoặc trường hợp Hibernate đã tạo cột `icd_code` trước đó.
   - Giữ tương thích ngược 100% ở tầng JSON API (`icdCode` và `icd10Code` đều hoạt động song song) để không làm gãy bất kỳ giao diện hay bài kiểm thử hiện hữu nào.

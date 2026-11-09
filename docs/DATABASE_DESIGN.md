@@ -18,45 +18,44 @@ erDiagram
     %% ==========================================
     %% 1. CORE IDENTITY & USER PROFILES (1:0..1)
     %% ==========================================
-    users ||--o| doctor_profiles : "owns profile (1:0..1)"
-    users ||--o| patient_profiles : "owns EMR passport (1:0..1)"
+    users ||--o| doctor_profiles : "owns profile (user_id FK, 1:0..1)"
+    users ||--o| patient_profiles : "owns EMR passport (user_id FK, 1:0..1)"
 
     %% ==========================================
     %% 2. SECURITY, AUDIT & NOTIFICATIONS (1:N)
     %% ==========================================
-    users ||--o{ password_reset_tokens : "requests (1:N)"
-    users ||--o{ email_verification_tokens : "receives (1:N)"
-    users ||--o{ notifications : "receives alerts (1:N)"
-    users ||--o{ audit_logs : "triggers audit (1:N)"
-    users ||--o{ ai_token_usage : "consumes AI tokens (1:N)"
+    users ||--o{ password_reset_tokens : "requests (user_id FK, 1:0..N)"
+    users ||--o{ email_verification_tokens : "receives (user_id FK, 1:0..N)"
+    users ||--o{ notifications : "receives alerts (user_id FK, 1:0..N)"
+    users ||--o{ audit_logs : "triggers audit (user_id FK, 1:0..N)"
 
     %% ==========================================
-    %% 3. PROVIDER TAXONOMY & SCHEDULING (M:N)
+    %% 3. PROVIDER TAXONOMY & SCHEDULING (1:N, M:N)
     %% ==========================================
-    doctor_profiles ||--|{ doctor_specialties : "specialized in (1:1..N)"
-    specialties ||--o{ doctor_specialties : "categorizes (1:0..N)"
-    doctor_profiles ||--o{ doctor_schedule_slots : "defines availability (1:0..N)"
+    doctor_profiles ||--|{ doctor_specialties : "specialized in (doctor_profile_id FK, 1:1..N)"
+    specialties ||--o{ doctor_specialties : "categorizes (specialty_id FK, 1:0..N)"
+    doctor_profiles ||--o{ doctor_schedule_slots : "defines availability (doctor_profile_id FK, 1:0..N)"
 
     %% ==========================================
-    %% 4. CLINICAL ENCOUNTERS & TRIAGE
+    %% 4. CLINICAL TRIAGE & MULTIMODAL LAB OCR
     %% ==========================================
-    users ||--o{ appointments : "books as patient (1:0..N)"
-    users ||--o{ appointments : "attends as doctor (1:0..N)"
-    users ||--o{ triage_sessions : "initiates triage (1:0..N)"
-    triage_sessions ||--o{ appointments : "converts to encounter (1:0..N)"
+    users ||--o{ triage_sessions : "initiates triage (user_id FK, 1:0..N)"
+    users ||--o{ medical_documents : "uploads (user_id FK, 1:0..N)"
+    medical_documents ||--o| document_analyses : "generates OCR report (document_id FK, 1:0..1)"
 
     %% ==========================================
-    %% 5. MULTIMODAL LAB OCR & FINANCIAL LEDGER
+    %% 5. CLINICAL ENCOUNTERS, REPUTATION & FINOPS
     %% ==========================================
-    users ||--o{ medical_documents : "uploads (1:0..N)"
-    medical_documents ||--o| document_analyses : "generates OCR report (1:0..1)"
-    medical_documents ||--o{ appointments : "attached to encounter (1:0..N)"
+    users ||--o{ appointments : "books as patient (patient_id FK, 1:0..N)"
+    doctor_profiles ||--o{ appointments : "attends as doctor (doctor_id FK, 1:0..N)"
+    triage_sessions ||--o| appointments : "converts to encounter (triage_session_id FK, 1:0..1)"
+    medical_documents ||--o{ appointments : "attached to encounter (medical_document_id FK, 1:0..N)"
 
-    users ||--o{ payment_transactions : "initiates payment (1:0..N)"
-    appointments ||--o{ payment_transactions : "billed for (1:0..N)"
-    appointments ||--o| doctor_reviews : "evaluated after completion (1:0..1)"
-    users ||--o{ doctor_reviews : "submits as patient (1:0..N)"
-    users ||--o{ doctor_reviews : "rated as doctor (1:0..N)"
+    appointments ||--o| doctor_reviews : "evaluated after completion (appointment_id FK, 1:0..1)"
+    appointments ||--o{ payment_transactions : "billed for encounter (reference_id FK, 1:0..N)"
+    users ||--o{ payment_transactions : "initiates payment (user_id FK, 1:0..N)"
+    appointments ||--o{ ai_token_usage : "incurs AI telemetry (appointment_id FK, 1:0..N)"
+    users ||--o{ ai_token_usage : "consumes AI quota (user_id FK, 1:0..N)"
 ```
 
 > 💡 **Mẹo xem biểu đồ kích thước lớn:**  
