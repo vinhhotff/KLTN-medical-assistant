@@ -369,7 +369,7 @@ graph TD
         App["App.tsx (Root Contexts, ToastProvider, ErrorBoundary)"]
         Routes["Routes Configuration (React Router DOM v6)"]
         Layouts["Layouts/ (AdminLayout, DoctorLayout, PatientLayout)"]
-        Pages["Pages/ (18 Màn hình SCR-01 đến SCR-18)"]
+        Pages["Pages/ (22 Màn hình SCR-01 đến SCR-22)"]
     end
 
     subgraph Feature_Pages["Page Domain Groups"]
@@ -464,7 +464,7 @@ graph TD
         Storage["SupabaseStorageService (Private S3 Bucket + 15-min HMAC Signed URLs)"]
         Mail["EmailService (@Async mailExecutor + Email Outbox)"]
         RateLimit["SecurityRateLimiterService, TriageRateLimiterService"]
-        FlywayEngine["Flyway Database Migration Engine (V1 - V22)"]
+        FlywayEngine["Flyway Database Migration Engine (V1 - V23)"]
     end
 
     Presentation_Tier --> Application_Tier
@@ -479,7 +479,7 @@ graph TD
 
 | No | Package Name | Key Classes & Interfaces | Detailed Architectural Responsibility |
 | :---: | :--- | :--- | :--- |
-| **1** | `com.mediassist.controller` | `AuthController`, `AppointmentController`, `DoctorController`, `TriageController`, `MedicalDocumentController`, `PaymentController`, `AdminController`, `ClinicalOntologyController`, `MedicalPiiController`, `DoctorReviewController`, `SystemConfigController`, `NotificationController` | Tầng tiếp nhận HTTP Request. Tiếp nhận payload JSON hoặc Multipart, kích hoạt xác thực `@Valid`, điều phối tầng Service và trả về `ResponseEntity<ApiResponse<T>>` chuẩn hóa. |
+| **1** | `com.mediassist.controller` | `AdminController`, `AppointmentController`, `AuthController`, `ClinicalOntologyController`, `DoctorController`, `DoctorReviewController`, `HealthController`, `MedicalDocumentController`, `MedicalPiiController`, `NotificationController`, `PatientProfileController`, `PaymentController`, `SpecialtyController`, `SystemConfigController`, `TriageController` (15 Controllers, 87 Endpoints) | Tầng tiếp nhận HTTP Request. Tiếp nhận payload JSON hoặc Multipart, kích hoạt xác thực `@Valid`, điều phối tầng Service và trả về `ResponseEntity<ApiResponse<T>>` chuẩn hóa. |
 | **2** | `com.mediassist.config` | `SecurityConfig`, `VirtualThreadConfig`, `OpenApiConfig`, `TwoLayerCacheConfig`, `AsyncConfig` | Cấu hình hạ tầng Spring Boot: Bộ lọc bảo mật Spring Security 6, cấu hình Virtual Threads Project Loom, cấu hình tài liệu Swagger/OpenAPI, bộ đệm Cache 2 tầng. |
 | **3** | `com.mediassist.security` | `JwtAuthenticationFilter`, `JwtTokenProvider`, `UserPrincipal`, `CustomOAuth2UserService`, `CustomOidcUserService`, `OAuth2AuthenticationSuccessHandler` | Thành phần bảo mật lõi: Giải mã và xác thực chữ ký JWT, nạp định danh người dùng vào `SecurityContextHolder`, xử lý đăng nhập một chạm Google OAuth2. |
 | **4** | `com.mediassist.service` | `AuthService`, `AppointmentService`, `DoctorService`, `PaymentService`, `NotificationService`, `PatientProfileService` | Tầng nghiệp vụ cốt lõi: Triển khai các Use Case kinh doanh chính, quản lý ranh giới giao dịch `@Transactional`, điều phối logic đặt lịch, thanh toán, thông báo. |
@@ -496,10 +496,10 @@ graph TD
 | **15** | `com.mediassist.service.ratelimit` | `SecurityRateLimiterService`, `TriageRateLimiterService` | Bộ giới hạn tốc độ truy cập: Chặn spam đăng nhập, giới hạn lượt quét xem trước hồ sơ y tế không cần đăng nhập (3 lần/10 phút theo IP), và khóa tạm 10 phút nếu gửi tệp rác. |
 | **16** | `com.mediassist.service.vetting` | `AdminVettingService` | Dịch vụ quản trị và thẩm định: Phê duyệt chứng chỉ hành nghề bác sĩ, tự động kích hoạt tính toán vector `bio_embedding`, khóa/mở tài khoản an ninh. |
 | **17** | `com.mediassist.service.analytics` | `AiUsageAnalyticsService` | Kế toán điện toán trí tuệ nhân tạo (FinOps): Giám sát số lượng token Prompt, Completion, chi phí USD quy đổi và độ trễ suy luận của các mô hình LLM. |
-| **18** | `com.mediassist.repository` | `UserRepository`, `DoctorProfileRepository`, `AppointmentRepository`, `MedicalDocumentRepository`, `TriageSessionRepository`, `PaymentTransactionRepository`, `DoctorReviewRepository`, `AuditLogRepository` | Tầng tương tác cơ sở dữ liệu: Spring Data JPA Repositories kết hợp các truy vấn Native SQL chuyên dụng trên chỉ mục HNSW của `pgvector` và `pg_trgm`. |
+| **18** | `com.mediassist.repository` | `AiTokenUsageRepository`, `AppointmentRepository`, `AuditLogRepository`, `DoctorProfileRepository`, `DoctorReviewRepository`, `DoctorScheduleSlotRepository`, `DocumentAnalysisRepository`, `EmailVerificationTokenRepository`, `MedicalDocumentRepository`, `NotificationRepository`, `PasswordResetTokenRepository`, `PatientProfileRepository`, `PaymentTransactionRepository`, `SpecialtyRepository`, `TriageSessionRepository`, `UserRepository` (16 Repositories) | Tầng tương tác cơ sở dữ liệu: Spring Data JPA Repositories kết hợp các truy vấn Native SQL chuyên dụng trên chỉ mục HNSW của `pgvector` và `pg_trgm`. |
 | **19** | `com.mediassist.model.entity` | `User`, `Specialty`, `DoctorProfile`, `DoctorSpecialty`, `DoctorScheduleSlot`, `PatientProfile`, `Appointment`, `TriageSession`, `MedicalDocument`, `DocumentAnalysis`, `PaymentTransaction`, `PasswordResetToken`, `EmailVerificationToken`, `Notification`, `DoctorReview`, `AuditLog`, `AiTokenUsage` | 17 thực thể JPA ánh xạ 1-1 với 17 bảng trong PostgreSQL, tích hợp khóa ngoại, ràng buộc kiểm tra và các cột dữ liệu y tế JSONB. |
 | **20** | `com.mediassist.model.dto` | `LoginRequest`, `RegisterRequest`, `AppointmentDto`, `CreateAppointmentRequest`, `ClinicalEncounterRequest`, `TriageRequest`, `TriageResponse`, `DocumentAnalysisResponse`, `DoctorDetailDto`, `CreatePaymentRequest`, `UserDto` | Các đối tượng vận chuyển dữ liệu (DTOs): Tách biệt mô hình hiển thị khỏi thực thể CSDL, tích hợp ràng buộc Jakarta Validation (`@NotBlank`, `@Email`, `@Size(max=20000)`). |
-| **21** | `com.mediassist.model.enums` | `Role`, `AppointmentStatus`, `PaymentStatus`, `TriageUrgency`, `UserStatus` | Hệ thống kiểu liệt kê nghiệp vụ chuẩn hóa toàn hệ thống. |
+| **21** | `com.mediassist.model.enums` | `Role`, `AppointmentStatus`, `PaymentStatus`, `OrderType`, `TriageUrgencyLevel`, `UserStatus` (6 Enums nghiệp vụ) | Hệ thống kiểu liệt kê nghiệp vụ chuẩn hóa toàn hệ thống. |
 | **22** | `com.mediassist.exception` | `GlobalExceptionHandler`, `AppException`, `ErrorCode` | Xử lý ngoại lệ tập trung: Đón bắt toàn bộ lỗi hệ thống, đóng gói thành phản hồi JSON `ApiResponse.error()` với mã lỗi chuẩn y tế (`SLOT_CONFLICT`, `FORBIDDEN_CARE_RELATIONSHIP`). |
 | **23** | `com.mediassist.storage` | `SupabaseStorageService`, `StorageService` | Tầng giao tiếp lưu trữ đám mây: Quản lý kết nối S3 với Supabase, thực thi ký số URL HMAC-SHA256 (hạn 15 phút), quản lý đường dẫn lưu trữ nội bộ riêng tư. |
 | **24** | `com.mediassist.mail` | `EmailService`, `MailOutbox` | Động cơ phát tán thư điện tử giao dịch: Khai thác luồng ảo Loom (`@Async("mailExecutor")`), tạo nội dung HTML và cơ chế lưu trữ thư chờ phát lại khi mạng gặp sự cố. |

@@ -1,18 +1,18 @@
-# Đặc Tả Use Case Chuẩn Doanh Nghiệp (Enterprise Use Cases Specification)
-## MediAssist-AI Telehealth & Clinical AI Platform
+# Đặc Tả Toàn Diện 49 Use Cases Chuẩn Doanh Nghiệp (Enterprise 49 Use Cases Specification)
+## MediAssist-AI Telehealth & Clinical AI Platform (1-to-1 Exhaustive Mapping)
 
-> **Tiêu chuẩn tài liệu:** RUP (Rational Unified Process) & IEEE 830 Standard  
+> **Tiêu chuẩn tài liệu:** RUP (Rational Unified Process), IEEE Std 830-1998 & ISO/IEC/IEEE 29148  
 > **Dự án:** MediAssist-AI Telehealth Platform  
 > **Trạng thái:** Hoàn chỉnh & Đã phê duyệt (Capstone Baseline)  
 > **Các tác nhân chính (Actors):**
-> 1. **Patient (Bệnh nhân / Người dùng cuối):** Tìm kiếm bác sĩ, trò chuyện triage triệu chứng, tải lên hồ sơ xét nghiệm.
-> 2. **Doctor (Bác sĩ chuyên khoa):** Quản lý hồ sơ CCHN, xem tóm tắt lâm sàng AI, tiếp nhận lịch hẹn.
-> 3. **Admin (Quản trị viên hệ thống):** Thẩm định bác sĩ, kiểm soát người dùng, cấu hình danh mục chuyên khoa.
-> 4. **AI Gateway (Tác nhân bên ngoài):** OpenAI GPT-4o / Gemini 1.5 Pro & Embedding API.
+> 1. **Patient (Bệnh nhân / Người dùng cuối):** Tìm kiếm bác sĩ, trò chuyện triage triệu chứng, tải lên hồ sơ xét nghiệm, đặt lịch khám, đánh giá bác sĩ.
+> 2. **Doctor (Bác sĩ chuyên khoa):** Quản lý hồ sơ CCHN, xem tóm tắt lâm sàng AI, điều phối hàng đợi khám bệnh, kê đơn thuốc điện tử ICD-10.
+> 3. **Admin (Quản trị viên hệ thống):** Thẩm định bác sĩ, kiểm soát người dùng, giám sát vận hành toàn viện, FinOps AI Token, cấu hình chuyên khoa.
+> 4. **AI Gateway (Tác nhân bên ngoài):** Google Gemini 1.5 Pro / Flash, OpenAI text-embedding-3-small, OpenRouter & Local Hash Fallback.
 
 ---
 
-## 1. Sơ Đồ Tổng Quan Use Case (Use Case Diagram)
+## 1. Sơ Đồ Tổng Quan Use Case Hệ Thống (Global Use Case Diagram)
 
 ```mermaid
 graph TD
@@ -21,1039 +21,1704 @@ graph TD
     Admin((Quản trị viên))
     AIGateway[AI Gateway Service]
 
-    subgraph "Hệ Thống MediAssist-AI"
-        UC01[UC-01: Xác thực kép Bearer + HttpOnly Cookie]
-        UC02[UC-02: Phân Luồng Triệu Chứng & Sàng Lọc Red-Flag]
-        UC03[UC-03: Tóm Tắt & Giải Nghĩa Hồ Sơ Xét Nghiệm]
-        UC04[UC-04: Tìm Kiếm Bác Sĩ Bằng Vector Similarity]
-        UC05[UC-05: Đặt Lịch Khám & Chống Trùng Slot]
-        UC06[UC-06: Thẩm Định Bác Sĩ & Ghi Nhật Ký Kiểm Toán]
-        UC07[UC-07: Giám Sát Sức Khỏe Hệ Thống & Cache 2 Lớp]
+    subgraph "Common Subsystem (06 Use Cases)"
+        C01[UC-COMM-01: Đăng Nhập & Google SSO]
+        C02[UC-COMM-02: Đăng Xuất An Toàn]
+        C03[UC-COMM-03: Đổi Mật Khẩu Bcrypt]
+        C04[UC-COMM-04: Cập Nhật Hồ Sơ Căn Cước Y Tế]
+        C05[UC-COMM-05: Quên & Đặt Lại Mật Khẩu]
+        C06[UC-COMM-06: Xác Thực Địa Chỉ Email]
     end
 
-    Patient --> UC01
-    Patient --> UC02
-    Patient --> UC03
-    Patient --> UC04
-    Patient --> UC05
+    subgraph "Patient Subsystem (18 Use Cases)"
+        P01[UC-PAT-01: Triage Triệu Chứng AI & SBAR]
+        P02[UC-PAT-02: Phòng Thủ Lâm Sàng 5 Cấp]
+        P03[UC-PAT-03: Tìm Bác Sĩ Bằng Vector pgvector HNSW]
+        P05[UC-PAT-05: OCR Hồ Sơ Cận Lâm Sàng]
+        P08[UC-PAT-08: Nạp Quota & Kích Hoạt VIP]
+        P09[UC-PAT-09: Đặt Lịch Khám & Chống Trùng Slot]
+        P10[UC-PAT-10: Thanh Toán VietQR / Stripe Sandbox]
+        P15[UC-PAT-15: Hủy Lịch Khám & Hoàn Tiền Tự Động]
+        P16[UC-PAT-16: Đánh Giá & Chấm Sao Bác Sĩ]
+    end
 
-    Doctor --> UC01
-    Doctor --> UC05
+    subgraph "Doctor Subsystem (14 Use Cases)"
+        D01[UC-DOC-01: Bàn Làm Việc Lâm Sàng & KPIs]
+        D02[UC-DOC-02: Cấu Hình Lịch Trực Khám]
+        D03[UC-DOC-03: Hàng Đợi Bệnh Nhân & Gọi Số STT]
+        D04[UC-DOC-04: Khảo Sát Lâm Sàng Chia Đôi Màn Hình]
+        D05[UC-DOC-05: Xem Bệnh Án Qua PatientAccessGuard]
+        D06[UC-DOC-06: Gợi Ý Mã Bệnh WHO ICD-10]
+        D08[UC-DOC-08: Khám Bệnh, Sinh Hiệu & Toa Thuốc]
+        D13[UC-DOC-13: Xuất Phiếu Khám Bệnh PDF]
+    end
 
-    Admin --> UC01
-    Admin --> UC06
-    Admin --> UC07
+    subgraph "Admin Subsystem (11 Use Cases)"
+        A01[UC-ADM-01: Giám Sát Vận Hành Toàn Viện]
+        A02[UC-ADM-02: Giám Sát FinOps Token AI]
+        A03[UC-ADM-03: Công Tắc Chuyển Đổi Mô Hình AI]
+        A04[UC-ADM-04: Đồng Bộ Hóa Vector Bác Sĩ]
+        A05[UC-ADM-05: Thẩm Định Giấy Phép CCHN]
+        A07[UC-ADM-07: Quản Trị Người Dùng & Khóa Nick]
+        A09[UC-ADM-09: Giám Sát Lịch Hẹn & Hủy Cưỡng Chế]
+        A11[UC-ADM-11: Nhật Ký Kiểm Toán An Ninh]
+    end
 
-    UC02 -.->|Gọi API| AIGateway
-    UC03 -.->|Gọi Multimodal API| AIGateway
-    UC04 -.->|Cosine Search| UC02
+    Patient --> C01 & C02 & C04 & C05 & C06
+    Patient --> P01 & P02 & P03 & P05 & P08 & P09 & P10 & P15 & P16
+    Doctor --> C01 & C02 & C03
+    Doctor --> D01 & D02 & D03 & D04 & D05 & D06 & D08 & D13
+    Admin --> C01 & C02
+    Admin --> A01 & A02 & A03 & A04 & A05 & A07 & A09 & A11
+    P01 -.->|Gọi API Đa Lượt| AIGateway
+    P05 -.->|Gọi Vision OCR| AIGateway
+    P03 -.->|Truy vấn Vector 1536-d| AIGateway
 ```
 
 ---
 
-## 2. Chi Tiết Các Use Case Lâm Sàng & Nghiệp Vụ
+## 2. Chi Tiết 49 Use Cases Chuẩn Doanh Nghiệp (Phân Vùng 4 Phân Hệ)
+
+### 2.1 Phân Hệ Dùng Chung (Common Subsystem - 06 Use Cases)
+
+#### UC-COMM-01: Xác Thực Kép & Single Sign-On (Dual-Transport Authentication & Google OAuth2 SSO)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/login, GET /oauth2/authorization/google` (Quyền: `PUBLIC`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/login, /oauth2/callback` $\rightarrow$ Màn hình `LoginPage.tsx, OAuth2CallbackPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V3__account_lockout_and_security_hardening.sql, V8__allow_null_password_hash_for_oauth.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, SecurityRateLimiterService` $\rightarrow$ `UserRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServiceTest.java, OAuth2SecurityTest.java, SecurityHardeningTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-01` |
+| **Use Case Name** | Sign In |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Doctor, Admin, Guest |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - User session is established.<br>- Server issues dual-transport JWT: HttpOnly Secure Cookie + Response JSON Body.<br>- User redirected to role-based dashboard:<br>* `PATIENT` -> `/patient`<br>* `DOCTOR`  -> `/doctor`<br>* `ADMIN`   -> `/admin` |
+| **Trigger** | User clicks "Sign In" or submits authentication form. |
+| **Pre-conditions** | - User has network connection to MediAssist-AI.<br>- If signing in with email/password, account exists in `users` table. |
+| **Post-conditions** | - User session is established.<br>- Server issues dual-transport JWT: HttpOnly Secure Cookie + Response JSON Body.<br>- User redirected to role-based dashboard:<br>* `PATIENT` -> `/patient`<br>* `DOCTOR`  -> `/doctor`<br>* `ADMIN`   -> `/admin` |
+| **Normal Flow** | Step 1: User navigates to `/login` and selects authentication mode (Password or Google OAuth2).<br>Step 2: User provides email and password or clicks "Sign in with Google".<br>Step 3: Frontend validates non-empty inputs and valid email format regex.<br>Step 4: Frontend sends HTTP POST request to `/api/v1/auth/login` with `LoginRequest` DTO.<br>Step 5: Backend `AuthenticationManager` verifies credentials against Bcrypt hash (cost 12) in `users`.<br>Step 6: Backend checks account status (`is_active == true` and `email_verified == true`).<br>Step 7: Backend generates signed JWT access token (24-hour expiration).<br>Step 8: Backend attaches `Set-Cookie: jwt_token=...; HttpOnly; Secure; SameSite=Lax; Path=/api`.<br>Step 9: Backend returns HTTP 200 OK with `AuthResponse` DTO containing token and user profile metadata.<br>Step 10: Client stores token in Zustand store (`useAuthStore`) and redirects user to target dashboard. |
+| **Alternative Flow** | - Alt Flow 11a: Google OAuth2 Sign-In:<br>1. User clicks "Sign in with Google".<br>2. Browser navigates to `/login/oauth2/code/google` authorization endpoint.<br>3. Google returns authorization code; backend exchanges for Google ID and user email.<br>4. If user does not exist, backend auto-provisions account with role `PATIENT` (Flyway V8 `google_id`).<br>5. Backend redirects to frontend `/oauth2/callback` with JWT token.<br>- Alt Flow 11b: Unverified Email Login:<br>1. Backend detects `email_verified == false` (Flyway V22 gate).<br>2. Backend throws `AppException(HttpStatus.FORBIDDEN, "EMAIL_NOT_VERIFIED", ...)`.<br>3. Frontend displays verification notification with "Resend Verification Link" button. |
+| **Exceptions** | - Exc Flow 12a: Invalid Credentials (Wrong email or password):<br>1. Backend throws `AppException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", ...)`.<br>2. Backend returns HTTP 401 Unauthorized.<br>3. Frontend displays inline alert: "Email hoặc mật khẩu không chính xác."<br>- Exc Flow 12b: Account Locked:<br>1. Backend detects `is_active == false`.<br>2. Backend throws `AppException(HttpStatus.LOCKED, "ACCOUNT_LOCKED", ...)`.<br>3. Frontend displays modal directing user to contact administrative support. |
+| **Priority** | High (P0 - Architectural Blocker) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-01: Password complexity must be enforced (Min 8 chars, 1 uppercase, 1 digit, 1 special char).<br>- BR-02: Maximum 5 consecutive failed login attempts before 15-minute IP/account rate lock.<br>- BR-03: JWT secret key must have at least 256 bits entropy (`APP_JWT_SECRET`). |
+| **Data Entities Involved** | - `users` (id, email, password_hash, role, is_active, email_verified, google_id).<br>- `audit_logs` (id, user_id, action, ip_address, created_at). |
+| **User Interface Controls** | - Text inputs: `Email`, `Password`.<br>- Checkbox: `Remember Me`.<br>- Action buttons: `Đăng Nhập`, `Đăng Nhập Với Google`, `Quên Mật Khẩu`. |
 
 ---
 
-### UC-00: Khám Phá Trang Chủ Y Tế Số & Mô Phỏng Phân Luồng Lâm Sàng Tức Thì (Modern Telehealth Landing Page & Live Triage Simulator)
+#### UC-COMM-02: Đăng Xuất An Toàn & Hủy Cookie Phiên (Secure Sign Out & Cookie Invalidation)
 
-* **Mã Use Case:** `UC-UX-00`
-* **Tác nhân chính:** Khách vãng lai (Guest Visitor), Người bệnh (Patient), Bác sĩ (Doctor), Hội đồng Đánh giá.
-* **Mục tiêu:** Cung cấp trang đích giới thiệu hệ sinh thái MediAssist-AI hiện đại, tinh gọn, chuẩn mực y khoa (cảm hứng từ Mayo Clinic, One Medical, Zocdoc), tích hợp thanh mô phỏng phân luồng lâm sàng trực tiếp (Live Triage Simulator) phản hồi < 5ms, 4 bước khám chữa bệnh chuẩn hóa, bảng giá minh bạch và các chứng chỉ an toàn y tế.
-* **Tiền điều kiện:** Người dùng truy cập URL gốc `/` hoặc `/landing`.
-* **Hậu điều kiện thành công:**
-  - Tải trang cực nhanh (< 100ms) với Zero-lag, loại bỏ hoàn toàn tải nặng WebGL.
-  - Người dùng tương tác trực tiếp với **Live Triage Simulator**:
-    1. Chọn kịch bản mẫu (Đau thắt ngực khẩn cấp, Sốt cao truyền nhiễm, Men gan tăng, Hồi hộp tim đập nhanh, Đau thượng vị).
-    2. Nhận ngay kết quả tóm tắt chuẩn **SBAR** (Situation - Background - Assessment - Recommendation) với nhãn mức độ ưu tiên lâm sàng.
-    3. Tự động kích hoạt còi báo động đỏ và liên kết gọi cấp cứu 115 khi gặp triệu chứng Red-Flag nguy kịch.
-  - Khám phá 4 bước số hóa hành trình y tế chuẩn hóa (Triage Red-Flag -> Multimodal OCR -> Ghép Bác sĩ pgvector 1536 chiều -> Bàn khám EMR & WHO ICD-10).
-  - Trình diễn sâu 4 tab công nghệ lâm sàng tương tác (Triage SBAR, Lab OCR Scanner, Doctor Match Card, EMR & Toa thuốc điện tử).
-  - Bảng giá dịch vụ minh bạch (Gói lẻ 29k, Gói tiết kiệm 99k, Gói VIP 149k/tháng) kèm bảo lãnh hoàn tiền 100% Escrow.
-  - Chuyển hướng mượt mà sang `/login` hoặc vào thẳng Dashboard nếu đã đăng nhập.
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/logout` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `Tất cả layouts (AdminLayout, DoctorLayout, PatientLayout)` $\rightarrow$ Màn hình `Navbar / Sidebar Logout Button`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users` $\rightarrow$ Bản di trú `V1__initial_schema.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService` $\rightarrow$ `UserRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServiceTest.java` (**100% PASS**)
 
-##### Luồng sự kiện chính (Happy Path):
-1. Người dùng mở trang web tại địa chỉ `http://localhost:5173/`.
-2. Hệ thống hiển thị thanh cảnh báo miễn trừ trách nhiệm y tế (Medical Disclaimer Banner) chuẩn Bộ Y Tế.
-3. Thanh điều hướng trên cùng (Sticky Frosted Navbar) hiển thị logo MediAssist-AI, trạng thái hệ thống và các liên kết nhanh.
-4. Tại Hero Section, người dùng bấm vào các chip triệu chứng hoặc nhập văn bản triệu chứng bất kỳ:
-   - Nếu có từ khóa Red-Flag (đau thắt ngực, đột quỵ): Thẻ kết quả chuyển sang màu đỏ rực, cảnh báo cấp cứu và hiển thị nút *"Gọi Ngay Cấp Cứu 115"*.
-   - Nếu là triệu chứng ngoại trú thông thường: Thẻ kết quả hiển thị tóm tắt SBAR và nút *"Đặt Khám Bác Sĩ Chuyên Khoa Ngay"*.
-5. Người dùng cuộn xem hệ thống đối tác bệnh viện tuyến đầu (Chợ Rẫy, Bạch Mai, ĐH Y Dược TP.HCM, Viện Tim Tâm Đức, Nhi Đồng 1).
-6. Người dùng khám phá 4 tab công nghệ lâm sàng, bảng giá dịch vụ và các câu hỏi thường gặp (FAQ Accordion).
-7. Khi bấm nút *"Khám Miễn Phí"* hoặc *"Đăng Nhập"*, hệ thống chuyển mượt mà sang giao diện `LoginPage.tsx` với độ tương phản cao và nút *"Về Trang Chủ"* tiện lợi.
-
----
-
-### UC-01: Xác Thực Kép Chuẩn Doanh Nghiệp (Dual-Transport Authentication)
-
-* **Mã Use Case:** `UC-SEC-01`
-* **Tác nhân chính:** Patient, Doctor, Admin.
-* **Mục tiêu:** Cung cấp cơ chế đăng nhập bảo mật cao, kết hợp linh hoạt giữa Web Browser (`HttpOnly` Cookie chống XSS) và Mobile/Third-party Client (`Bearer` Authorization header).
-* **Tiền điều kiện:** Người dùng đã có tài khoản trên hệ thống và trạng thái `is_active = true`.
-* **Hậu điều kiện thành công:**
-  - Token JWT được sinh ra với TTL 15 phút (Access Token) và 7 ngày (Refresh Token).
-  - Trình duyệt lưu cookie an toàn `Set-Cookie: access_token=...; HttpOnly; SameSite=Strict; Secure`.
-  - Frontend hydration từ localStorage giữ trạng thái đăng nhập tức thì không giật lag.
-
-##### Luồng sự kiện chính (Happy Path):
-1. **Trường hợp Người dùng mới (Bệnh nhân tự đăng ký):**
-   - Bệnh nhân chọn tab *"Đăng Ký Bệnh Nhân Mới"* trên `/login`.
-   - Điền: Họ tên, Email, Mật khẩu, Số điện thoại, Giới tính, Ngày sinh, Địa chỉ.
-   - Trình duyệt gửi `POST /api/v1/auth/register`.
-   - Rate Limiter phân tán kiểm tra tần suất IP (tối đa 5 lượt đăng ký / 10 phút / IP) để ngăn chặn bot spam và bảo vệ tài nguyên tính toán BCrypt-12.
-   - Backend `AuthService.register()` kiểm tra tính duy nhất của email, băm mật khẩu bằng BCrypt (work factor 12), tự động sinh mã hồ sơ bệnh án điện tử EMR `patient_code` dạng `BN-2026-XXXXX`, trả về `HTTP 201 Created` kèm token và set `ResponseCookie` chuẩn `SameSite=Lax; HttpOnly`.
-2. **Trường hợp Đăng nhập truyền thống (Email/Password):**
-   - Người dùng nhập Email + Mật khẩu.
-   - Rate Limiter phân tán trên Redis kiểm tra tần suất IP (`< 5 requests / phút`).
-   - Trình duyệt gửi `POST /api/v1/auth/login`.
-   - `AuthService` kiểm tra khóa tài khoản (`locked_until`). Nếu tài khoản đang bị khóa, trả về ngay `HTTP 423 Locked`.
-   - `PasswordEncoder` kiểm tra mật khẩu. Nếu khớp, đặt lại `failed_login_attempts = 0`, cấp token JWT và thiết lập `ResponseCookie` chuẩn `SameSite=Lax; HttpOnly; Path=/; Max-Age=900`.
-   - Frontend lưu trữ thông tin vào Zustand Auth Store và chuyển hướng người dùng theo role:
-     - `ADMIN` $\rightarrow$ `/admin`
-     - `DOCTOR` $\rightarrow$ `/doctor`
-     - `PATIENT` $\rightarrow$ `/patient`
-3. **Trường hợp Đăng nhập / Đăng ký bằng Google OAuth 2.0 (Social Single Sign-On):**
-   - Người dùng nhấp nút *"Tiếp tục với Google"* trên giao diện `/login`.
-   - Frontend điều hướng trình duyệt tới `GET /oauth2/authorization/google`.
-   - Spring Security OAuth2 Client chuyển hướng sang màn hình cấp quyền Google (`accounts.google.com`) với scope `openid profile email`.
-   - Người dùng đăng nhập tài khoản Google và xác nhận cấp quyền.
-   - Google chuyển hướng về backend callback: `GET /login/oauth2/code/google?code=...&state=...`.
-   - `CustomOAuth2UserService` nhận profile từ Google (Google ID `sub`, `email`, `name`, `picture`).
-   - Thực hiện cơ chế **Upsert User**:
-     - Tra cứu theo `google_id` $\rightarrow$ nếu tồn tại: nạp thông tin User.
-     - Nếu chưa có `google_id`, tra cứu theo `email` $\rightarrow$ nếu tồn tại: liên kết `google_id` và cập nhật `avatar_url`.
-     - Nếu là người dùng hoàn toàn mới $\rightarrow$ tự động khởi tạo User mới với vai trò `PATIENT`, khởi tạo hồ sơ `PatientProfile`, tự động sinh mã định danh bệnh nhân `patient_code` dạng `BN-2026-XXXXX`.
-   - `OAuth2AuthenticationSuccessHandler` phát sinh JWT Access Token (TTL 15 phút), gán vào header phản hồi dưới dạng `Set-Cookie: access_token=...; HttpOnly; SameSite=Lax; Path=/`.
-   - Backend chuyển hướng trình duyệt về `http://localhost:5173/oauth2/callback`.
-   - Trang `OAuth2CallbackPage` gọi `GET /api/v1/auth/me` để lấy thông tin phiên làm việc, lưu vào Zustand Auth Store, hiển thị thông báo chào mừng và điều hướng vào `/patient`.
-
-#### Luồng phụ & Ngoại lệ (Alternative / Exception Flows):
-* **2a. Quá tải tần suất đăng nhập từ 1 IP (Anti-DDoS / Rate Limit):** Khi 1 IP gửi quá 5 request login trong 1 phút, hệ thống từ chối với `HTTP 429 Too Many Requests`.
-* **2b. Sai mật khẩu liên tiếp (Anti-Brute Force Account Lockout):** Mỗi lần sai, `failed_login_attempts` tăng 1. Sau đúng 5 lần sai, tài khoản tự động bị khóa trong 15 phút, trả về `HTTP 423 Locked` kèm cảnh báo thời gian còn lại.
-* **2c. Đăng ký email đã tồn tại:** Trả về `HTTP 409 Conflict` với thông báo thân thiện bằng tiếng Việt.
-* **2d. Quá tải tần suất đăng ký từ 1 IP (Anti-Spam Bot):** Khi 1 IP gửi quá 5 lượt đăng ký trong 10 phút, hệ thống từ chối với `HTTP 429 Too Many Requests`.
-* **2e. Tài khoản bị đình chỉ (Suspended User Rejection):** Khi tài khoản mang trạng thái `SUSPENDED` (do Admin khóa), `JwtAuthenticationFilter` chặn ngay lập tức với `HTTP 403 Forbidden` (`ACCOUNT_SUSPENDED`), vô hiệu hóa tức thời quyền truy cập kể cả khi token JWT của phiên trước vẫn còn hiệu lực.
-* **2f. Người dùng hủy bỏ xác thực Google hoặc lỗi Token:** Google hoặc backend chuyển hướng về `/login?error=oauth2_failed`, Frontend hiển thị thông báo lỗi thân thiện.
-* **Cập nhật WORK_LOG #083 (xác thực email, xem UC-29):**
-  - `UserDto` có thêm `emailVerified`. Đăng ký email/mật khẩu tạo tài khoản PATIENT `emailVerified=false` (vẫn đăng nhập ngay) và gửi email xác thực.
-  - Tài khoản tạo mới bằng Google có `emailVerified=true`. Liên kết Google vào tài khoản **đã** xác thực: giữ mật khẩu. Liên kết Google vào tài khoản **chưa** xác thực: **xóa mật khẩu**, đặt `emailVerified=true`, xóa token xác thực còn lại, ghi audit `ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED` (chống pre-hijacking).
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-02` |
+| **Use Case Name** | Sign Out |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | All authenticated users (Patient, Doctor, Admin) |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - Client in-memory auth state, user profile, and cached tokens are wiped.<br>- Server clears the HttpOnly `jwt_token` cookie via zero-max-age expiration header.<br>- User is redirected to `/login` with an informational sign-out toast. |
+| **Trigger** | User clicks "Sign Out" / "Đăng Xuất" in top navbar or drawer. |
+| **Pre-conditions** | User is actively authenticated with a valid JWT token. |
+| **Post-conditions** | - Client in-memory auth state, user profile, and cached tokens are wiped.<br>- Server clears the HttpOnly `jwt_token` cookie via zero-max-age expiration header.<br>- User is redirected to `/login` with an informational sign-out toast. |
+| **Normal Flow** | Step 1: User clicks "Đăng Xuất" from the user menu avatar dropdown.<br>Step 2: Frontend dispatches HTTP POST to `/api/v1/auth/logout`.<br>Step 3: Backend invalidates session cookies: `Set-Cookie: jwt_token=; Max-Age=0; Path=/; HttpOnly`.<br>Step 4: Backend logs audit entry: `USER_LOGOUT` for telemetry compliance.<br>Step 5: Backend returns HTTP 200 OK with `{"message": "Logged out successfully"}`.<br>Step 6: Frontend clears Zustand stores (`useAuthStore.getState().logout()`).<br>Step 7: Frontend purges all cached sensitive clinical records from browser memory.<br>Step 8: Frontend redirects browser to `/login`. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-04: Terminating the session must invalidate client access immediately. |
+| **Data Entities Involved** | - `audit_logs` (action = 'LOGOUT'). |
+| **User Interface Controls** | - Menu Item: `Đăng Xuất` with icon `LogOut`. |
 
 ---
 
-### UC-02: Phân Luồng Triệu Chứng Bằng AI & Rào Chắn Cấp Cứu (AI Symptom Triage)
+#### UC-COMM-03: Đổi Mật Khẩu & Bảo Mật Bcrypt (Change Password & Bcrypt Hash Update)
 
-* **Mã Use Case:** `UC-CLIN-02`
-* **Tác nhân chính:** Patient, Trợ lý AI (OpenAI/Gemini/Deterministic Scribe).
-* **Mục tiêu:** Thu thập lời khai triệu chứng của bệnh nhân, nhận diện dấu hiệu nguy hiểm (Red-flag), phân loại mức độ khẩn cấp (`ROUTINE`, `URGENT`, `EMERGENCY`), tạo bản tóm tắt SBAR và tự động kết nối đề xuất Bác sĩ chuyên khoa qua `pgvector`.
-* **Tiền điều kiện:** Người dùng **ĐÃ ĐĂNG NHẬP** (Zero-Trust Login-First, mọi truy cập ẩn danh nhận ngay `HTTP 401 Unauthorized`), và xác nhận đồng ý với *Tuyên bố từ chối trách nhiệm y tế (Medical Disclaimer)*. Tuân thủ hạn mức Rate Limit (tối đa 10 lượt triage/phút).
-* **REST Endpoints:**
-  - `POST /api/v1/triage/assess`: Nhận diện triệu chứng, kiểm tra Red-Flag và trả về đánh giá SBAR kèm danh sách Bác sĩ đề xuất.
-  - `GET /api/v1/triage/history`: Lấy danh sách lịch sử phân luồng của người dùng hiện tại.
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/reset-password` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/reset-password` $\rightarrow$ Màn hình `ResetPasswordPage.tsx, DoctorProfilePage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V21__password_reset_token_hash.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService` $\rightarrow$ `UserRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServicePasswordResetTest.java, AuthControllerPasswordResetTest.java` (**100% PASS**)
 
-#### Luồng sự kiện chính (Happy Path):
-1. Bệnh nhân nhập mô tả triệu chứng: *"Tôi là Trần Thị Mai, số điện thoại 0903123456, ở 45 Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM. Bác sĩ ơi tôi hay bị hồi hộp, đánh trống ngực và choáng váng khi vận động mạnh"*.
-2. **Hard Rule Red-flag Check:** `RedFlagService` quét chuỗi triệu chứng bằng các mẫu regex tối cấp (Acute Coronary Syndrome, Stroke FAST, Anaphylaxis, Severe Hemorrhage).
-3. **Khử Định Danh Dữ Liệu Y Tế Nhạy Cảm (Medical PII De-identification - Nghị định 13/2023/NĐ-CP & HIPAA Safe Harbor):**
-   - Trước khi gửi nội dung triệu chứng đến LLM bên ngoài, `MedicalPiiService` tự động quét và che giấu toàn bộ thông tin nhạy cảm:
-     - Họ tên bệnh nhân $\rightarrow$ `[BỆNH_NHÂN_1]` (Định dạng Meddies: `[Trần Thị Mai]<human_name>`).
-     - Số điện thoại $\rightarrow$ `[SĐT_1]` (Định dạng Meddies: `[0903123456]<phone_number>`).
-     - Địa chỉ cư trú $\rightarrow$ `[ĐỊA_CHỈ_1]` (Định dạng Meddies: `[45 Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM]<address>`).
-   - LLM bên ngoài (Gemini / OpenRouter) **hoàn toàn không thấy danh tính thực** của người bệnh (Zero Data Leakage).
-4. Triệu chứng KHÔNG thuộc cấp cứu tức thời:
-   - Hệ thống kích hoạt **Mô hình Trí tuệ Nhân tạo thực thụ (LLM via OpenRouter Gateway)** để suy luận lâm sàng (AI-First Clinical Reasoning):
-     - Suy luận chuyên khoa mục tiêu phù hợp nhất trong 12 chuyên khoa bệnh viện (loại bỏ hoàn toàn các chuỗi if-else từ khóa cứng).
-     - Đánh giá mức độ khẩn cấp lâm sàng (`ROUTINE`, `URGENT`, `EMERGENCY`).
-     - Tạo bản tóm tắt lâm sàng theo chuẩn y khoa **SBAR** (Situation - Background - Assessment - Recommendation).
-     - Cung cấp lời khuyên y tế chi tiết, an toàn (AI Advice) và gợi ý 2-3 câu hỏi làm rõ triệu chứng (Clarifying Questions).
-   - Tự động gọi `DoctorSemanticSearchService` sử dụng khoảng cách Cosine trên PostgreSQL `pgvector` để tìm top Bác sĩ chuyên khoa tương thích cao nhất (`similarity_score > 0.90`) dựa trên embedding kết hợp giữa triệu chứng và chuyên khoa do AI suy luận.
-   - Khi ngoại tuyến hoặc chưa nạp API key: Hệ thống chuyển sang **Transparent Offline Fallback**, an toàn định tuyến về Khám Nội Tổng Quát (`general-internal-medicine`), tuyệt đối không tự bịa đặt mức độ nguy kịch hay chẩn đoán mò.
-5. **Hoàn Nguyên Dữ Liệu Sau Khi Nhận Phản Hồi Từ AI (PII Re-identification):**
-   - Các token ẩn danh như `[BỆNH_NHÂN_1]`, `[SĐT_1]` trong lời khuyên y tế của LLM được `MedicalPiiService.unmaskPii()` thế ngược lại bằng tên thật của người bệnh để hiển thị thân thiện, liền mạch trên giao diện cá nhân.
-6. Lưu thông tin phiên vào bảng `triage_sessions`.
-7. Giao diện hiển thị thẻ kết quả Triage kèm nhãn bảo vệ PII (`piiProtected = true`, `piiEntitiesCount`), lời khuyên của AI đã hoàn nguyên danh tính, câu hỏi làm rõ và danh thiếp Bác sĩ đề xuất qua pgvector kèm nút *"Đặt Khám Ngay"*.
-
-#### Luồng cấp cứu (Red-Flag Emergency Flow):
-* **2a. Phát hiện dấu hiệu đột quỵ / nhồi máu cơ tim / sốc phản vệ:**
-  - Hệ thống ngắt quy trình gọi LLM ngay lập tức (0ms LLM latency, 0 token cost).
-  - Trả về `isEmergency = true`, mức độ `EMERGENCY`.
-  - Màn hình chuyển sang trạng thái cảnh báo đỏ nguy cấp với nút bấm gọi nhanh 115 và hướng dẫn xử trí tại chỗ.
-
-#### Luồng xử lý yêu cầu ngoài phạm vi y tế (Off-Topic & Non-Medical Guard Flow):
-* **4a. Người dùng nhập nội dung phi y tế (chào hỏi thuần túy, hỏi thời tiết, toán học, lập trình, văn bản ngẫu nhiên):**
-  - Hệ thống LLM nhận diện `isMedicalRelated = false`.
-  - Triệt tiêu 100% liên kết bác sĩ giả định: `matchedDoctors = []`, `primarySpecialtySlug = null`, `primarySpecialtyName = "Không thuộc phạm vi y tế"`, `doctorRecommendationReason = null`.
-  - Thiết lập mức độ `ROUTINE`, phản hồi lời nhắn ân cần định hướng người dùng nhập triệu chứng lâm sàng thể chất hoặc câu hỏi y tế cụ thể.
-  - Giao diện Frontend hiển thị thẻ hướng dẫn thân thiện màu hổ phách (*Yêu Cầu Ngoài Phạm Vi Y Tế*), ẩn hoàn toàn khu vực thẻ bác sĩ pgvector nhằm bảo toàn độ chính xác và tính nghiêm túc y khoa.
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-03` |
+| **Use Case Name** | Change Password |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Doctor, Admin |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - Old password hash in database is replaced with new Bcrypt hash.<br>- Security confirmation notification is dispatched. |
+| **Trigger** | User submits password update form in settings. |
+| **Pre-conditions** | User is authenticated and knows their current password. |
+| **Post-conditions** | - Old password hash in database is replaced with new Bcrypt hash.<br>- Security confirmation notification is dispatched. |
+| **Normal Flow** | Step 1: User navigates to security settings and inputs Current and New Password.<br>Step 2: Client validates matching passwords and complexity regex in real time.<br>Step 3: Frontend sends HTTP POST to `/api/v1/auth/reset-password` with `ResetPasswordRequest`.<br>Step 4: Backend verifies password complexity.<br>Step 5: Backend encodes new password with `BCryptPasswordEncoder(12)`.<br>Step 6: Backend commits update to `users.password_hash` within `@Transactional`.<br>Step 7: Backend publishes `PasswordChangedEvent` -> triggers async security notice email.<br>Step 8: Backend returns HTTP 200 OK.<br>Step 9: Frontend displays success toast: "Mật khẩu đã được cập nhật thành công." |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Weak New Password:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "WEAK_PASSWORD", ...)`.<br>2. Frontend displays: "Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và chữ số." |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-01: Minimum 8 characters, at least 1 uppercase letter, 1 number, and 1 special symbol.<br>- BR-05: New password cannot be identical to the previous password. |
+| **Data Entities Involved** | - `users` (password_hash, updated_at). |
+| **User Interface Controls** | - Password inputs: `Mật khẩu mới`, `Xác nhận mật khẩu mới`. |
 
 ---
 
-### UC-03: Tóm Tắt & Giải Nghĩa Phiếu Xét Nghiệm Bằng AI Đa Phương Thức (Multimodal Document Summarization & Token Protection)
+#### UC-COMM-04: Quản Lý & Cập Nhật Hồ Sơ Căn Cước Y Tế (View & Update Patient Profile)
 
-* **Mã Use Case:** `UC-CLIN-03`
-* **Tác nhân chính:** Patient, Apache PDFBox Parser, MedicalDocumentValidator, Supabase Storage, pgvector Semantic Matching Engine.
-* **Mục tiêu:** Chuyển đổi kết quả xét nghiệm máu/sinh hóa/nước tiểu từ tài liệu PDF phức tạp thành bảng chỉ số đối chiếu dễ hiểu cho người bệnh, cảnh báo bất thường, đề xuất bác sĩ chuyên khoa phù hợp tức thì; đồng thời bảo vệ 100% token AI và lưu trữ an toàn trên Cloud EMR.
-* **Tiền điều kiện:** 
-  - Người dùng **ĐÃ ĐĂNG NHẬP** (Zero-Trust Login-First, từ chối khách vãng lai với `HTTP 401 Unauthorized`).
-  - Người dùng có hạn ngạch quét (`scanQuota > 0`) hoặc là hội viên `MediPass VIP` còn hiệu lực (`isVipActive()`). Nếu hết lượt, chuyển sang ngoại lệ `HTTP 402 Payment Required`.
-  - Tuân thủ Rate Limiter (tối đa 5 lượt tải lên/phút cho user đăng nhập, tối đa 3 lượt/10 phút theo IP cho preview khách vãng lai) và giới hạn kích thước tệp tối đa 10MB.
-* **REST Endpoints:**
-  - `POST /api/v1/documents/analyze`: Tiếp nhận hồ sơ xét nghiệm qua `multipart/form-data` hỗ trợ đồng thời nhiều tệp qua tham số `files` (`List<MultipartFile>`, tối đa 5 tệp, tổng dung lượng $\le 25\text{MB}$, hỗ trợ kết hợp PDF và hình ảnh PNG/JPEG đồng thời) cùng khả năng tương thích ngược hoàn toàn với tham số đơn `file`. Thực thi kiểm tra Composite SHA-256 deduplication, trừ 1 hạn ngạch atomic SQL cho toàn bộ lượt quét (với compensating rollback hook), sàng lọc gatekeeper, bóc tách song song qua `medicalOcrExecutor` (PDFBox cho PDF, Gemini Vision OCR cho hình ảnh), chắt lọc ngữ cảnh lâm sàng tổng hợp, lưu trữ EMR Supabase Storage và tìm kiếm bác sĩ qua pgvector. Không giữ kết nối DB qua các lệnh gọi ngoại vi (Non-blocking I/O). (Yêu cầu đăng nhập).
-  - `POST /api/v1/documents/analyze-preview`: Quét thử nghiệm tài liệu xét nghiệm trực tiếp từ Landing Page không cần đăng nhập, hỗ trợ đầy đủ nhận nhiều tệp hỗn hợp PDF & hình ảnh cùng lúc (`files` / `file`), áp dụng Rate Limiting theo IP (tối đa 3 lượt/10 phút chống cạn kiệt token). Sàng lọc Gatekeeper nghiêm ngặt chống ảnh rác/ảnh mờ/ảnh ngoài ngành y, bóc tách chỉ số thật 100% từ PDF/Vision song song (không suy đoán, không dùng mock), truy vấn danh mục bác sĩ pgvector tương thích nhưng không lưu Cloud EMR và không trừ quota.
-  - `GET /api/v1/documents/sample-random-pdf`: Truy vấn ngẫu nhiên ca bệnh lâm sàng từ kho dữ liệu Hugging Face `Meddies/meddies-persona-vie` (150.000 hồ sơ bệnh nhân Việt Nam), tự động chuyển hóa và kết xuất tệp PDF phiếu xét nghiệm bệnh viện chuẩn trực tiếp để người dùng tải về máy thử nghiệm kéo-thả kiểm thử. Tích hợp sẵn cơ chế Fallback Pool nội bộ 5 ca bệnh đa dạng (Tim mạch, Gan mật, Tiểu đường, Thận, Nhiễm trùng) đảm bảo tính sẵn sàng 100% khi demo ngoại tuyến.
-  - `GET /api/v1/documents/quota`: Kiểm tra số lượt quét khả dụng, hạn hội viên VIP và trạng thái gói cước của người bệnh.
-  - `GET /api/v1/documents/my`: Truy vấn lịch sử các tài liệu y tế đã phân tích của người bệnh đăng nhập (yêu cầu Bearer Token).
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `PatientProfileController` $\rightarrow$ `GET /api/v1/patient/profile, PUT /api/v1/patient/profile, GET /api/v1/patient/profile/by-user/{userId}` (Quyền: `isAuthenticated(), hasAnyRole('DOCTOR', 'ADMIN')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient` $\rightarrow$ Màn hình `PatientDashboard.tsx (Tab Hồ sơ bệnh án), DoctorPatientRecordsPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `patient_profiles, users` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V6__fix_user_status_and_audit_logs.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `PatientProfileService` $\rightarrow$ `PatientProfileRepository, UserRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `PatientProfileServiceTest.java` (**100% PASS**)
 
-#### Luồng sự kiện chính (Happy Path):
-1. **Chọn Tệp & Hàng Đợi Đa Tệp Hỗn Hợp (Mixed Multi-File Ingestion Queue UX):**
-   - Bệnh nhân có thể kéo-thả hoặc chọn đồng thời **tối đa 5 tệp** kết hợp tự do giữa tệp **PDF** và **Hình Ảnh (JPG, PNG)** với dung lượng mỗi tệp $\le 10\text{MB}$ và tổng dung lượng cả đợt $\le 25\text{MB}$.
-   - Giao diện cung cấp thẻ Hàng Đợi Tệp Đã Chọn trực quan: hiển thị huy hiệu loại tệp (`[PDF]` màu đỏ, `[ẢNH]` màu chàm), tên tệp, dung lượng chi tiết, nút xóa từng tệp (`X`), nút xóa toàn bộ hàng đợi, và nút bấm kích hoạt phân tích đồng thời toàn bộ tệp với hiệu ứng spinner động.
-   - Hỗ trợ chọn nhanh các bộ hồ sơ mẫu chuẩn (Mỡ máu / Men gan / Điện não) hoặc tải tệp PDF ngẫu nhiên từ kho dữ liệu Meddies 150.000 ca bệnh.
-2. **Kiểm tra Deduplication Tổng Hợp (Composite SHA-256 Checksum & TOCTOU Recovery):**
-   - Hệ thống tính toán chuỗi hash kết hợp: với đơn tệp là SHA-256 của tệp đó; với đa tệp là `SHA-256(hash_1:hash_2:...:hash_n)`.
-   - Nếu bộ tài liệu này đã từng được phân tích trong hồ sơ EMR của bệnh nhân: Trả về ngay kết quả đã lưu (`cachedResult = true`) kèm danh sách tên tệp đầy đủ (`fileNames`, `filesCount`). Tiêu tốn **0 token AI**, độ trễ $< 5\text{ms}$ và **TUYỆT ĐỐI KHÔNG trừ lượt quét**.
-   - Khối bắt `DataIntegrityViolationException` tự động xử lý xung đột tải lên đồng thời (TOCTOU race), hoàn trả quota và thu hồi tệp dư thừa trên Cloud Storage.
-3. **Trừ Hạn Ngạch Đảm Bảo Tính Nguyên Tử (Atomic Single Quota per Batch):**
-   - Dù người bệnh tải lên 1 tệp hay 5 tệp (cả PDF và ảnh) trong cùng một đợt khám, hệ thống **CHỈ KHẤU TRỪ ĐÚNG 1 LƯỢT QUÉT** duy nhất (`scanQuota = scanQuota - 1`). Không trừ nhân theo số lượng tệp, đảm bảo tính công bằng và thân thiện tối đa với người bệnh.
-   - Miễn phí hoàn toàn không giới hạn đối với hội viên MediPass VIP (`isVipActive()`).
-   - Nếu xảy ra sự cố trong quá trình phân tích, cơ chế **Compensating Rollback Hook** tự động hoàn trả 1 lượt quét cho người bệnh.
-4. **Trích Xuất Song Song Đa Tầng (Parallel Multi-File OCR & PDF Box Extraction):**
-   - Hệ thống thẩm định Header và Magic Bytes (`PDF`, `JPEG`, `PNG`, UTF-8) độc lập cho từng tệp trong đợt tải.
-   - Điều phối tác vụ trích xuất đồng thời qua `CompletableFuture.supplyAsync` trên thread pool chuyên biệt `medicalOcrExecutor`:
-     - Tệp PDF: trích xuất tầng văn bản qua Apache PDFBox; nếu là bản scan mờ thì kích hoạt `PDFRenderer` (200 DPI) + Gemini Vision OCR.
-     - Tệp Ảnh (JPG, PNG): chuyển giao sang động cơ OCR Vision qua điều tiết `Semaphore(5, true)`.
-   - Hệ thống tự động gom cấu trúc toàn bộ nội dung trích xuất thành ngữ cảnh bệnh án hợp nhất (`[HỒ SƠ Y TẾ TỔNG HỢP: N TÀI LIỆU ĐÍNH KÈM]`), loại bỏ trùng lặp và chuyển giao sang bộ phân tích chỉ số sinh hóa và động cơ AI Clinical RAG.
-5. **Cơ chế Lọc Rác Tiền Thẩm Định (Gatekeeper Sieve Validation):**
-   - Kiểm tra magic bytes nhị phân thực thụ (chấp nhận PDF, JPEG, PNG chữ ký chuẩn và luồng văn bản y khoa UTF-8 hợp lệ; không tin cậy header client).
-   - Kiểm tra độ dài văn bản trích xuất (tối thiểu 15 ký tự; nếu ngắn hơn -> lỗi mờ ảnh `UNREADABLE_DOCUMENT`).
-   - Sàng lọc từ điển chỉ số lâm sàng (loại bỏ ký tự đơn lẻ như `%` để tránh hóa đơn thương mại lọt qua).
-   - *Nếu phát hiện ảnh rác (hóa đơn siêu thị, meme, chó mèo, ảnh mờ):* Ném lỗi `HTTP 400 NON_MEDICAL_DOCUMENT` hoặc `UNREADABLE_DOCUMENT` và tự động hoàn trả hạn ngạch của bệnh nhân.
-5. **Quy Trình Lazy Upload & Triệt Tiêu File Mồ Côi (Zero Orphan Files):**
-   - **Xử lý hoàn toàn trong RAM & Không Giữ Kết Nối DB:** Trích xuất chỉ số sinh hóa và thực thi suy luận AI RAG trực tiếp trên mảng byte trong bộ nhớ tạm mà không mở transaction DB dài, triệt tiêu nguy cơ cạn kiệt Connection Pool HikariCP.
-   - **Lazy Upload Pattern:** Chỉ khi và chỉ khi toàn bộ pipeline phân tích AI hoàn tất 100% thành công, tệp nhị phân mới được tải lên Supabase Storage (`storageService.uploadDocument()`). Nếu AI lỗi hoặc file hỏng, luồng hủy ngay tại chỗ, **0 byte rác lọt lên Cloud**.
-   - **Compensating Rollback Hook:** Nếu quá trình ghi Database EMR gặp sự cố sau khi đã tải lên Cloud, hệ thống tự động gọi `storageService.deleteDocument()` để xóa file trên Supabase ngay lập tức, triệt tiêu 100% nguy cơ file mồ côi (Zero Orphan Files).
-   - **Upload Circuit Breaker:** Người dùng gửi liên tiếp 3 file không hợp lệ sẽ bị áp dụng án phạt Cooldown 10 phút.
-6. **Kiến Trúc AI-First Toàn Diện & Xử Lý Hồ Sơ Đa Trang (AI-First Clinical Reasoning & Multi-Pattern Table Pipeline):**
-   - **Xóa Bỏ 100% Ma Trận Hardcode & Bịa Bệnh (Zero Fake Diagnoses & Dynamic Metadata 100%):** Hệ thống không sử dụng dữ liệu tĩnh hay chuỗi if-else cố định. Toàn bộ suy luận y khoa và thông tin hành chính được xử lý động:
-     - *Pha 1 - Dynamic Administrative Metadata Extraction:* Tự động nhận diện cơ sở khám bệnh (`hospitalName`), khoa phòng (`departmentName`), bác sĩ chỉ định (`orderingDoctor`), mã định danh mẫu (`sidCode`), ngày xét nghiệm (`testDate`), máy phân tích (`deviceModel`), họ tên, tuổi và giới tính người bệnh với cờ regex `(?ium)` hỗ trợ chuẩn Unicode tiếng Việt.
-     - *Pha 2 - Multi-Pattern Resilient Table Parser:* Quét động mọi dòng cận lâm sàng hỗ trợ 3 chiến lược: Delimiter (`Name : Value`), Columnar Whitespace (`Name    Value   RefRange   Unit`), và Tabular (`\t`). Tự động nhận diện cả 2 thứ tự cột (Unit trước hoặc RefRange trước), không phụ thuộc vào dấu hai chấm.
-     - *Pha 3 - Gender & Age Adaptive Reference Ranges:* Tự động điều chỉnh khoảng tham chiếu sinh lý chuẩn theo giới tính bệnh nhân (Creatinine Nữ 44-88 µmol/L vs Nam 62-115 µmol/L; Acid Uric Nữ 150-360 µmol/L vs Nam 200-420 µmol/L) để đánh giá trạng thái `ELEVATED`, `LOW`, `NORMAL` chính xác.
-     - *Pha 4 - Smart Clinical Windowing & PDF 10 Trang:* Quét tối đa 10 trang hồ sơ bệnh án qua Apache PDFBox (`app.pdf.max-pages=10`). Chắt lọc ngữ cảnh y khoa tập trung ($\le 5.500$ ký tự), loại bỏ nhiễu hành chính/viện phí.
-     - *Pha 5 - Google Gemini 1.5 Flash Gateway (Tier 1 AI) & Fallback Pool:* 
-       + **Priority 1**: Google Gemini 1.5 Flash (Direct REST API) hỗ trợ JSON có cấu trúc và Vision OCR đa phương thức siêu nhanh.
-       + **Priority 2**: Bể xoay vòng OpenRouter Free Models (`inclusionai/ling-3.0-flash-sante:free`, `nex-agi/nex-n2.5-mini:free`, `openrouter/free`) với cơ chế tự động xoay chuyển khi chạm `HTTP 429`.
-       + **Priority 3**: Safe Local Deterministic Fallback Engine (0đ chi phí, chuyển tuyến an toàn).
-     - *Pha 5b - Khử Định Danh PII Y Tế Chuẩn Nghị Định 13/2023/NĐ-CP & HIPAA (Meddies-PII Engine):* 
-       + Trước khi đưa văn bản trích xuất từ PDF/ảnh vào prompt gửi sang LLM đám mây, `ClinicalRagService` gọi `MedicalPiiService.maskPii()`.
-       + Tự động che giấu: Tên bệnh nhân $\rightarrow$ `[BỆNH_NHÂN_1]`, CCCD/CMND/BHYT/Mã BN $\rightarrow$ `[SỐ_ĐỊNH_DANH_N]`, Số điện thoại $\rightarrow$ `[SĐT_N]`, Địa chỉ $\rightarrow$ `[ĐỊA_CHỈ_N]`, Ngày sinh $\rightarrow$ `[NGÀY_SINH_N]`.
-       + Các chỉ số y khoa và khoảng tham chiếu phòng xét nghiệm được bảo toàn 100%.
-       + Khi nhận kết quả JSON từ LLM, các trường tóm tắt (`clinicalSummary`, `plainLanguageExplanation`, `lifestyleRecommendations`) được tự động hoàn nguyên danh tính (`unmaskPii`) để hiển thị mượt mà cho người bệnh.
-     - *Pha 6 - pgvector Cosine Similarity Doctor Matching & Clinically Justified Reasons:* Sử dụng chuyên khoa và các chỉ số bất thường do AI xác nhận để truy vấn vector cosine (`1 - (bio_embedding <=> query_vector)`). Đề xuất bác sĩ đi kèm lý do lâm sàng cá nhân hóa, trích dẫn trực tiếp tên và giá trị của các chỉ số xét nghiệm bất thường (ví dụ: *"Đề xuất PGS.TS Vũ Đình Hùng vì tài liệu xét nghiệm ghi nhận Glucose (9.2 mmol/L), Creatinine (115 umol/L)..."*).
-    - **Dự phòng Scanned PDF (Vision OCR) & Bể Model Thị Giác Đa Tầng (Multi-Model Vision Pool):**
-      - Nếu PDF là bản scan thuần ảnh không có text layer ($< 30$ ký tự), hệ thống tự động render ảnh từng trang với độ phân giải cao **200 DPI** qua `PDFRenderer`.
-      - Ưu tiên Google Gemini Flash Vision native, kết hợp bể xoay vòng tự động các mô hình Vision mạnh trên OpenRouter.
-    - **Rào Chắn An Toàn Y Tế & Triệt Tiêu Đề Xuất Ảo (Medical Safety Gating & Zero Fake Recommendation):**
-      - *Trường hợp phiếu trắng / ảnh mờ / không có số liệu:* Nếu tài liệu là phiếu chỉ định trắng chưa điền kết quả (cột kết quả để trống) hoặc ảnh chụp mờ không bóc tách được số liệu cận lâm sàng (`indicators.isEmpty()`):
-        + **Tuyệt đối không đoán mò chuyên khoa:** Để `recommendedSpecialtySlug = null`, `recommendedSpecialtyName = "Chưa xác định (Cần bổ sung kết quả)"`.
-        + **Tuyệt đối không đề xuất bác sĩ:** Khóa toàn bộ danh sách `matchedDoctors = []`, `recommendedDoctorId = null`, không gán cờ `aiRecommended`.
-        + **Giao diện cảnh báo an toàn y tế:** Hiển thị Banner màu hổ phách giải thích rõ ràng nguyên nhân, công bố nguyên tắc an toàn không phán đoán khi thiếu dữ liệu, và hướng dẫn người bệnh chụp lại ảnh rõ nét hoặc tải phiếu có kết quả đầy đủ.
-7. **Khấu trừ Hạn Ngạch:** Trừ 1 lượt quét đối với tài khoản FREE (`scanQuota = scanQuota - 1`). Giữ nguyên không giới hạn đối với hội viên MediPass VIP.
-8. **Phản hồi Giao Diện Tức Thì & Bảng Tiêu Đề Bệnh Viện Động 100%:**
-   - Thay thế toàn bộ dữ liệu tĩnh hardcode bằng dữ liệu bóc tách từ phiếu xét nghiệm: Tên bệnh viện, Khoa phòng, Mã SID, Tên bệnh nhân, Bác sĩ chỉ định, Thời gian xét nghiệm, Thiết bị phân tích.
-   - Hiển thị **Banner Thông Báo Thành Công Nổi Bật** phân định rõ: Huy hiệu Xanh Ngọc (*"AI Phân Tích Hoàn Tất"*) khi có LLM, hoặc Huy hiệu Vàng Hổ Phách (*"Chế Độ Ngoại Tuyến"*) khi chạy fallback an toàn.
-   - Thẻ hiển thị động cơ phân tích minh bạch tên mô hình AI đã xử lý (`modelUsed`).
-   - Màn hình tự động cuộn mượt mà (`scrollIntoView`) đến phần kết quả `#analysis-results`.
-   - Danh sách Bác sĩ chuyên khoa sâu được sắp xếp chuẩn xác theo điểm số tương đồng cosine từ PostgreSQL pgvector kèm nút *"Đặt Khám Ngay"*. (Nếu tài liệu không có kết quả, hiển thị Empty State hướng dẫn người bệnh).
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-04` |
+| **Use Case Name** | View & Update Patient Profile |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Patient Profile Subsystem — Patient entity in `patient_profiles` is retrieved or updated. |
+| **Trigger** | Patient navigates to profile view or updates clinical demographics. |
+| **Pre-conditions** | User is authenticated as `PATIENT`. |
+| **Post-conditions** | Patient entity in `patient_profiles` is retrieved or updated. |
+| **Normal Flow** | Step 1: Patient accesses profile modal/page.<br>Step 2: Frontend calls HTTP GET `/api/v1/patient/profile`.<br>Step 3: Backend retrieves `PatientProfile` linked to `user_id`.<br>Step 4: Backend returns `PatientProfileDto` (date of birth, gender, blood type, allergies, emergency contact, remaining AI quota).<br>Step 5: Patient updates Blood Type, Allergies, or Emergency Contact Phone.<br>Step 6: Frontend dispatches HTTP PUT `/api/v1/patient/profile` with updated DTO.<br>Step 7: Backend validates phone format and citizen ID regex if present.<br>Step 8: Backend commits update to `patient_profiles` table.<br>Step 9: Backend returns HTTP 200 OK with refreshed profile.<br>Step 10: Frontend renders toast: "Hồ sơ sức khỏe đã được cập nhật." |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Invalid Phone Format:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_PHONE", ...)`.<br>2. Frontend displays: "Số điện thoại không đúng định dạng Việt Nam (VD: 0901234567)." |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-06: Vietnamese phone numbers must match regex `^(0\|\+84)(3\|5\|7\|8\|9)[0-9]{8}$`. |
+| **Data Entities Involved** | - `users`, `patient_profiles` (id, user_id, date_of_birth, gender, blood_type, allergies, emergency_contact, remaining_ai_quota). |
+| **User Interface Controls** | - Text inputs (`Họ và tên`, `Số điện thoại`, `Người liên hệ khẩn cấp`), select (`Nhóm máu`, `Giới tính`), textarea (`Dị ứng thuốc`). |
 
 ---
 
-### UC-04: Tìm Kiếm Bác Sĩ Bằng Vector Similarity Search (Semantic Doctor Discovery)
+#### UC-COMM-05: Quên Mật Khẩu & Đặt Lại Qua Token Hash SHA-256 (Forgot Password & Token Hash Reset)
 
-* **Mã Use Case:** `UC-CLIN-04`
-* **Tác nhân chính:** Patient, PostgreSQL với extension `pgvector`.
-* **Mục tiêu:** Khớp triệu chứng người bệnh với bác sĩ chuyên khoa sâu có kinh nghiệm điều trị thực tế cao nhất thông qua khoảng cách vector cosine trên chỉ mục HNSW (`vector_cosine_ops`).
-* **REST Endpoints:**
-  - `GET /api/v1/triage/search/semantic?query={text}&limit={n}`: Tra cứu danh sách bác sĩ tương thích ngữ nghĩa từ câu truy vấn tự nhiên.
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/forgot-password, GET /api/v1/auth/reset-password/validate, POST /api/v1/auth/reset-password` (Quyền: `PUBLIC`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/forgot-password, /reset-password` $\rightarrow$ Màn hình `ForgotPasswordPage.tsx, ResetPasswordPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `password_reset_tokens, users` $\rightarrow$ Bản di trú `V16__create_password_reset_and_notifications.sql, V21__password_reset_token_hash.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, SecurityRateLimiterService, EmailService` $\rightarrow$ `PasswordResetTokenRepository, UserRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServicePasswordResetTest.java, AuthControllerPasswordResetTest.java, EmailServiceTest.java` (**100% PASS**)
 
-#### Luồng sự kiện chính (Happy Path):
-1. Người dùng nhập câu tìm kiếm: *"Bác sĩ chuyên tầm soát hẹp mạch vành và rối loạn nhịp tim"*.
-2. Hệ thống tạo vector embedding 1536 chiều bằng `EmbeddingService`.
-3. Thực thi truy vấn HNSW Vector Search trên bảng `doctor_profiles` với điều kiện `is_verified = true`:
-   ```sql
-   SELECT dp.*, 1 - (dp.bio_embedding <=> CAST(:vector AS vector)) AS similarity_score
-   FROM doctor_profiles dp ...
-   ORDER BY dp.bio_embedding <=> CAST(:vector AS vector) ASC
-   LIMIT 5;
-   ```
-4. Trả về danh sách bác sĩ xếp hạng theo độ tương đồng giảm dần (`similarity_score`).
-5. Giao diện hiển thị thẻ Bác sĩ gồm: Ảnh đại diện, Học vị, Nơi công tác, Điểm tương đồng (`%`), Giá khám và Nút *"Đặt Khám Ngay"*.
-6. **Smart Defense Bar** (`ClinicalDefenseBar.tsx`): ngay dưới ô tìm kiếm, hiện "AI đã hiểu triệu chứng của bạn:" với `affirmedSymptoms` (badge xanh) và `negatedSymptoms` (badge xám gạch ngang). Metadata lấy từ phần tử đầu của danh sách gốc nên bộ lọc chuyên khoa không làm mất thanh; `<details>` "Chi tiết kỹ thuật" hiện `normalizedClinicalQuery`.
-
-#### Luồng thay thế (Alternative Flows) — Clinical Query Defense:
-- **A1. Phủ định NegEx:** *"ho sốt nhưng không khó thở"* → backend tách theo **mệnh đề** (dấu câu, "nhưng / tuy nhiên / mặc dù / song"): affirmed `["ho sốt"]`, negated `["không khó thở"]`. Chỉ mệnh đề khẳng định được dùng làm truy vấn vector. Frontend hiển thị nguyên chuỗi backend, không tự làm NegEx.
-- **A2. Cấp cứu (Red-Flag):** truy vấn khớp từ khoá cấp cứu (vd. *"đau ngực dữ dội"*) → `emergencyRedFlag = true`. Frontend hiện banner đỏ `role="alert"` với `emergencyWarning` và nút gọi `tel:` lấy từ `EMERGENCY_NUMBER`, đặt **trên** danh sách; danh sách bác sĩ vẫn hiện bên dưới.
-- **A3. Ngoài ngành (OOD):** *"khám hết bao nhiêu tiền"* → `outOfDomain = true` → banner thông tin hiện `outOfDomainGuidance`; không hiện badge triệu chứng.
-
-#### Luồng ngoại lệ (Exception Flows):
-- **E1. Không bác sĩ nào khớp:** API trả danh sách rỗng nên không có metadata → không hiện thanh, kể cả cảnh báo cấp cứu. Đã ghi yêu cầu backend **BE-13** (`docs/FRONTEND_UX_AUDIT.md`).
-- **E2. Truy vấn dưới 3 ký tự, lỗi API hoặc đổi truy vấn:** thanh bị gỡ ngay; lỗi API thì quay về lọc theo từ khoá.
-
----
-
-### UC-05: Đặt Lịch Khám Từ Xa & Ngăn Chặn Race Condition (Telehealth Appointment Booking)
-
-* **Mã Use Case:** `UC-OPS-05`
-* **Tác nhân chính:** Patient, Doctor, Hệ thống thanh toán/đặt chỗ.
-* **Mục tiêu:** Đảm bảo một khung giờ (Slot) của bác sĩ chỉ có duy nhất 1 bệnh nhân đặt thành công, ngăn chặn race condition bằng Optimistic Locking (`@Version`), isolation level `REPEATABLE_READ`, và Partial Unique Index.
-* **REST Endpoints:**
-  - `GET /api/v1/doctors/{id}/slots?date=YYYY-MM-DD`: Tra cứu slot 30 phút khả dụng trong ngày.
-  - `POST /api/v1/appointments`: Đặt lịch khám mới (`{ doctorId, scheduledStart, notes }`). Trả về HTTP 201 kèm `appointmentCode`.
-  - `GET /api/v1/appointments/my`: Lấy danh sách lịch hẹn của người dùng hiện tại (lọc theo role Patient/Doctor).
-  - `PATCH /api/v1/appointments/{id}/status`: Cập nhật trạng thái (`SCHEDULED` -> `COMPLETED` / `CANCELLED`).
-
-#### Luồng sự kiện chính (Happy Path):
-1. Bệnh nhân vào trang danh bạ, chọn Bác sĩ, chọn ngày khám và khung giờ còn trống (Ví dụ: `09:00 - 09:30 ngày 12/09/2026`).
-2. Bệnh nhân nhập triệu chứng và bấm *"Xác nhận đặt khám"*.
-3. Trình duyệt gửi `POST /api/v1/appointments` kèm Bearer token.
-4. Backend mở giao dịch `@Transactional(isolation = Isolation.REPEATABLE_READ)`:
-   - Kiểm tra xem slot đã có cuộc hẹn nào ở trạng thái không bị hủy chưa qua câu lệnh:
-     ```sql
-     SELECT COUNT(a) > 0 FROM Appointment a 
-     WHERE a.doctor.id = :doctorId AND a.scheduledStart = :scheduledStart 
-       AND a.status != com.mediassist.model.entity.AppointmentStatus.CANCELLED
-     ```
-   - Sinh mã định danh giao dịch chuẩn: `AP-YYYYMMDD-XXXXXX`.
-   - Tạo bản ghi mới vào bảng `appointments` với `version = 0`.
-   - Lưu và flush tức thì xuống DB: `appointmentRepository.saveAndFlush(appointment)`.
-   - Ghi nhật ký kiểm toán vào `audit_logs` với action `APPOINTMENT_BOOKED`.
-5. Backend trả về HTTP 201 Created cùng `AppointmentDto`.
-6. Cuộc hẹn xuất hiện trên bảng điều khiển của cả Bác sĩ (`DoctorDashboard`) và Bệnh nhân (`PatientDashboard`).
-
-#### Luồng xung đột (Conflict Exception Flow):
-* **3a. Người khác đã đặt slot trước đó (Pre-check):** `existsConflict` phát hiện trùng giờ $\rightarrow$ Ném ngoại lệ `AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", ...)`. Backend trả về HTTP 409: *"Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác."*
-* **3b. Xung đột đặt lịch song song (Concurrent Race Condition Shield):** Trường hợp hai bệnh nhân cùng bấm xác nhận tại cùng một microsecond và cùng vượt qua bước `existsConflict()`, Database Partial Unique Index `idx_appointment_unique_active_slot` trên `appointments(doctor_id, scheduled_start) WHERE status != 'CANCELLED'` sẽ chặn transaction thứ hai. Lệnh `saveAndFlush()` kích hoạt `DataIntegrityViolationException`, được bắt và chuyển đổi thành HTTP 409 `SLOT_CONFLICT` an toàn, loại bỏ 100% rủi ro Double-booking.
-* **Email sau khi đặt lịch (WORK_LOG #083, UC-30):** sau khi transaction commit, bệnh nhân nhận email "Xác nhận lịch hẹn" và bác sĩ nhận email "Lịch hẹn mới". Lỗi slot/rollback thì không gửi.
-* **3c. Bệnh nhân chưa xác thực email (WORK_LOG #083):** `EmailVerificationGuard` chạy ngay sau khi nạp bệnh nhân, trước mọi kiểm tra khác → 403 `EMAIL_NOT_VERIFIED` *"Vui lòng xác thực email trước khi đặt lịch khám hoặc thanh toán..."*. Không tạo lịch, không ghi audit. Frontend (DoctorSearchPage, SymptomTriagePage, DocumentSummarizerPage) vô hiệu hóa nút "Xác Nhận Đặt Khám" kèm tooltip, và hiển thị thông báo rõ ràng nếu vẫn nhận lỗi này (`isEmailNotVerified`).
-
-#### Luồng thay thế: Đặt khám từ Trợ lý Triệu chứng AI (Triage → Booking):
-* **A1. Có phiên phân luồng:** `SymptomTriagePage` mở `BookingModal` với `notes` điền sẵn **chỉ** phần triệu chứng bệnh nhân đã nhập (+ chuyên khoa AI gợi ý) và `extra.triageSessionId` (chỉ gửi khi là UUID hợp lệ). Modal hiện dòng chỉ đọc *"Phiếu phân luồng AI (SBAR đầy đủ, mức độ khẩn) sẽ được đính kèm tự động cho bác sĩ."* Backend lưu `Appointment.triageSessionId`; `AppointmentDto` trả `triageSbarSummary` + `triageUrgencyLevel` đầy đủ và `DoctorDashboard` hiển thị ở banner "Phiên Phân Luồng AI Triage". SBAR **không** được chép vào `notes` nữa (trước đây bị chép rồi cắt cụt ở 1000 ký tự, bác sĩ thấy 2 bản SBAR).
-* **A2. Không có `sessionId`:** vẫn cho đặt khám, modal hiện cảnh báo vàng *"Không liên kết được phiên phân luồng AI; bác sĩ sẽ chỉ thấy ghi chú của bạn"*, request không có `triageSessionId`.
-* **A3. Ghi chú > 1000 ký tự:** không cắt ngầm; `BookingModal` hiện bộ đếm + lỗi "Tối đa 1000 ký tự." và khoá nút xác nhận cho tới khi bệnh nhân rút gọn (backend cũng `@Size(max = 1000)`, BE-10).
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-05` |
+| **Use Case Name** | Forgot Password & Token Hash Reset |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Unauthenticated User (Patient, Doctor, Admin) |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - Single-use SHA-256 hashed password reset token is generated with 15-minute TTL.<br>- Password reset email containing secure redemption link is dispatched asynchronously.<br>- Upon token redemption, user's password is reset and token marked as consumed. |
+| **Trigger** | User clicks "Quên mật khẩu?" on login page. |
+| **Pre-conditions** | User account exists with a verified email address. |
+| **Post-conditions** | - Single-use SHA-256 hashed password reset token is generated with 15-minute TTL.<br>- Password reset email containing secure redemption link is dispatched asynchronously.<br>- Upon token redemption, user's password is reset and token marked as consumed. |
+| **Normal Flow** | Step 1: User navigates to `/forgot-password`, inputs registered email, and clicks "Gửi Yêu Cầu".<br>Step 2: Frontend sends HTTP POST to `/api/v1/auth/forgot-password` with `ForgotPasswordRequest(email)`.<br>Step 3: Backend searches `userRepository.findByEmail(email)`.<br>(Security note: If email not found, backend still returns 200 OK to prevent account enumeration).<br>Step 4: Backend generates 32-byte cryptographically secure random token (`SecureRandom`).<br>Step 5: Backend computes SHA-256 hash of raw token (`DigestUtils.sha256Hex(rawToken)`).<br>Step 6: Backend stores hash, user ID, expiration timestamp (`now() + 15 minutes`), and `consumed = false`<br>in `password_reset_tokens` table (Flyway V21 migration).<br>Step 7: Backend asynchronously invokes `EmailService.sendPasswordResetMail(email, rawToken)`.<br>Step 8: User opens email, clicks reset link: `https://mediassist.local/reset-password?token={rawToken}`.<br>Step 9: Frontend calls HTTP GET `/api/v1/auth/reset-password/validate?token={rawToken}` to verify validity.<br>Step 10: User enters new password and confirms password on the reset page.<br>Step 11: Frontend sends HTTP POST to `/api/v1/auth/reset-password` with `rawToken` and `newPassword`.<br>Step 12: Backend hashes `rawToken` with SHA-256 and searches `password_reset_tokens.token_hash`.<br>Step 13: Backend verifies token is not expired (`expires_at > now()`) and not consumed (`consumed == false`).<br>Step 14: Backend updates user's `password_hash` with Bcrypt(cost 12) and marks `consumed = true`.<br>Step 15: Backend returns HTTP 200 OK. Frontend redirects to `/login` with success banner. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Expired or Already Consumed Token:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", ...)`.<br>2. Backend returns HTTP 400 Bad Request.<br>3. Frontend displays: "Đường dẫn đặt lại mật khẩu đã hết hạn hoặc đã được sử dụng. Vui lòng thử lại." |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-07: Plaintext reset tokens must NEVER be stored in the database. Only SHA-256 hashes are persisted (Flyway V21).<br>- BR-08: Token lifespan is strictly limited to 15 minutes. |
+| **Data Entities Involved** | - `users`, `password_reset_tokens` (id, user_id, token_hash, expires_at, consumed, consumed_at). |
+| **User Interface Controls** | - Input: `Email`, `Mật khẩu mới`, `Nhập lại mật khẩu`.<br>- Button: `Gửi Link Đặt Lại`, `Xác Nhận Mật Khẩu Mới`. |
 
 ---
 
-### UC-06: Thẩm Định Bác Sĩ & Ghi Nhật Ký Kiểm Toán (Doctor Vetting & Audit Trail)
+#### UC-COMM-06: Rào Chắn Xác Thực Địa Chỉ Email (Email Verification Gate)
 
-* **Mã Use Case:** `UC-ADM-06`
-* **Tác nhân chính:** Admin, Doctor.
-* **Mục tiêu:** Xác minh tính chính danh, bằng cấp và số Chứng chỉ hành nghề (CCHN) của bác sĩ trước khi cho phép hồ sơ hiển thị công khai trên ứng dụng.
-* **REST Endpoints:**
-  - `GET /api/v1/admin/doctors/pending`: Lấy danh sách hồ sơ bác sĩ chưa xác thực (`isVerified = false`).
-  - `POST /api/v1/admin/doctors/{id}/vet`: Phê duyệt hoặc từ chối hồ sơ (`{ approve: boolean, rejectionReason: string }`).
-  - `PUT /api/v1/doctors/me/profile`: Bác sĩ tự cập nhật thông tin CCHN, tiểu sử, số năm kinh nghiệm, và giá khám.
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/verify-email, POST /api/v1/auth/resend-verification` (Quyền: `PUBLIC`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/verify-email` $\rightarrow$ Màn hình `VerifyEmailPage.tsx, EmailVerificationBanner.tsx, EmailNotVerifiedHint.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `email_verification_tokens, users` $\rightarrow$ Bản di trú `V22__email_verification.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, EmailVerificationGuard, SecurityRateLimiterService, EmailService` $\rightarrow$ `EmailVerificationTokenRepository, UserRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServiceEmailVerificationTest.java, SecurityRateLimiterEmailFlowTest.java` (**100% PASS**)
 
-#### Luồng sự kiện chính (Happy Path):
-1. Admin truy cập đường dẫn `/admin/doctors` (Trang Duyệt Bác Sĩ).
-2. Hệ thống gọi `GET /api/v1/admin/doctors/pending` tải danh sách các bác sĩ đang chờ xác minh.
-3. Admin kiểm tra số hiệu CCHN, cơ quan cấp phép, số năm kinh nghiệm và chuyên khoa.
-4. Admin bấm *"Phê duyệt (Approve)"*:
-   - Backend gọi `adminVettingService.vetDoctor(id, true, null, adminId)`.
-   - Cập nhật `isVerified = true`, `verifiedAt = NOW()`.
-   - Đồng bộ xóa cache: `cacheService.evict("doctors:verified")` trên cả L1 Caffeine và L2 Redis để danh bạ bác sĩ công khai cập nhật ngay lập tức.
-   - Ghi nhật ký kiểm toán vào bảng `audit_logs`:
-     `action: VET_DOCTOR_APPROVED, actor: admin_id, resource: doctor_profiles/{id}`.
-5. Hồ sơ bác sĩ lập tức hiển thị công khai trên `DoctorSearchPage` cho tất cả bệnh nhân tra cứu và đặt lịch.
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-COMM-06` |
+| **Use Case Name** | Email Verification Gate |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Newly registered user |
+| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — - User account marked `email_verified = true`.<br>- User is permitted to access full clinical features (booking, triage, consultation). |
+| **Trigger** | User clicks the activation link received upon account registration. |
+| **Pre-conditions** | Account created with `email_verified = false` (Flyway V22). |
+| **Post-conditions** | - User account marked `email_verified = true`.<br>- User is permitted to access full clinical features (booking, triage, consultation). |
+| **Normal Flow** | Step 1: Upon registration, backend generates verification token stored in `email_verification_tokens`.<br>Step 2: Backend dispatches HTML email containing activation link: `/verify-email?token={token}`.<br>Step 3: User clicks activation link in email client navigating to `/verify-email`.<br>Step 4: Frontend calls HTTP POST `/api/v1/auth/verify-email` with `VerifyEmailRequest(token)`.<br>Step 5: Backend verifies token validity, matches user, updates `users.email_verified = true`.<br>Step 6: Backend deletes consumed verification token.<br>Step 7: Backend returns HTTP 200 OK with `TokenValidationResponse`.<br>Step 8: Frontend renders success celebration screen with button to proceed to login. |
+| **Alternative Flow** | - Alt Flow 11a: Resend Verification Email:<br>1. User calls HTTP POST `/api/v1/auth/resend-verification`.<br>2. Backend enforces rate limiting (`RATE_LIMIT_EXCEEDED`), generates fresh token, and sends new email. |
+| **Exceptions** | - Exc Flow 12a: Invalid or Expired Token:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", "Liên kết xác thực email đã hết hạn.")`.<br>2. Frontend displays error message with option to request a fresh verification link. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-09: Unverified accounts cannot book clinical appointments or access medical records (`EmailVerificationGuard`). |
+| **Data Entities Involved** | - `users` (email_verified), `email_verification_tokens` (id, user_id, token, expires_at). |
+| **User Interface Controls** | - Activation banner, button `Kích Hoạt Tài Khoản`, `Gửi Lại Email`. |
 
----
 
-### UC-07: Quản Lý Hộ Chiếu Y Tế & Cổng Thông Tin Bệnh Nhân Đa Năng (Patient EMR Medical Passport & Portal)
 
-* **Mã Use Case:** `UC-PAT-07`
-* **Tác nhân chính:** Patient, Doctor, Admin.
-* **Mục tiêu:** Quản lý toàn bộ thông tin hành chính y tế chuẩn bệnh viện (Mã BN bệnh viện `BN-YYYY-XXXXX`, 12 số CCCD, thẻ BHYT 15 ký tự, nhóm máu, tiền sử dị ứng thuốc và người liên hệ khẩn cấp). Cung cấp giao diện 3 tab tổng hợp: (1) Lịch khám & EMR ngoại trú, (2) Lịch sử phân luồng AI (Triage Sessions & SBAR), (3) Danh mục tài liệu xét nghiệm đã số hóa.
-* **REST Endpoints:**
-  - `GET /api/v1/patient/profile`: Bệnh nhân tra cứu hồ sơ y tế cá nhân.
-  - `PUT /api/v1/patient/profile`: Cập nhật thông tin CCCD, BHYT, nhóm máu, dị ứng, bệnh sử nền.
-  - `GET /api/v1/patient/profile/by-user/{userId}`: Bác sĩ điều trị tra cứu hồ sơ bệnh nhân trước ca khám.
-  - `GET /api/v1/triage/history`: Bệnh nhân tra cứu toàn bộ lịch sử phân luồng AI và khuyến nghị SBAR.
-  - `GET /api/v1/documents/my`: Bệnh nhân tra cứu danh mục phiếu xét nghiệm đã lưu trữ và xác thực.
-
-#### Luồng sự kiện chính (Happy Path):
-1. Bệnh nhân đăng nhập vào hệ thống và truy cập `PatientDashboard`.
-2. Hệ thống hiển thị Thẻ Y Tế Chuẩn Bệnh Viện:
-   - Mã định danh bệnh viện: `BN-2026-08492`.
-   - Thẻ CCCD 12 số, Thẻ BHYT 15 số có hạn mức thanh toán bảo hiểm y tế.
-   - Nhóm máu (O+, A+, B+, AB+...).
-   - Banner Cảnh Báo Đỏ Dị Ứng (Ví dụ: `DỊ ỨNG PENICILLIN (Kháng sinh Beta-lactam) - NGUY CƠ SỐC PHẢN VỆ`).
-3. Giao diện 3 tab tổng hợp giúp bệnh nhân quản lý sức khỏe toàn diện:
-   - **Tab 1: Lịch Khám & EMR Ngoại Trú:** Xem các lịch hẹn đã đặt, số thứ tự STT khám, phòng khám chỉ định, xem chi tiết EMR bệnh án và toa thuốc điện tử kèm nút In Toa Thuốc. Hủy lịch khám qua modal xác nhận lý do hủy rõ ràng.
-   - **Tab 2: Lịch Sử Phân Luồng AI:** Xem danh sách các ca sàng lọc triệu chứng, phân tầng mức độ khẩn cấp (Cấp cứu / Khẩn cấp / Tiêu chuẩn / Tự chăm sóc), xem tóm tắt lâm sàng SBAR và khuyến nghị AI, cùng nút đặt khám bác sĩ chuyên khoa tương ứng.
-   - **Tab 3: Hồ Sơ Xét Nghiệm Đã Quét:** Xem danh mục tệp PDF/ảnh kết quả xét nghiệm đã bóc tách, dung lượng tệp, trạng thái xác thực y tế và nút mở lại phân tích.
-4. Bác sĩ khi khám bệnh cho bệnh nhân này có thể xem toàn bộ lịch sử bệnh án và các cảnh báo dị ứng thuốc.
+#### 2.3.2 Patient (Portal & Triage)
 
 ---
 
-### UC-08: Thực Hiện Khám Lâm Sàng, Ghi Nhận Sinh Hiệu, Chẩn Đoán ICD-10 & Kê Toa Thuốc Điện Tử (Clinical Encounter & e-Prescription)
+### 2.2 Phân Hệ Bệnh Nhân (Patient Subsystem - 18 Use Cases)
 
-* **Mã Use Case:** `UC-DOC-08`
-* **Tác nhân chính:** Doctor, Patient.
-* **Mục tiêu:** Bác sĩ điều trị tiếp nhận ca khám, nhập bảng chỉ số sinh hiệu (Huyết áp, Mạch, Thân nhiệt, Nhịp thở, SpO2, BMI), chẩn đoán theo mã bệnh danh quốc tế ICD-10 của WHO, kê đơn thuốc điện tử nhiều loại kèm liều dùng / hướng dẫn sử dụng, và dặn dò tái khám.
-* **REST Endpoints:**
-  - `POST /api/v1/appointments/{id}/complete-clinical`: Bác sĩ hoàn tất ca khám lâm sàng với payload `ClinicalEncounterRequest`.
+#### UC-PAT-01: Phân Luồng Triệu Chứng Bằng AI Đa Lượt & Xuất SBAR (Conversational AI Symptom Triage)
 
-#### Luồng sự kiện chính (Happy Path):
-1. Bác sĩ truy cập Bảng điều khiển lâm sàng `DoctorDashboard`.
-2. Tại danh sách lịch hẹn hôm nay, bác sĩ thấy số thứ tự khám `STT 08`, phòng khám `Phòng Khám 204`, và lý do vào viện của bệnh nhân.
-3. Bác sĩ bấm *"Bắt Đầu Khám"* (hoặc *"Tiếp tục khám"* nếu đang dang dở):
-   - Trạng thái cuộc hẹn lập tức chuyển đổi tự động sang `status = 'IN_PROGRESS'` qua `PATCH /api/v1/appointments/{id}/status`.
-   - Giao diện ghim banner cuộc gọi khám đang thực hiện (`Active Encounter`) lên đầu trang giúp bác sĩ không bao giờ mất dấu bệnh nhân.
-   - Mở Bàn Làm Việc Bác Sĩ (Clinical Workstation Modal):
-     - Nhập bảng sinh hiệu: Huyết áp (135/85 mmHg), Nhịp tim (78 bpm), Thân nhiệt (36.8°C), Nhịp thở (18 bpm), SpO2 (98%), Chiều cao (170cm), Cân nặng (68kg) $\rightarrow$ Hệ thống tự động tính BMI: $23.53\text{ kg/m}^2$ (Thể trạng bình thường).
-     - Chọn hoặc nhập mã bệnh danh quốc tế ICD-10 (Ví dụ: `I20.9 - Bệnh tim thiếu máu cục bộ nghẽn mạch vành`).
-     - Lập Toa thuốc điện tử đa dòng: Tên thuốc, dạng bào chế, hàm lượng, số lượng, cách dùng (sáng/trưa/chiều/tối, trước/sau ăn), và lưu ý y lệnh.
-     - Nhập Kế hoạch điều trị & Chọn ngày hẹn tái khám.
-4. Bác sĩ bấm *"Ký Số & Hoàn Tất Khám Lâm Sàng"*.
-5. Backend lưu trữ trạng thái `status = 'COMPLETED'`, cập nhật toàn bộ `vitalSignsJson`, `icd10Code`, `prescriptionJson`, và gửi kết quả về bệnh án điện tử của người bệnh.
-6. Cả bác sĩ và bệnh nhân đều có thể mở xem bản in Bệnh Án Điện Tử & Toa Thuốc Chuẩn Bệnh Viện (với nút *"In Bệnh Án & Toa Thuốc"* theo mẫu quy chuẩn Bộ Y Tế).
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `TriageController` $\rightarrow$ `POST /api/v1/triage/assess` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/triage, /` $\rightarrow$ Màn hình `SymptomTriagePage.tsx, LandingPage.tsx (Live Triage Simulator)`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `triage_sessions, specialties, doctor_profiles` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V15__add_triage_session_and_refund_to_appointments.sql, V19__optimize_clinical_pgvector_hnsw_and_hybrid_gin.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `TriageService, RedFlagService, ClinicalRagService, ClinicalOntologyService, TriageRateLimiterService` $\rightarrow$ `TriageSessionRepository, SpecialtyRepository, DoctorProfileRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `TriageServiceTest.java, RedFlagServiceTest.java` (**100% PASS**)
 
-#### Luồng ngoại lệ & Quản lý vắng mặt:
-- Nếu gọi số thứ tự quá 3 lần mà người bệnh không có mặt tại phòng khám, Bác sĩ bấm *"Vắng Mặt (NO_SHOW)"*.
-- Hệ thống xác nhận và chuyển trạng thái cuộc hẹn sang `NO_SHOW`, giải phóng phòng khám và cập nhật hàng đợi thời gian thực.
-
----
-
-### UC-09: Khởi Tạo & Di Trú Dữ Liệu Bệnh Viện Mẫu Bằng Flyway (Automated Database Migration & Hospital Seeding)
-
-* **Mã Use Case:** `UC-SYS-09`
-* **Tác nhân chính:** System (Flyway Database Migration Engine), Admin, Tech Lead.
-* **Mục tiêu:** Tự động hóa quá trình khởi tạo cấu trúc và nạp dữ liệu chuẩn bệnh viện (12 chuyên khoa, 12 bác sĩ tuyến trung ương, 630 ca khám, 5 hồ sơ bệnh nhân EMR, 8 ca khám lâm sàng thực thụ) ngay khi ứng dụng khởi động, loại bỏ hoàn toàn mã nguồn giả lập (mock data) và thao tác thủ công.
-* **Các bước di trú (Migration Execution):**
-  1. Khi Spring Boot khởi động, `FlywayAutoConfiguration` kích hoạt kết nối tới PostgreSQL `mediassist_db`.
-  2. Flyway kiểm tra bảng `flyway_schema_history`:
-     - Áp dụng `V1__initial_schema.sql`: Khởi tạo 12 bảng thực thể cốt lõi, extensions vector và các ràng buộc toàn vẹn.
-     - Áp dụng `V2__seed_rich_hospital_data.sql`: Nạp tập dữ liệu thực tế chuẩn bệnh viện tuyến trung ương (12 chuyên khoa, 12 chuyên gia y tế, 630 slots định kỳ, 5 hồ sơ EMR, 8 ca khám lâm sàng).
-  3. `DoctorSemanticSearchService` tự động sinh và nạp vector nhúng 1536 chiều vào cột `bio_embedding` cho toàn bộ bác sĩ.
-  4. Trạng thái di trú được ghi nhận thành công (`success = true`) trong bảng lịch sử kiểm soát phiên bản.
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-01` |
+| **Use Case Name** | Conversational AI Symptom Triage |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | Google Gemini 1.5 Flash Vision, OpenAI text-embedding-3-small |
+| **Description** | MediAssist-AI Clinical Triage Subsystem — - Symptom input processed by 5-Stage Defense Engine.<br>- AI generates structured SBAR clinical report (Situation, Background, Assessment, Recommendation).<br>- Clinical urgency level (`ROUTINE`, `URGENT`, `EMERGENCY`) and recommended specialty determined.<br>- Triage record persisted in `triage_sessions` table (Flyway V1, V15).<br>- Matching specialist doctors retrieved via pgvector semantic search. |
+| **Trigger** | Patient sends symptom description on `/patient/triage`. |
+| **Pre-conditions** | - Patient is authenticated (or accessing guest preview).<br>- AI Inference Gateway (Gemini 1.5 Flash / OpenRouter) is operational. |
+| **Post-conditions** | - Symptom input processed by 5-Stage Defense Engine.<br>- AI generates structured SBAR clinical report (Situation, Background, Assessment, Recommendation).<br>- Clinical urgency level (`ROUTINE`, `URGENT`, `EMERGENCY`) and recommended specialty determined.<br>- Triage record persisted in `triage_sessions` table (Flyway V1, V15).<br>- Matching specialist doctors retrieved via pgvector semantic search. |
+| **Normal Flow** | Step 1: Patient enters symptom query into chat box on `/patient/triage` (e.g., "Tôi bị sốt cao 39 độ, ho có đờm xanh và tức ngực 3 ngày nay").<br>Step 2: Frontend sends HTTP POST to `/api/v1/triage/assess` with `TriageRequest(symptoms, conversationHistory, age, gender)`.<br>Step 3: Backend passes input through `ClinicalQueryDefenseEngine` (UC-PAT-02).<br>Step 4: System verifies non-emergency clinical symptom description.<br>Step 5: Backend constructs clinical prompt with SBAR format directives and clinical safety boundaries:<br>- Prohibit definitive diagnosis and medication prescriptions.<br>- Instruct model to suggest clarifying questions if clinical details are ambiguous.<br>Step 6: Backend dispatches prompt to Google Gemini 1.5 Flash API (Priority 1) or OpenRouter (Priority 2).<br>Step 7: AI inference returns structured `ClinicalAiResult` containing:<br>- `sbarSummary`: Situation, Background, Assessment, Recommendation.<br>- `urgencyLevel`: `ROUTINE` or `URGENT`.<br>- `recommendedSpecialtyId`: UUID of matched medical specialty.<br>- `clarifyingQuestions`: 1-2 follow-up questions to refine presentation.<br>Step 8: Backend calls `DoctorSemanticSearchService` to match top 3 specialist doctors for the recommended specialty.<br>Step 9: Backend saves session record into `triage_sessions` table (`sbar_summary`, `urgency_level`, `recommended_specialty_id`).<br>Step 10: Backend returns HTTP 200 OK with `TriageResponse` DTO.<br>Step 11: Frontend renders conversational response bubble, SBAR assessment card, and matched specialist doctor cards. |
+| **Alternative Flow** | - Alt Flow 11a: Acute Red-Flag Emergency Detected:<br>1. Defense Engine flags acute emergency condition (FAST stroke, acute myocardial infarction, severe anaphylaxis).<br>2. Normal flow interrupted immediately (Divert to UC-PAT-02 Alt Flow 10a).<br>- Alt Flow 11b: AI Gateway Overloaded / Rate Limited:<br>1. Gemini API throws `AiProviderOverloadedException` (HTTP 429).<br>2. Router falls back to OpenRouter pool or `DeterministicFallbackAiProvider` (local keyword heuristics). |
+| **Exceptions** | - Exc Flow 12a: Empty or Too Short Input:<br>1. Symptoms text is under 3 characters.<br>2. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INPUT_TOO_SHORT", "Vui lòng mô tả triệu chứng cụ thể hơn (tối thiểu 3 ký tự).")`.<br>- Exc Flow 12b: Input Exceeds Maximum Length:<br>1. Symptoms text exceeds 2,000 characters.<br>2. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INPUT_TOO_LONG", "Mô tả triệu chứng không được vượt quá 2000 ký tự.")`. |
+| **Priority** | High (P0 - Core Differentiator) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-10: Medical disclaimer mandatory: "Kết quả sàng lọc mang tính chất tham khảo, không thay thế chẩn đoán y khoa chính thức từ bác sĩ."<br>- BR-11: Triage rate limited to prevent API abuse (`TriageRateLimiterService`). |
+| **Data Entities Involved** | - `triage_sessions` (id, user_id, chief_complaint, raw_symptoms, sbar_summary, urgency_level, recommended_specialty_id, created_at). |
+| **User Interface Controls** | - Chat message stream, symptom text input, quick symptom chips, SBAR summary card, matched doctor cards. |
 
 ---
 
-### UC-10: Bảo Mật Zero-Trust, Phòng Thủ Brute-Force, Rate Limiting & Khử Định Danh PII Y Tế (Zero-Trust Security, Anti-Brute Force & Medical PII De-identification)
+#### UC-PAT-02: Hệ Thống Phòng Thủ Lâm Sàng 5 Cấp Độ (5-Stage Clinical Query Defense Screening)
 
-* **Mã Use Case:** `UC-SEC-10`
-* **Tác nhân chính:** Attacker/Botnet, Valid User, SecurityRateLimiterService, MedicalPiiService, AuthService, PostgreSQL.
-* **Mục tiêu:** Bảo vệ nền tảng y tế khỏi các cuộc tấn công Brute-force vét cạn mật khẩu, xâm nhập trái phép, DoS/DDoS làm sập hệ thống hoặc làm cạn kiệt chi phí API LLM; đồng thời tuân thủ tuyệt đối quy định bảo vệ dữ liệu cá nhân nhạy cảm y tế.
-* **Quy tắc bảo mật & Tuân thủ pháp lý bắt buộc:**
-  1. **Zero-Trust Login-First:** Toàn bộ API nghiệp vụ lâm sàng (`/api/v1/triage/**`, `/api/v1/documents/**`, `/api/v1/appointments/**`) bắt buộc phải có JWT Token hợp lệ. Mọi truy cập ẩn danh (Guest) bị từ chối ngay lập tức với `HTTP 401 Unauthorized`.
-  2. **Phòng thủ Brute-force & Khóa tài khoản:** Khi một tài khoản bị nhập sai mật khẩu 5 lần liên tiếp, hệ thống tự động khóa tài khoản trong 15 phút (`HTTP 423 Locked`), ghi cảnh báo bảo mật và ngăn chặn mọi nỗ lực đăng nhập tiếp theo kể cả khi kẻ tấn công xoay địa chỉ IP (Distributed Botnet Defense).
-  3. **Kiểm soát tần suất IP phân tán (Redis Rate Limiting):**
-     - Đăng nhập: Tối đa 5 lượt/phút trên mỗi địa chỉ IP (`HTTP 429 Too Many Requests`).
-     - Phân luồng triệu chứng: Tối đa 10 lượt/phút trên mỗi người dùng.
-     - Tải tệp xét nghiệm: Tối đa 5 tệp/phút trên mỗi người dùng (kích thước $\le 10\text{MB}$).
-  4. **Security Headers Chuẩn OWASP:** `X-Frame-Options: DENY` (chống Clickjacking), `X-Content-Type-Options: nosniff` (chống MIME-sniffing), `X-XSS-Protection`.
-  5. **Khử Định Danh PII Y Tế (Nghị định 13/2023/NĐ-CP & HIPAA Safe Harbor 45 CFR § 164.514):**
-     - Endpoint: `POST /api/v1/pii/deidentify` (hỗ trợ kiểm thử và gán nhãn nghiên cứu chuẩn `Meddies/meddies-pii`).
-     - Nhận diện và che giấu 6 nhóm thực thể: Tên (`[BỆNH_NHÂN_N]`), CCCD/CMND/BHYT/SID (`[SỐ_ĐỊNH_DANH_N]`), SĐT (`[SĐT_N]`), Địa chỉ (`[ĐỊA_CHỈ_N]`), Ngày sinh (`[NGÀY_SINH_N]`), Email (`[EMAIL_N]`).
-     - Tự động hoàn nguyên danh tính (`unmaskPii`) sau khi nhận kết quả từ LLM đám mây, bảo đảm Zero Cloud Data Leakage.
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `TriageController, MedicalDocumentController` $\rightarrow$ `POST /api/v1/triage/assess (Interception Layer)` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/triage` $\rightarrow$ Màn hình `SymptomTriagePage.tsx, ClinicalDefenseBar.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `specialties` $\rightarrow$ Bản di trú `V1__initial_schema.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `ClinicalQueryDefenseEngine, RedFlagService` $\rightarrow$ `SpecialtyRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `ClinicalQueryDefenseEngineTest.java, RedFlagServiceTest.java` (**100% PASS**)
 
----
-
-### UC-11: Kế Hoạch & Kiến Trúc Thu Phí Dịch Vụ Y Tế, Hạn Ngạch Quét & Quản Trị Quota (Commercial Monetization & Quota Enforcement Architecture)
-
-* **Mã Use Case:** `UC-BIZ-11`
-* **Tác nhân chính:** Patient, Doctor, Platform Admin, Payment Gateway (VietQR / Stripe Sandbox).
-* **Mục tiêu:** Định hình mô hình doanh thu bền vững cho nền tảng MediAssist-AI, quản lý hạn ngạch dịch vụ AI và điều phối giao dịch thanh toán khám chữa bệnh trực tuyến chuẩn Doanh Nghiệp.
-* **REST Endpoints Liên Quan:**
-  - `GET /api/v1/documents/quota`: Lấy thông tin hạn ngạch quét còn lại và trạng thái gói cước VIP.
-* **Mô hình kinh doanh & Cơ cấu phí (Milestone 6 Baseline):**
-  1. **Gói Hội Viên MediPass VIP Family (149.000đ/tháng hoặc 1.290.000đ/năm):**
-     - Phân luồng Triage AI 24/7 không giới hạn số lượt.
-     - 10 lượt phân tích OCR chuyên sâu hồ sơ xét nghiệm mỗi tháng.
-     - Giảm 10% phí khám trực tuyến với tất cả Bác sĩ chuyên khoa đầu ngành.
-     - Lưu trữ hồ sơ bệnh án điện tử EMR mã hóa đám mây trọn đời cho cả gia đình (tối đa 4 thành viên).
-  2. **Phí Khám Trực Tuyến Chuyên Khoa (Telehealth Consultation Fee):**
-     - Mức phí: 250.000đ - 450.000đ / phiên khám 30 phút (tùy học hàm/học vị GS, PGS, CKII).
-     - Mô hình chia sẻ doanh thu: Bác sĩ nhận **85%**, Nền tảng MediAssist-AI giữ **15%** (phí vận hành hạ tầng, bảo mật và trợ lý AI).
-     - Cơ chế Ký quỹ An toàn (Escrow Mechanism): Tiền được giữ tạm thời tại tài khoản Escrow khi bệnh nhân đặt lịch và chỉ giải ngân cho bác sĩ khi ca khám hoàn tất (`COMPLETED`). Hoàn tiền 100% nếu phiên khám bị bác sĩ hủy vì lý do đột xuất.
-  3. **Hạn Ngạch Phân Tích OCR Báo Cáo Xét Nghiệm (Pay-as-you-go Quota):**
-     - Lần đầu tiên: Miễn phí 1 lần dùng thử cho mọi tài khoản mới đăng ký.
-     - Lần scan lẻ: 29.000đ / lượt phân tích tệp PDF.
-     - Gói tiết kiệm: 99.000đ / 5 lượt phân tích (tiết kiệm 32%, hạn dùng 12 tháng).
-     - **Chính sách Deduplication Vĩnh Viễn:** Tải lại tài liệu đã phân tích hoàn toàn miễn phí trọn đời (0đ, 0 token nhờ SHA-256 cache).
-
-
-
-### UC-12: Điều Phối RAG Lâm Sàng & Xoay Tua Đa Mô Hình AI Ngăn Ngừa Nghẽn Token (Clinical RAG & Multi-LLM Rotation Gateway)
-
-* **Mã Use Case:** `UC-AI-12`
-* **Tác nhân chính:** Patient, `AiModelRouter`, `OpenRouterAiProvider`, `DeterministicFallbackAiProvider`, `ClinicalRagService`.
-* **Mục tiêu:** Cung cấp hạ tầng suy luận lâm sàng kết hợp RAG (Retrieval-Augmented Generation) thông minh, tận dụng OpenRouter Free Gateway (`google/gemini-2.0-flash-exp:free`, `meta-llama/llama-3.3-70b-instruct:free`, `deepseek/deepseek-r1:free`), tự động xoay tua mô hình khi nhận mã lỗi `HTTP 429 Too Many Requests` và kích hoạt Fallback an toàn về động cơ phân tích quy tắc cục bộ (0ms latency, 0đ chi phí), bảo đảm tính sẵn sàng 99.9% cho hệ thống y tế.
-* **REST Endpoints Liên Quan:**
-  - `POST /api/v1/triage/assess`: Kích hoạt RAG Triage kết hợp phân tích SBAR và khuyến nghị Bác sĩ ưu tiên.
-  - `POST /api/v1/documents/analyze`: Kích hoạt RAG Phân tích xét nghiệm kết hợp đối chiếu chỉ số và giải thích ngôn ngữ bình dân.
-* **Quy Trình Xoay Tua (Rotation Algorithm):**
-  1. Hệ thống nạp danh sách mô hình từ cấu hình `app.ai.openrouter.models`.
-  2. Lần lượt thử nghiệm từng mô hình trong pool qua API OpenRouter.
-  3. Nếu mô hình trả về mã lỗi `HTTP 429` (Rate Limit) hoặc `HTTP 503` (Overloaded), ghi nhận cảnh báo cảnh giới và lập tức chuyển tiếp payload sang mô hình kế tiếp.
-  4. Nếu toàn bộ mô hình trên đám mây đều quá tải hoặc mất mạng internet: Hệ thống kích hoạt `DeterministicFallbackAiProvider` để sinh kết quả lâm sàng chuẩn xác, đảm bảo trải nghiệm người bệnh không bao giờ bị gián đoạn hoặc gặp màn hình lỗi.
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-02` |
+| **Use Case Name** | 5-Stage Clinical Query Defense Screening |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient (System Interceptor) |
+| **Secondary Actor** | Google Gemini 1.5 Flash Vision, OpenAI text-embedding-3-small |
+| **Description** | MediAssist-AI Clinical Query Defense Engine — - Query sanitized, normalized, and categorized, OR intercepted with emergency lockout / administrative redirect. |
+| **Trigger** | Invoked automatically on every natural language symptom query. |
+| **Pre-conditions** | Raw text received by `TriageController` or `DoctorSemanticSearchService`. |
+| **Post-conditions** | - Query sanitized, normalized, and categorized, OR intercepted with emergency lockout / administrative redirect. |
+| **Normal Flow** | Step 1: Input text passes to `ClinicalQueryDefenseEngine.process(rawInput)`.<br>Step 2: Stage 1 — Acute Red-Flag Emergency Interception:<br>Engine checks input against regex patterns for acute emergencies:<br>- Đột quỵ não (FAST): "méo miệng", "liệt nửa người", "nói ngọng", "mờ mắt đột ngột".<br>- Nhồi máu cơ tim: "đau thắt ngực lan ra cánh tay trái", "vã mồ hôi lạnh", "khó thở dữ dội".<br>- Sốc phản vệ / Cấp cứu: "khó thở sau dùng thuốc", "sưng phù môi họng", "nôn ra máu tươi".<br>If match found -> Divert to Alternative Flow 10a.<br>Step 3: Stage 2 — Vietnamese Slang & Teen-Code Normalization:<br>Engine converts informal phrasing into medical terminology:<br>- `ko`, `k`, `khg` -> `không`<br>- `bs`, `bsi` -> `bác sĩ`<br>- `dau da day` -> `đau dạ dày`<br>- `met` -> `mệt mỏi`<br>- `sot cao` -> `sốt cao`<br>Step 4: Stage 3 — Vietnamese NegEx Clause-Level Negation Splitting:<br>Engine identifies negation trigger terms: `không bị`, `chưa từng`, `không có`, `không sốt`.<br>Input is split into Affirmative Clause and Negated Clause.<br>Negated symptoms (e.g., "không sốt") are quarantined to prevent false routing to infectious disease doctors.<br>Step 5: Stage 4 — Out-of-Domain (OOD) Intent Gating:<br>Engine checks if query is administrative or greeting chatter (viện phí, giờ khám, bảo hiểm).<br>If OOD found -> Divert to Alternative Flow 10b.<br>Step 6: Stage 5 — Compound Multi-Symptom Decomposition:<br>Engine splits multi-symptom conjunctions (`đồng thời`, `kèm theo`, `và`) into sub-queries.<br>Step 7: Engine outputs sanitized string and affirmative clause for downstream embedding generation. |
+| **Alternative Flow** | - Alt Flow 10a: Emergency Red-Flag Interception:<br>1. Engine sets `isEmergency = true`, `urgency = EMERGENCY`.<br>2. Engine attaches emergency response banner:<br>"CẢNH BÁO NGUY HIỂM: Triệu chứng của bạn có dấu hiệu cấp cứu y khoa đe dọa tính mạng! Vui lòng gọi ngay Cấp cứu 115 hoặc đến khoa Cấp cứu bệnh viện gần nhất!"<br>3. Booking controls locked; 115 call hotline button highlighted in red.<br>- Alt Flow 10b: Out-of-Domain Administrative Gating:<br>1. Engine identifies administrative query.<br>2. Returns guidance text directing user to hospital customer service hotline (1900-xxxx). |
+| **Exceptions** | None. |
+| **Priority** | High (P0 - Patient Safety Critical) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-12: Red-flag check must run in-memory synchronously with zero external network dependencies. |
+| **Data Entities Involved** | None (pure computational in-memory defense engine). |
+| **User Interface Controls** | Red Emergency Alert Banner, 115 Call Button. |
 
 ---
 
-### UC-13: Quản Trị Tài Khoản Người Dùng & Danh Mục Chuyên Khoa Lâm Sàng (Admin RBAC & Specialty Management)
+#### UC-PAT-03: Tìm Kiếm Bác Sĩ Bằng Vector Tương Đồng & Xếp Hạng WHRF (Semantic Doctor Search via pgvector HNSW)
 
-* **Mã Use Case:** `UC-ADM-13`
-* **Tác nhân chính:** System Administrator, PostgreSQL Database, AuditLogRepository.
-* **Mục tiêu:** Cho phép Quản trị viên kiểm soát toàn diện trạng thái tài khoản người dùng theo mô hình RBAC và mở rộng danh mục chuyên khoa phục vụ AI Triage và ghép bác sĩ pgvector.
-* **REST Endpoints Liên Quan:**
-  - `GET /api/v1/admin/users`: Danh sách toàn bộ tài khoản trong hệ thống.
-  - `PATCH /api/v1/admin/users/{id}/status`: Cập nhật trạng thái người dùng (`ACTIVE` <-> `SUSPENDED`) kèm lý do và ghi nhận Audit Log.
-  - `POST /api/v1/admin/specialties`: Thêm mới chuyên khoa lâm sàng (`name`, `slug`, `description`) kèm kiểm tra trùng lặp slug và ghi nhận Audit Log.
-* **Quy Trình Hoạt Động:**
-  1. Quản trị viên truy cập `/admin/users`, chọn người dùng cần khóa/mở khóa.
-  2. Hệ thống mở Modal xác nhận, yêu cầu nhập lý do điều chỉnh để lưu vết kiểm toán pháp lý y tế.
-  3. Khi gửi yêu cầu, backend cập nhật cột `status` trong bảng `users` và ghi một bản ghi mới vào bảng `audit_logs` với `admin_id`.
-  4. Quản trị viên truy cập `/admin/specialties`, nhấn "Thêm Chuyên Khoa", nhập tên chuyên khoa. Hệ thống tự động sinh `slug` chuẩn hóa (loại bỏ dấu tiếng Việt, ký tự đặc biệt).
-  5. Sau khi lưu, chuyên khoa mới lập tức sẵn sàng để các Bác sĩ đăng ký và AI Triage phân luồng.
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `TriageController, DoctorController` $\rightarrow$ `GET /api/v1/triage/search/semantic, GET /api/v1/doctors` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/doctors` $\rightarrow$ Màn hình `DoctorSearchPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles, doctor_specialties, specialties, users` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V10__optimize_doctor_hnsw_index.sql, V11__add_composite_performance_indexes.sql, V19__optimize_clinical_pgvector_hnsw_and_hybrid_gin.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorSemanticSearchService, EmbeddingService, DoctorService, TwoLayerCacheService` $\rightarrow$ `DoctorProfileRepository, SpecialtyRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorSemanticSearchServiceTest.java, EmbeddingServiceTest.java, DoctorServiceTest.java, TwoLayerCacheServiceTest.java` (**100% PASS**)
 
----
-
-### UC-14: Thanh Toán Sandbox VietQR & Nạp Quota / Kích Hoạt Hội Viên VIP Tức Thì (Sandbox Payment Gateway & Instant Quota Fulfillment)
-
-* **Mã Use Case:** `UC-PAY-14`
-* **Tác nhân chính:** Patient, Payment Gateway Simulator (VietQR Pro / VNPAY / MoMo), MedicalDocumentAnalysisService, PostgreSQL.
-* **Mục tiêu:** Cung cấp trải nghiệm nạp hạn ngạch quét tài liệu y tế và nâng cấp gói VIP mượt mà, trực quan với mã QR ngân hàng NAPAS 247 và cơ chế xác thực thanh toán Sandbox tức thì (0đ tiền thật).
-* **REST Endpoints Liên Quan:**
-  - `GET /api/v1/documents/quota`: Kiểm tra số lượt quét còn lại, gói hội viên (`subscriptionTier`), hạn sử dụng VIP (`vipValidUntil`) và quyền được quét (`hasQuota`).
-  - `POST /api/v1/documents/quota/purchase`: Gửi yêu cầu thanh toán gói dịch vụ (`BASIC_5`, `VIP_MONTHLY`, `VIP_ENTERPRISE`) và phương thức thanh toán (`VIETQR`, `VNPAY`, `MOMO`).
-* **Quy Trình Nghiệp Vụ:**
-  1. Bệnh nhân bấm nút chọn gói (Gói Lẻ 29k, Gói Tiết Kiệm 99k, Gói VIP Gia Đình 149k) trên trang Quét Hồ Sơ.
-  2. Giao diện mở Modal Thanh Toán với mã VietQR mô phỏng (Ngân hàng MB Bank, STK 999988886666, Chủ tài khoản BENH VIEN DIEN TU MEDIASSIST) cùng nội dung chuyển khoản tự động gắn email bệnh nhân.
-  3. Bệnh nhân nhấn "Xác Nhận Đã Chuyển Khoản (Sandbox Auto-Verify)".
-  4. Backend xử lý cộng ngay hạn ngạch (ví dụ: +5 lượt quét cho gói `BASIC_5`, hoặc kích hoạt 30 ngày VIP cho gói `VIP_MONTHLY`) và cập nhật cơ sở dữ liệu `users`.
-  5. Giao diện frontend cập nhật trực tiếp huy hiệu VIP / số lượt quét trên thanh trạng thái mà không cần tải lại trang.
-* **Ngoại lệ (WORK_LOG #083):** bệnh nhân chưa xác thực email gọi `POST /payments/checkout` hoặc `POST /documents/quota/purchase` → 403 `EMAIL_NOT_VERIFIED`; không tạo giao dịch, quota/VIP không đổi. Nút thanh toán trong DocumentSummarizerPage bị vô hiệu hóa kèm tooltip.
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-03` |
+| **Use Case Name** | Semantic Doctor Search via pgvector HNSW |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | Google Gemini 1.5 Flash Vision, OpenAI text-embedding-3-small |
+| **Description** | MediAssist-AI Vector Search Subsystem — - System executes session-tuned vector similarity query.<br>- Candidates re-ranked using Weighted Hybrid Re-Ranking Formula (WHRF) in a bounded min-heap.<br>- Ranked list of qualified specialist doctors returned with match compatibility scores. |
+| **Trigger** | Patient enters symptoms into search bar on `/patient/doctors`. |
+| **Pre-conditions** | - Verified doctor profiles have pre-computed 1536-d embeddings in `doctor_profiles.bio_embedding`.<br>- PostgreSQL 16 HNSW index `idx_doctor_bio_hnsw_verified` is active (Flyway V11). |
+| **Post-conditions** | - System executes session-tuned vector similarity query.<br>- Candidates re-ranked using Weighted Hybrid Re-Ranking Formula (WHRF) in a bounded min-heap.<br>- Ranked list of qualified specialist doctors returned with match compatibility scores. |
+| **Normal Flow** | Step 1: Patient types symptoms on `/patient/doctors` (e.g., "đau dạ dày ợ chua trào ngược").<br>Step 2: Frontend dispatches HTTP GET to `/api/v1/triage/search/semantic?query=...&limit=5`.<br>Step 3: Backend passes query through `ClinicalQueryDefenseEngine`.<br>Step 4: Backend calls `EmbeddingService` to compute 1536-d dense vector using `openai/text-embedding-3-small`.<br>Step 5: Backend applies PostgreSQL session tuning:<br>- `SET LOCAL hnsw.ef_search = 120;`<br>- `SET LOCAL enable_seqscan = off;`<br>- `SET LOCAL work_mem = '64MB';`<br>Step 6: Backend executes vector similarity query against `doctor_profiles`:<br>`SELECT d.*, 1 - (d.bio_embedding <=> :queryEmbedding) AS cosine_sim FROM doctor_profiles d WHERE d.is_verified = true ...`<br>Step 7: Candidates processed through Bounded Min-Heap executing WHRF Re-ranking:<br>- Sigmoid Contrastive Sharpening: $S_{dense} = \frac{1}{1 + e^{-8.0(cosine\_sim - 0.65)}}$<br>- Sparse lexical overlap bonus<br>- Specialty Match Boost: $+0.12$<br>- Divergence Penalty: $-0.10$<br>- Credibility Damper: $\log_{10}(\text{review\_count} + 1) / \log_{10}(100)$<br>Step 8: Top $K=5$ doctors serialized into `DoctorMatchDto` list.<br>Step 9: Frontend renders doctor cards with match percentage, specialty badge, rating, fee, and available slots. |
+| **Alternative Flow** | - Alt Flow 11a: Embedding Service Offline:<br>1. Backend falls back to local Unsupervised Feature Hashing (Character N-gram FNV-1a).<br>2. Search completes with degraded semantic precision. |
+| **Exceptions** | None. |
+| **Priority** | High (P0 - Core Differentiator) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-13: Only verified doctors (`is_verified = true`) are visible in search results. |
+| **Data Entities Involved** | - `doctor_profiles` (id, user_id, specialty_id, bio_embedding, rating_avg, review_count, consultation_fee, is_verified).<br>- `specialties`. |
+| **User Interface Controls** | - Search input, Specialty filter, Price filter, Doctor card list, "Đặt Lịch Khám" button. |
 
 ---
 
-### UC-15: Quản Lý Toàn Diện Đội Ngũ Bác Sĩ & Đồng Bộ AI Vector Matching (Admin Doctor Management & AI Vector Sync)
+#### UC-PAT-04: Xem Chi Tiết Bác Sĩ, Chứng Chỉ CCHN & Khung Giờ Khám (View Doctor Details & Available Slots)
 
-* **Mã Use Case:** `UC-ADM-15`
-* **Tác nhân chính:** System Administrator, Doctor, PostgreSQL `pgvector`, `DoctorSemanticSearchService`, `AdminVettingService`.
-* **Mục tiêu:** Cung cấp cho Quản trị viên cổng quản lý chuyên sâu đội ngũ bác sĩ trong hệ thống MediAssist-AI: Theo dõi hồ sơ lâm sàng, duyệt chứng chỉ CCHN, thêm mới bác sĩ trực tiếp, điều chỉnh học hàm / bệnh viện / phí tư vấn / chuyên khoa, khóa/mở khóa tài khoản, và đồng bộ vector embedding 1536 chiều vào PostgreSQL `pgvector` phục vụ thuật toán AI Doctor Recommendation.
-* **REST Endpoints Liên Quan:**
-  - `GET /api/v1/admin/doctors`: Lấy toàn bộ danh sách bác sĩ kèm trạng thái tài khoản (`userStatus`), rating, lượt khám, và chuyên khoa.
-  - `POST /api/v1/admin/doctors`: Thêm mới bác sĩ (tạo tài khoản `User` role `DOCTOR`, tạo `DoctorProfile`, gán chuyên khoa, tự động tính vector embedding, ghi Audit Log).
-  - `PUT /api/v1/admin/doctors/{id}`: Chỉnh sửa thông tin lâm sàng, học hàm, bệnh viện, khoa phòng, CCHN, giá khám, năm kinh nghiệm, bio và cập nhật vector.
-  - `PATCH /api/v1/admin/doctors/{id}/toggle-status`: Khóa hoặc kích hoạt lại tài khoản bác sĩ (`ACTIVE` <-> `SUSPENDED`).
-  - `POST /api/v1/admin/doctors/{id}/sync-vector`: Đồng bộ lại vector embedding cho 1 bác sĩ cụ thể.
-  - `POST /api/v1/admin/doctors/sync-vectors`: Đồng bộ hàng loạt vector embedding cho toàn bộ bác sĩ.
-  - `GET /api/v1/admin/doctors/pending`: Danh sách bác sĩ đang chờ thẩm định CCHN.
-  - `POST /api/v1/admin/doctors/{id}/vet`: Phê duyệt hoặc từ chối hồ sơ bác sĩ kèm lý do.
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. Quản trị viên truy cập `/admin/doctors` (menu *"Quản lý Bác Sĩ"*).
-  2. Giao diện hiển thị các thẻ thống kê tổng quan: Tổng số bác sĩ, Bác sĩ hoạt động, Chờ duyệt CCHN, Tạm khóa.
-  3. **Tab 1 - Tất cả Bác sĩ:**
-     - Tìm kiếm nhanh đa tiêu chí (tên, email, CCHN, bệnh viện, chuyên khoa).
-     - Lọc theo chuyên khoa và trạng thái tài khoản.
-     - Bảng danh sách chi tiết kèm các nút thao tác: Xem hồ sơ, Sửa thông tin, Khóa/Mở khóa tài khoản, Đồng bộ AI Vector.
-     - Nút *"Thêm Bác Sĩ Mới"* mở Modal tạo tài khoản và hồ sơ lâm sàng nhanh chóng.
-     - Nút *"Đồng bộ AI Vector Toàn Bộ"* kích hoạt tính toán lại embedding 1536 chiều cho toàn bộ bác sĩ.
-  4. **Tab 2 - Duyệt hồ sơ (Vetting):**
-     - Giữ nguyên quy trình thẩm định CCHN với Bộ Y Tế, nút Phê duyệt (Approve) và nút Từ chối (Reject) kèm lý do giải trình.
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `GET /api/v1/doctors/{id}, GET /api/v1/doctors/{id}/slots` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/doctors` $\rightarrow$ Màn hình `DoctorSearchPage.tsx, SlotPicker.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles, doctor_schedule_slots, specialties` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V2__seed_rich_hospital_data.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService, TwoLayerCacheService` $\rightarrow$ `DoctorProfileRepository, DoctorScheduleSlotRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java` (**100% PASS**)
 
----
-
-### UC-16: Phân Trang Offset Toàn Diện & Tích Hợp Supabase Dual-Tier (Enterprise Offset Pagination & Dual-Tier Supabase Integration)
-
-* **Mã Use Case:** `UC-SYS-16`
-* **Tác nhân chính:** Patient, Doctor, System Administrator, Spring Boot API, Supabase Cloud Storage & PostgreSQL.
-* **Mục tiêu:** Triệt tiêu hoàn toàn hiện tượng nghẽn luồng DOM hoặc sập tab trình duyệt khi kết xuất các tập dữ liệu lớn thông qua cơ chế Phân trang Offset (Limit / Offset Pagination) chuẩn mực, đồng thời duy trì kiến trúc lưu trữ Cloud kép (Supabase Storage + Local Disk Fallback).
-* **REST Endpoints Liên Quan:**
-  - `GET /api/v1/admin/doctors/paged?page=0&size=10&search=...&specialty=...&status=...`: Trả về `PageResponse<DoctorDetailDto>` gồm `items`, `page`, `size`, `totalElements`, `totalPages`, `hasNext`, `hasPrevious`.
-  - `GET /api/v1/admin/doctors`: Duy trì tương thích ngược trả về danh sách đầy đủ.
-  - `GET /api/v1/appointments/my`: Lấy danh sách lịch hẹn và phân trang offset tại tầng giao diện.
-  - `GET /api/v1/documents/my`: Lấy danh mục hồ sơ xét nghiệm và phân trang offset tại tầng giao diện.
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. Người dùng mở bất kỳ màn hình danh sách nào (`DoctorManagementPage`, `UserManagementPage`, `SpecialtyManagementPage`, `PatientDashboard`, `DoctorDashboard`, `DoctorSearchPage`).
-  2. Bảng chỉ kết xuất đúng số lượng bản ghi theo kích thước trang (`pageSize`: 5, 10, 20, 50), tiết kiệm 80% bộ nhớ DOM.
-  3. Thanh điều hướng phân trang hiển thị rõ ràng:
-     - Số thứ tự bản ghi: *"Hiển thị X - Y trong tổng số Z kết quả"*.
-     - Ô chọn kích thước trang tùy biến.
-     - Các nút chuyển trang `<<`, `<`, `1 ... 4 5 6 ... 20`, `>`, `>>`.
-  4. Khi người dùng nhập từ khóa tìm kiếm hoặc đổi bộ lọc, hệ thống tự động đưa trang hiện tại về `page = 1`.
-  5. Tệp và ảnh xét nghiệm tải lên được đẩy trực tiếp lên bucket `medical-documents` trên Supabase Cloud Storage nếu được bật, hoặc lưu dự phòng vào đĩa nội bộ nếu mạng gián đoạn, bảo đảm 0% downtime.
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-04` |
+| **Use Case Name** | View Doctor Details & Available Slots |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Doctor Directory Subsystem — Doctor bio, credentials, CCHN number, and 30-min consultation slots rendered. |
+| **Trigger** | Patient selects doctor card to view schedule and credentials. |
+| **Pre-conditions** | Doctor account exists and is verified. |
+| **Post-conditions** | Doctor bio, credentials, CCHN number, and 30-min consultation slots rendered. |
+| **Normal Flow** | Step 1: Patient clicks doctor card on `/patient/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/doctors/{id}` to fetch `DoctorDetailDto`.<br>Step 3: Frontend calls HTTP GET `/api/v1/doctors/{id}/slots?date=YYYY-MM-DD` to fetch available slots.<br>Step 4: Backend retrieves `doctor_schedule_slots` and filters out existing bookings from `appointments`.<br>Step 5: Backend returns list of `DoctorSlotDto` (startTime, endTime, isAvailable).<br>Step 6: Frontend renders doctor profile header, CCHN license badge, bio, fee, and slot grid. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Doctor Not Found:<br>1. Backend throws HTTP 404 Not Found. |
+| **Priority** | Medium (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-14: Doctor practice certificate number (CCHN) must be publicly displayed. |
+| **Data Entities Involved** | `doctor_profiles`, `doctor_schedule_slots`, `appointments`. |
+| **User Interface Controls** | Date picker, 30-minute slot chips, "Đặt Lịch" action button. |
 
 ---
 
-### UC-17: Giám Sát Vận Hành Toàn Viện, Lịch Khám Lâm Sàng, An Toàn Triage AI & Nhật Ký Kiểm Toán (Admin Enterprise Supervision & Audit Hub)
+#### UC-PAT-05: Tải Lên Hồ Sơ Cận Lâm Sàng & Phân Tích OCR Đa Phương Thức (Upload Medical Document & Vision OCR)
 
-* **Mã Use Case:** `UC-ADM-17`
-* **Tác nhân chính:** System Administrator, Spring Boot API, AuditLogRepository, AppointmentRepository, TriageSessionRepository.
-* **Mục tiêu:** Cung cấp cho Quản trị viên (Admin) một trung tâm chỉ huy vận hành và giám sát lâm sàng tối cao theo chuẩn doanh nghiệp và y tế số:
-  1. Giám sát thời gian thực các chỉ số KPIs vận hành toàn viện qua Dashboard chuyên sâu.
-  2. Thanh tra toàn bộ các cuộc hẹn khám bệnh giữa Bác sĩ và Bệnh nhân, đối soát chẩn đoán ICD-10 và can thiệp hủy lịch khẩn cấp khi có sự cố.
-  3. Giám sát an toàn lâm sàng của các phiên phân luồng triệu chứng AI Triage, phát hiện sớm các ca cảnh báo đỏ cấp cứu (`EMERGENCY`).
-  4. Truy vết toàn bộ hành vi nhạy cảm trong hệ thống thông qua Nhật ký Kiểm toán (System Audit Trail) tuân thủ tiêu chuẩn bảo mật y tế HIPAA và Nghị định 13/2023/NĐ-CP.
-* **REST Endpoints Liên Quan:**
-  - `GET /api/v1/admin/stats`: Trả về `AdminSystemStatsDto` tổng hợp số lượng Người dùng, Bác sĩ, Bệnh nhân, Lịch khám, Hồ sơ EMR, Phiên Triage, Sức khỏe hạ tầng DB/Redis/Thread Pool và 10 hoạt động gần nhất.
-  - `GET /api/v1/admin/appointments`: Lấy toàn bộ danh sách cuộc hẹn khám bệnh toàn viện kèm thông tin Bác sĩ, Bệnh nhân, Chuyên khoa, Chẩn đoán ICD-10, Đơn thuốc điện tử.
-  - `PATCH /api/v1/admin/appointments/{id}/cancel`: Quyền can thiệp của Quản trị viên hủy cuộc hẹn vì lý do điều phối lâm sàng kèm ghi nhận Audit Log.
-    + **WORK_LOG #083:** chỉ hủy được lịch `SCHEDULED` / `IN_PROGRESS`; lịch `COMPLETED` / `CANCELLED` / `NO_SHOW` → 400 `APPOINTMENT_NOT_CANCELLABLE` (thông báo tiếng Việt, không lưu, không hoàn tiền, không gửi email). Lịch đã thanh toán được **tự động hoàn tiền** qua `AppointmentRefundService` (dùng chung với bệnh nhân/bác sĩ hủy). Bệnh nhân và bác sĩ nhận email hủy ghi người hủy là "Quản trị viên" (UC-30). Giao diện chỉ hiện nút hủy cho lịch hủy được và hiển thị lỗi từ backend ngay trong hộp thoại.
-  - `GET /api/v1/admin/triage-sessions`: Giám sát toàn bộ phiên phân luồng triệu chứng AI, mức độ khẩn cấp (Emergency / Urgent / Routine), báo cáo lâm sàng chuẩn SBAR và khuyến nghị bác sĩ.
-  - `GET /api/v1/admin/audit-logs?action=...`: Truy xuất nhật ký kiểm toán hệ thống theo từng nhóm hành vi hoặc thời gian thực.
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. **Executive Dashboard KPIs (`/admin`):** Hiển thị 4 cụm thẻ chỉ số động (Nhân lực y tế, Lịch hẹn, Cận lâm sàng OCR, Phân luồng AI), tình trạng kết nối Database pgvector và Two-Layer Cache, cùng hàng đợi duyệt bác sĩ và luồng hoạt động mới nhất.
-  2. **Giám Sát Lịch Hẹn (`/admin/appointments`):** Quản trị viên lọc cuộc hẹn theo trạng thái (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`), tìm kiếm nhanh theo mã cuộc hẹn, tên bác sĩ/bệnh nhân. Bấm *"Chi Tiết"* để thanh tra hồ sơ lâm sàng gồm Sinh hiệu, Chẩn đoán ICD-10 và Đơn thuốc điện tử. Nếu có sự cố bất khả kháng, Admin bấm *"Hủy khẩn cấp"* nhập lý do giải trình.
-  3. **Giám Sát Triage AI (`/admin/triage`):** Xem danh sách phân loại triệu chứng của người bệnh. Các ca cấp cứu (`isEmergency = true`) được gắn huy hiệu cảnh báo đỏ nhấp nháy nổi bật. Admin có thể mở Drawer xem chi tiết cấu trúc SBAR (`Situation`, `Background`, `Assessment`, `Recommendation`) và lời khuyên do AI đưa ra.
-  4. **Nhật Ký Kiểm Toán (`/admin/audit-logs`):** Xem lịch sử toàn bộ hành vi nhạy cảm trong hệ thống, lọc theo hành động (`DOCTOR_VETTED`, `APPOINTMENT_BOOKED`, `CLINICAL_ENCOUNTER_COMPLETED`, `ADMIN_CANCEL_APPOINTMENT`, `UPDATE_USER_STATUS`, `CREATE_SPECIALTY`), xem địa chỉ IP, tài nguyên tác động và chi tiết metadata JSON.
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `MedicalDocumentController` $\rightarrow$ `POST /api/v1/documents/analyze, POST /api/v1/documents/analyze-preview` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/documents` $\rightarrow$ Màn hình `DocumentSummarizerPage.tsx, DocumentAnalysisModal.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `medical_documents, document_analyses, users` $\rightarrow$ Bản di trú `V4__cloud_storage_and_quota_management.sql, V5__add_document_analysis_metadata.sql, V20__private_document_storage_path.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `MedicalDocumentAnalysisService, MedicalDocumentValidator, PdfExtractionService, SupabaseStorageService, StorageService` $\rightarrow$ `MedicalDocumentRepository, DocumentAnalysisRepository, UserRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `MedicalDocumentAnalysisServiceTest.java, MedicalDocumentValidatorTest.java, SupabaseStorageServiceTest.java` (**100% PASS**)
 
----
-
-### UC-18: Bàn Làm Việc Lâm Sàng Thời Gian Thực, Chỉ Số KPIs & Cấu Hình Lịch Trực Bác Sĩ (Doctor Real-Time Clinical Workstation, Live Metrics & Working Schedules)
-
-* **Mã Use Case:** `UC-DOC-18`
-* **Tác nhân chính:** Doctor, Spring Boot API, PostgreSQL, Two-Layer Cache.
-* **Mục tiêu:** Cung cấp cho Bác sĩ điều trị một Bàn Làm Việc Lâm Sàng (Doctor Clinical Workstation) thông minh, đồng bộ dữ liệu thời gian thực (Real-time Live Sync), trực quan hóa số liệu khám chữa bệnh và cấu hình linh hoạt ca trực khám định kỳ trong tuần.
-* **REST Endpoints Liên Quan:**
-  - `GET /api/v1/doctors/me/stats`: Tổng hợp thời gian thực các chỉ số KPIs của bác sĩ: Hàng đợi chờ khám hôm nay (`waitingQueueToday`), Ca đang khám trong phòng (`inProgressCount`), Ca hoàn tất hôm nay (`completedToday`), Doanh thu thực tế hôm nay (`revenueToday`), Tổng số lượt khám tích lũy (`totalConsultations`), và Điểm đánh giá trung bình (`averageRating`).
-  - `GET /api/v1/doctors/me/schedules`: Lấy danh sách cấu hình khung giờ làm việc định kỳ trong tuần (Thứ 2 - Chủ Nhật, Sáng/Chiều) của bác sĩ. Tự động khởi tạo cấu hình chuẩn bệnh viện nếu bác sĩ chưa từng thiết lập.
-  - `PUT /api/v1/doctors/me/schedules`: Cập nhật trạng thái bật/tắt (active/inactive) và khung giờ các slot trực hàng tuần của bác sĩ.
-  - `PATCH /api/v1/appointments/{id}/status`: Chuyển trạng thái linh hoạt giữa `SCHEDULED`, `IN_PROGRESS`, và `NO_SHOW`.
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. **Bảng Điều Khiển Lâm Sàng Thời Gian Thực (`/doctor`):**
-     - Cơ chế Silent Polling ngầm định kỳ 12 giây kết hợp nút làm mới tức thời (với hiệu ứng xoay đồng bộ và huy hiệu Live Sync xanh nhấp nháy), đảm bảo bác sĩ luôn thấy danh sách bệnh nhân mới nhất mà không gây giật lag.
-     - 4 Thẻ KPIs vận hành hiển thị sắc nét: Hàng đợi chờ khám (cam), Ca đang khám (tím), Hoàn tất hôm nay (xanh lá), và Doanh thu hôm nay (xanh dương kèm định dạng VNĐ chuẩn).
-     - **Active In-Progress Callout Banner:** Khi có ca bệnh đang khám dở trong phòng (`IN_PROGRESS`), giao diện ghim banner thông báo nổi bật lên đầu trang kèm nút *"Tiếp tục nhập bệnh án"* để bác sĩ nhanh chóng quay lại ca khám mà không sợ mất dấu vết.
-  2. **Quản Lý Ca Khám & Chuyển Đổi Trạng Thái:**
-     - Khi bệnh nhân bước vào phòng, Bác sĩ bấm *"Bắt Đầu Khám"*: Hệ thống tự động chuyển trạng thái cuộc hẹn sang `IN_PROGRESS` và mở EMR Modal ghi nhận sinh hiệu, chẩn đoán ICD-10 và kê toa.
-     - Nếu gọi tên bệnh nhân quá 3 lượt nhưng không có mặt, Bác sĩ bấm *"Vắng Mặt (NO_SHOW)"*: Hệ thống ghi nhận trạng thái vắng mặt và chuyển sang tiếp nhận bệnh nhân tiếp theo trong hàng đợi.
-  3. **Bộ Lọc Đa Năng & Tìm Kiếm Nghịch Đảo Token Hóa:**
-     - Bác sĩ có thể lọc ca khám theo Ngày (*"Hôm nay"* / *"Tất cả"*), theo Trạng thái (*"Tất cả", "Chờ khám", "Đang khám", "Hoàn tất", "Vắng mặt", "Đã hủy"*).
-     - Ô tìm kiếm tức thời áp dụng thuật toán `Tokenized Inverted Search` kết hợp `useDebounce` (250ms), cho phép tìm theo tên bệnh nhân, số điện thoại, mã ca hẹn, phòng khám, triệu chứng và mã ICD-10.
-   4. **Trạm Điều Khiển Cấu Hình Khung Giờ Trực Khám Đa Tầng (`Cấu Hình Lịch Trực`):**
-      - Bác sĩ bấm nút *"Cấu Hình Lịch Trực"* để mở trạm điều khiển ca làm việc chuyên nghiệp (Doctor Schedule Workstation) với kiến trúc UI đa tầng phân cấp:
-        - **Thanh Chỉ Số & Thiết Lập Nhanh 1 Chạm:** Hiển thị tổng số slot mở khám khả dụng, số ngày tiếp nhận trong tuần, kèm 3 phím tắt tiện ích: *"Giờ Hành Chính (T2-T6)"* (bật trọn T2-T6, nghỉ T7-CN), *"Bật Cả Tuần"* và *"Nghỉ Toàn Bộ"* (hỗ trợ nghỉ phép/công tác đột xuất).
-        - **Phân Tầng Cấp 1 (Thanh Chọn 7 Ngày Tuần):** 7 thẻ tương tác đại diện cho Thứ 2 $\rightarrow$ Chủ Nhật, tự động gắn huy hiệu trạng thái sắc nét (*"Đủ ca"*, *"1 phần"*, *"Nghỉ"*) và tỉ lệ slot hoạt động.
-        - **Phân Tầng Cấp 2 (Không Gian Ca Trực Lâm Sàng):** Tách bạch rõ rệt 2 ca độc lập — **Ca Sáng (08:00 - 12:00, 7 slots)** và **Ca Chiều (13:30 - 17:00, 7 slots)**. Cung cấp nút thao tác nhanh *"Mở Cả Ngày"*, *"Tắt Cả Ngày"*, *"Mở hết ca sáng/chiều"*, *"Nghỉ ca sáng/chiều"*, và nút *"Sao Chép Sang T2 - T6"* giúp bác sĩ nhân bản cấu hình chuẩn chỉ trong 1 thao tác.
-        - **Phân Tầng Cấp 3 (Lưới Slot Tương Tác 30 Phút):** Các khung giờ hiển thị dạng nút bấm badge bo tròn 2-4 cột, phản hồi màu xanh ngọc (Active) hoặc xám nhạt (Inactive), bấm trực tiếp để chuyển đổi tức thời.
-      - Bấm *"Lưu Lịch Trực"*: Hệ thống tự động chuẩn hóa 98 slot làm việc hàng tuần gửi tới `PUT /api/v1/doctors/me/schedules`, đồng bộ thời gian thực vào cơ sở dữ liệu `doctor_schedule_slots`.
-  5. **Đồng Bộ Hồ Sơ Chuyên Khoa Động (`/doctor/profile`):**
-     - Hồ sơ bác sĩ tải danh mục chuyên khoa động từ `/api/v1/specialties`, loại bỏ hoàn toàn mã tĩnh (hardcoded list), tự động đồng bộ vector nhúng 1536 chiều khi cập nhật thông tin.
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-05` |
+| **Use Case Name** | Upload Medical Document & Vision OCR |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | Google Gemini 1.5 Flash Vision, OpenAI text-embedding-3-small |
+| **Description** | MediAssist-AI Document Ingestion Subsystem — - SHA-256 checksum computed for deduplication.<br>- Document stored in private Supabase S3 bucket `medical-documents`.<br>- Record inserted in `medical_documents` with status `ANALYZED`.<br>- OCR extraction saved in `document_analyses` table (Flyway V1, V5, V20). |
+| **Trigger** | Patient uploads a medical document file on `/patient/documents`. |
+| **Pre-conditions** | - Patient is authenticated.<br>- File format: PDF, PNG, or JPEG; size <= 10MB; PDF pages <= 10. |
+| **Post-conditions** | - SHA-256 checksum computed for deduplication.<br>- Document stored in private Supabase S3 bucket `medical-documents`.<br>- Record inserted in `medical_documents` with status `ANALYZED`.<br>- OCR extraction saved in `document_analyses` table (Flyway V1, V5, V20). |
+| **Normal Flow** | Step 1: Patient drops lab test file (blood test, urinalysis, ultrasound) onto upload zone.<br>Step 2: Frontend validates file size (<= 10MB) and MIME type.<br>Step 3: Frontend calls HTTP POST `/api/v1/documents/analyze` with multipart file.<br>Step 4: Backend `MedicalDocumentValidator` validates PDF page limit (<= 10 pages) and checks file signature.<br>Step 5: Backend computes SHA-256 hash (`file_hash`).<br>Step 6: Backend checks for duplicate upload in `medical_documents`.<br>Step 7: Backend streams file to Supabase S3 private bucket under path `documents/{patientId}/{uuid}.ext`.<br>Step 8: Backend calls Google Gemini 1.5 Flash Vision API to perform multimodal OCR and clinical extraction.<br>Step 9: Backend extracts biomarkers table, abnormal indicators, LOINC codes, and layperson summary.<br>Step 10: Backend saves metadata in `medical_documents` (`storage_path`) and extraction in `document_analyses`.<br>Step 11: Backend decrements user's remaining AI quota in `patient_profiles.remaining_ai_quota`.<br>Step 12: Backend returns HTTP 200 OK with `DocumentAnalysisResponse`.<br>Step 13: Frontend renders split-view modal with extracted indicators and plain-text summary. |
+| **Alternative Flow** | - Alt Flow 11a: Identical Duplicate Document:<br>1. Backend finds existing document with matching SHA-256 hash for this patient.<br>2. Backend returns cached analysis without re-uploading or consuming AI quota. |
+| **Exceptions** | - Exc Flow 12a: File Too Large (> 10MB):<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE", ...)`.<br>- Exc Flow 12b: Quota Depleted:<br>1. Patient has 0 remaining AI quota.<br>2. Backend prompts patient to purchase additional analysis quota (UC-PAT-08). |
+| **Priority** | High (P0) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-15: Medical documents must reside strictly in private S3 buckets. Public URLs forbidden (V20). |
+| **Data Entities Involved** | - `medical_documents`, `document_analyses`, `patient_profiles`. |
+| **User Interface Controls** | - Drag-and-drop zone, file preview thumbnail, "Phân Tích AI" button, quota counter badge. |
 
 ---
 
-### UC-19: Cổng Thanh Toán Đa Kênh Tích Hợp Stripe Sandbox & Quản Lý Sổ Cái Giao Dịch (Pluggable Payment Gateway, Stripe Sandbox & Financial Transactions)
+#### UC-PAT-06: Tra Cứu Chỉ Số Sinh Học, Mã Hóa LOINC & Tóm Tắt Dễ Hiểu (Inspect Biomarkers & LOINC Codes)
 
-* **Mã Use Case:** `UC-PAY-19`
-* **Tác nhân chính:** Patient, Stripe Gateway, PaymentService, PostgreSQL (`payment_transactions`), AuditLogRepository.
-* **Mục tiêu:** Cung cấp hệ sinh thái thanh toán y tế đa kênh cắm rút (Pluggable Multi-Gateway) theo Strategy Pattern:
-  1. Tích hợp cổng thanh toán quốc tế **Stripe Sandbox** (hỗ trợ thanh toán thẻ test `4242 4242 4242 4242`, Visa/Mastercard/Apple Pay) bằng tiền tệ VNĐ.
-  2. Hỗ trợ cổng thử nghiệm **VietQR / VNPAY / MoMo** với Napas 247 QR simulation.
-  3. Quản lý sổ cái giao dịch tài chính (`payment_transactions`) minh bạch, chống ghi đè kép (Idempotent Guard), và lưu vết kiểm toán HIPAA.
-  4. Mở rộng thanh toán phí khám lịch hẹn (`APPOINTMENT_FEE`), tự động cập nhật trạng thái `PAID` và đồng bộ doanh thu bác sĩ.
-* **REST Endpoints Liên Quan:**
-  - `POST /api/v1/payments/checkout`: Khởi tạo phiên thanh toán (Stripe Checkout Session hoặc QR Sandbox) kèm sinh mã giao dịch duy nhất `TX-YYYYMMDD-XXXXXX`.
-  - `POST /api/v1/payments/verify`: Đối soát và hoàn tất giao dịch sau khi người dùng điều hướng về trang kết quả `/payment/success`.
-  - `POST /api/v1/payments/webhook/stripe`: Tiếp nhận webhook bất đồng bộ từ Stripe (HMAC SHA-256 signature verified, `permitAll()`).
-  - `GET /api/v1/payments/history`: Xem toàn bộ lịch sử giao dịch và biên lai điện tử của người bệnh.
-  - `GET /api/v1/payments/transactions/{code}`: Tra cứu chi tiết một giao dịch cụ thể.
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. **Mua Gói Quét Hoặc Nâng Cấp Hội Viên VIP (`/patient/documents`):**
-     - Người bệnh chọn gói dịch vụ (`BASIC_5`, `VIP_MONTHLY`, `VIP_ENTERPRISE`).
-     - Người bệnh chọn phương thức: **Stripe Sandbox**, **VietQR Pro**, **VNPAY QR**, hoặc **Ví MoMo**.
-     - Nếu chọn Stripe: Hệ thống gọi `/api/v1/payments/checkout`, sinh phiên Stripe Checkout và chuyển hướng người bệnh tới trang thanh toán an toàn của Stripe. Người bệnh nhập thẻ test `4242 4242 4242 4242` để thanh toán thử nghiệm.
-     - Sau khi thanh toán, Stripe chuyển hướng về `/payment/success?session_id=...&tx=...`. Trang kết quả tự động đối soát, hiển thị biên lai điện tử và kích hoạt ngay gói dịch vụ.
-  2. **Thanh Toán Phí Khám Lịch Hẹn Trực Tuyến (`/patient`):**
-     - Tại danh sách lịch hẹn trên Patient Dashboard, với các ca khám `Chưa Thanh Toán` (UNPAID), người bệnh có nút *"Thanh Toán Online (Stripe)"*.
-     - Khi bấm thanh toán, hệ thống tạo giao dịch `orderType = 'APPOINTMENT_FEE'` với đúng số tiền `feeAmount` của ca khám.
-     - Sau khi thanh toán thành công, trạng thái ca hẹn chuyển thành `Đã Thanh Toán (PAID)`, đồng thời số tiền được tự động cộng vào Doanh thu hôm nay trên Trạm làm việc của Bác sĩ.
-  3. **Độ Bền Vững & Dự Phòng Cục Bộ (Sandbox Resilience):**
-     - Nếu môi trường chạy offline hoặc không có API key Stripe thật, hệ thống tự động kích hoạt chế độ Stripe Sandbox mô phỏng nội bộ, bảo đảm toàn bộ kịch bản demo và bảo vệ đồ án luôn thành công 100% không bị gián đoạn.
-  4. **Rào chắn xác thực email (WORK_LOG #083):** `PaymentService.createCheckoutSession` gọi `EmailVerificationGuard` ngay sau khi nạp người dùng → bệnh nhân chưa xác thực nhận 403 `EMAIL_NOT_VERIFIED`, không có giao dịch PENDING nào được tạo. Nút "Thanh Toán Online (Stripe)" trên PatientDashboard bị vô hiệu hóa kèm tooltip.
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `MedicalDocumentController` $\rightarrow$ `GET /api/v1/documents/{id}/analysis, GET /api/v1/documents/my` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/documents` $\rightarrow$ Màn hình `DocumentSummarizerPage.tsx, DocumentAnalysisModal.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `medical_documents, document_analyses` $\rightarrow$ Bản di trú `V4__cloud_storage_and_quota_management.sql, V5__add_document_analysis_metadata.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `MedicalDocumentAnalysisService, ClinicalOntologyService` $\rightarrow$ `MedicalDocumentRepository, DocumentAnalysisRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `MedicalDocumentAnalysisServiceTest.java, ClinicalOntologyServiceTest.java` (**100% PASS**)
 
----
-
-### UC-20: Tương Tác Lâm Sàng Bác Sĩ - Bệnh Nhân 360°, Hồ Sơ Dài Hạn, Cảnh Báo Dị Ứng Thuốc & Điều Phối Hàng Đợi (Doctor-Patient 360° Clinical Synergy, Longitudinal EMR, Drug-Allergy Guard & Smart Queue Advancement)
-
-* **Mã Use Case:** `UC-DOC-20`
-* **Tác nhân chính:** Doctor, Patient, Spring Boot API, PostgreSQL, Two-Layer Cache.
-* **Mục tiêu:** Xóa bỏ hoàn toàn tình trạng đứt gãy thông tin lâm sàng giữa Bệnh nhân và Bác sĩ. Trao quyền tối đa cho Bác sĩ qua Bàn làm việc EMR 360°, kết nối trực tiếp với Hộ Chiếu Y Tế (Medical Passport), tiền sử phân luồng AI Triage, tài liệu xét nghiệm OCR, bệnh sử các lần khám cũ, tự động cảnh báo dị ứng thuốc thời gian thực và lên lịch hẹn tái khám chủ động.
-* **REST Endpoints Liên Quan:**
-  - `GET /api/v1/doctors/me/patients`: Truy xuất danh bạ toàn bộ bệnh nhân đã và đang khám với bác sĩ (kèm thống kê số lần khám, chẩn đoán gần nhất, nhóm máu, tiền sử dị ứng, CCCD, BHYT).
-  - `POST /api/v1/doctors/me/call-next`: Tự động tìm bệnh nhân kế tiếp theo thứ tự khung giờ hẹn trong ngày hôm nay, chuyển trạng thái sang `IN_PROGRESS` và trả về chi tiết ca hẹn cho bác sĩ tiếp nhận tức thì.
-  - `GET /api/v1/patient/profile/by-user/{userId}`: Lấy Hộ chiếu y tế của bệnh nhân (nhóm máu, tiền sử dị ứng, bệnh nền, liên hệ khẩn cấp, BHYT, CCCD) với cơ chế tự sinh hồ sơ dự phòng không bao giờ trả lỗi 404.
-  - `GET /api/v1/triage/patient/{patientId}`: Truy xuất toàn bộ lịch sử phân luồng triệu chứng và bản tóm tắt SBAR của bệnh nhân để bác sĩ đối chiếu lâm sàng.
-  - `GET /api/v1/documents/patient/{patientId}`: Truy xuất toàn bộ tài liệu bệnh án, kết quả xét nghiệm máu/nước tiểu, chẩn đoán hình ảnh và các chỉ số OCR bất thường đã tải lên của bệnh nhân.
-  - `GET /api/v1/appointments/patient/{patientId}`: Truy xuất lịch sử dài hạn (Longitudinal History) tất cả các đợt khám bệnh trước đây kèm chẩn đoán ICD-10, sinh hiệu và đơn thuốc đã kê.
-  - `POST /api/v1/appointments/follow-up`: Bác sĩ trực tiếp đặt lịch hẹn tái khám cho bệnh nhân sau khi kết thúc đợt điều trị.
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. **Thư Mục Bệnh Nhân Toàn Diện (`/doctor/patients`):**
-     - Bác sĩ quản lý danh sách bệnh nhân điều trị với đầy đủ thông tin: Mã BN, Họ tên, Nhóm máu, BHYT, CCCD, Tiền sử dị ứng, Lần khám gần nhất.
-     - Bộ lọc thông minh theo nhóm máu (A+, B+, O+, AB+), trạng thái dị ứng đã ghi nhận, tìm kiếm tức thì theo tên/SĐT/mã BN.
-     - Ngăn kéo hồ sơ 360° (Patient 360 Drawer): Hiển thị chi tiết 4 khu vực: Hộ chiếu y tế & Liên hệ khẩn cấp, Lịch sử các ca khám cũ, Phân luồng AI Triage, và Tài liệu xét nghiệm OCR.
-  2. **Bàn Khám Lâm Sàng Đa Năng 4 Tab (`/doctor` Encounter Modal):**
-     - **Tab 1 - Bàn Khám & Kê Đơn (EMR):** Nhập dấu hiệu sinh tồn (Mạch, Huyết áp, Thân nhiệt, SpO2, BMI), chẩn đoán WHO ICD-10 và kê đơn thuốc.
-     - **Tab 2 - Triage AI & SBAR:** Xem toàn bộ triệu chứng bệnh nhân đã khai báo với AI. Tích hợp nút *"1-Click Nạp Dữ Liệu Vào Bệnh Án"*, tự động điền triệu chứng vào Lý do khám và tóm tắt SBAR vào Ghi chú lâm sàng, giúp bác sĩ không phải hỏi lại từ đầu.
-     - **Tab 3 - Xét Nghiệm & Cận Lâm Sàng:** Xem trực tiếp các phiếu xét nghiệm bệnh nhân đã tải lên, kèm các chỉ số sinh hóa/huyết học đã được AI OCR trích xuất (đánh dấu đỏ các chỉ số vượt ngưỡng tham chiếu).
-     - **Tab 4 - Bệnh Sử Các Lần Khám Cũ:** Xem lại diễn tiến bệnh, đơn thuốc cũ và kết quả điều trị của các lần khám trước.
-  3. **Rào Chắn An Toàn Dược Lý & Cảnh Báo Dị Ứng Thuốc (Drug-Allergy Safety Guard):**
-     - Khi bác sĩ gõ tên thuốc trong bảng kê đơn, hệ thống tự động chạy thuật toán quét đối chiếu chuỗi token từ khóa dị ứng được lưu trong Hộ chiếu y tế của bệnh nhân (ví dụ: dị ứng Penicillin, Aspirin).
-     - Nếu phát hiện trùng lặp hoặc nguy cơ sốc phản vệ: Dòng thuốc ngay lập tức hiển thị nhãn cảnh báo đỏ rực rỡ kèm thông báo cụ thể *"Phát hiện xung đột với tiền sử dị ứng: [Tên chất]"*, bảo vệ tuyệt đối an toàn tính mạng bệnh nhân.
-  4. **Nút "Gọi Số Tiếp Theo" (Smart Queue Advancement):**
-     - Tại thanh tiêu đề Bàn làm việc Bác sĩ, nút *"Gọi Số Tiếp Theo"* cho phép bác sĩ tiếp nhận ngay bệnh nhân kế tiếp trong hàng đợi chỉ với 1 cú click chuột, tự động mở modal khám và đồng bộ toàn bộ dữ liệu 360°.
-  5. **Chủ Động Đặt Lịch Hẹn Tái Khám (Doctor Follow-Up Scheduling):**
-     - Khi hoàn tất khám, bác sĩ có thể bấm nút *"Hẹn Tái Khám"* ngay trong modal hoặc từ danh mục bệnh nhân, chọn ngày giờ tái khám và ghi chú dặn dò. Hệ thống tự tạo ca hẹn tái khám với trạng thái `CONFIRMED` cho bệnh nhân.
-   6. **Trình Xem Chi Tiết Bệnh Án Điện Tử & Toa Thuốc Chuẩn Bệnh Viện (Full EMR & Prescription Dossier Viewer):**
-      - **Truy cập thuận tiện:** Bác sĩ có thể bấm xem chi tiết bệnh án điện tử từ:
-        + Thẻ ca khám trong ngăn kéo Hồ sơ bệnh nhân 360° (`/doctor/patients` $\rightarrow$ Tab *"Lịch Sử Ca Khám"*).
-        + Thẻ ca khám đã hoàn tất trên Bảng điều khiển lâm sàng Bác sĩ (`/doctor` $\rightarrow$ Nút *"Xem Bệnh Án"*).
-      - **Modal Bệnh Án Điện Tử Đa Tầng (Layered z-60 EMR Modal):**
-        + **Header & Hành chính:** Mã cuộc hẹn, phòng khám, thời gian tiếp đón, họ tên bệnh nhân, mã số bệnh nhân, số điện thoại, nhóm máu, và bác sĩ phụ trách.
-        + **Bảng Dấu Hiệu Sinh Tồn (Vital Signs Grid):** Tự động giải mã chuỗi JSON `vitalSignsJson` thành 4 khối chỉ số trực quan: Huyết áp (mmHg), Nhịp tim/Mạch (bpm), Thân nhiệt (°C), SpO2 (%) và chỉ số thể trọng BMI.
-        + **Chẩn Đoán Lâm Sàng & Đánh Giá:** Hiển thị mã bệnh quốc tế WHO ICD-10 (`icd10Code` và `icd10Name`), kèm trích lục nguyên văn đánh giá và ghi chú lâm sàng của bác sĩ khám.
-        + **Bảng Toa Thuốc Ngoại Trú Chi Tiết (E-Prescription Table):** Tự động giải mã `prescriptionJson` thành bảng dữ liệu chuẩn: Số thứ tự, Tên biệt dược, Hoạt chất, Liều lượng & hướng dẫn sử dụng, Số lượng, Đơn vị, và Số ngày dùng thuốc.
-        + **Hướng Xử Trí & Lịch Hẹn Tái Khám:** Trình bày chi tiết lời dặn điều trị và ngày hẹn tái khám cụ thể.
-        + **Tiện ích In Ấn Chuẩn Y Khoa:** Nút *"In Bệnh Án"* (`window.print()`) hỗ trợ xuất hoặc in trực tiếp hồ sơ bệnh án và đơn thuốc ngoại trú cho bệnh nhân.
-   7. **Đánh Giá Sinh Hiệu & Thể Trạng Trực Quan Tự Động (Visual Vital Signs & BMI Staging - VNHA/ESC & WHO Asia):**
-      - **Phân Độ Tăng Huyết Áp Chuẩn Y Khoa:** Tự động phân loại theo Khuyến cáo Hội Tim Mạch Học Quốc Gia Việt Nam (VNHA) & Hội Tim Mạch Châu Âu (ESC) thành 7 mức độ: Tối ưu ($<120/<80$), Bình thường ($120-129/80-84$), Tiền tăng huyết áp ($130-139/85-89$), Tăng huyết áp Độ 1 ($140-159/90-99$), Tăng huyết áp Độ 2 ($160-179/100-109$), Tăng huyết áp Tâm thu đơn độc ($\ge 140$ và $< 90$), và Cơn tăng huyết áp khẩn cấp (Hypertensive Crisis - báo động đỏ nhấp nháy $\ge 180$ hoặc $\ge 110\text{ mmHg}$).
-      - **Phân Loại Thể Trạng BMI Theo Chuẩn WHO Châu Á (IDI & WPRO):** Dành riêng cho người Việt Nam: Gầy / Thiếu cân ($< 18.5$), Bình thường ($18.5 - 22.9$), Tiền béo phì ($23.0 - 24.9$), Béo phì Độ I ($25.0 - 29.9$), Béo phì Độ II ($\ge 30.0$).
-      - **Đánh Giá SpO2 & Tần Số Tim:** Tự động gắn nhãn Bão hòa oxy tốt ($\ge 96\%$), Cần theo dõi ($94-95\%$), Cảnh báo thiếu oxy mô ($< 94\%$), Mạch chậm ($< 60\text{ bpm}$), Mạch nhanh ($> 100\text{ bpm}$).
-      - **Nút Tiện Ích 1-Chạm:** Nút *"Nạp Nhận Xét Vào Lời Dặn"* tự động tạo đoạn nhận xét lâm sàng và khuyến nghị chế độ ăn, tập luyện vào ô Lời dặn Bác sĩ (`treatmentPlan`).
-      - **Đồng Bộ Toàn Diện:** Hiển thị huy hiệu phân loại màu sắc trực quan tại cả Phiếu khám ngoại trú (`DoctorDashboard.tsx`) và Trình xem bệnh án điện tử (`DoctorDashboard.tsx` & `DoctorPatientRecordsPage.tsx`).
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-06` |
+| **Use Case Name** | Inspect Extracted Biomarkers & LOINC Codes |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Attending Doctor |
+| **Secondary Actor** | Google Gemini 1.5 Flash Vision, OpenAI text-embedding-3-small |
+| **Description** | MediAssist-AI Clinical Analysis Subsystem — Structured biomarker table and layperson summary displayed. |
+| **Trigger** | User clicks "Xem Phân Tích" on an uploaded medical document. |
+| **Pre-conditions** | Document has been analyzed (`document_analyses` record exists). |
+| **Post-conditions** | Structured biomarker table and layperson summary displayed. |
+| **Normal Flow** | Step 1: User selects document from document list on `/patient/documents`.<br>Step 2: Frontend calls HTTP GET `/api/v1/documents/{id}/analysis`.<br>Step 3: Backend enforces `PatientAccessGuard` verifying patient ownership or doctor care relationship.<br>Step 4: Backend retrieves `document_analyses` record joined with `medical_documents`.<br>Step 5: Backend returns payload containing:<br>- Table of biomarkers: Test name, measured value, unit, reference range, status (`NORMAL`, `ELEVATED`, `LOW`).<br>- Standardized LOINC codes.<br>- Layperson clinical summary in plain Vietnamese.<br>- Recommended medical specialty.<br>Step 6: Frontend renders interactive table with abnormal rows highlighted in red or amber. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Unauthorized Access (IDOR Attempt):<br>1. Backend throws `AppException(HttpStatus.FORBIDDEN, "FORBIDDEN_PATIENT_ACCESS", ...)`. |
+| **Priority** | High (P0) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-10: Medical safety disclaimer mandatory on all biomarker views.<br>- BR-16: Numerical lab values must retain exact precision extracted from the scan. |
+| **Data Entities Involved** | `medical_documents`, `document_analyses`. |
+| **User Interface Controls** | Biomarker table, status pills, layperson accordion. |
 
 ---
 
-### UC-21: Phân Tách Lâm Sàng Đa Bệnh Nhân & Ghép Bác Sĩ Chuyên Khoa Độc Lập Khi Tải Lên Nhiều Tệp Cận Lâm Sàng (Multi-Patient Clinical Segregation & Per-Patient Intelligent Doctor Matching)
+#### UC-PAT-07: Tải & Xem Tệp Gốc Qua Signed URL Ngắn Hạn 15 Phút (Download Document File via 15-Minute Signed URL)
 
-* **Mã Use Case:** `UC-DOC-21`
-* **Tác nhân chính:** Patient / Caregiver (Người nhà / Người dùng), AI Scribe & RAG Pipeline, PostgreSQL pgvector, Dedicated Thread Pool (`medicalOcrExecutor`), Supabase Storage.
-* **Mục tiêu:** Giải quyết triệt để rủi ro an toàn y khoa khi người dùng tải lên đồng thời nhiều tài liệu cận lâm sàng (PDF/Hình ảnh) thuộc về **các bệnh nhân khác nhau** (ví dụ: người nhà nộp cùng lúc phiếu xét nghiệm tuyến giáp của Mẹ và kết quả đo mỡ máu/men gan của Bố). Ngăn chặn 100% tình trạng "nhiễm chéo lâm sàng" (cross-patient clinical contamination) bằng cách tự động nhận diện danh tính khác biệt, phân nhánh xử lý song song độc lập cho từng hồ sơ bệnh nhân, bóc tách chỉ số riêng biệt, và đề xuất Bác sĩ chuyên khoa phù hợp đích danh cho từng người.
-* **REST Endpoints Liên Quan:**
-  - `POST /api/v1/documents/analyze`: Phân tích bộ tệp cận lâm sàng (tự động phát hiện đơn bệnh nhân vs đa bệnh nhân).
-  - `POST /api/v1/documents/analyze-preview`: Bản xem trước phân tích cận lâm sàng (hỗ trợ phân tách đa bệnh nhân cho khách dùng thử).
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. **Nhận Diện Danh Tính & Phát Hiện Đa Bệnh Nhân Tự Động (Identity Sieve):**
-     - Trích xuất metadata từ văn bản OCR của từng tệp: Họ tên bệnh nhân (`patientName`), Tuổi (`patientAge`), Giới tính (`patientGender`), Mã định danh bệnh phẩm (`sidCode`).
-     - Chuẩn hóa chuỗi họ tên bằng thuật toán khử dấu tiếng Việt (`stripAccents` với `Normalizer.NFD`).
-     - So sánh đối chiếu chéo các tệp: Nếu phát hiện >= 2 tệp có họ tên khác biệt rõ ràng, hoặc cùng họ tên nhưng lệch giới tính / mã SID: Hệ thống bật cờ `multiPatientDetected = true`.
-  2. **Thực Thi Phân Tích Lâm Sàng Song Song Độc Lập (Isolated Parallel Execution):**
-     - Với mỗi tệp của từng bệnh nhân riêng lẻ, hệ thống điều phối qua `CompletableFuture.supplyAsync(..., medicalOcrExecutor)` thực thi hàm `analyzeIndividualDocument`.
-     - Phân tích cú pháp chỉ số (`parseIndicators`) độc lập cho từng tệp.
-     - Tìm kiếm bác sĩ sơ bộ (`searchDoctors` pre-RAG) từ pgvector cho từng tệp.
-     - Gọi mô hình AI chuyên khoa suy luận RAG riêng biệt, xây dựng tóm tắt SBAR lâm sàng, bản dịch ngôn ngữ dễ hiểu và câu hỏi tư vấn bác sĩ riêng cho từng người.
-     - Tìm kiếm và xếp hạng bác sĩ chuyên sâu (`searchDoctors` post-RAG) theo chuyên khoa riêng biệt của từng người bệnh.
-     - Tổng hợp toàn bộ vào mảng `patientAnalyses` chứa các DTO `DocumentPatientAnalysisDto`.
-  3. **Tóm Tắt Điều Phối Tổng Thể (Executive Clinical Dispatch Overview):**
-     - Sinh ra bản tóm tắt cấp cao (`clinicalSummary`) tổng quan về toàn bộ phiên tải lên, liệt kê tóm lược tình trạng của từng bệnh nhân để người nhà nắm bắt bức tranh toàn cảnh.
-  4. **Giao Diện Chuyển Đổi Hồ Sơ & Đặt Khám Đích Danh (Interactive Patient Switcher & Targeted Booking):**
-     - Trên giao diện Frontend (`DocumentSummarizerPage.tsx`), hiển thị **Thẻ Cảnh Báo An Toàn Y Khoa Đa Bệnh Nhân (Multi-Patient Clinical Segregation Safety Card)** với biểu tượng `Users` nổi bật.
-     - Cung cấp **Thanh Chọn Hồ Sơ Bệnh Nhân (Patient Selector Tabs)**: Mỗi tab đại diện cho 1 người bệnh kèm thông tin tệp nguồn, số lượng chỉ số xét nghiệm và số lượng bác sĩ đề xuất.
-     - Khi người dùng bấm chọn một bệnh nhân: Toàn bộ thông tin hiển thị bên dưới (Tiêu đề cơ sở y tế ISO 15189, Bảng chỉ số đối chiếu, Bản dịch dễ hiểu, Tóm tắt SBAR, Danh sách Bác sĩ đề xuất, Câu hỏi tư vấn) sẽ phản ứng chuyển mạch tức thì (`activePatientIndex`) sang đúng bệnh nhân đó.
-     - Nút *"Đặt Khám Với Bác Sĩ Này"* tự động gắn kèm ghi chú lâm sàng chỉ định rõ tên bệnh nhân, tệp đính kèm và tóm tắt bất thường của chính người bệnh đó vào lịch hẹn.
-   5. **An Toàn Tiêu Thụ Tài Nguyên & Bộ Nhớ Đệm Toàn Vẹn (Quota & Cache Integrity):**
-      - Toàn bộ đợt quét dù gồm nhiều tệp và nhiều bệnh nhân vẫn tuân thủ quy tắc công bằng: **Chỉ khấu trừ duy nhất 1 lượt quét (1 Scan Quota)**.
-      - Lưu trữ kết quả phân tách đa bệnh nhân trong `document_analyses.metadata_json` với khóa `multiPatientDetected` và `patientAnalysesJson`.
-      - Khi trùng mã SHA-256 (Deduplication Hit): Khôi phục nguyên vẹn cấu trúc đa bệnh nhân với chi phí 0 token AI và 0ms độ trễ.
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `MedicalDocumentController` $\rightarrow$ `GET /api/v1/documents/{id}/signed-url, GET /api/v1/documents/{id}/file` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/documents, /doctor/patients` $\rightarrow$ Màn hình `DocumentSummarizerPage.tsx, DoctorPatientRecordsPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `medical_documents, audit_logs` $\rightarrow$ Bản di trú `V20__private_document_storage_path.sql, V1__initial_schema.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `MedicalDocumentFileAccessService, SupabaseStorageService, PatientAccessGuard` $\rightarrow$ `MedicalDocumentRepository, AuditLogRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `MedicalDocumentFileAccessServiceTest.java, MedicalDocumentFileEndpointTest.java, PatientAccessGuardTest.java` (**100% PASS**)
 
----
-
-### UC-22: Bác Sĩ Truy Cập Tài Liệu Cận Lâm Sàng & Kết Quả Bóc Tách AI OCR Từ Lịch Hẹn Khám (Doctor Medical Document & AI OCR Analysis Retrieval)
-
-* **Mã Use Case:** `UC-DOC-22`
-* **Tác nhân chính:** Bác sĩ điều trị (Doctor), Người bệnh sở hữu (Patient Owner), Hệ thống lưu trữ kép (Local Fallback & Supabase Storage).
-* **Mục tiêu:** Cho phép bác sĩ click vào xem lại trực tiếp tệp xét nghiệm gốc (PDF / Hình ảnh) và bản báo cáo bóc tách chỉ số sinh hóa/huyết học AI OCR kèm tóm tắt SBAR khi tiếp nhận bệnh nhân đã đặt lịch từ phân hệ Tóm Tắt Hồ Sơ (`DocumentSummarizerPage.tsx`).
-* **REST Endpoints Liên Quan:**
-  - `GET /api/v1/documents/{id}/file`: Trích xuất file nhị phân (binary stream) hiển thị nội tuyến (`Content-Disposition: inline`) hoặc tải về (`attachment`). Hỗ trợ đường dẫn cục bộ (`uploads/...`), proxy tệp Supabase Cloud Storage, hoặc tự động tạo tài liệu lâm sàng PDF dự phòng an toàn (Zero-Crash Fallback).
-  - `GET /api/v1/documents/{id}/analysis`: Truy xuất toàn bộ dữ liệu bóc tách AI OCR, danh sách chỉ số xét nghiệm (`name`, `value`, `unit`, `referenceRange`, `status`, `clinicalSignificance`), siêu dữ liệu hành chính (`hospitalName`, `orderingDoctor`, `testDate`, `sidCode`, `deviceModel`), tóm tắt lâm sàng SBAR và gợi ý câu hỏi tư vấn.
-  - `POST /api/v1/appointments`: Nhận thêm trường tùy chọn `medicalDocumentId` để liên kết vĩnh viễn ca khám với tài liệu xét nghiệm.
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. **Khởi Tạo Liên Kết Tự Động Từ Phía Bệnh Nhân:**
-     - Khi người bệnh phân tích kết quả xét nghiệm tại trang `/patient/documents`, hệ thống đề xuất bác sĩ chuyên khoa phù hợp (ví dụ: TS.BS Đỗ Phương Lan - Nội tiết).
-     - Người bệnh chọn bác sĩ và bấm *"Xác nhận đặt khám"*. Payload tạo ca khám tự động đính kèm `medicalDocumentId: analysis.documentId`.
-     - Backend lưu `medical_document_id` vào bảng `appointments`.
-  2. **Chỉ Báo Trực Quan Trên Giao Diện Bác Sĩ (`DoctorDashboard.tsx`):**
-     - Tại thẻ ca khám đang diễn ra (In-Progress) và hàng đợi chờ tiếp nhận (Scheduled Queue), nếu ca khám có đính kèm tài liệu xét nghiệm, hệ thống hiển thị ngay huy hiệu nổi bật: **"Hồ sơ đính kèm: [Tên tệp]"** với màu xanh ngọc bích (Teal) và biểu tượng `FileText`.
-     - Bác sĩ chỉ cần click vào huy hiệu để mở ngay **Modal Chi Tiết Phân Tích & Tệp Gốc (`DocumentAnalysisModal.tsx`)**.
-  3. **Hộp Thoại Phân Tích Đa Năng 2 Tab (`DocumentAnalysisModal.tsx`):**
-     - **Tab 1 - Phân Tích AI & Chỉ Số Xét Nghiệm (AI Scribe & Lab Indicators):**
-       + Hiển thị thông tin hành chính trích xuất: Bệnh viện thực hiện, Bác sĩ chỉ định, Khoa phòng, Mã vạch SID, Ngày xét nghiệm.
-       + Tóm tắt lâm sàng theo chuẩn SBAR và bản giải nghĩa ngôn ngữ dễ hiểu.
-       + Bảng chỉ số xét nghiệm trực quan: Tên chỉ số, Giá trị đo được, Khoảng tham chiếu, Đơn vị tính, Ý nghĩa lâm sàng.
-       + Phân loại trạng thái chỉ số bằng badge màu y khoa: Đỏ rực (`ELEVATED` / `HIGH`), Xanh dương (`LOW`), Xanh lá (`NORMAL`).
-       + Nút tiện ích y khoa: **"1-Click Chèn Vào Bệnh Án"** (`onInsertToEncounter`), tự động nạp tóm tắt và danh sách chỉ số bất thường vào Lý do khám và Kế hoạch điều trị của ca khám hiện tại.
-     - **Tab 2 - Xem Tệp Gốc (Original File Viewer):**
-       + Tích hợp khung xem trực tiếp nội tuyến (`<iframe src="/api/v1/documents/{id}/file#toolbar=1">` cho PDF và `<img>` kèm zoom cho tệp hình ảnh).
-       + Hỗ trợ nút *"Mở tab mới"* và *"Tải xuống tệp"* cho bác sĩ lưu trữ hoặc hội chẩn liên viện.
-  4. **Tích Hợp Trong Tab Cận Lâm Sàng & Hồ Sơ Bệnh Nhân 360°:**
-     - Trong Bàn khám EMR (`DoctorDashboard.tsx` - Tab 3 `DOCUMENTS`): Các tài liệu lưu trữ nội bộ nay được bổ sung nút bấm hành động `[Xem Bóc Tách AI & Chỉ Số]` và `[Mở Tệp Gốc]`.
-     - Trong Ngăn kéo Hồ sơ Bệnh nhân 360° (`DoctorPatientRecordsPage.tsx` - Tab 3 `DOCS`): Bác sĩ có thể bấm xem chi tiết phân tích AI và tệp gốc của mọi tài liệu bệnh nhân từng gửi trong quá khứ.
-  5. **Kiểm Soát Phân Quyền & Bảo Mật Chuẩn Y Tế (HIPAA & RBAC Guard):**
-     - Chỉ Bác sĩ có quan hệ điều trị với chủ sở hữu tài liệu, Bệnh nhân sở hữu tài liệu, hoặc Admin hệ thống (có ghi audit) mới được phép gọi API tải tệp và xem bóc tách. Mọi truy cập trái phép bị chặn với mã lỗi `403 FORBIDDEN_PATIENT_ACCESS`. Chi tiết xem **UC-27**.
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-07` |
+| **Use Case Name** | Download Document File via 15-Minute Signed URL |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Authorized Doctor |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Storage Subsystem — 15-minute temporary signed URL generated; file stream returned. |
+| **Trigger** | User clicks "Tải Tệp Gốc" or previews source file. |
+| **Pre-conditions** | Document exists in private Supabase S3 bucket. |
+| **Post-conditions** | 15-minute temporary signed URL generated; file stream returned. |
+| **Normal Flow** | Step 1: User clicks download/preview icon for document ID.<br>Step 2: Frontend calls HTTP GET `/api/v1/documents/{id}/file` or `/api/v1/documents/{id}/signed-url`.<br>Step 3: Backend verifies authorization via `PatientAccessGuard`.<br>Step 4: Backend retrieves `storage_path` from `medical_documents`.<br>Step 5: Backend invokes `SupabaseStorageService.createSignedUrl(storagePath, 900)` (TTL = 15 minutes / 900 seconds).<br>Step 6: Backend returns `DocumentFileAccessDto(signedUrl, expiresInSeconds=900)`.<br>Step 7: Browser opens secure preview or initiates direct download. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: File Missing from Storage:<br>1. Backend throws `AppException(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", ...)`. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-15: Direct public links to medical files are strictly forbidden (Flyway V20). |
+| **Data Entities Involved** | `medical_documents`, `audit_logs`. |
+| **User Interface Controls** | Download button, progress spinner. |
 
 ---
 
-### UC-23: Dời Lịch Hẹn Khám Bệnh & Rào Chắn Giờ Hành Chính (Appointment Rescheduling & Working Hours Guard)
+#### UC-PAT-08: Nạp Lượt Quét & Kích Hoạt Hội Viên MediPass VIP (Purchase AI Analysis Quota & MediPass VIP)
 
-* **Mã Use Case:** `UC-CLIN-23`
-* **Tác nhân chính:** Patient (Bệnh nhân), Doctor (Bác sĩ), Scheduler Engine.
-* **Mục tiêu:** Cho phép bệnh nhân chủ động dời lịch khám sang khung giờ mới mà không phải hủy và đặt lại từ đầu, đồng thời bảo vệ nghiêm ngặt khung giờ làm việc của bác sĩ và tính toàn vẹn trạng thái.
-* **REST Endpoints:**
-  - `PATCH /api/v1/appointments/{id}/reschedule`: Tiếp nhận `RescheduleAppointmentRequest` gồm `newScheduledStart` (chuỗi ISO 8601) và `reason` (lý do dời lịch).
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. **Kiểm Tra Trạng Thái Hiện Tại (State Machine Guard):**
-     - Chỉ cho phép dời lịch khi ca khám đang ở trạng thái `SCHEDULED`.
-     - Nếu ca khám đã `COMPLETED`, `CANCELLED` hoặc `IN_PROGRESS`, hệ thống từ chối với lỗi `HTTP 400 INVALID_STATE`.
-  2. **Rào Chắn Khung Giờ Làm Việc (Working Hours & Sunday Guard):**
-     - Giờ làm việc tiêu chuẩn: Sáng `08:00 - 12:00`, Chiều `13:30 - 17:00`.
-     - Bác sĩ nghỉ định kỳ Chủ Nhật; mọi yêu cầu xếp lịch vào Chủ Nhật hoặc ngoài khung giờ trên đều bị từ chối với thông báo hướng dẫn rõ ràng.
-  3. **Kiểm Tra Trùng Lịch Thời Gian Thực (Conflict Detection):**
-     - Kiểm tra xung đột với các ca khám khác của bác sĩ (loại trừ chính ca khám đang xét).
-  4. **Cập Nhật & Thông Báo Tự Động:**
-     - Lưu lại thời gian khám mới, giữ nguyên mã ca khám `appointmentCode` và thông tin thanh toán.
-     - Phát sinh bản ghi thông báo nội bộ cho bác sĩ phụ trách biết bệnh nhân đã dời lịch.
-* **Rào chắn xác thực email (WORK_LOG #083):** khi **người dời lịch là bệnh nhân** mà email chưa xác thực → 403 `EMAIL_NOT_VERIFIED`. Bác sĩ hoặc quản trị viên dời lịch giúp bệnh nhân thì không bị chặn. Nút "Dời Lịch Hẹn" và "Xác Nhận Dời Lịch" trên PatientDashboard bị vô hiệu hóa kèm tooltip.
-* **Email:** dời lịch hiện **không** gửi email (ghi nhận là việc có thể làm sau, WORK_LOG #083).
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `MedicalDocumentController, PaymentController` $\rightarrow$ `GET /api/v1/documents/quota, POST /api/v1/documents/quota/purchase, GET /api/v1/payments/packages` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/documents` $\rightarrow$ Màn hình `DocumentSummarizerPage.tsx (Nạp lượt phân tích), useScanPackages.ts`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users, payment_transactions` $\rightarrow$ Bản di trú `V4__cloud_storage_and_quota_management.sql, V13__create_payment_transactions.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `MedicalDocumentAnalysisService, PaymentService` $\rightarrow$ `UserRepository, PaymentTransactionRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `MedicalDocumentAnalysisServiceTest.java, PaymentServiceTest.java` (**100% PASS**)
 
----
-
-### UC-24: Khôi Phục & Đặt Lại Mật Khẩu Qua Liên Kết Email (Secure Password Reset Flow)
-
-* **Mã Use Case:** `UC-SEC-24` (viết lại ở WORK_LOG #083: trước đây token chưa từng được gửi đi, modal "Quên mật khẩu" hiển thị OTP giả "882 941")
-* **Tác nhân chính:** Người dùng (Bệnh nhân / Bác sĩ / Quản trị viên), `AuthService`, `PasswordResetTokenRepository`, `MailNotificationListener`, SMTP (Mailpit ở môi trường dev).
-* **Mục tiêu:** Người dùng quên mật khẩu tự tạo mật khẩu mới qua liên kết gửi đến email đã đăng ký, không lộ việc email có tồn tại trong hệ thống hay không.
-* **Tiền điều kiện:** Người dùng truy cập được hộp thư của email đăng ký. Tài khoản không ở trạng thái `SUSPENDED`.
-* **Hậu điều kiện (thành công):** `users.password_hash` được thay; `failed_login_attempts = 0`, `locked_until = NULL`; token đã dùng có `used = true`, mọi token khác của người dùng bị xóa; có 2 dòng audit `PASSWORD_RESET_REQUESTED` và `PASSWORD_RESET_COMPLETED`; người dùng nhận email "Mật khẩu của bạn vừa được thay đổi".
-* **REST Endpoints (đều public):**
-  - `POST /api/v1/auth/forgot-password` body `{email}`. **Luôn** trả 200 với cùng một thông báo: *"Nếu email tồn tại trong hệ thống, chúng tôi đã gửi liên kết đặt lại mật khẩu..."*. Rate limit: 5 lần / 15 phút / IP (vượt → 429) và 3 lần / giờ / email (vượt → **im lặng bỏ qua, vẫn trả 200 cùng thông báo**; key Redis là SHA-256 của email).
-  - `GET /api/v1/auth/reset-password/validate?token=...` trả `{valid: boolean}`, header `Cache-Control: no-store`. Rate limit 20 lần / 10 phút / IP (dùng chung với endpoint dưới).
-  - `POST /api/v1/auth/reset-password` body `{token, newPassword}`. `newPassword` tối thiểu **8 ký tự** (đồng bộ với đăng ký).
-* **Luồng chính (Happy Path):**
-  1. Tại `/login`, người dùng bấm "Quên mật khẩu?" → chuyển sang trang `/forgot-password`, nhập email.
-  2. `AuthService.requestPasswordReset`: tìm user theo email (lowercase, trim); xóa mọi token cũ của user; sinh token gốc 32 byte `SecureRandom` (Base64 URL-safe); lưu **chỉ** `token_hash = SHA-256(token)` với `expires_at = now + 30 phút`; ghi audit `PASSWORD_RESET_REQUESTED`; phát `PasswordResetRequestedEvent`.
-  3. Sau khi transaction commit, `MailNotificationListener` (luồng `mailExecutor`) gửi email chứa nút và liên kết `{app.client-base-url}/reset-password?token=<token gốc>`.
-  4. Người dùng mở liên kết. Trang `/reset-password` đọc token rồi **xóa token khỏi thanh địa chỉ** (`history.replaceState`), gọi `validate` → hiển thị form mật khẩu mới + xác nhận.
-  5. Gửi form → `resetPassword`: băm token, tìm bản ghi, kiểm tra `used = false`, `expires_at > now`, tài khoản không bị đình chỉ, mật khẩu ≥ 8 ký tự → cập nhật mật khẩu (BCrypt), mở khóa tài khoản, `used = true`, xóa token khác, audit `PASSWORD_RESET_COMPLETED`, phát `PasswordChangedEvent`.
-  6. Frontend chuyển về `/login?reset=success` (mở sẵn tab Đăng nhập, hiện "Đặt lại mật khẩu thành công"). Người dùng nhận email cảnh báo đổi mật khẩu.
-* **Luồng thay thế (Alternative Flow):**
-  - **A1 - Email không tồn tại:** không tạo token, không gửi mail, không ghi audit; response giống hệt Happy Path.
-  - **A2 - Tài khoản SUSPENDED:** không tạo token, không gửi mail; vẫn ghi audit `PASSWORD_RESET_REQUESTED` với metadata `Email sent: false (account SUSPENDED)`; response giống hệt Happy Path.
-  - **A3 - Yêu cầu nhiều lần:** mỗi lần yêu cầu mới vô hiệu các liên kết trước; chỉ liên kết mới nhất dùng được.
-* **Luồng ngoại lệ (Exception Flow):**
-  - **E1 - Liên kết hết hạn (> 30 phút), đã dùng, hoặc tài khoản bị đình chỉ sau khi yêu cầu:** `validate` trả `valid=false`; trang hiển thị *"Liên kết đã hết hạn hoặc không hợp lệ"* kèm nút "Yêu cầu liên kết mới". Nếu gửi form, backend trả 400 `TOKEN_EXPIRED`.
-  - **E2 - Token không tồn tại / bị sửa:** 400 `INVALID_TOKEN`, UI xử lý như E1.
-  - **E3 - Mật khẩu < 8 ký tự:** 400 (validation hoặc `WEAK_PASSWORD`); token **không** bị tiêu thụ.
-  - **E4 - Vượt rate limit theo IP:** 429 `RATE_LIMIT_EXCEEDED`.
-  - **E5 - SMTP lỗi / Mailpit không chạy:** nghiệp vụ vẫn thành công (token đã lưu), email không đến; backend chỉ log WARN (không ghi token/link). Người dùng có thể yêu cầu lại.
-* **Bảo mật:** DB chỉ chứa hash nên kẻ đọc được DB không dùng được liên kết; token và liên kết không bao giờ xuất hiện trong log. Hạn chế đã biết: JWT đã cấp trước khi đổi mật khẩu vẫn hợp lệ tối đa 15 phút (xem WORK_LOG #083).
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-08` |
+| **Use Case Name** | Purchase AI Analysis Quota |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | VNPay Payment Gateway, Mock Payment Sandbox |
+| **Description** | MediAssist-AI Payment & Quota Subsystem — Payment checkout initiated; quota credited upon successful transaction. |
+| **Trigger** | Patient clicks "Mua Thêm Hạn Ngạch" on `/patient/documents`. |
+| **Pre-conditions** | Patient is authenticated. |
+| **Post-conditions** | Payment checkout initiated; quota credited upon successful transaction. |
+| **Normal Flow** | Step 1: Patient opens Quota Purchase modal on `/patient/documents`.<br>Step 2: Frontend calls HTTP GET `/api/v1/payments/packages` to display quota tiers:<br>- Gói Tiêu Chuẩn: 5 lượt phân tích (50.000 VNĐ).<br>- Gói Nâng Cao: 15 lượt phân tích (120.000 VNĐ).<br>- Gói Không Giới Hạn: 50 lượt phân tích (300.000 VNĐ).<br>Step 3: Patient selects package and clicks "Thanh Toán".<br>Step 4: Frontend calls HTTP POST `/api/v1/payments/create-url` with `orderType = QUOTA_PURCHASE`.<br>Step 5: Backend initializes payment via VNPay or Mock Sandbox.<br>Step 6: Patient completes payment; transaction verified via `POST /api/v1/payments/verify`.<br>Step 7: Backend increments `patient_profiles.remaining_ai_quota`.<br>Step 8: Frontend updates quota balance badge. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `patient_profiles`, `payment_transactions`. |
+| **User Interface Controls** | Package selection cards, payment checkout modal. |
 
 ---
 
-### UC-25: Hệ Thống Thông Báo Nội Bộ & Tự Động Hoàn Tiền Khi Hủy Lịch (In-App Notifications & Auto-Refund)
+#### UC-PAT-09: Đặt Lịch Khám Trực Tiếp, Chống Race Condition & Cấp Số STT (Book In-Clinic Appointment & Slot Reservation)
 
-* **Mã Use Case:** `UC-SYS-25`
-* **Tác nhân chính:** Patient, Doctor, Admin, NotificationService, PaymentService.
-* **Mục tiêu:** Duy trì thông tin hai chiều giữa bệnh nhân, bác sĩ và ban quản trị qua chuông thông báo nội bộ; tự động kích hoạt hoàn tiền khi ca khám đã thanh toán bị hủy.
-* **REST Endpoints:**
-  - `GET /api/v1/notifications`: Lấy danh sách 20 thông báo gần nhất của người dùng hiện tại kèm số lượng chưa đọc.
-  - `GET /api/v1/notifications/unread-count`: Đếm nhanh số thông báo chưa đọc phục vụ biểu tượng chuông Navbar.
-  - `PATCH /api/v1/notifications/{id}/read`: Đánh dấu đã đọc một thông báo.
-  - `PATCH /api/v1/notifications/read-all`: Đánh dấu đã đọc tất cả thông báo của người dùng.
-* **Quy Trình Hoàn Tiền Tự Động (Auto-Refund on Cancellation):**
-  - Khi ca khám có trạng thái `paymentStatus == 'PAID'` bị hủy bởi bệnh nhân hoặc bác sĩ, `AppointmentService.updateStatus()` tự động kích hoạt phương thức hoàn tiền `paymentService.refundPayment(appointmentId)`.
-  - Trạng thái thanh toán của ca khám chuyển từ `PAID` sang `REFUNDED`, tạo bản ghi thông báo xác nhận hoàn tiền cho bệnh nhân.
-  - **Cập nhật WORK_LOG #083:** logic hoàn tiền được tách thành `AppointmentRefundService.refundIfPaid()` dùng chung cho **cả hai đường hủy**: `AppointmentService.updateAppointmentStatus(CANCELLED)` (bệnh nhân / bác sĩ / admin) và `AdminVettingService.adminCancelAppointment` (trước đây đường admin **không** hoàn tiền). Giao dịch `COMPLETED` tương ứng → `REFUNDED`, lịch hẹn → `REFUNDED`. Đây là ghi nhận trong hệ thống, chưa gọi API refund của cổng thanh toán. Thông tin hoàn tiền được đưa vào email hủy lịch (UC-30).
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AppointmentController` $\rightarrow$ `POST /api/v1/appointments` (Quyền: `hasAnyRole('PATIENT', 'ADMIN')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/doctors, /patient` $\rightarrow$ Màn hình `DoctorSearchPage.tsx, BookingModal.tsx, PatientDashboard.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, doctor_schedule_slots, notifications, users` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V7__slot_collision_guard_and_dedup_constraints.sql, V14__add_medical_document_to_appointments.sql, V15__add_triage_session_and_refund_to_appointments.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService, EmailVerificationGuard, NotificationService` $\rightarrow$ `AppointmentRepository, DoctorScheduleSlotRepository, UserRepository, NotificationRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java, NotificationServiceTest.java` (**100% PASS**)
 
----
-
-### UC-26: Đánh Giá & Chấm Sao Bác Sĩ Sau Ca Khám và Tích Hợp WHRF (Doctor Rating & Review System & Real-Time WHRF Integration)
-
-* **Mã Use Case:** `UC-DOC-26`
-* **Tác nhân chính:** Patient (Bệnh nhân), Doctor (Bác sĩ), `DoctorReviewService`, `DoctorSemanticSearchService` (WHRF Min-Heap), `TwoLayerCacheService` (Caffeine L1 + Redis L2).
-* **Mục tiêu:** Cung cấp cơ chế khép kín vòng phản hồi y tế thực tế sau khi hoàn thành buổi khám (`COMPLETED`), tính toán điểm số uy tín lâm sàng và tích hợp trực tiếp vào thuật toán gợi ý bác sĩ WHRF:
-  1. Cho phép bệnh nhân đánh giá (1-5 sao), viết nhận xét lâm sàng và chọn thẻ cảm nhận (preset tags) cho bác sĩ đã thăm khám.
-  2. Ràng buộc bảo mật và tính toàn vẹn: Chỉ bệnh nhân thực hiện ca khám mới được quyền đánh giá; mỗi ca khám đã hoàn tất chỉ được đánh giá 1 lần duy nhất (Idempotent Unique Constraint).
-  3. Tự động tính toán lại điểm trung bình (`rating`) và tổng số đánh giá (`review_count`) của bác sĩ ngay khi tiếp nhận đánh giá mới.
-  4. Cơ chế giải phóng bộ nhớ đệm (Cache Eviction): Tự động xóa sạch cache bác sĩ trên L1 Caffeine, L2 Redis và bộ nhớ đệm WHRF search cache (`doctor_search_cache`).
-  5. Tích hợp điểm số thực tế vào thuật toán WHRF ($O(M \log K)$ Min-Heap Ranking): Trọng số 20% trong công thức xếp hạng bác sĩ kèm hệ số suy giảm độ tin cậy (Credibility Damper) cho bác sĩ có dưới 5 lượt đánh giá, ngăn chặn hiện tượng gian lận điểm số.
-  6. Bảo vệ quyền riêng tư người bệnh theo Nghị định 13/2023/NĐ-CP và HIPAA thông qua mặt nạ ẩn danh họ tên ("Nguyễn Văn Bình" $\rightarrow$ "Nguyễn V. Bình").
-* **REST Endpoints Liên Quan:**
-  - `POST /api/v1/appointments/{appointmentId}/review`: Gửi đánh giá buổi khám (`rating`, `comment`, `tags`).
-  - `GET /api/v1/appointments/{appointmentId}/review`: Lấy đánh giá của một cuộc hẹn cụ thể.
-  - `GET /api/v1/doctors/{doctorId}/reviews`: Lấy danh sách đánh giá của một bác sĩ (công khai, ẩn danh tên bệnh nhân).
-  - `GET /api/v1/reviews/my`: Lấy danh sách đánh giá của bệnh nhân hiện tại.
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. Sau khi buổi khám chuyển sang trạng thái `COMPLETED`, trên `PatientDashboard`, ca khám xuất hiện nút *"⭐ Đánh Giá Bác Sĩ"*. Nếu đã đánh giá, hiển thị *"Đã Đánh Giá ({rating}★)"* cho phép xem lại nhận xét.
-  2. Modal `DoctorReviewModal` hiển thị bộ chọn sao tương tác (1-5 sao kèm nhãn mô tả cảm nhận: Rất thất vọng, Chưa hài lòng, Bình thường, Hài lòng, Rất tuyệt vời), các tag chọn nhanh ("Bác sĩ tận tình", "Giải thích rõ ràng", "Đúng giờ", "Chẩn đoán chính xác", "Thân thiện", "Tư vấn chu đáo"), ô nhập nhận xét và bộ đếm ký tự.
-  3. Bệnh nhân bấm *"Gửi Đánh Giá"*: Backend kiểm tra quyền sở hữu, trạng thái ca khám, lưu bản ghi vào `doctor_reviews`, tính lại `rating` và `review_count` trong `doctor_profiles`, gửi thông báo in-app cho bác sĩ, ghi Audit Log y tế, và xóa cache L1 + L2 + WHRF.
-  4. Trên `DoctorSearchPage`, điểm sao và số lượt đánh giá hiển thị nổi bật trên thẻ bác sĩ; người dùng bấm vào có thể mở `DoctorReviewsListModal` xem phân bổ số sao (5★, 4★, 3★, 2★, 1★), lọc theo số sao và đọc các nhận xét đã ẩn danh.
-  5. Trên `DocumentSummarizerPage` và `SymptomTriagePage`, các thẻ bác sĩ được gợi ý qua AI Vector Search hiển thị kèm số sao và số lượt đánh giá thực tế.
-  6. Trên `DoctorDashboard`, số lượt đánh giá thực tế hiển thị ngay tại thanh tiêu đề bàn làm việc lâm sàng cạnh điểm đánh giá trung bình.
-
----
----
-
-### UC-32: Cổng Nginx Production Gateway, Bảo Mật SSL/TLS 1.3 & Đường Ống CI/CD (Production Nginx SSL Gateway & CI/CD Pipeline)
-
-* **Mã Use Case:** `UC-OPS-32`
-* **Tác nhân chính:** Solution Architect / DevOps Engineer, Nginx Server, Docker Engine, GitHub Actions CI.
-* **Mục tiêu:** Đóng gói toàn bộ hệ thống vào môi trường Production Containerized bảo mật cao, thiết lập cổng Nginx Reverse Proxy mã hóa SSL/TLS 1.3, HTTP/2, phòng thủ tấn công Brute-force qua Rate Limiting phân tán, và duy trì đường ống tích hợp liên tục (CI/CD) bảo đảm chất lượng mã nguồn tự động.
-* **Thành Phần Cấu Hình:**
-  - `backend/Dockerfile`: Multi-stage build OpenJDK 21 LTS, user phi đặc quyền (non-root) `mediassist`, cờ JVM G1GC tối ưu container.
-  - `frontend/Dockerfile`: Multi-stage build Node 20 Alpine sang Nginx Alpine, nén Gzip, cache tĩnh 1 năm (immutable assets), điều hướng fallback SPA `index.html`.
-  - `nginx/nginx.conf`: Cổng Gateway công cộng lắng nghe cổng 80 (chuyển hướng 301 sang HTTPS) và cổng 443 (SSL/TLS 1.3, HTTP/2, Gzip mức độ 6, Rate limiting zone 5r/m cho Login và 50r/s cho API chung, Security Headers HSTS/CSP/X-Frame-Options).
-  - `docker-compose.prod.yml`: Điều phối đa container (`postgres`, `redis`, `backend`, `frontend`, `nginx-gateway`) với mạng nội bộ cô lập (`mediassist_internal_net`).
-  - `.github/workflows/ci.yml`: Đường ống GitHub Actions chạy tự động trên nhánh `master`, `develop`, chạy `mvn test` (144 unit tests), build React TypeScript và xác thực cú pháp Docker Compose.
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-09` |
+| **Use Case Name** | Book In-Clinic Appointment & Slot Reservation |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Clinical Scheduling Subsystem — - Appointment record created with status `SCHEDULED` and payment status `UNPAID`.<br>- Sequential daily STT queue number assigned (`queue_number = 'STT 01'`).<br>- Clinic room assigned from doctor profile. |
+| **Trigger** | Patient confirms slot selection in `BookingModal`. |
+| **Pre-conditions** | - Patient is authenticated with verified email (`email_verified = true`).<br>- Doctor is verified (`is_verified = true`) and active (`is_active = true`). |
+| **Post-conditions** | - Appointment record created with status `SCHEDULED` and payment status `UNPAID`.<br>- Sequential daily STT queue number assigned (`queue_number = 'STT 01'`).<br>- Clinic room assigned from doctor profile. |
+| **Normal Flow** | Step 1: Patient selects doctor and 30-min slot on `/patient/doctors` (e.g., 2026-10-20 09:00:00 to 09:30:00).<br>Step 2: Patient opens `BookingModal`, enters chief complaint, and optionally selects an uploaded `medicalDocumentId`.<br>Step 3: Frontend calls HTTP POST `/api/v1/appointments` with `CreateAppointmentRequest`.<br>Step 4: Backend checks doctor status (`DOCTOR_NOT_ACTIVE`, `DOCTOR_NOT_VERIFIED`).<br>Step 5: Backend checks clinic hours: Monday–Saturday, 08:00–12:00 & 13:30–17:00 (Sundays blocked).<br>Step 6: Backend verifies slot vacancy:<br>`SELECT COUNT(*) FROM appointments WHERE doctor_id = :d AND scheduled_start = :s AND status NOT IN ('CANCELLED')`<br>Step 7: Backend calculates next daily sequential queue number:<br>`queue_number = String.format("STT %02d", countToday + 1)`.<br>Step 8: Backend generates unique `appointment_code` (e.g., `AP-20261020-XXXX`).<br>Step 9: Backend sets `clinic_room = doctorProfile.getClinicRoom()`.<br>Step 10: Backend inserts record into `appointments` with status `SCHEDULED`.<br>Step 11: Backend returns HTTP 201 Created with `AppointmentDto`.<br>Step 12: Frontend opens payment modal or redirects to checkout. |
+| **Alternative Flow** | - Alt Flow 11a: Concurrent Slot Collision:<br>1. Another patient booked the same slot milliseconds earlier.<br>2. Backend detects conflict and throws `AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", "Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác.")`.<br>3. Frontend refreshes slot picker. |
+| **Exceptions** | - Exc Flow 12a: Sunday Booking Attempt:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_DAY", "Bệnh viện không tiếp nhận lịch hẹn vào Chủ Nhật.")`.<br>- Exc Flow 12b: Outside Operating Hours:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME", "Khung giờ khám hợp lệ là 08:00-12:00 và 13:30-17:00.")`. |
+| **Priority** | High (P0) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-17: In-clinic consultations operate strictly Monday–Saturday, 08:00–12:00 & 13:30–17:00.<br>- BR-20: Queue numbers (STT) are sequential per doctor per calendar date starting at STT 01. |
+| **Data Entities Involved** | `appointments`, `doctor_profiles`, `users`. |
+| **User Interface Controls** | `BookingModal`, slot pills, document select dropdown, "Xác Nhận Đặt Lịch" button. |
 
 ---
 
-### UC-33: Rào Chắn Quyền Truy Cập Hồ Sơ Bệnh Nhân Theo Quan Hệ Điều Trị & Nhật Ký Xem Hồ Sơ (Patient Record Access Guard & View Audit Trail)
+#### UC-PAT-10: Thanh Toán Đa Cổng VietQR / Stripe Sandbox & Đối Soát Sổ Cái (Process Payment via VietQR / Stripe Sandbox)
 
-* **Mã Use Case:** `UC-SEC-33`
-* **Tác nhân chính:** Doctor (Bác sĩ), Patient (Bệnh nhân), Admin (Quản trị viên), `PatientAccessGuard`, `AuditLogRepository`.
-* **Mục tiêu:** Khắc phục lỗ hổng IDOR (Insecure Direct Object Reference): trước đây bất kỳ tài khoản `DOCTOR` nào biết UUID bệnh nhân đều đọc được toàn bộ hồ sơ. Nay quyền đọc hồ sơ phụ thuộc vào **quan hệ điều trị thực tế** (nguyên tắc tối thiểu cần thiết - Need-to-know, Nghị định 13/2023/NĐ-CP).
-* **REST Endpoints được bảo vệ:**
-  - `GET /api/v1/patient/profile/by-user/{userId}`
-  - `GET /api/v1/documents/patient/{patientId}`
-  - `GET /api/v1/documents/{id}/file` và `GET /api/v1/documents/{id}/analysis` (tra chủ sở hữu tài liệu `medical_documents.user_id` rồi kiểm tra quyền)
-  - `GET /api/v1/triage/patient/{patientId}`
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `PaymentController` $\rightarrow$ `POST /api/v1/payments/checkout, POST /api/v1/payments/verify, POST /api/v1/payments/webhook/stripe, GET /api/v1/payments/transactions/{code}` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/payment/success, /patient/documents` $\rightarrow$ Màn hình `PaymentSuccessPage.tsx, DocumentSummarizerPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `payment_transactions, appointments, users` $\rightarrow$ Bản di trú `V13__create_payment_transactions.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `PaymentService, NotificationService, EmailService` $\rightarrow$ `PaymentTransactionRepository, AppointmentRepository, UserRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `PaymentServiceTest.java` (**100% PASS**)
 
-* **Mã Use Case:** `UC-SEC-27`
-* **Tác nhân chính:** Doctor (Bác sĩ), Patient (Bệnh nhân), Admin (Quản trị viên), `PatientAccessGuard`, `AuditLogRepository`.
-* **Mục tiêu:** Khắc phục lỗ hổng IDOR (Insecure Direct Object Reference): trước đây bất kỳ tài khoản `DOCTOR` nào biết UUID bệnh nhân đều đọc được toàn bộ hồ sơ. Nay quyền đọc hồ sơ phụ thuộc vào **quan hệ điều trị thực tế** (nguyên tắc tối thiểu cần thiết - Need-to-know, Nghị định 13/2023/NĐ-CP).
-* **REST Endpoints được bảo vệ:**
-  - `GET /api/v1/patient/profile/by-user/{userId}`
-  - `GET /api/v1/documents/patient/{patientId}`
-  - `GET /api/v1/documents/{id}/file` và `GET /api/v1/documents/{id}/analysis` (tra chủ sở hữu tài liệu `medical_documents.user_id` rồi kiểm tra quyền)
-  - `GET /api/v1/triage/patient/{patientId}`
-  - `GET /api/v1/appointments/patient/{patientId}`
-* **Quy tắc phân quyền (`PatientAccessGuard.assertCanAccessPatient(actorUserId, role, patientId)`):**
-
-| Vai trò | Điều kiện được xem | Ghi audit `VIEW_PATIENT_RECORD` |
-| :--- | :--- | :--- |
-| `PATIENT` | `actorUserId == patientId` (chỉ hồ sơ của chính mình) | Không |
-| `DOCTOR` | Tồn tại ≥ 1 lịch hẹn giữa bác sĩ và bệnh nhân ở trạng thái `SCHEDULED` / `IN_PROGRESS` / `COMPLETED` (`AppointmentRepository.existsByDoctorIdAndPatientIdAndStatusIn`) | Có |
-| `ADMIN` | Luôn được xem | **Bắt buộc** |
-
-  - Lịch hẹn `CANCELLED` / `NO_SHOW` **không** tạo quan hệ điều trị.
-  - Tài liệu không có chủ sở hữu (`user_id IS NULL`) chỉ Admin xem được.
-* **Tiền điều kiện (Pre-condition):** Người dùng đã đăng nhập (JWT Bearer hoặc HttpOnly Cookie); các endpoint danh sách vẫn giữ `@PreAuthorize("hasAnyRole('DOCTOR','ADMIN')")` làm lớp phòng thủ thứ nhất.
-* **Hậu điều kiện (Post-condition):** Nếu được cấp quyền và actor là DOCTOR/ADMIN, một bản ghi `audit_logs` được tạo với `action = VIEW_PATIENT_RECORD`, `user_id = actor`, `resource` (ví dụ `medical_documents/{id}/file`), `ip_address` (ưu tiên `X-Forwarded-For` → `X-Real-IP` → remote address), `user_agent`, `metadata = "Role: DOCTOR, PatientId: {uuid}"`.
-* **Luồng sự kiện chính (Happy Path):**
-  1. Bác sĩ mở ca khám trên `DoctorDashboard` hoặc mở ngăn kéo hồ sơ trên `DoctorPatientRecordsPage`.
-  2. Frontend gọi song song các endpoint hồ sơ (hộ chiếu y tế, triage, tài liệu, lịch sử khám).
-  3. Mỗi endpoint gọi `PatientAccessGuard` → xác nhận quan hệ điều trị → ghi audit → trả dữ liệu dạng DTO (`PatientProfileDto`, `TriageSessionDto`, `MedicalDocumentDto`, `AppointmentDto`) — không trả JPA entity.
-* **Luồng ngoại lệ 403 (Exception Flow - FORBIDDEN_PATIENT_ACCESS):**
-  1. Bác sĩ không có lịch hẹn hợp lệ với bệnh nhân (hoặc bệnh nhân A dò UUID tài liệu của bệnh nhân B) gọi endpoint.
-  2. `PatientAccessGuard` ném `AppException(403, "FORBIDDEN_PATIENT_ACCESS")`; `GlobalExceptionHandler` trả:
-     ```json
-     { "success": false, "error": { "code": "FORBIDDEN_PATIENT_ACCESS", "message": "Bạn không có quyền xem hồ sơ của bệnh nhân này. ..." } }
-     ```
-  3. Dữ liệu hồ sơ **không** được truy vấn; không ghi audit `VIEW_PATIENT_RECORD` (chỉ ghi log cảnh báo phía server).
-  4. Frontend (`isPatientAccessDenied` trong `services/api.ts`) nhận diện 403 và hiển thị `PatientAccessDeniedNotice`: *"Không thể mở hồ sơ bệnh nhân này"* kèm giải thích theo Nghị định 13/2023/NĐ-CP, thay vì hiện hồ sơ trống hoặc dữ liệu giả. `DocumentAnalysisModal` cũng hiển thị thông báo này thay cho dữ liệu dự phòng.
-* **Luồng thay thế:** Admin cần hội chẩn → được xem nhưng mọi lượt xem đều có dấu vết trong Nhật ký kiểm toán (UC-17).
-* **Liên quan:** Khi xem tệp gốc, ngoài `VIEW_PATIENT_RECORD` (do guard ghi cho DOCTOR/ADMIN) hệ thống ghi thêm `DOCUMENT_SIGNED_URL_ISSUED` cho **mọi role** (kể cả bệnh nhân tự xem). Đây là thiết kế có chủ đích: một dòng ghi nhận "mở hồ sơ", một dòng ghi nhận "đã phát hành link tệp".
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-10` |
+| **Use Case Name** | Process Payment via VNPay / Mock Sandbox |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | VNPay Payment Gateway, Mock Payment Sandbox |
+| **Description** | MediAssist-AI Payment Gateway Subsystem — - Payment authorized and settled.<br>- `appointments.payment_status` updated to `PAID`.<br>- Record inserted in `payment_transactions` with status `SUCCESS`.<br>- Confirmation notification dispatched to patient. |
+| **Trigger** | Patient proceeds to pay consultation fee for scheduled appointment. |
+| **Pre-conditions** | Appointment exists with `payment_status = UNPAID`. |
+| **Post-conditions** | - Payment authorized and settled.<br>- `appointments.payment_status` updated to `PAID`.<br>- Record inserted in `payment_transactions` with status `SUCCESS`.<br>- Confirmation notification dispatched to patient. |
+| **Normal Flow** | Step 1: Patient selects payment method (VNPay QR / ATM Card or Mock Sandbox).<br>Step 2: Frontend calls HTTP POST `/api/v1/payments/checkout` with `CreatePaymentRequest(orderType=APPOINTMENT_FEE, appointmentId=...)`.<br>Step 3: Backend verifies `app.payment.mock.enabled`:<br>- If production (`mock.enabled = false`): Routes to VNPay Payment Gateway, generates HMAC-SHA512 checksum URL.<br>- If demo/dev (`mock.enabled = true`): Routes to Mock Payment Gateway.<br>Step 4: Backend creates `PaymentTransaction` record with status `PENDING`.<br>Step 5: Patient submits payment details; gateway returns transaction confirmation.<br>Step 6: Frontend calls HTTP VNPay IPN Webhook `/api/v1/payments/vnpay-ipn` with `VerifyPaymentRequest(transactionCode)`.<br>Step 7: Backend verifies transaction with gateway and updates `payment_transactions.status = SUCCESS`.<br>Step 8: Backend updates `appointments.payment_status = PAID`.<br>Step 9: Backend publishes `PaymentCompletedEvent` -> dispatches confirmation email.<br>Step 10: Frontend redirects to `/payment/success` with receipt details. |
+| **Alternative Flow** | - Alt Flow 11a: VNPay IPN Webhook Asynchronous Capture:<br>1. VNPay posts webhook to `/api/v1/payments/vnpay-ipn`.<br>2. Backend validates HMAC-SHA512 checksum and auto-fulfills with idempotency lock appointment payment status. |
+| **Exceptions** | - Exc Flow 12a: Mock Payment Attempt in Production:<br>1. Backend detects `mock.enabled = false` and throws `AppException(HttpStatus.FORBIDDEN, "MOCK_PAYMENT_DISABLED", ...)`. |
+| **Priority** | High (P0) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-19: Mock payment permanently disabled in production mode (Security Audit BE-10). |
+| **Data Entities Involved** | `payment_transactions`, `appointments`. |
+| **User Interface Controls** | Payment modal, VNPay QR iframe, "Thanh Toán VNPay" button. |
 
 ---
 
-### UC-34: Xem Tệp Y Tế Gốc Qua Signed URL Ngắn Hạn Trên Bucket Riêng Tư (Private Document Storage & 15-Minute Signed URL)
+#### UC-PAT-11: Xem Phiếu Khám Điện Tử & Mã QR Vào Phòng Khám (View Electronic Encounter Slip & Admission STT)
 
-* **Mã Use Case:** `UC-SEC-34`
-* **Tác nhân chính:** Patient (chủ tài liệu), Doctor (có quan hệ điều trị), Admin, `MedicalDocumentFileAccessService`, `SupabaseStorageService`, Supabase Storage (bucket PRIVATE `medical-documents`).
-* **Mục tiêu:** Khắc phục lỗ hổng "ai có link là tải được phiếu xét nghiệm": trước đây `storageUrl` public được trả ra API, bỏ qua hoàn toàn `PatientAccessGuard`. Nay tệp nằm trong bucket PRIVATE, CSDL chỉ lưu object key (`medical_documents.storage_path`), và chỉ được xem qua **signed URL hết hạn sau 15 phút** sau khi đã kiểm tra quyền và ghi audit.
-* **REST Endpoints:**
-  - `GET /api/v1/documents/{id}/signed-url?download=false` → `ApiResponse<DocumentFileAccessDto>` `{ url, expiresAt, expiresInSeconds, fileName, contentType }`, header `Cache-Control: no-store`.
-  - `GET /api/v1/documents/{id}/file?download=false` → `302 Location: <signed URL mới>` (Supabase) hoặc stream tệp (local).
-* **Tiền điều kiện (Pre-condition):** Người dùng đã đăng nhập; chưa vượt rate limit `allowDocumentFileAccess` (30 lần/phút/người dùng).
-* **Hậu điều kiện (Post-condition):** Khi cấp được URL: một dòng `audit_logs` với `action = DOCUMENT_SIGNED_URL_ISSUED`, `resource = medical_documents/{id}`, `ip_address`, `user_agent`, `metadata = "Role: …, PatientId: …, Download: …, TtlSeconds: 900, Storage: SUPABASE|LOCAL"`. Signed URL/token **không** được ghi vào log hay audit.
-* **Luồng sự kiện chính (Happy Path):**
-  1. Người dùng bấm "Trình Xem Tệp Gốc" / "Mở Tệp" / "Xem tệp gốc" (frontend helper `services/documentFileService.ts`).
-  2. Backend kiểm tra đăng nhập → rate limit → tìm tài liệu (`404 NOT_FOUND` nếu không có).
-  3. `PatientAccessGuard` kiểm tra quyền theo chủ sở hữu tài liệu (`403 FORBIDDEN_PATIENT_ACCESS` nếu không có quyền; **không** gọi hàm ký URL).
-  4. Tài liệu không có `storage_path` → `404 FILE_NOT_AVAILABLE`.
-  5. `SupabaseStorageService.createSignedUrl` gửi `POST {supabase.url}/storage/v1/object/sign/{bucket}/{key}` body `{"expiresIn": 900}` (header `Authorization: Bearer` + `apikey` = service_role key); URL đầy đủ = `{supabase.url}/storage/v1` + `signedURL`; khi tải về thêm `&download=<tên tệp đã URL-encode>`.
-  6. Ghi audit `DOCUMENT_SIGNED_URL_ISSUED` cho **mọi role**, trả DTO. Frontend hiển thị iframe / mở cửa sổ mới / tải về.
-* **Luồng thay thế (Alternative Flow):**
-  - **A1 - Tệp local (fallback dev, `storage_path` bắt đầu bằng `/uploads/`):** trả `url = /api/v1/documents/{id}/file`, `expiresAt = null`; tệp được stream qua backend (vẫn kiểm tra quyền). Audit ghi `Storage: LOCAL, TtlSeconds: 0`.
-  - **A2 - Liên kết hết hạn:** UI tự chuyển sang trạng thái "Liên kết xem tệp đã hết hạn" đúng thời điểm `expiresAt`; người dùng bấm "Tải lại liên kết" để lấy signed URL mới (một dòng audit mới).
-* **Luồng ngoại lệ (Exception Flow):**
-  - **E1 - 403 FORBIDDEN_PATIENT_ACCESS:** bệnh nhân khác / bác sĩ không có lịch hẹn → UI hiển thị `PatientAccessDeniedNotice`.
-  - **E2 - 404 FILE_NOT_AVAILABLE:** tài liệu không có tệp, hoặc Supabase báo object không tồn tại (HTTP 404, hoặc 400 kèm `not_found`) → UI "Không tìm thấy tệp gốc". **Không ghi audit.**
-  - **E3 - 503 STORAGE_UNAVAILABLE:** Supabase lỗi / timeout / response thiếu `signedURL`, hoặc tài liệu là object Supabase nhưng `SUPABASE_KEY` rỗng / `supabase.enabled=false` → *"Hệ thống lưu trữ tệp y tế tạm thời không khả dụng. Vui lòng thử lại sau ít phút."* kèm nút "Thử lại". **Không ghi audit.**
-  - **E4 - 429 RATE_LIMIT_EXCEEDED:** vượt 30 lần/phút → thông báo chờ 1 phút.
-  - **Tuyệt đối không** sinh PDF xét nghiệm giả thay cho tệp thật trong bất kỳ nhánh lỗi nào.
-* **Bảo mật cấu hình:** `SUPABASE_KEY` (service_role) chỉ đặt trong `backend/.env` (không commit). Khi khởi động, nếu bucket đang `"public": true` hệ thống log WARN `[SECURITY]`.
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AppointmentController` $\rightarrow$ `GET /api/v1/appointments/{id}/ticket` (Quyền: `isAuthenticated()`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient` $\rightarrow$ Màn hình `PatientDashboard.tsx, AdmissionTicketModal.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, doctor_profiles, specialties` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V14__add_medical_document_to_appointments.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService` $\rightarrow$ `AppointmentRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java` (**100% PASS**)
 
----
-
-### UC-35: Xác Thực Địa Chỉ Email Khi Đăng Ký & Rào Chắn Đặt Lịch/Thanh Toán (Email Verification Gate)
-
-* **Mã Use Case:** `UC-SEC-35`
-* **Tác nhân chính:** Bệnh nhân mới đăng ký, `AuthService`, `EmailVerificationGuard`, `MailNotificationListener`, SMTP (Mailpit ở dev).
-* **Mục tiêu:** Bảo đảm email của bệnh nhân là thật và thuộc về họ trước khi cho phép đặt lịch, dời lịch và thanh toán, vì email là kênh duy nhất nhận xác nhận lịch hẹn, thông báo hủy, biên nhận và liên kết khôi phục tài khoản.
-* **Tiền điều kiện:** Bệnh nhân vừa đăng ký bằng email/mật khẩu (`POST /auth/register`).
-* **Hậu điều kiện (thành công):** `users.email_verified = true`, `users.email_verified_at` được ghi; token đã dùng có `used_at`, các token khác bị xóa; có audit `EMAIL_VERIFIED`; banner vàng biến mất và các nút đặt lịch/thanh toán hoạt động.
-* **REST Endpoints:**
-  - `POST /api/v1/auth/verify-email` (public) body `{token}`. Rate limit 20 lần / 10 phút / IP.
-  - `POST /api/v1/auth/resend-verification` (cần đăng nhập). Rate limit 1 lần / 60 giây và 5 lần / giờ mỗi tài khoản. Đã xác thực thì trả 200 *"Email của bạn đã được xác thực trước đó."* và không tốn lượt.
-  - `GET /api/v1/auth/me` trả thêm `emailVerified`.
-* **Luồng chính (Happy Path):**
-  1. Bệnh nhân đăng ký → tài khoản `ACTIVE`, `emailVerified=false`, được đăng nhập ngay. Backend sinh token 32 byte, lưu `SHA-256(token)` vào `email_verification_tokens` (hết hạn 24 giờ), phát `EmailVerificationRequestedEvent`.
-  2. Sau commit, email "Xác thực địa chỉ email" được gửi với liên kết `{app.client-base-url}/verify-email?token=...`. Trang đăng ký hiện *"Chúng tôi đã gửi email xác thực tới ..."*.
-  3. Trong khu vực bệnh nhân, `PatientLayout` gọi lại `/auth/me` khi mount (user cũ trong localStorage có thể thiếu field), hiển thị banner *"Email chưa được xác thực..."* kèm nút "Gửi lại email xác thực" ngay dưới `MedicalDisclaimerBanner`.
-  4. Bệnh nhân mở liên kết → trang `/verify-email` (public) đọc token rồi xóa token khỏi URL (`history.replaceState`), gọi `POST /auth/verify-email`.
-  5. Backend tìm token theo hash, kiểm tra còn hạn và chưa dùng → `markEmailVerified`, `used_at = now`, xóa token khác, audit `EMAIL_VERIFIED`. Trang hiển thị thành công; nếu đang đăng nhập thì làm mới user (banner biến mất).
-* **Luồng thay thế (Alternative Flow):**
-  - **A1 - Bấm lại liên kết sau khi đã xác thực:** trả thành công (idempotent), không ghi audit lần hai.
-  - **A2 - Gửi lại email:** token cũ bị xóa, chỉ liên kết mới nhất dùng được. Nút gửi lại có đếm ngược 60 giây.
-  - **A3 - Tài khoản xác thực bằng cách khác:** đặt lại mật khẩu thành công, đăng nhập/liên kết Google, bác sĩ do admin tạo, dữ liệu seed và **mọi tài khoản tồn tại trước Flyway V22** (backfill) đều có `emailVerified=true`.
-* **Luồng ngoại lệ (Exception Flow):**
-  - **E1 - Token sai / đã bị thay bằng liên kết mới:** 400 `INVALID_TOKEN`. **E2 - Token hết hạn (> 24 giờ):** 400 `TOKEN_EXPIRED`. Trang hiển thị lỗi và hướng dẫn đăng nhập để gửi lại.
-  - **E3 - Gửi lại quá nhanh / quá nhiều:** 429 `RATE_LIMIT_EXCEEDED` với thông báo chờ 60 giây hoặc thử lại sau.
-  - **E4 - Bệnh nhân chưa xác thực đặt lịch / dời lịch / thanh toán / mua gói:** `EmailVerificationGuard.requireVerifiedPatient` ở **tầng service** (`bookAppointment`, `rescheduleAppointment` khi người dời là bệnh nhân, `PaymentService.createCheckoutSession`, `MedicalDocumentAnalysisService.purchaseQuota`) ném **403 `EMAIL_NOT_VERIFIED`**. Bác sĩ/quản trị viên không bị chặn. Frontend vô hiệu hóa nút kèm tooltip; nếu vẫn nhận lỗi (ví dụ user trong localStorage cũ), `isEmailNotVerified()` hiển thị thông báo rõ ràng. `isPatientAccessDenied()` chỉ nhận `FORBIDDEN_PATIENT_ACCESS` nên không bắt nhầm lỗi này.
-* **Liên kết Google vào tài khoản chưa xác thực (chống pre-hijacking):** xóa `password_hash`, đặt `emailVerified=true`, xóa token xác thực còn lại, audit `ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED`. Chủ thật đăng nhập tiếp bằng Google hoặc dùng "Quên mật khẩu" để đặt mật khẩu mới.
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-11` |
+| **Use Case Name** | View Electronic Encounter Slip & Admission STT |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Clinic Reception |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Appointment Subsystem — Electronic admission slip rendered with clinic navigation details. |
+| **Trigger** | Patient accesses ticket view for confirmed appointment. |
+| **Pre-conditions** | Appointment exists. |
+| **Post-conditions** | Electronic admission slip rendered with clinic navigation details. |
+| **Normal Flow** | Step 1: Patient clicks "Xem Phiếu Khám" from dashboard or appointment card.<br>Step 2: Frontend calls HTTP GET `/api/v1/appointments/{id}/ticket`.<br>Step 3: Backend verifies user ownership or staff access via `PatientAccessGuard`.<br>Step 4: Backend returns ticket DTO:<br>- Sequential Queue Number (e.g., `STT 05`).<br>- Appointment Code (e.g., `AP-20261020-0012`).<br>- Patient Name, Scheduled Date & Time Window.<br>- Attending Doctor Name, Academic Title, Specialty.<br>- Clinic Room (e.g., "Phòng Khám 204 - Khu Khám Yêu Cầu").<br>- Preparation Instructions (nhịn ăn 8h nếu xét nghiệm máu, mang CCCD).<br>Step 5: Frontend renders styled digital encounter ticket card with print button. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-20: Sequential STT displayed prominently on all tickets. |
+| **Data Entities Involved** | `appointments`, `doctor_profiles`, `users`. |
+| **User Interface Controls** | Ticket frame, "In Phiếu Khám" button, "Xem Lịch Hẹn" link. |
 
 ---
 
-### UC-30: Thông Báo Email Nghiệp Vụ: Đặt Lịch, Hủy Lịch & Biên Nhận Thanh Toán (Transactional Email Notifications)
+#### UC-PAT-12: Tra Cứu Lịch Sử Khám Bệnh & Trạng Thái Lịch Hẹn (View Patient Appointment History)
 
-* **Mã Use Case:** `UC-SYS-30` (WORK_LOG #083)
-* **Tác nhân chính:** Bệnh nhân, Bác sĩ, Quản trị viên, `AppointmentService`, `AdminVettingService`, `PaymentService`, `MailNotificationListener`, SMTP (Mailpit ở dev: http://localhost:8025).
-* **Mục tiêu:** Bệnh nhân và bác sĩ nhận email xác nhận cho các sự kiện quan trọng mà không cần mở ứng dụng, đồng thời email **không bao giờ chứa thông tin y tế**.
-* **Cơ chế chung:**
-  - Service phát domain event (record chỉ có dữ liệu hành chính, chụp sẵn trong transaction): `AppointmentBookedEvent`, `AppointmentCancelledEvent`, `PaymentCompletedEvent`.
-  - `MailNotificationListener` xử lý bằng `@TransactionalEventListener(phase = AFTER_COMMIT, fallbackExecution = true)` + `@Async("mailExecutor")`: transaction rollback thì không gửi; SMTP chậm/lỗi không ảnh hưởng thời gian phản hồi hay kết quả nghiệp vụ (chỉ log WARN).
-  - Nội dung email chỉ gồm: mã lịch hẹn, thời gian (`HH:mm dd/MM/yyyy`), tên bác sĩ, chuyên khoa, phòng khám, tên bệnh nhân (email cho bác sĩ), số tiền (`350.000 ₫`), mã giao dịch và liên kết về hệ thống. **Không có** lý do khám, triệu chứng, chẩn đoán, kết quả xét nghiệm, ghi chú khám hay lý do hủy dạng tự gõ.
-* **Luồng 1 - Đặt lịch:** `bookAppointment` (bệnh nhân đặt) và `createFollowUpAppointment` (bác sĩ tạo lịch tái khám) → bệnh nhân nhận "Xác nhận lịch hẹn {mã}" (hoặc "Lịch tái khám {mã}"), bác sĩ nhận "Lịch hẹn mới {mã}".
-* **Luồng 2 - Hủy lịch:** `updateAppointmentStatus(CANCELLED)` và `adminCancelAppointment` → cả bệnh nhân và bác sĩ nhận "Lịch hẹn {mã} đã bị hủy", ghi người hủy ("Bệnh nhân" / "Bác sĩ {tên}" / "Quản trị viên"), kèm *"Khoản thanh toán 350.000 ₫ ... đã được ghi nhận hoàn tiền"* nếu trạng thái thanh toán chuyển sang `REFUNDED`, và câu *"Xem chi tiết lý do sau khi đăng nhập"* + liên kết. Lý do hủy vẫn hiển thị trong ứng dụng như cũ.
-* **Luồng 3 - Thanh toán thành công:** `verifyAndFulfillPayment` và `handleStripeWebhook`, **chỉ** khi giao dịch chuyển `PENDING → COMPLETED` → biên nhận "Biên nhận thanh toán {mã GD}": mã giao dịch, số tiền, phương thức, thời gian, nội dung (phí khám kèm mã + giờ lịch hẹn, hoặc tên gói quota/VIP).
-* **Ngoại lệ / bảo đảm:**
-  - **E1 - Gọi verify lặp lại / webhook đến sau verify:** giao dịch đã `COMPLETED` → không phát event, không gửi email lần hai. Hai lượt verify song song: `@Version` của `PaymentTransaction` làm lượt sau rollback nên `AFTER_COMMIT` không chạy.
-  - **E2 - Lỗi nghiệp vụ (trùng slot, thanh toán thất bại, admin hủy lịch đã kết thúc):** không phát event.
-  - **E3 - SMTP/Mailpit không chạy:** nghiệp vụ vẫn thành công; email bị bỏ, log WARN (chưa có outbox/retry - xem WORK_LOG #083).
-  - **Không gửi email khi dời lịch** (để làm sau). `POST /documents/quota/purchase` cộng quota trực tiếp, không qua cổng thanh toán, nên không có biên nhận.
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AppointmentController` $\rightarrow$ `GET /api/v1/appointments/my` (Quyền: `isAuthenticated()`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient` $\rightarrow$ Màn hình `PatientDashboard.tsx (Tab Lịch hẹn)`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, doctor_profiles, specialties` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V11__add_composite_performance_indexes.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService` $\rightarrow$ `AppointmentRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-12` |
+| **Use Case Name** | View Patient Appointment History |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Patient Appointment Subsystem — List of user appointments rendered with status badges. |
+| **Trigger** | Patient navigates to appointments section on `/patient`. |
+| **Pre-conditions** | Patient is authenticated. |
+| **Post-conditions** | List of user appointments rendered with status badges. |
+| **Normal Flow** | Step 1: Patient views appointments section on `/patient`.<br>Step 2: Frontend calls HTTP GET `/api/v1/appointments/my`.<br>Step 3: Backend queries `appointments` for `patient_id = currentUserId` ordered by `scheduled_start DESC`.<br>Step 4: Backend returns `List<AppointmentDto>`.<br>Step 5: Frontend renders cards showing Doctor name, Date/Time, STT, and status badge (`SCHEDULED`, `CONFIRMED`, `COMPLETED`, `CANCELLED`). |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `appointments`, `users`, `doctor_profiles`. |
+| **User Interface Controls** | Appointment cards, status pills, filter tabs. |
 
 ---
 
-### UC-36: Chuẩn Hóa Cận Lâm Sàng Theo Bản Thể Luận LOINC & Tiêm Chứng Cứ Y Tế (QĐ 3280/QĐ-BYT) Vào RAG Pipeline (Evidence-Grounded Clinical Laboratory Analysis & LOINC Standardization)
+#### UC-PAT-13: Check-in Bệnh Nhân Khi Đến Phòng Khám (Patient Check-In for In-Clinic Appointment)
 
-* **Mã Use Case:** `UC-AI-36`
-* **Tác nhân chính:** Patient (Bệnh nhân nộp phiếu xét nghiệm), AI Scribe & RAG Pipeline (`MedicalDocumentAnalysisService`, `ClinicalOntologyService`, `ClinicalRagService`), OpenRouter LLM Gateway.
-* **Mục tiêu:** Chuyển đổi toàn diện luồng phân tích cận lâm sàng từ việc phụ thuộc vào suy đoán tự do của LLM (dễ gây ảo giác) sang **mô hình neo giữ y học chứng cứ (Evidence-Grounded Clinical Reasoning)** dựa trên Bản thể luận 23 chỉ số xét nghiệm chuẩn theo Quyết định 3280/QĐ-BYT của Bộ Y Tế Việt Nam và danh mục mã quốc tế LOINC v2.76.
-* **REST Endpoints:**
-  - `POST /api/v1/documents/analyze`: Bóc tách tệp xét nghiệm, chuẩn hóa LOINC, tái thẩm định ngưỡng tham chiếu BYT và suy luận RAG.
-  - `POST /api/v1/documents/analyze-preview`: Bản xem trước phân tích cận lâm sàng tích hợp LOINC chuẩn hóa.
-  - `GET /api/v1/documents/{id}/analysis`: Truy xuất kết quả phân tích đầy đủ kèm mã LOINC, khoảng tham chiếu BYT và cơ sở chứng minh khoa học.
-* **Quy Trình Nghiệp Vụ Chính:**
-  1. **Bóc Tách & Chuẩn Hóa Cú Pháp Ban Đầu:** OCR và Regex Parser bóc tách tên chỉ số thô, giá trị, đơn vị và khoảng tham chiếu in trên phiếu.
-  2. **Đối Soát 3 Tầng Qua Bản Thể Luận (`ClinicalOntologyService.fuzzyMatchIndicator`):**
-     - Tầng 1: So khớp chính xác (Exact match) trên ID chuẩn hóa hoặc tên tiếng Việt/tiếng Anh.
-     - Tầng 2: So khớp từ điển viết tắt/tên lóng bệnh viện Việt Nam (Alias Map) xử lý ~50 biến thể (vd: "duong huyet", "men gan ast", "sgpt", "do loc cau than", "acid uric", "tnths").
-     - Tầng 3: So khớp chuỗi con (Substring containment match) loại bỏ nhiễu OCR.
-  3. **Tái Thẩm Định Ngưỡng Lâm Sàng Bằng QĐ 3280/QĐ-BYT:**
-     - Thay vì tin khoảng tham chiếu in mờ trên giấy, hệ thống lấy `refRangeMin` và `refRangeMax` chuẩn Bộ Y Tế để tự động tính toán lại trạng thái lâm sàng (`ELEVATED` / `LOW` / `NORMAL`).
-     - Tự động gán cơ sở chứng minh khoa học (`scientificBasis` = *"QĐ 3280/QĐ-BYT (Bộ Y Tế Việt Nam), LOINC {loincCode} v2.76"*).
-  4. **Tiêm Bảng Đối Soát Lâm Sàng Vào RAG Prompt:**
-     - Các chỉ số đã được đối soát được dựng thành bảng Markdown `[BẢNG ĐỐI SOÁT Y HỌC CHỨNG CỨ CHUẨN BỘ Y TẾ (QĐ 3280/QĐ-BYT) & LOINC v2.76]` và tiêm trực tiếp vào User Prompt của `ClinicalRagService`.
-     - System Prompt bổ sung Điều khoản bắt buộc mô hình AI phải đối soát kết quả cận lâm sàng với bảng chứng cứ chuẩn Bộ Y Tế, triệt tiêu ảo giác (hallucination).
-  5. **Hiển Thị Minh Bạch Trên Giao Diện Người Dùng:**
-     - Bảng chỉ số xét nghiệm (`DocumentSummarizerPage.tsx` và `DocumentAnalysisModal.tsx`) hiển thị huy hiệu `LOINC: {code}`, khoảng tham chiếu chuẩn Bộ Y Tế, và trích dẫn văn bản quy chuẩn `🔬 Luận cứ: QĐ 3280/QĐ-BYT...`.
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AppointmentController` $\rightarrow$ `PATCH /api/v1/appointments/{id}/check-in` (Quyền: `hasAnyRole('DOCTOR', 'ADMIN')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor, /admin/appointments` $\rightarrow$ Màn hình `DoctorDashboard.tsx, AppointmentSupervisionPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService, NotificationService` $\rightarrow$ `AppointmentRepository, NotificationRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java` (**100% PASS**)
 
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-13` |
+| **Use Case Name** | Patient Check-In for In-Clinic Appointment |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient, Clinic Receptionist |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Clinical Scheduling Subsystem — `checked_in_at` timestamp recorded; appointment marked ready in doctor queue. |
+| **Trigger** | Patient arrives at hospital and checks in. |
+| **Pre-conditions** | Appointment status is `SCHEDULED`. |
+| **Post-conditions** | `checked_in_at` timestamp recorded; appointment marked ready in doctor queue. |
+| **Normal Flow** | Step 1: Patient clicks "Tôi Đã Đến Phòng Khám (Check-in)" on appointment card.<br>Step 2: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/check-in`.<br>Step 3: Backend verifies user is the appointment patient or assigned doctor.<br>Step 4: Backend sets `checkedInAt = LocalDateTime.now()`.<br>Step 5: Backend commits update to `appointments` table.<br>Step 6: Backend returns HTTP 200 OK with updated appointment DTO.<br>Step 7: Frontend updates appointment badge to "Đã Check-in / Sẵn Sàng Khám". |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Check-in on non-scheduled appointment:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_CHECKIN", ...)`. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `appointments`. |
+| **User Interface Controls** | "Check-in Ngay" button, check-in confirmation badge. |
+
+---
+
+#### UC-PAT-14: Dời Lịch Hẹn Sang Khung Giờ Mới (Reschedule Active Appointment)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AppointmentController` $\rightarrow$ `PATCH /api/v1/appointments/{id}/reschedule` (Quyền: `isAuthenticated()`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient` $\rightarrow$ Màn hình `PatientDashboard.tsx (Action Đổi lịch)`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, doctor_schedule_slots, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V7__slot_collision_guard_and_dedup_constraints.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService, NotificationService` $\rightarrow$ `AppointmentRepository, DoctorScheduleSlotRepository, NotificationRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-14` |
+| **Use Case Name** | Reschedule Active Appointment |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Clinical Scheduling Subsystem — `scheduled_start` and `scheduled_end` updated to new available slot. |
+| **Trigger** | Patient selects "Dời Lịch Khám" on active appointment. |
+| **Pre-conditions** | - Appointment is in `SCHEDULED` status.<br>- New appointment time is at least 2 hours in the future. |
+| **Post-conditions** | `scheduled_start` and `scheduled_end` updated to new available slot. |
+| **Normal Flow** | Step 1: Patient opens reschedule dialog on appointment card.<br>Step 2: Patient selects new date and slot from doctor's available schedule.<br>Step 3: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/reschedule` with `RescheduleAppointmentRequest(newScheduledStart, newScheduledEnd)`.<br>Step 4: Backend checks current appointment status is `SCHEDULED`.<br>Step 5: Backend verifies new slot is >= 2 hours from current time (`PAST_DATE`).<br>Step 6: Backend verifies clinic hours (Monday–Saturday, 08:00–12:00 / 13:30–17:00).<br>Step 7: Backend checks new slot vacancy to prevent conflict (`SLOT_CONFLICT`).<br>Step 8: Backend updates appointment schedule times and re-computes queue number.<br>Step 9: Backend sends email notice of schedule change.<br>Step 10: Frontend displays toast: "Đã dời lịch hẹn thành công." |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Reschedule within 2 hours of appointment:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "PAST_DATE", "Thời gian hẹn mới phải cách thời điểm hiện tại ít nhất 2 giờ")`. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-21: Rescheduling allowed up to 2 hours prior to scheduled appointment. |
+| **Data Entities Involved** | `appointments`, `audit_logs`. |
+| **User Interface Controls** | Reschedule modal, slot picker, confirm button. |
+
+---
+
+#### UC-PAT-15: Hủy Lịch Hẹn & Tự Động Hoàn Tiền Theo Chính Sách (Cancel Appointment with Automated Policy Refund)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AppointmentController` $\rightarrow$ `PATCH /api/v1/appointments/{id}/status` (Quyền: `isAuthenticated()`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient` $\rightarrow$ Màn hình `PatientDashboard.tsx (Action Hủy lịch)`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, payment_transactions, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V13__create_payment_transactions.sql, V15__add_triage_session_and_refund_to_appointments.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService, AppointmentRefundService, NotificationService, EmailService` $\rightarrow$ `AppointmentRepository, PaymentTransactionRepository, NotificationRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java, AppointmentRefundServiceTest.java, MailTransactionPhaseTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-15` |
+| **Use Case Name** | Cancel Appointment with Automated Policy Refund |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Refund Subsystem — - `appointments.status` updated to `CANCELLED`.<br>- Automated refund calculated via `AppointmentRefundService`.<br>- Slot freed for other patients. |
+| **Trigger** | Patient clicks "Hủy Lịch Hẹn" and confirms cancellation reason. |
+| **Pre-conditions** | Appointment status is `SCHEDULED`. |
+| **Post-conditions** | - `appointments.status` updated to `CANCELLED`.<br>- Automated refund calculated via `AppointmentRefundService`.<br>- Slot freed for other patients. |
+| **Normal Flow** | Step 1: Patient clicks "Hủy Lịch" on `/patient` and inputs cancellation reason.<br>Step 2: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/status` with `{"status": "CANCELLED", "cancellationReason": "..."}`.<br>Step 3: Backend verifies user is the appointment patient.<br>Step 4: Backend invokes unified `AppointmentRefundService.processRefund(appointment, PATIENT)`.<br>Step 5: Refund Service calculates refund tier:<br>- Cancelled > 24 hours in advance: 100% full refund.<br>- Cancelled 2 to 24 hours in advance: 80% refund (20% administrative retention).<br>- Cancelled < 2 hours in advance: 0% refund.<br>Step 6: Backend updates `appointments.status = CANCELLED` and records `cancellation_reason`.<br>Step 7: Backend triggers refund via payment gateway if fee was paid.<br>Step 8: Backend sends cancellation email with refund statement.<br>Step 9: Frontend renders cancellation confirmation toast. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Attempt to cancel completed appointment:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "CANNOT_CANCEL", ...)`. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-22: Cancellation refund tiers: >24h = 100%, 2-24h = 80%, <2h = 0%. |
+| **Data Entities Involved** | `appointments`, `payment_transactions`, `audit_logs`. |
+| **User Interface Controls** | Cancel dialog, cancellation reason textarea, confirm button. |
+
+---
+
+#### UC-PAT-16: Đánh Giá & Chấm Sao Bác Sĩ Sau Ca Khám (Submit Doctor Review and Rating)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `DoctorReviewController` $\rightarrow$ `POST /api/v1/appointments/{id}/review, GET /api/v1/appointments/{id}/review, GET /api/v1/reviews/my` (Quyền: `hasRole('PATIENT')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient` $\rightarrow$ Màn hình `PatientDashboard.tsx, DoctorReviewModal.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_reviews, appointments, doctor_profiles` $\rightarrow$ Bản di trú `V17__create_doctor_reviews_and_rating_system.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorReviewService, TwoLayerCacheService` $\rightarrow$ `DoctorReviewRepository, AppointmentRepository, DoctorProfileRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorReviewServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-16` |
+| **Use Case Name** | Submit Doctor Review and Rating |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Feedback Subsystem — - Review saved in `doctor_reviews` table (Flyway V17).<br>- `doctor_profiles.rating_avg` and `review_count` updated. |
+| **Trigger** | Patient rates completed consultation. |
+| **Pre-conditions** | - Appointment is in `COMPLETED` status.<br>- Patient has not previously reviewed this appointment. |
+| **Post-conditions** | - Review saved in `doctor_reviews` table (Flyway V17).<br>- `doctor_profiles.rating_avg` and `review_count` updated. |
+| **Normal Flow** | Step 1: Patient clicks "Đánh Giá Bác Sĩ" on a completed appointment card.<br>Step 2: Patient selects star rating (1 to 5) and writes feedback comment.<br>Step 3: Frontend calls HTTP POST `/api/v1/appointments/{id}/review` with `DoctorReviewRequest(rating, comment)`.<br>Step 4: Backend checks appointment status is `COMPLETED` (`APPOINTMENT_NOT_COMPLETED`).<br>Step 5: Backend checks for duplicate review (`REVIEW_ALREADY_EXISTS`).<br>Step 6: Backend saves record in `doctor_reviews`.<br>Step 7: Backend recalculates doctor's average rating and updates `doctor_profiles`.<br>Step 8: Backend returns HTTP 201 Created with `DoctorReviewDto`.<br>Step 9: Frontend renders review confirmation. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Reviewing Incomplete Appointment:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "APPOINTMENT_NOT_COMPLETED", "Chỉ có thể đánh giá ca khám đã hoàn tất.")`. |
+| **Priority** | Low (P3) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-23: Only patients with verified `COMPLETED` appointments can submit reviews. |
+| **Data Entities Involved** | `doctor_reviews`, `appointments`, `doctor_profiles`. |
+| **User Interface Controls** | 5-star rating input, comment textarea, submit button. |
+
+---
+
+#### UC-PAT-17: Tra Cứu Lịch Sử Phân Luồng Triage AI & Tóm Tắt SBAR (View Patient Triage History)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `TriageController` $\rightarrow$ `GET /api/v1/triage/history` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/triage` $\rightarrow$ Màn hình `SymptomTriagePage.tsx (Tab Lịch sử tư vấn)`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `triage_sessions` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V15__add_triage_session_and_refund_to_appointments.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `TriageService` $\rightarrow$ `TriageSessionRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `TriageServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-17` |
+| **Use Case Name** | View Patient Triage History |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Clinical Triage Subsystem — List of past triage sessions and SBAR summaries rendered. |
+| **Trigger** | Patient accesses historical triage conversations on `/patient/triage`. |
+| **Pre-conditions** | Patient is authenticated. |
+| **Post-conditions** | List of past triage sessions and SBAR summaries rendered. |
+| **Normal Flow** | Step 1: Patient opens history tab on `/patient/triage`.<br>Step 2: Frontend calls HTTP GET `/api/v1/triage/history`.<br>Step 3: Backend queries `triage_sessions` for `user_id = currentUserId` ordered by `created_at DESC`.<br>Step 4: Backend returns `List<TriageSessionDto>`.<br>Step 5: Frontend renders past symptom cards with urgency badges and SBAR summaries. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Low (P3) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `triage_sessions`. |
+| **User Interface Controls** | Triage history drawer, SBAR modal inspector. |
+
+---
+
+#### UC-PAT-18: Khử Định Danh Dữ Liệu PII Y Tế Chuẩn NĐ 13/2023 & HIPAA (De-identify Medical PII in Text)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `MedicalPiiController` $\rightarrow$ `POST /api/v1/pii/deidentify` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/documents` $\rightarrow$ Màn hình `DocumentSummarizerPage.tsx (Bảo vệ PII trước khi gửi AI)`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `N/A (Stateless Memory)` $\rightarrow$ Bản di trú `N/A`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `MedicalPiiService` $\rightarrow$ `N/A (Stateless Regex & NER Pipeline)`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `MedicalPiiServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-PAT-18` |
+| **Use Case Name** | De-identify Medical PII in Text |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Patient (System Pre-processor) |
+| **Secondary Actor** | External Gateway |
+| **Description** | MediAssist-AI Privacy Engine — PII tokens (names, phone numbers, CCCD) redacted with privacy placeholders. |
+| **Trigger** | Patient submits clinical text for PII sanitization. |
+| **Pre-conditions** | Input text length <= 20,000 characters (`@Size(max = 20000)`). |
+| **Post-conditions** | PII tokens (names, phone numbers, CCCD) redacted with privacy placeholders. |
+| **Normal Flow** | Step 1: Frontend calls HTTP POST `/api/v1/pii/deidentify` with `DeidentifyTextRequest(text)`.<br>Step 2: Backend `MedicalPiiService` scans for Vietnamese identifiers:<br>- Phone numbers: replaced with `[PHONE_REDACTED]`<br>- Citizen ID / CCCD: replaced with `[CITIZEN_ID_REDACTED]`<br>- Email addresses: replaced with `[EMAIL_REDACTED]`<br>- Personal patient names: replaced with `[PATIENT_NAME]`<br>Step 3: Backend returns `DeidentificationResult(sanitizedText, entitiesFound)`. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Text Exceeds 20,000 Characters:<br>1. Validation fails; backend returns HTTP 400 Bad Request (Security Fix BE-12). |
+| **Priority** | High (P1) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-24: De-identification complies with Decree 13/2023/NĐ-CP and HIPAA Safe Harbor. |
+| **Data Entities Involved** | None (pure in-memory text filter). |
+| **User Interface Controls** | Privacy badge, toggle "Bảo vệ thông tin cá nhân (Ẩn PII)". |
+
+
+
+#### 2.3.3 Doctor (Clinical Workstation)
+
+---
+
+### 2.3 Phân Hệ Bác Sĩ (Doctor Subsystem - 14 Use Cases)
+
+#### UC-DOC-01: Trạm Lâm Sàng Thời Gian Thực, KPIs & Tiến Độ Ca Khám (View Doctor Workstation Dashboard & Stats)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `GET /api/v1/doctors/me/stats` (Quyền: `hasRole('DOCTOR')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor` $\rightarrow$ Màn hình `DoctorDashboard.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles, appointments` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V12__supervision_and_realtime_performance_indexes.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService` $\rightarrow$ `DoctorProfileRepository, AppointmentRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-01` |
+| **Use Case Name** | View Doctor Workstation Dashboard & Stats |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Doctor Workstation Subsystem — Workstation rendered with queue metrics and active patient list. |
+| **Trigger** | Doctor opens Doctor Dashboard (`/doctor`). |
+| **Pre-conditions** | Doctor is authenticated and profile is verified (`is_verified = true`). |
+| **Post-conditions** | Workstation rendered with queue metrics and active patient list. |
+| **Normal Flow** | Step 1: Doctor navigates to `/doctor`.<br>Step 2: Frontend calls HTTP GET `/api/v1/doctors/me/stats`.<br>Step 3: Backend queries `appointments` table for `doctor_id = currentUserId` on current date.<br>Step 4: Backend aggregates:<br>- `todayPatients`: Total patients scheduled today.<br>- `completedToday`: Consultations finished.<br>- `inProgressCount`: Currently active consultation.<br>- `pendingCount`: Patients remaining in queue.<br>Step 5: Backend returns `DoctorStatsDto`.<br>Step 6: Frontend renders workstation summary cards and today's sequential patient queue. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P0) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-13: Only verified doctors can access the clinical workstation. |
+| **Data Entities Involved** | `appointments`, `doctor_profiles`. |
+| **User Interface Controls** | KPI cards, queue progress bar, active patient panel. |
+
+---
+
+#### UC-DOC-02: Cấu Hình & Khóa Khung Giờ Khám Tuần Hoàn (Configure Doctor Schedule Slots)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `GET /api/v1/doctors/me/schedules, PUT /api/v1/doctors/me/schedules` (Quyền: `hasRole('DOCTOR')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/profile` $\rightarrow$ Màn hình `DoctorProfilePage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_schedule_slots, doctor_profiles` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V7__slot_collision_guard_and_dedup_constraints.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService` $\rightarrow$ `DoctorScheduleSlotRepository, DoctorProfileRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-02` |
+| **Use Case Name** | Configure Doctor Schedule Slots |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Scheduling Subsystem — `doctor_schedule_slots` records persisted for days of the week. |
+| **Trigger** | Doctor updates weekly shifts on `/doctor/profile`. |
+| **Pre-conditions** | Doctor is authenticated. |
+| **Post-conditions** | `doctor_schedule_slots` records persisted for days of the week. |
+| **Normal Flow** | Step 1: Doctor navigates to Schedule tab on `/doctor/profile`.<br>Step 2: Frontend calls HTTP GET `/api/v1/doctors/me/schedules`.<br>Step 3: Backend returns existing `doctor_schedule_slots` records.<br>Step 4: Doctor configures operational time windows (Monday through Saturday, 08:00–12:00 and 13:30–17:00).<br>Step 5: Frontend sends HTTP PUT `/api/v1/doctors/me/schedules` with `UpdateDoctorScheduleRequest`.<br>Step 6: Backend validates shifts fall within hospital working hours (Sunday blocked).<br>Step 7: Backend updates `doctor_schedule_slots` table within a transaction.<br>Step 8: Backend invalidates doctor slot cache in Redis.<br>Step 9: Frontend displays toast: "Lịch khám đã được cập nhật thành công." |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Invalid Slot Window:<br>1. Doctor attempts to configure Sunday or hours outside 08:00–17:00.<br>2. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME", ...)`. |
+| **Priority** | High (P0) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-17: Clinic operating hours: Monday–Saturday, 08:00–12:00 and 13:30–17:00. |
+| **Data Entities Involved** | `doctor_schedule_slots`, `doctor_profiles`. |
+| **User Interface Controls** | Weekly schedule matrix, time pickers, save button. |
+
+---
+
+#### UC-DOC-03: Điều Phối Hàng Đợi Bệnh Nhân & Gọi Khám Kế Tiếp Theo STT (View Daily Patient Queue & Call Next Patient)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `GET /api/v1/doctors/me/patients, POST /api/v1/doctors/me/call-next` (Quyền: `hasRole('DOCTOR')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor` $\rightarrow$ Màn hình `DoctorDashboard.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles, appointments, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V12__supervision_and_realtime_performance_indexes.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService, NotificationService` $\rightarrow$ `DoctorProfileRepository, AppointmentRepository, NotificationRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java, NotificationServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-03` |
+| **Use Case Name** | View Daily Patient Queue & Call Next Patient |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Doctor Workstation Subsystem — - Next waiting patient in queue selected by sequential STT.<br>- `appointments.status` transitions from `SCHEDULED` to `IN_PROGRESS`.<br>- Active clinical encounter opened on doctor workstation. |
+| **Trigger** | Doctor clicks "Gọi Bệnh Nhân Tiếp Theo" on workstation. |
+| **Pre-conditions** | There are waiting patients scheduled today. |
+| **Post-conditions** | - Next waiting patient in queue selected by sequential STT.<br>- `appointments.status` transitions from `SCHEDULED` to `IN_PROGRESS`.<br>- Active clinical encounter opened on doctor workstation. |
+| **Normal Flow** | Step 1: Doctor inspects today's patient queue on `/doctor`.<br>Step 2: Doctor clicks "Gọi Khám Tiếp" (`POST /api/v1/doctors/me/call-next`).<br>Step 3: Backend locates next appointment for this doctor today where `status IN ('SCHEDULED')` ordered by `queue_number ASC`.<br>Step 4: If previous appointment was `IN_PROGRESS`, backend marks it completed or requires finalization.<br>Step 5: Backend updates target appointment `status = IN_PROGRESS`.<br>Step 6: Backend logs call event in application log.<br>Step 7: Backend returns `AppointmentDto` with patient details, STT, and attached document ID.<br>Step 8: Frontend opens Split-Screen Clinical Encounter Modal with patient's case loaded. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Queue Empty:<br>1. No patients waiting in queue today.<br>2. Backend throws `AppException(HttpStatus.NOT_FOUND, "QUEUE_EMPTY", "Đã phục vụ hết tất cả bệnh nhân trong hàng đợi hôm nay.")`.<br>3. Frontend displays: "Đã phục vụ hết tất cả bệnh nhân trong hàng đợi hôm nay." |
+| **Priority** | High (P0) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-20: Queue strictly follows sequential STT ordering. |
+| **Data Entities Involved** | `appointments`, `users`. |
+| **User Interface Controls** | "Gọi Khám Tiếp" button, active queue row highlight. |
+
+---
+
+#### UC-DOC-04: Khảo Sát Lâm Sàng Chia Màn Hình Pre-Encounter Split-Screen (Pre-Encounter Split-Screen Clinical Inspection)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `MedicalDocumentController, TriageController` $\rightarrow$ `GET /api/v1/documents/{id}/file, GET /api/v1/triage/patient/{patientId}` (Quyền: `PUBLIC / AUTH_DEFAULT, hasAnyRole('DOCTOR', 'ADMIN')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor, /doctor/patients` $\rightarrow$ Màn hình `DoctorDashboard.tsx (Split View), DoctorPatientRecordsPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `medical_documents, triage_sessions` $\rightarrow$ Bản di trú `V20__private_document_storage_path.sql, V15__add_triage_session_and_refund_to_appointments.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `MedicalDocumentFileAccessService, TriageService, PatientAccessGuard` $\rightarrow$ `MedicalDocumentRepository, TriageSessionRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `MedicalDocumentFileAccessServiceTest.java, PatientAccessGuardTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-04` |
+| **Use Case Name** | Pre-Encounter Split-Screen Clinical Inspection |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Doctor Workstation Subsystem — Split-screen view renders raw lab scan alongside AI SBAR synthesis. |
+| **Trigger** | Doctor opens patient case in Clinical Encounter Modal. |
+| **Pre-conditions** | - Active appointment in `IN_PROGRESS` or `SCHEDULED` status.<br>- Patient attached a lab document (`medical_document_id != null`). |
+| **Post-conditions** | Split-screen view renders raw lab scan alongside AI SBAR synthesis. |
+| **Normal Flow** | Step 1: Doctor opens active patient encounter modal on `/doctor`.<br>Step 2: Frontend checks if `appointment.medicalDocumentId` exists.<br>Step 3: Frontend calls HTTP GET `/api/v1/documents/{id}/signed-url` to fetch secure S3 view link.<br>Step 4: Frontend calls HTTP GET `/api/v1/documents/{id}/analysis` to fetch structured extraction.<br>Step 5: Frontend renders Split-Screen Workspace:<br>- Left Pane: Embedded PDF / Image viewer rendering original scan (zoom, pan, rotate).<br>- Right Pane: AI Clinical Synthesis Panel:<br>* Chief complaint and triage urgency.<br>* Extracted Biomarkers table with abnormal flags highlighted (`NORMAL`, `ELEVATED`, `LOW`).<br>* Matched LOINC standard terminology.<br>* AI clinical impressions.<br>Step 6: Doctor cross-examines AI findings against original report prior to physical examination. |
+| **Alternative Flow** | - Alt Flow 11a: No Document Attached:<br>1. Left pane displays patient's conversational triage history and chief complaint. |
+| **Exceptions** | None. |
+| **Priority** | High (P0) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-25: Doctor must review clinical evidence before completing encounter. |
+| **Data Entities Involved** | `appointments`, `medical_documents`, `document_analyses`. |
+| **User Interface Controls** | Split-pane divider, PDF controls, biomarker status pills. |
+
+---
+
+#### UC-DOC-05: Kiểm Soát Quyền Truy Cập Hồ Sơ Bệnh Nhân Qua PatientAccessGuard (Access Patient Records via PatientAccessGuard)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AppointmentController, PatientProfileController, MedicalDocumentController` $\rightarrow$ `GET /api/v1/appointments/patient/{patientId}, GET /api/v1/patient/profile/by-user/{userId}, GET /api/v1/documents/patient/{patientId}` (Quyền: `hasAnyRole('DOCTOR', 'ADMIN')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/patients` $\rightarrow$ Màn hình `DoctorPatientRecordsPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, patient_profiles, audit_logs` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V6__fix_user_status_and_audit_logs.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `PatientAccessGuard, AppointmentService, PatientProfileService` $\rightarrow$ `AppointmentRepository, PatientProfileRepository, AuditLogRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `PatientAccessGuardTest.java, PatientRecordAccessControllerTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-05` |
+| **Use Case Name** | Access Patient Records via PatientAccessGuard |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Security Subsystem — - Access granted ONLY IF doctor has an active care relationship (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED` appointment).<br>- Access event recorded in `audit_logs` (`VIEW_PATIENT_RECORD`). |
+| **Trigger** | Doctor accesses patient historical medical documents or appointment history. |
+| **Pre-conditions** | Doctor is authenticated. |
+| **Post-conditions** | - Access granted ONLY IF doctor has an active care relationship (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED` appointment).<br>- Access event recorded in `audit_logs` (`VIEW_PATIENT_RECORD`). |
+| **Normal Flow** | Step 1: Doctor navigates to Patient Records (`/doctor/patients`).<br>Step 2: Frontend calls HTTP GET `/api/v1/appointments/patient/{patientId}` or `/api/v1/documents/patient/{patientId}`.<br>Step 3: Backend invokes `PatientAccessGuard.assertCanAccessPatient(doctorId, DOCTOR, patientId, resource)`.<br>Step 4: Guard executes care relationship check:<br>`appointmentRepository.existsByDoctorIdAndPatientIdAndStatusIn(doctorId, patientId, ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'])`.<br>Step 5: Care relationship confirmed (true).<br>Step 6: Guard records security audit entry in `audit_logs`:<br>`recordView(doctorId, DOCTOR, patientId, resource)`.<br>Step 7: Backend queries records and returns patient clinical history.<br>Step 8: Frontend renders patient encounter timeline and past lab reports. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: BOLA/IDOR Violation (No Care Relationship):<br>1. Doctor attempts to access patient with whom they have no appointment.<br>2. Guard check evaluates to false.<br>3. Guard throws `AppException(HttpStatus.FORBIDDEN, "FORBIDDEN_PATIENT_ACCESS", "Bạn không có quyền xem hồ sơ của bệnh nhân này. Chỉ bác sĩ có lịch hẹn điều trị với bệnh nhân mới được truy cập.")`.<br>4. Backend returns HTTP 403 Forbidden. |
+| **Priority** | High (P0 - Security Fix) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-26: Doctors cannot access records of patients they do not treat (BOLA/IDOR Defense). |
+| **Data Entities Involved** | `appointments`, `medical_documents`, `audit_logs`. |
+| **User Interface Controls** | Patient records table, encounter timeline. |
+
+---
+
+#### UC-DOC-06: Gợi Ý & Tự Động Hoàn Thành Mã Chẩn Đoán WHO ICD-10 (Autocomplete Diagnosis with WHO ICD-10)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `ClinicalOntologyController` $\rightarrow$ `GET /api/v1/clinical/ontology/icd10, GET /api/v1/clinical/ontology/icd10/{code}` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor` $\rightarrow$ Màn hình `DoctorDashboard.tsx (Modal Kết thúc ca khám)`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `N/A (In-Memory Caffeine L1 + QĐ 7603/QĐ-BYT)` $\rightarrow$ Bản di trú `V23__refactor_icd_code_and_version.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `ClinicalOntologyService, TwoLayerCacheService` $\rightarrow$ `N/A (Bản thể luận lâm sàng nạp sẵn trong bộ nhớ & JSON)`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `ClinicalOntologyServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-06` |
+| **Use Case Name** | Autocomplete Diagnosis with WHO ICD-10 |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Clinical Ontology Subsystem — Standardized ICD-10 code and Vietnamese clinical term selected. |
+| **Trigger** | Doctor types diagnosis search query in Clinical Encounter Modal. |
+| **Pre-conditions** | Clinical Ontology Service loaded with WHO ICD-10 and MOH Decision 7603/QĐ-BYT. |
+| **Post-conditions** | Standardized ICD-10 code and Vietnamese clinical term selected. |
+| **Normal Flow** | Step 1: In the Encounter Modal, doctor focuses on "Mã bệnh / Chẩn đoán (ICD-10)".<br>Step 2: Doctor types query (e.g., "tang huyet ap" or "I10").<br>Step 3: Frontend calls HTTP GET `/api/v1/clinical/ontology/icd10?query=tang+huyet+ap&limit=10`.<br>Step 4: Backend `ClinicalOntologyService` searches in-memory index or database for prefix and text matches.<br>Step 5: Backend returns list of `Icd10DiagnosisDto` (code="I10", name="Bệnh tăng huyết áp vô căn (nguyên phát)", chapter="Bệnh hệ tuần hoàn").<br>Step 6: Frontend renders autocomplete dropdown with ICD-10 badges.<br>Step 7: Doctor clicks item; system populates `icd10Code = 'I10'` and `icd10Name`. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P0 - Clinical Standardization) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-27: Finalized clinical encounter must include at least 1 standardized ICD-10 diagnosis. |
+| **Data Entities Involved** | `appointments` (icd10_code, icd10_name). |
+| **User Interface Controls** | ICD-10 autocomplete input, code pill badges, chapter tag. |
+
+---
+
+#### UC-DOC-07: Gợi Ý & Chuẩn Hóa Chỉ Số Xét Nghiệm Theo LOINC (Autocomplete Lab Indicators with LOINC)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `ClinicalOntologyController` $\rightarrow$ `GET /api/v1/clinical/ontology/lab-indicators, GET /api/v1/clinical/ontology/lab-indicators/{loincCode}` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor` $\rightarrow$ Màn hình `DoctorDashboard.tsx, DocumentSummarizerPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `N/A (In-Memory Caffeine L1)` $\rightarrow$ Bản di trú `N/A`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `ClinicalOntologyService, TwoLayerCacheService` $\rightarrow$ `N/A (Bản thể luận LOINC QĐ 3280/QĐ-BYT)`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `ClinicalOntologyServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-07` |
+| **Use Case Name** | Autocomplete Lab Indicators with LOINC |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Clinical Ontology Subsystem — Standardized LOINC lab test code and description selected. |
+| **Trigger** | Doctor searches lab test indicator in encounter form. |
+| **Pre-conditions** | LOINC and MOH Decision 3280/QĐ-BYT loaded in `ClinicalOntologyService`. |
+| **Post-conditions** | Standardized LOINC lab test code and description selected. |
+| **Normal Flow** | Step 1: Doctor types test name in "Chỉ định cận lâm sàng" (e.g., "glucose", "2345-7").<br>Step 2: Frontend calls HTTP GET `/api/v1/clinical/ontology/lab-indicators?query=glucose&limit=10`.<br>Step 3: Backend returns `List<LabIndicatorDto>` (loincCode, testName, category, referenceRange).<br>Step 4: Doctor selects test item; test code is appended to clinical notes. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | None (in-memory ontology lookup). |
+| **User Interface Controls** | LOINC search input, test chip list. |
+
+---
+
+#### UC-DOC-08: Hoàn Tất Khám Lâm Sàng, Lưu Sinh Hiệu, Chẩn Đoán & Kê Đơn Thuốc (Complete Clinical Encounter & Record EMR)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AppointmentController` $\rightarrow$ `POST /api/v1/appointments/{id}/complete-clinical` (Quyền: `hasRole('DOCTOR')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor` $\rightarrow$ Màn hình `DoctorDashboard.tsx (Modal Khám lâm sàng), VitalValue.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V18__align_ai_token_usage_schema.sql, V23__refactor_icd_code_and_version.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService, NotificationService, EmailService` $\rightarrow$ `AppointmentRepository, NotificationRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java, MailNotificationListenerTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-08` |
+| **Use Case Name** | Complete Clinical Encounter & Record EMR |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Doctor Workstation Subsystem — - `appointments.status` updated to `COMPLETED`.<br>- Vital signs JSON, ICD-10 code/name, prescription JSON, treatment plan, and notes saved directly on `Appointment` entity.<br>- Medical record locked as legally immutable.<br>- Completion email notification dispatched to patient. |
+| **Trigger** | Doctor clicks "Hoàn Thành Ca Khám" in Encounter Modal. |
+| **Pre-conditions** | - Appointment is in `IN_PROGRESS` status.<br>- Doctor provides vital signs, consultation notes, and ICD-10 diagnosis. |
+| **Post-conditions** | - `appointments.status` updated to `COMPLETED`.<br>- Vital signs JSON, ICD-10 code/name, prescription JSON, treatment plan, and notes saved directly on `Appointment` entity.<br>- Medical record locked as legally immutable.<br>- Completion email notification dispatched to patient. |
+| **Normal Flow** | Step 1: Doctor fills out Clinical Encounter Form in modal:<br>- Vital Signs: Huyết áp (mmHg), Mạch (bpm), Nhiệt độ (°C), SpO2 (%), Chiều cao (cm), Cân nặng (kg), BMI.<br>- ICD-10 Code & Name (e.g., "I10 - Bệnh tăng huyết áp vô căn").<br>- Consultation Notes & Physical Examination findings.<br>- Prescription JSON (Tên thuốc, số lượng, đơn vị, liều dùng, cách dùng).<br>- Treatment Plan & Patient Instructions.<br>- Follow-up date (optional).<br>Step 2: Doctor clicks "Hoàn Thành Ca Khám".<br>Step 3: Frontend calls HTTP POST `/api/v1/appointments/{id}/complete-clinical` with `ClinicalEncounterRequest`.<br>Step 4: Backend verifies user is the assigned doctor (`FORBIDDEN`).<br>Step 5: Backend checks appointment status is `IN_PROGRESS`.<br>Step 6: Backend updates `Appointment` fields:<br>`appt.setVitalSignsJson(req.getVitalSignsJson())`;<br>`appt.setIcd10Code(req.getIcd10Code())`;<br>`appt.setIcd10Name(req.getIcd10Name())`;<br>`appt.setConsultationNotes(req.getConsultationNotes())`;<br>`appt.setPrescriptionJson(req.getPrescriptionJson())`;<br>`appt.setTreatmentPlan(req.getTreatmentPlan())`;<br>`appt.setFollowUpDate(req.getFollowUpDate())`;<br>`appt.setStatus(AppointmentStatus.COMPLETED)`.<br>Step 7: Backend commits transaction.<br>Step 8: Backend triggers `MeddiesPdfGeneratorService` to generate encounter summary.<br>Step 9: Backend returns HTTP 200 OK with finalized `AppointmentDto`.<br>Step 10: Workstation closes modal and refreshes queue. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Invalid Appointment Status:<br>1. Appointment is not `IN_PROGRESS`.<br>2. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_STATUS_TRANSITION", ...)`. |
+| **Priority** | High (P0 - Clinical Closure) |
+| **Frequency of Use** | High (Frequent operational use) |
+| **Business Rules** | - BR-27: ICD-10 diagnosis mandatory for encounter completion.<br>- BR-29: Finalized encounter records are legally immutable. |
+| **Data Entities Involved** | `appointments`, `users`. |
+| **User Interface Controls** | Encounter modal, vital sign inputs, ICD-10 selector, prescription table, "Hoàn Thành" CTA. |
+
+---
+
+#### UC-DOC-09: Lên Lịch Hẹn Tái Khám Trực Tiếp Cho Bệnh Nhân (Schedule In-Clinic Follow-up Visit)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AppointmentController` $\rightarrow$ `POST /api/v1/appointments/follow-up` (Quyền: `hasRole('DOCTOR')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor` $\rightarrow$ Màn hình `DoctorDashboard.tsx (Form Hẹn tái khám)`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, doctor_schedule_slots, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V7__slot_collision_guard_and_dedup_constraints.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService, NotificationService` $\rightarrow$ `AppointmentRepository, DoctorScheduleSlotRepository, NotificationRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-09` |
+| **Use Case Name** | Schedule In-Clinic Follow-up Visit |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Clinical Scheduling Subsystem — New appointment created linked as follow-up visit. |
+| **Trigger** | Doctor schedules a follow-up appointment for patient. |
+| **Pre-conditions** | Prior appointment exists. |
+| **Post-conditions** | New appointment created linked as follow-up visit. |
+| **Normal Flow** | Step 1: Doctor selects follow-up date and time slot in encounter form.<br>Step 2: Frontend calls HTTP POST `/api/v1/appointments/follow-up` with `FollowUpAppointmentRequest(appointmentId, scheduledStart, scheduledEnd, chiefComplaint)`.<br>Step 3: Backend verifies slot vacancy and clinic hours.<br>Step 4: Backend creates new `Appointment` record for the patient with assigned doctor.<br>Step 5: Backend returns HTTP 201 Created with new appointment details. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `appointments`. |
+| **User Interface Controls** | Follow-up date picker, slot selector, confirm button. |
+
+---
+
+#### UC-DOC-10: Bác Sĩ Hủy Lịch Khẩn Cấp & Tự Động Hoàn Tiền 100% Cho Bệnh Nhân (Doctor Cancel Appointment with 100% Refund)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AppointmentController` $\rightarrow$ `PATCH /api/v1/appointments/{id}/status` (Quyền: `isAuthenticated()`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor` $\rightarrow$ Màn hình `DoctorDashboard.tsx (Action Hủy ca khám)`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, payment_transactions, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V13__create_payment_transactions.sql, V15__add_triage_session_and_refund_to_appointments.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService, AppointmentRefundService, NotificationService, EmailService` $\rightarrow$ `AppointmentRepository, PaymentTransactionRepository, NotificationRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java, AppointmentRefundServiceTest.java, AppointmentMailPrivacyTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-10` |
+| **Use Case Name** | Doctor Cancel Appointment with 100% Refund |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Scheduling Subsystem — - `appointments.status` updated to `CANCELLED`.<br>- 100% full refund automatically issued to patient via `AppointmentRefundService`. |
+| **Trigger** | Doctor cancels appointment due to emergency medical duties. |
+| **Pre-conditions** | Appointment status is `SCHEDULED`. |
+| **Post-conditions** | - `appointments.status` updated to `CANCELLED`.<br>- 100% full refund automatically issued to patient via `AppointmentRefundService`. |
+| **Normal Flow** | Step 1: Doctor clicks "Hủy Ca Khám" on queue item and inputs reason.<br>Step 2: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/status` with `{"status": "CANCELLED", "cancellationReason": "..."}`.<br>Step 3: Backend verifies user is the assigned doctor.<br>Step 4: Backend invokes `AppointmentRefundService.processRefund(appointment, DOCTOR)`.<br>Step 5: Refund service unconditionally grants 100% full refund because cancellation is doctor-initiated.<br>Step 6: Backend updates appointment status to `CANCELLED`.<br>Step 7: Backend dispatches apology email to patient with refund statement. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-30: Doctor-initiated cancellations always issue 100% full patient refunds. |
+| **Data Entities Involved** | `appointments`, `payment_transactions`, `audit_logs`. |
+| **User Interface Controls** | Doctor cancel dialog, reason textarea, confirm button. |
+
+---
+
+#### UC-DOC-11: Theo Dõi Đánh Giá, Phản Hồi & Thang Điểm Uy Tín Của Bác Sĩ (View Patient Reviews & Ratings)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `DoctorReviewController` $\rightarrow$ `GET /api/v1/doctors/{doctorId}/reviews` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/profile` $\rightarrow$ Màn hình `DoctorProfilePage.tsx, DoctorReviewsListModal.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_reviews, users` $\rightarrow$ Bản di trú `V17__create_doctor_reviews_and_rating_system.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorReviewService` $\rightarrow$ `DoctorReviewRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorReviewServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-11` |
+| **Use Case Name** | View Patient Reviews & Ratings |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Feedback Subsystem — List of patient reviews and rating breakdown rendered. |
+| **Trigger** | Doctor navigates to reviews tab on `/doctor/profile`. |
+| **Pre-conditions** | Doctor is authenticated. |
+| **Post-conditions** | List of patient reviews and rating breakdown rendered. |
+| **Normal Flow** | Step 1: Doctor opens reviews section.<br>Step 2: Frontend calls HTTP GET `/api/v1/doctors/{doctorId}/reviews`.<br>Step 3: Backend queries `doctor_reviews` table for `doctor_id = currentUserId` ordered by `created_at DESC`.<br>Step 4: Backend returns `List<DoctorReviewDto>`.<br>Step 5: Frontend renders review cards with star ratings and patient comments. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Low (P3) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `doctor_reviews`. |
+| **User Interface Controls** | Rating distribution bar, review cards list. |
+
+---
+
+#### UC-DOC-12: Cập Nhật Hồ Sơ Chuyên Môn, Tiểu Sử & Tự Động Tái Tạo Vector AI (Update Doctor Profile & Biography)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `PUT /api/v1/doctors/me/profile` (Quyền: `hasRole('DOCTOR')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/profile` $\rightarrow$ Màn hình `DoctorProfilePage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V10__optimize_doctor_hnsw_index.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService, EmbeddingService, TwoLayerCacheService` $\rightarrow$ `DoctorProfileRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java, EmbeddingServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-12` |
+| **Use Case Name** | Update Doctor Profile & Biography |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Doctor Subsystem — - `doctor_profiles` updated.<br>- If bio changed, 1536-d vector embedding re-computed asynchronously. |
+| **Trigger** | Doctor updates bio, consultation fee, or clinic room. |
+| **Pre-conditions** | Doctor is authenticated. |
+| **Post-conditions** | - `doctor_profiles` updated.<br>- If bio changed, 1536-d vector embedding re-computed asynchronously. |
+| **Normal Flow** | Step 1: Doctor edits bio, fee, or clinic room on `/doctor/profile`.<br>Step 2: Frontend calls HTTP PUT `/api/v1/doctors/me/profile` with `UpdateDoctorProfileRequest`.<br>Step 3: Backend updates `doctor_profiles` table.<br>Step 4: If bio was modified, backend triggers asynchronous re-embedding via `EmbeddingService`.<br>Step 5: Backend updates `doctor_profiles.bio_embedding`.<br>Step 6: Backend invalidates doctor cache in Redis.<br>Step 7: Frontend displays success notification. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-31: CCHN license number cannot be altered without admin re-vetting. |
+| **Data Entities Involved** | `doctor_profiles`. |
+| **User Interface Controls** | Bio textarea, fee input, clinic room input, save button. |
+
+---
+
+#### UC-DOC-13: Xuất Phiếu Khám & Đơn Thuốc Điện Tử Ra Tệp PDF Chuẩn Meddies (Export Medical Record & Prescription PDF)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `MedicalDocumentController, AppointmentController` $\rightarrow$ `GET /api/v1/documents/sample-random-pdf, GET /api/v1/appointments/{id}/ticket` (Quyền: `PUBLIC / AUTH_DEFAULT, isAuthenticated()`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor, /patient` $\rightarrow$ Màn hình `DoctorDashboard.tsx, PatientDashboard.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments` $\rightarrow$ Bản di trú `V1__initial_schema.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `MeddiesPdfGeneratorService` $\rightarrow$ `AppointmentRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `MeddiesPdfGeneratorServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-13` |
+| **Use Case Name** | Export Medical Record & Prescription PDF |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor, Patient |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Document Generation Subsystem — Printable PDF file generated via `MeddiesPdfGeneratorService`. |
+| **Trigger** | User clicks "In Đơn Thuốc / Bệnh Án" on completed encounter. |
+| **Pre-conditions** | Appointment status is `COMPLETED`. |
+| **Post-conditions** | Printable PDF file generated via `MeddiesPdfGeneratorService`. |
+| **Normal Flow** | Step 1: User clicks print icon on encounter card.<br>Step 2: Backend generates official medical report PDF including hospital header, patient info, vital signs, ICD-10 diagnosis, prescription table, and doctor sign-off.<br>Step 3: Browser opens PDF print preview. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `appointments`, `doctor_profiles`, `users`. |
+| **User Interface Controls** | Print / Export PDF button. |
+
+---
+
+#### UC-DOC-14: Quản Lý & Đăng Ký Danh Mục Chuyên Khoa Khám Bệnh (Manage Assigned Clinical Specialties)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `SpecialtyController, DoctorController` $\rightarrow$ `GET /api/v1/specialties, PUT /api/v1/doctors/me/profile` (Quyền: `PUBLIC / AUTH_DEFAULT, hasRole('DOCTOR')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/profile` $\rightarrow$ Màn hình `DoctorProfilePage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `specialties, doctor_specialties, doctor_profiles` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V9__verify_all_specialties_and_seed_pending_doctors.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService` $\rightarrow$ `SpecialtyRepository, DoctorProfileRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-DOC-14` |
+| **Use Case Name** | Manage Assigned Clinical Specialties |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Doctor, Admin |
+| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
+| **Description** | MediAssist-AI Specialty Subsystem — Association records saved in `doctor_specialties` table (Flyway V1). |
+| **Trigger** | Doctor or Admin links secondary medical specialties to doctor profile. |
+| **Pre-conditions** | Doctor profile exists. |
+| **Post-conditions** | Association records saved in `doctor_specialties` table (Flyway V1). |
+| **Normal Flow** | Step 1: Doctor selects additional clinical sub-specialties.<br>Step 2: Backend updates `doctor_specialties` join table.<br>Step 3: Doctor profile reflects multi-specialty clinical scope. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Low (P3) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `doctor_specialties`, `specialties`, `doctor_profiles`. |
+| **User Interface Controls** | Specialty multi-select dropdown. |
+
+
+---
+
+#### 2.3.4 Admin (Governance & AI FinOps)
+
+---
+
+### 2.4 Phân Hệ Quản Trị Viên (Admin Subsystem - 11 Use Cases)
+
+#### UC-ADM-01: Giám Sát Vận Hành Toàn Viện, KPIs & Sức Khỏe Hạ Tầng (View Executive Statistics & Overview)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AdminController, HealthController` $\rightarrow$ `GET /api/v1/admin/stats, GET /, GET /ready` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin` $\rightarrow$ Màn hình `AdminDashboard.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users, doctor_profiles, appointments, triage_sessions` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V12__supervision_and_realtime_performance_indexes.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AdminVettingService, TwoLayerCacheService` $\rightarrow$ `UserRepository, DoctorProfileRepository, AppointmentRepository, TriageSessionRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AdminVettingServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-01` |
+| **Use Case Name** | View Executive Statistics & Overview |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Admin Subsystem — Executive telemetry and platform metrics displayed. |
+| **Trigger** | Admin logs in and accesses `/admin`. |
+| **Pre-conditions** | User possesses `ADMIN` role. |
+| **Post-conditions** | Executive telemetry and platform metrics displayed. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/stats`.<br>Step 3: Backend aggregates metrics from database:<br>- `totalUsers`: Total registered accounts.<br>- `totalDoctors`: Active doctors.<br>- `totalPatients`: Patient accounts.<br>- `totalAppointments`: System-wide consultations.<br>- `totalRevenue`: Gross revenue settled.<br>Step 4: Backend returns `AdminSystemStatsDto`.<br>Step 5: Frontend renders executive dashboard KPI cards and activity trends. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `users`, `appointments`, `doctor_profiles`, `payment_transactions`. |
+| **User Interface Controls** | KPI cards, refresh button. |
+
+---
+
+#### UC-ADM-02: Giám Sát FinOps Tiêu Thụ Token & Chi Phí Mô Hình AI (Monitor AI Token Usage & FinOps)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/ai-usage` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin` $\rightarrow$ Màn hình `AdminDashboard.tsx (Card FinOps AI Analytics)`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `ai_token_usage` $\rightarrow$ Bản di trú `V18__align_ai_token_usage_schema.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AiUsageAnalyticsService` $\rightarrow$ `AiTokenUsageRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AiUsageAnalyticsServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-02` |
+| **Use Case Name** | Monitor AI Token Usage & FinOps |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI FinOps Subsystem — Token consumption charts and cost projections displayed. |
+| **Trigger** | Admin inspects AI usage on `/admin`. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Token consumption charts and cost projections displayed. |
+| **Normal Flow** | Step 1: Admin views AI Usage widget on `/admin`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/ai-usage`.<br>Step 3: Backend queries `ai_token_usage` table (Flyway V1, V12) aggregating prompt/completion tokens:<br>- Gemini 1.5 Flash tokens and cost.<br>- OpenAI text-embedding-3-small tokens and cost.<br>- OpenRouter tokens and cost.<br>- Total cost converted to VNĐ (`AI_COST_VND_PER_USD = 25450`).<br>Step 4: Backend returns `AiUsageStatsDto`.<br>Step 5: Frontend renders token distribution charts and daily cost trends. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `ai_token_usage`. |
+| **User Interface Controls** | Token count cards, USD/VND toggle, provider donut chart. |
+
+---
+
+#### UC-ADM-03: Chuyển Đổi Nhà Cung Cấp Mô Hình AI & Kiểm Thử Fallback Offline (Toggle System-wide AI Provider & Fallback Mode)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `SystemConfigController` $\rightarrow$ `GET /api/v1/system/ai-mode, POST /api/v1/system/ai-mode/toggle, POST /api/v1/system/ai-mode/sync-vectors` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin` $\rightarrow$ Màn hình `AdminDashboard.tsx (Công tắc AI Engine Switcher)`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles` $\rightarrow$ Bản di trú `V10__optimize_doctor_hnsw_index.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `EmbeddingService, DoctorSemanticSearchService` $\rightarrow$ `DoctorProfileRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `SystemConfigControllerTest.java, AiModelRouterTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-03` |
+| **Use Case Name** | Toggle System-wide AI Provider & Fallback Mode |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Inference Routing Subsystem — Runtime AI provider mode updated in Redis and application memory. |
+| **Trigger** | Admin switches active AI provider on system console. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Runtime AI provider mode updated in Redis and application memory. |
+| **Normal Flow** | Step 1: Frontend calls HTTP GET `/api/v1/system/ai-mode` to check current provider.<br>Step 2: Admin selects target provider mode:<br>- Primary: Google Gemini 1.5 Flash Direct.<br>- Secondary: OpenRouter Free-tier Pool.<br>- Fallback: Local Rule-based Triage & FNV-1a Vector Hashing.<br>Step 3: Frontend calls HTTP POST `/api/v1/system/ai-mode/toggle` (Backend Security Fix BE-1).<br>Step 4: Backend verifies `@PreAuthorize("hasRole('ADMIN')")`.<br>Step 5: Backend updates provider flag in Redis (`system:ai:mode`).<br>Step 6: Backend logs `ADMIN_TOGGLE_AI_MODE` in `audit_logs`.<br>Step 7: Frontend updates active AI mode indicator badge. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Non-Admin Access:<br>1. Backend throws HTTP 403 Forbidden. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-33: Only ADMIN role can modify system-wide AI provider configuration. |
+| **Data Entities Involved** | `audit_logs`. |
+| **User Interface Controls** | AI Mode toggle buttons, active provider badge. |
+
+---
+
+#### UC-ADM-04: Đồng Bộ Hóa Hàng Loạt Vector Embedding Bác Sĩ (Batch Sync Doctor Vector Embeddings)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AdminController, SystemConfigController` $\rightarrow$ `POST /api/v1/admin/doctors/sync-vectors, POST /api/v1/admin/doctors/{id}/sync-vector, POST /api/v1/system/ai-mode/sync-vectors` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/doctors` $\rightarrow$ Màn hình `DoctorManagementPage.tsx (Nút Đồng bộ Vector)`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles` $\rightarrow$ Bản di trú `V10__optimize_doctor_hnsw_index.sql, V19__optimize_clinical_pgvector_hnsw_and_hybrid_gin.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService, EmbeddingService` $\rightarrow$ `DoctorProfileRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `EmbeddingServiceTest.java, DoctorServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-04` |
+| **Use Case Name** | Sync Doctor Vector Embeddings |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Vector Subsystem — 1536-d vectors generated for all doctor profiles and HNSW index synced. |
+| **Trigger** | Admin clicks "Đồng Bộ Toàn Bộ Vector Bác Sĩ". |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | 1536-d vectors generated for all doctor profiles and HNSW index synced. |
+| **Normal Flow** | Step 1: Admin clicks "Sync Vectors" on `/admin/doctors`.<br>Step 2: Frontend calls HTTP POST `/api/v1/admin/doctors/sync-vectors` or `/api/v1/system/ai-mode/sync-vectors`.<br>Step 3: Backend iterates over `doctor_profiles`:<br>- Combines doctor bio, specialty name, and academic title into text string.<br>- Calls `EmbeddingService.generateEmbedding(text)` -> produces 1536-d vector.<br>- Updates `doctor_profiles.bio_embedding`.<br>Step 4: Backend commits updates in batch.<br>Step 5: Backend returns count of synchronized vectors.<br>Step 6: Frontend renders completion toast: "Đã đồng bộ vector thành công cho {count} bác sĩ." |
+| **Alternative Flow** | - Alt Flow 11a: Single Doctor Vector Sync:<br>1. Admin calls `POST /api/v1/admin/doctors/{id}/sync-vector` for a specific doctor. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `doctor_profiles`. |
+| **User Interface Controls** | "Sync All Vectors" button, single doctor sync icon. |
+
+---
+
+#### UC-ADM-05: Thẩm Định Chứng Chỉ Hành Nghề CCHN & Phê Duyệt Bác Sĩ (Vet & Approve Doctor CCHN License)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/doctors/pending, POST /api/v1/admin/doctors/{id}/vet` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/doctors` $\rightarrow$ Màn hình `DoctorManagementPage.tsx, DoctorVettingPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles, audit_logs, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V9__verify_all_specialties_and_seed_pending_doctors.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AdminVettingService, NotificationService, EmailService` $\rightarrow$ `DoctorProfileRepository, AuditLogRepository, NotificationRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AdminVettingServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-05` |
+| **Use Case Name** | Vet & Approve Doctor CCHN License |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Vetting Subsystem — Doctor verified (`is_verified = true`) and activated for public search. |
+| **Trigger** | Admin reviews pending doctor license applications. |
+| **Pre-conditions** | Doctor account exists with `is_verified = false`. |
+| **Post-conditions** | Doctor verified (`is_verified = true`) and activated for public search. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/pending`.<br>Step 3: Backend returns doctors with `is_verified = false`.<br>Step 4: Admin inspects CCHN license number, issuing authority, and specialty credentials.<br>Step 5: Admin clicks "Phê Duyệt" (Approve).<br>Step 6: Frontend calls HTTP POST `/api/v1/admin/doctors/{id}/vet` with `VetDoctorRequest(approved=true)`.<br>Step 7: Backend sets `doctor_profiles.is_verified = true`.<br>Step 8: Backend triggers vector embedding generation if missing.<br>Step 9: Backend sends approval email to doctor.<br>Step 10: Frontend removes doctor from pending queue. |
+| **Alternative Flow** | - Alt Flow 11a: Reject Application:<br>1. Admin calls vetting endpoint with `approved = false` and rejection reason.<br>2. Backend sends rejection email prompting re-submission. |
+| **Exceptions** | None. |
+| **Priority** | High (P0 - Legal Compliance) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-13: Unverified doctors are strictly excluded from public search and booking. |
+| **Data Entities Involved** | `doctor_profiles`, `audit_logs`. |
+| **User Interface Controls** | Pending doctors tab, "Phê Duyệt" button, "Từ Chối" button. |
+
+---
+
+#### UC-ADM-06: Quản Lý Danh Sách, Phân Trang Offset & Trạng Thái Bác Sĩ (Manage Doctor Directory & Offset Pagination)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/doctors, GET /api/v1/admin/doctors/paged, POST /api/v1/admin/doctors, PUT /api/v1/admin/doctors/{id}, PATCH /api/v1/admin/doctors/{id}/toggle-status` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/doctors` $\rightarrow$ Màn hình `DoctorManagementPage.tsx, Pagination.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles, users, specialties` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V2__seed_rich_hospital_data.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService, TwoLayerCacheService` $\rightarrow$ `DoctorProfileRepository, UserRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-06` |
+| **Use Case Name** | Manage Doctor Directory |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Admin Subsystem — Doctor record in `doctor_profiles` and `users` updated. |
+| **Trigger** | Admin creates, edits, or toggles status of a doctor. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Doctor record in `doctor_profiles` and `users` updated. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/paged?page=0&size=10`.<br>Step 3: Admin clicks "Tạo Bác Sĩ Mới" and inputs Name, Email, License Number, Specialty, Fee, Clinic Room.<br>Step 4: Frontend calls HTTP POST `/api/v1/admin/doctors` with `AdminCreateDoctorRequest`.<br>Step 5: Backend creates `User` (role=`DOCTOR`) and `DoctorProfile` within a transaction.<br>Step 6: Backend sends welcome email with temporary credentials.<br>Step 7: Admin can also toggle doctor status via `PATCH /api/v1/admin/doctors/{id}/toggle-status`. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Duplicate Email or License:<br>1. Backend throws `AppException(HttpStatus.CONFLICT, "EMAIL_EXISTS", ...)` or `"LICENSE_EXISTS"`. |
+| **Priority** | Medium (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `doctor_profiles`, `users`, `specialties`. |
+| **User Interface Controls** | Doctor table, Add/Edit modal, toggle status switch. |
+
+---
+
+#### UC-ADM-07: Quản Trị Tài Khoản Người Dùng, Phân Quyền RBAC & Khóa Tài Khoản (User Access Control, RBAC & Account Locking)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/users, PATCH /api/v1/admin/users/{id}/status` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/users` $\rightarrow$ Màn hình `UserManagementPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users, audit_logs` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V3__account_lockout_and_security_hardening.sql, V6__fix_user_status_and_audit_logs.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, SecurityRateLimiterService` $\rightarrow$ `UserRepository, AuditLogRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `SecurityHardeningTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-07` |
+| **Use Case Name** | User Access Control & Account Locking |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Admin Subsystem — `users.is_active` updated; user sessions invalidated. |
+| **Trigger** | Admin searches users on `/admin/users` and modifies account status. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | `users.is_active` updated; user sessions invalidated. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/users`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/users?query=...&page=0&size=20`.<br>Step 3: Admin inspects user details and clicks "Khóa Tài Khoản".<br>Step 4: Admin inputs mandatory lock reason (min 10 characters).<br>Step 5: Frontend calls HTTP PATCH `/api/v1/admin/users/{id}/status` with `UpdateUserStatusRequest(status, reason)`.<br>Step 6: Backend updates `users.is_active = false`.<br>Step 7: Backend logs `ADMIN_LOCK_USER` in `audit_logs`.<br>Step 8: Frontend updates user status badge to `Bị Khóa`. |
+| **Alternative Flow** | None. |
+| **Exceptions** | - Exc Flow 12a: Lock Reason Too Short:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_REASON", "Lý do khóa tài khoản bắt buộc tối thiểu 10 ký tự")`. |
+| **Priority** | High (P1) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-32: Locking an account immediately terminates active web and mobile sessions. |
+| **Data Entities Involved** | `users`, `audit_logs`. |
+| **User Interface Controls** | User table, role filter, lock modal with reason textarea. |
+
+---
+
+#### UC-ADM-08: Quản Lý Danh Mục Chuyên Khoa Lâm Sàng Toàn Viện (Manage Clinical Specialties & Taxonomy)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AdminController, SpecialtyController` $\rightarrow$ `GET /api/v1/specialties, POST /api/v1/admin/specialties` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/specialties` $\rightarrow$ Màn hình `SpecialtyManagementPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `specialties` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V9__verify_all_specialties_and_seed_pending_doctors.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService, TwoLayerCacheService` $\rightarrow$ `SpecialtyRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-08` |
+| **Use Case Name** | Manage Clinical Specialties & Taxonomy |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Clinical Subsystem — Specialty record created in `specialties` table. |
+| **Trigger** | Admin creates specialty on `/admin/specialties`. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Specialty record created in `specialties` table. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/specialties`.<br>Step 2: Admin clicks "Thêm Chuyên Khoa Mới".<br>Step 3: Admin enters Name (e.g., "Tim Mạch Can Thiệp"), Code (`CARDIO`), Description, and Icon Name.<br>Step 4: Frontend calls HTTP POST `/api/v1/admin/specialties` with `CreateSpecialtyRequest`.<br>Step 5: Backend verifies code uniqueness (`SPECIALTY_SLUG_EXISTS`).<br>Step 6: Backend saves record in `specialties`.<br>Step 7: Backend refreshes specialty cache in Redis.<br>Step 8: Frontend updates specialties list. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `specialties`. |
+| **User Interface Controls** | Specialty table, Add modal, icon picker. |
+
+---
+
+#### UC-ADM-09: Giám Sát Toàn Bộ Lịch Hẹn Khám Bệnh & Can Thiệp Hủy Cưỡng Chế (Supervise Appointments & Force Cancel)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/appointments, PATCH /api/v1/admin/appointments/{id}/cancel` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/appointments` $\rightarrow$ Màn hình `AppointmentSupervisionPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, payment_transactions, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V12__supervision_and_realtime_performance_indexes.sql, V13__create_payment_transactions.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService, AppointmentRefundService, NotificationService` $\rightarrow$ `AppointmentRepository, PaymentTransactionRepository, NotificationRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java, AppointmentRefundServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-09` |
+| **Use Case Name** | Supervise Appointments & Force Cancel |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Supervision Subsystem — Appointment details audited; force-cancel override executed if needed. |
+| **Trigger** | Admin inspects appointments on `/admin/appointments`. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Appointment details audited; force-cancel override executed if needed. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/appointments`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/appointments`.<br>Step 3: Backend returns system-wide appointments list with status filters.<br>Step 4: In case of dispute, Admin clicks "Hủy Bắt Buộc & Hoàn Tiền".<br>Step 5: Admin enters cancellation reason (min 10 characters).<br>Step 6: Frontend calls HTTP PATCH `/api/v1/admin/appointments/{id}/cancel` with reason.<br>Step 7: Backend invokes `AppointmentRefundService` and updates status to `CANCELLED`.<br>Step 8: Backend logs administrative override in `audit_logs`.<br>Step 9: Frontend updates appointment status badge. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Medium (P2) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `appointments`, `payment_transactions`, `audit_logs`. |
+| **User Interface Controls** | Supervision table, force-cancel button, reason dialog. |
+
+---
+
+#### UC-ADM-10: Giám Sát An Toàn Các Phiên Phân Luồng Triage AI (Supervise AI Triage Sessions & Safety Analytics)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/triage-sessions` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/triage` $\rightarrow$ Màn hình `TriageSupervisionPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `triage_sessions` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V12__supervision_and_realtime_performance_indexes.sql, V15__add_triage_session_and_refund_to_appointments.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `TriageService` $\rightarrow$ `TriageSessionRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `TriageServiceTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-10` |
+| **Use Case Name** | Supervise AI Triage Sessions |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Supervision Subsystem — Anonymized triage session logs and SBAR summaries rendered. |
+| **Trigger** | Admin navigates to `/admin/triage`. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Anonymized triage session logs and SBAR summaries rendered. |
+| **Normal Flow** | Step 1: Admin accesses `/admin/triage`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/triage-sessions`.<br>Step 3: Backend queries `triage_sessions` table (Flyway V1, V15).<br>Step 4: Backend returns list of `AdminTriageSessionDto` (chiefComplaint, sbarSummary, urgencyLevel, recommendedSpecialty, redFlagsDetected, createdAt).<br>Step 5: Frontend renders triage supervision table showing urgency level breakdown and SBAR details. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | Low (P3) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | None. |
+| **Data Entities Involved** | `triage_sessions`. |
+| **User Interface Controls** | Triage session table, SBAR inspector modal, urgency filters. |
+
+---
+
+#### UC-ADM-11: Nhật Ký Kiểm Toán An Ninh Bất Biến & Chống IDOR (Inspect Security Audit Logs & IDOR Records)
+
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/audit-logs` (Quyền: `PUBLIC / AUTH_DEFAULT`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/audit-logs` $\rightarrow$ Màn hình `AuditLogPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `audit_logs` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V6__fix_user_status_and_audit_logs.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `PatientAccessGuard` $\rightarrow$ `AuditLogRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `PatientAccessGuardTest.java` (**100% PASS**)
+
+| Attribute | Specification Details |
+| :--- | :--- |
+| **Use Case ID** | `UC-ADM-11` |
+| **Use Case Name** | View Security Audit Logs & IDOR Records |
+| **Created By** | SE-AI Capstone Team |
+| **Created Date** | 15/02/2026 |
+| **Primary Actor** | Admin |
+| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
+| **Description** | MediAssist-AI Audit Subsystem — Immutable audit trail records rendered. |
+| **Trigger** | Admin accesses `/admin/audit-logs`. |
+| **Pre-conditions** | Admin is authenticated. |
+| **Post-conditions** | Immutable audit trail records rendered. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/audit-logs`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/audit-logs`.<br>Step 3: Backend queries `audit_logs` table (Flyway V1) ordered by `created_at DESC`.<br>Step 4: Admin filters by action:<br>- `VIEW_PATIENT_RECORD` (Doctor patient record inspection under `PatientAccessGuard`).<br>- `USER_LOGIN`, `USER_LOGOUT`, `PASSWORD_RESET`.<br>- `ADMIN_LOCK_USER`, `ADMIN_TOGGLE_AI_MODE`, `FORCE_CANCEL_APPOINTMENT`.<br>Step 5: Backend returns list of `AuditLogDto` (action, entityType, entityId, userId, ipAddress, detailsJson, createdAt).<br>Step 6: Frontend renders audit table with expandable JSON details. |
+| **Alternative Flow** | None. |
+| **Exceptions** | None. |
+| **Priority** | High (P1 - Compliance) |
+| **Frequency of Use** | Medium (Periodic / Administrative) |
+| **Business Rules** | - BR-34: Audit logs are append-only and strictly immutable. Deletions/updates blocked. |
+| **Data Entities Involved** | `audit_logs`. |
+| **User Interface Controls** | Audit data table, action filter dropdown, JSON inspector. |
+
+
+
+---
+
+## 3. FUNCTIONAL REQUIREMENTS
+
+---

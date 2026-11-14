@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#113** | 14/11/2026 | Rà Soát Toàn Diện & Thiết Lập Ánh Xạ 1-to-1 Triệt Để Giữa Hệ Thống Tài Liệu Và Toàn Bộ Dự Án Thực Tế (Swarm Audit & 1-to-1 Exhaustive Mapping Baseline): (1) Kiểm kê vật lý 100% mã nguồn: 49 Use Cases (6 Common, 18 Patient, 14 Doctor, 11 Admin), 15 Controllers với 87 REST Endpoints, 31 Backend Services, 16 Repositories, 17 Bảng CSDL 3NF + 6 Enums (23 files), 23 Bản di trú Flyway (V1-V23), 22 Trang Frontend React + 10 Modals/Drawers, 37 Lớp Test với 308 Unit Tests 100% PASS, (2) Đại tu toàn diện `docs/MASTER_TRACEABILITY_INDEX.md` ánh xạ 1-1 không có mẫu đại diện hay elipsis, (3) Tái cấu trúc và hoàn thiện `docs/USE_CASES.md` đủ 49 Use Cases chuẩn IEEE 830 với khối thẻ Ánh Xạ Kỹ Thuật 1-1, (4) Đồng bộ `docs/SDD_MediAssist_AI.md` & `docs/SRS_MediAssist_AI.md` cập nhật danh mục gói, (5) Tái biên dịch 21 tài liệu `docs-bundle.js` (1.196,5 KB), (6) `npm run build` 0 lỗi TS & `mvn test` 308/308 PASS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#112** | 09/11/2026 | Nâng Cấp Toàn Diện Vector Studio (`interactive_viewer.html`), Tái Thiết Kế ERD 17 Bảng Chuẩn 3NF & Bổ Sung Giao Diện Sáng / Tối: (1) Khắc phục triệt để lỗi màn hình tối đen ("tối đen thui không thấy gì") bằng việc thiết lập Giao diện Sáng (Clinical Light Theme) làm mặc định, tích hợp nút chuyển đổi Sáng/Tối (☀️/🌙) lưu trạng thái qua `localStorage`, cùng bộ CSS High-Contrast Overrides cho Mermaid SVG giúp hiển thị rõ nét 100%, (2) Tái thiết kế toàn diện sơ đồ ERD tổng thể (`erd_full`): Bổ sung đầy đủ thuộc tính, kiểu dữ liệu, khóa PK/UK/FK cho toàn bộ 17 bảng dữ liệu (Flyway V1-V23), (3) Chuẩn hóa triệt để quan hệ 1-N và 1:0..1: Loại bỏ mạng nhện nối lộn xộn từ `users`, làm rõ chiều quan hệ (bác sĩ tiếp nhận khám, bệnh nhân đặt khám, ca khám đính kèm tài liệu OCR, phân luồng triage chuyển thành ca khám, đánh giá sau khám 1:0..1, thanh toán viện phí), (4) Đồng bộ hóa sang 5 tài liệu `docs/` và tái biên dịch 21 tài liệu `docs-bundle.js`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#111** | 06/11/2026 | Tái Cấu Trúc Toàn Diện Mô Hình Miền Khái Niệm 3.2 (Conceptual Domain Model & Aggregate Boundaries) Chuẩn Enterprise DDD: (1) Khắc phục lỗi sai ngữ nghĩa kế thừa `<|--` (Inheritance Anti-Pattern) thành quan hệ sở hữu/kết hợp chặt chẽ `1:0..1` Composition, (2) Xóa bỏ hoàn toàn Anemic Domain Model bằng cách bổ sung phương thức miền (Domain Behaviors) và rào chắn bất biến (Domain Invariants), (3) Mở rộng từ 10 thực thể sơ khai lên 26 thực thể, Aggregates và Value Objects bao phủ trọn vẹn 7 Bounded Contexts và 17 bảng CSDL (khóa slot Redis, hội thoại đa lượt, FinOps AI Token, HIPAA Audit Log, LOINC QĐ 3280, WHO ICD-10, E-Admission Ticket), (4) Bổ sung Bảng 3.2 Ma trận Ranh giới Aggregate & Bất biến miền, đồng bộ hóa sang `report_2/` và biên dịch 21 tài liệu offline `docs-bundle.js`. Frontend build 0 lỗi TS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#110** | 06/11/2026 | Tái Cấu Trúc & Phân Bổ Lại Toàn Diện Bảng 1.3 (Stakeholder & Actor Identification): (1) Khắc phục triệt để lỗi CSS toàn cục ép `white-space: nowrap; width: 1%` lên cột thứ hai và cột cuối khiến Cột 2 ("Bản Chất & Vai Trò") chiếm quá nhiều chiều ngang và Cột 3 ("Mục Tiêu & Nhu Cầu Cốt Lõi") bị bóp nghẹt, (2) Thiết lập bộ quy tắc CSS và cơ chế tự động nhận diện bảng `.table-stakeholders` theo tỷ lệ vàng 16% / 25% / 37% / 22% trên 5 tệp giao diện báo cáo (`report_1` đến `report_5`), (3) Làm giàu và cân bằng mật độ nội dung (Content Density) giữa các cột trong `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` và `report_2/`, (4) Đồng bộ tự động 21 tài liệu qua `compile_docs_bundle.py`, kiểm thử trọn vẹn 308/308 Backend Unit Tests PASS và Frontend Build 0 lỗi TypeScript (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
@@ -43,6 +44,125 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### Phiên #113: Rà Soát Toàn Diện & Thiết Lập Ánh Xạ 1-to-1 Triệt Để Giữa Hệ Thống Tài Liệu Và Toàn Bộ Dự Án Thực Tế (Swarm Audit & 1-to-1 Exhaustive Mapping Baseline)
+* **Thời gian thực hiện:** 14/11/2026 – Swarm Coordinator & Lead Assistant
+* **Người thực hiện:** AI Senior Pair Programming Assistant
+* **Người duyệt:** **Tech Lead & Solution Architect**
+
+---
+
+#### 1. Bối Cảnh & Động Cơ Kỹ Thuật
+Khi Tech Lead rà soát hệ thống tài liệu KLTN (`docs/`, `report_1` đến `report_5`), phát hiện tài liệu trước đây thường dùng phương pháp "mẫu đại diện" (representative sampling, chỉ liệt kê 1-2 endpoint, 1-2 bảng hoặc 5-6 service tiêu biểu) và có độ lệch số liệu so với mã nguồn thực tế:
+1. `docs/MASTER_TRACEABILITY_INDEX.md` chỉ liệt kê 33 Use Cases theo mã cũ (`UC-00`..`UC-32`), thiếu 16 Use Cases của SRS, chỉ ghi nhận 22 bản di trú Flyway (thiếu `V23`), ghi nhận 26 services thay vì 31 services thực tế, và chỉ liệt kê một phần nhỏ trong số 87 endpoints vật lý.
+2. `docs/USE_CASES.md` dùng cấu trúc đánh số cũ phẳng (`UC-00` đến `UC-36` bị nhảy cóc), không tương thích với cấu trúc 49 Use Cases phân theo miền (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`) trong `SRS_MediAssist_AI.md`.
+3. `docs/SDD_MediAssist_AI.md` ở Bảng 1.2.2 chỉ liệt kê 12 controllers (thiếu `HealthController`, `PatientProfileController`, `SpecialtyController`), liệt kê 8 repositories (thiếu 8 repos) và 5 enums (thiếu `OrderType`).
+
+**Chỉ thị từ Tech Lead:** */swarm hãy dựa vào doc liệt kê và rà soát sửa lại những thứ còn thiếu hoặc sai sót, mọi thứ phải mapping 1-1 với project chứ không thấy 1 2 thứ đại diện, phải lấy hết.*
+
+---
+
+#### 2. Kết Quả Kiểm Kê Vật Lý Toàn Diện 100% Mã Nguồn (Codebase Reality)
+Qua công cụ phân tích tĩnh AST & regex chuyên sâu trên toàn bộ cây thư mục dự án:
+* **49 Use Cases Nghiệp Vụ Chuẩn RUP/IEEE 830:**
+  * 06 Use Cases Phân hệ Dùng chung (`UC-COMM-01` đến `UC-COMM-06`)
+  * 18 Use Cases Phân hệ Bệnh nhân (`UC-PAT-01` đến `UC-PAT-18`)
+  * 14 Use Cases Phân hệ Bác sĩ (`UC-DOC-01` đến `UC-DOC-14`)
+  * 11 Use Cases Phân hệ Quản trị viên (`UC-ADM-01` đến `UC-ADM-11`)
+* **15 REST Controllers & 87 Endpoints Vật Lý:**
+  * `AdminController` (/api/v1/admin): 18 endpoints
+  * `AppointmentController` (/api/v1/appointments): 9 endpoints
+  * `AuthController` (/api/v1/auth): 9 endpoints
+  * `ClinicalOntologyController` (/api/v1/clinical/ontology): 4 endpoints
+  * `DoctorController` (/api/v1/doctors): 9 endpoints
+  * `DoctorReviewController` (/api/v1): 4 endpoints
+  * `HealthController` (/ & /ready): 2 endpoints
+  * `MedicalDocumentController` (/api/v1/documents): 10 endpoints
+  * `MedicalPiiController` (/api/v1/pii): 1 endpoint
+  * `NotificationController` (/api/v1/notifications): 4 endpoints
+  * `PatientProfileController` (/api/v1/patient/profile): 3 endpoints
+  * `PaymentController` (/api/v1/payments): 6 endpoints
+  * `SpecialtyController` (/api/v1/specialties): 1 endpoint
+  * `SystemConfigController` (/api/v1/system): 3 endpoints
+  * `TriageController` (/api/v1/triage): 4 endpoints
+* **31 Backend Services Hoạt Động:**
+  * `AdminVettingService`, `AiUsageAnalyticsService`, `AppointmentRefundService`, `AppointmentService`, `AuthService`, `ClinicalOntologyService`, `ClinicalQueryDefenseEngine`, `ClinicalRagService`, `DoctorReviewService`, `DoctorSemanticSearchService`, `DoctorService`, `EmailVerificationGuard`, `EmbeddingService`, `MeddiesPdfGeneratorService`, `MedicalDocumentAnalysisService`, `MedicalDocumentFileAccessService`, `MedicalDocumentValidator`, `MedicalPiiService`, `NotificationService`, `PatientAccessGuard`, `PatientProfileService`, `PaymentService`, `PdfExtractionService`, `RedFlagService`, `SecurityRateLimiterService`, `StorageService`, `SupabaseStorageService`, `SupabaseStorageUrls`, `TriageRateLimiterService`, `TriageService`, `TwoLayerCacheService`.
+* **16 Spring Data Repositories:**
+  * `AiTokenUsageRepository`, `AppointmentRepository`, `AuditLogRepository`, `DoctorProfileRepository`, `DoctorReviewRepository`, `DoctorScheduleSlotRepository`, `DocumentAnalysisRepository`, `EmailVerificationTokenRepository`, `MedicalDocumentRepository`, `NotificationRepository`, `PasswordResetTokenRepository`, `PatientProfileRepository`, `PaymentTransactionRepository`, `SpecialtyRepository`, `TriageSessionRepository`, `UserRepository`.
+* **17 Bảng CSDL Chuẩn 3NF & 6 Enums Nghiệp Vụ (23 tệp):**
+  * 17 Thực thể: `User`, `Specialty`, `DoctorProfile`, `DoctorScheduleSlot`, `PatientProfile`, `Appointment`, `TriageSession`, `MedicalDocument`, `DocumentAnalysis`, `PaymentTransaction`, `PasswordResetToken`, `EmailVerificationToken`, `Notification`, `DoctorReview`, `AuditLog`, `AiTokenUsage` (kèm bảng liên kết `doctor_specialties`).
+  * 6 Enums: `Role`, `UserStatus`, `AppointmentStatus`, `PaymentStatus`, `OrderType`, `TriageUrgencyLevel`.
+* **23 Bản Di Trú Flyway:**
+  * `V1__initial_schema.sql` đến `V23__refactor_icd_code_and_version.sql`.
+* **22 Trang Frontend React + 10 Modals/Drawers & AppRoutes:**
+  * 7 Public/Auth Pages: `LandingPage`, `LoginPage`, `ForgotPasswordPage`, `ResetPasswordPage`, `VerifyEmailPage`, `OAuth2CallbackPage`, `PaymentSuccessPage`.
+  * 7 Admin Pages: `AdminDashboard`, `AppointmentSupervisionPage`, `TriageSupervisionPage`, `DoctorManagementPage`, `DoctorVettingPage`, `UserManagementPage`, `SpecialtyManagementPage`, `AuditLogPage`.
+  * 3 Doctor Pages: `DoctorDashboard`, `DoctorPatientRecordsPage`, `DoctorProfilePage`.
+  * 5 Patient Pages: `PatientDashboard`, `SymptomTriagePage`, `DocumentSummarizerPage`, `DoctorSearchPage`.
+* **37 Lớp Kiểm Thử (Unit & Integration Tests) với 308 Tests 100% PASS.**
+
+---
+
+#### 3. Các Hành Động Cập Nhật Đã Thực Hiện
+1. **Tái Thiết Kế & Hoàn Thiện `docs/MASTER_TRACEABILITY_INDEX.md`:**
+   * Mở rộng bảng Ma Trận Truy Vết (RTM) lên đủ 49 dòng tương ứng 49 Use Cases.
+   * Bổ sung mục 4: Bản đồ CSDL và đầy đủ 23 bản di trú Flyway V1-V23.
+   * Bổ sung mục 5: Bảng danh mục toàn diện 15 Controllers và toàn bộ 87 REST Endpoints với đầy đủ HTTP Verb, Path, Java Method, PreAuthorize Role và Use Case phục vụ.
+   * Bổ sung mục 6: Danh mục toàn diện 31 Backend Services và 16 Repositories.
+   * Bổ sung mục 7: Danh mục toàn diện 22 Trang Frontend React, tuyến đường dẫn, phân quyền bảo vệ `ProtectedRoute`.
+   * Bổ sung mục 8: Danh mục 37 lớp kiểm thử tự động, 308 tests 100% PASS.
+2. **Nâng Cấp & Chuẩn Hóa `docs/USE_CASES.md`:**
+   * Chuyển đổi mã định danh toàn bộ use cases sang cấu trúc 49 Use Cases (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`).
+   * Tích hợp khối thẻ **"ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)"** cho từng Use Case, chỉ rõ chính xác Controller, Endpoint, Route, Page, Table, Flyway Migration, Service, Repository và Unit Test class.
+3. **Đồng Bộ Hóa `docs/SDD_MediAssist_AI.md` & `docs/SRS_MediAssist_AI.md`:**
+   * Cập nhật Bảng 1.2.2 trong SDD với đầy đủ 15 controllers, 16 repositories, 6 enums và 23 migrations Flyway.
+   * Cập nhật Section 5.5 trong SRS đưa số lượng test lên 308 tests và liên kết V23 cho WHO ICD-10.
+4. **Biên Dịch Lại Toàn Bộ Hồ Sơ Báo Cáo Luận Văn:**
+   * Chạy `python -X utf8 scripts/compile_docs_bundle.py`: Đồng bộ 21 tài liệu nguồn vào `report_1/` đến `report_5/` và xuất file `docs-bundle.js` đạt kích thước 1.196,5 KB.
+
+---
+
+#### 4. Danh Sách Tệp Tin Thay Đổi
+* `[MOD]` `docs/MASTER_TRACEABILITY_INDEX.md` (Tái thiết kế toàn diện ma trận truy vết 49 UCs, 87 endpoints, 31 services, 16 repos, 22 pages, 23 flyway, 37 test classes)
+* `[MOD]` `docs/USE_CASES.md` (Tái cấu trúc 49 Use Cases chuẩn RUP/IEEE 830 với khối ánh xạ kỹ thuật 1-1)
+* `[MOD]` `docs/SDD_MediAssist_AI.md` (Cập nhật danh mục gói 15 controllers, 31 services, 16 repos, 6 enums, Flyway V1-V23)
+* `[MOD]` `docs/SRS_MediAssist_AI.md` (Cập nhật baseline 308 tests và liên kết V23)
+* `[MOD]` `docs-bundle.js` (Tái biên dịch 21 tài liệu offline cho các báo cáo KLTN)
+* `[MOD]` `report_1/docs-bundle.js` đến `report_5/docs-bundle.js` (Đồng bộ bản bundle mới)
+* `[MOD]` `docs/WORK_LOG.md` (Ghi nhận phiên làm việc #113)
+
+---
+
+#### 5. Bằng Chứng Kiểm Thử Tự Động (Quality Verification)
+* **Frontend Build:** `npm run build` trong `frontend/`
+  ```bash
+  vite v6.4.3 building for production...
+  ✓ 2311 modules transformed.
+  ✓ built in 26.99s
+  # 0 lỗi TypeScript, 0 lỗi linter
+  ```
+* **Backend Unit Tests:** `mvn -f backend/pom.xml test`
+  ```bash
+  [INFO] Results:
+  [INFO] Tests run: 308, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS
+  [INFO] Total time: 35.249 s
+  ```
+* **Docs Bundle:** `python -X utf8 scripts/compile_docs_bundle.py`
+  ```bash
+  Writing bundle (1196.5 KB, 21 documents) to targets:
+    ✓ Written docs-bundle.js
+    ✓ Written report_1/docs-bundle.js ... report_5/docs-bundle.js
+  All report bundles synchronized successfully!
+  ```
+
+---
+
+#### 6. Điểm Nóng Tech Lead Cần Review
+1. **1-to-1 Mapping Exhaustiveness:** Mọi thành phần trong mã nguồn (87 endpoints, 31 services, 16 repos, 17 tables, 6 enums, 23 flyway migrations, 22 frontend pages, 37 test classes) hiện đã được ánh xạ 1-1 đầy đủ trong `MASTER_TRACEABILITY_INDEX.md` và `USE_CASES.md`, không còn bất kỳ mẫu đại diện hay dấu chấm lửng nào.
+2. **Chuẩn Hóa Mã Use Case:** Toàn bộ hệ thống tài liệu hiện đã thống nhất 100% trên bộ mã `UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`.
+
+---
 
 ### [WORK-LOG-#112] Nâng Cấp Toàn Diện Vector Studio (`interactive_viewer.html`), Tái Thiết Kế ERD 17 Bảng & Chuẩn Hóa Quan Hệ 1-N Chuẩn 3NF
 * **Thời gian:** 2026-11-09 19:30:00 (GMT+7)
@@ -1223,6 +1343,125 @@ Quá trình tích hợp diễn ra hoàn hảo theo chiến lược Git merge ti�
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
+### Phiên #113: Rà Soát Toàn Diện & Thiết Lập Ánh Xạ 1-to-1 Triệt Để Giữa Hệ Thống Tài Liệu Và Toàn Bộ Dự Án Thực Tế (Swarm Audit & 1-to-1 Exhaustive Mapping Baseline)
+* **Thời gian thực hiện:** 14/11/2026 – Swarm Coordinator & Lead Assistant
+* **Người thực hiện:** AI Senior Pair Programming Assistant
+* **Người duyệt:** **Tech Lead & Solution Architect**
+
+---
+
+#### 1. Bối Cảnh & Động Cơ Kỹ Thuật
+Khi Tech Lead rà soát hệ thống tài liệu KLTN (`docs/`, `report_1` đến `report_5`), phát hiện tài liệu trước đây thường dùng phương pháp "mẫu đại diện" (representative sampling, chỉ liệt kê 1-2 endpoint, 1-2 bảng hoặc 5-6 service tiêu biểu) và có độ lệch số liệu so với mã nguồn thực tế:
+1. `docs/MASTER_TRACEABILITY_INDEX.md` chỉ liệt kê 33 Use Cases theo mã cũ (`UC-00`..`UC-32`), thiếu 16 Use Cases của SRS, chỉ ghi nhận 22 bản di trú Flyway (thiếu `V23`), ghi nhận 26 services thay vì 31 services thực tế, và chỉ liệt kê một phần nhỏ trong số 87 endpoints vật lý.
+2. `docs/USE_CASES.md` dùng cấu trúc đánh số cũ phẳng (`UC-00` đến `UC-36` bị nhảy cóc), không tương thích với cấu trúc 49 Use Cases phân theo miền (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`) trong `SRS_MediAssist_AI.md`.
+3. `docs/SDD_MediAssist_AI.md` ở Bảng 1.2.2 chỉ liệt kê 12 controllers (thiếu `HealthController`, `PatientProfileController`, `SpecialtyController`), liệt kê 8 repositories (thiếu 8 repos) và 5 enums (thiếu `OrderType`).
+
+**Chỉ thị từ Tech Lead:** */swarm hãy dựa vào doc liệt kê và rà soát sửa lại những thứ còn thiếu hoặc sai sót, mọi thứ phải mapping 1-1 với project chứ không thấy 1 2 thứ đại diện, phải lấy hết.*
+
+---
+
+#### 2. Kết Quả Kiểm Kê Vật Lý Toàn Diện 100% Mã Nguồn (Codebase Reality)
+Qua công cụ phân tích tĩnh AST & regex chuyên sâu trên toàn bộ cây thư mục dự án:
+* **49 Use Cases Nghiệp Vụ Chuẩn RUP/IEEE 830:**
+  * 06 Use Cases Phân hệ Dùng chung (`UC-COMM-01` đến `UC-COMM-06`)
+  * 18 Use Cases Phân hệ Bệnh nhân (`UC-PAT-01` đến `UC-PAT-18`)
+  * 14 Use Cases Phân hệ Bác sĩ (`UC-DOC-01` đến `UC-DOC-14`)
+  * 11 Use Cases Phân hệ Quản trị viên (`UC-ADM-01` đến `UC-ADM-11`)
+* **15 REST Controllers & 87 Endpoints Vật Lý:**
+  * `AdminController` (/api/v1/admin): 18 endpoints
+  * `AppointmentController` (/api/v1/appointments): 9 endpoints
+  * `AuthController` (/api/v1/auth): 9 endpoints
+  * `ClinicalOntologyController` (/api/v1/clinical/ontology): 4 endpoints
+  * `DoctorController` (/api/v1/doctors): 9 endpoints
+  * `DoctorReviewController` (/api/v1): 4 endpoints
+  * `HealthController` (/ & /ready): 2 endpoints
+  * `MedicalDocumentController` (/api/v1/documents): 10 endpoints
+  * `MedicalPiiController` (/api/v1/pii): 1 endpoint
+  * `NotificationController` (/api/v1/notifications): 4 endpoints
+  * `PatientProfileController` (/api/v1/patient/profile): 3 endpoints
+  * `PaymentController` (/api/v1/payments): 6 endpoints
+  * `SpecialtyController` (/api/v1/specialties): 1 endpoint
+  * `SystemConfigController` (/api/v1/system): 3 endpoints
+  * `TriageController` (/api/v1/triage): 4 endpoints
+* **31 Backend Services Hoạt Động:**
+  * `AdminVettingService`, `AiUsageAnalyticsService`, `AppointmentRefundService`, `AppointmentService`, `AuthService`, `ClinicalOntologyService`, `ClinicalQueryDefenseEngine`, `ClinicalRagService`, `DoctorReviewService`, `DoctorSemanticSearchService`, `DoctorService`, `EmailVerificationGuard`, `EmbeddingService`, `MeddiesPdfGeneratorService`, `MedicalDocumentAnalysisService`, `MedicalDocumentFileAccessService`, `MedicalDocumentValidator`, `MedicalPiiService`, `NotificationService`, `PatientAccessGuard`, `PatientProfileService`, `PaymentService`, `PdfExtractionService`, `RedFlagService`, `SecurityRateLimiterService`, `StorageService`, `SupabaseStorageService`, `SupabaseStorageUrls`, `TriageRateLimiterService`, `TriageService`, `TwoLayerCacheService`.
+* **16 Spring Data Repositories:**
+  * `AiTokenUsageRepository`, `AppointmentRepository`, `AuditLogRepository`, `DoctorProfileRepository`, `DoctorReviewRepository`, `DoctorScheduleSlotRepository`, `DocumentAnalysisRepository`, `EmailVerificationTokenRepository`, `MedicalDocumentRepository`, `NotificationRepository`, `PasswordResetTokenRepository`, `PatientProfileRepository`, `PaymentTransactionRepository`, `SpecialtyRepository`, `TriageSessionRepository`, `UserRepository`.
+* **17 Bảng CSDL Chuẩn 3NF & 6 Enums Nghiệp Vụ (23 tệp):**
+  * 17 Thực thể: `User`, `Specialty`, `DoctorProfile`, `DoctorScheduleSlot`, `PatientProfile`, `Appointment`, `TriageSession`, `MedicalDocument`, `DocumentAnalysis`, `PaymentTransaction`, `PasswordResetToken`, `EmailVerificationToken`, `Notification`, `DoctorReview`, `AuditLog`, `AiTokenUsage` (kèm bảng liên kết `doctor_specialties`).
+  * 6 Enums: `Role`, `UserStatus`, `AppointmentStatus`, `PaymentStatus`, `OrderType`, `TriageUrgencyLevel`.
+* **23 Bản Di Trú Flyway:**
+  * `V1__initial_schema.sql` đến `V23__refactor_icd_code_and_version.sql`.
+* **22 Trang Frontend React + 10 Modals/Drawers & AppRoutes:**
+  * 7 Public/Auth Pages: `LandingPage`, `LoginPage`, `ForgotPasswordPage`, `ResetPasswordPage`, `VerifyEmailPage`, `OAuth2CallbackPage`, `PaymentSuccessPage`.
+  * 7 Admin Pages: `AdminDashboard`, `AppointmentSupervisionPage`, `TriageSupervisionPage`, `DoctorManagementPage`, `DoctorVettingPage`, `UserManagementPage`, `SpecialtyManagementPage`, `AuditLogPage`.
+  * 3 Doctor Pages: `DoctorDashboard`, `DoctorPatientRecordsPage`, `DoctorProfilePage`.
+  * 5 Patient Pages: `PatientDashboard`, `SymptomTriagePage`, `DocumentSummarizerPage`, `DoctorSearchPage`.
+* **37 Lớp Kiểm Thử (Unit & Integration Tests) với 308 Tests 100% PASS.**
+
+---
+
+#### 3. Các Hành Động Cập Nhật Đã Thực Hiện
+1. **Tái Thiết Kế & Hoàn Thiện `docs/MASTER_TRACEABILITY_INDEX.md`:**
+   * Mở rộng bảng Ma Trận Truy Vết (RTM) lên đủ 49 dòng tương ứng 49 Use Cases.
+   * Bổ sung mục 4: Bản đồ CSDL và đầy đủ 23 bản di trú Flyway V1-V23.
+   * Bổ sung mục 5: Bảng danh mục toàn diện 15 Controllers và toàn bộ 87 REST Endpoints với đầy đủ HTTP Verb, Path, Java Method, PreAuthorize Role và Use Case phục vụ.
+   * Bổ sung mục 6: Danh mục toàn diện 31 Backend Services và 16 Repositories.
+   * Bổ sung mục 7: Danh mục toàn diện 22 Trang Frontend React, tuyến đường dẫn, phân quyền bảo vệ `ProtectedRoute`.
+   * Bổ sung mục 8: Danh mục 37 lớp kiểm thử tự động, 308 tests 100% PASS.
+2. **Nâng Cấp & Chuẩn Hóa `docs/USE_CASES.md`:**
+   * Chuyển đổi mã định danh toàn bộ use cases sang cấu trúc 49 Use Cases (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`).
+   * Tích hợp khối thẻ **"ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)"** cho từng Use Case, chỉ rõ chính xác Controller, Endpoint, Route, Page, Table, Flyway Migration, Service, Repository và Unit Test class.
+3. **Đồng Bộ Hóa `docs/SDD_MediAssist_AI.md` & `docs/SRS_MediAssist_AI.md`:**
+   * Cập nhật Bảng 1.2.2 trong SDD với đầy đủ 15 controllers, 16 repositories, 6 enums và 23 migrations Flyway.
+   * Cập nhật Section 5.5 trong SRS đưa số lượng test lên 308 tests và liên kết V23 cho WHO ICD-10.
+4. **Biên Dịch Lại Toàn Bộ Hồ Sơ Báo Cáo Luận Văn:**
+   * Chạy `python -X utf8 scripts/compile_docs_bundle.py`: Đồng bộ 21 tài liệu nguồn vào `report_1/` đến `report_5/` và xuất file `docs-bundle.js` đạt kích thước 1.196,5 KB.
+
+---
+
+#### 4. Danh Sách Tệp Tin Thay Đổi
+* `[MOD]` `docs/MASTER_TRACEABILITY_INDEX.md` (Tái thiết kế toàn diện ma trận truy vết 49 UCs, 87 endpoints, 31 services, 16 repos, 22 pages, 23 flyway, 37 test classes)
+* `[MOD]` `docs/USE_CASES.md` (Tái cấu trúc 49 Use Cases chuẩn RUP/IEEE 830 với khối ánh xạ kỹ thuật 1-1)
+* `[MOD]` `docs/SDD_MediAssist_AI.md` (Cập nhật danh mục gói 15 controllers, 31 services, 16 repos, 6 enums, Flyway V1-V23)
+* `[MOD]` `docs/SRS_MediAssist_AI.md` (Cập nhật baseline 308 tests và liên kết V23)
+* `[MOD]` `docs-bundle.js` (Tái biên dịch 21 tài liệu offline cho các báo cáo KLTN)
+* `[MOD]` `report_1/docs-bundle.js` đến `report_5/docs-bundle.js` (Đồng bộ bản bundle mới)
+* `[MOD]` `docs/WORK_LOG.md` (Ghi nhận phiên làm việc #113)
+
+---
+
+#### 5. Bằng Chứng Kiểm Thử Tự Động (Quality Verification)
+* **Frontend Build:** `npm run build` trong `frontend/`
+  ```bash
+  vite v6.4.3 building for production...
+  ✓ 2311 modules transformed.
+  ✓ built in 26.99s
+  # 0 lỗi TypeScript, 0 lỗi linter
+  ```
+* **Backend Unit Tests:** `mvn -f backend/pom.xml test`
+  ```bash
+  [INFO] Results:
+  [INFO] Tests run: 308, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS
+  [INFO] Total time: 35.249 s
+  ```
+* **Docs Bundle:** `python -X utf8 scripts/compile_docs_bundle.py`
+  ```bash
+  Writing bundle (1196.5 KB, 21 documents) to targets:
+    ✓ Written docs-bundle.js
+    ✓ Written report_1/docs-bundle.js ... report_5/docs-bundle.js
+  All report bundles synchronized successfully!
+  ```
+
+---
+
+#### 6. Điểm Nóng Tech Lead Cần Review
+1. **1-to-1 Mapping Exhaustiveness:** Mọi thành phần trong mã nguồn (87 endpoints, 31 services, 16 repos, 17 tables, 6 enums, 23 flyway migrations, 22 frontend pages, 37 test classes) hiện đã được ánh xạ 1-1 đầy đủ trong `MASTER_TRACEABILITY_INDEX.md` và `USE_CASES.md`, không còn bất kỳ mẫu đại diện hay dấu chấm lửng nào.
+2. **Chuẩn Hóa Mã Use Case:** Toàn bộ hệ thống tài liệu hiện đã thống nhất 100% trên bộ mã `UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`.
+
+---
+
 ### [WORK-LOG-#076] Bác Sĩ Truy Cập Hồ Sơ Cận Lâm Sàng & Kết Quả Bóc Tách AI OCR Từ Lịch Khám
 * **Thời gian:** 2026-09-18 12:30:00 (GMT+7)
 * **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
@@ -1424,6 +1663,125 @@ Tech Lead chỉ đạo:
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### Phiên #113: Rà Soát Toàn Diện & Thiết Lập Ánh Xạ 1-to-1 Triệt Để Giữa Hệ Thống Tài Liệu Và Toàn Bộ Dự Án Thực Tế (Swarm Audit & 1-to-1 Exhaustive Mapping Baseline)
+* **Thời gian thực hiện:** 14/11/2026 – Swarm Coordinator & Lead Assistant
+* **Người thực hiện:** AI Senior Pair Programming Assistant
+* **Người duyệt:** **Tech Lead & Solution Architect**
+
+---
+
+#### 1. Bối Cảnh & Động Cơ Kỹ Thuật
+Khi Tech Lead rà soát hệ thống tài liệu KLTN (`docs/`, `report_1` đến `report_5`), phát hiện tài liệu trước đây thường dùng phương pháp "mẫu đại diện" (representative sampling, chỉ liệt kê 1-2 endpoint, 1-2 bảng hoặc 5-6 service tiêu biểu) và có độ lệch số liệu so với mã nguồn thực tế:
+1. `docs/MASTER_TRACEABILITY_INDEX.md` chỉ liệt kê 33 Use Cases theo mã cũ (`UC-00`..`UC-32`), thiếu 16 Use Cases của SRS, chỉ ghi nhận 22 bản di trú Flyway (thiếu `V23`), ghi nhận 26 services thay vì 31 services thực tế, và chỉ liệt kê một phần nhỏ trong số 87 endpoints vật lý.
+2. `docs/USE_CASES.md` dùng cấu trúc đánh số cũ phẳng (`UC-00` đến `UC-36` bị nhảy cóc), không tương thích với cấu trúc 49 Use Cases phân theo miền (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`) trong `SRS_MediAssist_AI.md`.
+3. `docs/SDD_MediAssist_AI.md` ở Bảng 1.2.2 chỉ liệt kê 12 controllers (thiếu `HealthController`, `PatientProfileController`, `SpecialtyController`), liệt kê 8 repositories (thiếu 8 repos) và 5 enums (thiếu `OrderType`).
+
+**Chỉ thị từ Tech Lead:** */swarm hãy dựa vào doc liệt kê và rà soát sửa lại những thứ còn thiếu hoặc sai sót, mọi thứ phải mapping 1-1 với project chứ không thấy 1 2 thứ đại diện, phải lấy hết.*
+
+---
+
+#### 2. Kết Quả Kiểm Kê Vật Lý Toàn Diện 100% Mã Nguồn (Codebase Reality)
+Qua công cụ phân tích tĩnh AST & regex chuyên sâu trên toàn bộ cây thư mục dự án:
+* **49 Use Cases Nghiệp Vụ Chuẩn RUP/IEEE 830:**
+  * 06 Use Cases Phân hệ Dùng chung (`UC-COMM-01` đến `UC-COMM-06`)
+  * 18 Use Cases Phân hệ Bệnh nhân (`UC-PAT-01` đến `UC-PAT-18`)
+  * 14 Use Cases Phân hệ Bác sĩ (`UC-DOC-01` đến `UC-DOC-14`)
+  * 11 Use Cases Phân hệ Quản trị viên (`UC-ADM-01` đến `UC-ADM-11`)
+* **15 REST Controllers & 87 Endpoints Vật Lý:**
+  * `AdminController` (/api/v1/admin): 18 endpoints
+  * `AppointmentController` (/api/v1/appointments): 9 endpoints
+  * `AuthController` (/api/v1/auth): 9 endpoints
+  * `ClinicalOntologyController` (/api/v1/clinical/ontology): 4 endpoints
+  * `DoctorController` (/api/v1/doctors): 9 endpoints
+  * `DoctorReviewController` (/api/v1): 4 endpoints
+  * `HealthController` (/ & /ready): 2 endpoints
+  * `MedicalDocumentController` (/api/v1/documents): 10 endpoints
+  * `MedicalPiiController` (/api/v1/pii): 1 endpoint
+  * `NotificationController` (/api/v1/notifications): 4 endpoints
+  * `PatientProfileController` (/api/v1/patient/profile): 3 endpoints
+  * `PaymentController` (/api/v1/payments): 6 endpoints
+  * `SpecialtyController` (/api/v1/specialties): 1 endpoint
+  * `SystemConfigController` (/api/v1/system): 3 endpoints
+  * `TriageController` (/api/v1/triage): 4 endpoints
+* **31 Backend Services Hoạt Động:**
+  * `AdminVettingService`, `AiUsageAnalyticsService`, `AppointmentRefundService`, `AppointmentService`, `AuthService`, `ClinicalOntologyService`, `ClinicalQueryDefenseEngine`, `ClinicalRagService`, `DoctorReviewService`, `DoctorSemanticSearchService`, `DoctorService`, `EmailVerificationGuard`, `EmbeddingService`, `MeddiesPdfGeneratorService`, `MedicalDocumentAnalysisService`, `MedicalDocumentFileAccessService`, `MedicalDocumentValidator`, `MedicalPiiService`, `NotificationService`, `PatientAccessGuard`, `PatientProfileService`, `PaymentService`, `PdfExtractionService`, `RedFlagService`, `SecurityRateLimiterService`, `StorageService`, `SupabaseStorageService`, `SupabaseStorageUrls`, `TriageRateLimiterService`, `TriageService`, `TwoLayerCacheService`.
+* **16 Spring Data Repositories:**
+  * `AiTokenUsageRepository`, `AppointmentRepository`, `AuditLogRepository`, `DoctorProfileRepository`, `DoctorReviewRepository`, `DoctorScheduleSlotRepository`, `DocumentAnalysisRepository`, `EmailVerificationTokenRepository`, `MedicalDocumentRepository`, `NotificationRepository`, `PasswordResetTokenRepository`, `PatientProfileRepository`, `PaymentTransactionRepository`, `SpecialtyRepository`, `TriageSessionRepository`, `UserRepository`.
+* **17 Bảng CSDL Chuẩn 3NF & 6 Enums Nghiệp Vụ (23 tệp):**
+  * 17 Thực thể: `User`, `Specialty`, `DoctorProfile`, `DoctorScheduleSlot`, `PatientProfile`, `Appointment`, `TriageSession`, `MedicalDocument`, `DocumentAnalysis`, `PaymentTransaction`, `PasswordResetToken`, `EmailVerificationToken`, `Notification`, `DoctorReview`, `AuditLog`, `AiTokenUsage` (kèm bảng liên kết `doctor_specialties`).
+  * 6 Enums: `Role`, `UserStatus`, `AppointmentStatus`, `PaymentStatus`, `OrderType`, `TriageUrgencyLevel`.
+* **23 Bản Di Trú Flyway:**
+  * `V1__initial_schema.sql` đến `V23__refactor_icd_code_and_version.sql`.
+* **22 Trang Frontend React + 10 Modals/Drawers & AppRoutes:**
+  * 7 Public/Auth Pages: `LandingPage`, `LoginPage`, `ForgotPasswordPage`, `ResetPasswordPage`, `VerifyEmailPage`, `OAuth2CallbackPage`, `PaymentSuccessPage`.
+  * 7 Admin Pages: `AdminDashboard`, `AppointmentSupervisionPage`, `TriageSupervisionPage`, `DoctorManagementPage`, `DoctorVettingPage`, `UserManagementPage`, `SpecialtyManagementPage`, `AuditLogPage`.
+  * 3 Doctor Pages: `DoctorDashboard`, `DoctorPatientRecordsPage`, `DoctorProfilePage`.
+  * 5 Patient Pages: `PatientDashboard`, `SymptomTriagePage`, `DocumentSummarizerPage`, `DoctorSearchPage`.
+* **37 Lớp Kiểm Thử (Unit & Integration Tests) với 308 Tests 100% PASS.**
+
+---
+
+#### 3. Các Hành Động Cập Nhật Đã Thực Hiện
+1. **Tái Thiết Kế & Hoàn Thiện `docs/MASTER_TRACEABILITY_INDEX.md`:**
+   * Mở rộng bảng Ma Trận Truy Vết (RTM) lên đủ 49 dòng tương ứng 49 Use Cases.
+   * Bổ sung mục 4: Bản đồ CSDL và đầy đủ 23 bản di trú Flyway V1-V23.
+   * Bổ sung mục 5: Bảng danh mục toàn diện 15 Controllers và toàn bộ 87 REST Endpoints với đầy đủ HTTP Verb, Path, Java Method, PreAuthorize Role và Use Case phục vụ.
+   * Bổ sung mục 6: Danh mục toàn diện 31 Backend Services và 16 Repositories.
+   * Bổ sung mục 7: Danh mục toàn diện 22 Trang Frontend React, tuyến đường dẫn, phân quyền bảo vệ `ProtectedRoute`.
+   * Bổ sung mục 8: Danh mục 37 lớp kiểm thử tự động, 308 tests 100% PASS.
+2. **Nâng Cấp & Chuẩn Hóa `docs/USE_CASES.md`:**
+   * Chuyển đổi mã định danh toàn bộ use cases sang cấu trúc 49 Use Cases (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`).
+   * Tích hợp khối thẻ **"ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)"** cho từng Use Case, chỉ rõ chính xác Controller, Endpoint, Route, Page, Table, Flyway Migration, Service, Repository và Unit Test class.
+3. **Đồng Bộ Hóa `docs/SDD_MediAssist_AI.md` & `docs/SRS_MediAssist_AI.md`:**
+   * Cập nhật Bảng 1.2.2 trong SDD với đầy đủ 15 controllers, 16 repositories, 6 enums và 23 migrations Flyway.
+   * Cập nhật Section 5.5 trong SRS đưa số lượng test lên 308 tests và liên kết V23 cho WHO ICD-10.
+4. **Biên Dịch Lại Toàn Bộ Hồ Sơ Báo Cáo Luận Văn:**
+   * Chạy `python -X utf8 scripts/compile_docs_bundle.py`: Đồng bộ 21 tài liệu nguồn vào `report_1/` đến `report_5/` và xuất file `docs-bundle.js` đạt kích thước 1.196,5 KB.
+
+---
+
+#### 4. Danh Sách Tệp Tin Thay Đổi
+* `[MOD]` `docs/MASTER_TRACEABILITY_INDEX.md` (Tái thiết kế toàn diện ma trận truy vết 49 UCs, 87 endpoints, 31 services, 16 repos, 22 pages, 23 flyway, 37 test classes)
+* `[MOD]` `docs/USE_CASES.md` (Tái cấu trúc 49 Use Cases chuẩn RUP/IEEE 830 với khối ánh xạ kỹ thuật 1-1)
+* `[MOD]` `docs/SDD_MediAssist_AI.md` (Cập nhật danh mục gói 15 controllers, 31 services, 16 repos, 6 enums, Flyway V1-V23)
+* `[MOD]` `docs/SRS_MediAssist_AI.md` (Cập nhật baseline 308 tests và liên kết V23)
+* `[MOD]` `docs-bundle.js` (Tái biên dịch 21 tài liệu offline cho các báo cáo KLTN)
+* `[MOD]` `report_1/docs-bundle.js` đến `report_5/docs-bundle.js` (Đồng bộ bản bundle mới)
+* `[MOD]` `docs/WORK_LOG.md` (Ghi nhận phiên làm việc #113)
+
+---
+
+#### 5. Bằng Chứng Kiểm Thử Tự Động (Quality Verification)
+* **Frontend Build:** `npm run build` trong `frontend/`
+  ```bash
+  vite v6.4.3 building for production...
+  ✓ 2311 modules transformed.
+  ✓ built in 26.99s
+  # 0 lỗi TypeScript, 0 lỗi linter
+  ```
+* **Backend Unit Tests:** `mvn -f backend/pom.xml test`
+  ```bash
+  [INFO] Results:
+  [INFO] Tests run: 308, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS
+  [INFO] Total time: 35.249 s
+  ```
+* **Docs Bundle:** `python -X utf8 scripts/compile_docs_bundle.py`
+  ```bash
+  Writing bundle (1196.5 KB, 21 documents) to targets:
+    ✓ Written docs-bundle.js
+    ✓ Written report_1/docs-bundle.js ... report_5/docs-bundle.js
+  All report bundles synchronized successfully!
+  ```
+
+---
+
+#### 6. Điểm Nóng Tech Lead Cần Review
+1. **1-to-1 Mapping Exhaustiveness:** Mọi thành phần trong mã nguồn (87 endpoints, 31 services, 16 repos, 17 tables, 6 enums, 23 flyway migrations, 22 frontend pages, 37 test classes) hiện đã được ánh xạ 1-1 đầy đủ trong `MASTER_TRACEABILITY_INDEX.md` và `USE_CASES.md`, không còn bất kỳ mẫu đại diện hay dấu chấm lửng nào.
+2. **Chuẩn Hóa Mã Use Case:** Toàn bộ hệ thống tài liệu hiện đã thống nhất 100% trên bộ mã `UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`.
+
+---
 
 ### [WORK-LOG-#074] Tích Hợp Trình Xem Chi Tiết Bệnh Án Điện Tử & Toa Thuốc Chuẩn Bệnh Viện (Hospital-Grade EMR & Prescription Viewer)
 * **Thời gian:** 2026-09-18 08:55:00 (GMT+7)
@@ -1901,6 +2259,125 @@ Theo phản ánh của Tech Lead (*"hiện bác sĩ data của họ chưa realti
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
+### Phiên #113: Rà Soát Toàn Diện & Thiết Lập Ánh Xạ 1-to-1 Triệt Để Giữa Hệ Thống Tài Liệu Và Toàn Bộ Dự Án Thực Tế (Swarm Audit & 1-to-1 Exhaustive Mapping Baseline)
+* **Thời gian thực hiện:** 14/11/2026 – Swarm Coordinator & Lead Assistant
+* **Người thực hiện:** AI Senior Pair Programming Assistant
+* **Người duyệt:** **Tech Lead & Solution Architect**
+
+---
+
+#### 1. Bối Cảnh & Động Cơ Kỹ Thuật
+Khi Tech Lead rà soát hệ thống tài liệu KLTN (`docs/`, `report_1` đến `report_5`), phát hiện tài liệu trước đây thường dùng phương pháp "mẫu đại diện" (representative sampling, chỉ liệt kê 1-2 endpoint, 1-2 bảng hoặc 5-6 service tiêu biểu) và có độ lệch số liệu so với mã nguồn thực tế:
+1. `docs/MASTER_TRACEABILITY_INDEX.md` chỉ liệt kê 33 Use Cases theo mã cũ (`UC-00`..`UC-32`), thiếu 16 Use Cases của SRS, chỉ ghi nhận 22 bản di trú Flyway (thiếu `V23`), ghi nhận 26 services thay vì 31 services thực tế, và chỉ liệt kê một phần nhỏ trong số 87 endpoints vật lý.
+2. `docs/USE_CASES.md` dùng cấu trúc đánh số cũ phẳng (`UC-00` đến `UC-36` bị nhảy cóc), không tương thích với cấu trúc 49 Use Cases phân theo miền (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`) trong `SRS_MediAssist_AI.md`.
+3. `docs/SDD_MediAssist_AI.md` ở Bảng 1.2.2 chỉ liệt kê 12 controllers (thiếu `HealthController`, `PatientProfileController`, `SpecialtyController`), liệt kê 8 repositories (thiếu 8 repos) và 5 enums (thiếu `OrderType`).
+
+**Chỉ thị từ Tech Lead:** */swarm hãy dựa vào doc liệt kê và rà soát sửa lại những thứ còn thiếu hoặc sai sót, mọi thứ phải mapping 1-1 với project chứ không thấy 1 2 thứ đại diện, phải lấy hết.*
+
+---
+
+#### 2. Kết Quả Kiểm Kê Vật Lý Toàn Diện 100% Mã Nguồn (Codebase Reality)
+Qua công cụ phân tích tĩnh AST & regex chuyên sâu trên toàn bộ cây thư mục dự án:
+* **49 Use Cases Nghiệp Vụ Chuẩn RUP/IEEE 830:**
+  * 06 Use Cases Phân hệ Dùng chung (`UC-COMM-01` đến `UC-COMM-06`)
+  * 18 Use Cases Phân hệ Bệnh nhân (`UC-PAT-01` đến `UC-PAT-18`)
+  * 14 Use Cases Phân hệ Bác sĩ (`UC-DOC-01` đến `UC-DOC-14`)
+  * 11 Use Cases Phân hệ Quản trị viên (`UC-ADM-01` đến `UC-ADM-11`)
+* **15 REST Controllers & 87 Endpoints Vật Lý:**
+  * `AdminController` (/api/v1/admin): 18 endpoints
+  * `AppointmentController` (/api/v1/appointments): 9 endpoints
+  * `AuthController` (/api/v1/auth): 9 endpoints
+  * `ClinicalOntologyController` (/api/v1/clinical/ontology): 4 endpoints
+  * `DoctorController` (/api/v1/doctors): 9 endpoints
+  * `DoctorReviewController` (/api/v1): 4 endpoints
+  * `HealthController` (/ & /ready): 2 endpoints
+  * `MedicalDocumentController` (/api/v1/documents): 10 endpoints
+  * `MedicalPiiController` (/api/v1/pii): 1 endpoint
+  * `NotificationController` (/api/v1/notifications): 4 endpoints
+  * `PatientProfileController` (/api/v1/patient/profile): 3 endpoints
+  * `PaymentController` (/api/v1/payments): 6 endpoints
+  * `SpecialtyController` (/api/v1/specialties): 1 endpoint
+  * `SystemConfigController` (/api/v1/system): 3 endpoints
+  * `TriageController` (/api/v1/triage): 4 endpoints
+* **31 Backend Services Hoạt Động:**
+  * `AdminVettingService`, `AiUsageAnalyticsService`, `AppointmentRefundService`, `AppointmentService`, `AuthService`, `ClinicalOntologyService`, `ClinicalQueryDefenseEngine`, `ClinicalRagService`, `DoctorReviewService`, `DoctorSemanticSearchService`, `DoctorService`, `EmailVerificationGuard`, `EmbeddingService`, `MeddiesPdfGeneratorService`, `MedicalDocumentAnalysisService`, `MedicalDocumentFileAccessService`, `MedicalDocumentValidator`, `MedicalPiiService`, `NotificationService`, `PatientAccessGuard`, `PatientProfileService`, `PaymentService`, `PdfExtractionService`, `RedFlagService`, `SecurityRateLimiterService`, `StorageService`, `SupabaseStorageService`, `SupabaseStorageUrls`, `TriageRateLimiterService`, `TriageService`, `TwoLayerCacheService`.
+* **16 Spring Data Repositories:**
+  * `AiTokenUsageRepository`, `AppointmentRepository`, `AuditLogRepository`, `DoctorProfileRepository`, `DoctorReviewRepository`, `DoctorScheduleSlotRepository`, `DocumentAnalysisRepository`, `EmailVerificationTokenRepository`, `MedicalDocumentRepository`, `NotificationRepository`, `PasswordResetTokenRepository`, `PatientProfileRepository`, `PaymentTransactionRepository`, `SpecialtyRepository`, `TriageSessionRepository`, `UserRepository`.
+* **17 Bảng CSDL Chuẩn 3NF & 6 Enums Nghiệp Vụ (23 tệp):**
+  * 17 Thực thể: `User`, `Specialty`, `DoctorProfile`, `DoctorScheduleSlot`, `PatientProfile`, `Appointment`, `TriageSession`, `MedicalDocument`, `DocumentAnalysis`, `PaymentTransaction`, `PasswordResetToken`, `EmailVerificationToken`, `Notification`, `DoctorReview`, `AuditLog`, `AiTokenUsage` (kèm bảng liên kết `doctor_specialties`).
+  * 6 Enums: `Role`, `UserStatus`, `AppointmentStatus`, `PaymentStatus`, `OrderType`, `TriageUrgencyLevel`.
+* **23 Bản Di Trú Flyway:**
+  * `V1__initial_schema.sql` đến `V23__refactor_icd_code_and_version.sql`.
+* **22 Trang Frontend React + 10 Modals/Drawers & AppRoutes:**
+  * 7 Public/Auth Pages: `LandingPage`, `LoginPage`, `ForgotPasswordPage`, `ResetPasswordPage`, `VerifyEmailPage`, `OAuth2CallbackPage`, `PaymentSuccessPage`.
+  * 7 Admin Pages: `AdminDashboard`, `AppointmentSupervisionPage`, `TriageSupervisionPage`, `DoctorManagementPage`, `DoctorVettingPage`, `UserManagementPage`, `SpecialtyManagementPage`, `AuditLogPage`.
+  * 3 Doctor Pages: `DoctorDashboard`, `DoctorPatientRecordsPage`, `DoctorProfilePage`.
+  * 5 Patient Pages: `PatientDashboard`, `SymptomTriagePage`, `DocumentSummarizerPage`, `DoctorSearchPage`.
+* **37 Lớp Kiểm Thử (Unit & Integration Tests) với 308 Tests 100% PASS.**
+
+---
+
+#### 3. Các Hành Động Cập Nhật Đã Thực Hiện
+1. **Tái Thiết Kế & Hoàn Thiện `docs/MASTER_TRACEABILITY_INDEX.md`:**
+   * Mở rộng bảng Ma Trận Truy Vết (RTM) lên đủ 49 dòng tương ứng 49 Use Cases.
+   * Bổ sung mục 4: Bản đồ CSDL và đầy đủ 23 bản di trú Flyway V1-V23.
+   * Bổ sung mục 5: Bảng danh mục toàn diện 15 Controllers và toàn bộ 87 REST Endpoints với đầy đủ HTTP Verb, Path, Java Method, PreAuthorize Role và Use Case phục vụ.
+   * Bổ sung mục 6: Danh mục toàn diện 31 Backend Services và 16 Repositories.
+   * Bổ sung mục 7: Danh mục toàn diện 22 Trang Frontend React, tuyến đường dẫn, phân quyền bảo vệ `ProtectedRoute`.
+   * Bổ sung mục 8: Danh mục 37 lớp kiểm thử tự động, 308 tests 100% PASS.
+2. **Nâng Cấp & Chuẩn Hóa `docs/USE_CASES.md`:**
+   * Chuyển đổi mã định danh toàn bộ use cases sang cấu trúc 49 Use Cases (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`).
+   * Tích hợp khối thẻ **"ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)"** cho từng Use Case, chỉ rõ chính xác Controller, Endpoint, Route, Page, Table, Flyway Migration, Service, Repository và Unit Test class.
+3. **Đồng Bộ Hóa `docs/SDD_MediAssist_AI.md` & `docs/SRS_MediAssist_AI.md`:**
+   * Cập nhật Bảng 1.2.2 trong SDD với đầy đủ 15 controllers, 16 repositories, 6 enums và 23 migrations Flyway.
+   * Cập nhật Section 5.5 trong SRS đưa số lượng test lên 308 tests và liên kết V23 cho WHO ICD-10.
+4. **Biên Dịch Lại Toàn Bộ Hồ Sơ Báo Cáo Luận Văn:**
+   * Chạy `python -X utf8 scripts/compile_docs_bundle.py`: Đồng bộ 21 tài liệu nguồn vào `report_1/` đến `report_5/` và xuất file `docs-bundle.js` đạt kích thước 1.196,5 KB.
+
+---
+
+#### 4. Danh Sách Tệp Tin Thay Đổi
+* `[MOD]` `docs/MASTER_TRACEABILITY_INDEX.md` (Tái thiết kế toàn diện ma trận truy vết 49 UCs, 87 endpoints, 31 services, 16 repos, 22 pages, 23 flyway, 37 test classes)
+* `[MOD]` `docs/USE_CASES.md` (Tái cấu trúc 49 Use Cases chuẩn RUP/IEEE 830 với khối ánh xạ kỹ thuật 1-1)
+* `[MOD]` `docs/SDD_MediAssist_AI.md` (Cập nhật danh mục gói 15 controllers, 31 services, 16 repos, 6 enums, Flyway V1-V23)
+* `[MOD]` `docs/SRS_MediAssist_AI.md` (Cập nhật baseline 308 tests và liên kết V23)
+* `[MOD]` `docs-bundle.js` (Tái biên dịch 21 tài liệu offline cho các báo cáo KLTN)
+* `[MOD]` `report_1/docs-bundle.js` đến `report_5/docs-bundle.js` (Đồng bộ bản bundle mới)
+* `[MOD]` `docs/WORK_LOG.md` (Ghi nhận phiên làm việc #113)
+
+---
+
+#### 5. Bằng Chứng Kiểm Thử Tự Động (Quality Verification)
+* **Frontend Build:** `npm run build` trong `frontend/`
+  ```bash
+  vite v6.4.3 building for production...
+  ✓ 2311 modules transformed.
+  ✓ built in 26.99s
+  # 0 lỗi TypeScript, 0 lỗi linter
+  ```
+* **Backend Unit Tests:** `mvn -f backend/pom.xml test`
+  ```bash
+  [INFO] Results:
+  [INFO] Tests run: 308, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS
+  [INFO] Total time: 35.249 s
+  ```
+* **Docs Bundle:** `python -X utf8 scripts/compile_docs_bundle.py`
+  ```bash
+  Writing bundle (1196.5 KB, 21 documents) to targets:
+    ✓ Written docs-bundle.js
+    ✓ Written report_1/docs-bundle.js ... report_5/docs-bundle.js
+  All report bundles synchronized successfully!
+  ```
+
+---
+
+#### 6. Điểm Nóng Tech Lead Cần Review
+1. **1-to-1 Mapping Exhaustiveness:** Mọi thành phần trong mã nguồn (87 endpoints, 31 services, 16 repos, 17 tables, 6 enums, 23 flyway migrations, 22 frontend pages, 37 test classes) hiện đã được ánh xạ 1-1 đầy đủ trong `MASTER_TRACEABILITY_INDEX.md` và `USE_CASES.md`, không còn bất kỳ mẫu đại diện hay dấu chấm lửng nào.
+2. **Chuẩn Hóa Mã Use Case:** Toàn bộ hệ thống tài liệu hiện đã thống nhất 100% trên bộ mã `UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`.
+
+---
+
 ### [WORK-LOG-#066] Tối Ưu Hiệu Năng & Triệt Tiêu Độ Trễ Bằng 3 Thuật Toán Nâng Cao Được Tech Lead Phê Duyệt (WHRF Min-Heap, Client Debounce & Tokenized Inverted Index, Precompiled Regex Automata)
 * **Thời gian:** 2026-09-16 09:00:00 (GMT+7)
 * **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
@@ -2257,6 +2734,125 @@ Tech Lead yêu cầu rà soát tính năng OpenID Connect (OIDC) và Google OAut
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### Phiên #113: Rà Soát Toàn Diện & Thiết Lập Ánh Xạ 1-to-1 Triệt Để Giữa Hệ Thống Tài Liệu Và Toàn Bộ Dự Án Thực Tế (Swarm Audit & 1-to-1 Exhaustive Mapping Baseline)
+* **Thời gian thực hiện:** 14/11/2026 – Swarm Coordinator & Lead Assistant
+* **Người thực hiện:** AI Senior Pair Programming Assistant
+* **Người duyệt:** **Tech Lead & Solution Architect**
+
+---
+
+#### 1. Bối Cảnh & Động Cơ Kỹ Thuật
+Khi Tech Lead rà soát hệ thống tài liệu KLTN (`docs/`, `report_1` đến `report_5`), phát hiện tài liệu trước đây thường dùng phương pháp "mẫu đại diện" (representative sampling, chỉ liệt kê 1-2 endpoint, 1-2 bảng hoặc 5-6 service tiêu biểu) và có độ lệch số liệu so với mã nguồn thực tế:
+1. `docs/MASTER_TRACEABILITY_INDEX.md` chỉ liệt kê 33 Use Cases theo mã cũ (`UC-00`..`UC-32`), thiếu 16 Use Cases của SRS, chỉ ghi nhận 22 bản di trú Flyway (thiếu `V23`), ghi nhận 26 services thay vì 31 services thực tế, và chỉ liệt kê một phần nhỏ trong số 87 endpoints vật lý.
+2. `docs/USE_CASES.md` dùng cấu trúc đánh số cũ phẳng (`UC-00` đến `UC-36` bị nhảy cóc), không tương thích với cấu trúc 49 Use Cases phân theo miền (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`) trong `SRS_MediAssist_AI.md`.
+3. `docs/SDD_MediAssist_AI.md` ở Bảng 1.2.2 chỉ liệt kê 12 controllers (thiếu `HealthController`, `PatientProfileController`, `SpecialtyController`), liệt kê 8 repositories (thiếu 8 repos) và 5 enums (thiếu `OrderType`).
+
+**Chỉ thị từ Tech Lead:** */swarm hãy dựa vào doc liệt kê và rà soát sửa lại những thứ còn thiếu hoặc sai sót, mọi thứ phải mapping 1-1 với project chứ không thấy 1 2 thứ đại diện, phải lấy hết.*
+
+---
+
+#### 2. Kết Quả Kiểm Kê Vật Lý Toàn Diện 100% Mã Nguồn (Codebase Reality)
+Qua công cụ phân tích tĩnh AST & regex chuyên sâu trên toàn bộ cây thư mục dự án:
+* **49 Use Cases Nghiệp Vụ Chuẩn RUP/IEEE 830:**
+  * 06 Use Cases Phân hệ Dùng chung (`UC-COMM-01` đến `UC-COMM-06`)
+  * 18 Use Cases Phân hệ Bệnh nhân (`UC-PAT-01` đến `UC-PAT-18`)
+  * 14 Use Cases Phân hệ Bác sĩ (`UC-DOC-01` đến `UC-DOC-14`)
+  * 11 Use Cases Phân hệ Quản trị viên (`UC-ADM-01` đến `UC-ADM-11`)
+* **15 REST Controllers & 87 Endpoints Vật Lý:**
+  * `AdminController` (/api/v1/admin): 18 endpoints
+  * `AppointmentController` (/api/v1/appointments): 9 endpoints
+  * `AuthController` (/api/v1/auth): 9 endpoints
+  * `ClinicalOntologyController` (/api/v1/clinical/ontology): 4 endpoints
+  * `DoctorController` (/api/v1/doctors): 9 endpoints
+  * `DoctorReviewController` (/api/v1): 4 endpoints
+  * `HealthController` (/ & /ready): 2 endpoints
+  * `MedicalDocumentController` (/api/v1/documents): 10 endpoints
+  * `MedicalPiiController` (/api/v1/pii): 1 endpoint
+  * `NotificationController` (/api/v1/notifications): 4 endpoints
+  * `PatientProfileController` (/api/v1/patient/profile): 3 endpoints
+  * `PaymentController` (/api/v1/payments): 6 endpoints
+  * `SpecialtyController` (/api/v1/specialties): 1 endpoint
+  * `SystemConfigController` (/api/v1/system): 3 endpoints
+  * `TriageController` (/api/v1/triage): 4 endpoints
+* **31 Backend Services Hoạt Động:**
+  * `AdminVettingService`, `AiUsageAnalyticsService`, `AppointmentRefundService`, `AppointmentService`, `AuthService`, `ClinicalOntologyService`, `ClinicalQueryDefenseEngine`, `ClinicalRagService`, `DoctorReviewService`, `DoctorSemanticSearchService`, `DoctorService`, `EmailVerificationGuard`, `EmbeddingService`, `MeddiesPdfGeneratorService`, `MedicalDocumentAnalysisService`, `MedicalDocumentFileAccessService`, `MedicalDocumentValidator`, `MedicalPiiService`, `NotificationService`, `PatientAccessGuard`, `PatientProfileService`, `PaymentService`, `PdfExtractionService`, `RedFlagService`, `SecurityRateLimiterService`, `StorageService`, `SupabaseStorageService`, `SupabaseStorageUrls`, `TriageRateLimiterService`, `TriageService`, `TwoLayerCacheService`.
+* **16 Spring Data Repositories:**
+  * `AiTokenUsageRepository`, `AppointmentRepository`, `AuditLogRepository`, `DoctorProfileRepository`, `DoctorReviewRepository`, `DoctorScheduleSlotRepository`, `DocumentAnalysisRepository`, `EmailVerificationTokenRepository`, `MedicalDocumentRepository`, `NotificationRepository`, `PasswordResetTokenRepository`, `PatientProfileRepository`, `PaymentTransactionRepository`, `SpecialtyRepository`, `TriageSessionRepository`, `UserRepository`.
+* **17 Bảng CSDL Chuẩn 3NF & 6 Enums Nghiệp Vụ (23 tệp):**
+  * 17 Thực thể: `User`, `Specialty`, `DoctorProfile`, `DoctorScheduleSlot`, `PatientProfile`, `Appointment`, `TriageSession`, `MedicalDocument`, `DocumentAnalysis`, `PaymentTransaction`, `PasswordResetToken`, `EmailVerificationToken`, `Notification`, `DoctorReview`, `AuditLog`, `AiTokenUsage` (kèm bảng liên kết `doctor_specialties`).
+  * 6 Enums: `Role`, `UserStatus`, `AppointmentStatus`, `PaymentStatus`, `OrderType`, `TriageUrgencyLevel`.
+* **23 Bản Di Trú Flyway:**
+  * `V1__initial_schema.sql` đến `V23__refactor_icd_code_and_version.sql`.
+* **22 Trang Frontend React + 10 Modals/Drawers & AppRoutes:**
+  * 7 Public/Auth Pages: `LandingPage`, `LoginPage`, `ForgotPasswordPage`, `ResetPasswordPage`, `VerifyEmailPage`, `OAuth2CallbackPage`, `PaymentSuccessPage`.
+  * 7 Admin Pages: `AdminDashboard`, `AppointmentSupervisionPage`, `TriageSupervisionPage`, `DoctorManagementPage`, `DoctorVettingPage`, `UserManagementPage`, `SpecialtyManagementPage`, `AuditLogPage`.
+  * 3 Doctor Pages: `DoctorDashboard`, `DoctorPatientRecordsPage`, `DoctorProfilePage`.
+  * 5 Patient Pages: `PatientDashboard`, `SymptomTriagePage`, `DocumentSummarizerPage`, `DoctorSearchPage`.
+* **37 Lớp Kiểm Thử (Unit & Integration Tests) với 308 Tests 100% PASS.**
+
+---
+
+#### 3. Các Hành Động Cập Nhật Đã Thực Hiện
+1. **Tái Thiết Kế & Hoàn Thiện `docs/MASTER_TRACEABILITY_INDEX.md`:**
+   * Mở rộng bảng Ma Trận Truy Vết (RTM) lên đủ 49 dòng tương ứng 49 Use Cases.
+   * Bổ sung mục 4: Bản đồ CSDL và đầy đủ 23 bản di trú Flyway V1-V23.
+   * Bổ sung mục 5: Bảng danh mục toàn diện 15 Controllers và toàn bộ 87 REST Endpoints với đầy đủ HTTP Verb, Path, Java Method, PreAuthorize Role và Use Case phục vụ.
+   * Bổ sung mục 6: Danh mục toàn diện 31 Backend Services và 16 Repositories.
+   * Bổ sung mục 7: Danh mục toàn diện 22 Trang Frontend React, tuyến đường dẫn, phân quyền bảo vệ `ProtectedRoute`.
+   * Bổ sung mục 8: Danh mục 37 lớp kiểm thử tự động, 308 tests 100% PASS.
+2. **Nâng Cấp & Chuẩn Hóa `docs/USE_CASES.md`:**
+   * Chuyển đổi mã định danh toàn bộ use cases sang cấu trúc 49 Use Cases (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`).
+   * Tích hợp khối thẻ **"ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)"** cho từng Use Case, chỉ rõ chính xác Controller, Endpoint, Route, Page, Table, Flyway Migration, Service, Repository và Unit Test class.
+3. **Đồng Bộ Hóa `docs/SDD_MediAssist_AI.md` & `docs/SRS_MediAssist_AI.md`:**
+   * Cập nhật Bảng 1.2.2 trong SDD với đầy đủ 15 controllers, 16 repositories, 6 enums và 23 migrations Flyway.
+   * Cập nhật Section 5.5 trong SRS đưa số lượng test lên 308 tests và liên kết V23 cho WHO ICD-10.
+4. **Biên Dịch Lại Toàn Bộ Hồ Sơ Báo Cáo Luận Văn:**
+   * Chạy `python -X utf8 scripts/compile_docs_bundle.py`: Đồng bộ 21 tài liệu nguồn vào `report_1/` đến `report_5/` và xuất file `docs-bundle.js` đạt kích thước 1.196,5 KB.
+
+---
+
+#### 4. Danh Sách Tệp Tin Thay Đổi
+* `[MOD]` `docs/MASTER_TRACEABILITY_INDEX.md` (Tái thiết kế toàn diện ma trận truy vết 49 UCs, 87 endpoints, 31 services, 16 repos, 22 pages, 23 flyway, 37 test classes)
+* `[MOD]` `docs/USE_CASES.md` (Tái cấu trúc 49 Use Cases chuẩn RUP/IEEE 830 với khối ánh xạ kỹ thuật 1-1)
+* `[MOD]` `docs/SDD_MediAssist_AI.md` (Cập nhật danh mục gói 15 controllers, 31 services, 16 repos, 6 enums, Flyway V1-V23)
+* `[MOD]` `docs/SRS_MediAssist_AI.md` (Cập nhật baseline 308 tests và liên kết V23)
+* `[MOD]` `docs-bundle.js` (Tái biên dịch 21 tài liệu offline cho các báo cáo KLTN)
+* `[MOD]` `report_1/docs-bundle.js` đến `report_5/docs-bundle.js` (Đồng bộ bản bundle mới)
+* `[MOD]` `docs/WORK_LOG.md` (Ghi nhận phiên làm việc #113)
+
+---
+
+#### 5. Bằng Chứng Kiểm Thử Tự Động (Quality Verification)
+* **Frontend Build:** `npm run build` trong `frontend/`
+  ```bash
+  vite v6.4.3 building for production...
+  ✓ 2311 modules transformed.
+  ✓ built in 26.99s
+  # 0 lỗi TypeScript, 0 lỗi linter
+  ```
+* **Backend Unit Tests:** `mvn -f backend/pom.xml test`
+  ```bash
+  [INFO] Results:
+  [INFO] Tests run: 308, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS
+  [INFO] Total time: 35.249 s
+  ```
+* **Docs Bundle:** `python -X utf8 scripts/compile_docs_bundle.py`
+  ```bash
+  Writing bundle (1196.5 KB, 21 documents) to targets:
+    ✓ Written docs-bundle.js
+    ✓ Written report_1/docs-bundle.js ... report_5/docs-bundle.js
+  All report bundles synchronized successfully!
+  ```
+
+---
+
+#### 6. Điểm Nóng Tech Lead Cần Review
+1. **1-to-1 Mapping Exhaustiveness:** Mọi thành phần trong mã nguồn (87 endpoints, 31 services, 16 repos, 17 tables, 6 enums, 23 flyway migrations, 22 frontend pages, 37 test classes) hiện đã được ánh xạ 1-1 đầy đủ trong `MASTER_TRACEABILITY_INDEX.md` và `USE_CASES.md`, không còn bất kỳ mẫu đại diện hay dấu chấm lửng nào.
+2. **Chuẩn Hóa Mã Use Case:** Toàn bộ hệ thống tài liệu hiện đã thống nhất 100% trên bộ mã `UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`.
+
+---
 
 ### [WORK-LOG-#059] Kiểm Toán Chuyên Sâu Toàn Diện & Khắc Phục 5 Điểm Nghẽn / Lỗi Tiềm Ẩn Hệ Thống
 * **Thời gian:** 2026-09-15 11:00:00 (GMT+7)
@@ -3082,6 +3678,125 @@ Sau khi tổng rà soát toàn diện từ Database, Embedding Generator, Prompt
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
+### Phiên #113: Rà Soát Toàn Diện & Thiết Lập Ánh Xạ 1-to-1 Triệt Để Giữa Hệ Thống Tài Liệu Và Toàn Bộ Dự Án Thực Tế (Swarm Audit & 1-to-1 Exhaustive Mapping Baseline)
+* **Thời gian thực hiện:** 14/11/2026 – Swarm Coordinator & Lead Assistant
+* **Người thực hiện:** AI Senior Pair Programming Assistant
+* **Người duyệt:** **Tech Lead & Solution Architect**
+
+---
+
+#### 1. Bối Cảnh & Động Cơ Kỹ Thuật
+Khi Tech Lead rà soát hệ thống tài liệu KLTN (`docs/`, `report_1` đến `report_5`), phát hiện tài liệu trước đây thường dùng phương pháp "mẫu đại diện" (representative sampling, chỉ liệt kê 1-2 endpoint, 1-2 bảng hoặc 5-6 service tiêu biểu) và có độ lệch số liệu so với mã nguồn thực tế:
+1. `docs/MASTER_TRACEABILITY_INDEX.md` chỉ liệt kê 33 Use Cases theo mã cũ (`UC-00`..`UC-32`), thiếu 16 Use Cases của SRS, chỉ ghi nhận 22 bản di trú Flyway (thiếu `V23`), ghi nhận 26 services thay vì 31 services thực tế, và chỉ liệt kê một phần nhỏ trong số 87 endpoints vật lý.
+2. `docs/USE_CASES.md` dùng cấu trúc đánh số cũ phẳng (`UC-00` đến `UC-36` bị nhảy cóc), không tương thích với cấu trúc 49 Use Cases phân theo miền (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`) trong `SRS_MediAssist_AI.md`.
+3. `docs/SDD_MediAssist_AI.md` ở Bảng 1.2.2 chỉ liệt kê 12 controllers (thiếu `HealthController`, `PatientProfileController`, `SpecialtyController`), liệt kê 8 repositories (thiếu 8 repos) và 5 enums (thiếu `OrderType`).
+
+**Chỉ thị từ Tech Lead:** */swarm hãy dựa vào doc liệt kê và rà soát sửa lại những thứ còn thiếu hoặc sai sót, mọi thứ phải mapping 1-1 với project chứ không thấy 1 2 thứ đại diện, phải lấy hết.*
+
+---
+
+#### 2. Kết Quả Kiểm Kê Vật Lý Toàn Diện 100% Mã Nguồn (Codebase Reality)
+Qua công cụ phân tích tĩnh AST & regex chuyên sâu trên toàn bộ cây thư mục dự án:
+* **49 Use Cases Nghiệp Vụ Chuẩn RUP/IEEE 830:**
+  * 06 Use Cases Phân hệ Dùng chung (`UC-COMM-01` đến `UC-COMM-06`)
+  * 18 Use Cases Phân hệ Bệnh nhân (`UC-PAT-01` đến `UC-PAT-18`)
+  * 14 Use Cases Phân hệ Bác sĩ (`UC-DOC-01` đến `UC-DOC-14`)
+  * 11 Use Cases Phân hệ Quản trị viên (`UC-ADM-01` đến `UC-ADM-11`)
+* **15 REST Controllers & 87 Endpoints Vật Lý:**
+  * `AdminController` (/api/v1/admin): 18 endpoints
+  * `AppointmentController` (/api/v1/appointments): 9 endpoints
+  * `AuthController` (/api/v1/auth): 9 endpoints
+  * `ClinicalOntologyController` (/api/v1/clinical/ontology): 4 endpoints
+  * `DoctorController` (/api/v1/doctors): 9 endpoints
+  * `DoctorReviewController` (/api/v1): 4 endpoints
+  * `HealthController` (/ & /ready): 2 endpoints
+  * `MedicalDocumentController` (/api/v1/documents): 10 endpoints
+  * `MedicalPiiController` (/api/v1/pii): 1 endpoint
+  * `NotificationController` (/api/v1/notifications): 4 endpoints
+  * `PatientProfileController` (/api/v1/patient/profile): 3 endpoints
+  * `PaymentController` (/api/v1/payments): 6 endpoints
+  * `SpecialtyController` (/api/v1/specialties): 1 endpoint
+  * `SystemConfigController` (/api/v1/system): 3 endpoints
+  * `TriageController` (/api/v1/triage): 4 endpoints
+* **31 Backend Services Hoạt Động:**
+  * `AdminVettingService`, `AiUsageAnalyticsService`, `AppointmentRefundService`, `AppointmentService`, `AuthService`, `ClinicalOntologyService`, `ClinicalQueryDefenseEngine`, `ClinicalRagService`, `DoctorReviewService`, `DoctorSemanticSearchService`, `DoctorService`, `EmailVerificationGuard`, `EmbeddingService`, `MeddiesPdfGeneratorService`, `MedicalDocumentAnalysisService`, `MedicalDocumentFileAccessService`, `MedicalDocumentValidator`, `MedicalPiiService`, `NotificationService`, `PatientAccessGuard`, `PatientProfileService`, `PaymentService`, `PdfExtractionService`, `RedFlagService`, `SecurityRateLimiterService`, `StorageService`, `SupabaseStorageService`, `SupabaseStorageUrls`, `TriageRateLimiterService`, `TriageService`, `TwoLayerCacheService`.
+* **16 Spring Data Repositories:**
+  * `AiTokenUsageRepository`, `AppointmentRepository`, `AuditLogRepository`, `DoctorProfileRepository`, `DoctorReviewRepository`, `DoctorScheduleSlotRepository`, `DocumentAnalysisRepository`, `EmailVerificationTokenRepository`, `MedicalDocumentRepository`, `NotificationRepository`, `PasswordResetTokenRepository`, `PatientProfileRepository`, `PaymentTransactionRepository`, `SpecialtyRepository`, `TriageSessionRepository`, `UserRepository`.
+* **17 Bảng CSDL Chuẩn 3NF & 6 Enums Nghiệp Vụ (23 tệp):**
+  * 17 Thực thể: `User`, `Specialty`, `DoctorProfile`, `DoctorScheduleSlot`, `PatientProfile`, `Appointment`, `TriageSession`, `MedicalDocument`, `DocumentAnalysis`, `PaymentTransaction`, `PasswordResetToken`, `EmailVerificationToken`, `Notification`, `DoctorReview`, `AuditLog`, `AiTokenUsage` (kèm bảng liên kết `doctor_specialties`).
+  * 6 Enums: `Role`, `UserStatus`, `AppointmentStatus`, `PaymentStatus`, `OrderType`, `TriageUrgencyLevel`.
+* **23 Bản Di Trú Flyway:**
+  * `V1__initial_schema.sql` đến `V23__refactor_icd_code_and_version.sql`.
+* **22 Trang Frontend React + 10 Modals/Drawers & AppRoutes:**
+  * 7 Public/Auth Pages: `LandingPage`, `LoginPage`, `ForgotPasswordPage`, `ResetPasswordPage`, `VerifyEmailPage`, `OAuth2CallbackPage`, `PaymentSuccessPage`.
+  * 7 Admin Pages: `AdminDashboard`, `AppointmentSupervisionPage`, `TriageSupervisionPage`, `DoctorManagementPage`, `DoctorVettingPage`, `UserManagementPage`, `SpecialtyManagementPage`, `AuditLogPage`.
+  * 3 Doctor Pages: `DoctorDashboard`, `DoctorPatientRecordsPage`, `DoctorProfilePage`.
+  * 5 Patient Pages: `PatientDashboard`, `SymptomTriagePage`, `DocumentSummarizerPage`, `DoctorSearchPage`.
+* **37 Lớp Kiểm Thử (Unit & Integration Tests) với 308 Tests 100% PASS.**
+
+---
+
+#### 3. Các Hành Động Cập Nhật Đã Thực Hiện
+1. **Tái Thiết Kế & Hoàn Thiện `docs/MASTER_TRACEABILITY_INDEX.md`:**
+   * Mở rộng bảng Ma Trận Truy Vết (RTM) lên đủ 49 dòng tương ứng 49 Use Cases.
+   * Bổ sung mục 4: Bản đồ CSDL và đầy đủ 23 bản di trú Flyway V1-V23.
+   * Bổ sung mục 5: Bảng danh mục toàn diện 15 Controllers và toàn bộ 87 REST Endpoints với đầy đủ HTTP Verb, Path, Java Method, PreAuthorize Role và Use Case phục vụ.
+   * Bổ sung mục 6: Danh mục toàn diện 31 Backend Services và 16 Repositories.
+   * Bổ sung mục 7: Danh mục toàn diện 22 Trang Frontend React, tuyến đường dẫn, phân quyền bảo vệ `ProtectedRoute`.
+   * Bổ sung mục 8: Danh mục 37 lớp kiểm thử tự động, 308 tests 100% PASS.
+2. **Nâng Cấp & Chuẩn Hóa `docs/USE_CASES.md`:**
+   * Chuyển đổi mã định danh toàn bộ use cases sang cấu trúc 49 Use Cases (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`).
+   * Tích hợp khối thẻ **"ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)"** cho từng Use Case, chỉ rõ chính xác Controller, Endpoint, Route, Page, Table, Flyway Migration, Service, Repository và Unit Test class.
+3. **Đồng Bộ Hóa `docs/SDD_MediAssist_AI.md` & `docs/SRS_MediAssist_AI.md`:**
+   * Cập nhật Bảng 1.2.2 trong SDD với đầy đủ 15 controllers, 16 repositories, 6 enums và 23 migrations Flyway.
+   * Cập nhật Section 5.5 trong SRS đưa số lượng test lên 308 tests và liên kết V23 cho WHO ICD-10.
+4. **Biên Dịch Lại Toàn Bộ Hồ Sơ Báo Cáo Luận Văn:**
+   * Chạy `python -X utf8 scripts/compile_docs_bundle.py`: Đồng bộ 21 tài liệu nguồn vào `report_1/` đến `report_5/` và xuất file `docs-bundle.js` đạt kích thước 1.196,5 KB.
+
+---
+
+#### 4. Danh Sách Tệp Tin Thay Đổi
+* `[MOD]` `docs/MASTER_TRACEABILITY_INDEX.md` (Tái thiết kế toàn diện ma trận truy vết 49 UCs, 87 endpoints, 31 services, 16 repos, 22 pages, 23 flyway, 37 test classes)
+* `[MOD]` `docs/USE_CASES.md` (Tái cấu trúc 49 Use Cases chuẩn RUP/IEEE 830 với khối ánh xạ kỹ thuật 1-1)
+* `[MOD]` `docs/SDD_MediAssist_AI.md` (Cập nhật danh mục gói 15 controllers, 31 services, 16 repos, 6 enums, Flyway V1-V23)
+* `[MOD]` `docs/SRS_MediAssist_AI.md` (Cập nhật baseline 308 tests và liên kết V23)
+* `[MOD]` `docs-bundle.js` (Tái biên dịch 21 tài liệu offline cho các báo cáo KLTN)
+* `[MOD]` `report_1/docs-bundle.js` đến `report_5/docs-bundle.js` (Đồng bộ bản bundle mới)
+* `[MOD]` `docs/WORK_LOG.md` (Ghi nhận phiên làm việc #113)
+
+---
+
+#### 5. Bằng Chứng Kiểm Thử Tự Động (Quality Verification)
+* **Frontend Build:** `npm run build` trong `frontend/`
+  ```bash
+  vite v6.4.3 building for production...
+  ✓ 2311 modules transformed.
+  ✓ built in 26.99s
+  # 0 lỗi TypeScript, 0 lỗi linter
+  ```
+* **Backend Unit Tests:** `mvn -f backend/pom.xml test`
+  ```bash
+  [INFO] Results:
+  [INFO] Tests run: 308, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS
+  [INFO] Total time: 35.249 s
+  ```
+* **Docs Bundle:** `python -X utf8 scripts/compile_docs_bundle.py`
+  ```bash
+  Writing bundle (1196.5 KB, 21 documents) to targets:
+    ✓ Written docs-bundle.js
+    ✓ Written report_1/docs-bundle.js ... report_5/docs-bundle.js
+  All report bundles synchronized successfully!
+  ```
+
+---
+
+#### 6. Điểm Nóng Tech Lead Cần Review
+1. **1-to-1 Mapping Exhaustiveness:** Mọi thành phần trong mã nguồn (87 endpoints, 31 services, 16 repos, 17 tables, 6 enums, 23 flyway migrations, 22 frontend pages, 37 test classes) hiện đã được ánh xạ 1-1 đầy đủ trong `MASTER_TRACEABILITY_INDEX.md` và `USE_CASES.md`, không còn bất kỳ mẫu đại diện hay dấu chấm lửng nào.
+2. **Chuẩn Hóa Mã Use Case:** Toàn bộ hệ thống tài liệu hiện đã thống nhất 100% trên bộ mã `UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`.
+
+---
+
 ### [WORK-LOG-#044] Production-Readiness Audit & Hardening Document Scan: Khắc Phục Nghẽn HikariCP (@Transactional Anti-Pattern), Quota Atomic Reservation & Rollback, ThreadPool OCR Riêng, Rate Limiting Preview & Caffeine Cache
 * **Thời gian:** 2026-09-14 11:20:00 (GMT+7)
 * **Tác nhân thực hiện:** Senior Pair Programming AI Assistant
@@ -3610,6 +4325,125 @@ Sau khi tổng rà soát toàn diện từ Database, Embedding Generator, Prompt
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### Phiên #113: Rà Soát Toàn Diện & Thiết Lập Ánh Xạ 1-to-1 Triệt Để Giữa Hệ Thống Tài Liệu Và Toàn Bộ Dự Án Thực Tế (Swarm Audit & 1-to-1 Exhaustive Mapping Baseline)
+* **Thời gian thực hiện:** 14/11/2026 – Swarm Coordinator & Lead Assistant
+* **Người thực hiện:** AI Senior Pair Programming Assistant
+* **Người duyệt:** **Tech Lead & Solution Architect**
+
+---
+
+#### 1. Bối Cảnh & Động Cơ Kỹ Thuật
+Khi Tech Lead rà soát hệ thống tài liệu KLTN (`docs/`, `report_1` đến `report_5`), phát hiện tài liệu trước đây thường dùng phương pháp "mẫu đại diện" (representative sampling, chỉ liệt kê 1-2 endpoint, 1-2 bảng hoặc 5-6 service tiêu biểu) và có độ lệch số liệu so với mã nguồn thực tế:
+1. `docs/MASTER_TRACEABILITY_INDEX.md` chỉ liệt kê 33 Use Cases theo mã cũ (`UC-00`..`UC-32`), thiếu 16 Use Cases của SRS, chỉ ghi nhận 22 bản di trú Flyway (thiếu `V23`), ghi nhận 26 services thay vì 31 services thực tế, và chỉ liệt kê một phần nhỏ trong số 87 endpoints vật lý.
+2. `docs/USE_CASES.md` dùng cấu trúc đánh số cũ phẳng (`UC-00` đến `UC-36` bị nhảy cóc), không tương thích với cấu trúc 49 Use Cases phân theo miền (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`) trong `SRS_MediAssist_AI.md`.
+3. `docs/SDD_MediAssist_AI.md` ở Bảng 1.2.2 chỉ liệt kê 12 controllers (thiếu `HealthController`, `PatientProfileController`, `SpecialtyController`), liệt kê 8 repositories (thiếu 8 repos) và 5 enums (thiếu `OrderType`).
+
+**Chỉ thị từ Tech Lead:** */swarm hãy dựa vào doc liệt kê và rà soát sửa lại những thứ còn thiếu hoặc sai sót, mọi thứ phải mapping 1-1 với project chứ không thấy 1 2 thứ đại diện, phải lấy hết.*
+
+---
+
+#### 2. Kết Quả Kiểm Kê Vật Lý Toàn Diện 100% Mã Nguồn (Codebase Reality)
+Qua công cụ phân tích tĩnh AST & regex chuyên sâu trên toàn bộ cây thư mục dự án:
+* **49 Use Cases Nghiệp Vụ Chuẩn RUP/IEEE 830:**
+  * 06 Use Cases Phân hệ Dùng chung (`UC-COMM-01` đến `UC-COMM-06`)
+  * 18 Use Cases Phân hệ Bệnh nhân (`UC-PAT-01` đến `UC-PAT-18`)
+  * 14 Use Cases Phân hệ Bác sĩ (`UC-DOC-01` đến `UC-DOC-14`)
+  * 11 Use Cases Phân hệ Quản trị viên (`UC-ADM-01` đến `UC-ADM-11`)
+* **15 REST Controllers & 87 Endpoints Vật Lý:**
+  * `AdminController` (/api/v1/admin): 18 endpoints
+  * `AppointmentController` (/api/v1/appointments): 9 endpoints
+  * `AuthController` (/api/v1/auth): 9 endpoints
+  * `ClinicalOntologyController` (/api/v1/clinical/ontology): 4 endpoints
+  * `DoctorController` (/api/v1/doctors): 9 endpoints
+  * `DoctorReviewController` (/api/v1): 4 endpoints
+  * `HealthController` (/ & /ready): 2 endpoints
+  * `MedicalDocumentController` (/api/v1/documents): 10 endpoints
+  * `MedicalPiiController` (/api/v1/pii): 1 endpoint
+  * `NotificationController` (/api/v1/notifications): 4 endpoints
+  * `PatientProfileController` (/api/v1/patient/profile): 3 endpoints
+  * `PaymentController` (/api/v1/payments): 6 endpoints
+  * `SpecialtyController` (/api/v1/specialties): 1 endpoint
+  * `SystemConfigController` (/api/v1/system): 3 endpoints
+  * `TriageController` (/api/v1/triage): 4 endpoints
+* **31 Backend Services Hoạt Động:**
+  * `AdminVettingService`, `AiUsageAnalyticsService`, `AppointmentRefundService`, `AppointmentService`, `AuthService`, `ClinicalOntologyService`, `ClinicalQueryDefenseEngine`, `ClinicalRagService`, `DoctorReviewService`, `DoctorSemanticSearchService`, `DoctorService`, `EmailVerificationGuard`, `EmbeddingService`, `MeddiesPdfGeneratorService`, `MedicalDocumentAnalysisService`, `MedicalDocumentFileAccessService`, `MedicalDocumentValidator`, `MedicalPiiService`, `NotificationService`, `PatientAccessGuard`, `PatientProfileService`, `PaymentService`, `PdfExtractionService`, `RedFlagService`, `SecurityRateLimiterService`, `StorageService`, `SupabaseStorageService`, `SupabaseStorageUrls`, `TriageRateLimiterService`, `TriageService`, `TwoLayerCacheService`.
+* **16 Spring Data Repositories:**
+  * `AiTokenUsageRepository`, `AppointmentRepository`, `AuditLogRepository`, `DoctorProfileRepository`, `DoctorReviewRepository`, `DoctorScheduleSlotRepository`, `DocumentAnalysisRepository`, `EmailVerificationTokenRepository`, `MedicalDocumentRepository`, `NotificationRepository`, `PasswordResetTokenRepository`, `PatientProfileRepository`, `PaymentTransactionRepository`, `SpecialtyRepository`, `TriageSessionRepository`, `UserRepository`.
+* **17 Bảng CSDL Chuẩn 3NF & 6 Enums Nghiệp Vụ (23 tệp):**
+  * 17 Thực thể: `User`, `Specialty`, `DoctorProfile`, `DoctorScheduleSlot`, `PatientProfile`, `Appointment`, `TriageSession`, `MedicalDocument`, `DocumentAnalysis`, `PaymentTransaction`, `PasswordResetToken`, `EmailVerificationToken`, `Notification`, `DoctorReview`, `AuditLog`, `AiTokenUsage` (kèm bảng liên kết `doctor_specialties`).
+  * 6 Enums: `Role`, `UserStatus`, `AppointmentStatus`, `PaymentStatus`, `OrderType`, `TriageUrgencyLevel`.
+* **23 Bản Di Trú Flyway:**
+  * `V1__initial_schema.sql` đến `V23__refactor_icd_code_and_version.sql`.
+* **22 Trang Frontend React + 10 Modals/Drawers & AppRoutes:**
+  * 7 Public/Auth Pages: `LandingPage`, `LoginPage`, `ForgotPasswordPage`, `ResetPasswordPage`, `VerifyEmailPage`, `OAuth2CallbackPage`, `PaymentSuccessPage`.
+  * 7 Admin Pages: `AdminDashboard`, `AppointmentSupervisionPage`, `TriageSupervisionPage`, `DoctorManagementPage`, `DoctorVettingPage`, `UserManagementPage`, `SpecialtyManagementPage`, `AuditLogPage`.
+  * 3 Doctor Pages: `DoctorDashboard`, `DoctorPatientRecordsPage`, `DoctorProfilePage`.
+  * 5 Patient Pages: `PatientDashboard`, `SymptomTriagePage`, `DocumentSummarizerPage`, `DoctorSearchPage`.
+* **37 Lớp Kiểm Thử (Unit & Integration Tests) với 308 Tests 100% PASS.**
+
+---
+
+#### 3. Các Hành Động Cập Nhật Đã Thực Hiện
+1. **Tái Thiết Kế & Hoàn Thiện `docs/MASTER_TRACEABILITY_INDEX.md`:**
+   * Mở rộng bảng Ma Trận Truy Vết (RTM) lên đủ 49 dòng tương ứng 49 Use Cases.
+   * Bổ sung mục 4: Bản đồ CSDL và đầy đủ 23 bản di trú Flyway V1-V23.
+   * Bổ sung mục 5: Bảng danh mục toàn diện 15 Controllers và toàn bộ 87 REST Endpoints với đầy đủ HTTP Verb, Path, Java Method, PreAuthorize Role và Use Case phục vụ.
+   * Bổ sung mục 6: Danh mục toàn diện 31 Backend Services và 16 Repositories.
+   * Bổ sung mục 7: Danh mục toàn diện 22 Trang Frontend React, tuyến đường dẫn, phân quyền bảo vệ `ProtectedRoute`.
+   * Bổ sung mục 8: Danh mục 37 lớp kiểm thử tự động, 308 tests 100% PASS.
+2. **Nâng Cấp & Chuẩn Hóa `docs/USE_CASES.md`:**
+   * Chuyển đổi mã định danh toàn bộ use cases sang cấu trúc 49 Use Cases (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`).
+   * Tích hợp khối thẻ **"ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)"** cho từng Use Case, chỉ rõ chính xác Controller, Endpoint, Route, Page, Table, Flyway Migration, Service, Repository và Unit Test class.
+3. **Đồng Bộ Hóa `docs/SDD_MediAssist_AI.md` & `docs/SRS_MediAssist_AI.md`:**
+   * Cập nhật Bảng 1.2.2 trong SDD với đầy đủ 15 controllers, 16 repositories, 6 enums và 23 migrations Flyway.
+   * Cập nhật Section 5.5 trong SRS đưa số lượng test lên 308 tests và liên kết V23 cho WHO ICD-10.
+4. **Biên Dịch Lại Toàn Bộ Hồ Sơ Báo Cáo Luận Văn:**
+   * Chạy `python -X utf8 scripts/compile_docs_bundle.py`: Đồng bộ 21 tài liệu nguồn vào `report_1/` đến `report_5/` và xuất file `docs-bundle.js` đạt kích thước 1.196,5 KB.
+
+---
+
+#### 4. Danh Sách Tệp Tin Thay Đổi
+* `[MOD]` `docs/MASTER_TRACEABILITY_INDEX.md` (Tái thiết kế toàn diện ma trận truy vết 49 UCs, 87 endpoints, 31 services, 16 repos, 22 pages, 23 flyway, 37 test classes)
+* `[MOD]` `docs/USE_CASES.md` (Tái cấu trúc 49 Use Cases chuẩn RUP/IEEE 830 với khối ánh xạ kỹ thuật 1-1)
+* `[MOD]` `docs/SDD_MediAssist_AI.md` (Cập nhật danh mục gói 15 controllers, 31 services, 16 repos, 6 enums, Flyway V1-V23)
+* `[MOD]` `docs/SRS_MediAssist_AI.md` (Cập nhật baseline 308 tests và liên kết V23)
+* `[MOD]` `docs-bundle.js` (Tái biên dịch 21 tài liệu offline cho các báo cáo KLTN)
+* `[MOD]` `report_1/docs-bundle.js` đến `report_5/docs-bundle.js` (Đồng bộ bản bundle mới)
+* `[MOD]` `docs/WORK_LOG.md` (Ghi nhận phiên làm việc #113)
+
+---
+
+#### 5. Bằng Chứng Kiểm Thử Tự Động (Quality Verification)
+* **Frontend Build:** `npm run build` trong `frontend/`
+  ```bash
+  vite v6.4.3 building for production...
+  ✓ 2311 modules transformed.
+  ✓ built in 26.99s
+  # 0 lỗi TypeScript, 0 lỗi linter
+  ```
+* **Backend Unit Tests:** `mvn -f backend/pom.xml test`
+  ```bash
+  [INFO] Results:
+  [INFO] Tests run: 308, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS
+  [INFO] Total time: 35.249 s
+  ```
+* **Docs Bundle:** `python -X utf8 scripts/compile_docs_bundle.py`
+  ```bash
+  Writing bundle (1196.5 KB, 21 documents) to targets:
+    ✓ Written docs-bundle.js
+    ✓ Written report_1/docs-bundle.js ... report_5/docs-bundle.js
+  All report bundles synchronized successfully!
+  ```
+
+---
+
+#### 6. Điểm Nóng Tech Lead Cần Review
+1. **1-to-1 Mapping Exhaustiveness:** Mọi thành phần trong mã nguồn (87 endpoints, 31 services, 16 repos, 17 tables, 6 enums, 23 flyway migrations, 22 frontend pages, 37 test classes) hiện đã được ánh xạ 1-1 đầy đủ trong `MASTER_TRACEABILITY_INDEX.md` và `USE_CASES.md`, không còn bất kỳ mẫu đại diện hay dấu chấm lửng nào.
+2. **Chuẩn Hóa Mã Use Case:** Toàn bộ hệ thống tài liệu hiện đã thống nhất 100% trên bộ mã `UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`.
+
+---
 
 ### [WORK-LOG-#037] Khởi Động Toàn Diện Hệ Sinh Thái MediAssist-AI (Docker pgvector 5433, Redis 6379, Spring Boot 5000, Vite 5173), Sửa Lỗi Constructor Injection & Xác Thực End-to-End
 * **Thời gian:** 2026-09-13 14:23:00 (GMT+7)
@@ -4158,6 +4992,125 @@ Sau khi tổng rà soát toàn diện từ Database, Embedding Generator, Prompt
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### Phiên #113: Rà Soát Toàn Diện & Thiết Lập Ánh Xạ 1-to-1 Triệt Để Giữa Hệ Thống Tài Liệu Và Toàn Bộ Dự Án Thực Tế (Swarm Audit & 1-to-1 Exhaustive Mapping Baseline)
+* **Thời gian thực hiện:** 14/11/2026 – Swarm Coordinator & Lead Assistant
+* **Người thực hiện:** AI Senior Pair Programming Assistant
+* **Người duyệt:** **Tech Lead & Solution Architect**
+
+---
+
+#### 1. Bối Cảnh & Động Cơ Kỹ Thuật
+Khi Tech Lead rà soát hệ thống tài liệu KLTN (`docs/`, `report_1` đến `report_5`), phát hiện tài liệu trước đây thường dùng phương pháp "mẫu đại diện" (representative sampling, chỉ liệt kê 1-2 endpoint, 1-2 bảng hoặc 5-6 service tiêu biểu) và có độ lệch số liệu so với mã nguồn thực tế:
+1. `docs/MASTER_TRACEABILITY_INDEX.md` chỉ liệt kê 33 Use Cases theo mã cũ (`UC-00`..`UC-32`), thiếu 16 Use Cases của SRS, chỉ ghi nhận 22 bản di trú Flyway (thiếu `V23`), ghi nhận 26 services thay vì 31 services thực tế, và chỉ liệt kê một phần nhỏ trong số 87 endpoints vật lý.
+2. `docs/USE_CASES.md` dùng cấu trúc đánh số cũ phẳng (`UC-00` đến `UC-36` bị nhảy cóc), không tương thích với cấu trúc 49 Use Cases phân theo miền (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`) trong `SRS_MediAssist_AI.md`.
+3. `docs/SDD_MediAssist_AI.md` ở Bảng 1.2.2 chỉ liệt kê 12 controllers (thiếu `HealthController`, `PatientProfileController`, `SpecialtyController`), liệt kê 8 repositories (thiếu 8 repos) và 5 enums (thiếu `OrderType`).
+
+**Chỉ thị từ Tech Lead:** */swarm hãy dựa vào doc liệt kê và rà soát sửa lại những thứ còn thiếu hoặc sai sót, mọi thứ phải mapping 1-1 với project chứ không thấy 1 2 thứ đại diện, phải lấy hết.*
+
+---
+
+#### 2. Kết Quả Kiểm Kê Vật Lý Toàn Diện 100% Mã Nguồn (Codebase Reality)
+Qua công cụ phân tích tĩnh AST & regex chuyên sâu trên toàn bộ cây thư mục dự án:
+* **49 Use Cases Nghiệp Vụ Chuẩn RUP/IEEE 830:**
+  * 06 Use Cases Phân hệ Dùng chung (`UC-COMM-01` đến `UC-COMM-06`)
+  * 18 Use Cases Phân hệ Bệnh nhân (`UC-PAT-01` đến `UC-PAT-18`)
+  * 14 Use Cases Phân hệ Bác sĩ (`UC-DOC-01` đến `UC-DOC-14`)
+  * 11 Use Cases Phân hệ Quản trị viên (`UC-ADM-01` đến `UC-ADM-11`)
+* **15 REST Controllers & 87 Endpoints Vật Lý:**
+  * `AdminController` (/api/v1/admin): 18 endpoints
+  * `AppointmentController` (/api/v1/appointments): 9 endpoints
+  * `AuthController` (/api/v1/auth): 9 endpoints
+  * `ClinicalOntologyController` (/api/v1/clinical/ontology): 4 endpoints
+  * `DoctorController` (/api/v1/doctors): 9 endpoints
+  * `DoctorReviewController` (/api/v1): 4 endpoints
+  * `HealthController` (/ & /ready): 2 endpoints
+  * `MedicalDocumentController` (/api/v1/documents): 10 endpoints
+  * `MedicalPiiController` (/api/v1/pii): 1 endpoint
+  * `NotificationController` (/api/v1/notifications): 4 endpoints
+  * `PatientProfileController` (/api/v1/patient/profile): 3 endpoints
+  * `PaymentController` (/api/v1/payments): 6 endpoints
+  * `SpecialtyController` (/api/v1/specialties): 1 endpoint
+  * `SystemConfigController` (/api/v1/system): 3 endpoints
+  * `TriageController` (/api/v1/triage): 4 endpoints
+* **31 Backend Services Hoạt Động:**
+  * `AdminVettingService`, `AiUsageAnalyticsService`, `AppointmentRefundService`, `AppointmentService`, `AuthService`, `ClinicalOntologyService`, `ClinicalQueryDefenseEngine`, `ClinicalRagService`, `DoctorReviewService`, `DoctorSemanticSearchService`, `DoctorService`, `EmailVerificationGuard`, `EmbeddingService`, `MeddiesPdfGeneratorService`, `MedicalDocumentAnalysisService`, `MedicalDocumentFileAccessService`, `MedicalDocumentValidator`, `MedicalPiiService`, `NotificationService`, `PatientAccessGuard`, `PatientProfileService`, `PaymentService`, `PdfExtractionService`, `RedFlagService`, `SecurityRateLimiterService`, `StorageService`, `SupabaseStorageService`, `SupabaseStorageUrls`, `TriageRateLimiterService`, `TriageService`, `TwoLayerCacheService`.
+* **16 Spring Data Repositories:**
+  * `AiTokenUsageRepository`, `AppointmentRepository`, `AuditLogRepository`, `DoctorProfileRepository`, `DoctorReviewRepository`, `DoctorScheduleSlotRepository`, `DocumentAnalysisRepository`, `EmailVerificationTokenRepository`, `MedicalDocumentRepository`, `NotificationRepository`, `PasswordResetTokenRepository`, `PatientProfileRepository`, `PaymentTransactionRepository`, `SpecialtyRepository`, `TriageSessionRepository`, `UserRepository`.
+* **17 Bảng CSDL Chuẩn 3NF & 6 Enums Nghiệp Vụ (23 tệp):**
+  * 17 Thực thể: `User`, `Specialty`, `DoctorProfile`, `DoctorScheduleSlot`, `PatientProfile`, `Appointment`, `TriageSession`, `MedicalDocument`, `DocumentAnalysis`, `PaymentTransaction`, `PasswordResetToken`, `EmailVerificationToken`, `Notification`, `DoctorReview`, `AuditLog`, `AiTokenUsage` (kèm bảng liên kết `doctor_specialties`).
+  * 6 Enums: `Role`, `UserStatus`, `AppointmentStatus`, `PaymentStatus`, `OrderType`, `TriageUrgencyLevel`.
+* **23 Bản Di Trú Flyway:**
+  * `V1__initial_schema.sql` đến `V23__refactor_icd_code_and_version.sql`.
+* **22 Trang Frontend React + 10 Modals/Drawers & AppRoutes:**
+  * 7 Public/Auth Pages: `LandingPage`, `LoginPage`, `ForgotPasswordPage`, `ResetPasswordPage`, `VerifyEmailPage`, `OAuth2CallbackPage`, `PaymentSuccessPage`.
+  * 7 Admin Pages: `AdminDashboard`, `AppointmentSupervisionPage`, `TriageSupervisionPage`, `DoctorManagementPage`, `DoctorVettingPage`, `UserManagementPage`, `SpecialtyManagementPage`, `AuditLogPage`.
+  * 3 Doctor Pages: `DoctorDashboard`, `DoctorPatientRecordsPage`, `DoctorProfilePage`.
+  * 5 Patient Pages: `PatientDashboard`, `SymptomTriagePage`, `DocumentSummarizerPage`, `DoctorSearchPage`.
+* **37 Lớp Kiểm Thử (Unit & Integration Tests) với 308 Tests 100% PASS.**
+
+---
+
+#### 3. Các Hành Động Cập Nhật Đã Thực Hiện
+1. **Tái Thiết Kế & Hoàn Thiện `docs/MASTER_TRACEABILITY_INDEX.md`:**
+   * Mở rộng bảng Ma Trận Truy Vết (RTM) lên đủ 49 dòng tương ứng 49 Use Cases.
+   * Bổ sung mục 4: Bản đồ CSDL và đầy đủ 23 bản di trú Flyway V1-V23.
+   * Bổ sung mục 5: Bảng danh mục toàn diện 15 Controllers và toàn bộ 87 REST Endpoints với đầy đủ HTTP Verb, Path, Java Method, PreAuthorize Role và Use Case phục vụ.
+   * Bổ sung mục 6: Danh mục toàn diện 31 Backend Services và 16 Repositories.
+   * Bổ sung mục 7: Danh mục toàn diện 22 Trang Frontend React, tuyến đường dẫn, phân quyền bảo vệ `ProtectedRoute`.
+   * Bổ sung mục 8: Danh mục 37 lớp kiểm thử tự động, 308 tests 100% PASS.
+2. **Nâng Cấp & Chuẩn Hóa `docs/USE_CASES.md`:**
+   * Chuyển đổi mã định danh toàn bộ use cases sang cấu trúc 49 Use Cases (`UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`).
+   * Tích hợp khối thẻ **"ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)"** cho từng Use Case, chỉ rõ chính xác Controller, Endpoint, Route, Page, Table, Flyway Migration, Service, Repository và Unit Test class.
+3. **Đồng Bộ Hóa `docs/SDD_MediAssist_AI.md` & `docs/SRS_MediAssist_AI.md`:**
+   * Cập nhật Bảng 1.2.2 trong SDD với đầy đủ 15 controllers, 16 repositories, 6 enums và 23 migrations Flyway.
+   * Cập nhật Section 5.5 trong SRS đưa số lượng test lên 308 tests và liên kết V23 cho WHO ICD-10.
+4. **Biên Dịch Lại Toàn Bộ Hồ Sơ Báo Cáo Luận Văn:**
+   * Chạy `python -X utf8 scripts/compile_docs_bundle.py`: Đồng bộ 21 tài liệu nguồn vào `report_1/` đến `report_5/` và xuất file `docs-bundle.js` đạt kích thước 1.196,5 KB.
+
+---
+
+#### 4. Danh Sách Tệp Tin Thay Đổi
+* `[MOD]` `docs/MASTER_TRACEABILITY_INDEX.md` (Tái thiết kế toàn diện ma trận truy vết 49 UCs, 87 endpoints, 31 services, 16 repos, 22 pages, 23 flyway, 37 test classes)
+* `[MOD]` `docs/USE_CASES.md` (Tái cấu trúc 49 Use Cases chuẩn RUP/IEEE 830 với khối ánh xạ kỹ thuật 1-1)
+* `[MOD]` `docs/SDD_MediAssist_AI.md` (Cập nhật danh mục gói 15 controllers, 31 services, 16 repos, 6 enums, Flyway V1-V23)
+* `[MOD]` `docs/SRS_MediAssist_AI.md` (Cập nhật baseline 308 tests và liên kết V23)
+* `[MOD]` `docs-bundle.js` (Tái biên dịch 21 tài liệu offline cho các báo cáo KLTN)
+* `[MOD]` `report_1/docs-bundle.js` đến `report_5/docs-bundle.js` (Đồng bộ bản bundle mới)
+* `[MOD]` `docs/WORK_LOG.md` (Ghi nhận phiên làm việc #113)
+
+---
+
+#### 5. Bằng Chứng Kiểm Thử Tự Động (Quality Verification)
+* **Frontend Build:** `npm run build` trong `frontend/`
+  ```bash
+  vite v6.4.3 building for production...
+  ✓ 2311 modules transformed.
+  ✓ built in 26.99s
+  # 0 lỗi TypeScript, 0 lỗi linter
+  ```
+* **Backend Unit Tests:** `mvn -f backend/pom.xml test`
+  ```bash
+  [INFO] Results:
+  [INFO] Tests run: 308, Failures: 0, Errors: 0, Skipped: 0
+  [INFO] BUILD SUCCESS
+  [INFO] Total time: 35.249 s
+  ```
+* **Docs Bundle:** `python -X utf8 scripts/compile_docs_bundle.py`
+  ```bash
+  Writing bundle (1196.5 KB, 21 documents) to targets:
+    ✓ Written docs-bundle.js
+    ✓ Written report_1/docs-bundle.js ... report_5/docs-bundle.js
+  All report bundles synchronized successfully!
+  ```
+
+---
+
+#### 6. Điểm Nóng Tech Lead Cần Review
+1. **1-to-1 Mapping Exhaustiveness:** Mọi thành phần trong mã nguồn (87 endpoints, 31 services, 16 repos, 17 tables, 6 enums, 23 flyway migrations, 22 frontend pages, 37 test classes) hiện đã được ánh xạ 1-1 đầy đủ trong `MASTER_TRACEABILITY_INDEX.md` và `USE_CASES.md`, không còn bất kỳ mẫu đại diện hay dấu chấm lửng nào.
+2. **Chuẩn Hóa Mã Use Case:** Toàn bộ hệ thống tài liệu hiện đã thống nhất 100% trên bộ mã `UC-COMM-01..06`, `UC-PAT-01..18`, `UC-DOC-01..14`, `UC-ADM-01..11`.
+
+---
 
 ---
 
