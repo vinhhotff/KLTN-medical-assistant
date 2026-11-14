@@ -29,6 +29,23 @@ export default defineConfig({
           },
         },
   },
+  preview: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
+      '/oauth2/authorization': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
+      '/login/oauth2': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     rollupOptions: {
       output: {

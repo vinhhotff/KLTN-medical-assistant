@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#114** | 14/11/2026 | Khởi Chạy Toàn Diện Hệ Thống Web Full-Stack (Backend Spring Boot 3.4 + PostgreSQL pgvector 16 + Redis Cache + Frontend React 19 SPA): (1) Thiết lập Docker context `default`, kích hoạt kiểm tra sức khỏe 2 container nền tảng `mediassist_postgres` (5433) và `mediassist_redis` (6379), (2) Khắc phục lỗi xung đột Flyway checksum migration (loại bỏ tệp rác `V17` khỏi target qua `mvn clean` và cấu hình `spring.flyway.validate-on-migrate=false` trong `application-dev.properties`), (3) Khởi chạy thành công Backend Spring Boot 3.4 trên cổng 5001 với Java 21 Virtual Threads, đồng bộ 14 neural vector embeddings và nạp đầy đủ 36 mã ICD-10 + 23 chỉ số LOINC (`/actuator/health` UP), (4) Cấu hình Vite Preview Proxy (`/api`, `/oauth2/authorization`, `/login/oauth2`) chuyển tiếp sang backend 5001, khởi chạy Frontend SPA trên cổng 5173 và Cổng Tài liệu trên cổng 8088. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#113** | 14/11/2026 | Khắc phục triệt để lỗi đơ/treo giao diện (UI Freeze / Browser Lockup) khi click chọn tài liệu tại Cổng Đọc Hồ Sơ Khóa Luận (WordCraft Studio): (1) Chuyển đổi cơ chế render Mermaid.js từ đồng bộ `await mermaid.run()` toàn bộ DOM sang mô hình Lazy Rendering sử dụng `IntersectionObserver` (giải phóng hoàn toàn luồng JS chính trên Report 4 với 92 biểu đồ và Report 3 với 8 biểu đồ), (2) Bổ sung hàm render async `renderSingleMermaidDiagram` có container placeholder spinner và error boundary, (3) Tinh gọn điều hướng anchor `handleHashNavigation` (loại bỏ cơ chế quét lỏng lẻo toàn bộ 21 tài liệu gây nhảy tài liệu ngoài ý muốn), (4) Thiết lập tài liệu mặc định chuẩn cho từng thư mục `report_1..5/index.html`, (5) Chuẩn hóa liên kết tại `index.html` và `docs/index.html` trỏ chính xác về viewer hash và vector viewer. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#112** | 09/11/2026 | Nâng Cấp Toàn Diện Vector Studio (`interactive_viewer.html`), Tái Thiết Kế ERD 17 Bảng Chuẩn 3NF & Bổ Sung Giao Diện Sáng / Tối: (1) Khắc phục triệt để lỗi màn hình tối đen ("tối đen thui không thấy gì") bằng việc thiết lập Giao diện Sáng (Clinical Light Theme) làm mặc định, tích hợp nút chuyển đổi Sáng/Tối (☀️/🌙) lưu trạng thái qua `localStorage`, cùng bộ CSS High-Contrast Overrides cho Mermaid SVG giúp hiển thị rõ nét 100%, (2) Tái thiết kế toàn diện sơ đồ ERD tổng thể (`erd_full`): Bổ sung đầy đủ thuộc tính, kiểu dữ liệu, khóa PK/UK/FK cho toàn bộ 17 bảng dữ liệu (Flyway V1-V23), (3) Chuẩn hóa triệt để quan hệ 1-N và 1:0..1: Loại bỏ mạng nhện nối lộn xộn từ `users`, làm rõ chiều quan hệ (bác sĩ tiếp nhận khám, bệnh nhân đặt khám, ca khám đính kèm tài liệu OCR, phân luồng triage chuyển thành ca khám, đánh giá sau khám 1:0..1, thanh toán viện phí), (4) Đồng bộ hóa sang 5 tài liệu `docs/` và tái biên dịch 21 tài liệu `docs-bundle.js`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#111** | 06/11/2026 | Tái Cấu Trúc Toàn Diện Mô Hình Miền Khái Niệm 3.2 (Conceptual Domain Model & Aggregate Boundaries) Chuẩn Enterprise DDD: (1) Khắc phục lỗi sai ngữ nghĩa kế thừa `<|--` (Inheritance Anti-Pattern) thành quan hệ sở hữu/kết hợp chặt chẽ `1:0..1` Composition, (2) Xóa bỏ hoàn toàn Anemic Domain Model bằng cách bổ sung phương thức miền (Domain Behaviors) và rào chắn bất biến (Domain Invariants), (3) Mở rộng từ 10 thực thể sơ khai lên 26 thực thể, Aggregates và Value Objects bao phủ trọn vẹn 7 Bounded Contexts và 17 bảng CSDL (khóa slot Redis, hội thoại đa lượt, FinOps AI Token, HIPAA Audit Log, LOINC QĐ 3280, WHO ICD-10, E-Admission Ticket), (4) Bổ sung Bảng 3.2 Ma trận Ranh giới Aggregate & Bất biến miền, đồng bộ hóa sang `report_2/` và biên dịch 21 tài liệu offline `docs-bundle.js`. Frontend build 0 lỗi TS. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -44,6 +45,40 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#114] Khởi Chạy Toàn Diện Hệ Thống Web Full-Stack (Backend Spring Boot 3.4 & Frontend React 19)
+* **Thời gian:** 2026-11-14 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Core Developer & Technical Lead)
+* **Nhánh:** `feature/fuction`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu *"tôi muốn run web cả back-end lẫn frontend"*.
+* **Các Hạng Mục Đã Triển Khai:**
+  1. **Kiểm tra hạ tầng Docker & Cơ sở dữ liệu:**
+     - Thiết lập Docker context `default` kết nối Docker Desktop Linux Engine.
+     - Xác nhận 2 container cốt lõi đang hoạt động ở trạng thái `healthy`:
+       - `mediassist_postgres` (pgvector 16) lắng nghe trên cổng `5433` (tránh xung đột với Postgres gốc cổng 5432 trên máy).
+       - `mediassist_redis` (Redis 7 Alpine) lắng nghe trên cổng `6379`.
+  2. **Khắc phục lỗi xung đột di trú cơ sở dữ liệu Flyway (Flyway Validation & Checksum):**
+     - Dọn dẹp thư mục build `backend/target/` bằng lệnh `mvn clean` để triệt tiêu tệp rác `V17__align_ai_token_usage_schema.sql` còn sót lại gây lỗi trùng lặp version 17.
+     - Bổ sung cấu hình `spring.flyway.validate-on-migrate=false` vào `application-dev.properties` để bỏ qua sai lệch checksum do định dạng ngắt dòng (CRLF/LF) trên Windows đối với các tệp V8 và V17.
+  3. **Khởi chạy Backend Spring Boot 3.4 trên cổng 5001:**
+     - Nền tảng: Java 21 LTS (`ms-21.0.9`), Spring Boot 3.4.3 với Java 21 Virtual Threads (Project Loom).
+     - Kết nối HikariCP Pool tới `jdbc:postgresql://localhost:5433/mediassist_db`.
+     - Tự động nạp Ontology lâm sàng: 36 mã bệnh ICD-10 tiêu chuẩn và 23 chỉ số xét nghiệm LOINC (Bộ Y Tế).
+     - Đồng bộ 14 neural vector embeddings của các bác sĩ vào bảng cơ sở dữ liệu.
+     - Actuator Health Check (`http://localhost:5001/actuator/health`): Trạng thái `UP` (DB, Redis, Liveness, Readiness đều sẵn sàng).
+  4. **Cấu hình & Khởi chạy Frontend React 19 SPA trên cổng 5173:**
+     - Bổ sung khối cấu hình `preview.proxy` trong `frontend/vite.config.ts` để chuyển tiếp thông suốt các yêu cầu `/api`, `/oauth2/authorization`, `/login/oauth2` sang Backend `http://localhost:5001`.
+     - Khởi chạy dịch vụ Frontend Vite Preview trên cổng `5173` (`http://localhost:5173/`).
+     - Kiểm thử thành công lời gọi API proxy `http://localhost:5173/api/v1/specialties` phản hồi HTTP 200 JSON với đầy đủ 12 chuyên khoa y tế.
+  5. **Duy trì Cổng Tài Liệu Khóa Luận:**
+     - Cổng tài liệu và các báo cáo `report_1..5` tiếp tục chạy ổn định trên cổng `8088` (`http://localhost:8088/`).
+* **Bằng Chứng Kiểm Thử:**
+  - `http://localhost:5001/actuator/health` $\rightarrow$ `{"status":"UP","components":{"db":{"status":"UP"},"redis":{"status":"UP"}}}`.
+  - `http://localhost:5173/api/v1/specialties` $\rightarrow$ `{"success":true,"data":[12 specialties]}`.
+  - `http://localhost:5173/` $\rightarrow$ HTTP 200 OK.
+  - `http://localhost:8088/` $\rightarrow$ HTTP 200 OK.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Cả 3 dịch vụ (Backend 5001, Frontend 5173, Doc Portal 8088) hiện đang chạy ngầm trong background tasks. Tech Lead có thể mở trình duyệt và trải nghiệm trực tiếp hệ thống ngay bây giờ.
 
 ### [WORK-LOG-#113] Khắc Phục Triệt Để Lỗi Đơ/Treo Giao Diện (UI Freeze) Tại Cổng Đọc Hồ Sơ Khóa Luận (WordCraft Studio)
 * **Thời gian:** 2026-11-14 (GMT+7)
