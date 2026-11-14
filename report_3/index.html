@@ -514,7 +514,7 @@
   <!-- APPLICATION LOGIC SCRIPT -->
   <script>
     // State Management
-    let currentDocId = 'clinical_defense';
+    let currentDocId = 'report_3_main';
     let currentMarkdown = '';
     let isRawView = false;
     let currentFontSize = 16;
@@ -714,22 +714,12 @@
               const hSlug = slugify(hText);
               const hUnaccent = removeVietnameseAccents(hSlug);
               const cleanUnaccent = removeVietnameseAccents(cleanSlug);
-              if (hSlug === cleanSlug || hUnaccent === cleanUnaccent || hSlug.includes(cleanSlug) || cleanSlug.includes(hSlug)) {
+              if (hSlug === cleanSlug || hUnaccent === cleanUnaccent) {
                 await selectDocument(docId);
                 setTimeout(() => scrollToElement(cleanSlug), 250);
                 return;
               }
             }
-          }
-        }
-
-        // Broad content search fallback
-        for (const [docId, doc] of Object.entries(window.MEDIASSIST_DOCS)) {
-          const searchPlain = cleanSlug.replace(/-/g, ' ').toLowerCase();
-          if (doc.content.toLowerCase().includes(searchPlain)) {
-            await selectDocument(docId);
-            setTimeout(() => scrollToElement(cleanSlug), 250);
-            return;
           }
         }
       }
@@ -811,27 +801,98 @@
         heading.setAttribute('data-unaccented', removeVietnameseAccents(slug));
       });
 
-      // Transform Mermaid code blocks
+            // High-performance Lazy Mermaid Rendering via IntersectionObserver
+      if (window._mermaidObserver) {
+        window._mermaidObserver.disconnect();
+      }
+      window._mermaidDiagrams = new Map();
+
       const codeBlocks = renderedDiv.querySelectorAll('pre code.language-mermaid');
-      for (let i = 0; i < codeBlocks.length; i++) {
+      const totalDiagrams = codeBlocks.length;
+      for (let i = 0; i < totalDiagrams; i++) {
         const block = codeBlocks[i];
         const pre = block.parentElement;
-        const mermaidCode = block.textContent;
-        const div = document.createElement('div');
-        div.className = 'mermaid';
-        div.textContent = mermaidCode;
-        pre.parentNode.replaceChild(div, pre);
+        const mermaidCode = block.textContent.trim();
+        const diagramId = `mermaid_diag_${Date.now()}_${i}`;
+        window._mermaidDiagrams.set(diagramId, mermaidCode);
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container my-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-x-auto min-h-[120px] flex items-center justify-center p-4 transition-all';
+        container.id = diagramId;
+        container.setAttribute('data-diagram-id', diagramId);
+        container.innerHTML = `
+          <div class="mermaid-placeholder flex flex-col items-center justify-center py-6 text-slate-400 dark:text-slate-500 text-xs gap-2 select-none">
+            <svg class="animate-spin h-5 w-5 text-sky-500" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+            </svg>
+            <span>Đang dựng sơ đồ kỹ thuật (${i + 1}/${totalDiagrams})...</span>
+          </div>
+        `;
+        pre.parentNode.replaceChild(container, pre);
       }
 
-      // Execute Mermaid
-      try {
-        await mermaid.run();
-      } catch (e) {
-        console.warn('Mermaid rendering error:', e);
+      if (totalDiagrams > 0) {
+        const viewport = document.getElementById('main-viewport');
+        window._mermaidObserver = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const container = entry.target;
+              window._mermaidObserver.unobserve(container);
+              renderSingleMermaidDiagram(container);
+            }
+          });
+        }, {
+          root: viewport,
+          rootMargin: '450px 0px 450px 0px'
+        });
+
+        renderedDiv.querySelectorAll('.mermaid-container').forEach(c => window._mermaidObserver.observe(c));
       }
 
       // Generate Table of Contents
       generateToc();
+    }
+
+    // HTML Escaping Utility
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Render a single Mermaid diagram asynchronously on demand
+    async function renderSingleMermaidDiagram(container) {
+      const diagramId = container.getAttribute('data-diagram-id');
+      const code = window._mermaidDiagrams ? window._mermaidDiagrams.get(diagramId) : null;
+      if (!code) return;
+
+      const svgId = 'svg_' + diagramId.replace(/[^a-zA-Z0-9_]/g, '_');
+      try {
+        const { svg, bindFunctions } = await mermaid.render(svgId, code);
+        container.innerHTML = `<div class="mermaid flex justify-center w-full overflow-x-auto">${svg}</div>`;
+        if (bindFunctions) {
+          bindFunctions(container);
+        }
+      } catch (err) {
+        console.warn('Mermaid render error for ' + diagramId + ':', err);
+        const dangling = document.getElementById(svgId) || document.getElementById('d' + svgId);
+        if (dangling) dangling.remove();
+
+        container.innerHTML = `
+          <div class="w-full text-left p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <div class="text-xs font-bold text-amber-800 dark:text-amber-300 mb-1 flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              <span>Sơ đồ cú pháp Mermaid</span>
+            </div>
+            <pre class="text-[11px] font-mono text-slate-800 dark:text-slate-200 overflow-x-auto whitespace-pre p-2 bg-white dark:bg-slate-900 rounded border border-amber-100 dark:border-amber-900/60">${escapeHtml(code)}</pre>
+          </div>
+        `;
+      }
     }
 
     // Generate Dynamic Table of Contents (Right sidebar)
@@ -1128,7 +1189,7 @@
       if (window.location.hash) {
         await handleHashNavigation(window.location.hash);
       } else {
-        await selectDocument('clinical_defense');
+        await selectDocument('report_3_main');
       }
     });
   </script>
