@@ -399,7 +399,7 @@ export const LandingPage: React.FC = () => {
               </div>
               <div>
                 <span className="font-display text-lg text-slate-900 tracking-tight font-bold block leading-none">
-                  MediAssist <span className="font-serif italic font-normal text-teal-600">Atelier</span>
+                  MediAssist <span className="font-bold text-teal-600">Atelier</span>
                 </span>
                 <span className="font-mono text-[9px] uppercase tracking-widest text-slate-400 block mt-0.5">
                   CLINICAL AI // V4.8
@@ -514,7 +514,7 @@ export const LandingPage: React.FC = () => {
                   {/* Editorial Display Heading */}
                   <h1 className="gsap-hero-title font-display text-3xl sm:text-5xl lg:text-[54px] text-slate-900 tracking-tight leading-[1.08] font-bold mb-6">
                     Chẩn Đoán Thông Minh Từ{' '}
-                    <span className="font-serif italic font-normal text-teal-600 underline decoration-teal-400/50 decoration-2 underline-offset-4">
+                    <span className="font-bold text-teal-600 underline decoration-teal-400/50 decoration-2 underline-offset-4">
                       Bệnh Án PDF
                     </span>{' '}
                     — Kết Nối Bác Sĩ Tức Thì.
@@ -658,7 +658,7 @@ export const LandingPage: React.FC = () => {
                   </div>
                   <h2 className="font-display text-2xl sm:text-4xl text-slate-900 tracking-tight font-bold">
                     Thử Nghiệm Tải Lên &amp;{' '}
-                    <span className="font-serif italic font-normal text-teal-600">Phân Tích Bệnh Án Mẫu</span>
+                    <span className="font-bold text-teal-600">Phân Tích Bệnh Án Mẫu</span>
                   </h2>
                 </div>
                 <p className="text-sm text-slate-600 max-w-md leading-relaxed">
@@ -1027,7 +1027,7 @@ export const LandingPage: React.FC = () => {
                 </div>
                 <h2 className="font-display text-2xl sm:text-4xl text-slate-900 tracking-tight font-bold">
                   Giải Mã Bệnh Án Qua{' '}
-                  <span className="font-serif italic font-normal text-teal-600">3 Bước Liền Mạch</span>
+                  <span className="font-bold text-teal-600">3 Bước Liền Mạch</span>
                 </h2>
               </div>
               <p className="text-sm text-slate-600 max-w-md leading-relaxed">
@@ -1130,7 +1130,7 @@ export const LandingPage: React.FC = () => {
                 </div>
                 <h2 className="font-display text-2xl sm:text-4xl text-slate-900 tracking-tight font-bold">
                   Đội Ngũ Bác Sĩ Tuyến Đầu{' '}
-                  <span className="font-serif italic font-normal text-teal-600">Sẵn Sàng Hội Chẩn</span>
+                  <span className="font-bold text-teal-600">Sẵn Sàng Hội Chẩn</span>
                 </h2>
               </div>
               <button

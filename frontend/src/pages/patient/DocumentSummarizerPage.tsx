@@ -738,7 +738,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
               MODULE 04 // VISION OCR &amp; SINH HÓA
             </div>
             <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-              Đọc Kết Quả Xét Nghiệm &amp; <span className="font-serif italic font-normal text-teal-600">Gợi Ý Bác Sĩ</span>
+              Đọc Kết Quả Xét Nghiệm &amp; <span className="font-bold text-teal-600">Gợi Ý Bác Sĩ</span>
             </h1>
             <p className="text-slate-600 text-sm mt-0.5">
               Tải lên phiếu xét nghiệm, đơn thuốc hoặc bệnh án (PDF/ảnh). Hệ thống giải thích các chỉ số bất thường bằng lời dễ hiểu và gợi ý bác sĩ chuyên khoa phù hợp.

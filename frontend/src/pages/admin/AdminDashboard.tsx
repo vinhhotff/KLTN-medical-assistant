@@ -185,7 +185,7 @@ export const AdminDashboard: React.FC = () => {
             AD-01 // OPERATIONS OBSERVATORY
           </div>
           <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-            Trung Tâm Chỉ Huy &amp; <span className="font-serif italic font-normal text-teal-600">Giám Sát Toàn Viện</span>
+            Trung Tâm Chỉ Huy &amp; <span className="font-bold text-teal-600">Giám Sát Toàn Viện</span>
           </h2>
           <p className="text-slate-600 text-sm mt-1">
             Tổng hợp dữ liệu vận hành theo thời gian thực: Bác sĩ, Lịch hẹn Telehealth, Cận lâm sàng EMR và Phân luồng AI.

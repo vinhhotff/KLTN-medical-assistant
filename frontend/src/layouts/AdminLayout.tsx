@@ -60,7 +60,7 @@ export const AdminLayout: React.FC = () => {
           </div>
           <div>
             <p className="text-slate-900 font-display font-bold text-base leading-none">
-              MediAssist <span className="font-serif italic font-normal text-teal-600">Ops</span>
+              MediAssist <span className="font-semibold text-teal-600">Ops</span>
             </p>
             <span className="font-mono text-[10px] uppercase tracking-widest text-teal-700 font-bold mt-1 block">
               QUẢN TRỊ HỆ THỐNG

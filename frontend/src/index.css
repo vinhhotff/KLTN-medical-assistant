@@ -8,14 +8,31 @@
     padding: 0;
     background-color: #F6F3EC;
     color: #12100E;
-    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Be Vietnam Pro', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   body {
     overscroll-behavior: none;
   }
-  h1, h2, h3, h4, .font-display {
-    font-family: 'Space Grotesk', sans-serif;
-    letter-spacing: -0.025em;
+  h1, h2, h3, h4, .font-display, .font-serif {
+    font-family: 'Be Vietnam Pro', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    letter-spacing: -0.015em;
+  }
+  .font-mono {
+    font-family: 'Be Vietnam Pro', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+  .tracking-widest {
+    letter-spacing: 0.04em !important;
+  }
+  .tracking-wider {
+    letter-spacing: 0.02em !important;
+  }
+  code, pre, kbd, .font-code {
+    font-family: 'JetBrains Mono', monospace;
   }
   main > :first-child {
     margin-top: 0 !important;
