@@ -420,7 +420,7 @@ export const PatientDashboard: React.FC = () => {
           </div>
           <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-slate-900">
             Quản Lý Hồ Sơ Bệnh Án &amp;{' '}
-            <span className="font-serif italic font-normal text-teal-600">Chăm Sóc Sức Khỏe Toàn Diện</span>
+            <span className="font-bold text-teal-600">Chăm Sóc Sức Khỏe Toàn Diện</span>
           </h1>
           <p className="mt-2.5 text-slate-600 text-sm md:text-base leading-relaxed">
             Hệ thống Bệnh án Điện tử (EMR) chuẩn hóa Bộ Y Tế. Theo dõi kết quả xét nghiệm, lịch sử thăm khám, dấu hiệu sinh tồn và đơn thuốc ngoại trú minh bạch.

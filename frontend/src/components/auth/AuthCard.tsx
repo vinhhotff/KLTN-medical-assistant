@@ -47,7 +47,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({ icon, title, subtitle, child
           </div>
           <div>
             <span className="text-lg font-display font-bold tracking-tight block leading-none">
-              MEDIASSIST <span className="font-serif italic font-normal text-teal-600">Atelier</span>
+              MEDIASSIST <span className="font-semibold text-teal-600">Atelier</span>
             </span>
             <span className="font-mono text-[10px] uppercase tracking-widest text-slate-500">
               BIO-SECURITY VAULT // V4.8

@@ -58,7 +58,7 @@ export const DoctorLayout: React.FC = () => {
             </div>
             <div className="min-w-0">
               <span className="font-display font-bold text-slate-900 text-base tracking-tight block truncate">
-                MediAssist <span className="font-serif italic font-normal text-teal-600">Doctor</span>
+                MediAssist <span className="font-semibold text-teal-600">Doctor</span>
               </span>
               <span className="font-mono text-[10px] uppercase tracking-widest text-teal-700 font-bold block mt-0.5">
                 CLINICAL WORKSTATION

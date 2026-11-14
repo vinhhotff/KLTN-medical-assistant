@@ -121,3 +121,14 @@ Trong các ứng dụng y tế thông thường, nhà phát triển thường m�
 * **Quên mật khẩu không cần tổng đài:** liên kết đặt lại có hiệu lực 30 phút, dùng một lần; hệ thống không tiết lộ email có tồn tại hay không.
 * **Không bao giờ có dữ liệu y tế trong email:** không lý do khám, không triệu chứng, không kết quả xét nghiệm, không lý do hủy. Bệnh nhân đăng nhập để xem chi tiết, nơi mọi lượt xem đều được kiểm soát quyền và ghi nhật ký.
 * **Bác sĩ An (Persona 3)** nhận email "Lịch hẹn mới" để chủ động sắp xếp thời gian, nhưng thông tin lâm sàng của bệnh nhân chỉ mở được trong hệ thống, đúng quan hệ điều trị (UC-27).
+
+---
+
+## 7. Chuẩn Hóa Kiểu Chữ Lâm Sàng Tiếng Việt (Vietnamese Clinical Typography Standard - WORK_LOG #115)
+
+Đối với bệnh nhân cao tuổi (như Bác Ba - Persona 1) và bác sĩ làm việc cường độ cao (Bác sĩ An - Persona 3), việc giao diện hiển thị quá nhiều phông chữ khác nhau hoặc bị lỗi dấu tiếng Việt (nhảy phông chữ giữa chừng trên các ký tự `ă, â, đ, ê, ô, ơ, ư, ệ, ẫ...`) gây mỏi mắt và giảm sự tin cậy y khoa. MediAssist-AI áp dụng hệ thống kiểu chữ đồng nhất:
+
+* **Phông chữ chủ đạo duy nhất (`Be Vietnam Pro` & `Inter`)**: Được thiết kế chuyên biệt cho hệ thống dấu thanh và dấu mũ tiếng Việt, giúp 100% tiêu đề, nhãn điều hướng, chỉ số xét nghiệm và nội dung tư vấn hiển thị đồng nhất, tròn trịa và dễ đọc ở mọi kích cỡ màn hình.
+* **Loại bỏ sự pha trộn phông chữ rối mắt**: Bỏ kiểu chữ Serif nghiêng (`Instrument Serif`) không hỗ trợ tiếng Việt giữa câu tiêu đề và thu gọn việc lạm dụng chữ đơn cách (`Monospace`) trên văn bản tiếng Việt thông thường.
+* **Căn chỉnh số học chính xác (`tabular-nums`)**: Mọi chỉ số sinh tồn (Huyết áp, SpO2, Nhịp tim), kết quả xét nghiệm LOINC và chi phí khám đều bật chế độ `font-variant-numeric: tabular-nums` để các chữ số thẳng hàng tuyệt đối theo cột dọc mà vẫn giữ nguyên nét chữ mềm mại, dễ nhìn.
+

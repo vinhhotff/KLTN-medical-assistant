@@ -1339,7 +1339,7 @@ export const DoctorDashboard: React.FC = () => {
             </span>
           </div>
           <h2 className="font-display text-2xl sm:text-3xl font-bold mt-2 tracking-tight text-slate-900">
-            Chào Bác sĩ, <span className="font-serif italic font-normal text-teal-600">{user?.fullName || 'Đồng nghiệp'}</span>!
+            Chào Bác sĩ, <span className="font-bold text-teal-600">{user?.fullName || 'Đồng nghiệp'}</span>!
           </h2>
           <p className="text-slate-600 text-sm mt-1">
             Quản lý hàng đợi tiếp đón, chẩn đoán ICD-10, kê đơn thuốc điện tử và đồng bộ lịch trực khám bệnh viện.

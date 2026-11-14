@@ -67,7 +67,7 @@ export const PatientLayout: React.FC = () => {
                 </div>
                 <div>
                   <span className="font-display font-bold text-lg tracking-tight text-slate-900 block leading-none">
-                    MediAssist <span className="font-serif italic font-normal text-teal-600">Atelier</span>
+                    MediAssist <span className="font-semibold text-teal-600">Atelier</span>
                   </span>
                   <span className="font-mono text-[10px] uppercase tracking-widest text-slate-400 mt-1 block">
                     BIO-CARE PORTAL // V4.8

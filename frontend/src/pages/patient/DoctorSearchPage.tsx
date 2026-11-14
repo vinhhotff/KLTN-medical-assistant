@@ -255,7 +255,7 @@ export const DoctorSearchPage: React.FC = () => {
           MODULE 03 // MẠNG LƯỚI CHUYÊN GIA
         </div>
         <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-          Tìm &amp; Đặt Lịch <span className="font-serif italic font-normal text-teal-600">Bác Sĩ</span>
+          Tìm &amp; Đặt Lịch <span className="font-bold text-teal-600">Bác Sĩ</span>
         </h1>
         <p className="text-slate-600 text-sm mt-1">
           Tìm bác sĩ theo tên, chuyên khoa hoặc mô tả triệu chứng — hệ thống sẽ gợi ý bác sĩ phù hợp nhất.

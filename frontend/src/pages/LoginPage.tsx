@@ -348,7 +348,7 @@ export const LoginPage: React.FC = () => {
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-display font-bold tracking-tight text-slate-900 flex items-center gap-1.5 leading-none">
-                MediAssist <span className="font-serif italic font-normal text-teal-600">Atelier</span>
+                MediAssist <span className="font-semibold text-teal-600">Atelier</span>
               </span>
               <span className="font-mono text-[10px] font-bold text-slate-500 tracking-widest uppercase mt-0.5">
                 Clinical Triage &amp; Telehealth
