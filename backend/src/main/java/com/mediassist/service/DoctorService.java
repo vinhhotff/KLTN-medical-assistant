@@ -366,6 +366,8 @@ public class DoctorService {
             dto.setLastVisitDate(latestAppt.getScheduledStart());
             dto.setLastStatus(latestAppt.getStatus() != null ? latestAppt.getStatus().name() : "SCHEDULED");
             dto.setLastIcd10Code(latestAppt.getIcd10Code());
+            dto.setLastIcdCode(latestAppt.getIcdCode());
+            dto.setLastIcdVersion(latestAppt.getIcdVersion());
             dto.setLastIcd10Name(latestAppt.getIcd10Name());
             dto.setLastChiefComplaint(latestAppt.getChiefComplaint());
 

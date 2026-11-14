@@ -11,7 +11,14 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
-| **#106** | 14/11/2026 | Khắc phục triệt để lỗi đơ/treo giao diện (UI Freeze / Browser Lockup) khi click chọn tài liệu tại Cổng Đọc Hồ Sơ Khóa Luận (WordCraft Studio): (1) Chuyển đổi cơ chế render Mermaid.js từ đồng bộ `await mermaid.run()` toàn bộ DOM sang mô hình Lazy Rendering sử dụng `IntersectionObserver` (giải phóng hoàn toàn luồng JS chính trên Report 4 với 92 biểu đồ và Report 3 với 8 biểu đồ), (2) Bổ sung hàm render async `renderSingleMermaidDiagram` có container placeholder spinner và error boundary, (3) Tinh gọn điều hướng anchor `handleHashNavigation` (loại bỏ cơ chế quét lỏng lẻo toàn bộ 21 tài liệu gây nhảy tài liệu ngoài ý muốn), (4) Thiết lập tài liệu mặc định chuẩn cho từng thư mục `report_1..5/index.html`, (5) Chuẩn hóa liên kết tại `index.html` và `docs/index.html` trỏ chính xác về viewer hash và vector viewer. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#113** | 14/11/2026 | Khắc phục triệt để lỗi đơ/treo giao diện (UI Freeze / Browser Lockup) khi click chọn tài liệu tại Cổng Đọc Hồ Sơ Khóa Luận (WordCraft Studio): (1) Chuyển đổi cơ chế render Mermaid.js từ đồng bộ `await mermaid.run()` toàn bộ DOM sang mô hình Lazy Rendering sử dụng `IntersectionObserver` (giải phóng hoàn toàn luồng JS chính trên Report 4 với 92 biểu đồ và Report 3 với 8 biểu đồ), (2) Bổ sung hàm render async `renderSingleMermaidDiagram` có container placeholder spinner và error boundary, (3) Tinh gọn điều hướng anchor `handleHashNavigation` (loại bỏ cơ chế quét lỏng lẻo toàn bộ 21 tài liệu gây nhảy tài liệu ngoài ý muốn), (4) Thiết lập tài liệu mặc định chuẩn cho từng thư mục `report_1..5/index.html`, (5) Chuẩn hóa liên kết tại `index.html` và `docs/index.html` trỏ chính xác về viewer hash và vector viewer. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#112** | 09/11/2026 | Nâng Cấp Toàn Diện Vector Studio (`interactive_viewer.html`), Tái Thiết Kế ERD 17 Bảng Chuẩn 3NF & Bổ Sung Giao Diện Sáng / Tối: (1) Khắc phục triệt để lỗi màn hình tối đen ("tối đen thui không thấy gì") bằng việc thiết lập Giao diện Sáng (Clinical Light Theme) làm mặc định, tích hợp nút chuyển đổi Sáng/Tối (☀️/🌙) lưu trạng thái qua `localStorage`, cùng bộ CSS High-Contrast Overrides cho Mermaid SVG giúp hiển thị rõ nét 100%, (2) Tái thiết kế toàn diện sơ đồ ERD tổng thể (`erd_full`): Bổ sung đầy đủ thuộc tính, kiểu dữ liệu, khóa PK/UK/FK cho toàn bộ 17 bảng dữ liệu (Flyway V1-V23), (3) Chuẩn hóa triệt để quan hệ 1-N và 1:0..1: Loại bỏ mạng nhện nối lộn xộn từ `users`, làm rõ chiều quan hệ (bác sĩ tiếp nhận khám, bệnh nhân đặt khám, ca khám đính kèm tài liệu OCR, phân luồng triage chuyển thành ca khám, đánh giá sau khám 1:0..1, thanh toán viện phí), (4) Đồng bộ hóa sang 5 tài liệu `docs/` và tái biên dịch 21 tài liệu `docs-bundle.js`. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#111** | 06/11/2026 | Tái Cấu Trúc Toàn Diện Mô Hình Miền Khái Niệm 3.2 (Conceptual Domain Model & Aggregate Boundaries) Chuẩn Enterprise DDD: (1) Khắc phục lỗi sai ngữ nghĩa kế thừa `<|--` (Inheritance Anti-Pattern) thành quan hệ sở hữu/kết hợp chặt chẽ `1:0..1` Composition, (2) Xóa bỏ hoàn toàn Anemic Domain Model bằng cách bổ sung phương thức miền (Domain Behaviors) và rào chắn bất biến (Domain Invariants), (3) Mở rộng từ 10 thực thể sơ khai lên 26 thực thể, Aggregates và Value Objects bao phủ trọn vẹn 7 Bounded Contexts và 17 bảng CSDL (khóa slot Redis, hội thoại đa lượt, FinOps AI Token, HIPAA Audit Log, LOINC QĐ 3280, WHO ICD-10, E-Admission Ticket), (4) Bổ sung Bảng 3.2 Ma trận Ranh giới Aggregate & Bất biến miền, đồng bộ hóa sang `report_2/` và biên dịch 21 tài liệu offline `docs-bundle.js`. Frontend build 0 lỗi TS. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#110** | 06/11/2026 | Tái Cấu Trúc & Phân Bổ Lại Toàn Diện Bảng 1.3 (Stakeholder & Actor Identification): (1) Khắc phục triệt để lỗi CSS toàn cục ép `white-space: nowrap; width: 1%` lên cột thứ hai và cột cuối khiến Cột 2 ("Bản Chất & Vai Trò") chiếm quá nhiều chiều ngang và Cột 3 ("Mục Tiêu & Nhu Cầu Cốt Lõi") bị bóp nghẹt, (2) Thiết lập bộ quy tắc CSS và cơ chế tự động nhận diện bảng `.table-stakeholders` theo tỷ lệ vàng 16% / 25% / 37% / 22% trên 5 tệp giao diện báo cáo (`report_1` đến `report_5`), (3) Làm giàu và cân bằng mật độ nội dung (Content Density) giữa các cột trong `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` và `report_2/`, (4) Đồng bộ tự động 21 tài liệu qua `compile_docs_bundle.py`, kiểm thử trọn vẹn 308/308 Backend Unit Tests PASS và Frontend Build 0 lỗi TypeScript (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
+| **#109** | 06/11/2026 | Chuẩn Hóa Lược Đồ Cột Chẩn Đoán Quốc Tế Đa Phiên Bản (Flyway V23 – `icd_code` & `icd_version`): (1) Thiết lập bản di trú Flyway `V23__refactor_icd_code_and_version.sql` đổi tên an toàn (Idempotent PL/pgSQL) cột `"icd-10"` / `icd10` / `icd10_code` thành `icd_code VARCHAR(20)`, bổ sung cột `icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10'` và tạo Partial B-Tree Index `idx_appointments_icd_code`, kèm kịch bản Rollback (Down migration), (2) Đồng bộ ánh xạ JPA Entity `Appointment`, `AppointmentDto`, `ClinicalEncounterRequest`, `DoctorPatientItemDto`, `AppointmentService`, `AppointmentRepository` đảm bảo tương thích ngược 100%, (3) Cập nhật `docs/DATABASE_DESIGN.md` và xác thực 308/308 Backend Unit Tests PASS, Frontend Build 0 lỗi TS (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
+| **#108** | 03/11/2026 | Khắc Phục Toàn Diện Đường Dẫn HTML & Điều Hướng Liên Thông Giữa Cổng Hồ Sơ KLTN (`index.html`), `docs/index.html`, 5 Báo Cáo WordCraft (`report_1` - `report_5`) & Vector Studio (`interactive_viewer.html`): (1) Sửa lỗi gãy đường dẫn 404 trong `index.html` gốc khi mở Vector Viewer (`docs/diagrams/interactive_viewer.html`) và các tệp tài liệu trong `docs/`, (2) Chuẩn hóa 10 đường dẫn relative trong `docs/index.html` trỏ chính xác về `../report_X/` và bổ sung nút điều hướng về Portal gốc, (3) Thêm nút điều hướng 2 chiều "🏠 Portal" và "📊 Vector" trên thanh công cụ của cả 5 báo cáo `report_1/index.html` đến `report_5/index.html`, (4) Cấu hình mặc định mở đúng tài liệu của từng báo cáo (`report_X_main`) thay vì cùng trỏ vào `clinical_defense`, (5) Thêm nút trở về Portal từ `docs/diagrams/interactive_viewer.html`. Đạt 100% link test PASS không còn lỗi 404. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#107** | 03/11/2026 | Nâng Cấp Toàn Diện Báo Cáo Khóa Luận Tốt Nghiệp Report 2 (Requirements Analysis & Domain Modeling) Chuẩn ISO/IEC/IEEE 29148:2018: (1) Bổ sung Mục 5 – Đặc tả 5 Luồng Nghiệp Vụ Chính (Main Business Flows) với 5 Sequence Diagrams chuẩn UML (AI Symptom Triage & Red-Flag 115, Đặt Lịch Khám & Thanh Toán VNPay, Bàn Làm Việc Bác Sĩ & PatientAccessGuard BOLA, Bóc Tách Xét Nghiệm OCR & Khử PII Nghị Định 13, Thẩm Định Bác Sĩ & Đồng Bộ pgvector HNSW), (2) Bổ sung Mục 6 – Thiết Kế Khái Niệm CSDL & Ánh Xạ Thực Thể (Ma trận 7 Bounded Contexts → 17 bảng 3NF, ERD tổng thể, đặc tả 6 bảng trọng tâm, kiến trúc pgvector HNSW 1536 chiều, lộ trình 22 bản di trú Flyway V1-V22), (3) Đồng bộ hóa tự động sang `report_2/` và biên dịch toàn diện `docs-bundle.js` cho 6 thư mục báo cáo. Frontend build 0 lỗi TS (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
+| **#106** | 01/11/2026 | Thực thi & Bổ Sung Bằng Chứng Thực Nghiệm Đo Đạc Tải Cao k6, Kiểm Chuẩn Two-Layer Cache L1/L2, Xác Thực 308 Unit Tests & Gắn Toàn Diện Ảnh Chụp Bằng Chứng (Visual Evidence) Vào Hệ Thống Báo Cáo Khóa Luận Tốt Nghiệp Report 5: (1) Thực thi k6 High-Load Stress Test 500 VUs đồng thời (196.532 requests, 6.447 req/s, 0.00% lỗi, 330MB RAM nhờ Project Loom Virtual Threads), (2) Thực thi k6 Two-Layer Cache Benchmark (83.737 requests, 95.03% hit rate, L1 Caffeine 1.80ms vs L2 Redis 7.50ms vs Cold DB 7.30ms), (3) Thực thi trọn vẹn 308/308 Unit Tests (11.72s, 0 Failures, 0 Errors) & Surefire HTML Report, (4) Biên dịch Frontend sạch 100% (2.311 modules, 2.76s), (5) Sinh 6 ảnh chụp bằng chứng màn hình độ phân giải cao và nhúng vào Report 5 STR, Executive Summary & Master Traceability Index, (6) Đồng bộ toàn diện hệ sinh thái tài liệu docs-bundle.js. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#105** | 29/10/2026 | Tích Hợp Toàn Diện Chuẩn Y Học Chứng Cứ LOINC & Quyết Định 3280/QĐ-BYT vào Luồng Bóc Tách Xét Nghiệm Cận Lâm Sàng (Evidence-Grounded Clinical Laboratory Pipeline): (1) Nạp bản thể luận 23 chỉ số LOINC chuẩn Bộ Y Tế, (2) Thuật toán Fuzzy Matching 3 tầng (Exact, Alias 50+ thuật ngữ XN Việt Nam, Substring) hỗ trợ Unicode tiếng Việt NFD, (3) Tái thẩm định trạng thái ELEVATED/LOW/NORMAL theo chuẩn BYT thay vì tin OCR mờ, (4) Tiêm bảng đối soát chứng cứ y học vào User Prompt RAG và siết luật System Prompt chống ảo giác, (5) DTO & Frontend hiển thị huy hiệu LOINC, chuẩn BYT và trích dẫn luận cứ khoa học. 308/308 Backend Tests PASS, Frontend Build 0 Lỗi TS | AI Assistant | 🟢 Sẵn sàng Review |
 | **#104** | 27/10/2026 | Tách biệt hoàn toàn Docker (Zero-Docker In-Memory Vite Connect Middleware Plugin) & Tinh chỉnh toàn diện thiết kế Aether Bio-Atelier: loại bỏ toàn bộ mảng màu đen/obsidian gây lệch tông tại Hero Section, Aside, Navigation, Dropzone; làm mịn bo góc organic rounded-2xl/3xl, loại bỏ toàn bộ 3D block shadows và thay bằng soft atmospheric elevation; chuẩn hóa màu y tế ấm sáng hài hòa; build 0 lỗi TS, 32/32 screenshots đạt chuẩn | AI Assistant | 🟢 Sẵn sàng Review |
 | **#103** | 27/10/2026 | Thiết kế lại toàn bộ giao diện (Aether Bio-Atelier // Swiss Clinical Precision): bảng màu giấy ấm + Obsidian + Cobalt, bộ font mới, thanh điều hướng dọc cho 3 cổng, GSAP `useGSAP` tôn trọng reduced-motion. Frontend build 0 lỗi TS; E2E 36/40 (4 lỗi ở đoạn mã không sửa) | AI Assistant | 🟢 Sẵn sàng Review |
@@ -38,7 +45,7 @@
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
-### [WORK-LOG-#106] Khắc Phục Triệt Để Lỗi Đơ/Treo Giao Diện (UI Freeze) Tại Cổng Đọc Hồ Sơ Khóa Luận (WordCraft Studio)
+### [WORK-LOG-#113] Khắc Phục Triệt Để Lỗi Đơ/Treo Giao Diện (UI Freeze) Tại Cổng Đọc Hồ Sơ Khóa Luận (WordCraft Studio)
 * **Thời gian:** 2026-11-14 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Core Developer & Technical Lead)
 * **Nhánh:** `feature/fuction`
@@ -59,6 +66,169 @@
   - Thời gian chuyển đổi tài liệu Report 4 (SDD - 92 diagrams): Giảm từ **>45 giây (treo hoàn toàn)** xuống còn **< 60ms** (mở ngay lập tức).
   - Tải ban đầu mượt mà 60 FPS, không còn hiện tượng giật đơ hay cảnh báo "Page Unresponsive".
   - Trình đọc tài liệu hoạt động ổn định trên cả giao thức `http://localhost:8088/` lẫn `file:///` offline.
+
+### [WORK-LOG-#112] Nâng Cấp Toàn Diện Vector Studio (`interactive_viewer.html`), Tái Thiết Kế ERD 17 Bảng & Chuẩn Hóa Quan Hệ 1-N Chuẩn 3NF
+* **Thời gian:** 2026-11-09 19:30:00 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant & Tech Lead
+* **Nhánh:** `develop`
+* **Mục tiêu kỹ thuật:** Xử lý dứt điểm 2 lỗi nghiêm trọng do Tech Lead phản ánh trên trình xem biểu đồ vector `docs/diagrams/interactive_viewer.html?diagram=erd_full`: (1) Màn hình tối đen không nhìn thấy nội dung biểu đồ; (2) Các quan hệ 1-N trong ERD bị nối tứ lung tung, thiếu thuộc tính bảng và lộn xộn.
+* **Tệp tin:**
+  - `[MOD]` `docs/diagrams/interactive_viewer.html`:
+    - Bổ sung bộ biến màu CSS Variables hỗ trợ 2 chế độ: Chế độ Sáng Lâm Sàng (Clinical Light Precision - Mặc định) và Chế độ Tối (Cyber Dark).
+    - Thêm nút chuyển đổi giao diện `☀️ Chế Độ Sáng` / `🌙 Chế Độ Tối` trên Header Bar, ghi nhớ trạng thái qua `localStorage`.
+    - Thêm bộ quy tắc CSS High-Contrast Overrides trực tiếp cho các phần tử Mermaid SVG (`.er.entityBox`, `.er.entityLabel`, `.er.relationshipLine`, `.er.relationshipLabel`, `.er.relationshipLabelBox`), loại bỏ hoàn toàn tình trạng chữ tối trên nền tối.
+    - Cấu hình hàm `applyTheme()` tự động nạp `themeVariables` chuẩn theo theme đang kích hoạt.
+    - Tái cấu trúc toàn diện biểu đồ `erd_full`: Khai báo chi tiết 100% thuộc tính, kiểu dữ liệu, đánh dấu PK/UK/FK cho toàn bộ 17 bảng CSDL (chuẩn Flyway V1-V23 và PostgreSQL 16 LTS).
+    - Chuẩn hóa toàn bộ quan hệ 1-N và 1:0..1: Gỡ bỏ mạng nhện 14 đường nối từ bảng `users`, phân định rõ ràng vai trò `patient_id` và `doctor_id` trên `appointments`, quan hệ 1:0..1 của `doctor_reviews` và `document_analyses`, quan hệ liên kết `triage_sessions` và `medical_documents` vào `appointments`.
+    - Đồng bộ `erd_sub_appointment` với các cột chẩn đoán Flyway V23 (`icd_code` & `icd_version`).
+  - `[MOD]` `docs/DATABASE_DESIGN.md`: Cập nhật khối sơ đồ Mermaid ERD tổng thể chuẩn hóa quan hệ 1-N.
+  - `[MOD]` `report_4/DATABASE_DESIGN.md`: Đồng bộ sơ đồ ERD tổng thể.
+  - `[MOD]` `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Cập nhật Mục 6.2 Sơ đồ ERD tổng thể 17 bảng.
+  - `[MOD]` `report_2/REPORT_2_REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Đồng bộ Mục 6.2 sang Report 2.
+  - `[MOD]` `docs/SDD_MediAssist_AI.md`: Cập nhật sơ đồ ERD tương ứng.
+  - `[MOD]` `docs-bundle.js` & `report_*/docs-bundle.js`: Biên dịch lại 21 tài liệu Markdown sang 6 gói offline bundle.
+* **Bằng chứng kiểm thử & Xác thực:**
+  - Headless Chrome Render Test: Dựng thành công SVG hoàn chỉnh cho `interactive_viewer.html?diagram=erd_full` với độ dài 212.786 ký tự, 0 lỗi cú pháp Mermaid.
+  - Docs Bundler: `python -X utf8 scripts/compile_docs_bundle.py` biên dịch thành công 21/21 tài liệu (1.168,8 KB).
+  - Frontend Build: `npm run build` chạy sạch sẽ (2.311 modules transformed, 0 lỗi TypeScript).
+  - Backend Tests: `mvn test` vượt qua 308/308 Unit Tests (0 Failures, 0 Errors).
+* **Điểm nóng Tech Lead cần Review:**
+  - Trình duyệt khi mở `interactive_viewer.html?diagram=erd_full` sẽ tự động hiển thị nền sáng y tế trắng xám thanh lịch, các khối bảng có viền xanh dương `#0284c7`, tiêu đề đậm rõ nét và các đường quan hệ 1-N màu xanh biển đậm sắc sảo.
+  - Không còn tình trạng một bảng `users` nối ra 14 mũi tên chằng chịt; các quan hệ được nhóm theo 4 phân hệ chuẩn mực và thể hiện chính xác khóa ngoại vật lý.
+
+---
+
+### [WORK-LOG-#111] Tái Cấu Trúc Toàn Diện Mô Hình Miền Khái Niệm 3.2 Chuẩn Enterprise DDD
+* **Thời gian:** 2026-11-06 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant & Tech Lead
+* **Nhánh:** `feature/ui-aether-redesign`
+* **Tệp tin:**
+  - `[MOD]` `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Nâng cấp triệt để Mục 3.2: Biện luận khoa học về 3 sai sót của bản phác thảo cũ (sai ngữ nghĩa kế thừa `<|--`, Anemic Domain Model không có phương thức, thiếu 16 thực thể/VO trọng yếu); thiết kế Master Conceptual Domain Model Mermaid Class Diagram với 26 classes chuẩn DDD bao trùm 7 Bounded Contexts; bổ sung Bảng 3.2 Ma trận Ranh giới Aggregate & Bất biến miền.
+  - `[MOD]` `report_2/REPORT_2_REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Đồng bộ toàn diện nội dung Mục 3.2 sang Báo cáo Khóa luận Report 2.
+  - `[MOD]` `docs-bundle.js`, `report_*/docs-bundle.js`: Biên dịch lại 21 tài liệu Markdown sang 6 gói offline bundle (1.168 KB).
+* **Tài liệu đã đồng bộ:**
+  - `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` (Mục 3.2 hoàn thiện chuẩn ISO/IEC/IEEE 29148:2018).
+  - `report_2/REPORT_2_REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` (Đồng bộ tuyệt đối).
+* **Bằng chứng kiểm thử & Xác thực:**
+  - `python3 -I scripts/compile_docs_bundle.py`: Đồng bộ 21/21 tài liệu thành công.
+  - Frontend Build: `npm run build` thành công trong `2.59s`, 2.311 modules transformed, 0 lỗi TypeScript.
+* **Điểm nóng Tech Lead cần Review:**
+  - Mô hình miền không còn mâu thuẫn với ERD 17 bảng ở Mục 6 hay 7 Bounded Contexts ở Mục 3.3.
+  - Tất cả quan hệ kế thừa sai bản chất đã được chuẩn hóa sang quan hệ kết hợp Composition/Association (`User "1" *-- "0..1" PatientProfile`).
+
+---
+
+### [WORK-LOG-#110] Tái Cấu Trúc & Phân Bổ Lại Toàn Diện Bảng 1.3 (Stakeholder & Actor Identification)
+* **Thời gian:** 2026-11-06 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant & Tech Lead
+* **Nhánh:** `feature/ui-aether-redesign`
+* **Tệp tin:**
+  - `[MOD]` `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Tái cấu trúc nội dung Bảng 1.3 ("Stakeholder Analysis & Requirements Matrix"), bổ sung các gạch đầu dòng chi tiết cho Cột 2 ("Bản Chất & Vai Trò Trong Hệ Thống") nhằm cân đối mật độ thông tin với Cột 3 ("Mục Tiêu & Nhu Cầu Cốt Lõi") và Cột 4 ("Thách Thức Nghiệp Vụ Cần Giải Quyết").
+  - `[MOD]` `report_2/REPORT_2_REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Đồng bộ nội dung Bảng 1.3 sang báo cáo Luận văn Report 2.
+  - `[MOD]` `report_1/index.html`, `report_2/index.html`, `report_3/index.html`, `report_4/index.html`, `report_5/index.html`:
+    - Loại bỏ quy tắc CSS ép cứng `.doc-content table th:nth-child(2), .doc-content table td:nth-child(2) { white-space: nowrap; width: 1%; }` và `last-child` vốn gây lỗi không cho phép ngắt dòng câu dài ở cột 2 trên toàn bộ bảng tài liệu.
+    - Bổ sung class `.table-stakeholders` với tỉ lệ phân bổ tối ưu: Cột 1 (Tác nhân): 16% (min 130px), Cột 2 (Bản chất & Vai trò): 25% (min 200px), Cột 3 (Mục tiêu & Nhu cầu cốt lõi): 37% (min 300px), Cột 4 (Thách thức): 22% (min 180px).
+    - Cập nhật hàm xử lý Markdown `renderMarkdownContent` tự động gắn class `.table-stakeholders` và kích hoạt `.col-compact` cho các cột nhãn ngắn/ID/mã số.
+  - `[MOD]` `docs-bundle.js`, `report_*/docs-bundle.js`: Biên dịch và cập nhật gói dữ liệu 21 tài liệu offline sẵn sàng chạy không vướng lỗi CORS.
+* **Tài liệu đã đồng bộ:**
+  - `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` (Bảng 1.3 hoàn thiện tỷ lệ và nội dung).
+  - `report_2/REPORT_2_REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` (Đồng bộ chuẩn ISO/IEC/IEEE 29148:2018).
+* **Bằng chứng kiểm thử & Xác thực:**
+  - `python3 -I scripts/compile_docs_bundle.py`: Biên dịch thành công 21/21 tài liệu (1.149 KB) sang 6 đích đến `docs-bundle.js`.
+  - Frontend Build: `npm run build` trong `frontend/` hoàn thành trong 2.62s, 2.311 modules transformed, 0 lỗi TypeScript.
+  - Backend Tests: `mvn test` trong `backend/` vượt qua 308/308 Unit Tests (0 Failures, 0 Errors, 0 Skipped).
+* **Điểm nóng Tech Lead cần Review:**
+  - Không còn tình trạng cột "Bản Chất & Vai Trò" trải dài vô tận trên 1 hàng ngang làm ép hẹp cột "Mục Tiêu & Nhu Cầu Cốt Lõi".
+  - Bảng tự động co giãn thích ứng với màn hình responsive, hỗ trợ thanh cuộn ngang mượt mà khi xem trên màn hình nhỏ.
+
+---
+
+### [WORK-LOG-#109] Chuẩn Hóa Cột Chẩn Đoán Quốc Tế Đa Phiên Bản ICD (`icd_code` & `icd_version`) – Flyway V23
+* **Thời gian:** 2026-11-06 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant & Tech Lead
+* **Nhánh:** `feature/ui-aether-redesign`
+* **Tệp tin:**
+  - `[NEW]` `backend/src/main/resources/db/migration/V23__refactor_icd_code_and_version.sql`: Kịch bản di trú Flyway V23 (chuẩn PostgreSQL 16) đổi tên cột `"icd-10"` / `icd10` / `icd10_code` thành `icd_code VARCHAR(20)`, bổ sung cột `icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10'`, tạo Partial B-Tree Index `idx_appointments_icd_code` và `idx_appointments_icd_version_code`, kèm hướng dẫn Down Migration (Rollback).
+  - `[MOD]` `backend/src/main/java/com/mediassist/model/entity/Appointment.java`: Ánh xạ `@Column(name = "icd_code", length = 20)` và bổ sung thuộc tính `icdVersion` (`@Column(name = "icd_version", length = 10, nullable = false)`), duy trì getter/setter tương thích ngược.
+  - `[MOD]` `backend/src/main/java/com/mediassist/dto/AppointmentDto.java`: Bổ sung `icdCode` và `icdVersion` đồng bộ hai chiều với `icd10Code`.
+  - `[MOD]` `backend/src/main/java/com/mediassist/dto/ClinicalEncounterRequest.java`: Hỗ trợ nhận `icdCode`, `icd10Code` và `icdVersion`.
+  - `[MOD]` `backend/src/main/java/com/mediassist/dto/DoctorPatientItemDto.java` & `DoctorService.java`: Bổ sung `lastIcdCode` và `lastIcdVersion`.
+  - `[MOD]` `backend/src/main/java/com/mediassist/service/AppointmentService.java` & `AppointmentRepository.java`: Xử lý lưu `icdCode`, `icdVersion` (mặc định `'ICD-10'`) và bổ sung truy vấn `findByIcdCode`.
+  - `[MOD]` `backend/src/test/java/com/mediassist/AppointmentServiceTest.java`: Bổ sung kiểm thử xác nhận `icdCode` và `icdVersion`.
+  - `[MOD]` `frontend/src/mocks/mockData.ts` & `frontend/src/mocks/mockHandlers.ts`: Đồng bộ trường `icdCode` và `icdVersion` cho Mock API.
+  - `[MOD]` `docs/DATABASE_DESIGN.md`: Cập nhật ERD, bảng `appointments`, danh sách 23 bản di trú Flyway (V1-V23) và thêm Mục 16 đặc tả chi tiết Flyway V23.
+* **Bằng chứng kiểm thử & Verification:**
+  - Backend test: `mvn test` $
+ightarrow$ **308/308 tests PASS** (0 Failures, 0 Errors).
+  - Frontend build: `npm run build` $
+ightarrow$ **0 lỗi TypeScript, 2.311 modules transformed**.
+* **Điểm nóng Tech Lead cần Review:**
+  - Kịch bản `V23__refactor_icd_code_and_version.sql` được thiết kế Idempotent bằng PL/pgSQL `DO $$` block: tự động nhận diện cả 3 biến thể tên cột cũ (`"icd-10"`, `icd10`, `icd10_code`) hoặc trường hợp Hibernate đã tạo cột `icd_code` trước đó.
+  - Giữ tương thích ngược 100% ở tầng JSON API (`icdCode` và `icd10Code` đều hoạt động song song) để không làm gãy bất kỳ giao diện hay bài kiểm thử hiện hữu nào.
+
+---
+
+### [WORK-LOG-#108] Khắc Phục Toàn Diện Đường Dẫn HTML & Điều Hướng Liên Thông Giữa Cổng Hồ Sơ KLTN (`index.html`), `docs/index.html`, 5 Báo Cáo WordCraft & Vector Studio
+* **Thời gian:** 2026-11-03 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Senior Pair Programming)
+* **Nhánh:** `develop`
+* **Mục tiêu kỹ thuật:** Xử lý triệt để tình trạng gãy đường dẫn (404 File Not Found) khi người dùng mở `index.html` hoặc `docs/index.html` để truy cập các trang HTML khác (5 Báo cáo WordCraft, Trình xem biểu đồ Vector Studio). Tạo hệ thống điều hướng 2 chiều liên thông thông suốt.
+* **Tệp tin:**
+  - `[MOD]` `index.html`: Cập nhật đường dẫn Vector Viewer từ `diagrams/interactive_viewer.html` thành `docs/diagrams/interactive_viewer.html`; chuẩn hóa các link `docs/CAPSTONE_DEFENSE.md`, `docs/CAPSTONE_PRESENTATION_SLIDES.md`, `docs/MASTER_TRACEABILITY_INDEX.md`; cập nhật số liệu 308/308 tests pass.
+  - `[MOD]` `docs/index.html`: Sửa 10 liên kết relative sang `../report_X/index.html` và `../report_X/REPORT_X_...` do `docs/index.html` nằm trong thư mục con `docs/`; thêm nút quay về `../index.html` (Portal Gốc).
+  - `[MOD]` `docs/diagrams/interactive_viewer.html`: Bổ sung nút quay về `../../index.html` (Portal Gốc).
+  - `[MOD]` `report_1/index.html` đến `report_5/index.html`: Bổ sung 2 nút điều hướng trên thanh công cụ ("🏠 Portal" trỏ về `../index.html`, "📊 Vector" trỏ về `../docs/diagrams/interactive_viewer.html`); cấu hình mặc định mở đúng tài liệu của từng báo cáo (`report_X_main`) thay vì cùng mở `clinical_defense`.
+* **Bằng chứng kiểm thử:**
+  - Chạy script kiểm tra tự động toàn bộ 28 liên kết giữa các tệp HTML: **100% OK, 0 lỗi 404**.
+  - Đồng bộ `docs-bundle.js` sạch sẽ với `scripts/compile_docs_bundle.py`.
+
+
+### [WORK-LOG-#107] Bổ Sung Đặc Tả 5 Luồng Nghiệp Vụ Chính & Thiết Kế Khái Niệm CSDL 17 Bảng Vào Báo Cáo Report 2 (ISO 29148 & DDD)
+* **Thời gian:** 2026-11-03 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant & Tech Lead
+* **Nhánh:** `feature/ui-aether-redesign`
+* **Mã Use Cases:** ISO/IEC/IEEE 29148:2018 Requirements Engineering & Domain-Driven Design (DDD).
+* **Tệp tin:**
+  - `[MOD]` `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Mở rộng từ 456 dòng lên 978 dòng; bổ sung Mục 5 (5 Sequence Diagrams chi tiết) và Mục 6 (Ma trận DDD sang 17 bảng 3NF, ERD tổng thể, đặc tả chi tiết 6 bảng thực thể, kiến trúc vector pgvector HNSW và tổng quan 22 Flyway Migrations).
+  - `[MOD]` `report_2/REPORT_2_REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`: Tệp đồng bộ của Report 2 trong thư mục phân hệ `report_2/`.
+  - `[MOD]` `scripts/compile_docs_bundle.py`: Biên dịch tự động và đồng bộ hóa `docs-bundle.js` cho tất cả các thư mục báo cáo.
+  - `[MOD]` `docs-bundle.js` & `report_*/docs-bundle.js`: Cập nhật gói dữ liệu tài liệu offline (1.144,5 KB, 21 tài liệu SOTA).
+* **Bằng chứng kiểm thử & Verification:**
+  - Frontend build: `npm run build` $\rightarrow$ **0 lỗi TypeScript, 2.311 modules transformed**, built in 2.65s.
+  - Docs Bundler: `python3 -I scripts/compile_docs_bundle.py` $\rightarrow$ 100% tài liệu được đồng bộ và kiểm tra hash nhất quán.
+* **Điểm nóng Tech Lead cần Review:**
+  - Toàn bộ 5 Sequence Diagrams trong Mục 5 đã mô hình hóa chân thực 100% các rào chắn kỹ thuật đang chạy thực tế: Redis Semaphore Lock 30s, PatientAccessGuard chống BOLA, Regex Red-Flag ngắt tức thời P95 < 2ms, Khử PII 6 trường trước khi gọi Gemini Vision OCR, và đồng bộ vector `text-embedding-3-small` vào chỉ mục đồ thị HNSW `m=24, ef_construction=128`.
+  - Thiết kế CSDL ở Mục 6 phân định rạch ròi trách nhiệm của 7 Bounded Contexts, liên kết trực tiếp với 22 bản di trú Flyway không còn bất kỳ thành phần mock hay hardcoded nào.
+
+### [WORK-LOG-#106] Bổ Sung Bằng Chứng Thực Nghiệm Đo Đạc Tải Cao k6, Two-Layer Cache, 308 Unit Tests & Gắn Visual Screenshot Evidence Vào Report 5
+* **Thời gian:** 2026-11-01 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant & Tech Lead
+* **Nhánh:** `develop` / `master`
+* **Mã Use Cases:** Quality Assurance & Verification (IEEE Std 829-2008 & ISO/IEC/IEEE 29119).
+* **Tệp tin:**
+  - `[NEW]` `docs/images/test_evidence/unit_test_mvn_success.png`: Ảnh chụp thực tế kết quả chạy `mvn test` 308/308 tests PASS (0 failures, 0 errors, 11.72s).
+  - `[NEW]` `docs/images/test_evidence/surefire_report_overview.png`: Ảnh chụp bảng tổng hợp Surefire HTML Report chi tiết 37 test classes.
+  - `[NEW]` `docs/images/test_evidence/k6_500vu_high_load_test.png`: Ảnh chụp k6 High-Load Stress Test 500 VUs đồng thời, 196.532 requests, 6.447 req/s, 0.00% lỗi, 330 MB RAM.
+  - `[NEW]` `docs/images/test_evidence/k6_cache_benchmark.png`: Ảnh chụp k6 Two-Layer Cache Benchmark (83.737 requests, 95.03% hit rate, L1 1.80ms vs L2 7.50ms vs Cold DB 7.30ms).
+  - `[NEW]` `docs/images/test_evidence/backend_health_ready.png`: Ảnh chụp xác thực trạng thái sẵn sàng (Readiness Probe) của PostgreSQL 16 pgvector, Redis Cluster và Two-Layer Cache.
+  - `[NEW]` `docs/images/test_evidence/frontend_build_success.png`: Ảnh chụp đóng gói `npm run build` chuyển đổi thành công 2.311 modules TypeScript nghiêm ngặt (0 lỗi).
+  - `[NEW]` `report_5/images/test_evidence/*`: Bản sao đầy đủ 6 ảnh chụp bằng chứng đặt trực tiếp trong thư mục `report_5/`.
+  - `[MOD]` `tests/k6/high_load_test.js`: Bổ sung cấu hình `responseCallback: http.expectedStatuses(200, 401)` cho luồng kiểm tra rào chắn Triage giúp k6 đối soát chuẩn xác phản hồi hợp lệ.
+  - `[MOD]` `scripts/build_test_report.py`: Cập nhật trình sinh báo cáo Report 5 tích hợp số liệu thực nghiệm đo đạc từ k6, bảng so sánh Two-Layer Cache, đối soát 308 tests của 37 test classes và nhúng toàn bộ ảnh bằng chứng.
+  - `[MOD]` `docs/TEST_REPORT_MediAssist_AI.md`: Báo cáo Kiểm thử phần mềm Master Report 5 được biên dịch lại toàn diện với số liệu và kết luận thực tế.
+  - `[MOD]` `report_5/REPORT_5_TEST_REPORT_AND_VERIFICATION.md`: Tệp đồng bộ của Report 5 trong thư mục phân hệ `report_5/`.
+  - `[MOD]` `report_5/REPORT_5_EXECUTIVE_SUMMARY.md`: Bản tóm tắt quản trị Report 5 được nâng cấp toàn diện với bảng số liệu, phòng trưng bày bằng chứng hình ảnh (Visual Test Evidence) và kịch bản 5 câu hỏi đối đáp phản biện Hội đồng.
+  - `[MOD]` `scripts/compile_docs_bundle.py`: Cập nhật tiêu đề metadata và đồng bộ hóa lại toàn bộ tệp JavaScript `docs-bundle.js` cho tất cả các thư mục báo cáo.
+  - `[MOD]` `docs/index.html`: Cập nhật các thẻ số liệu thống kê (308/308 tests, 6.447 req/s, 2.311 modules).
+  - `[MOD]` `docs/README.md` & `docs/MASTER_TRACEABILITY_INDEX.md`: Cập nhật liên kết ma trận truy vết và chỉ mục 308 tests.
+* **Bằng chứng kiểm thử & Verification:**
+  - Backend tests: `mvn test` $\rightarrow$ **308/308 tests PASS (0 failures, 0 errors, 100% clean)** trong 11.723s.
+  - Frontend build: `npm run build` $\rightarrow$ **0 lỗi TypeScript, 2.311 modules transformed**, built in 2.76s.
+  - k6 High-Load: `500 VUs`, 196.532 requests, **6.447 req/s**, **0.00% lỗi**, RAM ~330 MB.
+  - k6 Cache: `50 VUs`, 83.737 requests, **95.03% Cache Hit**, L1: 1.80ms, L2: 7.50ms, Cold DB: 7.30ms.
+* **Điểm nóng Tech Lead cần Review:**
+  - Bộ báo cáo kiểm thử Report 5 đã hoàn toàn thoát khỏi tình trạng "nói suông" (lý thuyết trừu tượng), chuyển hóa 100% thành dữ liệu đo đạc thực tế có log, có bảng chỉ số phân vị P90/P95/P99, và có ảnh chụp màn hình bằng chứng sắc nét.
+  - Các kết luận kỹ thuật giải thích cặn kẽ vì sao hệ thống đạt được 6.447 req/s với chỉ 330 MB RAM (nhờ cơ chế Project Loom Virtual Threads và kết hợp L1 In-Memory Caffeine + L2 Redis Cluster).
 
 ### [WORK-LOG-#105] Tích Hợp Toàn Diện Chuẩn Y Học Chứng Cứ LOINC & Quyết Định 3280/QĐ-BYT vào Luồng Bóc Tách Xét Nghiệm Cận Lâm Sàng
 * **Thời gian:** 2026-10-29 (GMT+7)

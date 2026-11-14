@@ -128,4 +128,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     long countByDoctorIdAndStatus(UUID doctorId, AppointmentStatus status);
 
     long countByStatus(AppointmentStatus status);
+
+    @Query("SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor WHERE a.icd10Code = :icdCode ORDER BY a.scheduledStart DESC")
+    List<Appointment> findByIcdCode(@Param("icdCode") String icdCode);
 }

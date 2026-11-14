@@ -30,7 +30,7 @@ Khi cần tìm kiếm tài liệu phục vụ viết báo cáo luận văn, slid
 | **`REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`** | Phân tích Nghiệp vụ & Mô hình hóa Miền (Capstone Report 2) chuẩn ISO 29148, Mô hình O2O, 3 Personas, DDD | Business Analyst & Hội đồng | [`docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`](./REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md) |
 | **`SRS_MediAssist_AI.md`** | Hồ sơ Đặc tả Yêu cầu Phần mềm (Capstone Report 3) chuẩn IEEE 830 / ISO 29148, 49 Use Cases, 18 Màn hình, RTM | Hội đồng chấm đồ án & Nhóm | [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md) |
 | **`SDD_MediAssist_AI.md`** | Hồ sơ Thiết kế Phần mềm (Capstone Report 4) chuẩn FPT Capstone, 88 Biểu đồ Mermaid Class & Sequence, 17 Bảng CSDL | Giảng viên phản biện & Dev | [`docs/SDD_MediAssist_AI.md`](./SDD_MediAssist_AI.md) |
-| **`TEST_REPORT_MediAssist_AI.md`** | Báo cáo Kiểm thử Phần mềm & Đảm bảo Chất lượng (Capstone Report 5) chuẩn IEEE 829 / ISO 29119, 306 Tests, k6, HNSW | Ban Đảm bảo Chất lượng & Hội đồng | [`docs/TEST_REPORT_MediAssist_AI.md`](./TEST_REPORT_MediAssist_AI.md) |
+| **`TEST_REPORT_MediAssist_AI.md`** | Báo cáo Kiểm thử Phần mềm & Đảm bảo Chất lượng (Capstone Report 5) chuẩn IEEE 829 / ISO 29119, 308 Tests, k6, HNSW | Ban Đảm bảo Chất lượng & Hội đồng | [`docs/TEST_REPORT_MediAssist_AI.md`](./TEST_REPORT_MediAssist_AI.md) |
 | **`ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`** | Đặc tả chi tiết 5 thuật toán doanh nghiệp độc quyền (Hedged Requests, Progressive Sieve, XFetch, v.v.) | Tech Lead & Giám khảo chấm điểm | [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md) |
 | **`CAPSTONE_DEFENSE.md`** | Cẩm nang bảo vệ: Đề cương 5 chương, kịch bản thuyết trình 15p, checklist live demo, Top 16 câu hỏi Q&A | Cả nhóm đi bảo vệ | [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md) |
 | **`USE_CASES.md`** | Đặc tả 33 Use Cases chi tiết chuẩn RUP/IEEE 830, luồng sự kiện, ngoại lệ, API endpoints | Dev 1 & Dev 3 | [`docs/USE_CASES.md`](./USE_CASES.md) |
@@ -154,9 +154,9 @@ Bảng lưu vết kỹ thuật (Defect Resolution Trail) chứng minh năng lự
 
 ## 6. Bản Đồ Bộ Kiểm Thử Chất Lượng (Unit Tests, Playwright E2E & k6)
 
-### 🧪 6.1. Backend Unit & Slice Tests (306 Tests - 100% PASS)
+### 🧪 6.1. Backend Unit & Slice Tests (308 Tests - 100% PASS)
 * Lệnh thực thi: `cd backend && mvn test`
-* Toàn bộ **306/306 bài test tự động** đạt tỷ lệ thành công tuyệt đối ($0$ Failure, $0$ Error):
+* Toàn bộ **308/308 bài test tự động** đạt tỷ lệ thành công tuyệt đối ($0$ Failure, $0$ Error trong 11.723s):
   - `PatientAccessGuardTest.java`: Kiểm thử phòng vệ BOLA/IDOR, bắt buộc có quan hệ điều trị (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED`) và ghi nhận nhật ký `VIEW_PATIENT_RECORD`.
   - `AppointmentRefundServiceTest.java`: Kiểm thử chính sách hoàn tiền tự động theo mốc thời gian (>24h = 100%, 2-24h = 80%, <2h = 0%, Bác sĩ hủy = 100%).
   - `ClinicalOntologyServiceTest.java`: Kiểm thử tra cứu và autocomplete mã WHO ICD-10 và chỉ số LOINC Bộ Y Tế.

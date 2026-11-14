@@ -358,8 +358,16 @@ public class AppointmentService {
         if (req.getVitalSignsJson() != null && !req.getVitalSignsJson().isBlank()) {
             appointment.setVitalSignsJson(req.getVitalSignsJson().trim());
         }
-        if (req.getIcd10Code() != null && !req.getIcd10Code().isBlank()) {
-            appointment.setIcd10Code(req.getIcd10Code().trim());
+        String resolvedIcdCode = (req.getIcdCode() != null && !req.getIcdCode().isBlank())
+                ? req.getIcdCode().trim()
+                : (req.getIcd10Code() != null && !req.getIcd10Code().isBlank() ? req.getIcd10Code().trim() : null);
+        if (resolvedIcdCode != null) {
+            appointment.setIcdCode(resolvedIcdCode);
+        }
+        if (req.getIcdVersion() != null && !req.getIcdVersion().isBlank()) {
+            appointment.setIcdVersion(req.getIcdVersion().trim());
+        } else if (appointment.getIcdVersion() == null || appointment.getIcdVersion().isBlank()) {
+            appointment.setIcdVersion("ICD-10");
         }
         if (req.getIcd10Name() != null && !req.getIcd10Name().isBlank()) {
             appointment.setIcd10Name(req.getIcd10Name().trim());

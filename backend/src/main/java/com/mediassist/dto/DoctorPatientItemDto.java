@@ -20,6 +20,8 @@ public class DoctorPatientItemDto {
     private LocalDateTime lastVisitDate;
     private String lastStatus;
     private String lastIcd10Code;
+    private String lastIcdCode;
+    private String lastIcdVersion = "ICD-10";
     private String lastIcd10Name;
     private String lastChiefComplaint;
 
@@ -64,8 +66,22 @@ public class DoctorPatientItemDto {
     public String getLastStatus() { return lastStatus; }
     public void setLastStatus(String lastStatus) { this.lastStatus = lastStatus; }
 
-    public String getLastIcd10Code() { return lastIcd10Code; }
-    public void setLastIcd10Code(String lastIcd10Code) { this.lastIcd10Code = lastIcd10Code; }
+    public String getLastIcd10Code() { return lastIcd10Code != null ? lastIcd10Code : lastIcdCode; }
+    public void setLastIcd10Code(String lastIcd10Code) {
+        this.lastIcd10Code = lastIcd10Code;
+        this.lastIcdCode = lastIcd10Code;
+    }
+
+    public String getLastIcdCode() { return lastIcdCode != null ? lastIcdCode : lastIcd10Code; }
+    public void setLastIcdCode(String lastIcdCode) {
+        this.lastIcdCode = lastIcdCode;
+        this.lastIcd10Code = lastIcdCode;
+    }
+
+    public String getLastIcdVersion() { return lastIcdVersion; }
+    public void setLastIcdVersion(String lastIcdVersion) {
+        this.lastIcdVersion = (lastIcdVersion != null && !lastIcdVersion.isBlank()) ? lastIcdVersion : "ICD-10";
+    }
 
     public String getLastIcd10Name() { return lastIcd10Name; }
     public void setLastIcd10Name(String lastIcd10Name) { this.lastIcd10Name = lastIcd10Name; }

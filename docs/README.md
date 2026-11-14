@@ -33,7 +33,7 @@ Toàn bộ tài liệu của dự án MediAssist-AI được tổ chức theo c�
 │ • Report 2: Requirements Analysis & Domain Modeling (ISO 29148 / DDD 7 Bounded Contexts)│
 │ • Report 3: Software Requirements Specification (IEEE 830 / 49 Use Cases)              │
 │ • Report 4: Software Design Document (IEEE 1016 / 5-Tier Architecture / C4 Model)       │
-│ • Report 5: Software Test Report & Verification (IEEE 829 / 306 Tests / k6 500 VUs)     │
+│ • Report 5: Software Test Report & Verification (IEEE 829 / 308 Tests / k6 500 VUs)     │
 ├─────────────────────────────────────────────────────────────────────────────────────────┤
 │ TẦNG 2: HỒ SƠ LUẬN CHỨNG Y HỌC & KỊCH BẢN PHẢN BIỆN HỘI ĐỒNG (ACADEMIC DEFENSE DOSSIER)  │
 │ • CLINICAL_GROUNDING_AND_EVIDENCE_DEFENSE.md (Biện Luận SOTA AMIE Nature 2024, Luật KCB)│
@@ -108,7 +108,7 @@ Dành cho các chuyên gia CNTT và Kỹ sư phần mềm thẩm định kiến 
 * [**`docs/DOCUMENT_SCAN_PIPELINE.md`**](#scan_pipeline):  
   Kiến trúc đa luồng bóc tách OCR phiếu xét nghiệm bằng Gemini 1.5 Flash Vision, che mờ PII theo Nghị định 13/2023/NĐ-CP và cấp URL ký số 15 phút.
 * [**`docs/MASTER_TRACEABILITY_INDEX.md`**](#traceability_index):  
-  Ma trận truy vết toàn diện liên kết 1-1 giữa: **49 Use Cases $\longleftrightarrow$ Lớp Controller / Service $\longleftrightarrow$ Bảng CSDL $\longleftrightarrow$ 306 Test Cases $\longleftrightarrow$ Báo Cáo Khóa Luận**.
+  Ma trận truy vết toàn diện liên kết 1-1 giữa: **49 Use Cases $\longleftrightarrow$ Lớp Controller / Service $\longleftrightarrow$ Bảng CSDL $\longleftrightarrow$ 308 Test Cases $\longleftrightarrow$ Báo Cáo Khóa Luận**.
 * [**`docs/USE_CASES.md`**](./USE_CASES.md):  
   Đặc tả chi tiết 49 Ca sử dụng (Use Cases) phân bổ cho 4 nhóm tác nhân (Bệnh nhân, Bác sĩ, Lễ tân, Quản trị viên).
 

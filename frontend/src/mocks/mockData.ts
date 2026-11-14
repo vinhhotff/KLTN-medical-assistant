@@ -245,6 +245,8 @@ export interface MockAppointment {
   chiefComplaint?: string | null;
   vitalSignsJson?: string | null;
   icd10Code?: string | null;
+  icdCode?: string | null;
+  icdVersion?: string | null;
   icd10Name?: string | null;
   prescriptionJson?: string | null;
   treatmentPlan?: string | null;

@@ -223,6 +223,8 @@ class AppointmentServiceTest {
         assertNotNull(result);
         assertEquals(AppointmentStatus.COMPLETED, result.getStatus());
         assertEquals("I10", result.getIcd10Code());
+        assertEquals("I10", result.getIcdCode());
+        assertEquals("ICD-10", result.getIcdVersion());
         assertEquals("Tăng huyết áp nguyên phát", result.getIcd10Name());
         verify(auditLogRepository, times(1)).save(any(AuditLog.class));
     }

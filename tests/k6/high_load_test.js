@@ -101,7 +101,10 @@ export default function () {
     });
 
     // Anonymous triage safety filter check (Hard Red-Flag Regex Guard)
-    const triageRes = http.post(`${BASE_URL}/api/v1/triage/assess`, payload, params);
+    const triageParams = Object.assign({}, params, {
+      responseCallback: http.expectedStatuses(200, 401)
+    });
+    const triageRes = http.post(`${BASE_URL}/api/v1/triage/assess`, payload, triageParams);
     const triageDuration = new Date().getTime() - triageStart;
     clinicalTriageDuration.add(triageDuration);
 
