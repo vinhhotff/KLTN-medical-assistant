@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#122** | 15/11/2026 | Tinh Gọn Form Đăng Ký Bác Sĩ Bước 1 (`DoctorRegisterForm.tsx`): Loại bỏ trường nhập URL ảnh chân dung áo blouse trắng (`avatarUrl`), state/payload tương ứng và icon `ImageIcon` khỏi Bước 1 đăng ký tài khoản bác sĩ (ảnh đại diện được cập nhật ở Bước 2 `/doctor/profile`), giúp biểu mẫu Nhóm 1 gọn nhẹ chỉ còn Họ tên, Email, SĐT và Mật khẩu; đồng bộ `docs/USE_CASES.md` (`UC-COMM-06`). Xác thực `npm run build` 0 lỗi TS (2.313 modules) và khởi động lại Vite Preview cổng `5173`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#121** | 15/11/2026 | Khắc Phục Lỗi `500` Khi Admin Tạm Khóa Tài Khoản & Hoàn Thiện Cổng Quản Trị (Non-Feature Polish): (1) Vá lỗi `NullPointerException` ở Hibernate `@Version` trên 23/25 tài khoản seed bằng Flyway `V24__fix_users_version_not_null.sql` (`DEFAULT 0 NOT NULL` trên `users.version`) cùng getter/setter null-safe cho `User`, `Appointment`, `PaymentTransaction`, (2) Bảo vệ trạng thái tài khoản `ADMIN` / chính mình (`400 CANNOT_MODIFY_ADMIN_STATUS`), ẩn bác sĩ bị tạm khóa khỏi danh sách công khai & AI semantic search (`DoctorProfileRepository`, `DoctorService`, `DoctorSemanticSearchService`) kèm xóa cache `doctors:verified` + vector cache + gửi thông báo in-app (`AdminVettingService`), (3) Đồng bộ kiểm tra trùng SĐT chuẩn hóa (`409 PHONE_ALREADY_EXISTS`), trùng CCHN (`409 LICENSE_EXISTS`) và trường `licenseDocumentUrl` khi Admin tạo/sửa bác sĩ (`DoctorManagementPage.tsx`), (4) Nâng cấp UX cổng Admin: thẻ `suspendedUsersCount` và trạng thái hạ tầng thật (`pgvector`, `database`, `redis`) trên `AdminDashboard.tsx`; tách rõ badge/filter `ACTIVE`/`PENDING_VERIFICATION`/`SUSPENDED` và 4 thẻ KPI trên `UserManagementPage.tsx`; bổ sung `<Pagination />` cho `AuditLogPage`, `TriageSupervisionPage`, `AppointmentSupervisionPage` và ánh xạ nhóm bộ lọc Audit (`DOCTOR_VETTED`, `UPDATE_USER_STATUS`), (5) Xác thực: `mvn test` **321/321 PASS**, `npm run build` 0 lỗi TS (2.313 modules), E2E live trên `5173/api/v1` + `5001` PASS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#120** | 15/11/2026 | Cải Thiện Trải Nghiệm & Toàn Vẹn Dữ Liệu Phía Bệnh Nhân (Non-Feature Polish): (1) Loại bỏ cặp nút trùng trong Reschedule Modal và gắn khóa `isUnverified` cho nút footer (`PatientDashboard.tsx`), (2) Hoàn thiện modal cập nhật hồ sơ bệnh nhân (thêm `fullName`, `phone`, `gender`, validate inline `fullName`/`phone`/`healthInsuranceNumber`, hiển thị SĐT trên cột EMR và đồng bộ `refreshCurrentUser()` từ `useAuthStore.ts`), (3) Chặn sớm trạng thái chưa xác thực email trong `BookingModal.tsx` với `useEmailVerification()`, `<EmailNotVerifiedHint />` và `EMAIL_NOT_VERIFIED_TOOLTIP`, (4) Truyền `?specialty=...` từ AI Triage History sang `DoctorSearchPage.tsx`, (5) Đồng bộ Backend & Mock (`AuthService.java`, `PatientProfileService.java`, `mockHandlers.ts`): chuẩn hóa & kiểm tra trùng SĐT (`409 PHONE_ALREADY_EXISTS`), giữ mặc định `null` cho `address`/`allergies`/`medicalHistory` khi khởi tạo hồ sơ và ghi `AuditLog(PATIENT_REGISTERED)`, (6) Xác thực: `mvn test` **318/318 PASS**, `npm run build` 0 lỗi TS (2.313 modules), E2E smoke test live qua `5173/api/v1` PASS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#119** | 15/11/2026 | Tối Ưu Hóa Toàn Diện Cache L2 Redis, Cảnh Báo Runtime Spring Boot, UX Bác Sĩ & Bundle Frontend (Non-Feature Polish): (1) Sửa lỗi serialize `LocalDateTime` trong `TwoLayerCacheConfig.java` (`JavaTimeModule` + `WRITE_DATES_AS_TIMESTAMPS` disabled + `DefaultTyping.NON_FINAL` qua `createRedisJsonSerializer()`), xóa sạch lỗi `Redis write failed` cho `doctors:verified`, bổ sung test `TwoLayerCacheServiceTest` (4/4 PASS), (2) Loại bỏ toàn bộ cảnh báo khởi động & `@Async` Spring Boot (`@Primary @Bean("taskExecutor")` trong `AsyncConfig.java`, `spring.jpa.open-in-view=false`, `spring.data.redis.repositories.enabled=false`, bỏ `spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect` đã deprecated ở `dev`/`prod`), (3) Đồng bộ `EmailVerificationBanner` & trạng thái CCHN thực tế trong `DoctorLayout.tsx` (`useEmailVerification` mở rộng sang `DOCTOR`, nạp `/doctors/{id}` hiển thị badge `✓ CCHN ĐÃ XÁC THỰC` hoặc link `⏳ CHỜ THẨM ĐỊNH CCHN` tới `/doctor/profile`), (4) Dọn hộp thông báo trùng lặp trên tab đăng ký bác sĩ tại `LoginPage.tsx`, (5) Tách chunk `charts` (`recharts`/`d3-*`) trong `frontend/vite.config.ts` đưa `AdminDashboard` từ `422.52 kB` xuống `25.52 kB`, (6) Xác thực: `mvn test` **315/315 PASS**, `npm run build` 0 lỗi TS, runtime log `0` WARN/ERROR & Redis L2 `EXISTS doctors:verified = 1`. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -52,6 +53,22 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#122] Tinh Gọn Form Đăng Ký Bác Sĩ Bước 1 (`DoctorRegisterForm.tsx`)
+* **Thời gian:** 2026-11-15 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/fuction`
+* **Danh Sách Tệp Tin (Files Changed):**
+  - `[MOD]` `frontend/src/components/auth/DoctorRegisterForm.tsx`: Gỡ bỏ ô nhập `Ảnh chân dung áo blouse trắng` (`avatarUrl`), state `avatarUrl`, nhánh gán `payload.avatarUrl`, `setAvatarUrl('')` trong `handleQuickDemoDoctor` và import không còn dùng `Image as ImageIcon`. Ảnh đại diện bác sĩ tiếp tục được cập nhật tại Bước 2 (`/doctor/profile`).
+  - `[MOD]` `docs/USE_CASES.md` & `docs/WORK_LOG.md`: Đồng bộ mô tả Bước 1 trong `UC-COMM-06` và bổ sung nhật ký `#122`.
+* **Tài liệu đã đồng bộ:** `docs/USE_CASES.md` (`UC-COMM-06`), `docs/WORK_LOG.md`.
+* **Bằng chứng kiểm thử:**
+  - `cd frontend; npm run build`: **0 lỗi TypeScript** (`2313 modules transformed.`, `built in 8.49s`).
+  - Khởi động lại Vite Preview trên cổng `5173` phục vụ bản build mới nhất.
+* **Điểm nóng Tech Lead cần Review:**
+  1. Backend `DoctorRegisterRequest.avatarUrl` vốn đã để tùy chọn (`null`), nên việc bỏ trường này ở Bước 1 giúp form Nhóm 1 gọn nhẹ hơn mà không ảnh hưởng API `/api/v1/auth/register/doctor`.
+
+---
 
 ### [WORK-LOG-#121] Khắc Phục Lỗi `500` Khi Admin Tạm Khóa Tài Khoản & Hoàn Thiện Cổng Quản Trị (Non-Feature Polish)
 * **Thời gian:** 2026-11-15 (GMT+7)

@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  Image as ImageIcon,
   Lock,
   Mail,
   Phone,
@@ -38,7 +37,6 @@ export const DoctorRegisterForm: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -138,7 +136,6 @@ export const DoctorRegisterForm: React.FC = () => {
     setFullName(picked.fullName);
     setEmail(`bacsi.${picked.slug}.${suffix}@gmail.com`);
     setPhone(randomPhone);
-    setAvatarUrl('');
     setPassword(generatedPass);
     setConfirmPassword(generatedPass);
     setAgreeTerms(true);
@@ -183,9 +180,6 @@ export const DoctorRegisterForm: React.FC = () => {
         phone: phone.replace(/\s/g, ''),
         password,
       };
-      if (avatarUrl.trim()) {
-        payload.avatarUrl = avatarUrl.trim();
-      }
 
       const res = await api.post('/auth/register/doctor', payload);
       if (res.data?.success && res.data?.data?.user) {
@@ -337,35 +331,6 @@ export const DoctorRegisterForm: React.FC = () => {
                 className="w-full pl-9 pr-3 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
               />
             </div>
-          </div>
-        </div>
-
-        {/* Ảnh chân dung áo blouse trắng (tùy chọn ở Bước 1) */}
-        <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wider font-bold text-slate-800 mb-1">
-            Ảnh chân dung áo blouse trắng <span className="font-normal normal-case text-slate-500">(URL - Tùy chọn, có thể bổ sung ở Bước 2)</span>
-          </label>
-          <div className="relative flex items-center gap-2">
-            <div className="relative flex-1">
-              <ImageIcon className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="url"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="https://.../avatar.jpg"
-                className="w-full pl-9 pr-3 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
-              />
-            </div>
-            {avatarUrl.trim() && (
-              <img
-                src={avatarUrl.trim()}
-                alt="Xem trước ảnh chân dung"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = 'none';
-                }}
-                className="w-9 h-9 rounded-full object-cover border border-slate-300 shrink-0 bg-slate-100"
-              />
-            )}
           </div>
         </div>
       </div>
