@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#125** | 15/11/2026 | Cấu Hình CORS Mạng Nội Bộ Cho Mô Hình 2 Máy Dùng Chung Cục Bộ (Cross-Device LAN / VPN Full CORS Support): (1) Cập nhật `SecurityConfig.java` chuyển đổi từ `configuration.setAllowedOrigins` sang `configuration.setAllowedOriginPatterns`, hỗ trợ toàn bộ dải IP mạng cục bộ LAN (`192.168.*`, `10.*`, `172.*`) và mạng ảo Radmin VPN (`26.*`), giải quyết triệt để lỗi `403 Invalid CORS request` khi Máy B kết nối vào Máy A qua IP mạng nội bộ, (2) Khởi động lại Backend Spring Boot 5001 và xác thực preflight `OPTIONS` trả về `200 OK` với header `Access-Control-Allow-Origin` & `Allow-Credentials: true`, (3) Biên soạn cẩm nang hướng dẫn chi tiết cho Tech Lead kiểm thử 2 máy (cùng Wi-Fi LAN hoặc qua Radmin VPN) kèm giải pháp tường lửa Windows Defender Firewall. Xác thực 25/25 Security tests PASS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#124** | 15/11/2026 | Cấu Hình Mở Rộng Máy Chủ Mạng Nội Bộ (LAN Dev Server Network Binding & Preview Host Exposure): (1) Thiết lập cấu hình `host: true` cho cả `server` và `preview` trong `frontend/vite.config.ts`, cho phép Vite dev server và preview server lắng nghe trên tất cả các network interfaces (`0.0.0.0` và IPv6 `::`) thay vì chỉ cô lập ở loopback `localhost:5173`, (2) Hỗ trợ tính năng đồng kiểm thử trên nhiều thiết bị (Collaborative Cross-Device Testing): Giúp thành viên trong nhóm hoặc thiết bị ngoại vi (điện thoại, máy tính bảng, máy đồng nghiệp) kết nối trực tiếp vào máy chủ cục bộ thông qua IP mạng LAN Wi-Fi chung (`http://<LAN_IP>:5173`) hoặc các công cụ Tunnel (Cloudflare/Localtunnel) để dùng chung cơ sở dữ liệu và API backend Spring Boot 5001 mà không phát sinh lỗi CORS, (3) Xác thực biên dịch Frontend sạch sẽ (2.311 modules transformed, 0 lỗi TypeScript). | AI Assistant (Vinh) | 🟢 Sẵn sàng Review |
 | **#123** | 15/11/2026 | Chuẩn Hóa Phiếu Xét Nghiệm Mẫu Meddies (PDF Generation Overhaul), Tắt Mock Server & Đồng Bộ Toàn Diện Luồng Tải Hồ Sơ Cận Lâm Sàng: (1) Thay thế tệp PDF mẫu thô sơ cũ (`benh_an_xet_nghiem_mau_mediassist.pdf`) bằng phiếu xét nghiệm y khoa chuẩn A4 Meddies (`sample_medical_report.pdf` 1.863 bytes), (2) Khắc phục lỗi chồng chéo văn bản (Text Overlap Collision) giữa "BS chỉ định" và "Ngày xét nghiệm" trong `MeddiesPdfGeneratorService.java`, (3) Khắc phục lỗi nhận diện sai từ khóa ("toan than" bị khớp nhầm "than" dẫn đến chuyển ca sốt vào khoa Nội Thận - Tiết Niệu), (4) Tắt cờ mock mặc định `VITE_USE_MOCK=false` trong `frontend/.env` và `vite.config.ts`, loại bỏ proxy cướp route `/api` trả về dummy PDF w3.org, (5) Nâng cấp `LandingPage.tsx` ưu tiên gọi trực tiếp `/api/v1/documents/sample-random-pdf` để cấp phiếu xét nghiệm chuẩn Meddies. Frontend build 0 lỗi TS (2.311 modules), backend test 3/3 PASS. | AI Assistant (Vinh) | 🟢 Sẵn sàng Review |
 | **#122** | 15/11/2026 | Tinh Gọn Form Đăng Ký Bác Sĩ Bước 1 (`DoctorRegisterForm.tsx`): Loại bỏ trường nhập URL ảnh chân dung áo blouse trắng (`avatarUrl`), state/payload tương ứng và icon `ImageIcon` khỏi Bước 1 đăng ký tài khoản bác sĩ (ảnh đại diện được cập nhật ở Bước 2 `/doctor/profile`), giúp biểu mẫu Nhóm 1 gọn nhẹ chỉ còn Họ tên, Email, SĐT và Mật khẩu; đồng bộ `docs/USE_CASES.md` (`UC-COMM-06`). Xác thực `npm run build` 0 lỗi TS (2.313 modules) và khởi động lại Vite Preview cổng `5173`. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -55,6 +56,32 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#125] Cấu Hình CORS Mạng Nội Bộ Cho Mô Hình 2 Máy Dùng Chung Cục Bộ (Cross-Device LAN / VPN Full CORS Support)
+* **Thời gian:** 2026-11-15 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/fuction` (chuẩn bị merge `develop`)
+* **Mã Yêu Cầu:** Tech Lead yêu cầu *"tôi muốn 2 máy chạy trên cùng 1 local host"*.
+* **Nguyên Nhân Gốc Rễ & Bối Cảnh (Root Cause & Context):**
+  - Mặc dù Vite đã được cấu hình lắng nghe trên toàn bộ interfaces (`host: true`), khi Máy B truy cập vào Máy A thông qua IP mạng nội bộ (Wi-Fi `http://192.168.1.30:5173` hoặc Radmin VPN `http://26.117.57.45:5173`), trình duyệt của Máy B sẽ gửi header `Origin: http://192.168.1.30:5173` (hoặc `http://26.117.57.45:5173`).
+  - Trong `SecurityConfig.java`, backend Spring Boot trước đó chỉ cho phép origin tĩnh `http://localhost:5173` thông qua `configuration.setAllowedOrigins(origins)`.
+  - Khi Máy B gửi request, bộ lọc CORS của Spring Security phát hiện `Origin` không khớp và trả về mã lỗi `HTTP/1.1 403 Invalid CORS request`, chặn đứng mọi request API từ Máy B.
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[MOD]` `backend/src/main/java/com/mediassist/config/SecurityConfig.java`:
+     - Chuyển đổi từ `setAllowedOrigins` sang `configuration.setAllowedOriginPatterns(...)`.
+     - Cho phép toàn diện các dải IP nội bộ và VPN: `http://localhost:[*]`, `https://localhost:[*]`, `http://127.0.0.1:[*]`, `http://192.168.*:[*]`, `http://10.*:[*]`, `http://172.*:[*]`, và `http://26.*:[*]` (Radmin VPN).
+     - Bổ sung các header: `Origin`, `Accept` vào danh sách `AllowedHeaders` và duy trì `setAllowCredentials(true)`.
+  2. `[MOD]` Khởi động lại Spring Boot backend (`task-4847`) với cổng 5001.
+  3. `[MOD]` `docs/WORK_LOG.md`: Ghi nhận nhật ký phiên làm việc `#125`.
+* **Bằng Chứng Kiểm Thử & Xác Thực:**
+  - Kiểm thử preflight `curl.exe -i -X OPTIONS http://localhost:5001/api/v1/doctors -H "Origin: http://192.168.1.30:5173"`: trả về `HTTP/1.1 200 OK`, `Access-Control-Allow-Origin: http://192.168.1.30:5173`, `Access-Control-Allow-Credentials: true`.
+  - Kiểm thử preflight `curl.exe -i -X OPTIONS http://localhost:5001/api/v1/doctors -H "Origin: http://26.117.57.45:5173"`: trả về `HTTP/1.1 200 OK`, `Access-Control-Allow-Origin: http://26.117.57.45:5173`, `Access-Control-Allow-Credentials: true`.
+  - `mvn test -Dtest=OAuth2SecurityTest,SecurityHardeningTest`: 25/25 Tests PASS (100%).
+  - Backend Spring Boot `/actuator/health`: Trạng thái `UP` với DB PostgreSQL pgvector và Redis L2 sẵn sàng.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Cả 2 máy giờ đây có thể kết nối mượt mà vào cùng một cơ sở dữ liệu và backend. Xem hướng dẫn kết nối 2 máy chi tiết bên dưới.
+
+---
 
 ### [WORK-LOG-#124] Cấu Hình Mở Rộng Máy Chủ Mạng Nội Bộ (LAN Dev Server Network Binding & Collaborative Testing Setup)
 * **Thời gian:** 2026-11-15 (GMT+7)

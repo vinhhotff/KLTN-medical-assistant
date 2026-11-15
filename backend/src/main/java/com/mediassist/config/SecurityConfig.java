@@ -133,10 +133,29 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
-        configuration.setAllowedOrigins(origins);
+        List<String> patterns = new java.util.ArrayList<>();
+        for (String origin : allowedOrigins.split(",")) {
+            String trimmed = origin.trim();
+            if (!trimmed.isEmpty()) {
+                patterns.add(trimmed);
+            }
+        }
+        // Ho tro ca localhost va cac dai IP mang noi bo / VPN cho khao sat da may (LAN 192.168.x, 10.x, 172.x, Radmin 26.x)
+        patterns.add("http://localhost:[*]");
+        patterns.add("https://localhost:[*]");
+        patterns.add("http://127.0.0.1:[*]");
+        patterns.add("https://127.0.0.1:[*]");
+        patterns.add("http://192.168.*:[*]");
+        patterns.add("https://192.168.*:[*]");
+        patterns.add("http://10.*:[*]");
+        patterns.add("https://10.*:[*]");
+        patterns.add("http://172.*:[*]");
+        patterns.add("https://172.*:[*]");
+        patterns.add("http://26.*:[*]");
+        patterns.add("https://26.*:[*]");
+        configuration.setAllowedOriginPatterns(patterns);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "x-request-id", "X-Requested-With"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "x-request-id", "X-Requested-With", "Origin", "Accept"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
