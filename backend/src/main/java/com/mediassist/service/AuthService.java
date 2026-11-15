@@ -193,13 +193,21 @@ public class AuthService {
             throw new AppException(HttpStatus.CONFLICT, "EMAIL_ALREADY_EXISTS", "Email '" + email + "' đã được sử dụng trên hệ thống. Vui lòng đăng nhập hoặc sử dụng email khác.");
         }
 
+        String normalizedPhone = request.getPhone() != null
+                ? trimToNull(request.getPhone().replaceAll("[\\s\\-.]", ""))
+                : null;
+        if (normalizedPhone != null && userRepository.existsByPhone(normalizedPhone)) {
+            throw new AppException(HttpStatus.CONFLICT, "PHONE_ALREADY_EXISTS",
+                    "Số điện thoại '" + normalizedPhone + "' đã được sử dụng trên hệ thống. Vui lòng kiểm tra lại hoặc đăng nhập.");
+        }
+
         // 1. Create Patient User
         User user = new User();
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setFullName(request.getFullName().trim());
-        if (request.getPhone() != null && !request.getPhone().isBlank()) {
-            user.setPhone(request.getPhone().trim());
+        if (normalizedPhone != null) {
+            user.setPhone(normalizedPhone);
         }
         user.setRole(Role.PATIENT);
         user.setStatus(UserStatus.ACTIVE);
@@ -224,13 +232,14 @@ public class AuthService {
         } while (patientProfileRepository.existsByPatientCode(patientCode));
 
         profile.setPatientCode(patientCode);
-        profile.setGender(request.getGender());
+        profile.setGender(trimToNull(request.getGender()));
         profile.setDateOfBirth(request.getDateOfBirth());
         profile.setBloodGroup(null);
-        profile.setAddress(request.getAddress() != null ? request.getAddress().trim() : "Việt Nam");
+        profile.setAddress(trimToNull(request.getAddress()));
         patientProfileRepository.save(profile);
 
-        log.info("🎉 Registered new patient {} with code {}", user.getEmail(), profile.getPatientCode());
+        recordAudit(user.getId(), "PATIENT_REGISTERED", "PatientCode: " + patientCode);
+        log.info("🎉 Registered new patient {} with code {}", MailFormat.maskEmail(user.getEmail()), profile.getPatientCode());
 
         issueEmailVerification(user);
 

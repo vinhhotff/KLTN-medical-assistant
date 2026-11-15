@@ -462,4 +462,22 @@ class AuthServiceEmailVerificationTest {
         verify(auditLogRepository).save(auditCaptor.capture());
         assertEquals("License: PENDING_ONBOARDING", auditCaptor.getValue().getMetadata());
     }
+
+    @Test
+    @DisplayName("Dang ky benh nhan trung so dien thoai: tra 409 PHONE_ALREADY_EXISTS")
+    void registerPatientDuplicatePhoneRejected() {
+        RegisterRequest req = new RegisterRequest();
+        req.setEmail("patient.new@gmail.com");
+        req.setPassword("Password123!");
+        req.setFullName("Nguyễn Văn Mới");
+        req.setPhone("0901 234 567");
+
+        when(userRepository.findByEmail("patient.new@gmail.com")).thenReturn(Optional.empty());
+        when(userRepository.existsByPhone("0901234567")).thenReturn(true);
+
+        AppException ex = assertThrows(AppException.class, () -> authService.register(req));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+        assertEquals("PHONE_ALREADY_EXISTS", ex.getCode());
+        verify(userRepository, never()).save(any());
+    }
 }

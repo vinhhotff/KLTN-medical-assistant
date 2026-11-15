@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
-import { api } from '../../services/api';
+import { api, EMAIL_NOT_VERIFIED_TOOLTIP } from '../../services/api';
+import { useEmailVerification } from '../../hooks/useEmailVerification';
+import { EmailNotVerifiedHint } from '../common/EmailNotVerifiedHint';
 import { Button, ErrorState, Field, Modal, Textarea } from '../ui';
 import { SlotPicker, slotStart, type DoctorSlot } from './SlotPicker';
 import { localDateOffset } from '../../utils/date';
@@ -63,6 +65,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [booked, setBooked] = useState<BookedAppointment | null>(null);
+  const { isUnverified } = useEmailVerification();
 
   useEffect(() => {
     if (open) {
@@ -77,7 +80,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   if (!doctor) return null;
 
   const fee = formatVnd(doctor.consultationFee);
-  const blocker = !slot ? 'Chọn một khung giờ còn trống.' : notes.length > NOTES_MAX ? `Ghi chú tối đa ${NOTES_MAX} ký tự.` : null;
+  const blocker = isUnverified
+    ? EMAIL_NOT_VERIFIED_TOOLTIP
+    : !slot
+    ? 'Chọn một khung giờ còn trống.'
+    : notes.length > NOTES_MAX
+    ? `Ghi chú tối đa ${NOTES_MAX} ký tự.`
+    : null;
 
   const handleSubmit = async () => {
     if (!slot || blocker || submitting) return;
@@ -164,6 +173,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         </div>
       ) : (
         <div className="space-y-4">
+          {isUnverified && <EmailNotVerifiedHint className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2" />}
           {context}
           <SlotPicker
             doctorId={doctor.id}

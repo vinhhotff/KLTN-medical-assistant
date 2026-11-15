@@ -92,13 +92,21 @@ export async function handleMockRequest(
   }
 
   if (method === 'POST' && path === '/auth/register') {
+    const email = (body?.email || 'patient@mediassist.local').trim().toLowerCase();
+    const phone = (body?.phone || '').replace(/[\s\-.]/g, '');
+    if (MOCK_USERS[email]) {
+      return fail(409, 'EMAIL_ALREADY_EXISTS', `Email '${email}' đã được sử dụng trên hệ thống.`);
+    }
+    if (phone && Object.values(MOCK_USERS).some((u) => (u as { phone?: string }).phone === phone)) {
+      return fail(409, 'PHONE_ALREADY_EXISTS', `Số điện thoại '${phone}' đã được sử dụng trên hệ thống.`);
+    }
     const newUser = {
       id: `usr-${Date.now()}`,
-      email: (body?.email || 'patient@mediassist.local').trim().toLowerCase(),
+      email,
       fullName: body?.fullName || 'Bệnh Nhân Mới',
       role: 'PATIENT',
       status: 'ACTIVE',
-      phone: body?.phone || null,
+      phone: phone || null,
       emailVerified: false,
       createdAt: atToday(8, 0, 0),
     };

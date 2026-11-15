@@ -1,5 +1,6 @@
 package com.mediassist;
 
+import com.mediassist.common.AppException;
 import com.mediassist.dto.PatientProfileDto;
 import com.mediassist.model.entity.PatientProfile;
 import com.mediassist.model.entity.Role;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 
 import java.time.LocalDate;
 import java.util.Optional;
@@ -104,5 +106,39 @@ class PatientProfileServiceTest {
         assertEquals("Dị ứng Paracetamol và Penicillin", result.getAllergies());
         assertEquals("Nguyễn Văn A", result.getEmergencyContactName());
         verify(patientProfileRepository, times(1)).save(any(PatientProfile.class));
+    }
+
+    @Test
+    @DisplayName("Should initialize empty allergies/history/address when creating initial OAuth2 profile")
+    void testGetOrCreateProfileForUser_InitialCreatesConsistentNullFields() {
+        when(userRepository.findByEmail("patient@mediassist.local")).thenReturn(Optional.of(patientUser));
+        when(patientProfileRepository.findByUser(patientUser)).thenReturn(Optional.empty());
+        when(patientProfileRepository.existsByPatientCode(anyString())).thenReturn(false);
+        when(patientProfileRepository.save(any(PatientProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        PatientProfileDto result = patientProfileService.getOrCreateProfileForUser("patient@mediassist.local");
+
+        assertNotNull(result.getPatientCode());
+        assertTrue(result.getPatientCode().startsWith("BN-2026-"));
+        assertNull(result.getAddress());
+        assertNull(result.getAllergies());
+        assertNull(result.getMedicalHistory());
+    }
+
+    @Test
+    @DisplayName("Should reject duplicate phone number on patient profile update with 409 PHONE_ALREADY_EXISTS")
+    void testUpdateProfile_DuplicatePhoneRejected() {
+        when(userRepository.findByEmail("patient@mediassist.local")).thenReturn(Optional.of(patientUser));
+        when(patientProfileRepository.findByUser(patientUser)).thenReturn(Optional.of(profile));
+        when(userRepository.existsByPhone("0909123456")).thenReturn(true);
+
+        PatientProfileDto updateReq = new PatientProfileDto();
+        updateReq.setPhone("0909 123 456");
+
+        AppException ex = assertThrows(AppException.class,
+                () -> patientProfileService.updateProfile("patient@mediassist.local", updateReq));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+        assertEquals("PHONE_ALREADY_EXISTS", ex.getCode());
+        verify(patientProfileRepository, never()).save(any(PatientProfile.class));
     }
 }
