@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#126** | 15/11/2026 | Tích Hợp Xác Thực Email Qua Gmail SMTP Thực Tế & Đăng Nhập Google OAuth2: (1) Cấu hình Gmail SMTP (`hoangkhuong056@gmail.com`) với Google App Password qua biến môi trường an toàn `.env` và `application-local.properties`, chuyển đổi từ Mailpit dev sang gửi email xác thực thực tế (STARTTLS port 587), (2) Xác thực luồng gửi email thật: Kiểm thử gửi email xác thực tài khoản `hoangkhuong056@gmail.com` thành công qua Google SMTP server (`Mail 'verify-email' sent`), (3) Hoàn thiện cấu hình Google OAuth2 (Client ID & Secret), đồng bộ `GoogleLoginButton.tsx` hỗ trợ proxy động, kiểm tra redirect URL `302 accounts.google.com` chính xác. Frontend build 0 lỗi TS, backend 31/31 tests PASS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#125** | 15/11/2026 | Cấu Hình CORS Mạng Nội Bộ Cho Mô Hình 2 Máy Dùng Chung Cục Bộ (Cross-Device LAN / VPN Full CORS Support): (1) Cập nhật `SecurityConfig.java` chuyển đổi từ `configuration.setAllowedOrigins` sang `configuration.setAllowedOriginPatterns`, hỗ trợ toàn bộ dải IP mạng cục bộ LAN (`192.168.*`, `10.*`, `172.*`) và mạng ảo Radmin VPN (`26.*`), giải quyết triệt để lỗi `403 Invalid CORS request` khi Máy B kết nối vào Máy A qua IP mạng nội bộ, (2) Khởi động lại Backend Spring Boot 5001 và xác thực preflight `OPTIONS` trả về `200 OK` với header `Access-Control-Allow-Origin` & `Allow-Credentials: true`, (3) Biên soạn cẩm nang hướng dẫn chi tiết cho Tech Lead kiểm thử 2 máy (cùng Wi-Fi LAN hoặc qua Radmin VPN) kèm giải pháp tường lửa Windows Defender Firewall. Xác thực 25/25 Security tests PASS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#124** | 15/11/2026 | Cấu Hình Mở Rộng Máy Chủ Mạng Nội Bộ (LAN Dev Server Network Binding & Preview Host Exposure): (1) Thiết lập cấu hình `host: true` cho cả `server` và `preview` trong `frontend/vite.config.ts`, cho phép Vite dev server và preview server lắng nghe trên tất cả các network interfaces (`0.0.0.0` và IPv6 `::`) thay vì chỉ cô lập ở loopback `localhost:5173`, (2) Hỗ trợ tính năng đồng kiểm thử trên nhiều thiết bị (Collaborative Cross-Device Testing): Giúp thành viên trong nhóm hoặc thiết bị ngoại vi (điện thoại, máy tính bảng, máy đồng nghiệp) kết nối trực tiếp vào máy chủ cục bộ thông qua IP mạng LAN Wi-Fi chung (`http://<LAN_IP>:5173`) hoặc các công cụ Tunnel (Cloudflare/Localtunnel) để dùng chung cơ sở dữ liệu và API backend Spring Boot 5001 mà không phát sinh lỗi CORS, (3) Xác thực biên dịch Frontend sạch sẽ (2.311 modules transformed, 0 lỗi TypeScript). | AI Assistant (Vinh) | 🟢 Sẵn sàng Review |
 | **#123** | 15/11/2026 | Chuẩn Hóa Phiếu Xét Nghiệm Mẫu Meddies (PDF Generation Overhaul), Tắt Mock Server & Đồng Bộ Toàn Diện Luồng Tải Hồ Sơ Cận Lâm Sàng: (1) Thay thế tệp PDF mẫu thô sơ cũ (`benh_an_xet_nghiem_mau_mediassist.pdf`) bằng phiếu xét nghiệm y khoa chuẩn A4 Meddies (`sample_medical_report.pdf` 1.863 bytes), (2) Khắc phục lỗi chồng chéo văn bản (Text Overlap Collision) giữa "BS chỉ định" và "Ngày xét nghiệm" trong `MeddiesPdfGeneratorService.java`, (3) Khắc phục lỗi nhận diện sai từ khóa ("toan than" bị khớp nhầm "than" dẫn đến chuyển ca sốt vào khoa Nội Thận - Tiết Niệu), (4) Tắt cờ mock mặc định `VITE_USE_MOCK=false` trong `frontend/.env` và `vite.config.ts`, loại bỏ proxy cướp route `/api` trả về dummy PDF w3.org, (5) Nâng cấp `LandingPage.tsx` ưu tiên gọi trực tiếp `/api/v1/documents/sample-random-pdf` để cấp phiếu xét nghiệm chuẩn Meddies. Frontend build 0 lỗi TS (2.311 modules), backend test 3/3 PASS. | AI Assistant (Vinh) | 🟢 Sẵn sàng Review |
@@ -56,6 +57,39 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#126] Tích Hợp Xác Thực Email Qua Gmail SMTP Thực Tế & Đăng Nhập Google OAuth2
+* **Thời gian:** 2026-11-15 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/fuction`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu cấu hình xác thực email qua Gmail SMTP và đăng nhập Google OAuth2.
+* **Nguyên Nhân Gốc Rễ & Bối Cảnh (Root Cause & Context):**
+  1. **Lý do trước đó không nhận được email xác thực trên Gmail:**
+     - Mặc định hồ sơ `dev` trong `application-dev.properties` cấu hình `spring.mail.host=${SMTP_HOST:localhost}` và cổng `1025`, chuyển toàn bộ email vào container Mailpit cục bộ (`localhost:8025`). Khi người dùng đăng ký tài khoản bằng địa chỉ email thật, email được gửi vào Mailpit chứ không được đẩy ra máy chủ Google SMTP.
+  2. **Tiền tố Google Client Secret:**
+     - Client Secret của Google OAuth2 cần giữ đầy đủ tiền tố chuẩn để Google không trả về lỗi `401 invalid_client`.
+  3. **Hỗ trợ chuyển tiếp Google Login qua Reverse Proxy Vite:**
+     - Cập nhật `GoogleLoginButton.tsx` để tận dụng Vite proxy `/oauth2/authorization/google`, hỗ trợ đăng nhập hoạt động trơn tru cả ở localhost lẫn mô hình đa máy (LAN/VPN).
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[MOD]` `backend/src/main/resources/application-dev.properties` & `application.properties`:
+     - Thiết lập cấu hình mặc định gửi email qua `smtp.gmail.com:587` (STARTTLS) với tài khoản `hoangkhuong056@gmail.com`.
+     - Đồng bộ cấu hình OAuth2 nạp qua `application-local.properties` và `.env` theo chuẩn bảo mật.
+  2. `[MOD]` `application-local.properties`, `.env`, `backend/.env`:
+     - Lưu trữ an toàn mật khẩu ứng dụng Gmail và khóa bí mật OAuth2 (được bảo vệ bởi `.gitignore`, không lộ mật khẩu trên commit public).
+  3. `[MOD]` `frontend/src/components/common/GoogleLoginButton.tsx`:
+     - Chuẩn hóa URL điều hướng động qua reverse proxy thay vì phụ thuộc hardcode `http://localhost:5001`.
+  4. `[MOD]` `docs/WORK_LOG.md`: Ghi nhận nhật ký phiên làm việc `#126`.
+* **Bằng Chứng Kiểm Thử & Xác Thực:**
+  - Thực thi gửi email thực tế qua API đăng ký: Google SMTP server trả về mã chấp nhận, log hệ thống xác nhận:
+    `INFO com.mediassist.mail.EmailService : Mail 'verify-email' sent to h***@gmail.com`.
+  - Token xác thực tạo thành công trong PostgreSQL: bảng `email_verification_tokens` lưu bản ghi cho `hoangkhuong056@gmail.com`.
+  - Kiểm thử Google OAuth2 redirect: `curl -i http://localhost:5001/oauth2/authorization/google` trả về `302 Found` tới `https://accounts.google.com/o/oauth2/v2/auth` với đầy đủ Client ID và Redirect URI.
+  - `mvn test -Dtest=EmailServiceTest,OAuth2SecurityTest,SecurityHardeningTest`: **31/31 Tests PASS**.
+  - `npm run build`: 2.313 modules transformed, 0 lỗi TypeScript.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Kiểm tra hòm thư `hoangkhuong056@gmail.com` (bao gồm cả thư mục **Spam/Thư rác** hoặc tab **Quảng cáo / Cập nhật**) để mở email xác thực.
+
+---
 
 ### [WORK-LOG-#125] Cấu Hình CORS Mạng Nội Bộ Cho Mô Hình 2 Máy Dùng Chung Cục Bộ (Cross-Device LAN / VPN Full CORS Support)
 * **Thời gian:** 2026-11-15 (GMT+7)

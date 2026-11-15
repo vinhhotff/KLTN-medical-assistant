@@ -27,7 +27,7 @@ interface GoogleLoginButtonProps {
 export const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
   label = 'Tiếp tục với Google',
   className = '',
-  backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001',
+  backendUrl = import.meta.env.VITE_BACKEND_URL || '',
 }) => {
 
   /**
@@ -39,7 +39,8 @@ export const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
    *   3. PKCE/state parameter hoat dong chinh xac
    */
   const handleGoogleLogin = () => {
-    window.location.href = `${backendUrl}/oauth2/authorization/google`;
+    const targetUrl = backendUrl ? `${backendUrl}/oauth2/authorization/google` : '/oauth2/authorization/google';
+    window.location.href = targetUrl;
   };
 
   return (
