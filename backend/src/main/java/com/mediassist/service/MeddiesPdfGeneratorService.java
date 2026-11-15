@@ -224,7 +224,9 @@ public class MeddiesPdfGeneratorService {
             p.indicators.add(new IndicatorRow("Ure", "3094-0", "7.4", "mmol/L", "2.5 - 7.5", "BINH THUONG"));
             p.indicators.add(new IndicatorRow("Creatinine", "2160-0", "82.0", "umol/L", "44.0 - 106.0", "BINH THUONG"));
             p.indicators.add(new IndicatorRow("Acid Uric", "3084-1", "340.0", "umol/L", "200.0 - 420.0", "BINH THUONG"));
-        } else if (complaintLower.contains("than") || complaintLower.contains("phu") || complaintLower.contains("tieu dem")) {
+        } else if (complaintLower.contains("suy than") || complaintLower.contains("viem than") || complaintLower.contains("chuc nang than")
+                || complaintLower.contains("phu") || complaintLower.contains("tieu dem")
+                || (complaintLower.contains("than") && !complaintLower.contains("toan than") && !complaintLower.contains("than kinh"))) {
             p.department = "Khoa Noi Than - Tiet Nieu";
             p.indicators.add(new IndicatorRow("Creatinine", "2160-0", "175.0", "umol/L", "44.0 - 106.0", "TANG CAO"));
             p.indicators.add(new IndicatorRow("Ure", "3094-0", "15.2", "mmol/L", "2.5 - 7.5", "TANG CAO"));
@@ -370,22 +372,24 @@ public class MeddiesPdfGeneratorService {
 
                 y -= 15;
                 drawText(cs, fontRegular, 9, margin, y, "Ho va ten: " + stripAccents(p.fullName));
-                drawText(cs, fontRegular, 9, 280, y, "Tuoi: " + p.age + "  -  Gioi tinh: " + stripAccents(p.gender));
-                drawText(cs, fontRegular, 9, 420, y, "Ma BN: " + p.patientCode);
+                drawText(cs, fontRegular, 9, 240, y, "Tuoi: " + p.age + "  -  Gioi tinh: " + stripAccents(p.gender));
+                drawText(cs, fontRegular, 9, 430, y, "Ma BN: " + p.patientCode);
 
                 y -= 14;
                 drawText(cs, fontRegular, 9, margin, y, "So CCCD: " + p.cccd);
-                drawText(cs, fontRegular, 9, 280, y, "The BHYT: " + p.bhyt);
-                drawText(cs, fontRegular, 9, 420, y, "SID: " + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+                drawText(cs, fontRegular, 9, 240, y, "The BHYT: " + p.bhyt);
+                drawText(cs, fontRegular, 9, 430, y, "SID: " + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
 
                 y -= 14;
                 drawText(cs, fontRegular, 9, margin, y, "Dia chi: " + stripAccents(p.district + ", " + p.province));
-                drawText(cs, fontRegular, 9, 280, y, "Bac si chi dinh: " + stripAccents(p.doctorName));
-                drawText(cs, fontRegular, 9, 420, y, "Ngay xet nghiem: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+                String docDisplay = "BS chi dinh: " + stripAccents(p.doctorName);
+                if (docDisplay.length() > 32) docDisplay = docDisplay.substring(0, 32) + "...";
+                drawText(cs, fontRegular, 9, 240, y, docDisplay);
+                drawText(cs, fontRegular, 9, 430, y, "Ngay xet nghiem: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
 
                 y -= 14;
                 String complaint = stripAccents(p.chiefComplaint);
-                if (complaint.length() > 75) complaint = complaint.substring(0, 75) + "...";
+                if (complaint.length() > 80) complaint = complaint.substring(0, 80) + "...";
                 drawText(cs, fontRegular, 9, margin, y, "Ly do kham: " + complaint);
 
                 // Divider line

@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#123** | 15/11/2026 | Chuẩn Hóa Phiếu Xét Nghiệm Mẫu Meddies (PDF Generation Overhaul), Tắt Mock Server & Đồng Bộ Toàn Diện Luồng Tải Hồ Sơ Cận Lâm Sàng: (1) Thay thế tệp PDF mẫu thô sơ cũ (`benh_an_xet_nghiem_mau_mediassist.pdf`) bằng phiếu xét nghiệm y khoa chuẩn A4 Meddies (`sample_medical_report.pdf` 1.863 bytes), (2) Khắc phục lỗi chồng chéo văn bản (Text Overlap Collision) giữa "BS chỉ định" và "Ngày xét nghiệm" trong `MeddiesPdfGeneratorService.java`, (3) Khắc phục lỗi nhận diện sai từ khóa ("toan than" bị khớp nhầm "than" dẫn đến chuyển ca sốt vào khoa Nội Thận - Tiết Niệu), (4) Tắt cờ mock mặc định `VITE_USE_MOCK=false` trong `frontend/.env` và `vite.config.ts`, loại bỏ proxy cướp route `/api` trả về dummy PDF w3.org, (5) Nâng cấp `LandingPage.tsx` ưu tiên gọi trực tiếp `/api/v1/documents/sample-random-pdf` để cấp phiếu xét nghiệm chuẩn Meddies. Frontend build 0 lỗi TS (2.311 modules), backend test 3/3 PASS. | AI Assistant (Vinh) | 🟢 Sẵn sàng Review |
 | **#122** | 15/11/2026 | Tinh Gọn Form Đăng Ký Bác Sĩ Bước 1 (`DoctorRegisterForm.tsx`): Loại bỏ trường nhập URL ảnh chân dung áo blouse trắng (`avatarUrl`), state/payload tương ứng và icon `ImageIcon` khỏi Bước 1 đăng ký tài khoản bác sĩ (ảnh đại diện được cập nhật ở Bước 2 `/doctor/profile`), giúp biểu mẫu Nhóm 1 gọn nhẹ chỉ còn Họ tên, Email, SĐT và Mật khẩu; đồng bộ `docs/USE_CASES.md` (`UC-COMM-06`). Xác thực `npm run build` 0 lỗi TS (2.313 modules) và khởi động lại Vite Preview cổng `5173`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#121** | 15/11/2026 | Khắc Phục Lỗi `500` Khi Admin Tạm Khóa Tài Khoản & Hoàn Thiện Cổng Quản Trị (Non-Feature Polish): (1) Vá lỗi `NullPointerException` ở Hibernate `@Version` trên 23/25 tài khoản seed bằng Flyway `V24__fix_users_version_not_null.sql` (`DEFAULT 0 NOT NULL` trên `users.version`) cùng getter/setter null-safe cho `User`, `Appointment`, `PaymentTransaction`, (2) Bảo vệ trạng thái tài khoản `ADMIN` / chính mình (`400 CANNOT_MODIFY_ADMIN_STATUS`), ẩn bác sĩ bị tạm khóa khỏi danh sách công khai & AI semantic search (`DoctorProfileRepository`, `DoctorService`, `DoctorSemanticSearchService`) kèm xóa cache `doctors:verified` + vector cache + gửi thông báo in-app (`AdminVettingService`), (3) Đồng bộ kiểm tra trùng SĐT chuẩn hóa (`409 PHONE_ALREADY_EXISTS`), trùng CCHN (`409 LICENSE_EXISTS`) và trường `licenseDocumentUrl` khi Admin tạo/sửa bác sĩ (`DoctorManagementPage.tsx`), (4) Nâng cấp UX cổng Admin: thẻ `suspendedUsersCount` và trạng thái hạ tầng thật (`pgvector`, `database`, `redis`) trên `AdminDashboard.tsx`; tách rõ badge/filter `ACTIVE`/`PENDING_VERIFICATION`/`SUSPENDED` và 4 thẻ KPI trên `UserManagementPage.tsx`; bổ sung `<Pagination />` cho `AuditLogPage`, `TriageSupervisionPage`, `AppointmentSupervisionPage` và ánh xạ nhóm bộ lọc Audit (`DOCTOR_VETTED`, `UPDATE_USER_STATUS`), (5) Xác thực: `mvn test` **321/321 PASS**, `npm run build` 0 lỗi TS (2.313 modules), E2E live trên `5173/api/v1` + `5001` PASS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#120** | 15/11/2026 | Cải Thiện Trải Nghiệm & Toàn Vẹn Dữ Liệu Phía Bệnh Nhân (Non-Feature Polish): (1) Loại bỏ cặp nút trùng trong Reschedule Modal và gắn khóa `isUnverified` cho nút footer (`PatientDashboard.tsx`), (2) Hoàn thiện modal cập nhật hồ sơ bệnh nhân (thêm `fullName`, `phone`, `gender`, validate inline `fullName`/`phone`/`healthInsuranceNumber`, hiển thị SĐT trên cột EMR và đồng bộ `refreshCurrentUser()` từ `useAuthStore.ts`), (3) Chặn sớm trạng thái chưa xác thực email trong `BookingModal.tsx` với `useEmailVerification()`, `<EmailNotVerifiedHint />` và `EMAIL_NOT_VERIFIED_TOOLTIP`, (4) Truyền `?specialty=...` từ AI Triage History sang `DoctorSearchPage.tsx`, (5) Đồng bộ Backend & Mock (`AuthService.java`, `PatientProfileService.java`, `mockHandlers.ts`): chuẩn hóa & kiểm tra trùng SĐT (`409 PHONE_ALREADY_EXISTS`), giữ mặc định `null` cho `address`/`allergies`/`medicalHistory` khi khởi tạo hồ sơ và ghi `AuditLog(PATIENT_REGISTERED)`, (6) Xác thực: `mvn test` **318/318 PASS**, `npm run build` 0 lỗi TS (2.313 modules), E2E smoke test live qua `5173/api/v1` PASS. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -53,6 +54,31 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#123] Chuẩn Hóa Phiếu Xét Nghiệm Mẫu Meddies, Tắt Mock Server & Đồng Bộ Toàn Diện Luồng Tải Hồ Sơ Cận Lâm Sàng
+* **Thời gian:** 2026-11-15 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Vinh)
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Tech Lead phản ánh *"hiện tại thì file pdf thì phải như này, bạn coi thử có merge lung tung không, sao nó cứ ở file code cũ vậy"* kèm ảnh chụp mẫu Phiếu Kết Quả Xét Nghiệm Y Khoa chuẩn Meddies.
+* **Nguyên Nhân Gốc Rễ (Root Cause Analysis):**
+  1. **Tệp PDF mẫu tĩnh bị kẹt phiên bản cũ (Legacy Mock File):** Tệp `frontend/public/sample_medical_report.pdf` (sinh từ 13/09/2026) chỉ chứa vài dòng text thô sơ dạng plain-text không có cấu trúc bảng A4 bệnh viện chuẩn. Nút "Tải phiếu mẫu (PDF)" trên `LandingPage.tsx` trỏ cứng vào tệp này với tên tải về `benh_an_xet_nghiem_mau_mediassist.pdf`.
+  2. **Cờ Mock ngầm bật mặc định trong Vite (`VITE_USE_MOCK`):** Trong `frontend/vite.config.ts`, biểu thức `process.env.VITE_USE_MOCK !== 'false'` tự động kích hoạt `viteMockPlugin()`. Plugin này cướp toàn bộ route `/api` và trả về tệp PDF dummy `dummy.pdf` của w3.org thay vì chuyển tiếp sang Backend Spring Boot 5001.
+  3. **Lỗi đè văn bản (Text Overlap) trên PDF Generator:** Trong `MeddiesPdfGeneratorService.java`, tọa độ `drawText` của nhãn `Bac si chi dinh:` (x=280) và `Ngay xet nghiem:` (x=420) cách nhau 140 điểm, khiến tên bác sĩ dài bị in đè trực tiếp lên chữ "Ngày xét nghiệm" (`Pham QuoNgay xet nghiem: 17/09/2026`).
+  4. **Khớp sai từ khóa lâm sàng:** Cụm `"dau nhuc co toan than"` bị chuỗi `.contains("than")` bắt nhầm sang khoa Nội Thận - Tiết Niệu, khiến bệnh nhân sốt nhiễm trùng lại nhận bảng kết quả Creatinine/eGFR suy thận.
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[MOD]` `backend/src/main/java/com/mediassist/service/MeddiesPdfGeneratorService.java`:
+     - Tái căn chỉnh hệ tọa độ các cột thông tin hành chính (Ho va ten x=45, Tuoi/Gioi tinh x=240, Ma BN x=430; So CCCD x=45, BHYT x=240, SID x=430; Dia chi x=45, BS chi dinh x=240 kèm cắt tối đa 32 ký tự, Ngay xet nghiem x=430). Triệt tiêu 100% lỗi in đè chữ.
+     - Sàng lọc điều kiện logic chuyên khoa: Loại trừ `toan than` và `than kinh` khỏi điều kiện khớp chuyên khoa Thận - Tiết Niệu.
+  2. `[MOD]` `frontend/public/sample_medical_report.pdf`: Tái sinh tệp PDF mẫu đạt chuẩn A4 Meddies với bảng chỉ số cận lâm sàng, tiêu đề Bệnh viện Đa Khoa Trung Ương, thông tin bệnh nhân và ghi chú bác sĩ (1.863 bytes).
+  3. `[MOD]` `frontend/vite.config.ts` & `frontend/.env`: Chuyển cờ `useMock = process.env.VITE_USE_MOCK === 'true'`, thiết lập `VITE_USE_MOCK=false`. Đảm bảo toàn bộ request `/api` đi thẳng vào Backend Spring Boot 5001.
+  4. `[MOD]` `frontend/src/pages/LandingPage.tsx`: Bổ sung hàm `handleDownloadSamplePdf` gọi trực tiếp `GET /api/v1/documents/sample-random-pdf` để cấp tệp PDF ngẫu nhiên từ kho hồ sơ Meddies, fallback an toàn sang `sample_medical_report.pdf` chuẩn A4.
+* **Bằng Chứng Kiểm Thử & Xác Thực:**
+  - `curl -s -i http://localhost:5173/api/v1/documents/sample-random-pdf` $\rightarrow$ Trả về `HTTP 200 OK`, `Content-Type: application/pdf`, `Content-Disposition: attachment; filename="Phieu_Xet_Nghiem_...pdf"`.
+  - `curl -s -i http://localhost:5173/sample_medical_report.pdf` $\rightarrow$ Trả về `HTTP 200 OK`, PDF 1.863 bytes chuẩn A4.
+  - `mvn test -Dtest=MeddiesPdfGeneratorServiceTest`: 3/3 Tests PASS (100%).
+  - `npm run build`: 2.311 modules transformed, 0 lỗi TypeScript (2.66s).
+
+---
 
 ### [WORK-LOG-#122] Tinh Gọn Form Đăng Ký Bác Sĩ Bước 1 (`DoctorRegisterForm.tsx`)
 * **Thời gian:** 2026-11-15 (GMT+7)

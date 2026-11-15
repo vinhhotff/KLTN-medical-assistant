@@ -340,15 +340,65 @@ export const LandingPage: React.FC = () => {
     if (isScanning) return;
     try {
       setScanStatus('Đang nạp phiếu xét nghiệm mẫu...');
-      const response = await fetch('/sample_medical_report.pdf');
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const blob = await response.blob();
-      const sampleFile = new File([blob], 'sample_medical_report.pdf', { type: 'application/pdf' });
+      let blob: Blob | null = null;
+      let filename = 'Phieu_Xet_Nghiem_Y_Khoa_Mau.pdf';
+      try {
+        const apiResp = await fetch('/api/v1/documents/sample-random-pdf');
+        if (apiResp.ok) {
+          blob = await apiResp.blob();
+          const disp = apiResp.headers.get('content-disposition');
+          if (disp && disp.includes('filename=')) {
+            const m = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disp);
+            if (m && m[1]) filename = m[1].replace(/['"]/g, '');
+          }
+        }
+      } catch {
+        // Fallback to static sample if backend is unavailable
+      }
+      if (!blob) {
+        const response = await fetch('/sample_medical_report.pdf');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        blob = await response.blob();
+      }
+      const sampleFile = new File([blob], filename, { type: 'application/pdf' });
       await executeRealScan(sampleFile);
     } catch (err) {
       devLog.error('Failed to load sample PDF for real scan:', err);
       setUploadError('Không tải được phiếu mẫu. Vui lòng thử lại.');
     }
+  };
+
+  const handleDownloadSamplePdf = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      const resp = await fetch('/api/v1/documents/sample-random-pdf');
+      if (resp.ok) {
+        const blob = await resp.blob();
+        let fileName = 'Phieu_Xet_Nghiem_Y_Khoa_Meddies.pdf';
+        const disposition = resp.headers.get('content-disposition');
+        if (disposition && disposition.includes('filename=')) {
+          const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+          if (matches && matches[1]) fileName = matches[1].replace(/['"]/g, '');
+        }
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => window.URL.revokeObjectURL(url), 1500);
+        return;
+      }
+    } catch {
+      // Fallback
+    }
+    const a = document.createElement('a');
+    a.href = '/sample_medical_report.pdf';
+    a.download = 'Phieu_Xet_Nghiem_Y_Khoa_Mau.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   };
 
   const handleDoctorBooking = (doctorId?: string) => {
@@ -685,15 +735,15 @@ export const LandingPage: React.FC = () => {
                         <span>{isScanning ? 'Đang phân tích...' : 'Thử với phiếu xét nghiệm mẫu'}</span>
                       </button>
 
-                      <a
-                        href="/sample_medical_report.pdf"
-                        download="benh_an_xet_nghiem_mau_mediassist.pdf"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#F6F3EC] hover:bg-slate-200/70 text-slate-800 font-display text-xs font-bold transition-all border border-slate-300/80"
-                        title="Tải về file PDF mẫu có 5 chỉ số sinh hóa hợp lệ để kiểm thử tải lên"
+                      <button
+                        type="button"
+                        onClick={handleDownloadSamplePdf}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#F6F3EC] hover:bg-slate-200/70 text-slate-800 font-display text-xs font-bold transition-all border border-slate-300/80 cursor-pointer"
+                        title="Tải về file PDF mẫu phiếu xét nghiệm y khoa chuẩn Meddies để kiểm thử tải lên"
                       >
                         <span className="material-symbols-outlined text-[16px] text-teal-600">download</span>
                         <span>Tải phiếu mẫu (PDF)</span>
-                      </a>
+                      </button>
 
                       <button
                         type="button"

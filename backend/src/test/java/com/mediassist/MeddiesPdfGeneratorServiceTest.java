@@ -59,4 +59,14 @@ class MeddiesPdfGeneratorServiceTest {
             assertEquals("%PDF-", header);
         }
     }
+
+    @Test
+    @DisplayName("Export authentic hospital lab report PDF to frontend/public for static fallback")
+    void exportStaticSamplePdf() throws Exception {
+        MeddiesPdfGeneratorService.GeneratedPdfResult result = generatorService.generateRandomMeddiesPdf();
+        java.nio.file.Path target = java.nio.file.Paths.get("../frontend/public/sample_medical_report.pdf");
+        if (java.nio.file.Files.exists(target.getParent())) {
+            java.nio.file.Files.write(target, result.getPdfBytes());
+        }
+    }
 }

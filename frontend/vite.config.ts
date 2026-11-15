@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { viteMockPlugin } from './src/mocks/viteMockPlugin';
 
-const useMock = process.env.VITE_USE_MOCK !== 'false';
+const useMock = process.env.VITE_USE_MOCK === 'true';
 
 export default defineConfig({
   plugins: [react(), useMock ? viteMockPlugin() : null].filter(Boolean),
