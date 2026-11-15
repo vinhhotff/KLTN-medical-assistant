@@ -94,7 +94,7 @@ public class SupabaseStorageService implements StorageService {
     Map<String, String> authHeaders(String contentType) {
         Map<String, String> headers = new java.util.LinkedHashMap<>();
         headers.put("apikey", supabaseKey);
-        if (!supabaseKey.startsWith("sb_secret_")) {
+        if (!supabaseKey.startsWith("sb_secret_") && !supabaseKey.startsWith("sb_publishable_")) {
             headers.put("Authorization", "Bearer " + supabaseKey);
         }
         if (contentType != null) {

@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#128** | 15/11/2026 | Tích Hợp Đầy Đủ API Keys (Gemini Flash, OpenRouter Embeddings & Supabase Publishable Key) & Xác Thực Triệt Để 2 Báo Cáo Lỗi Admin & Form Bác Sĩ: (1) Chuẩn hóa model Google Gemini sang `gemini-2.5-flash` chính thức trên toàn hệ thống (`GeminiAiProvider`, `MedicalDocumentAnalysisService`, `TriageService`, `AiUsageAnalyticsService`), kết nối trực tiếp Gemini Flash API bóc tách cận lâm sàng & RAG thành công 100%, (2) Kích hoạt OpenRouter neural vector embeddings `openai/text-embedding-3-small` đồng bộ 15 vector bác sĩ vào pgvector, (3) Tinh chỉnh `SupabaseStorageService.java` bỏ tiền tố Bearer cho `sb_publishable_...` và duy trì fallback lưu trữ EMR nội bộ `/uploads/`, (4) Xác thực triệt để 2 ảnh báo cáo: (a) Tính năng Admin tạm khóa tài khoản hoạt động thông suốt (200 OK) sau khi vá `@Version` null (Flyway V24); (b) Gỡ bỏ trường "Ảnh chân dung áo blouse trắng" khỏi Bước 1 (`DoctorRegisterForm.tsx`), tinh gọn biểu mẫu đăng ký. Backend 39/39 tests PASS, Frontend build 0 lỗi TS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#127** | 15/11/2026 | Bổ Sung Liên Kết & Thẻ Nổi Bật Chuyên Đề Biện Luận Y Học Chứng Cứ SOTA Vào Cổng Hồ Sơ Khóa Luận (`docs/index.html`): (1) Bổ sung nút truy cập nhanh "Biện Luận Y Học (SOTA)" trên thanh điều hướng đầu trang của `docs/index.html`, (2) Bổ sung thẻ bài nổi bật "Biện Luận Y Học Chứng Cứ & SOTA" (đối chuẩn Google AMIE Nature 2024, Ada Health BMJ/Lancet, ClinicalRAG ACL 2024) ngay giữa giao diện trang chủ Portal phụ, đồng bộ liên kết trực tiếp với trình đọc WordCraft Studio `../report_1/index.html#clinical_defense`. Xác thực liên kết HTTP 200 thông suốt trên cổng 8088. | AI Assistant (Vinh) | 🟢 Sẵn sàng Review |
 | **#126** | 15/11/2026 | Tích Hợp Xác Thực Email Qua Gmail SMTP Thực Tế & Đăng Nhập Google OAuth2: (1) Cấu hình Gmail SMTP (`hoangkhuong056@gmail.com`) với Google App Password qua biến môi trường an toàn `.env` và `application-local.properties`, chuyển đổi từ Mailpit dev sang gửi email xác thực thực tế (STARTTLS port 587), (2) Xác thực luồng gửi email thật: Kiểm thử gửi email xác thực tài khoản `hoangkhuong056@gmail.com` thành công qua Google SMTP server (`Mail 'verify-email' sent`), (3) Hoàn thiện cấu hình Google OAuth2 (Client ID & Secret), đồng bộ `GoogleLoginButton.tsx` hỗ trợ proxy động, kiểm tra redirect URL `302 accounts.google.com` chính xác. Frontend build 0 lỗi TS, backend 31/31 tests PASS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#125** | 15/11/2026 | Cấu Hình CORS Mạng Nội Bộ Cho Mô Hình 2 Máy Dùng Chung Cục Bộ (Cross-Device LAN / VPN Full CORS Support): (1) Cập nhật `SecurityConfig.java` chuyển đổi từ `configuration.setAllowedOrigins` sang `configuration.setAllowedOriginPatterns`, hỗ trợ toàn bộ dải IP mạng cục bộ LAN (`192.168.*`, `10.*`, `172.*`) và mạng ảo Radmin VPN (`26.*`), giải quyết triệt để lỗi `403 Invalid CORS request` khi Máy B kết nối vào Máy A qua IP mạng nội bộ, (2) Khởi động lại Backend Spring Boot 5001 và xác thực preflight `OPTIONS` trả về `200 OK` với header `Access-Control-Allow-Origin` & `Allow-Credentials: true`, (3) Biên soạn cẩm nang hướng dẫn chi tiết cho Tech Lead kiểm thử 2 máy (cùng Wi-Fi LAN hoặc qua Radmin VPN) kèm giải pháp tường lửa Windows Defender Firewall. Xác thực 25/25 Security tests PASS. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -59,6 +60,30 @@
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
+### [WORK-LOG-#128] Tích Hợp Đầy Đủ API Keys (Gemini Flash, OpenRouter Embeddings & Supabase Publishable Key) & Xác Thực Triệt Để 2 Báo Cáo Lỗi Admin & Form Bác Sĩ
+* **Thời gian:** 2026-11-15 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/fuction`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu tích hợp Gemini API key, OpenRouter API key, Supabase publishable key và xác thực triệt để 2 lỗi: Admin không thể tạm khóa tài khoản (lỗi 500) và gỡ bỏ ô nhập "Ảnh chân dung áo blouse trắng" ở Bước 1 đăng ký bác sĩ.
+* **Nguyên Nhân Gốc Rễ & Bối Cảnh (Root Cause & Context):**
+  1. **Model Gemini không tồn tại:** Codebase trước đó khai báo chuỗi `gemini-3.6-flash` (không tồn tại trong Google API, dẫn đến mã lỗi HTTP 404 khi gọi Google Gemini Flash). Sau khi cập nhật sang model chính thức `gemini-2.5-flash`, Google Gemini API đã phản hồi trực tiếp và sinh phân tích cận lâm sàng RAG thành công.
+  2. **Định dạng Supabase Publishable Key:** Khóa định dạng `sb_publishable_...` không phải là JWT, do đó nếu gửi kèm header `Authorization: Bearer <key>`, Supabase Storage sẽ trả về lỗi `401 Unauthorized (JWT expired / invalid)`. Cần điều chỉnh để khóa publishable chỉ được truyền qua header `apikey`.
+  3. **Lỗi 500 khi Admin Tạm Khóa Tài Khoản:** Xuất phát từ việc trường `version` trong bảng `users` của các bản ghi seed ban đầu có giá trị `NULL`. Khi Hibernate thực hiện cập nhật thực thể có `@Version`, nó gọi `LongJavaType.next(null)` dẫn đến `NullPointerException`. Vấn đề này đã được khắc phục triệt để bằng Flyway migration `V24__fix_users_version_not_null.sql` và getter/setter null-safe.
+  4. **Form Đăng ký Bác sĩ Bước 1:** Để giảm thiểu mệt mỏi biểu mẫu (Form Fatigue), ô nhập `avatarUrl` ("Ảnh chân dung áo blouse trắng") đã được gỡ bỏ khỏi Bước 1 (`DoctorRegisterForm.tsx`). Bác sĩ có thể tải ảnh đại diện tại Bước 2 (`DoctorProfilePage.tsx`).
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[MOD]` `backend/src/main/java/com/mediassist/ai/GeminiAiProvider.java`, `MedicalDocumentAnalysisService.java`, `TriageService.java`, `AiUsageAnalyticsService.java`: Chuẩn hóa model Gemini sang `gemini-2.5-flash`.
+  2. `[MOD]` `backend/src/main/resources/application.properties`, `application-dev.properties`, `application-supabase.properties`: Đồng bộ `app.ai.gemini.model=gemini-2.5-flash`.
+  3. `[MOD]` `backend/src/main/java/com/mediassist/service/SupabaseStorageService.java`: Bỏ header `Authorization: Bearer` đối với key `sb_publishable_...`.
+  4. `[MOD]` `docs/WORK_LOG.md`: Bổ sung nhật ký `#128`.
+* **Bằng chứng kiểm thử & Xác thực:**
+  - `mvn test -Dtest=SupabaseStorageServiceTest,AiModelRouterTest,AdminVettingServiceTest`: **39/39 tests PASS (100%)**.
+  - `cd frontend; npm run build`: **0 lỗi TypeScript** (2.313 modules transformed trong 7.5s).
+  - Test live `POST /api/v1/documents/analyze-preview` với Gemini Flash thật: **HTTP 200 OK**, trích xuất chỉ số cận lâm sàng, giải thích bình dân và gợi ý bác sĩ chính xác.
+  - Test live `PATCH /api/v1/admin/users/b0000000-0000-0000-0000-000000000010/status`: **HTTP 200 OK**, chuyển trạng thái `SUSPENDED` và `ACTIVE` mượt mà không lỗi.
+  - Kiểm tra `frontend/dist`: Trường `Ảnh chân dung áo blouse trắng` đã biến mất hoàn toàn khỏi bundle đăng ký Bước 1.
+
+---
+
 ### [WORK-LOG-#127] Bổ Sung Liên Kết & Thẻ Nổi Bật Chuyên Đề Biện Luận Y Học Chứng Cứ SOTA Vào Cổng Hồ Sơ Khóa Luận (docs/index.html)
 * **Thời gian:** 2026-11-15 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Vinh)
@@ -74,6 +99,8 @@
   2. `[MOD]` `docs/WORK_LOG.md`: Ghi nhận nhật ký phiên làm việc `#127`.
 * **Bằng Chứng Kiểm Thử & Xác Thực:**
   - `curl -s http://localhost:8088/docs/index.html | grep -i "Biện Luận Y Học"`: Trả về đầy đủ nút bấm Header và khối nội dung thẻ bài.
+
+---
 
 ### [WORK-LOG-#126] Tích Hợp Xác Thực Email Qua Gmail SMTP Thực Tế & Đăng Nhập Google OAuth2
 * **Thời gian:** 2026-11-15 (GMT+7)

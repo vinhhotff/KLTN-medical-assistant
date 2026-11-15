@@ -50,7 +50,7 @@ class AiUsageAnalyticsServiceTest {
 
         aiUsageAnalyticsService.recordUsage(
                 AiTokenUsage.ServiceType.TRIAGE,
-                "gemini-3.6-flash",
+                "gemini-2.5-flash",
                 500,
                 200,
                 AiTokenUsage.RequestStatus.SUCCESS,

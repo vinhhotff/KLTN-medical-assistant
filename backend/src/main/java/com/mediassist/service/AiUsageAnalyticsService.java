@@ -56,7 +56,7 @@ public class AiUsageAnalyticsService {
         try {
             AiTokenUsage usage = new AiTokenUsage();
             usage.setServiceType(serviceType);
-            usage.setModelName(modelName != null && !modelName.isBlank() ? modelName : "gemini-3.6-flash");
+            usage.setModelName(modelName != null && !modelName.isBlank() ? modelName : "gemini-2.5-flash");
             usage.setPromptTokens(promptTokens);
             usage.setCompletionTokens(completionTokens);
             usage.setTotalTokens(promptTokens + completionTokens);
