@@ -242,18 +242,6 @@ export const LoginPage: React.FC = () => {
               </div>
             )}
 
-            {activeTab === 'REGISTER' && roleType === 'DOCTOR' && (
-              <div className="mb-4 p-3.5 bg-teal-50/90 border border-teal-200 rounded-2xl flex items-start gap-2.5 text-xs text-teal-950">
-                <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-bold text-teal-900">Dành Cho Y Bác Sĩ CCHN:</div>
-                  <div className="text-[11px] text-teal-800 mt-0.5 leading-relaxed">
-                    Quy trình 2 bước: (1) Điền biểu mẫu &amp; xác thực Email gửi về hộp thư → (2) Quản trị viên thẩm định CCHN trực tuyến.
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Quick External Actions — Google OAuth2 + VNeID (Login or Patient registration) */}
             {(activeTab === 'LOGIN' || roleType === 'PATIENT') && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-4">
@@ -279,7 +267,7 @@ export const LoginPage: React.FC = () => {
               <span className="flex-shrink mx-3 font-mono text-[10px] font-bold tracking-widest uppercase text-slate-500">
                 {activeTab === 'REGISTER'
                   ? roleType === 'DOCTOR'
-                    ? 'Biểu mẫu đăng ký bác sĩ & CCHN'
+                    ? 'Bước 1: Tạo tài khoản Bác sĩ'
                     : 'Hoặc điền thông tin y tế'
                   : 'Hoặc đăng nhập bằng tài khoản'}
               </span>

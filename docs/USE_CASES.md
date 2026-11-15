@@ -251,7 +251,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/register, POST /api/v1/auth/register/doctor, POST /api/v1/auth/verify-email, POST /api/v1/auth/resend-verification` (Quyền: `PUBLIC`, trừ `/resend-verification` yêu cầu `isAuthenticated()`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/login?mode=register&role=patient|doctor, /verify-email` $\rightarrow$ Màn hình `LoginPage.tsx, PatientRegisterForm.tsx, DoctorRegisterForm.tsx, VerifyEmailPage.tsx, EmailVerificationBanner.tsx, EmailNotVerifiedHint.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/login?mode=register&role=patient|doctor, /verify-email` $\rightarrow$ Màn hình `LoginPage.tsx, PatientRegisterForm.tsx, DoctorRegisterForm.tsx, VerifyEmailPage.tsx, EmailVerificationBanner.tsx, EmailNotVerifiedHint.tsx` (banner gắn trên cả `PatientLayout.tsx` & `DoctorLayout.tsx`)
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users, patient_profiles, doctor_profiles, doctor_specialties, specialties, email_verification_tokens, audit_logs` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V22__email_verification.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, EmailVerificationGuard, SecurityRateLimiterService, MailNotificationListener, EmailService` $\rightarrow$ `UserRepository, PatientProfileRepository, DoctorProfileRepository, SpecialtyRepository, EmailVerificationTokenRepository, AuditLogRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServiceEmailVerificationTest.java` (17/17 PASS), `SecurityRateLimiterEmailFlowTest.java` (3/3 PASS) (**100% PASS**)

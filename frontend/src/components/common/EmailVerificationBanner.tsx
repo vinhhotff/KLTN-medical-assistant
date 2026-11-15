@@ -48,7 +48,7 @@ export const EmailVerificationBanner: React.FC = () => {
           <MailWarning className="w-4 h-4 shrink-0 text-amber-600 mt-0.5 sm:mt-0" />
           <p>
             <strong>Email chưa được xác thực.</strong> Vui lòng mở liên kết MediAssist đã gửi tới{' '}
-            <strong>{user.email}</strong> để có thể đặt lịch khám và thanh toán.
+            <strong>{user.email}</strong> để hoàn tất xác thực tài khoản và mở khóa đầy đủ chức năng.
             {feedback && (
               <span className={`ml-2 font-semibold ${feedback.type === 'success' ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {feedback.text}

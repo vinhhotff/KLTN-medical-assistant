@@ -3,8 +3,10 @@ import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
 import { Stethoscope, LogOut, CalendarCheck, UserCog, Users, Menu, X, Activity } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
+import { EmailVerificationBanner } from '../components/common/EmailVerificationBanner';
 import { NotificationBell } from '../components/common/NotificationBell';
 import { useAuthStore } from '../store/useAuthStore';
+import { api } from '../services/api';
 import { cn } from '../components/ui';
 
 gsap.registerPlugin(useGSAP);
@@ -16,10 +18,38 @@ const NAV_ITEMS = [
 ];
 
 export const DoctorLayout: React.FC = () => {
-  const { user, logout } = useAuthStore();
+  const { user, logout, isAuthenticated, refreshCurrentUser } = useAuthStore();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isCchnVerified, setIsCchnVerified] = useState<boolean | null>(null);
   const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      void refreshCurrentUser();
+    }
+  }, [isAuthenticated, refreshCurrentUser]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setIsCchnVerified(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .get(`/doctors/${user.id}`)
+      .then((res) => {
+        if (cancelled) return;
+        const d = res.data?.data;
+        setIsCchnVerified(Boolean(d?.isVerified ?? d?.verified));
+      })
+      .catch(() => {
+        if (!cancelled) setIsCchnVerified(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, location.pathname]);
 
   // Close the mobile menu after navigating
   useEffect(() => setMenuOpen(false), [location.pathname]);
@@ -44,10 +74,39 @@ export const DoctorLayout: React.FC = () => {
     { dependencies: [location.pathname] }
   );
 
+  const renderCchnStatus = (uppercase = false) => {
+    if (isCchnVerified === true) {
+      return (
+        <span className="font-mono text-[10px] text-emerald-700 font-bold">
+          {uppercase ? '✓ CCHN ĐÃ XÁC THỰC' : '✓ CCHN đã xác thực'}
+        </span>
+      );
+    }
+    if (isCchnVerified === false) {
+      return (
+        <Link
+          to="/doctor/profile"
+          className="font-mono text-[10px] text-amber-700 hover:text-amber-900 font-bold underline decoration-amber-400/70 underline-offset-2"
+          title="Hoàn thiện hồ sơ & CCHN để Admin thẩm định"
+        >
+          {uppercase ? '⏳ CHỜ THẨM ĐỊNH CCHN' : '⏳ Chờ thẩm định CCHN'}
+        </Link>
+      );
+    }
+    return (
+      <span className="font-mono text-[10px] text-slate-400 font-medium">
+        {uppercase ? 'ĐANG KIỂM TRA CCHN...' : 'Đang kiểm tra CCHN...'}
+      </span>
+    );
+  };
+
   return (
-    <div className="min-h-screen flex bg-[#F6F3EC] text-slate-900 font-sans">
-      {/* DESKTOP TACTICAL PHYSICIAN RAIL — Clean Warm Clinical Atelier Palette */}
-      <aside
+    <div className="min-h-screen flex flex-col bg-[#F6F3EC] text-slate-900 font-sans">
+      <EmailVerificationBanner />
+
+      <div className="flex-1 flex min-h-0">
+        {/* DESKTOP TACTICAL PHYSICIAN RAIL — Clean Warm Clinical Atelier Palette */}
+        <aside
         className="hidden md:flex md:w-72 flex-col justify-between bg-[#FCFBF8] text-slate-800 border-r border-slate-200/90 sticky top-0 h-screen shrink-0 select-none shadow-[2px_0_12px_rgba(0,0,0,0.02)]"
         aria-label="Điều hướng bác sĩ"
       >
@@ -135,7 +194,7 @@ export const DoctorLayout: React.FC = () => {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="font-display font-bold text-sm text-slate-900 truncate">{user?.fullName}</p>
-              <span className="font-mono text-[10px] text-emerald-700 font-bold">✓ CCHN ĐÃ XÁC THỰC</span>
+              {renderCchnStatus(true)}
             </div>
             <button
               type="button"
@@ -187,7 +246,7 @@ export const DoctorLayout: React.FC = () => {
               <NotificationBell />
               <div className="text-right hidden lg:block pl-3 border-l border-slate-200">
                 <p className="text-sm font-display font-bold text-slate-900 leading-none">{user?.fullName}</p>
-                <span className="font-mono text-[10px] text-emerald-700 font-bold">✓ Đã xác thực</span>
+                {renderCchnStatus(false)}
               </div>
               <button
                 type="button"
@@ -233,6 +292,7 @@ export const DoctorLayout: React.FC = () => {
         <main ref={mainRef} className="flex-1 max-w-[1440px] w-full mx-auto p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
+        </div>
       </div>
     </div>
   );
