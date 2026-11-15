@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#127** | 15/11/2026 | Bổ Sung Liên Kết & Thẻ Nổi Bật Chuyên Đề Biện Luận Y Học Chứng Cứ SOTA Vào Cổng Hồ Sơ Khóa Luận (`docs/index.html`): (1) Bổ sung nút truy cập nhanh "Biện Luận Y Học (SOTA)" trên thanh điều hướng đầu trang của `docs/index.html`, (2) Bổ sung thẻ bài nổi bật "Biện Luận Y Học Chứng Cứ & SOTA" (đối chuẩn Google AMIE Nature 2024, Ada Health BMJ/Lancet, ClinicalRAG ACL 2024) ngay giữa giao diện trang chủ Portal phụ, đồng bộ liên kết trực tiếp với trình đọc WordCraft Studio `../report_1/index.html#clinical_defense`. Xác thực liên kết HTTP 200 thông suốt trên cổng 8088. | AI Assistant (Vinh) | 🟢 Sẵn sàng Review |
 | **#126** | 15/11/2026 | Tích Hợp Xác Thực Email Qua Gmail SMTP Thực Tế & Đăng Nhập Google OAuth2: (1) Cấu hình Gmail SMTP (`hoangkhuong056@gmail.com`) với Google App Password qua biến môi trường an toàn `.env` và `application-local.properties`, chuyển đổi từ Mailpit dev sang gửi email xác thực thực tế (STARTTLS port 587), (2) Xác thực luồng gửi email thật: Kiểm thử gửi email xác thực tài khoản `hoangkhuong056@gmail.com` thành công qua Google SMTP server (`Mail 'verify-email' sent`), (3) Hoàn thiện cấu hình Google OAuth2 (Client ID & Secret), đồng bộ `GoogleLoginButton.tsx` hỗ trợ proxy động, kiểm tra redirect URL `302 accounts.google.com` chính xác. Frontend build 0 lỗi TS, backend 31/31 tests PASS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#125** | 15/11/2026 | Cấu Hình CORS Mạng Nội Bộ Cho Mô Hình 2 Máy Dùng Chung Cục Bộ (Cross-Device LAN / VPN Full CORS Support): (1) Cập nhật `SecurityConfig.java` chuyển đổi từ `configuration.setAllowedOrigins` sang `configuration.setAllowedOriginPatterns`, hỗ trợ toàn bộ dải IP mạng cục bộ LAN (`192.168.*`, `10.*`, `172.*`) và mạng ảo Radmin VPN (`26.*`), giải quyết triệt để lỗi `403 Invalid CORS request` khi Máy B kết nối vào Máy A qua IP mạng nội bộ, (2) Khởi động lại Backend Spring Boot 5001 và xác thực preflight `OPTIONS` trả về `200 OK` với header `Access-Control-Allow-Origin` & `Allow-Credentials: true`, (3) Biên soạn cẩm nang hướng dẫn chi tiết cho Tech Lead kiểm thử 2 máy (cùng Wi-Fi LAN hoặc qua Radmin VPN) kèm giải pháp tường lửa Windows Defender Firewall. Xác thực 25/25 Security tests PASS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#124** | 15/11/2026 | Cấu Hình Mở Rộng Máy Chủ Mạng Nội Bộ (LAN Dev Server Network Binding & Preview Host Exposure): (1) Thiết lập cấu hình `host: true` cho cả `server` và `preview` trong `frontend/vite.config.ts`, cho phép Vite dev server và preview server lắng nghe trên tất cả các network interfaces (`0.0.0.0` và IPv6 `::`) thay vì chỉ cô lập ở loopback `localhost:5173`, (2) Hỗ trợ tính năng đồng kiểm thử trên nhiều thiết bị (Collaborative Cross-Device Testing): Giúp thành viên trong nhóm hoặc thiết bị ngoại vi (điện thoại, máy tính bảng, máy đồng nghiệp) kết nối trực tiếp vào máy chủ cục bộ thông qua IP mạng LAN Wi-Fi chung (`http://<LAN_IP>:5173`) hoặc các công cụ Tunnel (Cloudflare/Localtunnel) để dùng chung cơ sở dữ liệu và API backend Spring Boot 5001 mà không phát sinh lỗi CORS, (3) Xác thực biên dịch Frontend sạch sẽ (2.311 modules transformed, 0 lỗi TypeScript). | AI Assistant (Vinh) | 🟢 Sẵn sàng Review |
@@ -57,6 +58,22 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#127] Bổ Sung Liên Kết & Thẻ Nổi Bật Chuyên Đề Biện Luận Y Học Chứng Cứ SOTA Vào Cổng Hồ Sơ Khóa Luận (docs/index.html)
+* **Thời gian:** 2026-11-15 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Vinh)
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Tech Lead phản ánh *"sao danh sách tài liêụ tôi lại không thấy mục đó nhỉ"*.
+* **Nguyên Nhân Gốc Rễ & Bối Cảnh (Root Cause & Context):**
+  - Chuyên đề bảo vệ học thuật cốt lõi `docs/CLINICAL_GROUNDING_AND_EVIDENCE_DEFENSE.md` đã được nạp đầy đủ trong cơ sở dữ liệu `docs-bundle.js` với ID `clinical_defense` và tiêu đề tiếng Việt: *"Biện Luận Y Học Chứng Cứ, SOTA & An Toàn Lâm Sàng"* (thuộc nhóm `🎯 Khóa Luận & Phản Biện (Defense)`).
+  - Tuy nhiên, trên trang Portal phụ `docs/index.html` (chạy trên cổng `8088/docs/`), giao diện trước đó chỉ mới liệt kê 5 Báo cáo Report 1-5 và Slide bảo vệ, mà chưa có thẻ bài nổi bật riêng (Featured Card) và nút bấm trên Top Header cho bài chuyên đề SOTA này (vốn đã có ở Portal gốc `index.html`), khiến người dùng khó tìm thấy khi duyệt qua đường dẫn `/docs/`.
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[MOD]` `docs/index.html`:
+     - Bổ sung nút truy cập nhanh `"Biện Luận Y Học (SOTA)"` với huy hiệu xanh ngọc trên Header sticky của cổng tài liệu.
+     - Bổ sung thẻ bài nổi bật `"Biện Luận Y Học Chứng Cứ & SOTA"` (đối chuẩn Google AMIE Nature 2024, Ada Health BMJ/Lancet, ClinicalRAG ACL 2024) trỏ trực tiếp đến `../report_1/index.html#clinical_defense`.
+  2. `[MOD]` `docs/WORK_LOG.md`: Ghi nhận nhật ký phiên làm việc `#127`.
+* **Bằng Chứng Kiểm Thử & Xác Thực:**
+  - `curl -s http://localhost:8088/docs/index.html | grep -i "Biện Luận Y Học"`: Trả về đầy đủ nút bấm Header và khối nội dung thẻ bài.
 
 ### [WORK-LOG-#126] Tích Hợp Xác Thực Email Qua Gmail SMTP Thực Tế & Đăng Nhập Google OAuth2
 * **Thời gian:** 2026-11-15 (GMT+7)
