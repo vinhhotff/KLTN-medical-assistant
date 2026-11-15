@@ -27,7 +27,7 @@ graph TD
         C03[UC-COMM-03: Đổi Mật Khẩu Bcrypt]
         C04[UC-COMM-04: Cập Nhật Hồ Sơ Căn Cước Y Tế]
         C05[UC-COMM-05: Quên & Đặt Lại Mật Khẩu]
-        C06[UC-COMM-06: Xác Thực Địa Chỉ Email]
+        C06[UC-COMM-06: Đăng Ký Độc Lập & Xác Thực Email]
     end
 
     subgraph "Patient Subsystem (18 Use Cases)"
@@ -66,7 +66,7 @@ graph TD
 
     Patient --> C01 & C02 & C04 & C05 & C06
     Patient --> P01 & P02 & P03 & P05 & P08 & P09 & P10 & P15 & P16
-    Doctor --> C01 & C02 & C03
+    Doctor --> C01 & C02 & C03 & C06
     Doctor --> D01 & D02 & D03 & D04 & D05 & D06 & D08 & D13
     Admin --> C01 & C02
     Admin --> A01 & A02 & A03 & A04 & A05 & A07 & A09 & A11
@@ -85,11 +85,11 @@ graph TD
 
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
-> - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/login, GET /oauth2/authorization/google` (Quyền: `PUBLIC`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/login, /oauth2/callback` $\rightarrow$ Màn hình `LoginPage.tsx, OAuth2CallbackPage.tsx`
-> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V3__account_lockout_and_security_hardening.sql, V8__allow_null_password_hash_for_oauth.sql`
-> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, SecurityRateLimiterService` $\rightarrow$ `UserRepository`
-> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServiceTest.java, OAuth2SecurityTest.java, SecurityHardeningTest.java` (**100% PASS**)
+> - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/login, POST /api/v1/auth/register, POST /api/v1/auth/register/doctor, GET /oauth2/authorization/google` (Quyền: `PUBLIC`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/login` (hỗ trợ `?mode=register|login&role=patient|doctor`), `/oauth2/callback` $\rightarrow$ Màn hình `LoginPage.tsx, PatientRegisterForm.tsx, DoctorRegisterForm.tsx, OAuth2CallbackPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users, patient_profiles, doctor_profiles, doctor_specialties` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V3__account_lockout_and_security_hardening.sql, V8__allow_null_password_hash_for_oauth.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, SecurityRateLimiterService` $\rightarrow$ `UserRepository, PatientProfileRepository, DoctorProfileRepository, SpecialtyRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServiceEmailVerificationTest.java, OAuth2SecurityTest.java, SecurityHardeningTest.java` (**100% PASS**)
 
 | Attribute | Specification Details |
 | :--- | :--- |
@@ -246,36 +246,36 @@ graph TD
 
 ---
 
-#### UC-COMM-06: Rào Chắn Xác Thực Địa Chỉ Email (Email Verification Gate)
+#### UC-COMM-06: Đăng Ký Tài Khoản Độc Lập (Bệnh Nhân / Bác Sĩ) & Rào Chắn Xác Thực Email (Split Patient/Doctor Self-Registration & Email Verification Gate)
 
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
-> - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/verify-email, POST /api/v1/auth/resend-verification` (Quyền: `PUBLIC`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/verify-email` $\rightarrow$ Màn hình `VerifyEmailPage.tsx, EmailVerificationBanner.tsx, EmailNotVerifiedHint.tsx`
-> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `email_verification_tokens, users` $\rightarrow$ Bản di trú `V22__email_verification.sql`
-> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, EmailVerificationGuard, SecurityRateLimiterService, EmailService` $\rightarrow$ `EmailVerificationTokenRepository, UserRepository`
-> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServiceEmailVerificationTest.java, SecurityRateLimiterEmailFlowTest.java` (**100% PASS**)
+> - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/register, POST /api/v1/auth/register/doctor, POST /api/v1/auth/verify-email, POST /api/v1/auth/resend-verification` (Quyền: `PUBLIC`, trừ `/resend-verification` yêu cầu `isAuthenticated()`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/login?mode=register&role=patient|doctor, /verify-email` $\rightarrow$ Màn hình `LoginPage.tsx, PatientRegisterForm.tsx, DoctorRegisterForm.tsx, VerifyEmailPage.tsx, EmailVerificationBanner.tsx, EmailNotVerifiedHint.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users, patient_profiles, doctor_profiles, doctor_specialties, specialties, email_verification_tokens, audit_logs` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V22__email_verification.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, EmailVerificationGuard, SecurityRateLimiterService, MailNotificationListener, EmailService` $\rightarrow$ `UserRepository, PatientProfileRepository, DoctorProfileRepository, SpecialtyRepository, EmailVerificationTokenRepository, AuditLogRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServiceEmailVerificationTest.java` (17/17 PASS), `SecurityRateLimiterEmailFlowTest.java` (3/3 PASS) (**100% PASS**)
 
 | Attribute | Specification Details |
 | :--- | :--- |
 | **Use Case ID** | `UC-COMM-06` |
-| **Use Case Name** | Email Verification Gate |
+| **Use Case Name** | Split Patient/Doctor Self-Registration & Email Verification Gate |
 | **Created By** | SE-AI Capstone Team |
-| **Created Date** | 15/02/2026 |
-| **Primary Actor** | Newly registered user |
-| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
-| **Description** | MediAssist-AI Identity & Access Management (IAM) — - User account marked `email_verified = true`.<br>- User is permitted to access full clinical features (booking, triage, consultation). |
-| **Trigger** | User clicks the activation link received upon account registration. |
-| **Pre-conditions** | Account created with `email_verified = false` (Flyway V22). |
-| **Post-conditions** | - User account marked `email_verified = true`.<br>- User is permitted to access full clinical features (booking, triage, consultation). |
-| **Normal Flow** | Step 1: Upon registration, backend generates verification token stored in `email_verification_tokens`.<br>Step 2: Backend dispatches HTML email containing activation link: `/verify-email?token={token}`.<br>Step 3: User clicks activation link in email client navigating to `/verify-email`.<br>Step 4: Frontend calls HTTP POST `/api/v1/auth/verify-email` with `VerifyEmailRequest(token)`.<br>Step 5: Backend verifies token validity, matches user, updates `users.email_verified = true`.<br>Step 6: Backend deletes consumed verification token.<br>Step 7: Backend returns HTTP 200 OK with `TokenValidationResponse`.<br>Step 8: Frontend renders success celebration screen with button to proceed to login. |
-| **Alternative Flow** | - Alt Flow 11a: Resend Verification Email:<br>1. User calls HTTP POST `/api/v1/auth/resend-verification`.<br>2. Backend enforces rate limiting (`RATE_LIMIT_EXCEEDED`), generates fresh token, and sends new email. |
-| **Exceptions** | - Exc Flow 12a: Invalid or Expired Token:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", "Liên kết xác thực email đã hết hạn.")`.<br>2. Frontend displays error message with option to request a fresh verification link. |
-| **Priority** | High (P1) |
-| **Frequency of Use** | High (Frequent operational use) |
-| **Business Rules** | - BR-09: Unverified accounts cannot book clinical appointments or access medical records (`EmailVerificationGuard`). |
-| **Data Entities Involved** | - `users` (email_verified), `email_verification_tokens` (id, user_id, token, expires_at). |
-| **User Interface Controls** | - Activation banner, button `Kích Hoạt Tài Khoản`, `Gửi Lại Email`. |
+| **Created Date** | 15/02/2026 (Updated 15/11/2026) |
+| **Primary Actor** | Guest / Newly registered Patient or Doctor |
+| **Secondary Actor** | Transactional Email Gateway (Mailpit Dev `localhost:1025` / Gmail SMTP 587 STARTTLS), Admin Vetting Queue |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — Tách biệt hoàn toàn biểu mẫu đăng ký Bệnh nhân (`PatientRegisterForm.tsx`) và Bác sĩ (`DoctorRegisterForm.tsx`); khởi tạo hồ sơ chuyên môn tương ứng (`patient_profiles` hoặc `doctor_profiles` kèm `doctor_specialties`), phát hành token xác thực email SHA-256 (TTL 24h) qua sự kiện `EmailVerificationRequestedEvent` sau commit, và mở khóa đầy đủ chức năng khi người dùng xác thực liên kết `/verify-email?token=...`. |
+| **Trigger** | Người dùng truy cập `/login` (hoặc `/login?mode=register&role=doctor|patient`), chọn vai trò `Bệnh Nhân` hoặc `Bác Sĩ & Phòng Khám` và gửi biểu mẫu đăng ký, hoặc nhấn liên kết xác thực trong hộp thư. |
+| **Pre-conditions** | - Email (và SĐT đối với bác sĩ, số CCHN đối với bác sĩ) chưa tồn tại trên hệ thống.<br>- Hạ tầng SMTP hoạt động (Mailpit dev `SMTP_HOST=localhost:1025` hoặc biến môi trường `SMTP_*` / `.env` cho Gmail SMTP). |
+| **Post-conditions** | - **Bệnh nhân:** Tạo `User(role=PATIENT, status=ACTIVE, email_verified=false)` + `PatientProfile(BN-2026-*)`; đăng nhập ngay qua Dual-Transport JWT (Bearer + `accessToken` HttpOnly Cookie) và chuyển hướng `/patient`.<br>- **Bác sĩ:** Tạo `User(role=DOCTOR, status=ACTIVE, email_verified=false)` + `DoctorProfile(is_verified=false)` + liên kết `doctor_specialties` + `AuditLog(DOCTOR_SELF_REGISTERED)`; đăng nhập ngay vào `/doctor` và xếp hàng chờ Admin thẩm định CCHN (`UC-ADM-05`).<br>- **Sau xác thực email:** `users.email_verified = true`, `email_verified_at` được ghi nhận, token đã dùng bị đánh dấu và các token cũ bị xóa, ghi `AuditLog(EMAIL_VERIFIED)`. |
+| **Normal Flow** | **Luồng A — Đăng ký Bệnh nhân độc lập (`PatientRegisterForm.tsx`):**<br>Step 1: Tại `/login` (`activeTab = REGISTER`, `roleType = PATIENT`), bệnh nhân nhập Họ tên, Ngày sinh, SĐT, Email, Giới tính, Mật khẩu mạnh (8+ ký tự, chữ hoa, ký tự đặc biệt) và xác nhận điều khoản.<br>Step 2: Frontend gửi `POST /api/v1/auth/register` (`RegisterRequest`).<br>Step 3: Backend kiểm tra trùng email (`409 EMAIL_ALREADY_EXISTS`), tạo `User(PATIENT, ACTIVE, emailVerified=false)` + `PatientProfile`, gọi `issueEmailVerification(user)` và trả `201 Created` kèm JWT cookie + body.<br><br>**Luồng B — Bác sĩ tự đăng ký độc lập (`DoctorRegisterForm.tsx`):**<br>Step 1: Bác sĩ truy cập `/login?mode=register&role=doctor` (hoặc chọn tab `Bác Sĩ & Phòng Khám`), chọn Chuyên khoa tải từ `GET /api/v1/specialties` (có fallback 12 chuyên khoa chuẩn), nhập Học hàm/Học vị (`BS`..`GS.TS`), Họ tên, Email công tác/Gmail, SĐT, Số CCHN, Nơi cấp CCHN, Bệnh viện/Phòng khám, Khoa/Phòng ban, Số năm kinh nghiệm, Phí tư vấn, Tóm tắt chuyên môn và Mật khẩu.<br>Step 2: Frontend gửi `POST /api/v1/auth/register/doctor` (`DoctorRegisterRequest`).<br>Step 3: `AuthService.registerDoctor()` kiểm tra rate limit, kiểm tra trùng email (`409 EMAIL_ALREADY_EXISTS`), trùng SĐT (`409 PHONE_ALREADY_EXISTS`), trùng CCHN (`409 LICENSE_ALREADY_EXISTS`).<br>Step 4: Lưu `User(DOCTOR, ACTIVE, emailVerified=false)` và `DoctorProfile(isVerified=false)` kèm tập `Specialty` tìm theo `slug`, ghi `AuditLog(DOCTOR_SELF_REGISTERED)`, gọi `issueEmailVerification(user)`, trả `201 Created` kèm `accessToken` HttpOnly Cookie.<br><br>**Luồng C — Gửi & Xác thực Email:**<br>Step 5: `issueEmailVerification(user)` sinh token ngẫu nhiên, lưu bản băm SHA-256 (TTL 24h) vào `email_verification_tokens` và phát `EmailVerificationRequestedEvent`.<br>Step 6: `MailNotificationListener` (`AFTER_COMMIT`, `@Async("mailExecutor")`) gọi `EmailService.send(..., "verify-email", ...)` gửi HTML email chứa link `/verify-email?token={rawToken}` tới Mailpit hoặc Gmail SMTP.<br>Step 7: Người dùng bấm link `/verify-email?token=...`; `VerifyEmailPage.tsx` gọi `POST /api/v1/auth/verify-email` (`VerifyEmailRequest`).<br>Step 8: Backend băm token, xác thực hạn dùng, cập nhật `users.email_verified = true`, `email_verified_at = now`, đánh dấu `usedAt`, xóa token thừa, ghi `AuditLog(EMAIL_VERIFIED)` và trả `200 OK`. |
+| **Alternative Flow** | - Alt Flow 11a: Resend Verification Email:<br>1. Người dùng đã đăng nhập gọi `POST /api/v1/auth/resend-verification`.<br>2. Backend kiểm tra rate limit (60s/lần, tối đa 5 lần/giờ; trả `429 RATE_LIMIT_EXCEEDED` nếu vượt), vô hiệu token cũ, tạo token mới và gửi lại email.<br>- Alt Flow 11b: Bấm lại link xác thực khi đã verified:<br>1. `AuthService.verifyEmail()` xử lý idempotent, trả `200 OK` và không ghi trùng audit log.<br>- Alt Flow 11c: Cấu hình gửi Gmail thật vs Mailpit Dev:<br>1. Mặc định `dev` dùng Mailpit (`SMTP_HOST=localhost`, `SMTP_PORT=1025`).<br>2. Khi khai báo `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USERNAME`, `SMTP_PASSWORD` (App Password 16 ký tự), `SMTP_AUTH=true`, `SMTP_STARTTLS=true`, `SMTP_STARTTLS_REQUIRED=true` trong `.env` / `backend/.env` (nạp qua `spring.config.import`), hệ thống gửi trực tiếp tới hộp thư Gmail thực tế. |
+| **Exceptions** | - Exc Flow 12a: Trùng Email / SĐT / Số CCHN khi đăng ký:<br>1. Backend ném `AppException(HttpStatus.CONFLICT, "EMAIL_ALREADY_EXISTS" | "PHONE_ALREADY_EXISTS" | "LICENSE_ALREADY_EXISTS", ...)` trả `409 Conflict`.<br>2. Form hiển thị lỗi inline tiếng Việt rõ ràng.<br>- Exc Flow 12b: Invalid or Expired Token:<br>1. Backend ném `AppException(HttpStatus.BAD_REQUEST, "INVALID_TOKEN" | "TOKEN_EXPIRED", ...)`.<br>2. `VerifyEmailPage.tsx` hiển thị thông báo lỗi kèm hướng dẫn yêu cầu gửi lại email xác thực.<br>- Exc Flow 12c: Rate limit đăng ký (`429 RATE_LIMIT_EXCEEDED`): Chặn spam tạo tài khoản qua `SecurityRateLimiterService.allowRegistrationAttempt`. |
+| **Priority** | High (P0 - Core Onboarding & Security) |
+| **Frequency of Use** | High (Every patient/doctor onboarding) |
+| **Business Rules** | - BR-09: Bệnh nhân chưa xác thực email (`email_verified = false`) bị chặn đặt lịch khám và thanh toán bởi `EmailVerificationGuard` (`403 EMAIL_NOT_VERIFIED`).<br>- BR-09B: Bác sĩ tự đăng ký có `is_verified = false` bị ẩn khỏi danh mục tìm kiếm bác sĩ công khai (`/api/v1/doctors`) cho tới khi Admin thẩm định CCHN (`UC-ADM-05`). |
+| **Data Entities Involved** | - `users` (role, status, email_verified, email_verified_at, phone), `patient_profiles`, `doctor_profiles` (license_number, academic_title, hospital_affiliation, department, license_issued_by, years_of_experience, consultation_fee, bio, is_verified), `doctor_specialties`, `specialties`, `email_verification_tokens`, `audit_logs`. |
+| **User Interface Controls** | - Role Switcher Pills (`Dành Cho Bệnh Nhân`, `Bác Sĩ & Phòng Khám`).<br>- `PatientRegisterForm`: inputs thông tin bệnh nhân, strength meter, `#terms`, demo presets (`ENABLE_DEMO_LOGIN`), button `Tạo Tài Khoản`.<br>- `DoctorRegisterForm`: inputs định danh & CCHN, multi-select pill chuyên khoa, strength meter, `#doctor-terms`, demo presets (`ENABLE_DEMO_LOGIN`), button `Đăng Ký Tài Khoản Bác Sĩ`.<br>- Banner nhắc xác thực email, `Kích Hoạt Tài Khoản`, `Gửi Lại Email`. |
 
 
 
@@ -1506,9 +1506,9 @@ graph TD
 | **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
 | **Description** | MediAssist-AI Vetting Subsystem — Doctor verified (`is_verified = true`) and activated for public search. |
 | **Trigger** | Admin reviews pending doctor license applications. |
-| **Pre-conditions** | Doctor account exists with `is_verified = false`. |
-| **Post-conditions** | Doctor verified (`is_verified = true`) and activated for public search. |
-| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/pending`.<br>Step 3: Backend returns doctors with `is_verified = false`.<br>Step 4: Admin inspects CCHN license number, issuing authority, and specialty credentials.<br>Step 5: Admin clicks "Phê Duyệt" (Approve).<br>Step 6: Frontend calls HTTP POST `/api/v1/admin/doctors/{id}/vet` with `VetDoctorRequest(approved=true)`.<br>Step 7: Backend sets `doctor_profiles.is_verified = true`.<br>Step 8: Backend triggers vector embedding generation if missing.<br>Step 9: Backend sends approval email to doctor.<br>Step 10: Frontend removes doctor from pending queue. |
+| **Pre-conditions** | Doctor account exists with `is_verified = false` (created via self-registration `POST /api/v1/auth/register/doctor` or Admin creation). |
+| **Post-conditions** | Doctor verified (`is_verified = true`), user status ensured `ACTIVE` (promoted if `PENDING_VERIFICATION`), and activated for public search. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/pending`.<br>Step 3: Backend returns doctors with `is_verified = false`.<br>Step 4: Admin inspects CCHN license number, issuing authority, and specialty credentials.<br>Step 5: Admin clicks "Phê Duyệt" (Approve).<br>Step 6: Frontend calls HTTP POST `/api/v1/admin/doctors/{id}/vet` with `VetDoctorRequest(approved=true)`.<br>Step 7: Backend sets `doctor_profiles.is_verified = true`, `verified_at = now()`, and promotes `UserStatus.PENDING_VERIFICATION` $\rightarrow$ `UserStatus.ACTIVE` if needed.<br>Step 8: Backend triggers vector embedding generation if missing.<br>Step 9: Backend sends in-app notification (`VETTING_APPROVED`) to doctor.<br>Step 10: Frontend removes doctor from pending queue. |
 | **Alternative Flow** | - Alt Flow 11a: Reject Application:<br>1. Admin calls vetting endpoint with `approved = false` and rejection reason.<br>2. Backend sends rejection email prompting re-submission. |
 | **Exceptions** | None. |
 | **Priority** | High (P0 - Legal Compliance) |

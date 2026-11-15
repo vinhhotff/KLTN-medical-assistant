@@ -94,13 +94,75 @@ export async function handleMockRequest(
   if (method === 'POST' && path === '/auth/register') {
     const newUser = {
       id: `usr-${Date.now()}`,
-      email: body?.email || 'patient@mediassist.local',
+      email: (body?.email || 'patient@mediassist.local').trim().toLowerCase(),
       fullName: body?.fullName || 'Bệnh Nhân Mới',
-      role: body?.role || 'PATIENT',
+      role: 'PATIENT',
       status: 'ACTIVE',
+      phone: body?.phone || null,
+      emailVerified: false,
       createdAt: atToday(8, 0, 0),
     };
     return ok({ user: newUser, token: `mock-jwt-token-patient-${Date.now()}` }, 'Đăng ký tài khoản thành công');
+  }
+
+  if (method === 'POST' && path === '/auth/register/doctor') {
+    const email = (body?.email || 'doctor.new@mediassist.local').trim().toLowerCase();
+    const licenseNumber = (body?.licenseNumber || '').trim().toUpperCase();
+
+    if (MOCK_USERS[email] || doctors.some((d) => d.email.toLowerCase() === email)) {
+      return fail(409, 'EMAIL_ALREADY_EXISTS', 'Email này đã được đăng ký trong hệ thống.');
+    }
+    if (licenseNumber && doctors.some((d) => d.licenseNumber.toUpperCase() === licenseNumber)) {
+      return fail(409, 'LICENSE_ALREADY_EXISTS', 'Số Chứng chỉ hành nghề (CCHN) đã tồn tại trong hệ thống.');
+    }
+
+    const userId = `doc-${Date.now()}`;
+    const resolvedSpecialties = Array.isArray(body?.specialtySlugs) && body.specialtySlugs.length > 0
+      ? body.specialtySlugs.map((slug: string) => {
+          const found = MOCK_SPECIALTIES.find((s) => s.slug === slug);
+          return found ? found.name : slug;
+        })
+      : ['Nội tổng quát (Internal Medicine)'];
+
+    const newDoctorUser = {
+      id: userId,
+      email,
+      fullName: body?.fullName || 'Bác Sĩ Mới',
+      role: 'DOCTOR',
+      status: 'ACTIVE',
+      phone: body?.phone || null,
+      avatarUrl: null,
+      emailVerified: false,
+      createdAt: atToday(8, 0, 0),
+    };
+
+    doctors.unshift({
+      id: userId,
+      profileId: `dp-${Date.now()}`,
+      fullName: `${body?.academicTitle ? `${body.academicTitle} ` : ''}${newDoctorUser.fullName}`,
+      email,
+      phone: body?.phone || '0901234567',
+      bio: body?.bio || '',
+      licenseNumber: licenseNumber || `CCHN-${Date.now()}`,
+      consultationFee: Number(body?.consultationFee ?? 300000),
+      yearsOfExperience: Number(body?.yearsOfExperience ?? 5),
+      isVerified: false,
+      specialties: resolvedSpecialties,
+      academicTitle: body?.academicTitle || 'BS',
+      hospitalAffiliation: body?.hospitalAffiliation || 'Bệnh viện MediAssist',
+      department: body?.department || 'Khoa Khám Bệnh',
+      licenseIssuedBy: body?.licenseIssuedBy || 'Bộ Y Tế',
+      rating: 5.0,
+      totalConsultations: 0,
+      reviewCount: 0,
+      userStatus: 'ACTIVE',
+      createdAt: atToday(8, 0, 0),
+    });
+
+    return ok(
+      { user: newDoctorUser, token: `mock-jwt-token-doctor-${Date.now()}` },
+      'Đăng ký tài khoản bác sĩ thành công. Vui lòng kiểm tra email để xác thực tài khoản.'
+    );
   }
 
   if (method === 'POST' && path === '/auth/forgot-password') {

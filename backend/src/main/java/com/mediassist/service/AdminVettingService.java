@@ -187,6 +187,10 @@ public class AdminVettingService {
         profile.setVerified(approve);
         if (approve) {
             profile.setVerifiedAt(LocalDateTime.now());
+            if (profile.getUser() != null && profile.getUser().getStatus() == UserStatus.PENDING_VERIFICATION) {
+                profile.getUser().setStatus(UserStatus.ACTIVE);
+                userRepository.save(profile.getUser());
+            }
             try {
                 String specNames = profile.getSpecialties().stream()
                         .map(com.mediassist.model.entity.Specialty::getName)

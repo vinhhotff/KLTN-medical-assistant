@@ -3,6 +3,7 @@ package com.mediassist.service;
 import com.mediassist.common.AppException;
 import com.mediassist.common.ClientRequestInfo;
 import com.mediassist.dto.AuthResponse;
+import com.mediassist.dto.DoctorRegisterRequest;
 import com.mediassist.dto.LoginRequest;
 import com.mediassist.dto.RegisterRequest;
 import com.mediassist.dto.UserDto;
@@ -11,16 +12,20 @@ import com.mediassist.event.PasswordChangedEvent;
 import com.mediassist.event.PasswordResetRequestedEvent;
 import com.mediassist.mail.MailFormat;
 import com.mediassist.model.entity.AuditLog;
+import com.mediassist.model.entity.DoctorProfile;
 import com.mediassist.model.entity.EmailVerificationToken;
 import com.mediassist.model.entity.PatientProfile;
 import com.mediassist.model.entity.PasswordResetToken;
 import com.mediassist.model.entity.Role;
+import com.mediassist.model.entity.Specialty;
 import com.mediassist.model.entity.User;
 import com.mediassist.model.entity.UserStatus;
 import com.mediassist.repository.AuditLogRepository;
+import com.mediassist.repository.DoctorProfileRepository;
 import com.mediassist.repository.EmailVerificationTokenRepository;
 import com.mediassist.repository.PasswordResetTokenRepository;
 import com.mediassist.repository.PatientProfileRepository;
+import com.mediassist.repository.SpecialtyRepository;
 import com.mediassist.repository.UserRepository;
 import com.mediassist.security.JwtTokenProvider;
 import com.mediassist.security.SecureTokens;
@@ -28,15 +33,19 @@ import com.mediassist.security.UserPrincipal;
 import org.slf4j.Logger;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -62,6 +71,8 @@ public class AuthService {
     private final ApplicationEventPublisher eventPublisher;
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final SecurityRateLimiterService rateLimiterService;
+    private final DoctorProfileRepository doctorProfileRepository;
+    private final SpecialtyRepository specialtyRepository;
 
     public AuthService(UserRepository userRepository,
                        PatientProfileRepository patientProfileRepository,
@@ -72,6 +83,23 @@ public class AuthService {
                        ApplicationEventPublisher eventPublisher,
                        EmailVerificationTokenRepository emailVerificationTokenRepository,
                        SecurityRateLimiterService rateLimiterService) {
+        this(userRepository, patientProfileRepository, passwordEncoder, tokenProvider,
+                passwordResetTokenRepository, auditLogRepository, eventPublisher,
+                emailVerificationTokenRepository, rateLimiterService, null, null);
+    }
+
+    @Autowired
+    public AuthService(UserRepository userRepository,
+                       PatientProfileRepository patientProfileRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtTokenProvider tokenProvider,
+                       PasswordResetTokenRepository passwordResetTokenRepository,
+                       AuditLogRepository auditLogRepository,
+                       ApplicationEventPublisher eventPublisher,
+                       EmailVerificationTokenRepository emailVerificationTokenRepository,
+                       SecurityRateLimiterService rateLimiterService,
+                       DoctorProfileRepository doctorProfileRepository,
+                       SpecialtyRepository specialtyRepository) {
         this.userRepository = userRepository;
         this.patientProfileRepository = patientProfileRepository;
         this.passwordEncoder = passwordEncoder;
@@ -81,6 +109,8 @@ public class AuthService {
         this.eventPublisher = eventPublisher;
         this.emailVerificationTokenRepository = emailVerificationTokenRepository;
         this.rateLimiterService = rateLimiterService;
+        this.doctorProfileRepository = doctorProfileRepository;
+        this.specialtyRepository = specialtyRepository;
     }
 
     @Transactional(noRollbackFor = AppException.class)
@@ -208,6 +238,93 @@ public class AuthService {
         String token = tokenProvider.generateAccessToken(principal);
 
         return new AuthResponse(UserDto.from(user), token);
+    }
+
+    /**
+     * Bác sĩ tự đăng ký tài khoản độc lập kèm hồ sơ CCHN (chưa verified công khai cho tới khi Admin thẩm định)
+     * và nhận email xác thực ngay lập tức.
+     */
+    @Transactional
+    public AuthResponse registerDoctor(DoctorRegisterRequest request) {
+        if (doctorProfileRepository == null || specialtyRepository == null) {
+            throw new IllegalStateException("Doctor repositories are not configured");
+        }
+
+        String email = request.getEmail().toLowerCase().trim();
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new AppException(HttpStatus.CONFLICT, "EMAIL_ALREADY_EXISTS",
+                    "Email '" + email + "' đã được sử dụng trên hệ thống. Vui lòng đăng nhập hoặc sử dụng email khác.");
+        }
+
+        String phone = trimToNull(request.getPhone());
+        if (phone != null && userRepository.existsByPhone(phone)) {
+            throw new AppException(HttpStatus.CONFLICT, "PHONE_ALREADY_EXISTS",
+                    "Số điện thoại '" + phone + "' đã được sử dụng trên hệ thống. Vui lòng kiểm tra lại hoặc đăng nhập.");
+        }
+
+        String license = request.getLicenseNumber().trim();
+        if (doctorProfileRepository.findByLicenseNumber(license).isPresent()) {
+            throw new AppException(HttpStatus.CONFLICT, "LICENSE_ALREADY_EXISTS",
+                    "Số chứng chỉ hành nghề '" + license + "' đã được đăng ký trên hệ thống.");
+        }
+
+        User user = new User();
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setFullName(request.getFullName().trim());
+        if (phone != null) {
+            user.setPhone(phone);
+        }
+        user.setRole(Role.DOCTOR);
+        user.setStatus(UserStatus.ACTIVE);
+        user.setEmailVerified(false);
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        user = userRepository.save(user);
+
+        DoctorProfile profile = new DoctorProfile();
+        profile.setUser(user);
+        profile.setAcademicTitle(fallbackText(request.getAcademicTitle(), "BS"));
+        profile.setLicenseNumber(license);
+        profile.setLicenseIssuedBy(fallbackText(request.getLicenseIssuedBy(), "Bộ Y Tế"));
+        profile.setHospitalAffiliation(request.getHospitalAffiliation().trim());
+        profile.setDepartment(trimToNull(request.getDepartment()));
+        profile.setYearsOfExperience(request.getYearsOfExperience() != null ? request.getYearsOfExperience() : 1);
+        profile.setConsultationFee(request.getConsultationFee() != null
+                ? request.getConsultationFee()
+                : BigDecimal.valueOf(300000));
+        profile.setBio(trimToNull(request.getBio()));
+        profile.setVerified(false);
+
+        Set<Specialty> specialties = new LinkedHashSet<>();
+        if (request.getSpecialtySlugs() != null) {
+            for (String slug : request.getSpecialtySlugs()) {
+                if (slug != null && !slug.isBlank()) {
+                    specialtyRepository.findBySlug(slug.trim().toLowerCase())
+                            .ifPresent(specialties::add);
+                }
+            }
+        }
+        profile.setSpecialties(specialties);
+        doctorProfileRepository.save(profile);
+
+        recordAudit(user.getId(), "DOCTOR_SELF_REGISTERED", "License: " + license);
+        log.info("🎉 Registered new doctor {} with license {} (awaiting Admin CCHN vetting)",
+                MailFormat.maskEmail(user.getEmail()), license);
+
+        issueEmailVerification(user);
+
+        UserPrincipal principal = UserPrincipal.create(user);
+        String token = tokenProvider.generateAccessToken(principal);
+        return new AuthResponse(UserDto.from(user), token);
+    }
+
+    private static String fallbackText(String value, String fallback) {
+        return value != null && !value.isBlank() ? value.trim() : fallback;
+    }
+
+    private static String trimToNull(String value) {
+        return value != null && !value.isBlank() ? value.trim() : null;
     }
 
     /**
