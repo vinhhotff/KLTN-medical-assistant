@@ -3,7 +3,6 @@ package com.mediassist.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
@@ -11,7 +10,8 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Payload đăng ký tài khoản bác sĩ độc lập kèm thông tin chứng chỉ hành nghề (CCHN).
+ * Payload đăng ký tài khoản bác sĩ độc lập (Bước 1 chỉ cần Nhóm 1: Định danh &amp; Tài khoản;
+ * thông tin CCHN &amp; chuyên môn có thể hoàn thiện ở Bước 2 hoặc truyền kèm nếu có).
  */
 public class DoctorRegisterRequest {
 
@@ -29,14 +29,16 @@ public class DoctorRegisterRequest {
     @NotBlank(message = "Số điện thoại không được để trống")
     private String phone;
 
+    private String avatarUrl;
+
     private String academicTitle = "BS";
 
-    @NotBlank(message = "Số chứng chỉ hành nghề (CCHN) không được để trống")
     private String licenseNumber;
 
     private String licenseIssuedBy = "Bộ Y Tế";
 
-    @NotBlank(message = "Bệnh viện / Phòng khám công tác không được để trống")
+    private String licenseDocumentUrl;
+
     private String hospitalAffiliation;
 
     private String department;
@@ -47,7 +49,6 @@ public class DoctorRegisterRequest {
     @PositiveOrZero(message = "Phí tư vấn không được âm")
     private BigDecimal consultationFee = BigDecimal.valueOf(300000);
 
-    @NotEmpty(message = "Vui lòng chọn ít nhất 1 chuyên khoa")
     private List<String> specialtySlugs;
 
     private String bio;
@@ -66,6 +67,9 @@ public class DoctorRegisterRequest {
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
 
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+
     public String getAcademicTitle() { return academicTitle; }
     public void setAcademicTitle(String academicTitle) { this.academicTitle = academicTitle; }
 
@@ -74,6 +78,9 @@ public class DoctorRegisterRequest {
 
     public String getLicenseIssuedBy() { return licenseIssuedBy; }
     public void setLicenseIssuedBy(String licenseIssuedBy) { this.licenseIssuedBy = licenseIssuedBy; }
+
+    public String getLicenseDocumentUrl() { return licenseDocumentUrl; }
+    public void setLicenseDocumentUrl(String licenseDocumentUrl) { this.licenseDocumentUrl = licenseDocumentUrl; }
 
     public String getHospitalAffiliation() { return hospitalAffiliation; }
     public void setHospitalAffiliation(String hospitalAffiliation) { this.hospitalAffiliation = hospitalAffiliation; }

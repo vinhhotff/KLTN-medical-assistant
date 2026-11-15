@@ -162,19 +162,60 @@ public class DoctorService {
                     return newProfile;
                 });
 
-        if (req.getBio() != null) profile.setBio(req.getBio());
-        if (req.getLicenseNumber() != null) profile.setLicenseNumber(req.getLicenseNumber());
+        User user = profile.getUser();
+        if (user != null) {
+            boolean userModified = false;
+            if (req.getFullName() != null && !req.getFullName().isBlank()) {
+                user.setFullName(req.getFullName().trim());
+                userModified = true;
+            }
+            if (req.getPhone() != null && !req.getPhone().isBlank()) {
+                String normalizedPhone = req.getPhone().trim();
+                if (!normalizedPhone.equals(user.getPhone()) && userRepository.existsByPhone(normalizedPhone)) {
+                    throw new AppException(HttpStatus.CONFLICT, "PHONE_ALREADY_EXISTS",
+                            "Số điện thoại '" + normalizedPhone + "' đã được sử dụng trên hệ thống.");
+                }
+                user.setPhone(normalizedPhone);
+                userModified = true;
+            }
+            if (req.getAvatarUrl() != null) {
+                user.setAvatarUrl(req.getAvatarUrl().isBlank() ? null : req.getAvatarUrl().trim());
+                userModified = true;
+            }
+            if (userModified) {
+                userRepository.save(user);
+            }
+        }
+
+        if (req.getBio() != null) profile.setBio(req.getBio().trim());
+        if (req.getLicenseNumber() != null) {
+            String trimmedLicense = req.getLicenseNumber().isBlank() ? null : req.getLicenseNumber().trim();
+            if (trimmedLicense != null) {
+                doctorProfileRepository.findByLicenseNumber(trimmedLicense).ifPresent(existing -> {
+                    if (profile.getId() == null || !existing.getId().equals(profile.getId())) {
+                        throw new AppException(HttpStatus.CONFLICT, "LICENSE_ALREADY_EXISTS",
+                                "Số chứng chỉ hành nghề '" + trimmedLicense + "' đã được đăng ký bởi bác sĩ khác trên hệ thống.");
+                    }
+                });
+            }
+            profile.setLicenseNumber(trimmedLicense);
+        }
+        if (req.getLicenseDocumentUrl() != null) {
+            profile.setLicenseDocumentUrl(req.getLicenseDocumentUrl().isBlank() ? null : req.getLicenseDocumentUrl().trim());
+        }
         if (req.getConsultationFee() != null) profile.setConsultationFee(req.getConsultationFee());
         if (req.getYearsOfExperience() != null) profile.setYearsOfExperience(req.getYearsOfExperience());
-        if (req.getAcademicTitle() != null) profile.setAcademicTitle(req.getAcademicTitle());
-        if (req.getHospitalAffiliation() != null) profile.setHospitalAffiliation(req.getHospitalAffiliation());
-        if (req.getDepartment() != null) profile.setDepartment(req.getDepartment());
-        if (req.getLicenseIssuedBy() != null) profile.setLicenseIssuedBy(req.getLicenseIssuedBy());
+        if (req.getAcademicTitle() != null) profile.setAcademicTitle(req.getAcademicTitle().trim());
+        if (req.getHospitalAffiliation() != null) profile.setHospitalAffiliation(req.getHospitalAffiliation().trim());
+        if (req.getDepartment() != null) profile.setDepartment(req.getDepartment().trim());
+        if (req.getLicenseIssuedBy() != null) profile.setLicenseIssuedBy(req.getLicenseIssuedBy().trim());
 
         if (req.getSpecialtySlugs() != null && !req.getSpecialtySlugs().isEmpty()) {
             Set<Specialty> specialties = new HashSet<>();
             for (String slug : req.getSpecialtySlugs()) {
-                specialtyRepository.findBySlug(slug).ifPresent(specialties::add);
+                if (slug != null && !slug.isBlank()) {
+                    specialtyRepository.findBySlug(slug.trim().toLowerCase()).ifPresent(specialties::add);
+                }
             }
             profile.setSpecialties(specialties);
         }

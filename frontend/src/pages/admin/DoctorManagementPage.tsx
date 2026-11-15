@@ -17,6 +17,7 @@ import {
   Clock,
   ShieldCheck,
   UserCheck,
+  ExternalLink,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
@@ -70,6 +71,7 @@ export interface Doctor {
   avatarUrl?: string;
   bio?: string;
   licenseNumber: string;
+  licenseDocumentUrl?: string;
   consultationFee: number;
   yearsOfExperience: number;
   isVerified: boolean;
@@ -769,7 +771,18 @@ export const DoctorManagementPage: React.FC = () => {
                       <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl">
                         <div>
                           <span className="text-slate-400 block">Số CCHN:</span>
-                          <span className="font-mono font-bold text-slate-800">{doc.licenseNumber}</span>
+                          <span className="font-mono font-bold text-slate-800">{doc.licenseNumber || 'Chưa khai báo CCHN'}</span>
+                          {doc.licenseDocumentUrl && (
+                            <a
+                              href={doc.licenseDocumentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal-700 hover:underline mt-1"
+                            >
+                              <span>Xem bản scan CCHN</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
                         </div>
                         <div>
                           <span className="text-slate-400 block">Nơi cấp:</span>
@@ -777,7 +790,7 @@ export const DoctorManagementPage: React.FC = () => {
                         </div>
                         <div>
                           <span className="text-slate-400 block">Bệnh viện:</span>
-                          <span className="font-semibold text-slate-800">{doc.hospitalAffiliation || 'N/A'}</span>
+                          <span className="font-semibold text-slate-800">{doc.hospitalAffiliation || 'Chưa cập nhật'}</span>
                         </div>
                         <div>
                           <span className="text-slate-400 block">Kinh nghiệm:</span>
@@ -888,8 +901,19 @@ export const DoctorManagementPage: React.FC = () => {
 
                 <div className="p-3 bg-slate-50 rounded-xl space-y-1">
                   <span className="text-slate-400 block font-semibold">Chứng chỉ hành nghề (CCHN):</span>
-                  <p className="font-mono font-bold text-sm text-slate-800">{selectedDoctorView.licenseNumber}</p>
+                  <p className="font-mono font-bold text-sm text-slate-800">{selectedDoctorView.licenseNumber || 'Chưa khai báo CCHN'}</p>
                   <p className="text-slate-500">Cơ quan cấp: {selectedDoctorView.licenseIssuedBy || 'Bộ Y Tế'}</p>
+                  {selectedDoctorView.licenseDocumentUrl && (
+                    <a
+                      href={selectedDoctorView.licenseDocumentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline pt-0.5"
+                    >
+                      <span>Xem bản scan CCHN</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-xl space-y-1">

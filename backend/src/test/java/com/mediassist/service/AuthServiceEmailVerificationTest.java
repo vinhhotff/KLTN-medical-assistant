@@ -421,4 +421,45 @@ class AuthServiceEmailVerificationTest {
         verify(doctorProfileRepository, never()).save(any());
         verify(eventPublisher, never()).publishEvent(any());
     }
+
+    @Test
+    @DisplayName("Dang ky bac si Buoc 1 co ban (chi Nhom 1: fullName, email, phone, password): licenseNumber=null, isVerified=false")
+    void registerDoctorBasicStep1Success() {
+        DoctorRegisterRequest req = new DoctorRegisterRequest();
+        req.setEmail("bacsi.nguyenvana@gmail.com");
+        req.setPassword("DoctorPass2026!");
+        req.setFullName("Nguyễn Văn A");
+        req.setPhone("0901234567");
+        req.setAvatarUrl("https://example.com/avatar.jpg");
+
+        when(userRepository.findByEmail("bacsi.nguyenvana@gmail.com")).thenReturn(Optional.empty());
+        when(userRepository.existsByPhone("0901234567")).thenReturn(false);
+        when(passwordEncoder.encode("DoctorPass2026!")).thenReturn("encoded-doctor-pw");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(UUID.randomUUID());
+            return u;
+        });
+        when(doctorProfileRepository.save(any(DoctorProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AuthResponse response = authService.registerDoctor(req);
+
+        assertEquals("jwt", response.getToken());
+        assertEquals(Role.DOCTOR, response.getUser().getRole());
+        assertEquals(UserStatus.ACTIVE, response.getUser().getStatus());
+        assertFalse(response.getUser().isEmailVerified());
+        assertEquals("https://example.com/avatar.jpg", response.getUser().getAvatarUrl());
+
+        verify(doctorProfileRepository, never()).findByLicenseNumber(anyString());
+        ArgumentCaptor<DoctorProfile> profileCaptor = ArgumentCaptor.forClass(DoctorProfile.class);
+        verify(doctorProfileRepository).save(profileCaptor.capture());
+        DoctorProfile savedProfile = profileCaptor.getValue();
+        assertNull(savedProfile.getLicenseNumber());
+        assertNull(savedProfile.getHospitalAffiliation());
+        assertFalse(savedProfile.isVerified());
+
+        ArgumentCaptor<AuditLog> auditCaptor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository).save(auditCaptor.capture());
+        assertEquals("License: PENDING_ONBOARDING", auditCaptor.getValue().getMetadata());
+    }
 }

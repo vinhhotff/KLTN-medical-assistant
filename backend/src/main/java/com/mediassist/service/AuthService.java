@@ -262,8 +262,8 @@ public class AuthService {
                     "Số điện thoại '" + phone + "' đã được sử dụng trên hệ thống. Vui lòng kiểm tra lại hoặc đăng nhập.");
         }
 
-        String license = request.getLicenseNumber().trim();
-        if (doctorProfileRepository.findByLicenseNumber(license).isPresent()) {
+        String license = trimToNull(request.getLicenseNumber());
+        if (license != null && doctorProfileRepository.findByLicenseNumber(license).isPresent()) {
             throw new AppException(HttpStatus.CONFLICT, "LICENSE_ALREADY_EXISTS",
                     "Số chứng chỉ hành nghề '" + license + "' đã được đăng ký trên hệ thống.");
         }
@@ -275,6 +275,10 @@ public class AuthService {
         if (phone != null) {
             user.setPhone(phone);
         }
+        String avatarUrl = trimToNull(request.getAvatarUrl());
+        if (avatarUrl != null) {
+            user.setAvatarUrl(avatarUrl);
+        }
         user.setRole(Role.DOCTOR);
         user.setStatus(UserStatus.ACTIVE);
         user.setEmailVerified(false);
@@ -285,9 +289,11 @@ public class AuthService {
         DoctorProfile profile = new DoctorProfile();
         profile.setUser(user);
         profile.setAcademicTitle(fallbackText(request.getAcademicTitle(), "BS"));
+        // Giữ null nếu bác sĩ chưa khai báo ở Bước 1 để không đụng UNIQUE(license_number) trong PostgreSQL
         profile.setLicenseNumber(license);
         profile.setLicenseIssuedBy(fallbackText(request.getLicenseIssuedBy(), "Bộ Y Tế"));
-        profile.setHospitalAffiliation(request.getHospitalAffiliation().trim());
+        profile.setLicenseDocumentUrl(trimToNull(request.getLicenseDocumentUrl()));
+        profile.setHospitalAffiliation(trimToNull(request.getHospitalAffiliation()));
         profile.setDepartment(trimToNull(request.getDepartment()));
         profile.setYearsOfExperience(request.getYearsOfExperience() != null ? request.getYearsOfExperience() : 1);
         profile.setConsultationFee(request.getConsultationFee() != null
@@ -308,9 +314,10 @@ public class AuthService {
         profile.setSpecialties(specialties);
         doctorProfileRepository.save(profile);
 
-        recordAudit(user.getId(), "DOCTOR_SELF_REGISTERED", "License: " + license);
-        log.info("🎉 Registered new doctor {} with license {} (awaiting Admin CCHN vetting)",
-                MailFormat.maskEmail(user.getEmail()), license);
+        String auditLicense = license != null ? license : "PENDING_ONBOARDING";
+        recordAudit(user.getId(), "DOCTOR_SELF_REGISTERED", "License: " + auditLicense);
+        log.info("🎉 Registered new doctor {} with license {} (awaiting onboarding/Admin CCHN vetting)",
+                MailFormat.maskEmail(user.getEmail()), auditLicense);
 
         issueEmailVerification(user);
 

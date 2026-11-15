@@ -5,8 +5,12 @@ import java.util.List;
 
 public class UpdateDoctorProfileRequest {
 
+    private String fullName;
+    private String phone;
+    private String avatarUrl;
     private String bio;
     private String licenseNumber;
+    private String licenseDocumentUrl;
     private BigDecimal consultationFee;
     private Integer yearsOfExperience;
     private List<String> specialtySlugs;
@@ -18,11 +22,23 @@ public class UpdateDoctorProfileRequest {
 
     public UpdateDoctorProfileRequest() {}
 
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
+
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+
     public String getBio() { return bio; }
     public void setBio(String bio) { this.bio = bio; }
 
     public String getLicenseNumber() { return licenseNumber; }
     public void setLicenseNumber(String licenseNumber) { this.licenseNumber = licenseNumber; }
+
+    public String getLicenseDocumentUrl() { return licenseDocumentUrl; }
+    public void setLicenseDocumentUrl(String licenseDocumentUrl) { this.licenseDocumentUrl = licenseDocumentUrl; }
 
     public BigDecimal getConsultationFee() { return consultationFee; }
     public void setConsultationFee(BigDecimal consultationFee) { this.consultationFee = consultationFee; }

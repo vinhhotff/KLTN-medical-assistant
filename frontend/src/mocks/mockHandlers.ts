@@ -112,7 +112,7 @@ export async function handleMockRequest(
     if (MOCK_USERS[email] || doctors.some((d) => d.email.toLowerCase() === email)) {
       return fail(409, 'EMAIL_ALREADY_EXISTS', 'Email này đã được đăng ký trong hệ thống.');
     }
-    if (licenseNumber && doctors.some((d) => d.licenseNumber.toUpperCase() === licenseNumber)) {
+    if (licenseNumber && doctors.some((d) => (d.licenseNumber || '').toUpperCase() === licenseNumber)) {
       return fail(409, 'LICENSE_ALREADY_EXISTS', 'Số Chứng chỉ hành nghề (CCHN) đã tồn tại trong hệ thống.');
     }
 
@@ -122,7 +122,7 @@ export async function handleMockRequest(
           const found = MOCK_SPECIALTIES.find((s) => s.slug === slug);
           return found ? found.name : slug;
         })
-      : ['Nội tổng quát (Internal Medicine)'];
+      : [];
 
     const newDoctorUser = {
       id: userId,
@@ -131,7 +131,7 @@ export async function handleMockRequest(
       role: 'DOCTOR',
       status: 'ACTIVE',
       phone: body?.phone || null,
-      avatarUrl: null,
+      avatarUrl: body?.avatarUrl || null,
       emailVerified: false,
       createdAt: atToday(8, 0, 0),
     };
@@ -139,29 +139,31 @@ export async function handleMockRequest(
     doctors.unshift({
       id: userId,
       profileId: `dp-${Date.now()}`,
-      fullName: `${body?.academicTitle ? `${body.academicTitle} ` : ''}${newDoctorUser.fullName}`,
+      fullName: body?.academicTitle ? `${body.academicTitle} ${newDoctorUser.fullName}` : newDoctorUser.fullName,
       email,
-      phone: body?.phone || '0901234567',
+      phone: body?.phone || '',
+      avatarUrl: body?.avatarUrl || null,
       bio: body?.bio || '',
-      licenseNumber: licenseNumber || `CCHN-${Date.now()}`,
+      licenseNumber: licenseNumber || null,
+      licenseDocumentUrl: body?.licenseDocumentUrl || null,
       consultationFee: Number(body?.consultationFee ?? 300000),
-      yearsOfExperience: Number(body?.yearsOfExperience ?? 5),
+      yearsOfExperience: Number(body?.yearsOfExperience ?? 1),
       isVerified: false,
       specialties: resolvedSpecialties,
       academicTitle: body?.academicTitle || 'BS',
-      hospitalAffiliation: body?.hospitalAffiliation || 'Bệnh viện MediAssist',
-      department: body?.department || 'Khoa Khám Bệnh',
+      hospitalAffiliation: body?.hospitalAffiliation || null,
+      department: body?.department || null,
       licenseIssuedBy: body?.licenseIssuedBy || 'Bộ Y Tế',
       rating: 5.0,
       totalConsultations: 0,
       reviewCount: 0,
       userStatus: 'ACTIVE',
       createdAt: atToday(8, 0, 0),
-    });
+    } as any);
 
     return ok(
       { user: newDoctorUser, token: `mock-jwt-token-doctor-${Date.now()}` },
-      'Đăng ký tài khoản bác sĩ thành công. Vui lòng kiểm tra email để xác thực tài khoản.'
+      'Đăng ký tài khoản bác sĩ thành công. Vui lòng hoàn thiện hồ sơ CCHN và kiểm tra email xác thực.'
     );
   }
 
@@ -252,7 +254,17 @@ export async function handleMockRequest(
 
   if (method === 'PUT' && path === '/doctors/me/profile') {
     const doc = doctors[0];
-    Object.assign(doc, body);
+    const nextLicense = body?.licenseNumber?.trim()?.toUpperCase();
+    if (nextLicense && doctors.some((d) => d.profileId !== doc.profileId && (d.licenseNumber || '').toUpperCase() === nextLicense)) {
+      return fail(409, 'LICENSE_ALREADY_EXISTS', 'Số Chứng chỉ hành nghề (CCHN) đã tồn tại trong hệ thống.');
+    }
+    const updatedSpecialties = Array.isArray(body?.specialtySlugs) && body.specialtySlugs.length > 0
+      ? body.specialtySlugs.map((slug: string) => {
+          const found = MOCK_SPECIALTIES.find((s) => s.slug === slug);
+          return found ? found.name : slug;
+        })
+      : doc.specialties;
+    Object.assign(doc, body, { specialties: updatedSpecialties });
     return ok(doc, 'Cập nhật hồ sơ bác sĩ thành công');
   }
 
