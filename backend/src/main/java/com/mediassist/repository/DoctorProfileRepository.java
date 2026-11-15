@@ -14,7 +14,7 @@ import java.util.UUID;
 @Repository
 public interface DoctorProfileRepository extends JpaRepository<DoctorProfile, UUID> {
 
-    @Query("SELECT DISTINCT dp FROM DoctorProfile dp JOIN FETCH dp.user LEFT JOIN FETCH dp.specialties WHERE dp.isVerified = true")
+    @Query("SELECT DISTINCT dp FROM DoctorProfile dp JOIN FETCH dp.user u LEFT JOIN FETCH dp.specialties WHERE dp.isVerified = true AND u.status = com.mediassist.model.entity.UserStatus.ACTIVE")
     List<DoctorProfile> findAllVerifiedWithUserAndSpecialties();
 
     @Query("SELECT DISTINCT dp FROM DoctorProfile dp JOIN FETCH dp.user LEFT JOIN FETCH dp.specialties")

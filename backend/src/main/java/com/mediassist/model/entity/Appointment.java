@@ -98,6 +98,7 @@ public class Appointment {
     private LocalDateTime checkedInAt;
 
     @Version
+    @Column(name = "version", nullable = false)
     private Long version = 0L;
 
     @CreationTimestamp
@@ -159,8 +160,8 @@ public class Appointment {
     public PaymentStatus getPaymentStatus() { return paymentStatus; }
     public void setPaymentStatus(PaymentStatus paymentStatus) { this.paymentStatus = paymentStatus; }
 
-    public Long getVersion() { return version; }
-    public void setVersion(Long version) { this.version = version; }
+    public Long getVersion() { return version != null ? version : 0L; }
+    public void setVersion(Long version) { this.version = version != null ? version : 0L; }
 
     public String getQueueNumber() { return queueNumber; }
     public void setQueueNumber(String queueNumber) { this.queueNumber = queueNumber; }

@@ -389,6 +389,63 @@ class AdminVettingServiceTest {
                 adminVettingService.updateUserStatus(doctorUser.getId(), UserStatus.SUSPENDED, null, adminId));
     }
 
+    @Test
+    @DisplayName("Should suspend and reactivate a doctor account even when version was null and evict doctor caches")
+    void testUpdateUserStatus_DoctorSuspendAndReactivate_EvictsCaches() {
+        doctorUser.setVersion(null);
+        when(userRepository.findById(doctorUser.getId())).thenReturn(Optional.of(doctorUser));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var suspended = adminVettingService.updateUserStatus(
+                doctorUser.getId(), UserStatus.SUSPENDED, "Vi phạm quy chế khám chữa bệnh", adminId);
+
+        assertEquals(UserStatus.SUSPENDED, suspended.getStatus());
+        assertEquals(0L, doctorUser.getVersion());
+        verify(cacheService).evict("doctors:verified");
+        verify(doctorSemanticSearchService).invalidateCache();
+        verify(auditLogRepository).save(any(AuditLog.class));
+    }
+
+    @Test
+    @DisplayName("Should forbid modifying ADMIN or self account status")
+    void testUpdateUserStatus_AdminAccountRejected() {
+        User targetAdmin = new User();
+        targetAdmin.setId(UUID.randomUUID());
+        targetAdmin.setEmail("other.admin@mediassist.local");
+        targetAdmin.setFullName("Other Admin");
+        targetAdmin.setRole(Role.ADMIN);
+        targetAdmin.setStatus(UserStatus.ACTIVE);
+
+        when(userRepository.findById(targetAdmin.getId())).thenReturn(Optional.of(targetAdmin));
+
+        AppException ex = assertThrows(AppException.class, () ->
+                adminVettingService.updateUserStatus(targetAdmin.getId(), UserStatus.SUSPENDED, "Lý do hợp lệ hơn 10 ký tự", adminId));
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals("CANNOT_MODIFY_ADMIN_STATUS", ex.getCode());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should map grouped audit log filters for DOCTOR_VETTED and UPDATE_USER_STATUS")
+    void testGetAuditLogs_GroupedFilters() {
+        AuditLog log = new AuditLog();
+        log.setId(UUID.randomUUID());
+        log.setUserId(adminId);
+        log.setAction("VET_DOCTOR_APPROVED");
+        log.setResource("doctor_profiles/1");
+
+        when(auditLogRepository.findByActionInOrderByCreatedAtDesc(any())).thenReturn(List.of(log));
+        when(userRepository.findAllById(any())).thenReturn(List.of());
+
+        var vetLogs = adminVettingService.getAuditLogs("DOCTOR_VETTED");
+        assertEquals(1, vetLogs.size());
+        assertEquals("VET_DOCTOR_APPROVED", vetLogs.get(0).getAction());
+
+        var statusLogs = adminVettingService.getAuditLogs("UPDATE_USER_STATUS");
+        assertEquals(1, statusLogs.size());
+        verify(auditLogRepository, times(2)).findByActionInOrderByCreatedAtDesc(any());
+    }
+
     // ===== Quan tri vien huy lich: hoan tien dung chung + email (WORK_LOG #083 phan D) =====
 
     @Test

@@ -68,6 +68,7 @@ public class User {
     private LocalDateTime emailVerifiedAt;
 
     @Version
+    @Column(name = "version", nullable = false)
     private Long version = 0L;
 
     @CreationTimestamp
@@ -170,8 +171,8 @@ public class User {
         this.emailVerified = true;
     }
 
-    public Long getVersion() { return version; }
-    public void setVersion(Long version) { this.version = version; }
+    public Long getVersion() { return version != null ? version : 0L; }
+    public void setVersion(Long version) { this.version = version != null ? version : 0L; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

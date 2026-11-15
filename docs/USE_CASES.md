@@ -1376,7 +1376,7 @@ graph TD
 | **Trigger** | Admin logs in and accesses `/admin`. |
 | **Pre-conditions** | User possesses `ADMIN` role. |
 | **Post-conditions** | Executive telemetry and platform metrics displayed. |
-| **Normal Flow** | Step 1: Admin navigates to `/admin`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/stats`.<br>Step 3: Backend aggregates metrics from database:<br>- `totalUsers`: Total registered accounts.<br>- `totalDoctors`: Active doctors.<br>- `totalPatients`: Patient accounts.<br>- `totalAppointments`: System-wide consultations.<br>- `totalRevenue`: Gross revenue settled.<br>Step 4: Backend returns `AdminSystemStatsDto`.<br>Step 5: Frontend renders executive dashboard KPI cards and activity trends. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/stats`.<br>Step 3: Backend aggregates metrics from database and real health probes:<br>- `totalUsers`, `suspendedUsersCount`: Tổng tài khoản và số tài khoản đang bị tạm khóa (`SUSPENDED`).<br>- `totalDoctors`, `verifiedDoctorsCount`, `pendingDoctorsCount`: Bác sĩ hoạt động, đã duyệt CCHN, chờ duyệt CCHN.<br>- `totalPatients`, `totalAppointments`, `totalRevenue`, `infrastructureHealth` (`pgvector`, `database`, `redis`).<br>Step 4: Backend returns `AdminSystemStatsDto`.<br>Step 5: Frontend renders executive dashboard KPI cards, real infrastructure status indicators, and quick-vet pending queue (`doc.licenseNumber \|\| 'Chưa khai báo CCHN'`). |
 | **Alternative Flow** | None. |
 | **Exceptions** | None. |
 | **Priority** | High (P1) |
@@ -1541,9 +1541,9 @@ graph TD
 | **Trigger** | Admin creates, edits, or toggles status of a doctor. |
 | **Pre-conditions** | Admin is authenticated. |
 | **Post-conditions** | Doctor record in `doctor_profiles` and `users` updated. |
-| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/paged?page=0&size=10`.<br>Step 3: Admin clicks "Tạo Bác Sĩ Mới" and inputs Name, Email, License Number, Specialty, Fee, Clinic Room.<br>Step 4: Frontend calls HTTP POST `/api/v1/admin/doctors` with `AdminCreateDoctorRequest`.<br>Step 5: Backend creates `User` (role=`DOCTOR`) and `DoctorProfile` within a transaction.<br>Step 6: Backend sends welcome email with temporary credentials.<br>Step 7: Admin can also toggle doctor status via `PATCH /api/v1/admin/doctors/{id}/toggle-status`. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/paged?page=0&size=10`.<br>Step 3: Admin clicks "Tạo Bác Sĩ Mới" (hoặc "Chỉnh Sửa") and inputs Name, Email, Phone (chuẩn hóa & kiểm tra trùng), License Number, License Issued By, License Document URL (`licenseDocumentUrl`), Specialty, Fee, Clinic Room.<br>Step 4: Frontend calls HTTP POST `/api/v1/admin/doctors` (hoặc PUT `/api/v1/admin/doctors/{id}`).<br>Step 5: Backend creates/updates `User` (`DOCTOR`) và `DoctorProfile` within a transaction, invalidating `doctors:verified` and semantic search caches.<br>Step 6: Backend sends welcome email with temporary credentials on creation.<br>Step 7: Admin can also toggle doctor status via `PATCH /api/v1/admin/doctors/{id}/toggle-status` (đồng bộ xóa cache công khai & vector search). |
 | **Alternative Flow** | None. |
-| **Exceptions** | - Exc Flow 12a: Duplicate Email or License:<br>1. Backend throws `AppException(HttpStatus.CONFLICT, "EMAIL_EXISTS", ...)` or `"LICENSE_EXISTS"`. |
+| **Exceptions** | - Exc Flow 12a: Duplicate Email, Phone or License:<br>1. Backend throws `AppException(HttpStatus.CONFLICT, "EMAIL_EXISTS" | "PHONE_ALREADY_EXISTS" | "LICENSE_EXISTS", ...)`. |
 | **Priority** | Medium (P1) |
 | **Frequency of Use** | Medium (Periodic / Administrative) |
 | **Business Rules** | None. |
@@ -1558,9 +1558,9 @@ graph TD
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/users, PATCH /api/v1/admin/users/{id}/status` (Quyền: `PUBLIC / AUTH_DEFAULT`)
 > - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/users` $\rightarrow$ Màn hình `UserManagementPage.tsx`
-> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users, audit_logs` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V3__account_lockout_and_security_hardening.sql, V6__fix_user_status_and_audit_logs.sql`
-> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, SecurityRateLimiterService` $\rightarrow$ `UserRepository, AuditLogRepository`
-> - **Kiểm Thử Tự Động (Unit / Integration Test):** `SecurityHardeningTest.java` (**100% PASS**)
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users, audit_logs, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V3__account_lockout_and_security_hardening.sql, V6__fix_user_status_and_audit_logs.sql, V24__fix_users_version_not_null.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AdminVettingService, NotificationService, DoctorSemanticSearchService, TwoLayerCacheService` $\rightarrow$ `UserRepository, AuditLogRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AdminVettingServiceTest.java, SecurityHardeningTest.java` (**100% PASS**)
 
 | Attribute | Specification Details |
 | :--- | :--- |
@@ -1570,13 +1570,13 @@ graph TD
 | **Created Date** | 15/02/2026 |
 | **Primary Actor** | Admin |
 | **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
-| **Description** | MediAssist-AI Admin Subsystem — `users.is_active` updated; user sessions invalidated. |
-| **Trigger** | Admin searches users on `/admin/users` and modifies account status. |
-| **Pre-conditions** | Admin is authenticated. |
-| **Post-conditions** | `users.is_active` updated; user sessions invalidated. |
-| **Normal Flow** | Step 1: Admin navigates to `/admin/users`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/users?query=...&page=0&size=20`.<br>Step 3: Admin inspects user details and clicks "Khóa Tài Khoản".<br>Step 4: Admin inputs mandatory lock reason (min 10 characters).<br>Step 5: Frontend calls HTTP PATCH `/api/v1/admin/users/{id}/status` with `UpdateUserStatusRequest(status, reason)`.<br>Step 6: Backend updates `users.is_active = false`.<br>Step 7: Backend logs `ADMIN_LOCK_USER` in `audit_logs`.<br>Step 8: Frontend updates user status badge to `Bị Khóa`. |
+| **Description** | MediAssist-AI Admin Subsystem — `users.status` (`ACTIVE`, `PENDING_VERIFICATION`, `SUSPENDED`) updated safely with `@Version` optimistic locking, doctor cache eviction, and audit logging. |
+| **Trigger** | Admin searches or filters users on `/admin/users` and modifies account status. |
+| **Pre-conditions** | Admin is authenticated; target account is not `ADMIN` or the current admin user. |
+| **Post-conditions** | `users.status` updated; if `DOCTOR`, verified/semantic caches evicted; `JwtAuthenticationFilter` rejects suspended user requests with `403 ACCOUNT_SUSPENDED`. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/users` (xem 4 thẻ KPI trạng thái, lọc theo vai trò và trạng thái `ACTIVE` / `PENDING_VERIFICATION` / `SUSPENDED`).<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/users`.<br>Step 3: Admin clicks `"Tạm khóa"` (hoặc `"Kích hoạt"` nếu đang `SUSPENDED`) và nhập lý do tối thiểu 10 ký tự.<br>Step 4: Frontend calls HTTP PATCH `/api/v1/admin/users/{id}/status` with `UpdateUserStatusRequest(status, reason)`.<br>Step 5: Backend validates target is not `ADMIN`/self, updates `users.status` (bảng `users.version` NOT NULL DEFAULT 0 qua Flyway V24), evicts cache bác sĩ nếu `DOCTOR`, và gửi thông báo in-app (`ACCOUNT_STATUS_UPDATED`).<br>Step 6: Backend logs `UPDATE_USER_STATUS` in `audit_logs`.<br>Step 7: Frontend updates user badge (`Hoạt động` / `Chờ xác minh` / `Tạm khóa`) and KPI counts. |
 | **Alternative Flow** | None. |
-| **Exceptions** | - Exc Flow 12a: Lock Reason Too Short:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_REASON", "Lý do khóa tài khoản bắt buộc tối thiểu 10 ký tự")`. |
+| **Exceptions** | - Exc Flow 12a: Lock Reason Too Short:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_REASON", ...)`.<br>- Exc Flow 12b: Target Is Admin Or Self:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "CANNOT_MODIFY_ADMIN_STATUS", ...)`. |
 | **Priority** | High (P1) |
 | **Frequency of Use** | Medium (Periodic / Administrative) |
 | **Business Rules** | - BR-32: Locking an account immediately terminates active web and mobile sessions. |
@@ -1623,7 +1623,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/appointments, PATCH /api/v1/admin/appointments/{id}/cancel` (Quyền: `PUBLIC / AUTH_DEFAULT`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/appointments` $\rightarrow$ Màn hình `AppointmentSupervisionPage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/appointments` $\rightarrow$ Màn hình `AppointmentSupervisionPage.tsx, Pagination.tsx`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, payment_transactions, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V12__supervision_and_realtime_performance_indexes.sql, V13__create_payment_transactions.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService, AppointmentRefundService, NotificationService` $\rightarrow$ `AppointmentRepository, PaymentTransactionRepository, NotificationRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java, AppointmentRefundServiceTest.java` (**100% PASS**)
@@ -1656,7 +1656,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/triage-sessions` (Quyền: `PUBLIC / AUTH_DEFAULT`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/triage` $\rightarrow$ Màn hình `TriageSupervisionPage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/triage` $\rightarrow$ Màn hình `TriageSupervisionPage.tsx, Pagination.tsx`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `triage_sessions` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V12__supervision_and_realtime_performance_indexes.sql, V15__add_triage_session_and_refund_to_appointments.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `TriageService` $\rightarrow$ `TriageSessionRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `TriageServiceTest.java` (**100% PASS**)
@@ -1689,7 +1689,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/audit-logs` (Quyền: `PUBLIC / AUTH_DEFAULT`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/audit-logs` $\rightarrow$ Màn hình `AuditLogPage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/audit-logs` $\rightarrow$ Màn hình `AuditLogPage.tsx, Pagination.tsx`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `audit_logs` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V6__fix_user_status_and_audit_logs.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `PatientAccessGuard` $\rightarrow$ `AuditLogRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `PatientAccessGuardTest.java` (**100% PASS**)
@@ -1706,7 +1706,7 @@ graph TD
 | **Trigger** | Admin accesses `/admin/audit-logs`. |
 | **Pre-conditions** | Admin is authenticated. |
 | **Post-conditions** | Immutable audit trail records rendered. |
-| **Normal Flow** | Step 1: Admin navigates to `/admin/audit-logs`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/audit-logs`.<br>Step 3: Backend queries `audit_logs` table (Flyway V1) ordered by `created_at DESC`.<br>Step 4: Admin filters by action:<br>- `VIEW_PATIENT_RECORD` (Doctor patient record inspection under `PatientAccessGuard`).<br>- `USER_LOGIN`, `USER_LOGOUT`, `PASSWORD_RESET`.<br>- `ADMIN_LOCK_USER`, `ADMIN_TOGGLE_AI_MODE`, `FORCE_CANCEL_APPOINTMENT`.<br>Step 5: Backend returns list of `AuditLogDto` (action, entityType, entityId, userId, ipAddress, detailsJson, createdAt).<br>Step 6: Frontend renders audit table with expandable JSON details. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/audit-logs`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/audit-logs` (hoặc `?action=...`).<br>Step 3: Backend queries `audit_logs` ordered by `created_at DESC`, hỗ trợ nhóm bộ lọc `DOCTOR_VETTED` (`DOCTOR_VETTED`, `VET_DOCTOR_APPROVED`, `VET_DOCTOR_REJECTED`, `ADMIN_CREATE_DOCTOR`, `ADMIN_UPDATE_DOCTOR`, `DOCTOR_SELF_REGISTERED`) và `UPDATE_USER_STATUS` (`UPDATE_USER_STATUS`, `TOGGLE_DOCTOR_STATUS`).<br>Step 4: Admin filters by action (`VIEW_PATIENT_RECORD`, `USER_LOGIN`, `DOCTOR_VETTED`, `UPDATE_USER_STATUS`, `FORCE_CANCEL_APPOINTMENT`, `PATIENT_REGISTERED`, `EMAIL_VERIFIED`, v.v.).<br>Step 5: Backend returns list of `AuditLogDto` (action, entityType, entityId, userId, ipAddress, detailsJson, createdAt).<br>Step 6: Frontend renders paginated audit table (`<Pagination />`) with expandable JSON details. |
 | **Alternative Flow** | None. |
 | **Exceptions** | None. |
 | **Priority** | High (P1 - Compliance) |

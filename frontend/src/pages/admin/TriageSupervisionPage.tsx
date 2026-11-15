@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
+import { Pagination } from '../../components/common/Pagination';
 import { devLog } from '../../utils/logger';
 import { EmptyState, ErrorState, SkeletonTable, useToast } from '../../components/ui';
 import { getApiErrorMessage } from '../../utils/apiError';
@@ -43,6 +44,8 @@ export const TriageSupervisionPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('ALL');
   const [selectedSession, setSelectedSession] = useState<AdminTriageSession | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Background (silent) refreshes never replace a loaded table with an error
   // — a manual "Làm mới" (notify) reports the failure in a toast instead
@@ -75,6 +78,10 @@ export const TriageSupervisionPage: React.FC = () => {
 
   const debouncedSearch = useDebounce(searchTerm, 250);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, urgencyFilter]);
+
   const filteredSessions = useMemo(() => {
     const tokens = debouncedSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return sessions.filter((s) => {
@@ -86,6 +93,11 @@ export const TriageSupervisionPage: React.FC = () => {
       return tokens.every((token) => searchableContent.includes(token));
     });
   }, [sessions, urgencyFilter, debouncedSearch]);
+
+  const paginatedSessions = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredSessions.slice(start, start + pageSize);
+  }, [filteredSessions, currentPage, pageSize]);
 
   const getUrgencyBadge = (level: string, isEmergency: boolean) => {
     if (isEmergency || level === 'EMERGENCY') {
@@ -201,7 +213,7 @@ export const TriageSupervisionPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {filteredSessions.map((session) => (
+                {paginatedSessions.map((session) => (
                   <tr 
                     key={session.id} 
                     className={`hover:bg-slate-50/70 transition ${
@@ -247,6 +259,16 @@ export const TriageSupervisionPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+        )}
+        {filteredSessions.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredSessions.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="phiên phân luồng"
+          />
         )}
       </div>
 

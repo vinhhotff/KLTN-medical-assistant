@@ -208,10 +208,10 @@ public class PaymentTransaction {
     }
 
     public Long getVersion() {
-        return version;
+        return version != null ? version : 0L;
     }
 
     public void setVersion(Long version) {
-        this.version = version;
+        this.version = version != null ? version : 0L;
     }
 }

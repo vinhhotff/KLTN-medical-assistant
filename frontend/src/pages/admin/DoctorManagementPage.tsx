@@ -1071,6 +1071,7 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
     department: '',
     licenseNumber: '',
     licenseIssuedBy: '',
+    licenseDocumentUrl: '',
     consultationFee: '',
     yearsOfExperience: '',
     bio: '',
@@ -1110,6 +1111,7 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
         hospitalAffiliation: formData.hospitalAffiliation.trim() || undefined,
         department: formData.department.trim() || undefined,
         licenseIssuedBy: formData.licenseIssuedBy.trim() || undefined,
+        licenseDocumentUrl: formData.licenseDocumentUrl.trim() || undefined,
         consultationFee: Number(formData.consultationFee),
         yearsOfExperience: formData.yearsOfExperience.trim() ? Number(formData.yearsOfExperience) : undefined,
         specialtySlugs: selectedSlugs,
@@ -1269,6 +1271,17 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
               </div>
 
               <div>
+                <label className="block font-semibold text-slate-700 mb-1">Link bản scan CCHN (PDF / Ảnh)</label>
+                <input
+                  type="url"
+                  placeholder="https://.../cchn-front.pdf"
+                  value={formData.licenseDocumentUrl}
+                  onChange={(e) => setFormData({ ...formData, licenseDocumentUrl: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
                 <label className="block font-semibold text-slate-700 mb-1">Số năm kinh nghiệm</label>
                 <input
                   type="number"
@@ -1391,6 +1404,7 @@ const EditDoctorModal: React.FC<EditDoctorModalProps> = ({ doctor, specialties, 
     department: doctor.department || '',
     licenseNumber: doctor.licenseNumber || '',
     licenseIssuedBy: doctor.licenseIssuedBy || '',
+    licenseDocumentUrl: doctor.licenseDocumentUrl || '',
     consultationFee: doctor.consultationFee ? String(doctor.consultationFee) : '',
     yearsOfExperience: doctor.yearsOfExperience !== null && doctor.yearsOfExperience !== undefined ? String(doctor.yearsOfExperience) : '',
     bio: doctor.bio || '',
@@ -1430,6 +1444,7 @@ const EditDoctorModal: React.FC<EditDoctorModalProps> = ({ doctor, specialties, 
         ...formData,
         academicTitle: formData.academicTitle || undefined,
         licenseIssuedBy: formData.licenseIssuedBy.trim() || undefined,
+        licenseDocumentUrl: formData.licenseDocumentUrl.trim() || undefined,
         consultationFee: Number(formData.consultationFee),
         yearsOfExperience: formData.yearsOfExperience.trim() ? Number(formData.yearsOfExperience) : undefined,
         specialtySlugs: selectedSlugs,
@@ -1528,6 +1543,40 @@ const EditDoctorModal: React.FC<EditDoctorModalProps> = ({ doctor, specialties, 
                 type="text"
                 value={formData.department}
                 onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Nơi cấp CCHN</label>
+              <input
+                type="text"
+                placeholder="Bộ Y Tế / Sở Y Tế ..."
+                value={formData.licenseIssuedBy}
+                onChange={(e) => setFormData({ ...formData, licenseIssuedBy: e.target.value })}
+                className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-semibold text-slate-700">Link bản scan CCHN (PDF / Ảnh)</label>
+                {formData.licenseDocumentUrl.trim() && (
+                  <a
+                    href={formData.licenseDocumentUrl.trim()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold text-emerald-700 hover:underline"
+                  >
+                    Xem bản scan
+                  </a>
+                )}
+              </div>
+              <input
+                type="url"
+                placeholder="https://.../cchn-front.pdf"
+                value={formData.licenseDocumentUrl}
+                onChange={(e) => setFormData({ ...formData, licenseDocumentUrl: e.target.value })}
                 className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               />
             </div>

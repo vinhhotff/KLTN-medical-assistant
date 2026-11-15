@@ -227,8 +227,13 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <p className="text-xs text-slate-500 font-medium mt-1">Bác sĩ chuyên khoa chính thức</p>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
-            <span>Bệnh nhân: <strong className="text-slate-800">{stats?.totalPatients ?? 0}</strong></span>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 gap-2">
+            <span>
+              Bệnh nhân: <strong className="text-slate-800">{stats?.totalPatients ?? 0}</strong>
+              {(stats?.suspendedUsersCount ?? 0) > 0 && (
+                <span className="ml-2 text-rose-600 font-semibold">• {stats?.suspendedUsersCount} tạm khóa</span>
+              )}
+            </span>
             {stats?.pendingDoctorsCount ? (
               <span className="text-amber-600 font-bold flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" /> {stats.pendingDoctorsCount} chờ duyệt
@@ -627,7 +632,9 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div className="mt-4 flex items-baseline gap-2">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" />
-            <span className="text-lg font-bold text-slate-900">UP (Vector 1536d)</span>
+            <span className="text-lg font-bold text-slate-900">
+              {stats?.infrastructureHealth?.pgvector || stats?.infrastructureHealth?.database || 'UP (Vector 1536d)'}
+            </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">HNSW Indexing cho AI Doctor Semantic Match</p>
         </div>
@@ -638,8 +645,12 @@ export const AdminDashboard: React.FC = () => {
             <Zap className="w-5 h-5 text-amber-500" />
           </div>
           <div className="mt-4 flex items-baseline gap-2">
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" />
-            <span className="text-lg font-bold text-slate-900">UP (&lt;1ms Latency)</span>
+            <span className={`inline-block w-2.5 h-2.5 rounded-full ${
+              stats?.infrastructureHealth?.redis?.includes('DEGRADED') ? 'bg-amber-500' : 'bg-emerald-500'
+            }`} />
+            <span className="text-lg font-bold text-slate-900">
+              {stats?.infrastructureHealth?.redis || 'UP (<1ms Latency)'}
+            </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">L1 Caffeine in-memory + L2 Distributed Redis</p>
         </div>
@@ -692,7 +703,7 @@ export const AdminDashboard: React.FC = () => {
                     <div>
                       <h4 className="font-bold text-sm text-slate-900">{doc.fullName}</h4>
                       <p className="text-xs text-slate-500">
-                        CCHN: <span className="font-mono text-slate-700">{doc.licenseNumber}</span> | Chuyên khoa: {doc.specialties?.join(', ') || 'Chưa phân khoa'}
+                        CCHN: <span className="font-mono text-slate-700">{doc.licenseNumber || 'Chưa khai báo CCHN'}</span> | Chuyên khoa: {doc.specialties?.join(', ') || 'Chưa phân khoa'}
                       </p>
                     </div>
                     <Link

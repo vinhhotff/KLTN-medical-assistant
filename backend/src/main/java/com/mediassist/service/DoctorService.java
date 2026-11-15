@@ -62,6 +62,7 @@ public class DoctorService {
         if (profiles == null || profiles.isEmpty()) {
             profiles = doctorProfileRepository.findAll().stream()
                     .filter(DoctorProfile::isVerified)
+                    .filter(dp -> dp.getUser() == null || dp.getUser().getStatus() == UserStatus.ACTIVE)
                     .collect(Collectors.toList());
         }
         List<DoctorDetailDto> dtos = profiles.stream()

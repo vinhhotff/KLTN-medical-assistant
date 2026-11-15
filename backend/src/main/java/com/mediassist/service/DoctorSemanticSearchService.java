@@ -210,7 +210,7 @@ public class DoctorSemanticSearchService {
                    ), '') AS specialties_str
             FROM doctor_profiles dp
             JOIN users u ON dp.user_id = u.id
-            WHERE dp.is_verified = true AND dp.bio_embedding IS NOT NULL
+            WHERE dp.is_verified = true AND u.status = 'ACTIVE' AND dp.bio_embedding IS NOT NULL
             ORDER BY dp.bio_embedding <=> CAST(? AS vector) ASC
             LIMIT ?
             """;
