@@ -80,6 +80,10 @@ public class PatientProfileService {
             if (!phone.matches("^(0|\\+84)(3[2-9]|5[6-9]|7[0-9]|8[1-9]|9[0-9])\\d{7}$")) {
                 throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_PHONE", "Số điện thoại không đúng định dạng Việt Nam (VD: 0901234567).");
             }
+            if (!phone.equals(user.getPhone()) && userRepository.existsByPhone(phone)) {
+                throw new AppException(HttpStatus.CONFLICT, "PHONE_ALREADY_EXISTS",
+                        "Số điện thoại '" + phone + "' đã được sử dụng bởi tài khoản khác.");
+            }
             user.setPhone(phone);
         }
         userRepository.save(user);
@@ -134,9 +138,9 @@ public class PatientProfileService {
         p.setPatientCode(patientCode);
         p.setBloodGroup(null);
         p.setGender(null);
-        p.setAddress("TP. Hồ Chí Minh, Việt Nam");
-        p.setAllergies("Chưa ghi nhận tiền sử dị ứng thuốc");
-        p.setMedicalHistory("Chưa ghi nhận bệnh mạn tính");
+        p.setAddress(null);
+        p.setAllergies(null);
+        p.setMedicalHistory(null);
         return patientProfileRepository.save(p);
     }
 

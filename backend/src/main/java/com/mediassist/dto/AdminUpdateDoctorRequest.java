@@ -16,6 +16,7 @@ public class AdminUpdateDoctorRequest {
     private Integer yearsOfExperience;
     private List<String> specialtySlugs;
     private String bio;
+    private String licenseDocumentUrl;
     private Boolean isVerified;
 
     public AdminUpdateDoctorRequest() {}
@@ -52,6 +53,9 @@ public class AdminUpdateDoctorRequest {
 
     public String getBio() { return bio; }
     public void setBio(String bio) { this.bio = bio; }
+
+    public String getLicenseDocumentUrl() { return licenseDocumentUrl; }
+    public void setLicenseDocumentUrl(String licenseDocumentUrl) { this.licenseDocumentUrl = licenseDocumentUrl; }
 
     public Boolean getIsVerified() { return isVerified; }
     public void setIsVerified(Boolean isVerified) { this.isVerified = isVerified; }

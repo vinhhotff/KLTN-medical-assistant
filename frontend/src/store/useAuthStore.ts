@@ -7,6 +7,7 @@ export interface UserProfile {
   fullName: string;
   role: 'ADMIN' | 'DOCTOR' | 'PATIENT';
   status: string;
+  phone?: string | null;
   avatarUrl?: string;
   doctorProfile?: any;
   /** Có thể thiếu với user cũ lưu trong localStorage: chỉ coi là chưa xác thực khi đúng bằng false. */

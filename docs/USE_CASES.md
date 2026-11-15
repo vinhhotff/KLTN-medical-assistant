@@ -27,7 +27,7 @@ graph TD
         C03[UC-COMM-03: Đổi Mật Khẩu Bcrypt]
         C04[UC-COMM-04: Cập Nhật Hồ Sơ Căn Cước Y Tế]
         C05[UC-COMM-05: Quên & Đặt Lại Mật Khẩu]
-        C06[UC-COMM-06: Xác Thực Địa Chỉ Email]
+        C06[UC-COMM-06: Đăng Ký Độc Lập & Xác Thực Email]
     end
 
     subgraph "Patient Subsystem (18 Use Cases)"
@@ -66,7 +66,7 @@ graph TD
 
     Patient --> C01 & C02 & C04 & C05 & C06
     Patient --> P01 & P02 & P03 & P05 & P08 & P09 & P10 & P15 & P16
-    Doctor --> C01 & C02 & C03
+    Doctor --> C01 & C02 & C03 & C06
     Doctor --> D01 & D02 & D03 & D04 & D05 & D06 & D08 & D13
     Admin --> C01 & C02
     Admin --> A01 & A02 & A03 & A04 & A05 & A07 & A09 & A11
@@ -85,11 +85,11 @@ graph TD
 
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
-> - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/login, GET /oauth2/authorization/google` (Quyền: `PUBLIC`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/login, /oauth2/callback` $\rightarrow$ Màn hình `LoginPage.tsx, OAuth2CallbackPage.tsx`
-> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V3__account_lockout_and_security_hardening.sql, V8__allow_null_password_hash_for_oauth.sql`
-> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, SecurityRateLimiterService` $\rightarrow$ `UserRepository`
-> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServiceTest.java, OAuth2SecurityTest.java, SecurityHardeningTest.java` (**100% PASS**)
+> - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/login, POST /api/v1/auth/register, POST /api/v1/auth/register/doctor, GET /oauth2/authorization/google` (Quyền: `PUBLIC`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/login` (hỗ trợ `?mode=register|login&role=patient|doctor`), `/oauth2/callback` $\rightarrow$ Màn hình `LoginPage.tsx, PatientRegisterForm.tsx, DoctorRegisterForm.tsx, OAuth2CallbackPage.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users, patient_profiles, doctor_profiles, doctor_specialties` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V3__account_lockout_and_security_hardening.sql, V8__allow_null_password_hash_for_oauth.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, SecurityRateLimiterService` $\rightarrow$ `UserRepository, PatientProfileRepository, DoctorProfileRepository, SpecialtyRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServiceEmailVerificationTest.java, OAuth2SecurityTest.java, SecurityHardeningTest.java` (**100% PASS**)
 
 | Attribute | Specification Details |
 | :--- | :--- |
@@ -202,14 +202,14 @@ graph TD
 | **Trigger** | Patient navigates to profile view or updates clinical demographics. |
 | **Pre-conditions** | User is authenticated as `PATIENT`. |
 | **Post-conditions** | Patient entity in `patient_profiles` is retrieved or updated. |
-| **Normal Flow** | Step 1: Patient accesses profile modal/page.<br>Step 2: Frontend calls HTTP GET `/api/v1/patient/profile`.<br>Step 3: Backend retrieves `PatientProfile` linked to `user_id`.<br>Step 4: Backend returns `PatientProfileDto` (date of birth, gender, blood type, allergies, emergency contact, remaining AI quota).<br>Step 5: Patient updates Blood Type, Allergies, or Emergency Contact Phone.<br>Step 6: Frontend dispatches HTTP PUT `/api/v1/patient/profile` with updated DTO.<br>Step 7: Backend validates phone format and citizen ID regex if present.<br>Step 8: Backend commits update to `patient_profiles` table.<br>Step 9: Backend returns HTTP 200 OK with refreshed profile.<br>Step 10: Frontend renders toast: "Hồ sơ sức khỏe đã được cập nhật." |
+| **Normal Flow** | Step 1: Patient accesses profile modal/page (EMR Col 1 displays fullName, patientCode, email, and phone).<br>Step 2: Frontend calls HTTP GET `/api/v1/patient/profile`.<br>Step 3: Backend retrieves `PatientProfile` linked to `user_id` (initializing nullable defaults for `address`, `allergies`, `medicalHistory` instead of placeholder strings).<br>Step 4: Backend returns `PatientProfileDto` (`fullName`, `email`, `phone`, date of birth, gender, blood type, `citizenId`, `healthInsuranceNumber`, address, allergies, medicalHistory, emergency contact, remaining AI quota).<br>Step 5: Patient updates `Full Name`, `Phone`, `Gender`, Blood Type, `Citizen ID`, `Health Insurance Number`, Address, Allergies, Medical History, or Emergency Contact Phone with inline validation.<br>Step 6: Frontend dispatches HTTP PUT `/api/v1/patient/profile` with updated DTO.<br>Step 7: Backend validates phone format, checks duplicate phone uniqueness (`409 PHONE_ALREADY_EXISTS`), and validates citizen ID / BHYT regex if present.<br>Step 8: Backend commits update to `users` and `patient_profiles` tables.<br>Step 9: Backend returns HTTP 200 OK with refreshed profile.<br>Step 10: Frontend refreshes profile state and triggers `useAuthStore.refreshCurrentUser()` so header/sidebar stay synced, rendering toast: "Hồ sơ sức khỏe đã được cập nhật." |
 | **Alternative Flow** | None. |
-| **Exceptions** | - Exc Flow 12a: Invalid Phone Format:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_PHONE", ...)`.<br>2. Frontend displays: "Số điện thoại không đúng định dạng Việt Nam (VD: 0901234567)." |
+| **Exceptions** | - Exc Flow 12a: Invalid Phone Format:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_PHONE", ...)`.<br>2. Frontend displays: "Số điện thoại không đúng định dạng Việt Nam (VD: 0901234567)."<br>- Exc Flow 12b: Duplicate Phone Number:<br>1. Backend checks `userRepository.existsByPhone(normalizedPhone)` against other users and throws `AppException(HttpStatus.CONFLICT, "PHONE_ALREADY_EXISTS", ...)`.<br>2. Frontend displays conflict error toast / inline message.<br>- Exc Flow 12c: Invalid Full Name or BHYT Number:<br>1. Frontend inline validation rejects blank `fullName` or malformed `healthInsuranceNumber` before submit. |
 | **Priority** | Medium (P2) |
 | **Frequency of Use** | High (Frequent operational use) |
-| **Business Rules** | - BR-06: Vietnamese phone numbers must match regex `^(0\|\+84)(3\|5\|7\|8\|9)[0-9]{8}$`. |
-| **Data Entities Involved** | - `users`, `patient_profiles` (id, user_id, date_of_birth, gender, blood_type, allergies, emergency_contact, remaining_ai_quota). |
-| **User Interface Controls** | - Text inputs (`Họ và tên`, `Số điện thoại`, `Người liên hệ khẩn cấp`), select (`Nhóm máu`, `Giới tính`), textarea (`Dị ứng thuốc`). |
+| **Business Rules** | - BR-06: Vietnamese phone numbers must match regex `^(0\|\+84)(3\|5\|7\|8\|9)[0-9]{8}$` and be unique across `users`. |
+| **Data Entities Involved** | - `users`, `patient_profiles` (id, user_id, date_of_birth, gender, blood_type, citizen_id, health_insurance_number, address, allergies, medical_history, emergency_contact, remaining_ai_quota). |
+| **User Interface Controls** | - EMR card phone display & Edit Profile modal inputs (`Họ và Tên Bệnh Nhân`, `Số Điện Thoại Di Động`, `Giới Tính`, `Nhóm Máu`, `Số CCCD / CMND`, `Mã Thẻ BHYT`, `Địa Chỉ`, `Tiền Sử Dị Ứng`, `Tiền Sử Bệnh Lý`, `Người Liên Hệ Khẩn Cấp`) with inline validation errors. |
 
 ---
 
@@ -246,36 +246,36 @@ graph TD
 
 ---
 
-#### UC-COMM-06: Rào Chắn Xác Thực Địa Chỉ Email (Email Verification Gate)
+#### UC-COMM-06: Đăng Ký Tài Khoản Độc Lập (Bệnh Nhân / Bác Sĩ) & Rào Chắn Xác Thực Email (Split Patient/Doctor Self-Registration & Email Verification Gate)
 
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
-> - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/verify-email, POST /api/v1/auth/resend-verification` (Quyền: `PUBLIC`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/verify-email` $\rightarrow$ Màn hình `VerifyEmailPage.tsx, EmailVerificationBanner.tsx, EmailNotVerifiedHint.tsx`
-> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `email_verification_tokens, users` $\rightarrow$ Bản di trú `V22__email_verification.sql`
-> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, EmailVerificationGuard, SecurityRateLimiterService, EmailService` $\rightarrow$ `EmailVerificationTokenRepository, UserRepository`
-> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServiceEmailVerificationTest.java, SecurityRateLimiterEmailFlowTest.java` (**100% PASS**)
+> - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/register, POST /api/v1/auth/register/doctor, POST /api/v1/auth/verify-email, POST /api/v1/auth/resend-verification` (Quyền: `PUBLIC`, trừ `/resend-verification` yêu cầu `isAuthenticated()`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/login?mode=register&role=patient|doctor, /verify-email` $\rightarrow$ Màn hình `LoginPage.tsx, PatientRegisterForm.tsx, DoctorRegisterForm.tsx, VerifyEmailPage.tsx, EmailVerificationBanner.tsx, EmailNotVerifiedHint.tsx` (banner gắn trên cả `PatientLayout.tsx` & `DoctorLayout.tsx`)
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users, patient_profiles, doctor_profiles, doctor_specialties, specialties, email_verification_tokens, audit_logs` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V22__email_verification.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, EmailVerificationGuard, SecurityRateLimiterService, MailNotificationListener, EmailService` $\rightarrow$ `UserRepository, PatientProfileRepository, DoctorProfileRepository, SpecialtyRepository, EmailVerificationTokenRepository, AuditLogRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServiceEmailVerificationTest.java` (17/17 PASS), `SecurityRateLimiterEmailFlowTest.java` (3/3 PASS) (**100% PASS**)
 
 | Attribute | Specification Details |
 | :--- | :--- |
 | **Use Case ID** | `UC-COMM-06` |
-| **Use Case Name** | Email Verification Gate |
+| **Use Case Name** | Split Patient/Doctor Self-Registration & Email Verification Gate |
 | **Created By** | SE-AI Capstone Team |
-| **Created Date** | 15/02/2026 |
-| **Primary Actor** | Newly registered user |
-| **Secondary Actor** | Google Identity Provider, Transactional Email Gateway |
-| **Description** | MediAssist-AI Identity & Access Management (IAM) — - User account marked `email_verified = true`.<br>- User is permitted to access full clinical features (booking, triage, consultation). |
-| **Trigger** | User clicks the activation link received upon account registration. |
-| **Pre-conditions** | Account created with `email_verified = false` (Flyway V22). |
-| **Post-conditions** | - User account marked `email_verified = true`.<br>- User is permitted to access full clinical features (booking, triage, consultation). |
-| **Normal Flow** | Step 1: Upon registration, backend generates verification token stored in `email_verification_tokens`.<br>Step 2: Backend dispatches HTML email containing activation link: `/verify-email?token={token}`.<br>Step 3: User clicks activation link in email client navigating to `/verify-email`.<br>Step 4: Frontend calls HTTP POST `/api/v1/auth/verify-email` with `VerifyEmailRequest(token)`.<br>Step 5: Backend verifies token validity, matches user, updates `users.email_verified = true`.<br>Step 6: Backend deletes consumed verification token.<br>Step 7: Backend returns HTTP 200 OK with `TokenValidationResponse`.<br>Step 8: Frontend renders success celebration screen with button to proceed to login. |
-| **Alternative Flow** | - Alt Flow 11a: Resend Verification Email:<br>1. User calls HTTP POST `/api/v1/auth/resend-verification`.<br>2. Backend enforces rate limiting (`RATE_LIMIT_EXCEEDED`), generates fresh token, and sends new email. |
-| **Exceptions** | - Exc Flow 12a: Invalid or Expired Token:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", "Liên kết xác thực email đã hết hạn.")`.<br>2. Frontend displays error message with option to request a fresh verification link. |
-| **Priority** | High (P1) |
-| **Frequency of Use** | High (Frequent operational use) |
-| **Business Rules** | - BR-09: Unverified accounts cannot book clinical appointments or access medical records (`EmailVerificationGuard`). |
-| **Data Entities Involved** | - `users` (email_verified), `email_verification_tokens` (id, user_id, token, expires_at). |
-| **User Interface Controls** | - Activation banner, button `Kích Hoạt Tài Khoản`, `Gửi Lại Email`. |
+| **Created Date** | 15/02/2026 (Updated 15/11/2026) |
+| **Primary Actor** | Guest / Newly registered Patient or Doctor |
+| **Secondary Actor** | Transactional Email Gateway (Mailpit Dev `localhost:1025` / Gmail SMTP 587 STARTTLS), Admin Vetting Queue |
+| **Description** | MediAssist-AI Identity & Access Management (IAM) — Tách biệt hoàn toàn biểu mẫu đăng ký Bệnh nhân (`PatientRegisterForm.tsx`) và Bác sĩ (`DoctorRegisterForm.tsx`); khởi tạo hồ sơ chuyên môn tương ứng (`patient_profiles` hoặc `doctor_profiles` kèm `doctor_specialties`), phát hành token xác thực email SHA-256 (TTL 24h) qua sự kiện `EmailVerificationRequestedEvent` sau commit, và mở khóa đầy đủ chức năng khi người dùng xác thực liên kết `/verify-email?token=...`. |
+| **Trigger** | Người dùng truy cập `/login` (hoặc `/login?mode=register&role=doctor|patient`), chọn vai trò `Bệnh Nhân` hoặc `Bác Sĩ & Phòng Khám` và gửi biểu mẫu đăng ký, hoặc nhấn liên kết xác thực trong hộp thư. |
+| **Pre-conditions** | - Email và SĐT chưa tồn tại trên hệ thống (đối với bác sĩ nếu truyền kèm số CCHN thì CCHN cũng chưa tồn tại).<br>- Hạ tầng SMTP hoạt động (Mailpit dev `SMTP_HOST=localhost:1025` hoặc biến môi trường `SMTP_*` / `.env` cho Gmail SMTP). |
+| **Post-conditions** | - **Bệnh nhân:** Tạo `User(role=PATIENT, status=ACTIVE, email_verified=false)` + `PatientProfile(BN-2026-*)` với các trường địa chỉ/dị ứng/tiền sử khởi tạo `null` nếu bỏ trống + `AuditLog(PATIENT_REGISTERED)`; đăng nhập ngay qua Dual-Transport JWT (Bearer + `accessToken` HttpOnly Cookie) và chuyển hướng `/patient`.<br>- **Bác sĩ (Bước 1):** Tạo `User(role=DOCTOR, status=ACTIVE, email_verified=false)` + `DoctorProfile` khởi tạo (`is_verified=false`, `license_number=null`) + `AuditLog(DOCTOR_SELF_REGISTERED)`; đăng nhập ngay và chuyển hướng sang `/doctor/profile` để hoàn thiện hồ sơ CCHN & chuyên môn (`UC-DOC-12`) trước khi Admin thẩm định (`UC-ADM-05`).<br>- **Sau xác thực email:** `users.email_verified = true`, `email_verified_at` được ghi nhận, token đã dùng bị đánh dấu và các token cũ bị xóa, ghi `AuditLog(EMAIL_VERIFIED)`. |
+| **Normal Flow** | **Luồng A — Đăng ký Bệnh nhân độc lập (`PatientRegisterForm.tsx`):**<br>Step 1: Tại `/login` (`activeTab = REGISTER`, `roleType = PATIENT`), bệnh nhân nhập Họ tên, Ngày sinh, SĐT, Email, Giới tính, Mật khẩu mạnh (8+ ký tự, chữ hoa, ký tự đặc biệt) và xác nhận điều khoản.<br>Step 2: Frontend gửi `POST /api/v1/auth/register` (`RegisterRequest`).<br>Step 3: Backend chuẩn hóa SĐT (loại bỏ khoảng trắng/dấu gạch nối), kiểm tra trùng email (`409 EMAIL_ALREADY_EXISTS`) và trùng SĐT (`409 PHONE_ALREADY_EXISTS`), tạo `User(PATIENT, ACTIVE, emailVerified=false)` + `PatientProfile` (gán `address = trimToNull(...)`), ghi `AuditLog(PATIENT_REGISTERED)`, gọi `issueEmailVerification(user)` và trả `201 Created` kèm JWT cookie + body.<br><br>**Luồng B — Bác sĩ tự đăng ký theo Mô hình 2 Bước (`DoctorRegisterForm.tsx` $\rightarrow$ `DoctorProfilePage.tsx`):**<br>Step 1 (Tạo tài khoản cơ bản — tránh Form Fatigue): Bác sĩ truy cập `/login?mode=register&role=doctor` (hoặc chọn tab `Bác Sĩ & Phòng Khám`), chỉ nhập **Nhóm 1 (Định danh & Tài khoản)**: Họ tên, Email đăng nhập, SĐT khẩn cấp, Mật khẩu mạnh và xác nhận điều khoản (ảnh chân dung cập nhật ở Bước 2 tại `/doctor/profile`).<br>Step 2: Frontend gửi `POST /api/v1/auth/register/doctor` (`DoctorRegisterRequest` với các trường CCHN/chuyên khoa để optional).<br>Step 3: `AuthService.registerDoctor()` kiểm tra rate limit, trùng email (`409 EMAIL_ALREADY_EXISTS`), trùng SĐT (`409 PHONE_ALREADY_EXISTS`), (nếu có truyền CCHN thì kiểm tra trùng `409 LICENSE_ALREADY_EXISTS`).<br>Step 4: Lưu `User(DOCTOR, ACTIVE, emailVerified=false)` và `DoctorProfile(isVerified=false, licenseNumber=null)`, ghi `AuditLog(DOCTOR_SELF_REGISTERED)`, gọi `issueEmailVerification(user)`, trả `201 Created` kèm `accessToken` HttpOnly Cookie và điều hướng thẳng tới `/doctor/profile` để bác sĩ khai báo Nhóm 2–4 (`UC-DOC-12`).<br><br>**Luồng C — Gửi & Xác thực Email:**<br>Step 5: `issueEmailVerification(user)` sinh token ngẫu nhiên, lưu bản băm SHA-256 (TTL 24h) vào `email_verification_tokens` và phát `EmailVerificationRequestedEvent`.<br>Step 6: `MailNotificationListener` (`AFTER_COMMIT`, `@Async("mailExecutor")`) gọi `EmailService.send(..., "verify-email", ...)` gửi HTML email chứa link `/verify-email?token={rawToken}` tới Mailpit hoặc Gmail SMTP.<br>Step 7: Người dùng bấm link `/verify-email?token=...`; `VerifyEmailPage.tsx` gọi `POST /api/v1/auth/verify-email` (`VerifyEmailRequest`).<br>Step 8: Backend băm token, xác thực hạn dùng, cập nhật `users.email_verified = true`, `email_verified_at = now`, đánh dấu `usedAt`, xóa token thừa, ghi `AuditLog(EMAIL_VERIFIED)` và trả `200 OK`. |
+| **Alternative Flow** | - Alt Flow 11a: Resend Verification Email:<br>1. Người dùng đã đăng nhập gọi `POST /api/v1/auth/resend-verification`.<br>2. Backend kiểm tra rate limit (60s/lần, tối đa 5 lần/giờ; trả `429 RATE_LIMIT_EXCEEDED` nếu vượt), vô hiệu token cũ, tạo token mới và gửi lại email.<br>- Alt Flow 11b: Bấm lại link xác thực khi đã verified:<br>1. `AuthService.verifyEmail()` xử lý idempotent, trả `200 OK` và không ghi trùng audit log.<br>- Alt Flow 11c: Cấu hình gửi Gmail thật vs Mailpit Dev:<br>1. Mặc định `dev` dùng Mailpit (`SMTP_HOST=localhost`, `SMTP_PORT=1025`).<br>2. Khi khai báo `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USERNAME`, `SMTP_PASSWORD` (App Password 16 ký tự), `SMTP_AUTH=true`, `SMTP_STARTTLS=true`, `SMTP_STARTTLS_REQUIRED=true` trong `.env` / `backend/.env` (nạp qua `spring.config.import`), hệ thống gửi trực tiếp tới hộp thư Gmail thực tế. |
+| **Exceptions** | - Exc Flow 12a: Trùng Email / SĐT / Số CCHN khi đăng ký:<br>1. Backend ném `AppException(HttpStatus.CONFLICT, "EMAIL_ALREADY_EXISTS" | "PHONE_ALREADY_EXISTS" | "LICENSE_ALREADY_EXISTS", ...)` trả `409 Conflict`.<br>2. Form hiển thị lỗi inline tiếng Việt rõ ràng.<br>- Exc Flow 12b: Invalid or Expired Token:<br>1. Backend ném `AppException(HttpStatus.BAD_REQUEST, "INVALID_TOKEN" | "TOKEN_EXPIRED", ...)`.<br>2. `VerifyEmailPage.tsx` hiển thị thông báo lỗi kèm hướng dẫn yêu cầu gửi lại email xác thực.<br>- Exc Flow 12c: Rate limit đăng ký (`429 RATE_LIMIT_EXCEEDED`): Chặn spam tạo tài khoản qua `SecurityRateLimiterService.allowRegistrationAttempt`. |
+| **Priority** | High (P0 - Core Onboarding & Security) |
+| **Frequency of Use** | High (Every patient/doctor onboarding) |
+| **Business Rules** | - BR-09: Bệnh nhân chưa xác thực email (`email_verified = false`) bị chặn đặt lịch khám và thanh toán bởi `EmailVerificationGuard` (`403 EMAIL_NOT_VERIFIED`).<br>- BR-09B: Bác sĩ tự đăng ký có `is_verified = false` bị ẩn khỏi danh mục tìm kiếm bác sĩ công khai (`/api/v1/doctors`) cho tới khi Admin thẩm định CCHN (`UC-ADM-05`). |
+| **Data Entities Involved** | - `users` (role, status, email_verified, email_verified_at, phone), `patient_profiles`, `doctor_profiles` (license_number, academic_title, hospital_affiliation, department, license_issued_by, years_of_experience, consultation_fee, bio, is_verified), `doctor_specialties`, `specialties`, `email_verification_tokens`, `audit_logs`. |
+| **User Interface Controls** | - Role Switcher Pills (`Dành Cho Bệnh Nhân`, `Bác Sĩ & Phòng Khám`).<br>- `PatientRegisterForm`: inputs thông tin bệnh nhân, strength meter, `#terms`, demo presets (`ENABLE_DEMO_LOGIN`), button `Tạo Tài Khoản`.<br>- `DoctorRegisterForm` (Bước 1): stepper 3 bước, Nhóm 1 (Họ tên, Email, SĐT, Mật khẩu + strength meter), `#doctor-terms`, demo preset `Điền nhanh BS mẫu`, button `Tạo Tài Khoản & Tiếp Tục Khai Báo Hồ Sơ` (chuyển hướng `/doctor/profile`).<br>- Banner nhắc xác thực email, `Kích Hoạt Tài Khoản`, `Gửi Lại Email`. |
 
 
 
@@ -568,17 +568,17 @@ graph TD
 | **Primary Actor** | Patient |
 | **Secondary Actor** | External Gateway |
 | **Description** | MediAssist-AI Clinical Scheduling Subsystem — - Appointment record created with status `SCHEDULED` and payment status `UNPAID`.<br>- Sequential daily STT queue number assigned (`queue_number = 'STT 01'`).<br>- Clinic room assigned from doctor profile. |
-| **Trigger** | Patient confirms slot selection in `BookingModal`. |
-| **Pre-conditions** | - Patient is authenticated with verified email (`email_verified = true`).<br>- Doctor is verified (`is_verified = true`) and active (`is_active = true`). |
+| **Trigger** | Patient opens `BookingModal` and confirms slot selection. |
+| **Pre-conditions** | - Patient is authenticated with verified email (`email_verified = true`); if unverified, `BookingModal` renders `<EmailNotVerifiedHint />` early above `<SlotPicker>` and locks confirmation (`EMAIL_NOT_VERIFIED_TOOLTIP`).<br>- Doctor is verified (`is_verified = true`) and active (`is_active = true`). |
 | **Post-conditions** | - Appointment record created with status `SCHEDULED` and payment status `UNPAID`.<br>- Sequential daily STT queue number assigned (`queue_number = 'STT 01'`).<br>- Clinic room assigned from doctor profile. |
-| **Normal Flow** | Step 1: Patient selects doctor and 30-min slot on `/patient/doctors` (e.g., 2026-10-20 09:00:00 to 09:30:00).<br>Step 2: Patient opens `BookingModal`, enters chief complaint, and optionally selects an uploaded `medicalDocumentId`.<br>Step 3: Frontend calls HTTP POST `/api/v1/appointments` with `CreateAppointmentRequest`.<br>Step 4: Backend checks doctor status (`DOCTOR_NOT_ACTIVE`, `DOCTOR_NOT_VERIFIED`).<br>Step 5: Backend checks clinic hours: Monday–Saturday, 08:00–12:00 & 13:30–17:00 (Sundays blocked).<br>Step 6: Backend verifies slot vacancy:<br>`SELECT COUNT(*) FROM appointments WHERE doctor_id = :d AND scheduled_start = :s AND status NOT IN ('CANCELLED')`<br>Step 7: Backend calculates next daily sequential queue number:<br>`queue_number = String.format("STT %02d", countToday + 1)`.<br>Step 8: Backend generates unique `appointment_code` (e.g., `AP-20261020-XXXX`).<br>Step 9: Backend sets `clinic_room = doctorProfile.getClinicRoom()`.<br>Step 10: Backend inserts record into `appointments` with status `SCHEDULED`.<br>Step 11: Backend returns HTTP 201 Created with `AppointmentDto`.<br>Step 12: Frontend opens payment modal or redirects to checkout. |
+| **Normal Flow** | Step 1: Patient selects doctor and 30-min slot on `/patient/doctors` (e.g., 2026-10-20 09:00:00 to 09:30:00).<br>Step 2: Patient opens `BookingModal`; `useEmailVerification()` verifies email status early, showing `<EmailNotVerifiedHint />` and disabling submit if unverified; verified patient enters chief complaint and optionally selects an uploaded `medicalDocumentId`.<br>Step 3: Frontend calls HTTP POST `/api/v1/appointments` with `CreateAppointmentRequest`.<br>Step 4: Backend checks doctor status (`DOCTOR_NOT_ACTIVE`, `DOCTOR_NOT_VERIFIED`) and email verification.<br>Step 5: Backend checks clinic hours: Monday–Saturday, 08:00–12:00 & 13:30–17:00 (Sundays blocked).<br>Step 6: Backend verifies slot vacancy:<br>`SELECT COUNT(*) FROM appointments WHERE doctor_id = :d AND scheduled_start = :s AND status NOT IN ('CANCELLED')`<br>Step 7: Backend calculates next daily sequential queue number:<br>`queue_number = String.format("STT %02d", countToday + 1)`.<br>Step 8: Backend generates unique `appointment_code` (e.g., `AP-20261020-XXXX`).<br>Step 9: Backend sets `clinic_room = doctorProfile.getClinicRoom()`.<br>Step 10: Backend inserts record into `appointments` with status `SCHEDULED`.<br>Step 11: Backend returns HTTP 201 Created with `AppointmentDto`.<br>Step 12: Frontend opens payment modal or redirects to checkout. |
 | **Alternative Flow** | - Alt Flow 11a: Concurrent Slot Collision:<br>1. Another patient booked the same slot milliseconds earlier.<br>2. Backend detects conflict and throws `AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", "Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác.")`.<br>3. Frontend refreshes slot picker. |
-| **Exceptions** | - Exc Flow 12a: Sunday Booking Attempt:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_DAY", "Bệnh viện không tiếp nhận lịch hẹn vào Chủ Nhật.")`.<br>- Exc Flow 12b: Outside Operating Hours:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME", "Khung giờ khám hợp lệ là 08:00-12:00 và 13:30-17:00.")`. |
+| **Exceptions** | - Exc Flow 12a: Sunday Booking Attempt:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_DAY", "Bệnh viện không tiếp nhận lịch hẹn vào Chủ Nhật.")`.<br>- Exc Flow 12b: Outside Operating Hours:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME", "Khung giờ khám hợp lệ là 08:00-12:00 và 13:30-17:00.")`.<br>- Exc Flow 12c: Unverified Email Gate:<br>1. Frontend shows `<EmailNotVerifiedHint />` and tooltip blocker in `BookingModal`; backend `EmailVerificationGuard` rejects direct API calls with `403 EMAIL_NOT_VERIFIED`. |
 | **Priority** | High (P0) |
 | **Frequency of Use** | High (Frequent operational use) |
 | **Business Rules** | - BR-17: In-clinic consultations operate strictly Monday–Saturday, 08:00–12:00 & 13:30–17:00.<br>- BR-20: Queue numbers (STT) are sequential per doctor per calendar date starting at STT 01. |
 | **Data Entities Involved** | `appointments`, `doctor_profiles`, `users`. |
-| **User Interface Controls** | `BookingModal`, slot pills, document select dropdown, "Xác Nhận Đặt Lịch" button. |
+| **User Interface Controls** | `BookingModal`, `<EmailNotVerifiedHint />`, slot pills, document select dropdown, "Xác Nhận Đặt Lịch" button (gated by `isUnverified`). |
 
 ---
 
@@ -734,16 +734,16 @@ graph TD
 | **Secondary Actor** | External Gateway |
 | **Description** | MediAssist-AI Clinical Scheduling Subsystem — `scheduled_start` and `scheduled_end` updated to new available slot. |
 | **Trigger** | Patient selects "Dời Lịch Khám" on active appointment. |
-| **Pre-conditions** | - Appointment is in `SCHEDULED` status.<br>- New appointment time is at least 2 hours in the future. |
+| **Pre-conditions** | - Patient has verified email (`email_verified = true`, enforced on Modal footer confirm button via `isUnverified`).<br>- Appointment is in `SCHEDULED` status.<br>- New appointment time is at least 2 hours in the future. |
 | **Post-conditions** | `scheduled_start` and `scheduled_end` updated to new available slot. |
-| **Normal Flow** | Step 1: Patient opens reschedule dialog on appointment card.<br>Step 2: Patient selects new date and slot from doctor's available schedule.<br>Step 3: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/reschedule` with `RescheduleAppointmentRequest(newScheduledStart, newScheduledEnd)`.<br>Step 4: Backend checks current appointment status is `SCHEDULED`.<br>Step 5: Backend verifies new slot is >= 2 hours from current time (`PAST_DATE`).<br>Step 6: Backend verifies clinic hours (Monday–Saturday, 08:00–12:00 / 13:30–17:00).<br>Step 7: Backend checks new slot vacancy to prevent conflict (`SLOT_CONFLICT`).<br>Step 8: Backend updates appointment schedule times and re-computes queue number.<br>Step 9: Backend sends email notice of schedule change.<br>Step 10: Frontend displays toast: "Đã dời lịch hẹn thành công." |
+| **Normal Flow** | Step 1: Patient opens reschedule dialog (`Modal`) on appointment card.<br>Step 2: Patient selects new date and slot from doctor's available schedule (`SlotPicker`) and clicks the unified Modal footer confirm button (blocked with tooltip if `isUnverified`).<br>Step 3: Frontend calls HTTP PATCH `/api/v1/appointments/{id}/reschedule` with `RescheduleAppointmentRequest(newScheduledStart, newScheduledEnd)`.<br>Step 4: Backend checks current appointment status is `SCHEDULED`.<br>Step 5: Backend verifies new slot is >= 2 hours from current time (`PAST_DATE`).<br>Step 6: Backend verifies clinic hours (Monday–Saturday, 08:00–12:00 / 13:30–17:00).<br>Step 7: Backend checks new slot vacancy to prevent conflict (`SLOT_CONFLICT`).<br>Step 8: Backend updates appointment schedule times and re-computes queue number.<br>Step 9: Backend sends email notice of schedule change.<br>Step 10: Frontend displays toast: "Đã dời lịch hẹn thành công." |
 | **Alternative Flow** | None. |
 | **Exceptions** | - Exc Flow 12a: Reschedule within 2 hours of appointment:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "PAST_DATE", "Thời gian hẹn mới phải cách thời điểm hiện tại ít nhất 2 giờ")`. |
 | **Priority** | Medium (P2) |
 | **Frequency of Use** | High (Frequent operational use) |
 | **Business Rules** | - BR-21: Rescheduling allowed up to 2 hours prior to scheduled appointment. |
 | **Data Entities Involved** | `appointments`, `audit_logs`. |
-| **User Interface Controls** | Reschedule modal, slot picker, confirm button. |
+| **User Interface Controls** | Reschedule `Modal` with unified footer (`Hủy` / `Xác nhận đổi lịch` gated by `isUnverified`), `SlotPicker`. |
 
 ---
 
@@ -818,7 +818,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `TriageController` $\rightarrow$ `GET /api/v1/triage/history` (Quyền: `PUBLIC / AUTH_DEFAULT`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/triage` $\rightarrow$ Màn hình `SymptomTriagePage.tsx (Tab Lịch sử tư vấn)`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/triage, /patient` $\rightarrow$ Màn hình `SymptomTriagePage.tsx, PatientDashboard.tsx (Tab Lịch sử tư vấn)`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `triage_sessions` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V15__add_triage_session_and_refund_to_appointments.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `TriageService` $\rightarrow$ `TriageSessionRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `TriageServiceTest.java` (**100% PASS**)
@@ -832,10 +832,10 @@ graph TD
 | **Primary Actor** | Patient |
 | **Secondary Actor** | External Gateway |
 | **Description** | MediAssist-AI Clinical Triage Subsystem — List of past triage sessions and SBAR summaries rendered. |
-| **Trigger** | Patient accesses historical triage conversations on `/patient/triage`. |
+| **Trigger** | Patient accesses historical triage conversations on `/patient/triage` or `/patient` (`PatientDashboard.tsx`). |
 | **Pre-conditions** | Patient is authenticated. |
-| **Post-conditions** | List of past triage sessions and SBAR summaries rendered. |
-| **Normal Flow** | Step 1: Patient opens history tab on `/patient/triage`.<br>Step 2: Frontend calls HTTP GET `/api/v1/triage/history`.<br>Step 3: Backend queries `triage_sessions` for `user_id = currentUserId` ordered by `created_at DESC`.<br>Step 4: Backend returns `List<TriageSessionDto>`.<br>Step 5: Frontend renders past symptom cards with urgency badges and SBAR summaries. |
+| **Post-conditions** | List of past triage sessions and SBAR summaries rendered, with direct specialty pre-filter link to `/patient/doctors?specialty=...`. |
+| **Normal Flow** | Step 1: Patient opens history tab on `/patient/triage` or AI Triage History section on `/patient` (`PatientDashboard.tsx`).<br>Step 2: Frontend calls HTTP GET `/api/v1/triage/history`.<br>Step 3: Backend queries `triage_sessions` for `user_id = currentUserId` ordered by `created_at DESC`.<br>Step 4: Backend returns `List<TriageSessionDto>`.<br>Step 5: Frontend renders past symptom cards with urgency badges, SBAR summaries, and booking CTA linking to `/patient/doctors?specialty={encodedPrimarySpecialty}` (which auto-matches the specialty filter in `DoctorSearchPage.tsx`). |
 | **Alternative Flow** | None. |
 | **Exceptions** | None. |
 | **Priority** | Low (P3) |
@@ -1266,18 +1266,18 @@ graph TD
 | **Created Date** | 15/02/2026 |
 | **Primary Actor** | Doctor |
 | **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
-| **Description** | MediAssist-AI Doctor Subsystem — - `doctor_profiles` updated.<br>- If bio changed, 1536-d vector embedding re-computed asynchronously. |
-| **Trigger** | Doctor updates bio, consultation fee, or clinic room. |
-| **Pre-conditions** | Doctor is authenticated. |
-| **Post-conditions** | - `doctor_profiles` updated.<br>- If bio changed, 1536-d vector embedding re-computed asynchronously. |
-| **Normal Flow** | Step 1: Doctor edits bio, fee, or clinic room on `/doctor/profile`.<br>Step 2: Frontend calls HTTP PUT `/api/v1/doctors/me/profile` with `UpdateDoctorProfileRequest`.<br>Step 3: Backend updates `doctor_profiles` table.<br>Step 4: If bio was modified, backend triggers asynchronous re-embedding via `EmbeddingService`.<br>Step 5: Backend updates `doctor_profiles.bio_embedding`.<br>Step 6: Backend invalidates doctor cache in Redis.<br>Step 7: Frontend displays success notification. |
-| **Alternative Flow** | None. |
-| **Exceptions** | None. |
-| **Priority** | Medium (P2) |
-| **Frequency of Use** | Medium (Periodic / Administrative) |
-| **Business Rules** | - BR-31: CCHN license number cannot be altered without admin re-vetting. |
-| **Data Entities Involved** | `doctor_profiles`. |
-| **User Interface Controls** | Bio textarea, fee input, clinic room input, save button. |
+| **Description** | MediAssist-AI Doctor Onboarding & Profile Subsystem — Bước 2 trong quy trình 2 bước: Bác sĩ hoàn thiện 4 nhóm thông tin (`users` & `doctor_profiles`) gồm Định danh, Pháp lý CCHN (`licenseNumber`, `licenseIssuedBy`, `licenseDocumentUrl`), Chuyên môn (`academicTitle`, `specialtySlugs`, `hospitalAffiliation`, `department`, `yearsOfExperience`, `bio`) và Phí khám (`consultationFee`). Sau khi lưu, nếu chưa duyệt (`isVerified = false`), hiển thị trạng thái *"Hồ sơ của bạn đang được Ban quản trị thẩm định trong vòng 24h"*; nếu đã duyệt (`isVerified = true`), tự động tái tính vector embedding 1536 chiều. |
+| **Trigger** | Bác sĩ được chuyển tới `/doctor/profile` ngay sau khi đăng ký Bước 1 hoặc chủ động cập nhật hồ sơ cá nhân. |
+| **Pre-conditions** | Bác sĩ đã đăng nhập (`Role = DOCTOR`). |
+| **Post-conditions** | - Bảng `users` (`full_name`, `phone`, `avatar_url`) và `doctor_profiles` (`license_number`, `license_issued_by`, `license_document_url`, `academic_title`, `hospital_affiliation`, `department`, `years_of_experience`, `bio`, `consultation_fee`, `doctor_specialties`) được cập nhật.<br>- Nếu `is_verified = true`, cache bác sĩ xác minh bị xóa và Vector AI được đồng bộ qua `DoctorSemanticSearchService`. |
+| **Normal Flow** | Step 1: Bác sĩ mở `/doctor/profile` (hoặc được điều hướng từ `DoctorRegisterForm`), nạp hồ sơ hiện tại từ `GET /api/v1/doctors/{userId}` và danh mục chuyên khoa từ `GET /api/v1/specialties`.<br>Step 2: Bác sĩ nhập/chỉnh sửa 4 nhóm thông tin: Nhóm 1 (Họ tên, SĐT, URL ảnh chân dung blouse trắng), Nhóm 2 (Số CCHN, Cơ quan cấp, Link file scan/ảnh CCHN), Nhóm 3 (Học hàm/Học vị, Danh sách chuyên khoa, Bệnh viện, Khoa, Kinh nghiệm, Tiểu sử chuyên môn), Nhóm 4 (Phí khám VNĐ).<br>Step 3: Frontend gọi `PUT /api/v1/doctors/me/profile` với `UpdateDoctorProfileRequest`.<br>Step 4: `DoctorService.updateDoctorProfile()` kiểm tra trùng SĐT (`409 PHONE_ALREADY_EXISTS`) và trùng CCHN với hồ sơ khác (`409 LICENSE_ALREADY_EXISTS`), sau đó lưu `User` và `DoctorProfile`.<br>Step 5: Nếu `isVerified = true`, xóa cache `doctors:verified` và cập nhật `bio_embedding`; nếu `isVerified = false`, giữ trạng thái chờ Admin thẩm định.<br>Step 6: Frontend đồng bộ `useAuthStore` và hiển thị thông báo: *"Hồ sơ của bạn đang được Ban quản trị thẩm định trong vòng 24h"* (nếu chờ duyệt) hoặc thông báo cập nhật thành công. |
+| **Alternative Flow** | - Alt Flow 11a: Dùng nút *"Điền nhanh Hồ sơ Chuyên môn mẫu"* (`ENABLE_DEMO_LOGIN`) để nạp dữ liệu CCHN mẫu khi demo. |
+| **Exceptions** | - Exc Flow 12a: Trùng số CCHN hoặc SĐT với bác sĩ khác $\rightarrow$ `409 Conflict` (`LICENSE_ALREADY_EXISTS` / `PHONE_ALREADY_EXISTS`). |
+| **Priority** | High (P0 - Doctor Onboarding) |
+| **Frequency of Use** | High (Every new doctor onboarding & periodic updates) |
+| **Business Rules** | - BR-31: Số CCHN phải là duy nhất trên toàn hệ thống (`UNIQUE license_number`); bác sĩ mới chỉ hiển thị công khai khi `is_verified = true` sau bước Admin vetting (`UC-ADM-05`). |
+| **Data Entities Involved** | `users`, `doctor_profiles`, `doctor_specialties`, `specialties`. |
+| **User Interface Controls** | Banner trạng thái thẩm định 24h, Nhóm 1–4 inputs, multi-select chuyên khoa, live preview phí khám & avatar, button `Gửi hồ sơ chờ thẩm định` / `Cập nhật hồ sơ chuyên môn`. |
 
 ---
 
@@ -1376,7 +1376,7 @@ graph TD
 | **Trigger** | Admin logs in and accesses `/admin`. |
 | **Pre-conditions** | User possesses `ADMIN` role. |
 | **Post-conditions** | Executive telemetry and platform metrics displayed. |
-| **Normal Flow** | Step 1: Admin navigates to `/admin`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/stats`.<br>Step 3: Backend aggregates metrics from database:<br>- `totalUsers`: Total registered accounts.<br>- `totalDoctors`: Active doctors.<br>- `totalPatients`: Patient accounts.<br>- `totalAppointments`: System-wide consultations.<br>- `totalRevenue`: Gross revenue settled.<br>Step 4: Backend returns `AdminSystemStatsDto`.<br>Step 5: Frontend renders executive dashboard KPI cards and activity trends. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/stats`.<br>Step 3: Backend aggregates metrics from database and real health probes:<br>- `totalUsers`, `suspendedUsersCount`: Tổng tài khoản và số tài khoản đang bị tạm khóa (`SUSPENDED`).<br>- `totalDoctors`, `verifiedDoctorsCount`, `pendingDoctorsCount`: Bác sĩ hoạt động, đã duyệt CCHN, chờ duyệt CCHN.<br>- `totalPatients`, `totalAppointments`, `totalRevenue`, `infrastructureHealth` (`pgvector`, `database`, `redis`).<br>Step 4: Backend returns `AdminSystemStatsDto`.<br>Step 5: Frontend renders executive dashboard KPI cards, real infrastructure status indicators, and quick-vet pending queue (`doc.licenseNumber \|\| 'Chưa khai báo CCHN'`). |
 | **Alternative Flow** | None. |
 | **Exceptions** | None. |
 | **Priority** | High (P1) |
@@ -1506,9 +1506,9 @@ graph TD
 | **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
 | **Description** | MediAssist-AI Vetting Subsystem — Doctor verified (`is_verified = true`) and activated for public search. |
 | **Trigger** | Admin reviews pending doctor license applications. |
-| **Pre-conditions** | Doctor account exists with `is_verified = false`. |
-| **Post-conditions** | Doctor verified (`is_verified = true`) and activated for public search. |
-| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/pending`.<br>Step 3: Backend returns doctors with `is_verified = false`.<br>Step 4: Admin inspects CCHN license number, issuing authority, and specialty credentials.<br>Step 5: Admin clicks "Phê Duyệt" (Approve).<br>Step 6: Frontend calls HTTP POST `/api/v1/admin/doctors/{id}/vet` with `VetDoctorRequest(approved=true)`.<br>Step 7: Backend sets `doctor_profiles.is_verified = true`.<br>Step 8: Backend triggers vector embedding generation if missing.<br>Step 9: Backend sends approval email to doctor.<br>Step 10: Frontend removes doctor from pending queue. |
+| **Pre-conditions** | Doctor account exists with `is_verified = false` (created via self-registration `POST /api/v1/auth/register/doctor` or Admin creation). |
+| **Post-conditions** | Doctor verified (`is_verified = true`), user status ensured `ACTIVE` (promoted if `PENDING_VERIFICATION`), and activated for public search. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors` / `/api/v1/admin/doctors/pending`.<br>Step 3: Backend returns doctors (`DoctorDetailDto` kèm `@JsonProperty("isVerified")` và `licenseDocumentUrl`), Tab Chờ duyệt lọc `isVerified = false`.<br>Step 4: Admin inspects CCHN license number, clickable link `Xem bản scan CCHN` (`licenseDocumentUrl`), issuing authority, and specialty credentials against Bộ Y Tế portal.<br>Step 5: Admin clicks "Phê Duyệt & Tính Vector AI" (Approve).<br>Step 6: Frontend calls HTTP POST `/api/v1/admin/doctors/{id}/vet` with `VetDoctorRequest(approved=true)`.<br>Step 7: Backend sets `doctor_profiles.is_verified = true`, `verified_at = now()`, and promotes `UserStatus.PENDING_VERIFICATION` $\rightarrow$ `UserStatus.ACTIVE` if needed.<br>Step 8: Backend triggers vector embedding generation (`pgvector`) if missing.<br>Step 9: Backend sends in-app notification (`VETTING_APPROVED`) to doctor.<br>Step 10: Frontend removes doctor from pending queue and moves them to active verified roster. |
 | **Alternative Flow** | - Alt Flow 11a: Reject Application:<br>1. Admin calls vetting endpoint with `approved = false` and rejection reason.<br>2. Backend sends rejection email prompting re-submission. |
 | **Exceptions** | None. |
 | **Priority** | High (P0 - Legal Compliance) |
@@ -1541,9 +1541,9 @@ graph TD
 | **Trigger** | Admin creates, edits, or toggles status of a doctor. |
 | **Pre-conditions** | Admin is authenticated. |
 | **Post-conditions** | Doctor record in `doctor_profiles` and `users` updated. |
-| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/paged?page=0&size=10`.<br>Step 3: Admin clicks "Tạo Bác Sĩ Mới" and inputs Name, Email, License Number, Specialty, Fee, Clinic Room.<br>Step 4: Frontend calls HTTP POST `/api/v1/admin/doctors` with `AdminCreateDoctorRequest`.<br>Step 5: Backend creates `User` (role=`DOCTOR`) and `DoctorProfile` within a transaction.<br>Step 6: Backend sends welcome email with temporary credentials.<br>Step 7: Admin can also toggle doctor status via `PATCH /api/v1/admin/doctors/{id}/toggle-status`. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/paged?page=0&size=10`.<br>Step 3: Admin clicks "Tạo Bác Sĩ Mới" (hoặc "Chỉnh Sửa") and inputs Name, Email, Phone (chuẩn hóa & kiểm tra trùng), License Number, License Issued By, License Document URL (`licenseDocumentUrl`), Specialty, Fee, Clinic Room.<br>Step 4: Frontend calls HTTP POST `/api/v1/admin/doctors` (hoặc PUT `/api/v1/admin/doctors/{id}`).<br>Step 5: Backend creates/updates `User` (`DOCTOR`) và `DoctorProfile` within a transaction, invalidating `doctors:verified` and semantic search caches.<br>Step 6: Backend sends welcome email with temporary credentials on creation.<br>Step 7: Admin can also toggle doctor status via `PATCH /api/v1/admin/doctors/{id}/toggle-status` (đồng bộ xóa cache công khai & vector search). |
 | **Alternative Flow** | None. |
-| **Exceptions** | - Exc Flow 12a: Duplicate Email or License:<br>1. Backend throws `AppException(HttpStatus.CONFLICT, "EMAIL_EXISTS", ...)` or `"LICENSE_EXISTS"`. |
+| **Exceptions** | - Exc Flow 12a: Duplicate Email, Phone or License:<br>1. Backend throws `AppException(HttpStatus.CONFLICT, "EMAIL_EXISTS" | "PHONE_ALREADY_EXISTS" | "LICENSE_EXISTS", ...)`. |
 | **Priority** | Medium (P1) |
 | **Frequency of Use** | Medium (Periodic / Administrative) |
 | **Business Rules** | None. |
@@ -1558,9 +1558,9 @@ graph TD
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/users, PATCH /api/v1/admin/users/{id}/status` (Quyền: `PUBLIC / AUTH_DEFAULT`)
 > - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/users` $\rightarrow$ Màn hình `UserManagementPage.tsx`
-> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users, audit_logs` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V3__account_lockout_and_security_hardening.sql, V6__fix_user_status_and_audit_logs.sql`
-> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, SecurityRateLimiterService` $\rightarrow$ `UserRepository, AuditLogRepository`
-> - **Kiểm Thử Tự Động (Unit / Integration Test):** `SecurityHardeningTest.java` (**100% PASS**)
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users, audit_logs, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V3__account_lockout_and_security_hardening.sql, V6__fix_user_status_and_audit_logs.sql, V24__fix_users_version_not_null.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AdminVettingService, NotificationService, DoctorSemanticSearchService, TwoLayerCacheService` $\rightarrow$ `UserRepository, AuditLogRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AdminVettingServiceTest.java, SecurityHardeningTest.java` (**100% PASS**)
 
 | Attribute | Specification Details |
 | :--- | :--- |
@@ -1570,13 +1570,13 @@ graph TD
 | **Created Date** | 15/02/2026 |
 | **Primary Actor** | Admin |
 | **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
-| **Description** | MediAssist-AI Admin Subsystem — `users.is_active` updated; user sessions invalidated. |
-| **Trigger** | Admin searches users on `/admin/users` and modifies account status. |
-| **Pre-conditions** | Admin is authenticated. |
-| **Post-conditions** | `users.is_active` updated; user sessions invalidated. |
-| **Normal Flow** | Step 1: Admin navigates to `/admin/users`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/users?query=...&page=0&size=20`.<br>Step 3: Admin inspects user details and clicks "Khóa Tài Khoản".<br>Step 4: Admin inputs mandatory lock reason (min 10 characters).<br>Step 5: Frontend calls HTTP PATCH `/api/v1/admin/users/{id}/status` with `UpdateUserStatusRequest(status, reason)`.<br>Step 6: Backend updates `users.is_active = false`.<br>Step 7: Backend logs `ADMIN_LOCK_USER` in `audit_logs`.<br>Step 8: Frontend updates user status badge to `Bị Khóa`. |
+| **Description** | MediAssist-AI Admin Subsystem — `users.status` (`ACTIVE`, `PENDING_VERIFICATION`, `SUSPENDED`) updated safely with `@Version` optimistic locking, doctor cache eviction, and audit logging. |
+| **Trigger** | Admin searches or filters users on `/admin/users` and modifies account status. |
+| **Pre-conditions** | Admin is authenticated; target account is not `ADMIN` or the current admin user. |
+| **Post-conditions** | `users.status` updated; if `DOCTOR`, verified/semantic caches evicted; `JwtAuthenticationFilter` rejects suspended user requests with `403 ACCOUNT_SUSPENDED`. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/users` (xem 4 thẻ KPI trạng thái, lọc theo vai trò và trạng thái `ACTIVE` / `PENDING_VERIFICATION` / `SUSPENDED`).<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/users`.<br>Step 3: Admin clicks `"Tạm khóa"` (hoặc `"Kích hoạt"` nếu đang `SUSPENDED`) và nhập lý do tối thiểu 10 ký tự.<br>Step 4: Frontend calls HTTP PATCH `/api/v1/admin/users/{id}/status` with `UpdateUserStatusRequest(status, reason)`.<br>Step 5: Backend validates target is not `ADMIN`/self, updates `users.status` (bảng `users.version` NOT NULL DEFAULT 0 qua Flyway V24), evicts cache bác sĩ nếu `DOCTOR`, và gửi thông báo in-app (`ACCOUNT_STATUS_UPDATED`).<br>Step 6: Backend logs `UPDATE_USER_STATUS` in `audit_logs`.<br>Step 7: Frontend updates user badge (`Hoạt động` / `Chờ xác minh` / `Tạm khóa`) and KPI counts. |
 | **Alternative Flow** | None. |
-| **Exceptions** | - Exc Flow 12a: Lock Reason Too Short:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_REASON", "Lý do khóa tài khoản bắt buộc tối thiểu 10 ký tự")`. |
+| **Exceptions** | - Exc Flow 12a: Lock Reason Too Short:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_REASON", ...)`.<br>- Exc Flow 12b: Target Is Admin Or Self:<br>1. Backend throws `AppException(HttpStatus.BAD_REQUEST, "CANNOT_MODIFY_ADMIN_STATUS", ...)`. |
 | **Priority** | High (P1) |
 | **Frequency of Use** | Medium (Periodic / Administrative) |
 | **Business Rules** | - BR-32: Locking an account immediately terminates active web and mobile sessions. |
@@ -1623,7 +1623,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/appointments, PATCH /api/v1/admin/appointments/{id}/cancel` (Quyền: `PUBLIC / AUTH_DEFAULT`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/appointments` $\rightarrow$ Màn hình `AppointmentSupervisionPage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/appointments` $\rightarrow$ Màn hình `AppointmentSupervisionPage.tsx, Pagination.tsx`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, payment_transactions, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V12__supervision_and_realtime_performance_indexes.sql, V13__create_payment_transactions.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService, AppointmentRefundService, NotificationService` $\rightarrow$ `AppointmentRepository, PaymentTransactionRepository, NotificationRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java, AppointmentRefundServiceTest.java` (**100% PASS**)
@@ -1656,7 +1656,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/triage-sessions` (Quyền: `PUBLIC / AUTH_DEFAULT`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/triage` $\rightarrow$ Màn hình `TriageSupervisionPage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/triage` $\rightarrow$ Màn hình `TriageSupervisionPage.tsx, Pagination.tsx`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `triage_sessions` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V12__supervision_and_realtime_performance_indexes.sql, V15__add_triage_session_and_refund_to_appointments.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `TriageService` $\rightarrow$ `TriageSessionRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `TriageServiceTest.java` (**100% PASS**)
@@ -1689,7 +1689,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/audit-logs` (Quyền: `PUBLIC / AUTH_DEFAULT`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/audit-logs` $\rightarrow$ Màn hình `AuditLogPage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/audit-logs` $\rightarrow$ Màn hình `AuditLogPage.tsx, Pagination.tsx`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `audit_logs` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V6__fix_user_status_and_audit_logs.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `PatientAccessGuard` $\rightarrow$ `AuditLogRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `PatientAccessGuardTest.java` (**100% PASS**)
@@ -1706,7 +1706,7 @@ graph TD
 | **Trigger** | Admin accesses `/admin/audit-logs`. |
 | **Pre-conditions** | Admin is authenticated. |
 | **Post-conditions** | Immutable audit trail records rendered. |
-| **Normal Flow** | Step 1: Admin navigates to `/admin/audit-logs`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/audit-logs`.<br>Step 3: Backend queries `audit_logs` table (Flyway V1) ordered by `created_at DESC`.<br>Step 4: Admin filters by action:<br>- `VIEW_PATIENT_RECORD` (Doctor patient record inspection under `PatientAccessGuard`).<br>- `USER_LOGIN`, `USER_LOGOUT`, `PASSWORD_RESET`.<br>- `ADMIN_LOCK_USER`, `ADMIN_TOGGLE_AI_MODE`, `FORCE_CANCEL_APPOINTMENT`.<br>Step 5: Backend returns list of `AuditLogDto` (action, entityType, entityId, userId, ipAddress, detailsJson, createdAt).<br>Step 6: Frontend renders audit table with expandable JSON details. |
+| **Normal Flow** | Step 1: Admin navigates to `/admin/audit-logs`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/audit-logs` (hoặc `?action=...`).<br>Step 3: Backend queries `audit_logs` ordered by `created_at DESC`, hỗ trợ nhóm bộ lọc `DOCTOR_VETTED` (`DOCTOR_VETTED`, `VET_DOCTOR_APPROVED`, `VET_DOCTOR_REJECTED`, `ADMIN_CREATE_DOCTOR`, `ADMIN_UPDATE_DOCTOR`, `DOCTOR_SELF_REGISTERED`) và `UPDATE_USER_STATUS` (`UPDATE_USER_STATUS`, `TOGGLE_DOCTOR_STATUS`).<br>Step 4: Admin filters by action (`VIEW_PATIENT_RECORD`, `USER_LOGIN`, `DOCTOR_VETTED`, `UPDATE_USER_STATUS`, `FORCE_CANCEL_APPOINTMENT`, `PATIENT_REGISTERED`, `EMAIL_VERIFIED`, v.v.).<br>Step 5: Backend returns list of `AuditLogDto` (action, entityType, entityId, userId, ipAddress, detailsJson, createdAt).<br>Step 6: Frontend renders paginated audit table (`<Pagination />`) with expandable JSON details. |
 | **Alternative Flow** | None. |
 | **Exceptions** | None. |
 | **Priority** | High (P1 - Compliance) |

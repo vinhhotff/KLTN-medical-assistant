@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
+import { Pagination } from '../../components/common/Pagination';
 import { devLog } from '../../utils/logger';
 import { EmptyState, ErrorState, SkeletonTable, useToast } from '../../components/ui';
 import { getApiErrorMessage } from '../../utils/apiError';
@@ -39,6 +40,8 @@ export const AuditLogPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('ALL');
   const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Background (silent) refreshes never replace a loaded table with an error
   // — a manual "Làm mới" (notify) reports the failure in a toast instead
@@ -74,6 +77,10 @@ export const AuditLogPage: React.FC = () => {
 
   const debouncedSearch = useDebounce(searchTerm, 250);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, actionFilter]);
+
   const filteredLogs = useMemo(() => {
     const tokens = debouncedSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (tokens.length === 0) return logs;
@@ -83,10 +90,22 @@ export const AuditLogPage: React.FC = () => {
     });
   }, [logs, debouncedSearch]);
 
+  const paginatedLogs = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredLogs.slice(start, start + pageSize);
+  }, [filteredLogs, currentPage, pageSize]);
+
   const getActionBadge = (action: string) => {
     if (action.includes('DOCTOR') || action.includes('VET')) {
       return (
         <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+          {action}
+        </span>
+      );
+    }
+    if (action === 'PATIENT_REGISTERED' || action === 'EMAIL_VERIFIED') {
+      return (
+        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200">
           {action}
         </span>
       );
@@ -98,7 +117,7 @@ export const AuditLogPage: React.FC = () => {
         </span>
       );
     }
-    if (action.includes('CANCEL') || action.includes('SUSPEND') || action.includes('DELETE')) {
+    if (action.includes('CANCEL') || action.includes('SUSPEND') || action.includes('DELETE') || action === 'UPDATE_USER_STATUS') {
       return (
         <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
           {action}
@@ -224,7 +243,7 @@ export const AuditLogPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {filteredLogs.map((log) => (
+                {paginatedLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-50/70 transition">
                     <td className="py-3.5 px-4 text-xs font-mono text-slate-600 whitespace-nowrap">
                       <div>{new Date(log.createdAt).toLocaleDateString('vi-VN')}</div>
@@ -261,6 +280,16 @@ export const AuditLogPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+        )}
+        {filteredLogs.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredLogs.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="bản ghi"
+          />
         )}
       </div>
 

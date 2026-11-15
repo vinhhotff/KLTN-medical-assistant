@@ -17,6 +17,7 @@ import {
   Clock,
   ShieldCheck,
   UserCheck,
+  ExternalLink,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
@@ -70,6 +71,7 @@ export interface Doctor {
   avatarUrl?: string;
   bio?: string;
   licenseNumber: string;
+  licenseDocumentUrl?: string;
   consultationFee: number;
   yearsOfExperience: number;
   isVerified: boolean;
@@ -769,7 +771,18 @@ export const DoctorManagementPage: React.FC = () => {
                       <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl">
                         <div>
                           <span className="text-slate-400 block">Số CCHN:</span>
-                          <span className="font-mono font-bold text-slate-800">{doc.licenseNumber}</span>
+                          <span className="font-mono font-bold text-slate-800">{doc.licenseNumber || 'Chưa khai báo CCHN'}</span>
+                          {doc.licenseDocumentUrl && (
+                            <a
+                              href={doc.licenseDocumentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal-700 hover:underline mt-1"
+                            >
+                              <span>Xem bản scan CCHN</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
                         </div>
                         <div>
                           <span className="text-slate-400 block">Nơi cấp:</span>
@@ -777,7 +790,7 @@ export const DoctorManagementPage: React.FC = () => {
                         </div>
                         <div>
                           <span className="text-slate-400 block">Bệnh viện:</span>
-                          <span className="font-semibold text-slate-800">{doc.hospitalAffiliation || 'N/A'}</span>
+                          <span className="font-semibold text-slate-800">{doc.hospitalAffiliation || 'Chưa cập nhật'}</span>
                         </div>
                         <div>
                           <span className="text-slate-400 block">Kinh nghiệm:</span>
@@ -888,8 +901,19 @@ export const DoctorManagementPage: React.FC = () => {
 
                 <div className="p-3 bg-slate-50 rounded-xl space-y-1">
                   <span className="text-slate-400 block font-semibold">Chứng chỉ hành nghề (CCHN):</span>
-                  <p className="font-mono font-bold text-sm text-slate-800">{selectedDoctorView.licenseNumber}</p>
+                  <p className="font-mono font-bold text-sm text-slate-800">{selectedDoctorView.licenseNumber || 'Chưa khai báo CCHN'}</p>
                   <p className="text-slate-500">Cơ quan cấp: {selectedDoctorView.licenseIssuedBy || 'Bộ Y Tế'}</p>
+                  {selectedDoctorView.licenseDocumentUrl && (
+                    <a
+                      href={selectedDoctorView.licenseDocumentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline pt-0.5"
+                    >
+                      <span>Xem bản scan CCHN</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-xl space-y-1">
@@ -1047,6 +1071,7 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
     department: '',
     licenseNumber: '',
     licenseIssuedBy: '',
+    licenseDocumentUrl: '',
     consultationFee: '',
     yearsOfExperience: '',
     bio: '',
@@ -1086,6 +1111,7 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
         hospitalAffiliation: formData.hospitalAffiliation.trim() || undefined,
         department: formData.department.trim() || undefined,
         licenseIssuedBy: formData.licenseIssuedBy.trim() || undefined,
+        licenseDocumentUrl: formData.licenseDocumentUrl.trim() || undefined,
         consultationFee: Number(formData.consultationFee),
         yearsOfExperience: formData.yearsOfExperience.trim() ? Number(formData.yearsOfExperience) : undefined,
         specialtySlugs: selectedSlugs,
@@ -1245,6 +1271,17 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
               </div>
 
               <div>
+                <label className="block font-semibold text-slate-700 mb-1">Link bản scan CCHN (PDF / Ảnh)</label>
+                <input
+                  type="url"
+                  placeholder="https://.../cchn-front.pdf"
+                  value={formData.licenseDocumentUrl}
+                  onChange={(e) => setFormData({ ...formData, licenseDocumentUrl: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
                 <label className="block font-semibold text-slate-700 mb-1">Số năm kinh nghiệm</label>
                 <input
                   type="number"
@@ -1367,6 +1404,7 @@ const EditDoctorModal: React.FC<EditDoctorModalProps> = ({ doctor, specialties, 
     department: doctor.department || '',
     licenseNumber: doctor.licenseNumber || '',
     licenseIssuedBy: doctor.licenseIssuedBy || '',
+    licenseDocumentUrl: doctor.licenseDocumentUrl || '',
     consultationFee: doctor.consultationFee ? String(doctor.consultationFee) : '',
     yearsOfExperience: doctor.yearsOfExperience !== null && doctor.yearsOfExperience !== undefined ? String(doctor.yearsOfExperience) : '',
     bio: doctor.bio || '',
@@ -1406,6 +1444,7 @@ const EditDoctorModal: React.FC<EditDoctorModalProps> = ({ doctor, specialties, 
         ...formData,
         academicTitle: formData.academicTitle || undefined,
         licenseIssuedBy: formData.licenseIssuedBy.trim() || undefined,
+        licenseDocumentUrl: formData.licenseDocumentUrl.trim() || undefined,
         consultationFee: Number(formData.consultationFee),
         yearsOfExperience: formData.yearsOfExperience.trim() ? Number(formData.yearsOfExperience) : undefined,
         specialtySlugs: selectedSlugs,
@@ -1504,6 +1543,40 @@ const EditDoctorModal: React.FC<EditDoctorModalProps> = ({ doctor, specialties, 
                 type="text"
                 value={formData.department}
                 onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Nơi cấp CCHN</label>
+              <input
+                type="text"
+                placeholder="Bộ Y Tế / Sở Y Tế ..."
+                value={formData.licenseIssuedBy}
+                onChange={(e) => setFormData({ ...formData, licenseIssuedBy: e.target.value })}
+                className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-semibold text-slate-700">Link bản scan CCHN (PDF / Ảnh)</label>
+                {formData.licenseDocumentUrl.trim() && (
+                  <a
+                    href={formData.licenseDocumentUrl.trim()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold text-emerald-700 hover:underline"
+                  >
+                    Xem bản scan
+                  </a>
+                )}
+              </div>
+              <input
+                type="url"
+                placeholder="https://.../cchn-front.pdf"
+                value={formData.licenseDocumentUrl}
+                onChange={(e) => setFormData({ ...formData, licenseDocumentUrl: e.target.value })}
                 className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               />
             </div>

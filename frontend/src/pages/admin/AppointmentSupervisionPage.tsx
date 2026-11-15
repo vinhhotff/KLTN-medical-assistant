@@ -19,6 +19,7 @@ import {
 import { api } from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
 import { ConfirmDialog, EmptyState, ErrorState, SkeletonTable, useToast } from '../../components/ui';
+import { Pagination } from '../../components/common/Pagination';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { devLog } from '../../utils/logger';
 
@@ -124,6 +125,18 @@ export const AppointmentSupervisionPage: React.FC = () => {
       return tokens.every((token) => searchableContent.includes(token));
     });
   }, [appointments, statusFilter, debouncedSearch]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, statusFilter]);
+
+  const paginatedAppointments = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAppointments.slice(start, start + pageSize);
+  }, [filteredAppointments, currentPage, pageSize]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -253,7 +266,7 @@ export const AppointmentSupervisionPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {filteredAppointments.map((app) => (
+                {paginatedAppointments.map((app) => (
                   <tr key={app.id} className="hover:bg-slate-50/70 transition">
                     <td className="py-3.5 px-4 font-mono font-bold text-indigo-700 text-xs">
                       {app.appointmentCode}
@@ -315,6 +328,16 @@ export const AppointmentSupervisionPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+        )}
+        {filteredAppointments.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredAppointments.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="ca khám"
+          />
         )}
       </div>
 

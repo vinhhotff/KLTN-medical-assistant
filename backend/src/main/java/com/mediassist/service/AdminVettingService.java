@@ -187,6 +187,10 @@ public class AdminVettingService {
         profile.setVerified(approve);
         if (approve) {
             profile.setVerifiedAt(LocalDateTime.now());
+            if (profile.getUser() != null && profile.getUser().getStatus() == UserStatus.PENDING_VERIFICATION) {
+                profile.getUser().setStatus(UserStatus.ACTIVE);
+                userRepository.save(profile.getUser());
+            }
             try {
                 String specNames = profile.getSpecialties().stream()
                         .map(com.mediassist.model.entity.Specialty::getName)
@@ -244,6 +248,13 @@ public class AdminVettingService {
         if (userRepository.existsByEmail(email)) {
             throw new AppException(HttpStatus.CONFLICT, "EMAIL_EXISTS", "Email này đã được sử dụng trong hệ thống: " + email);
         }
+        String normalizedPhone = (req.getPhone() != null && !req.getPhone().isBlank())
+                ? req.getPhone().trim().replaceAll("[\\s\\-.]", "")
+                : null;
+        if (normalizedPhone != null && userRepository.existsByPhone(normalizedPhone)) {
+            throw new AppException(HttpStatus.CONFLICT, "PHONE_ALREADY_EXISTS",
+                    "Số điện thoại '" + normalizedPhone + "' đã được sử dụng trên hệ thống.");
+        }
         if (req.getLicenseNumber() != null && doctorProfileRepository.findByLicenseNumber(req.getLicenseNumber().trim()).isPresent()) {
             throw new AppException(HttpStatus.CONFLICT, "LICENSE_EXISTS", "Số chứng chỉ hành nghề này đã tồn tại: " + req.getLicenseNumber());
         }
@@ -253,7 +264,7 @@ public class AdminVettingService {
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
         user.setFullName(req.getFullName().trim());
-        user.setPhone(req.getPhone() != null ? req.getPhone().trim() : null);
+        user.setPhone(normalizedPhone);
         user.setRole(Role.DOCTOR);
         user.setStatus(UserStatus.ACTIVE);
         // Admin tao tai khoan voi email do bac si cung cap qua kenh tham dinh -> coi la da xac thuc
@@ -268,6 +279,9 @@ public class AdminVettingService {
         profile.setDepartment(req.getDepartment() != null ? req.getDepartment().trim() : "");
         profile.setLicenseNumber(req.getLicenseNumber().trim());
         profile.setLicenseIssuedBy(req.getLicenseIssuedBy() != null ? req.getLicenseIssuedBy().trim() : "Bộ Y Tế");
+        profile.setLicenseDocumentUrl(req.getLicenseDocumentUrl() != null && !req.getLicenseDocumentUrl().isBlank()
+                ? req.getLicenseDocumentUrl().trim()
+                : null);
         profile.setConsultationFee(req.getConsultationFee() != null ? req.getConsultationFee() : BigDecimal.valueOf(300000));
         profile.setYearsOfExperience(req.getYearsOfExperience() != null ? req.getYearsOfExperience() : 5);
         profile.setBio(req.getBio() != null ? req.getBio().trim() : "");
@@ -320,7 +334,14 @@ public class AdminVettingService {
                 user.setFullName(req.getFullName().trim());
             }
             if (req.getPhone() != null) {
-                user.setPhone(req.getPhone().trim());
+                String normalizedPhone = req.getPhone().trim().replaceAll("[\\s\\-.]", "");
+                if (!normalizedPhone.isBlank()
+                        && !normalizedPhone.equals(user.getPhone())
+                        && userRepository.existsByPhone(normalizedPhone)) {
+                    throw new AppException(HttpStatus.CONFLICT, "PHONE_ALREADY_EXISTS",
+                            "Số điện thoại '" + normalizedPhone + "' đã được sử dụng trên hệ thống.");
+                }
+                user.setPhone(normalizedPhone.isBlank() ? null : normalizedPhone);
             }
             userRepository.save(user);
         }
@@ -328,8 +349,20 @@ public class AdminVettingService {
         if (req.getAcademicTitle() != null) profile.setAcademicTitle(req.getAcademicTitle().trim());
         if (req.getHospitalAffiliation() != null) profile.setHospitalAffiliation(req.getHospitalAffiliation().trim());
         if (req.getDepartment() != null) profile.setDepartment(req.getDepartment().trim());
-        if (req.getLicenseNumber() != null && !req.getLicenseNumber().isBlank()) profile.setLicenseNumber(req.getLicenseNumber().trim());
+        if (req.getLicenseNumber() != null && !req.getLicenseNumber().isBlank()) {
+            String newLic = req.getLicenseNumber().trim();
+            doctorProfileRepository.findByLicenseNumber(newLic).ifPresent(existing -> {
+                if (!existing.getId().equals(profile.getId())) {
+                    throw new AppException(HttpStatus.CONFLICT, "LICENSE_EXISTS",
+                            "Số chứng chỉ hành nghề này đã tồn tại: " + newLic);
+                }
+            });
+            profile.setLicenseNumber(newLic);
+        }
         if (req.getLicenseIssuedBy() != null) profile.setLicenseIssuedBy(req.getLicenseIssuedBy().trim());
+        if (req.getLicenseDocumentUrl() != null) {
+            profile.setLicenseDocumentUrl(req.getLicenseDocumentUrl().isBlank() ? null : req.getLicenseDocumentUrl().trim());
+        }
         if (req.getConsultationFee() != null) profile.setConsultationFee(req.getConsultationFee());
         if (req.getYearsOfExperience() != null) profile.setYearsOfExperience(req.getYearsOfExperience());
         if (req.getBio() != null) profile.setBio(req.getBio().trim());
@@ -384,6 +417,7 @@ public class AdminVettingService {
         user.setStatus(newStatus);
         userRepository.save(user);
         cacheService.evict(CACHE_VERIFIED_DOCTORS);
+        doctorSemanticSearchService.invalidateCache();
 
         AuditLog audit = new AuditLog();
         audit.setUserId(adminId);
@@ -460,12 +494,22 @@ public class AdminVettingService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
 
+        if (user.getRole() == Role.ADMIN || userId.equals(adminId)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "CANNOT_MODIFY_ADMIN_STATUS",
+                    "Không thể tạm khóa hoặc thay đổi trạng thái của tài khoản Quản trị viên");
+        }
+
         if (status == UserStatus.SUSPENDED && (reason == null || reason.trim().length() < 10)) {
             throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_REASON", "Lý do khóa tài khoản bắt buộc tối thiểu 10 ký tự");
         }
 
         user.setStatus(status);
         User updated = userRepository.save(user);
+
+        if (user.getRole() == Role.DOCTOR) {
+            cacheService.evict(CACHE_VERIFIED_DOCTORS);
+            doctorSemanticSearchService.invalidateCache();
+        }
 
         // Audit log
         AuditLog audit = new AuditLog();
@@ -474,6 +518,19 @@ public class AdminVettingService {
         audit.setResource("users/" + userId);
         audit.setMetadata("NewStatus: " + status + ", Reason: " + (reason != null ? reason : "N/A"));
         auditLogRepository.save(audit);
+
+        if (notificationService != null) {
+            boolean suspended = status == UserStatus.SUSPENDED;
+            notificationService.sendNotification(
+                    user.getId(),
+                    "ACCOUNT_STATUS_UPDATED",
+                    suspended ? "Tài Khoản Đã Bị Tạm Khóa ⚠️" : "Tài Khoản Đã Được Kích Hoạt Lại ✅",
+                    suspended
+                            ? "Tài khoản của bạn đã tạm thời bị khóa bởi Quản trị viên. Lý do: " + reason.trim()
+                            : "Tài khoản của bạn đã được kích hoạt hoạt động trở lại trên hệ thống.",
+                    null
+            );
+        }
 
         log.info("🛡️ Admin {} updated user {} status to {}. Reason: {}", adminId, userId, status, reason);
         return UserDto.fromEntity(updated);
@@ -579,7 +636,17 @@ public class AdminVettingService {
     public List<AuditLogDto> getAuditLogs(String action) {
         List<AuditLog> logs;
         if (action != null && !action.isBlank() && !"ALL".equalsIgnoreCase(action)) {
-            logs = auditLogRepository.findByActionOrderByCreatedAtDesc(action.trim().toUpperCase());
+            String normalizedAction = action.trim().toUpperCase();
+            logs = switch (normalizedAction) {
+                case "DOCTOR_VETTED" -> auditLogRepository.findByActionInOrderByCreatedAtDesc(
+                        List.of("DOCTOR_VETTED", "VET_DOCTOR_APPROVED", "VET_DOCTOR_REJECTED",
+                                "ADMIN_CREATE_DOCTOR", "ADMIN_UPDATE_DOCTOR", "DOCTOR_SELF_REGISTERED")
+                );
+                case "UPDATE_USER_STATUS" -> auditLogRepository.findByActionInOrderByCreatedAtDesc(
+                        List.of("UPDATE_USER_STATUS", "TOGGLE_DOCTOR_STATUS")
+                );
+                default -> auditLogRepository.findByActionOrderByCreatedAtDesc(normalizedAction);
+            };
         } else {
             logs = auditLogRepository.findTop100ByOrderByCreatedAtDesc();
         }

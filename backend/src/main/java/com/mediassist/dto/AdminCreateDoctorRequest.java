@@ -50,6 +50,8 @@ public class AdminCreateDoctorRequest {
 
     private String bio;
 
+    private String licenseDocumentUrl;
+
     private boolean autoVerify = true;
 
     public AdminCreateDoctorRequest() {}
@@ -92,6 +94,9 @@ public class AdminCreateDoctorRequest {
 
     public String getBio() { return bio; }
     public void setBio(String bio) { this.bio = bio; }
+
+    public String getLicenseDocumentUrl() { return licenseDocumentUrl; }
+    public void setLicenseDocumentUrl(String licenseDocumentUrl) { this.licenseDocumentUrl = licenseDocumentUrl; }
 
     public boolean isAutoVerify() { return autoVerify; }
     public void setAutoVerify(boolean autoVerify) { this.autoVerify = autoVerify; }

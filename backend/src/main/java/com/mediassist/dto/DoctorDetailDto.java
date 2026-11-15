@@ -1,5 +1,6 @@
 package com.mediassist.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.mediassist.model.entity.DoctorProfile;
 import com.mediassist.model.entity.Specialty;
 import com.mediassist.model.entity.User;
@@ -19,8 +20,10 @@ public class DoctorDetailDto {
     private String avatarUrl;
     private String bio;
     private String licenseNumber;
+    private String licenseDocumentUrl;
     private BigDecimal consultationFee;
     private Integer yearsOfExperience;
+    @JsonProperty("isVerified")
     private boolean isVerified;
     private List<String> specialties;
     private String academicTitle;
@@ -50,6 +53,7 @@ public class DoctorDetailDto {
         }
         dto.setBio(profile.getBio());
         dto.setLicenseNumber(profile.getLicenseNumber());
+        dto.setLicenseDocumentUrl(profile.getLicenseDocumentUrl());
         dto.setConsultationFee(profile.getConsultationFee());
         dto.setYearsOfExperience(profile.getYearsOfExperience());
         dto.setVerified(profile.isVerified());
@@ -92,13 +96,18 @@ public class DoctorDetailDto {
     public String getLicenseNumber() { return licenseNumber; }
     public void setLicenseNumber(String licenseNumber) { this.licenseNumber = licenseNumber; }
 
+    public String getLicenseDocumentUrl() { return licenseDocumentUrl; }
+    public void setLicenseDocumentUrl(String licenseDocumentUrl) { this.licenseDocumentUrl = licenseDocumentUrl; }
+
     public BigDecimal getConsultationFee() { return consultationFee; }
     public void setConsultationFee(BigDecimal consultationFee) { this.consultationFee = consultationFee; }
 
     public Integer getYearsOfExperience() { return yearsOfExperience; }
     public void setYearsOfExperience(Integer yearsOfExperience) { this.yearsOfExperience = yearsOfExperience; }
 
+    @JsonProperty("isVerified")
     public boolean isVerified() { return isVerified; }
+    @JsonProperty("isVerified")
     public void setVerified(boolean verified) { isVerified = verified; }
 
     public List<String> getSpecialties() { return specialties; }

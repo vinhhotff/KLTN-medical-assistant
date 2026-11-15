@@ -4,7 +4,9 @@ import com.mediassist.common.ApiResponse;
 import com.mediassist.common.AppException;
 import com.mediassist.common.ClientRequestInfo;
 import com.mediassist.dto.AuthResponse;
+import com.mediassist.dto.DoctorRegisterRequest;
 import com.mediassist.dto.LoginRequest;
+import com.mediassist.dto.RegisterRequest;
 import com.mediassist.dto.TokenValidationResponse;
 import com.mediassist.dto.UserDto;
 import com.mediassist.dto.VerifyEmailRequest;
@@ -70,14 +72,7 @@ public class AuthController {
         AuthResponse authResponse = authService.login(request);
 
         // Set Secure HttpOnly Cookie with SameSite=Lax for access token (Dual-Transport)
-        ResponseCookie cookie = ResponseCookie.from("accessToken", authResponse.getToken())
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .path("/")
-                .maxAge(Duration.ofMinutes(15))
-                .sameSite("Lax")
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        attachAccessTokenCookie(response, authResponse.getToken());
 
         return ResponseEntity.ok(ApiResponse.success(authResponse, "Đăng nhập thành công"));
     }
@@ -85,38 +80,32 @@ public class AuthController {
     @PostMapping("/register")
     @Operation(summary = "Đăng ký tài khoản bệnh nhân mới")
     public ResponseEntity<ApiResponse<AuthResponse>> register(
-            @Valid @RequestBody com.mediassist.dto.RegisterRequest request,
+            @Valid @RequestBody RegisterRequest request,
             HttpServletRequest servletRequest,
             HttpServletResponse response
     ) {
-        String clientIp = servletRequest.getHeader("X-Forwarded-For");
-        if (clientIp != null && !clientIp.isBlank()) {
-            clientIp = clientIp.split(",")[0].trim();
-        } else {
-            clientIp = servletRequest.getRemoteAddr();
-        }
-
-        if (!rateLimiterService.allowRegistrationAttempt(clientIp)) {
-            throw new com.mediassist.common.AppException(
-                    HttpStatus.TOO_MANY_REQUESTS,
-                    "RATE_LIMIT_EXCEEDED",
-                    "Bạn đã gửi quá nhiều yêu cầu đăng ký trong thời gian ngắn. Vui lòng thử lại sau 10 phút."
-            );
-        }
-
+        requireRegistrationRateLimit(servletRequest);
         AuthResponse authResponse = authService.register(request);
-
-        ResponseCookie cookie = ResponseCookie.from("accessToken", authResponse.getToken())
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .path("/")
-                .maxAge(Duration.ofMinutes(15))
-                .sameSite("Lax")
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        attachAccessTokenCookie(response, authResponse.getToken());
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(authResponse, "Đăng ký tài khoản bệnh nhân thành công"));
+    }
+
+    @PostMapping("/register/doctor")
+    @Operation(summary = "Đăng ký tài khoản bác sĩ mới (chờ thẩm định CCHN)")
+    public ResponseEntity<ApiResponse<AuthResponse>> registerDoctor(
+            @Valid @RequestBody DoctorRegisterRequest request,
+            HttpServletRequest servletRequest,
+            HttpServletResponse response
+    ) {
+        requireRegistrationRateLimit(servletRequest);
+        AuthResponse authResponse = authService.registerDoctor(request);
+        attachAccessTokenCookie(response, authResponse.getToken());
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(authResponse,
+                        "Đăng ký tài khoản bác sĩ thành công. Vui lòng kiểm tra email để xác thực tài khoản."));
     }
 
     @GetMapping("/me")
@@ -217,5 +206,23 @@ public class AuthController {
             throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
                     "Bạn đã thử quá nhiều lần. Vui lòng thử lại sau 10 phút.");
         }
+    }
+
+    private void requireRegistrationRateLimit(HttpServletRequest servletRequest) {
+        if (!rateLimiterService.allowRegistrationAttempt(ClientRequestInfo.clientIp(servletRequest))) {
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
+                    "Bạn đã gửi quá nhiều yêu cầu đăng ký trong thời gian ngắn. Vui lòng thử lại sau 10 phút.");
+        }
+    }
+
+    private void attachAccessTokenCookie(HttpServletResponse response, String token) {
+        ResponseCookie cookie = ResponseCookie.from("accessToken", token)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/")
+                .maxAge(Duration.ofMinutes(15))
+                .sameSite("Lax")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }

@@ -25,6 +25,7 @@ import { useGSAP } from '@gsap/react';
 import { api, DoctorReviewDto, EMAIL_NOT_VERIFIED_MESSAGE, EMAIL_NOT_VERIFIED_TOOLTIP, isEmailNotVerified } from '../../services/api';
 
 gsap.registerPlugin(useGSAP);
+import { useAuthStore } from '../../store/useAuthStore';
 import { useEmailVerification } from '../../hooks/useEmailVerification';
 import { Pagination } from '../../components/common/Pagination';
 import { DoctorReviewModal } from '../../components/common/DoctorReviewModal';
@@ -174,6 +175,7 @@ export const PatientDashboard: React.FC = () => {
   const [rescheduleSlot, setRescheduleSlot] = useState<DoctorSlot | null>(null);
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [submittingReschedule, setSubmittingReschedule] = useState(false);
+  const { user, refreshCurrentUser } = useAuthStore();
   const { isUnverified } = useEmailVerification();
 
   // Admission Ticket Modal State
@@ -370,11 +372,22 @@ export const PatientDashboard: React.FC = () => {
 
   const profileErrors = useMemo(() => {
     const errs: Record<string, string> = {};
+    if (editForm.fullName !== undefined && !editForm.fullName.trim()) {
+      errs.fullName = 'Họ và tên không được để trống.';
+    }
+    const contactPhone = (editForm.phone || '').replace(/[\s\-.]/g, '');
+    if (contactPhone && !/^(0|\+84)(3[2-9]|5[6-9]|7[0-9]|8[1-9]|9[0-9])\d{7}$/.test(contactPhone)) {
+      errs.phone = 'Số điện thoại không đúng định dạng Việt Nam (VD: 0901234567).';
+    }
+    const bhyt = (editForm.healthInsuranceNumber || '').trim().toUpperCase();
+    if (bhyt && !/^[A-Z]{2}[A-Z0-9]{10,14}$/.test(bhyt)) {
+      errs.healthInsuranceNumber = 'Số thẻ BHYT gồm 2 chữ cái đầu + 10–14 ký tự (VD: GD4791234567890).';
+    }
     const cid = (editForm.citizenId || '').trim();
     if (cid && !/^\d{12}$/.test(cid)) errs.citizenId = 'Số CCCD gồm đúng 12 chữ số.';
     if (editForm.dateOfBirth && String(editForm.dateOfBirth) > todayLocal()) errs.dateOfBirth = 'Ngày sinh không được ở tương lai.';
-    const phone = (editForm.emergencyContactPhone || '').replace(/\s/g, '');
-    if (phone && !/^(\+?84|0)\d{9,10}$/.test(phone)) errs.emergencyContactPhone = 'Số điện thoại không hợp lệ.';
+    const emergencyPhone = (editForm.emergencyContactPhone || '').replace(/\s/g, '');
+    if (emergencyPhone && !/^(\+?84|0)\d{9,10}$/.test(emergencyPhone)) errs.emergencyContactPhone = 'Số điện thoại không hợp lệ.';
     return errs;
   }, [editForm]);
 
@@ -387,6 +400,7 @@ export const PatientDashboard: React.FC = () => {
       const res = await api.put('/patient/profile', editForm);
       if (res.data?.data) {
         setProfile(res.data.data);
+        void refreshCurrentUser();
         toast.success('Đã cập nhật hồ sơ y tế.');
         setIsEditProfileOpen(false);
       }
@@ -490,7 +504,7 @@ export const PatientDashboard: React.FC = () => {
           </div>
           <button
             onClick={() => {
-              setEditForm(profile || {});
+              setEditForm({ fullName: user?.fullName || '', phone: user?.phone || '', ...(profile || {}) });
               setIsEditProfileOpen(true);
             }}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100/80 font-display text-xs font-bold text-teal-800 border border-teal-200/80 transition cursor-pointer self-start sm:self-auto shadow-2xs"
@@ -507,7 +521,17 @@ export const PatientDashboard: React.FC = () => {
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-500">Họ và Tên:</span>
-                <span className="font-bold text-slate-900">{profile?.fullName || 'Chưa cập nhật'}</span>
+                <span className="font-bold text-slate-900">{profile?.fullName || user?.fullName || 'Chưa cập nhật'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Số Điện Thoại:</span>
+                {profile?.phone || user?.phone ? (
+                  <span className="font-mono font-medium text-slate-800">{profile?.phone || user?.phone}</span>
+                ) : (
+                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    Chưa bổ sung
+                  </span>
+                )}
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Số CCCD (12 số):</span>
@@ -607,7 +631,7 @@ export const PatientDashboard: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        setEditForm(profile || {});
+                        setEditForm({ fullName: user?.fullName || '', phone: user?.phone || '', ...(profile || {}) });
                         setIsEditProfileOpen(true);
                       }}
                       className="text-xs font-bold text-teal-700 hover:underline cursor-pointer"
@@ -1039,7 +1063,11 @@ export const PatientDashboard: React.FC = () => {
 
                     <div className="pt-2 flex justify-end">
                       <Link
-                        to="/patient/doctors"
+                        to={
+                          t.primarySpecialty
+                            ? `/patient/doctors?specialty=${encodeURIComponent(t.primarySpecialty)}`
+                            : '/patient/doctors'
+                        }
                         className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
                       >
                         <Calendar className="w-3.5 h-3.5" /> Đặt Lịch Khám Bác Sĩ
@@ -1168,6 +1196,58 @@ export const PatientDashboard: React.FC = () => {
             <form onSubmit={handleSaveProfile} className="p-6 overflow-y-auto space-y-4 flex-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Họ và Tên Bệnh Nhân <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.fullName || ''}
+                    onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                    aria-invalid={Boolean(profileErrors.fullName) || undefined}
+                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 ${profileErrors.fullName ? 'border-rose-400' : 'border-slate-200'}`}
+                    placeholder="Nguyễn Văn A"
+                  />
+                  {profileErrors.fullName && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.fullName}</p>}
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Số Điện Thoại Di Động</label>
+                  <input
+                    type="tel"
+                    value={editForm.phone || ''}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    aria-invalid={Boolean(profileErrors.phone) || undefined}
+                    className={`w-full px-3 py-2 border rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 ${profileErrors.phone ? 'border-rose-400' : 'border-slate-200'}`}
+                    placeholder="0901234567"
+                  />
+                  {profileErrors.phone && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.phone}</p>}
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Giới Tính</label>
+                  <select
+                    value={editForm.gender || ''}
+                    onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Chưa xác định</option>
+                    <option value="MALE">Nam</option>
+                    <option value="FEMALE">Nữ</option>
+                    <option value="OTHER">Khác</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Ngày Tháng Năm Sinh</label>
+                  <input
+                    type="date"
+                    max={todayLocal()}
+                    value={editForm.dateOfBirth ? String(editForm.dateOfBirth) : ''}
+                    onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
+                    aria-invalid={Boolean(profileErrors.dateOfBirth) || undefined}
+                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 ${profileErrors.dateOfBirth ? 'border-rose-400' : 'border-slate-200'}`}
+                  />
+                  {profileErrors.dateOfBirth && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.dateOfBirth}</p>}
+                </div>
+                <div>
                   <label className="font-bold text-slate-700 block mb-1">Số CCCD (Định danh 12 số)</label>
                   <input
                     type="text"
@@ -1186,24 +1266,14 @@ export const PatientDashboard: React.FC = () => {
                   <input
                     type="text"
                     value={editForm.healthInsuranceNumber || ''}
-                    onChange={(e) => setEditForm({ ...editForm, healthInsuranceNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 uppercase"
-                    placeholder="Mã số trên thẻ BHYT"
+                    onChange={(e) => setEditForm({ ...editForm, healthInsuranceNumber: e.target.value.toUpperCase() })}
+                    aria-invalid={Boolean(profileErrors.healthInsuranceNumber) || undefined}
+                    className={`w-full px-3 py-2 border rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 uppercase ${profileErrors.healthInsuranceNumber ? 'border-rose-400' : 'border-slate-200'}`}
+                    placeholder="VD: GD4791234567890"
                   />
+                  {profileErrors.healthInsuranceNumber && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.healthInsuranceNumber}</p>}
                 </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Ngày Tháng Năm Sinh</label>
-                  <input
-                    type="date"
-                    max={todayLocal()}
-                    value={editForm.dateOfBirth ? String(editForm.dateOfBirth) : ''}
-                    onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
-                    aria-invalid={Boolean(profileErrors.dateOfBirth) || undefined}
-                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 ${profileErrors.dateOfBirth ? 'border-rose-400' : 'border-slate-200'}`}
-                  />
-                  {profileErrors.dateOfBirth && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.dateOfBirth}</p>}
-                </div>
-                <div>
+                <div className="sm:col-span-2">
                   <label className="font-bold text-slate-700 block mb-1">Nhóm Máu & Hệ Rh</label>
                   <select
                     value={editForm.bloodGroup || ''}
@@ -1592,8 +1662,8 @@ export const PatientDashboard: React.FC = () => {
             <Button
               onClick={handleConfirmReschedule}
               loading={submittingReschedule}
-              loadingText="Đang cập nhật..."
-              disabledReason={!rescheduleSlot ? 'Chọn một khung giờ còn trống.' : null}
+              loadingText="Đang dời lịch..."
+              disabledReason={!rescheduleSlot ? 'Chọn một khung giờ còn trống.' : isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : null}
             >
               Xác nhận dời lịch
             </Button>
@@ -1624,20 +1694,6 @@ export const PatientDashboard: React.FC = () => {
                 placeholder="Ví dụ: Bận đột xuất, muốn đổi sang ngày thuận tiện hơn..."
                 className="w-full p-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 outline-none"
               />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <Button variant="secondary" onClick={() => setReschedulingAppointment(null)} disabled={submittingReschedule}>
-                Hủy bỏ
-              </Button>
-              <Button
-                onClick={() => handleConfirmReschedule()}
-                loading={submittingReschedule}
-                loadingText="Đang dời lịch..."
-                disabledReason={!rescheduleSlot ? 'Chọn một khung giờ còn trống.' : isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
-              >
-                Xác nhận dời lịch
-              </Button>
             </div>
           </div>
         )}

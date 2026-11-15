@@ -51,8 +51,22 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom', 'zustand', 'axios', 'lucide-react'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('/recharts/') || id.includes('\\recharts\\') || id.includes('/d3-') || id.includes('\\d3-')) {
+              return 'charts';
+            }
+            if (
+              id.includes('/react/') || id.includes('\\react\\') ||
+              id.includes('/react-dom/') || id.includes('\\react-dom\\') ||
+              id.includes('/react-router-dom/') || id.includes('\\react-router-dom\\') ||
+              id.includes('/zustand/') || id.includes('\\zustand\\') ||
+              id.includes('/axios/') || id.includes('\\axios\\') ||
+              id.includes('/lucide-react/') || id.includes('\\lucide-react\\')
+            ) {
+              return 'vendor';
+            }
+          }
         },
       },
     },

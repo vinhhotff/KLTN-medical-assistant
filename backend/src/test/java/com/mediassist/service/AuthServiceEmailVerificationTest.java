@@ -2,18 +2,23 @@ package com.mediassist.service;
 
 import com.mediassist.common.AppException;
 import com.mediassist.dto.AuthResponse;
+import com.mediassist.dto.DoctorRegisterRequest;
 import com.mediassist.dto.RegisterRequest;
 import com.mediassist.event.EmailVerificationRequestedEvent;
 import com.mediassist.model.entity.AuditLog;
+import com.mediassist.model.entity.DoctorProfile;
 import com.mediassist.model.entity.EmailVerificationToken;
 import com.mediassist.model.entity.PasswordResetToken;
 import com.mediassist.model.entity.Role;
+import com.mediassist.model.entity.Specialty;
 import com.mediassist.model.entity.User;
 import com.mediassist.model.entity.UserStatus;
 import com.mediassist.repository.AuditLogRepository;
+import com.mediassist.repository.DoctorProfileRepository;
 import com.mediassist.repository.EmailVerificationTokenRepository;
 import com.mediassist.repository.PasswordResetTokenRepository;
 import com.mediassist.repository.PatientProfileRepository;
+import com.mediassist.repository.SpecialtyRepository;
 import com.mediassist.repository.UserRepository;
 import com.mediassist.security.JwtTokenProvider;
 import com.mediassist.security.SecureTokens;
@@ -25,7 +30,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -44,6 +51,8 @@ class AuthServiceEmailVerificationTest {
     private AuditLogRepository auditLogRepository;
     private ApplicationEventPublisher eventPublisher;
     private SecurityRateLimiterService rateLimiter;
+    private DoctorProfileRepository doctorProfileRepository;
+    private SpecialtyRepository specialtyRepository;
     private AuthService authService;
 
     @BeforeEach
@@ -56,13 +65,16 @@ class AuthServiceEmailVerificationTest {
         auditLogRepository = mock(AuditLogRepository.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
         rateLimiter = mock(SecurityRateLimiterService.class);
+        doctorProfileRepository = mock(DoctorProfileRepository.class);
+        specialtyRepository = mock(SpecialtyRepository.class);
         JwtTokenProvider tokenProvider = mock(JwtTokenProvider.class);
         when(tokenProvider.generateAccessToken(any())).thenReturn("jwt");
         when(rateLimiter.allowVerificationResendBurst(anyString())).thenReturn(true);
         when(rateLimiter.allowVerificationResendHourly(anyString())).thenReturn(true);
 
         authService = new AuthService(userRepository, patientProfileRepository, passwordEncoder, tokenProvider,
-                passwordResetTokenRepository, auditLogRepository, eventPublisher, verificationTokenRepository, rateLimiter);
+                passwordResetTokenRepository, auditLogRepository, eventPublisher, verificationTokenRepository, rateLimiter,
+                doctorProfileRepository, specialtyRepository);
     }
 
     private User unverifiedPatient() {
@@ -256,5 +268,216 @@ class AuthServiceEmailVerificationTest {
         User admin = unverifiedPatient();
         admin.setRole(Role.ADMIN);
         assertDoesNotThrow(() -> EmailVerificationGuard.requireVerifiedPatient(admin));
+    }
+
+    private DoctorRegisterRequest validDoctorRequest() {
+        DoctorRegisterRequest req = new DoctorRegisterRequest();
+        req.setEmail("Dr.Minh.Khoa@Gmail.com ");
+        req.setPassword("DoctorPass2026!");
+        req.setFullName("  Nguyễn Minh Khoa  ");
+        req.setPhone(" 0987654321 ");
+        req.setAcademicTitle("ThS.BS");
+        req.setLicenseNumber(" 045812/BYT-CCHN ");
+        req.setLicenseIssuedBy("Bộ Y Tế");
+        req.setHospitalAffiliation("Bệnh viện Chợ Rẫy");
+        req.setDepartment("Khoa Tim Mạch");
+        req.setYearsOfExperience(7);
+        req.setConsultationFee(BigDecimal.valueOf(350000));
+        req.setSpecialtySlugs(List.of("Cardiology ", "general-internal-medicine"));
+        req.setBio("Chuyên gia tim mạch can thiệp.");
+        return req;
+    }
+
+    @Test
+    @DisplayName("Dang ky bac si doc lap: Role.DOCTOR, ACTIVE, emailVerified=false, DoctorProfile cho tham dinh CCHN, audit va gui email xac thuc")
+    void registerDoctorSuccess() {
+        DoctorRegisterRequest req = validDoctorRequest();
+        Specialty cardio = Specialty.builder().id(UUID.randomUUID()).name("Tim mạch").slug("cardiology").build();
+        Specialty internal = Specialty.builder().id(UUID.randomUUID()).name("Nội tổng quát").slug("general-internal-medicine").build();
+
+        when(userRepository.findByEmail("dr.minh.khoa@gmail.com")).thenReturn(Optional.empty());
+        when(userRepository.existsByPhone("0987654321")).thenReturn(false);
+        when(doctorProfileRepository.findByLicenseNumber("045812/BYT-CCHN")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("DoctorPass2026!")).thenReturn("encoded-doctor-pw");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(UUID.randomUUID());
+            return u;
+        });
+        when(specialtyRepository.findBySlug("cardiology")).thenReturn(Optional.of(cardio));
+        when(specialtyRepository.findBySlug("general-internal-medicine")).thenReturn(Optional.of(internal));
+        when(doctorProfileRepository.save(any(DoctorProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AuthResponse response = authService.registerDoctor(req);
+
+        assertEquals("jwt", response.getToken());
+        assertEquals(Role.DOCTOR, response.getUser().getRole());
+        assertEquals(UserStatus.ACTIVE, response.getUser().getStatus());
+        assertFalse(response.getUser().isEmailVerified());
+        assertEquals("dr.minh.khoa@gmail.com", response.getUser().getEmail());
+
+        ArgumentCaptor<DoctorProfile> profileCaptor = ArgumentCaptor.forClass(DoctorProfile.class);
+        verify(doctorProfileRepository).save(profileCaptor.capture());
+        DoctorProfile savedProfile = profileCaptor.getValue();
+        assertFalse(savedProfile.isVerified());
+        assertEquals("045812/BYT-CCHN", savedProfile.getLicenseNumber());
+        assertEquals("ThS.BS", savedProfile.getAcademicTitle());
+        assertEquals("Bộ Y Tế", savedProfile.getLicenseIssuedBy());
+        assertEquals("Bệnh viện Chợ Rẫy", savedProfile.getHospitalAffiliation());
+        assertEquals(7, savedProfile.getYearsOfExperience());
+        assertEquals(BigDecimal.valueOf(350000), savedProfile.getConsultationFee());
+        assertEquals(2, savedProfile.getSpecialties().size());
+        assertTrue(savedProfile.getSpecialties().contains(cardio));
+        assertTrue(savedProfile.getSpecialties().contains(internal));
+
+        ArgumentCaptor<AuditLog> auditCaptor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository).save(auditCaptor.capture());
+        assertEquals("DOCTOR_SELF_REGISTERED", auditCaptor.getValue().getAction());
+        assertEquals("License: 045812/BYT-CCHN", auditCaptor.getValue().getMetadata());
+
+        ArgumentCaptor<EmailVerificationToken> tokenCaptor = ArgumentCaptor.forClass(EmailVerificationToken.class);
+        verify(verificationTokenRepository).save(tokenCaptor.capture());
+        ArgumentCaptor<EmailVerificationRequestedEvent> eventCaptor = ArgumentCaptor.forClass(EmailVerificationRequestedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertEquals("dr.minh.khoa@gmail.com", eventCaptor.getValue().email());
+        assertEquals(SecureTokens.sha256Hex(eventCaptor.getValue().rawToken()), tokenCaptor.getValue().getTokenHash());
+    }
+
+    @Test
+    @DisplayName("Dang ky bac si: ap dung gia tri mac dinh cho academicTitle, licenseIssuedBy, yearsOfExperience va consultationFee")
+    void registerDoctorUsesDefaultsWhenBlankOrNull() {
+        DoctorRegisterRequest req = validDoctorRequest();
+        req.setAcademicTitle("  ");
+        req.setLicenseIssuedBy(null);
+        req.setYearsOfExperience(null);
+        req.setConsultationFee(null);
+
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        when(userRepository.existsByPhone(anyString())).thenReturn(false);
+        when(doctorProfileRepository.findByLicenseNumber(anyString())).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("encoded");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(UUID.randomUUID());
+            return u;
+        });
+        when(doctorProfileRepository.save(any(DoctorProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        authService.registerDoctor(req);
+
+        ArgumentCaptor<DoctorProfile> profileCaptor = ArgumentCaptor.forClass(DoctorProfile.class);
+        verify(doctorProfileRepository).save(profileCaptor.capture());
+        DoctorProfile savedProfile = profileCaptor.getValue();
+        assertEquals("BS", savedProfile.getAcademicTitle());
+        assertEquals("Bộ Y Tế", savedProfile.getLicenseIssuedBy());
+        assertEquals(1, savedProfile.getYearsOfExperience());
+        assertEquals(BigDecimal.valueOf(300000), savedProfile.getConsultationFee());
+    }
+
+    @Test
+    @DisplayName("Dang ky bac si trung so CCHN: 409 LICENSE_ALREADY_EXISTS, khong tao user hay gui email")
+    void registerDoctorDuplicateLicenseReturns409() {
+        DoctorRegisterRequest req = validDoctorRequest();
+        when(userRepository.findByEmail("dr.minh.khoa@gmail.com")).thenReturn(Optional.empty());
+        when(userRepository.existsByPhone("0987654321")).thenReturn(false);
+        when(doctorProfileRepository.findByLicenseNumber("045812/BYT-CCHN"))
+                .thenReturn(Optional.of(new DoctorProfile()));
+
+        AppException ex = assertThrows(AppException.class, () -> authService.registerDoctor(req));
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+        assertEquals("LICENSE_ALREADY_EXISTS", ex.getCode());
+        verify(userRepository, never()).save(any());
+        verify(doctorProfileRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("Dang ky bac si trung email: 409 EMAIL_ALREADY_EXISTS")
+    void registerDoctorDuplicateEmailReturns409() {
+        DoctorRegisterRequest req = validDoctorRequest();
+        when(userRepository.findByEmail("dr.minh.khoa@gmail.com")).thenReturn(Optional.of(new User()));
+
+        AppException ex = assertThrows(AppException.class, () -> authService.registerDoctor(req));
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+        assertEquals("EMAIL_ALREADY_EXISTS", ex.getCode());
+        verify(doctorProfileRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("Dang ky bac si trung so dien thoai: 409 PHONE_ALREADY_EXISTS")
+    void registerDoctorDuplicatePhoneReturns409() {
+        DoctorRegisterRequest req = validDoctorRequest();
+        when(userRepository.findByEmail("dr.minh.khoa@gmail.com")).thenReturn(Optional.empty());
+        when(userRepository.existsByPhone("0987654321")).thenReturn(true);
+
+        AppException ex = assertThrows(AppException.class, () -> authService.registerDoctor(req));
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+        assertEquals("PHONE_ALREADY_EXISTS", ex.getCode());
+        verify(userRepository, never()).save(any());
+        verify(doctorProfileRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("Dang ky bac si Buoc 1 co ban (chi Nhom 1: fullName, email, phone, password): licenseNumber=null, isVerified=false")
+    void registerDoctorBasicStep1Success() {
+        DoctorRegisterRequest req = new DoctorRegisterRequest();
+        req.setEmail("bacsi.nguyenvana@gmail.com");
+        req.setPassword("DoctorPass2026!");
+        req.setFullName("Nguyễn Văn A");
+        req.setPhone("0901234567");
+        req.setAvatarUrl("https://example.com/avatar.jpg");
+
+        when(userRepository.findByEmail("bacsi.nguyenvana@gmail.com")).thenReturn(Optional.empty());
+        when(userRepository.existsByPhone("0901234567")).thenReturn(false);
+        when(passwordEncoder.encode("DoctorPass2026!")).thenReturn("encoded-doctor-pw");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(UUID.randomUUID());
+            return u;
+        });
+        when(doctorProfileRepository.save(any(DoctorProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AuthResponse response = authService.registerDoctor(req);
+
+        assertEquals("jwt", response.getToken());
+        assertEquals(Role.DOCTOR, response.getUser().getRole());
+        assertEquals(UserStatus.ACTIVE, response.getUser().getStatus());
+        assertFalse(response.getUser().isEmailVerified());
+        assertEquals("https://example.com/avatar.jpg", response.getUser().getAvatarUrl());
+
+        verify(doctorProfileRepository, never()).findByLicenseNumber(anyString());
+        ArgumentCaptor<DoctorProfile> profileCaptor = ArgumentCaptor.forClass(DoctorProfile.class);
+        verify(doctorProfileRepository).save(profileCaptor.capture());
+        DoctorProfile savedProfile = profileCaptor.getValue();
+        assertNull(savedProfile.getLicenseNumber());
+        assertNull(savedProfile.getHospitalAffiliation());
+        assertFalse(savedProfile.isVerified());
+
+        ArgumentCaptor<AuditLog> auditCaptor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository).save(auditCaptor.capture());
+        assertEquals("License: PENDING_ONBOARDING", auditCaptor.getValue().getMetadata());
+    }
+
+    @Test
+    @DisplayName("Dang ky benh nhan trung so dien thoai: tra 409 PHONE_ALREADY_EXISTS")
+    void registerPatientDuplicatePhoneRejected() {
+        RegisterRequest req = new RegisterRequest();
+        req.setEmail("patient.new@gmail.com");
+        req.setPassword("Password123!");
+        req.setFullName("Nguyễn Văn Mới");
+        req.setPhone("0901 234 567");
+
+        when(userRepository.findByEmail("patient.new@gmail.com")).thenReturn(Optional.empty());
+        when(userRepository.existsByPhone("0901234567")).thenReturn(true);
+
+        AppException ex = assertThrows(AppException.class, () -> authService.register(req));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+        assertEquals("PHONE_ALREADY_EXISTS", ex.getCode());
+        verify(userRepository, never()).save(any());
     }
 }
