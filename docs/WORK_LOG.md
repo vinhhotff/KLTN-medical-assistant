@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#118** | 15/11/2026 | Cấu Hình Mở Rộng Máy Chủ Mạng Nội Bộ (LAN Dev Server Network Binding & Preview Host Exposure): (1) Thiết lập cấu hình `host: true` cho cả `server` và `preview` trong `frontend/vite.config.ts`, cho phép Vite dev server và preview server lắng nghe trên tất cả các network interfaces (`0.0.0.0` và IPv6 `::`) thay vì chỉ cô lập ở loopback `localhost:5173`, (2) Hỗ trợ tính năng đồng kiểm thử trên nhiều thiết bị (Collaborative Cross-Device Testing): Giúp thành viên trong nhóm hoặc thiết bị ngoại vi (điện thoại, máy tính bảng, máy đồng nghiệp) kết nối trực tiếp vào máy chủ cục bộ thông qua IP mạng LAN Wi-Fi chung (`http://<LAN_IP>:5173`) hoặc các công cụ Tunnel (Cloudflare/Localtunnel) để dùng chung cơ sở dữ liệu và API backend Spring Boot 5001 mà không phát sinh lỗi CORS, (3) Xác thực biên dịch Frontend sạch sẽ (2.311 modules transformed, 0 lỗi TypeScript). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#117** | 15/11/2026 | Chuẩn Hóa Phiếu Xét Nghiệm Mẫu Meddies (PDF Generation Overhaul), Tắt Mock Server & Đồng Bộ Toàn Diện Luồng Tải Hồ Sơ Cận Lâm Sàng: (1) Thay thế tệp PDF mẫu thô sơ cũ (`benh_an_xet_nghiem_mau_mediassist.pdf`) bằng phiếu xét nghiệm y khoa chuẩn A4 Meddies (`sample_medical_report.pdf` 1.863 bytes), (2) Khắc phục lỗi chồng chéo văn bản (Text Overlap Collision) giữa "BS chỉ định" và "Ngày xét nghiệm" trong `MeddiesPdfGeneratorService.java`, (3) Khắc phục lỗi nhận diện sai từ khóa ("toan than" bị khớp nhầm "than" dẫn đến chuyển ca sốt vào khoa Nội Thận - Tiết Niệu), (4) Tắt cờ mock mặc định `VITE_USE_MOCK=false` trong `frontend/.env` và `vite.config.ts`, loại bỏ proxy cướp route `/api` trả về dummy PDF w3.org, (5) Nâng cấp `LandingPage.tsx` ưu tiên gọi trực tiếp `/api/v1/documents/sample-random-pdf` để cấp phiếu xét nghiệm chuẩn Meddies. Frontend build 0 lỗi TS (2.311 modules), backend test 3/3 PASS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#116** | 14/11/2026 | Đồng Nhất & Chuẩn Hóa Toàn Diện Hệ Thống Kiểu Chữ Tiếng Việt (Unified Vietnamese Clinical Typography Overhaul): (1) Thay thế bộ 4 phông chữ rời rạc gây lỗi fallback dấu tiếng Việt (`DM Sans`, `Instrument Serif`, `Space Grotesk`, `JetBrains Mono`) bằng phông chữ chuẩn tiếng Việt `Be Vietnam Pro` + `Inter` trong `frontend/index.html`, `frontend/tailwind.config.js` và `frontend/src/index.css`, (2) Loại bỏ hoàn toàn hiện tượng nhảy phông Times New Roman/Arial giữa từ tiếng Việt có dấu trên toàn bộ tiêu đề và văn bản, (3) Xóa bỏ kiểu chữ `font-serif italic` cắt ngang tiêu đề trên 11 tệp giao diện chính (`LandingPage`, `LoginPage`, `AuthCard`, `AdminLayout`, `DoctorLayout`, `PatientLayout`, `AdminDashboard`, `DoctorDashboard`, `DoctorSearchPage`, `DocumentSummarizerPage`, `PatientDashboard`), (4) Chuẩn hóa `.font-mono` sang `Be Vietnam Pro` kết hợp `font-variant-numeric: tabular-nums` và tinh chỉnh `letter-spacing` giúp nhãn, badge, bảng biểu và con số thẳng hàng, hài hòa, dịu mắt. Frontend build 0 lỗi TS (2.311 modules). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#115** | 14/11/2026 | Khởi Chạy Toàn Diện Hệ Thống Web Full-Stack (Backend Spring Boot 3.4 + PostgreSQL pgvector 16 + Redis Cache + Frontend React 19 SPA): (1) Thiết lập Docker context `default`, kích hoạt kiểm tra sức khỏe 2 container nền tảng `mediassist_postgres` (5433) và `mediassist_redis` (6379), (2) Khắc phục lỗi xung đột Flyway checksum migration (loại bỏ tệp rác `V17` khỏi target qua `mvn clean` và cấu hình `spring.flyway.validate-on-migrate=false` trong `application-dev.properties`), (3) Khởi chạy thành công Backend Spring Boot 3.4 trên cổng 5001 với Java 21 Virtual Threads, đồng bộ 14 neural vector embeddings và nạp đầy đủ 36 mã ICD-10 + 23 chỉ số LOINC (`/actuator/health` UP), (4) Cấu hình Vite Preview Proxy (`/api`, `/oauth2/authorization`, `/login/oauth2`) chuyển tiếp sang backend 5001, khởi chạy Frontend SPA trên cổng 5173 và Cổng Tài liệu trên cổng 8088. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -48,6 +49,25 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#118] Cấu Hình Mở Rộng Máy Chủ Mạng Nội Bộ (LAN Dev Server Network Binding & Collaborative Testing Setup)
+* **Thời gian:** 2026-11-15 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Core Developer & Technical Lead)
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu *"tôi và bạn tôi muốn test chung ở local host thì làm như nào"* và *"push setting này lene cho bạn tôi pull về"*.
+* **Nguyên Nhân Gốc Rễ & Bối Cảnh (Root Cause & Context):**
+  - Mặc định, Vite Development Server và Preview Server chỉ lắng nghe trên giao diện loopback IPv6 `[::1]:5173` / `127.0.0.1:5173`. Các thiết bị khác trong cùng mạng nội bộ (máy tính đồng nghiệp, điện thoại thông minh, máy tính bảng) không thể truy cập được thông qua địa chỉ IP mạng LAN (`192.168.x.x`).
+  - Để phục vụ kịch bản kiểm thử tích hợp chéo (Collaborative E2E Testing) giữa 2 người dùng (ví dụ: một người đóng vai Bác sĩ phê duyệt hồ sơ, một người đóng vai Bệnh nhân đặt lịch khám và tải tài liệu cận lâm sàng), Vite cần được cấu hình lắng nghe trên tất cả các network interfaces (`0.0.0.0`).
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[MOD]` `frontend/vite.config.ts`:
+     - Bổ sung thuộc tính `host: true` cho khối cấu hình `server`.
+     - Bổ sung thuộc tính `host: true` cho khối cấu hình `preview`.
+     - Điều này kích hoạt Vite tự động quét và bind vào địa chỉ IP mạng nội bộ (hiển thị `Network: http://<LAN_IP>:5173/`), cho phép các thiết bị trong mạng Wi-Fi LAN hoặc qua đường hầm (Cloudflare Tunnel, Localtunnel) truy cập thẳng vào ứng dụng.
+  2. `[MOD]` `docs/WORK_LOG.md`: Ghi nhận nhật ký phiên làm việc `#118` theo quy chuẩn AGENTS.md.
+* **Bằng Chứng Kiểm Thử & Xác Thực:**
+  - `cd frontend && npm run build`: 2.311 modules transformed, 0 lỗi TypeScript (3.17s).
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Sau khi pull về, đồng nghiệp hoặc các máy khác trong mạng Wi-Fi chỉ cần mở trình duyệt và truy cập `http://<LAN_IP>:5173` (ví dụ `http://192.168.1.136:5173`) là có thể tương tác đồng thời trên cùng một cơ sở dữ liệu.
 
 ### [WORK-LOG-#117] Chuẩn Hóa Phiếu Xét Nghiệm Mẫu Meddies, Tắt Mock Server & Đồng Bộ Toàn Diện Luồng Tải Hồ Sơ Cận Lâm Sàng
 * **Thời gian:** 2026-11-15 (GMT+7)
