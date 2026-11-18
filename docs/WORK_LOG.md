@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#128** | 18/11/2026 | Thẩm Định Toàn Diện Bộ Slide Canva Review 2 (12 Trang), Đối Soát 98% Khớp Codebase & Xuất Bản Cẩm Nang Thuyết Trình Bảo Vệ: (1) Phân tích đối soát toàn diện 12 slide trên Canva với mã nguồn Backend Spring Boot 3.4, Frontend React 18 SPA và CSDL PostgreSQL 16 pgvector, (2) Xác nhận độ chính xác 98%: Khớp đúng 17 bảng ERD 3NF (Flyway V1-V24), rào chắn PatientAccessGuard chống BOLA/IDOR, 5-stage triage NegEx, Two-Layer Cache L1/L2, Vision OCR LOINC và luồng 3 Actor (Patient, Doctor, Admin), (3) Biên soạn cẩm nang thuyết trình chuẩn từng giây cho 12 slide, bộ 10 câu hỏi phản biện chuyên sâu và kịch bản live demo 5 bước không lỗi, (4) Xuất bản cẩm nang ra `/Users/thanvinh/Downloads/HUONG_DAN_THUYET_TRINH_REVIEW_2_MEDIASSIST_AI.md` (.txt) và `docs/HUONG_DAN_THUYET_TRINH_REVIEW_2.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
 | **#127** | 15/11/2026 | Bổ Sung Liên Kết & Thẻ Nổi Bật Chuyên Đề Biện Luận Y Học Chứng Cứ SOTA Vào Cổng Hồ Sơ Khóa Luận (`docs/index.html`): (1) Bổ sung nút truy cập nhanh "Biện Luận Y Học (SOTA)" trên thanh điều hướng đầu trang của `docs/index.html`, (2) Bổ sung thẻ bài nổi bật "Biện Luận Y Học Chứng Cứ & SOTA" (đối chuẩn Google AMIE Nature 2024, Ada Health BMJ/Lancet, ClinicalRAG ACL 2024) ngay giữa giao diện trang chủ Portal phụ, đồng bộ liên kết trực tiếp với trình đọc WordCraft Studio `../report_1/index.html#clinical_defense`. Xác thực liên kết HTTP 200 thông suốt trên cổng 8088. | AI Assistant (Vinh) | 🟢 Sẵn sàng Review |
 | **#126** | 15/11/2026 | Tích Hợp Xác Thực Email Qua Gmail SMTP Thực Tế & Đăng Nhập Google OAuth2: (1) Cấu hình Gmail SMTP (`hoangkhuong056@gmail.com`) với Google App Password qua biến môi trường an toàn `.env` và `application-local.properties`, chuyển đổi từ Mailpit dev sang gửi email xác thực thực tế (STARTTLS port 587), (2) Xác thực luồng gửi email thật: Kiểm thử gửi email xác thực tài khoản `hoangkhuong056@gmail.com` thành công qua Google SMTP server (`Mail 'verify-email' sent`), (3) Hoàn thiện cấu hình Google OAuth2 (Client ID & Secret), đồng bộ `GoogleLoginButton.tsx` hỗ trợ proxy động, kiểm tra redirect URL `302 accounts.google.com` chính xác. Frontend build 0 lỗi TS, backend 31/31 tests PASS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#125** | 15/11/2026 | Cấu Hình CORS Mạng Nội Bộ Cho Mô Hình 2 Máy Dùng Chung Cục Bộ (Cross-Device LAN / VPN Full CORS Support): (1) Cập nhật `SecurityConfig.java` chuyển đổi từ `configuration.setAllowedOrigins` sang `configuration.setAllowedOriginPatterns`, hỗ trợ toàn bộ dải IP mạng cục bộ LAN (`192.168.*`, `10.*`, `172.*`) và mạng ảo Radmin VPN (`26.*`), giải quyết triệt để lỗi `403 Invalid CORS request` khi Máy B kết nối vào Máy A qua IP mạng nội bộ, (2) Khởi động lại Backend Spring Boot 5001 và xác thực preflight `OPTIONS` trả về `200 OK` với header `Access-Control-Allow-Origin` & `Allow-Credentials: true`, (3) Biên soạn cẩm nang hướng dẫn chi tiết cho Tech Lead kiểm thử 2 máy (cùng Wi-Fi LAN hoặc qua Radmin VPN) kèm giải pháp tường lửa Windows Defender Firewall. Xác thực 25/25 Security tests PASS. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -58,6 +59,26 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#128] Thẩm Định Toàn Diện Bộ Slide Canva Review 2 (12 Trang), Đối Soát 98% Khớp Codebase & Xuất Bản Cẩm Nang Thuyết Trình
+* **Thời gian:** 2026-11-18 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Antigravity)
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu đọc nội dung Canva Review 2, đối soát với mã nguồn dự án, hướng dẫn thuyết trình và xuất full hướng dẫn ra file note trong thư mục Downloads.
+* **Nguyên Nhân Gốc Rễ & Bối Cảnh (Root Cause & Context):**
+  - Nhóm chuẩn bị bước vào buổi thẩm định Review 2 đồ án tốt nghiệp với Hội đồng chuyên môn FPT University.
+  - Cần đối soát độc lập từng chi tiết kiến trúc trên 12 slide Canva (`DAHa9bmQoV0/sPw8pFBw3eN3IvYDKYKMZQ`) nhằm đảm bảo không có sự sai lệch giữa sơ đồ lý thuyết (Screen flows, ERD, System diagram) và hiện trạng triển khai thực tế của hệ thống.
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[NEW]` `/Users/thanvinh/Downloads/HUONG_DAN_THUYET_TRINH_REVIEW_2_MEDIASSIST_AI.md` & `.txt`:
+     - Bảng đối soát chi tiết 12 slide với mã nguồn.
+     - Kịch bản thuyết trình từng giây chuẩn phong thái kỹ sư xuất sắc.
+     - Bộ 10 câu hỏi - câu trả lời phản biện hóc búa nhất (Modular Monolith, pgvector vs Milvus, HNSW tuning, NegEx, Double Booking, Two-Layer Cache, BOLA/IDOR, PII, Resilience, Scalability 50k bác sĩ).
+     - Quy trình Live Demo 5 bước không lỗi trên môi trường thật `http://localhost:5173`.
+  2. `[NEW]` `docs/HUONG_DAN_THUYET_TRINH_REVIEW_2.md`: Lưu bản sao chính thức vào thư mục tài liệu dự án theo nguyên tắc số 1 AGENTS.md.
+  3. `[MOD]` `docs/WORK_LOG.md`: Ghi nhật ký phiên `#128`.
+* **Bằng Chứng Kiểm Thử & Xác Thực:**
+  - Kiểm tra file vật lý tồn tại và đủ dung lượng 29 KB tại `Downloads/HUONG_DAN_THUYET_TRINH_REVIEW_2_MEDIASSIST_AI.md` và `.txt`.
+  - Frontend và Backend hiện tại đang hoạt động bình thường trên cổng 5173 và 5001.
 
 ### [WORK-LOG-#127] Bổ Sung Liên Kết & Thẻ Nổi Bật Chuyên Đề Biện Luận Y Học Chứng Cứ SOTA Vào Cổng Hồ Sơ Khóa Luận (docs/index.html)
 * **Thời gian:** 2026-11-15 (GMT+7)
