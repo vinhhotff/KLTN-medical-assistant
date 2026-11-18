@@ -14,7 +14,11 @@ coverage/
 .env
 .env.*
 backend/.env
+frontend/.env
+frontend/.env.*
+.mediassist/
 backend/src/main/resources/application-local.properties
+**/application-local.properties
 
 # Logs
 logs

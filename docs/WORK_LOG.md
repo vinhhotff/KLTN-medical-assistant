@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#129** | 18/11/2026 | Bảo Vệ Biến Môi Trường 3 Lớp Qua Git Hooks & Đồng Bộ Hóa SDD Cho Review Lần 2 (Tuần 8): (A) Kiến trúc Secret Persistence 3 lớp: (1) `spring.profiles.group.dev=local` trong `application.properties`, tham số hóa `${ENV_VAR:default}` trong `application-dev.properties`, bổ sung `frontend/.env*`, `.mediassist/`, `**/application-local.properties` vào `.gitignore`; (2) Secret Vault ngoài repo tại `%USERPROFILE%\.mediassist\` (`local-secrets.properties` 84 keys + backup `.env`, `backend.env`, `application-local.properties`) đồng bộ `backend/src/main/resources/application-local.properties` và `target/classes/`; (3) `.githooks/` (`_env_sync.sh`, `post-checkout`, `post-merge`, `post-rewrite`, `pre-push` chặn rò rỉ secret trước push) + `scripts/sync-local-env.ps1` và `core.hooksPath=.githooks`; (B) Review 2 SDD Alignment: cập nhật `docs/SDD_MediAssist_AI.md` (3 dòng Change Log V23/V24/Review 2, `Gemini 2.5 Flash (3-Tier AI Router)`, giữ đúng stack `React 18.3.1 / TS 5.8 / Vite 6.2`, đồng bộ `users.version` V24 và `appointments.icd_code`/`icd_version` + Partial Indexes V23), `report_4/REPORT_4_EXECUTIVE_SUMMARY.md`, bổ sung Section 5 Cẩm Nang Review 2 vào `docs/CAPSTONE_DEFENSE.md`, tái biên dịch 21 tài liệu `docs-bundle.js` (`1.225,4 KB`). Xác thực `mvn test` **322/322 PASS** & `npm run build` 0 lỗi TS. | AI Assistant (Swarm) | 🟢 Sẵn sàng Review |
 | **#128** | 15/11/2026 | Tích Hợp Đầy Đủ API Keys (Gemini Flash, OpenRouter Embeddings & Supabase Publishable Key) & Xác Thực Triệt Để 2 Báo Cáo Lỗi Admin & Form Bác Sĩ: (1) Chuẩn hóa model Google Gemini sang `gemini-2.5-flash` chính thức trên toàn hệ thống (`GeminiAiProvider`, `MedicalDocumentAnalysisService`, `TriageService`, `AiUsageAnalyticsService`), kết nối trực tiếp Gemini Flash API bóc tách cận lâm sàng & RAG thành công 100%, (2) Kích hoạt OpenRouter neural vector embeddings `openai/text-embedding-3-small` đồng bộ 15 vector bác sĩ vào pgvector, (3) Tinh chỉnh `SupabaseStorageService.java` bỏ tiền tố Bearer cho `sb_publishable_...` và duy trì fallback lưu trữ EMR nội bộ `/uploads/`, (4) Xác thực triệt để 2 ảnh báo cáo: (a) Tính năng Admin tạm khóa tài khoản hoạt động thông suốt (200 OK) sau khi vá `@Version` null (Flyway V24); (b) Gỡ bỏ trường "Ảnh chân dung áo blouse trắng" khỏi Bước 1 (`DoctorRegisterForm.tsx`), tinh gọn biểu mẫu đăng ký. Backend 39/39 tests PASS, Frontend build 0 lỗi TS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#127** | 15/11/2026 | Bổ Sung Liên Kết & Thẻ Nổi Bật Chuyên Đề Biện Luận Y Học Chứng Cứ SOTA Vào Cổng Hồ Sơ Khóa Luận (`docs/index.html`): (1) Bổ sung nút truy cập nhanh "Biện Luận Y Học (SOTA)" trên thanh điều hướng đầu trang của `docs/index.html`, (2) Bổ sung thẻ bài nổi bật "Biện Luận Y Học Chứng Cứ & SOTA" (đối chuẩn Google AMIE Nature 2024, Ada Health BMJ/Lancet, ClinicalRAG ACL 2024) ngay giữa giao diện trang chủ Portal phụ, đồng bộ liên kết trực tiếp với trình đọc WordCraft Studio `../report_1/index.html#clinical_defense`. Xác thực liên kết HTTP 200 thông suốt trên cổng 8088. | AI Assistant (Vinh) | 🟢 Sẵn sàng Review |
 | **#126** | 15/11/2026 | Tích Hợp Xác Thực Email Qua Gmail SMTP Thực Tế & Đăng Nhập Google OAuth2: (1) Cấu hình Gmail SMTP (`hoangkhuong056@gmail.com`) với Google App Password qua biến môi trường an toàn `.env` và `application-local.properties`, chuyển đổi từ Mailpit dev sang gửi email xác thực thực tế (STARTTLS port 587), (2) Xác thực luồng gửi email thật: Kiểm thử gửi email xác thực tài khoản `hoangkhuong056@gmail.com` thành công qua Google SMTP server (`Mail 'verify-email' sent`), (3) Hoàn thiện cấu hình Google OAuth2 (Client ID & Secret), đồng bộ `GoogleLoginButton.tsx` hỗ trợ proxy động, kiểm tra redirect URL `302 accounts.google.com` chính xác. Frontend build 0 lỗi TS, backend 31/31 tests PASS. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -59,6 +60,46 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#129] Bảo Vệ Biến Môi Trường 3 Lớp Qua Git Hooks & Đồng Bộ Hóa SDD Cho Review Lần 2 (Tuần 8)
+* **Thời gian:** 2026-11-18 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Swarm)
+* **Nhánh:** `feature/fuction` $\rightarrow$ `develop`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu thiết lập cơ chế lưu giữ biến môi trường / API keys cục bộ bền vững xuyên suốt các thao tác Git (chống mất cấu hình khi checkout/merge mà tuyệt đối không đẩy secret lên remote), đồng thời rà soát, đồng bộ hóa tài liệu SDD (`Report 4`) và biên soạn cẩm nang Review lần 2 (Tuần thứ 8).
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  * **Phần A — Kiến Trúc Bảo Vệ & Duy Trì Biến Môi Trường 3 Lớp (3-Layer Local Env Persistence):**
+    1. `[MOD]` `backend/src/main/resources/application.properties`, `backend/src/main/resources/application-dev.properties`, `.gitignore`:
+       - Bổ sung `spring.profiles.group.dev=local` ngay sau `spring.profiles.active=dev` để mở rộng profile `dev` thành `dev,local`, đảm bảo `application-local.properties` ghi đè sau `application-dev.properties`.
+       - Chuẩn hóa `spring.config.import=optional:file:.env[.properties],optional:file:../.env[.properties]` (loại bỏ `optional:classpath:application-local.properties` tránh trùng nạp sớm; giữ profile `test` cô lập).
+       - Tham số hóa toàn bộ giá trị môi trường/bí mật trong `application-dev.properties` qua `${ENV_VAR:default}` (OAuth2 Google Client ID/Secret placeholder, Redirect URIs, JWT secret, CORS origins, `gemini-2.5-flash`, `vnd-per-usd`, `supabase.enabled`).
+       - Bổ sung `frontend/.env`, `frontend/.env.*`, `.mediassist/`, `**/application-local.properties` vào `.gitignore` (bảo toàn các tệp `.env.example`).
+    2. `[LOCAL VAULT]` `%USERPROFILE%\.mediassist\` (`local-secrets.properties` 84 keys, `.env`, `backend.env`, `application-local.properties`) & `backend/src/main/resources/application-local.properties` (85 keys, dòng đầu `spring.config.import=optional:file:${user.home}/.mediassist/local-secrets.properties`) + `backend/target/classes/application-local.properties`:
+       - Đồng bộ đầy đủ parity giữa nhóm key chuẩn Spring Boot và nhóm biến môi trường viết hoa `${ENV_VAR}`, tất cả ở định dạng UTF-8 không BOM, hoàn toàn nằm ngoài danh sách theo dõi Git.
+    3. `[NEW]` `.githooks/_env_sync.sh`, `.githooks/post-checkout`, `.githooks/post-merge`, `.githooks/post-rewrite`, `.githooks/pre-push`, `scripts/sync-local-env.ps1`:
+       - Kích hoạt `git config core.hooksPath .githooks` (quyền thực thi `+x` trên git index, chuẩn LF-only POSIX `sh`).
+       - Các hook `post-checkout`, `post-merge`, `post-rewrite` tự động phục hồi các tệp env local và `backend/target/classes/application-local.properties` từ vault khi chuyển nhánh hoặc gộp nhánh.
+       - Hook `pre-push` sao lưu ngược từ workspace về vault trước khi đẩy, đồng thời quét các tệp tracked/staged nhằm chặn triệt để nguy cơ rò rỉ API key, OAuth secret hoặc mật khẩu SMTP (chiếu phạm vi riêng khóa publishable trên các tệp cấu hình thay vì lịch sử nhật ký).
+       - Script PowerShell `scripts/sync-local-env.ps1` (`-Action Sync|Backup|Restore`) hỗ trợ đồng bộ hai chiều trên Windows và thiết lập `core.hooksPath` mà không xuất thông tin bí mật ra terminal.
+  * **Phần B — Review Lần 2 (Tuần 8): Đồng Bộ SDD, Bảng CSDL & Cẩm Nang Bảo Vệ:**
+    1. `[MOD]` `docs/SDD_MediAssist_AI.md`:
+       - Thêm 3 dòng lịch sử thay đổi (`06/11/2026` Flyway V23 `icd_code`/`icd_version`, `15/11/2026` Flyway V24 `@Version` + Onboarding Bác sĩ 2 bước, `18/11/2026` Review 2 SDD alignment).
+       - Cập nhật Figure 1.1, Table 1.1, ADR-005, Package Diagram và Sections 3.9/3.19: đối soát khớp `frontend/package.json` giữ đúng **`React 18.3.1`** (`TypeScript 5.8`, `Vite 6.2`, `Tailwind CSS 3.4`), đồng bộ **`Gemini 2.5 Flash (3-Tier AI Router)`** và Flyway **`V1 - V24`**.
+       - Cập nhật Figure 2.3 và các bảng đặc tả `2.3.1` (`users.version` V24), `2.3.7` (`appointments.icd_code`, `icd_version`, `version` và Partial Indexes `idx_appointments_icd_code`, `idx_appointments_icd_version_code` V23).
+    2. `[MOD]` `report_4/REPORT_4_EXECUTIVE_SUMMARY.md`:
+       - Cập nhật quy mô thực tế `4.537 dòng` (`311.627 ký tự`), stack `React 18.3 SPA (TypeScript 5.8, Vite 6.2)` và chuẩn hóa `icd_code VARCHAR(20)` & `icd_version VARCHAR(10) (Flyway V23)`.
+    3. `[MOD]` `docs/CAPSTONE_DEFENSE.md`:
+       - Bổ sung Section `## 5. Cẩm Nang Review Lần 2 (Tuần Thứ 8): Thẩm Định Chuyên Môn & Khuyến Nghị Điều Chỉnh SDD (IEEE 1016-2009 & ISO/IEC/IEEE 42010)` (5.1 Ma trận đánh giá 5 tiêu chí; 5.2 Danh mục 6 khuyến nghị điều chỉnh; 5.3 Kịch bản thuyết trình 10 slides 12–15 phút kèm hướng dẫn Vector Studio `8088`; 5.4 Bộ 6 câu hỏi phản biện chuyên sâu Review 2) và chuyển Rubric sang `## 6.`.
+    4. `[MOD]` `docs-bundle.js` & `report_1..5/`: Chạy `python scripts/compile_docs_bundle.py` đồng bộ 7 tài liệu nguồn và đóng gói 21 tài liệu (`1.225,4 KB`) ra toàn bộ các thư mục báo cáo.
+* **Bằng Chứng Kiểm Thử & Xác Thực:**
+  - `cd backend; mvn test`: **322/322 tests PASS (0 Failures, 0 Errors, 0 Skipped)**.
+  - `cd frontend; npm run build`: **0 lỗi TypeScript** (`2.313` modules transformed sạch sẽ).
+  - `.githooks/pre-push`: Chạy kiểm tra trên `HEAD` thoát mã `0` (không phát hiện rò rỉ secret).
+  - Kiểm tra `git status` & `%USERPROFILE%\.mediassist\`: `.env`, `backend/.env`, `backend/src/main/resources/application-local.properties` vẫn hoàn toàn untracked/ignored, tồn tại nguyên vẹn và khớp dữ liệu với vault.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Lưu ý `frontend/package.json` hiện cài `react@^18.3.1` (`vite@^6.2.0`, `typescript@^5.8.2`), do đó SDD và Executive Summary đã được chuẩn hóa giữ `React 18.3` (thay vì ghi nhầm `React 19`) để khớp 100% với mã nguồn thực tế khi Hội đồng đối chiếu.
+  - Từ nay về sau, mọi thao tác `git checkout`, `git merge`, `git pull` sẽ tự động đồng bộ lại cấu hình env cục bộ từ `%USERPROFILE%\.mediassist\`.
+
+---
 
 ### [WORK-LOG-#128] Tích Hợp Đầy Đủ API Keys (Gemini Flash, OpenRouter Embeddings & Supabase Publishable Key) & Xác Thực Triệt Để 2 Báo Cáo Lỗi Admin & Form Bác Sĩ
 * **Thời gian:** 2026-11-15 (GMT+7)

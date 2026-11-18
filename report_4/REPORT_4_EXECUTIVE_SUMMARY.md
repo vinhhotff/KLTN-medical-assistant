@@ -7,7 +7,7 @@
 ### 🌟 1. TỔNG QUAN QUY MÔ HỒ SƠ THIẾT KẾ SDD (REPORT 4)
 
 Báo cáo **Report 4 (SDD – Software Design Document)** là tài liệu thiết kế kỹ thuật kiến trúc phần mềm và cơ sở dữ liệu chuyên sâu nhất của đề tài MediAssist-AI, được xây dựng theo tiêu chuẩn quốc tế **IEEE 1016-2009** và phương pháp phân rã hướng đối tượng Clean Architecture:
-* **Quy mô đồ sộ chuẩn đồ án tốt nghiệp:** **4.322 dòng** (314.737 ký tự), ánh xạ chính xác 1-1 với mã nguồn Java 21 LTS (Spring Boot 3.4) và React 18 SPA.
+* **Quy mô đồ sộ chuẩn đồ án tốt nghiệp:** **4.537 dòng** (311.627 ký tự), ánh xạ chính xác 1-1 với mã nguồn Java 21 LTS (Spring Boot 3.4) và React 18.3 SPA (TypeScript 5.8, Vite 6.2).
 * **Tổng số 88 Biểu Đồ Mermaid hoàn chỉnh (100% Valid Syntax):**
   - **01** Biểu đồ Kiến trúc tổng thể hệ thống 5 tầng (5-Tier Compact Architecture Diagram).
   - **02** Biểu đồ Cấu trúc gói phần mềm (Package Diagrams cho Front-end và Back-end).
@@ -51,7 +51,7 @@ Mỗi một trong **28 luồng nghiệp vụ** (từ Đăng ký, Đăng nhập, 
 ```
 
 * **Mẫu thiết kế Table-per-Type (Profile Pattern):** Bảng `users` quản lý danh tính bảo mật đăng nhập; `doctor_profiles` và `patient_profiles` kế thừa quan hệ **1:1** qua khóa ngoại `user_id FK UNIQUE`. Thiết kế này đảm bảo chuẩn hóa **3NF**, loại bỏ hoàn toàn các trường dữ liệu bị `NULL` và tối ưu hóa kích thước trang đĩa.
-* **Chuẩn hóa dữ liệu y tế (Standardized Medical Codes):** Bảng `appointments` chỉ lưu mã chuẩn **`icd10_code VARCHAR(10)`**; bảng `document_analyses` chỉ lưu mã chuẩn **`loinc_indicators JSONB`**, giúp tiết kiệm 80% dung lượng đĩa CSDL giao dịch.
+* **Chuẩn hóa dữ liệu y tế (Standardized Medical Codes):** Bảng `appointments` chỉ lưu mã chuẩn **`icd_code VARCHAR(20)`** & **`icd_version VARCHAR(10) (Flyway V23)`**; bảng `document_analyses` chỉ lưu mã chuẩn **`loinc_indicators JSONB`**, giúp tiết kiệm 80% dung lượng đĩa CSDL giao dịch.
 
 ---
 
