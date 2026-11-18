@@ -372,6 +372,15 @@
             stroke-width: 1.2px !important;
             rx: 4px !important;
         }
+
+        /* Prevent text clipping inside Mermaid foreignObject labels */
+        svg foreignObject,
+        svg foreignObject > div,
+        .nodeLabel,
+        .cluster-label,
+        .edgeLabel {
+            overflow: visible !important;
+        }
     </style>
 </head>
 <body>
@@ -442,7 +451,7 @@
     <script>
 const DIAGRAMS = {
             architecture: `flowchart TB
-    subgraph Tier1["1. Client Presentation Tier (React 18 SPA)"]
+    subgraph Tier1["1. Client Presentation Tier (React 18.3 SPA • Vite 6.2 • TypeScript 5.8)"]
         UI["Patient Portal & Doctor Workstation | Admin Operations Console"]
     end
 
@@ -450,7 +459,7 @@ const DIAGRAMS = {
         Sec["Nginx Reverse Proxy 1.25+ (SSL/TLS 1.3 & Rate Limiting)<br/>Spring Security 6 (Stateless JWT) & PatientAccessGuard (BOLA/IDOR)"]
     end
 
-    subgraph Tier3["3. Core Application Services (Spring Boot 3.4 Loom)"]
+    subgraph Tier3["3. Core Application Services (Spring Boot 3.4 + Java 21 Project Loom)"]
         direction TB
         subgraph SubAI["Clinical AI Engine"]
             Svc_Triage["5-Stage Symptom Triage & NegEx"]
@@ -458,30 +467,55 @@ const DIAGRAMS = {
         end
         subgraph SubClinical["Telehealth & Encounter"]
             Svc_Booking["Slot Booking & Daily Queue STT"]
-            Svc_EMR["Doctor EMR (WHO ICD-10 & LOINC)"]
+            Svc_EMR["Doctor EMR (WHO ICD-10/11 & LOINC)"]
         end
         subgraph SubOps["Diagnostics & Finance"]
-            Svc_OCR["Medical Document OCR (Gemini Flash)"]
-            Svc_Pay["VNPay Gateway & Async Mail Engine"]
+            Svc_OCR["Medical Document OCR (Gemini 2.5 Flash)"]
+            Svc_Pay["Stripe/VNPay Adapter & Async Mail Engine"]
         end
     end
 
     subgraph Tier4["4. Persistence, Cache & Cloud Storage"]
-        DB[("PostgreSQL 16 LTS<br/>+ pgvector HNSW")]
-        Cache[("Redis 7 L2 Cache<br/>+ Caffeine L1")]
+        DB[("PostgreSQL 16 LTS<br/>+ pgvector HNSW (V1-V24)")]
+        Cache[("Redis 7 L2 Cache<br/>+ Caffeine L1 (XFetch)")]
         S3[("Supabase S3<br/>Private 15m HMAC")]
     end
 
     subgraph Tier5["5. External Cloud Integration"]
-        AI_Ext["OpenAI & Gemini 1.5 Flash"]
-        Pay_Ext["VNPay National Gateway"]
-        Mail_Ext["SMTP Transactional Mail"]
+        AI_Ext["OpenAI / OpenRouter & Gemini 2.5 Flash (3-Tier AI Router)"]
+        Pay_Ext["Stripe Sandbox / VNPay National Gateway"]
+        Mail_Ext["Mailpit Dev / Gmail SMTP STARTTLS"]
     end
 
     Tier1 --> Tier2
     Tier2 --> Tier3
     Tier3 --> Tier4
-    Tier3 --> Tier5`,
+    Tier3 --> Tier5
+
+    classDef clientNode fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#0f172a,font-weight:600
+    classDef secNode fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#0f172a,font-weight:600
+    classDef aiNode fill:#cffafe,stroke:#0891b2,stroke-width:2px,color:#0f172a,font-weight:600
+    classDef clinNode fill:#d1fae5,stroke:#059669,stroke-width:2px,color:#0f172a,font-weight:600
+    classDef opsNode fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#0f172a,font-weight:600
+    classDef dataNode fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#0f172a,font-weight:600
+    classDef extNode fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#0f172a,font-weight:600
+
+    class UI clientNode
+    class Sec secNode
+    class Svc_Triage,Svc_Search aiNode
+    class Svc_Booking,Svc_EMR clinNode
+    class Svc_OCR,Svc_Pay opsNode
+    class DB,Cache,S3 dataNode
+    class AI_Ext,Pay_Ext,Mail_Ext extNode
+
+    style Tier1 fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
+    style Tier2 fill:#fef2f2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    style Tier3 fill:#f0fdfa,stroke:#0d9488,stroke-width:2px,color:#134e4a
+    style SubAI fill:#ecfeff,stroke:#06b6d4,stroke-width:1.5px,color:#164e63
+    style SubClinical fill:#ecfdf5,stroke:#10b981,stroke-width:1.5px,color:#064e46
+    style SubOps fill:#eef2ff,stroke:#6366f1,stroke-width:1.5px,color:#312e81
+    style Tier4 fill:#f5f3ff,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    style Tier5 fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#78350f`,
 
             erd_full: `erDiagram
     %% ========================================================
@@ -1294,23 +1328,31 @@ const DIAGRAMS = {
                     tertiaryColor: '#0f172a',
                     mainBkg: '#111c38',
                     nodeBorder: '#38bdf8',
+                    clusterBkg: '#0f172a',
+                    clusterBorder: '#38bdf8',
+                    titleColor: '#f8fafc',
+                    nodeTextColor: '#f8fafc',
                     edgeLabelBackground: '#0f172a',
                     textColor: '#f8fafc'
                 } : {
                     darkMode: false,
                     background: '#f8fafc',
-                    primaryColor: '#0284c7',
-                    primaryTextColor: '#ffffff',
+                    primaryColor: '#e0f2fe',
+                    primaryTextColor: '#0f172a',
                     primaryBorderColor: '#0284c7',
                     lineColor: '#2563eb',
                     secondaryColor: '#ffffff',
                     tertiaryColor: '#f1f5f9',
                     mainBkg: '#ffffff',
                     nodeBorder: '#0284c7',
+                    clusterBkg: '#f1f5f9',
+                    clusterBorder: '#0284c7',
+                    titleColor: '#0f172a',
+                    nodeTextColor: '#0f172a',
                     edgeLabelBackground: '#ffffff',
                     textColor: '#0f172a'
                 },
-                flowchart: { useMaxWidth: false, htmlLabels: true },
+                flowchart: { useMaxWidth: false, htmlLabels: true, padding: 16, nodeSpacing: 45, rankSpacing: 55 },
                 sequence: { useMaxWidth: false, showSequenceNumbers: true },
                 er: { useMaxWidth: false }
             });
@@ -1337,7 +1379,6 @@ const DIAGRAMS = {
                 viewport.innerHTML = svg;
 
                 const svgElement = viewport.querySelector("svg");
-                svgElement.setAttribute("id", "active-svg");
                 svgElement.style.width = "100%";
                 svgElement.style.height = "100%";
 
@@ -1386,7 +1427,7 @@ const DIAGRAMS = {
         }
 
         function downloadSvg() {
-            const svgElement = document.getElementById("active-svg");
+            const svgElement = document.querySelector("#diagram-viewport svg");
             if (!svgElement) return;
             const serializer = new XMLSerializer();
             let source = serializer.serializeToString(svgElement);

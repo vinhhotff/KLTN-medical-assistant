@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MediAssist-AI | Cổng Thuyết Trình & Thẩm Định Review 2 (Tuần 8 – SDD)</title>
+  <title>MediAssist-AI | Cổng Thuyết Trình & Sơ Đồ Review 2 (Tuần 8 – SDD)</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -27,9 +29,25 @@
       font-variant-numeric: tabular-nums;
     }
     code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .diagram-stage svg {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+    svg foreignObject,
+    svg foreignObject > div,
+    .nodeLabel,
+    .cluster-label,
+    .edgeLabel {
+      overflow: visible !important;
+    }
+    .canvas-dots {
+      background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.25) 1px, transparent 0);
+      background-size: 20px 20px;
+    }
     @media print {
       .no-print { display: none !important; }
-      .print-show { display: block !important; }
       body { background: #ffffff !important; color: #0f172a !important; }
       .print-break { page-break-before: always; }
     }
@@ -37,8 +55,8 @@
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen antialiased transition-colors duration-200">
 
-  <!-- Top Sticky Header -->
-  <header class="no-print sticky top-0 z-50 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur">
+  <!-- Sticky Header -->
+  <header class="no-print sticky top-0 z-40 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
       <div class="flex items-center gap-3">
         <a href="../index.html" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 via-sky-500 to-emerald-400 flex items-center justify-center text-white font-extrabold text-lg shadow-lg shadow-violet-500/20 shrink-0" title="Về Portal Gốc">
@@ -47,98 +65,96 @@
         <div>
           <div class="flex flex-wrap items-center gap-2">
             <span class="px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider rounded bg-violet-100 text-violet-800 dark:bg-violet-950/80 dark:text-violet-300 border border-violet-300 dark:border-violet-700/60">REVIEW LẦN 2 • TUẦN THỨ 8</span>
-            <span class="text-xs font-mono text-slate-500 dark:text-slate-400">Software Design Document (IEEE 1016-2009 • ISO 42010)</span>
+            <span class="text-xs font-mono text-slate-500 dark:text-slate-400">Software Design Document (Diagram-First Mode)</span>
           </div>
-          <h1 class="text-base sm:text-lg font-bold tracking-tight">MediAssist-AI • Cổng Thuyết Trình, Đánh Giá & Điều Chỉnh SDD</h1>
+          <h1 class="text-base sm:text-lg font-bold tracking-tight">MediAssist-AI • Cổng Sơ Đồ, Đánh Giá &amp; Thuyết Trình SDD</h1>
         </div>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
         <a href="../index.html" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition">🏠 Portal Gốc</a>
-        <a href="../report_4/index.html#report_4_main" target="_blank" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-sm transition">📘 Đọc SDD (Report 4)</a>
-        <a href="../docs/diagrams/interactive_viewer.html?diagram=architecture" target="_blank" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition">🔍 Vector Studio (1500%)</a>
+        <a href="../report_4/index.html#report_4_main" target="_blank" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-sm transition">📘 Report 4 (SDD)</a>
+        <a href="../docs/diagrams/interactive_viewer.html?diagram=architecture" target="_blank" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition">🔍 Vector Studio</a>
         <a href="../docs/diagrams/interactive_viewer.html?diagram=erd_full" target="_blank" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition">🗄️ ERD 17 Bảng</a>
         <button onclick="toggleAllInOnePrint()" id="btn-all-view" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-950/70 dark:hover:bg-amber-900/70 dark:text-amber-200 border border-amber-300 dark:border-amber-700/60 transition cursor-pointer">📄 Xem Tất Cả / In PDF</button>
-        <button onclick="toggleTheme()" id="btn-theme" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition cursor-pointer" title="Đổi giao diện Sáng/Tối">☀️ Sáng</button>
+        <button onclick="toggleTheme()" id="btn-theme" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition cursor-pointer">☀️ Sáng</button>
       </div>
     </div>
 
     <!-- Navigation Tabs -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 border-t border-slate-200 dark:border-slate-800/80 flex overflow-x-auto gap-1 py-2" role="tablist">
       <button onclick="switchTab('overview')" data-tab="overview" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition cursor-pointer">
-        1. Tổng Quan & Đánh Giá SDD
+        1. Sơ Đồ Tổng Quan &amp; Đánh Giá SDD
       </button>
       <button onclick="switchTab('adjustments')" data-tab="adjustments" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition cursor-pointer">
-        2. 6 Khuyến Nghị Điều Chỉnh (Trước vs Sau)
+        2. 6 Điều Chỉnh Review 2 (Có Sơ Đồ)
       </button>
       <button onclick="switchTab('presentation')" data-tab="presentation" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition cursor-pointer">
-        3. Bài Thuyết Trình 10 Slides & Lời Dẫn
+        3. Trình Chiếu 10 Slides (Diagram + Script)
       </button>
       <button onclick="switchTab('qa')" data-tab="qa" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition cursor-pointer">
-        4. Top 6 Câu Hỏi Phản Biện Hội Đồng
+        4. Top 6 Phản Biện (Có Sơ Đồ Minh Họa)
       </button>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
 
-    <!-- Verified KPI Strip (Always visible) -->
+    <!-- Verified KPI Strip -->
     <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-      <div class="rounded-xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div class="text-xl sm:text-2xl font-extrabold text-violet-600 dark:text-violet-400 font-mono">4,537 dòng</div>
-        <div class="text-xs font-semibold mt-1">Quy mô SDD (Report 4)</div>
-        <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">311,627 ký tự • IEEE 1016</div>
+      <div class="rounded-xl p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="text-lg sm:text-xl font-extrabold text-violet-600 dark:text-violet-400 font-mono">4,537 dòng</div>
+        <div class="text-xs font-semibold mt-0.5">Quy mô SDD (Report 4)</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">IEEE 1016-2009</div>
       </div>
-      <div class="rounded-xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div class="text-xl sm:text-2xl font-extrabold text-sky-600 dark:text-sky-400 font-mono">88+ / 28</div>
-        <div class="text-xs font-semibold mt-1">Biểu Đồ / Luồng Nghiệp Vụ</div>
-        <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">4 Phần: Scope, Class, Seq, Err</div>
+      <div class="rounded-xl p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="text-lg sm:text-xl font-extrabold text-sky-600 dark:text-sky-400 font-mono">88+ / 28</div>
+        <div class="text-xs font-semibold mt-0.5">Biểu Đồ / Luồng (4 Phần)</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">Class, Seq, Error</div>
       </div>
-      <div class="rounded-xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div class="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">17 Bảng • V24</div>
-        <div class="text-xs font-semibold mt-1">CSDL 3NF & Flyway</div>
+      <div class="rounded-xl p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">17 Bảng • V24</div>
+        <div class="text-xs font-semibold mt-0.5">CSDL 3NF &amp; Flyway</div>
         <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">V23 ICD • V24 @Version</div>
       </div>
-      <div class="rounded-xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div class="text-xl sm:text-2xl font-extrabold text-purple-600 dark:text-purple-400 font-mono">0.72 ms</div>
-        <div class="text-xs font-semibold mt-1">HNSW pgvector Query</div>
-        <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">m=24, ef=128 • Recall 99.95%</div>
+      <div class="rounded-xl p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="text-lg sm:text-xl font-extrabold text-purple-600 dark:text-purple-400 font-mono">0.72 ms</div>
+        <div class="text-xs font-semibold mt-0.5">HNSW pgvector Query</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">Recall 99.95%</div>
       </div>
-      <div class="rounded-xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div class="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">322 / 322</div>
-        <div class="text-xs font-semibold mt-1">Backend Unit Tests PASS</div>
-        <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">Frontend: 0 TS Errors (2,313)</div>
+      <div class="rounded-xl p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">322 / 322</div>
+        <div class="text-xs font-semibold mt-0.5">Backend Tests PASS</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">0 TS Error (2,313)</div>
       </div>
-      <div class="rounded-xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div class="text-xl sm:text-2xl font-extrabold text-cyan-600 dark:text-cyan-400 font-mono">0.00%</div>
-        <div class="text-xs font-semibold mt-1">k6 Stress Error (500 VUs)</div>
-        <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">6,447 req/s • 330 MB RAM</div>
+      <div class="rounded-xl p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="text-lg sm:text-xl font-extrabold text-cyan-600 dark:text-cyan-400 font-mono">0.00%</div>
+        <div class="text-xs font-semibold mt-0.5">k6 Error (500 VUs)</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">6,447 req/s • 330MB</div>
       </div>
     </section>
 
     <!-- =================================================================== -->
-    <!-- SECTION 1: OVERVIEW & EVALUATION MATRIX                             -->
+    <!-- TAB 1: OVERVIEW & 3 VISUAL DIAGRAMS + EVALUATION MATRIX             -->
     <!-- =================================================================== -->
     <section id="panel-overview" class="tab-panel space-y-6">
-      <div class="rounded-2xl p-6 sm:p-8 bg-gradient-to-br from-slate-900 via-slate-900 to-violet-950 text-white border border-slate-800 shadow-xl">
-        <div class="max-w-4xl space-y-3">
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-700/60 text-emerald-300 text-xs font-semibold">
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span>MỤC TIÊU REVIEW LẦN 2 (TUẦN THỨ 8): THẨM ĐỊNH & ĐIỀU CHỈNH SOFTWARE DESIGN DOCUMENT</span>
+      <!-- 3-Diagram Visual Showcase -->
+      <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">TRÌNH DIỄN TRỰC QUAN SDD (INTERACTIVE MERMAID)</span>
+            <h2 class="text-lg sm:text-xl font-extrabold">Bản Đồ Trực Quan Toàn Bộ Kiến Trúc, 6 ADRs &amp; 17 Bảng CSDL</h2>
           </div>
-          <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Đánh Giá Chuyên Môn Tài Liệu SDD — Khớp 1-1 Mã Nguồn Thực Tế
-          </h2>
-          <p class="text-sm sm:text-base text-slate-300 leading-relaxed">
-            Hồ sơ SDD (<strong>Report 4</strong>) của <strong>MediAssist-AI</strong> được xây dựng theo chuẩn <strong>IEEE Std 1016-2009</strong> &amp; <strong>ISO/IEC/IEEE 42010:2011</strong>. Trong đợt rà soát Tuần thứ 8, nhóm đã đối chiếu từng bảng DB, biểu đồ Class/Sequence, ADRs và công nghệ thực tế để xử lý triệt để mọi độ lệch thiết kế (<em>Schema Drift &amp; Stack Drift</em>).
-          </p>
-          <div class="pt-2 flex flex-wrap gap-2">
-            <span class="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-xs font-mono text-sky-300">Java 21 LTS Project Loom</span>
-            <span class="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-xs font-mono text-sky-300">Spring Boot 3.4</span>
-            <span class="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-xs font-mono text-emerald-300">React 18.3.1 • Vite 6.2 • TS 5.8</span>
-            <span class="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-xs font-mono text-purple-300">PostgreSQL 16 + pgvector HNSW</span>
-            <span class="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-xs font-mono text-amber-300">Caffeine L1 + Redis L2 (XFetch)</span>
+          <div class="no-print flex flex-wrap items-center gap-1.5">
+            <button onclick="selectOverviewDiagram('arch5Tier')" data-ov="arch5Tier" class="ov-btn px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition">1.1 Kiến trúc 5 Tầng</button>
+            <button onclick="selectOverviewDiagram('adrMap')" data-ov="adrMap" class="ov-btn px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition">1.2 Bản đồ 6 ADRs</button>
+            <button onclick="selectOverviewDiagram('dbTopology')" data-ov="dbTopology" class="ov-btn px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition">1.3 Cụm 17 Bảng 3NF</button>
+            <button onclick="openOverviewModal()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white cursor-pointer transition">🔍 Phóng to toàn màn hình</button>
           </div>
+        </div>
+        <div class="p-4 sm:p-6 bg-slate-50 dark:bg-slate-950 canvas-dots">
+          <div id="overview-diagram-title" class="text-xs font-mono font-bold text-slate-600 dark:text-slate-300 mb-3 text-center"></div>
+          <div id="overview-diagram-stage" class="diagram-stage min-h-[260px] flex items-center justify-center overflow-x-auto"></div>
         </div>
       </div>
 
@@ -155,113 +171,76 @@
           <table class="w-full text-left border-collapse text-xs sm:text-sm">
             <thead>
               <tr class="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800">
-                <th class="py-3.5 px-4 font-bold w-12 text-center">#</th>
-                <th class="py-3.5 px-4 font-bold min-w-[200px]">Tiêu Chí Thẩm Định SDD</th>
-                <th class="py-3.5 px-4 font-bold min-w-[160px]">Chuẩn Tham Chiếu</th>
-                <th class="py-3.5 px-4 font-bold min-w-[320px]">Hiện Trạng &amp; Bằng Chứng Trong Hệ Thống</th>
-                <th class="py-3.5 px-4 font-bold text-center w-28">Đánh Giá</th>
+                <th class="py-3 px-4 font-bold w-10 text-center">#</th>
+                <th class="py-3 px-4 font-bold min-w-[190px]">Tiêu Chí Thẩm Định SDD</th>
+                <th class="py-3 px-4 font-bold min-w-[150px]">Chuẩn Tham Chiếu</th>
+                <th class="py-3 px-4 font-bold min-w-[300px]">Hiện Trạng &amp; Bằng Chứng Trong Hệ Thống</th>
+                <th class="py-3 px-4 font-bold text-center w-24">Đánh Giá</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                <td class="py-4 px-4 text-center font-mono font-bold text-slate-500">1</td>
-                <td class="py-4 px-4 font-semibold">Kiến trúc Tổng thể &amp; 6 ADRs</td>
-                <td class="py-4 px-4 font-mono text-xs text-sky-600 dark:text-sky-400">ISO/IEC/IEEE 42010:2011</td>
-                <td class="py-4 px-4 text-slate-600 dark:text-slate-300 leading-relaxed">
-                  <strong>Tiered Micro-Modular Monolith</strong> 5 tầng (Java 21 Project Loom <code class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs">spring.threads.virtual.enabled=true</code> + Nginx Edge Ingress); <strong>6 ADRs chính thức</strong> (<code class="text-xs">ADR-001</code> đến <code class="text-xs">ADR-006</code>) có đủ bối cảnh, đánh đổi (trade-offs) và số liệu kiểm chứng.
-                </td>
-                <td class="py-4 px-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">Xuất sắc</span></td>
+                <td class="py-3.5 px-4 text-center font-mono font-bold text-slate-500">1</td>
+                <td class="py-3.5 px-4 font-semibold">Kiến trúc Tổng thể &amp; 6 ADRs</td>
+                <td class="py-3.5 px-4 font-mono text-xs text-sky-600 dark:text-sky-400">ISO/IEC/IEEE 42010:2011</td>
+                <td class="py-3.5 px-4 text-slate-600 dark:text-slate-300"><strong>Tiered Micro-Modular Monolith</strong> 5 tầng (Java 21 Project Loom + Nginx Ingress); <strong>6 ADRs</strong> (<code class="text-xs">ADR-001..006</code>) đủ đánh đổi &amp; kiểm chứng.</td>
+                <td class="py-3.5 px-4 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">Xuất sắc</span></td>
               </tr>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                <td class="py-4 px-4 text-center font-mono font-bold text-slate-500">2</td>
-                <td class="py-4 px-4 font-semibold">Thiết kế Gói &amp; Clean Architecture</td>
-                <td class="py-4 px-4 font-mono text-xs text-sky-600 dark:text-sky-400">Clean Architecture / DDD</td>
-                <td class="py-4 px-4 text-slate-600 dark:text-slate-300 leading-relaxed">
-                  Tách bạch 7 Bounded Contexts &amp; 4 tầng (<code class="text-xs">Presentation → Application → Domain → Infrastructure</code>): <strong>15 REST Controllers</strong>, <strong>31+ Services</strong>, <strong>16 Repositories</strong>; Frontend <strong>React 18.3.1</strong> (<code class="text-xs">TypeScript 5.8</code>, <code class="text-xs">Vite 6.2</code>, <code class="text-xs">Tailwind 3.4</code>) phân rã rõ <code class="text-xs">pages/</code>, <code class="text-xs">components/</code>, <code class="text-xs">services/</code>, <code class="text-xs">stores/</code>.
-                </td>
-                <td class="py-4 px-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">Xuất sắc</span></td>
+                <td class="py-3.5 px-4 text-center font-mono font-bold text-slate-500">2</td>
+                <td class="py-3.5 px-4 font-semibold">Thiết kế Gói &amp; Clean Architecture</td>
+                <td class="py-3.5 px-4 font-mono text-xs text-sky-600 dark:text-sky-400">Clean Architecture / DDD</td>
+                <td class="py-3.5 px-4 text-slate-600 dark:text-slate-300">7 Bounded Contexts, <strong>15 Controllers</strong>, <strong>31+ Services</strong>, <strong>16 Repositories</strong>; Frontend <strong>React 18.3.1</strong> (<code class="text-xs">TS 5.8</code>, <code class="text-xs">Vite 6.2</code>, <code class="text-xs">Tailwind 3.4</code>).</td>
+                <td class="py-3.5 px-4 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">Xuất sắc</span></td>
               </tr>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                <td class="py-4 px-4 text-center font-mono font-bold text-slate-500">3</td>
-                <td class="py-4 px-4 font-semibold">Thiết kế CSDL 3NF &amp; pgvector HNSW</td>
-                <td class="py-4 px-4 font-mono text-xs text-sky-600 dark:text-sky-400">Chuẩn 3NF • PostgreSQL 16</td>
-                <td class="py-4 px-4 text-slate-600 dark:text-slate-300 leading-relaxed">
-                  <strong>17 bảng chuẩn 3NF</strong> theo mẫu Table-per-Type (<code class="text-xs">users ↔ patient_profiles / doctor_profiles</code>), <strong>24 bản di trú Flyway (V1–V24)</strong> gồm V23 (<code class="text-xs">icd_code</code>/<code class="text-xs">icd_version</code>) &amp; V24 (<code class="text-xs">@Version</code>), đồ thị <strong>HNSW m=24, ef_construction=128</strong> kèm Session Tuning (<code class="text-xs">hnsw.ef_search=120</code>, <code class="text-xs">enable_seqscan=off</code>, <code class="text-xs">work_mem='64MB'</code>).
-                </td>
-                <td class="py-4 px-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">Xuất sắc</span></td>
+                <td class="py-3.5 px-4 text-center font-mono font-bold text-slate-500">3</td>
+                <td class="py-3.5 px-4 font-semibold">Thiết kế CSDL 3NF &amp; pgvector HNSW</td>
+                <td class="py-3.5 px-4 font-mono text-xs text-sky-600 dark:text-sky-400">Chuẩn 3NF • PostgreSQL 16</td>
+                <td class="py-3.5 px-4 text-slate-600 dark:text-slate-300"><strong>17 bảng 3NF</strong>, <strong>24 Flyway (V1–V24)</strong> gồm V23 (<code class="text-xs">icd_code/version</code>) &amp; V24 (<code class="text-xs">@Version</code>); HNSW <code class="text-xs">m=24, ef=128</code> + Session Tuning (<code class="text-xs">0.72 ms</code>).</td>
+                <td class="py-3.5 px-4 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">Xuất sắc</span></td>
               </tr>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                <td class="py-4 px-4 text-center font-mono font-bold text-slate-500">4</td>
-                <td class="py-4 px-4 font-semibold">Thiết kế Chi tiết 28 Luồng (88+ Biểu đồ)</td>
-                <td class="py-4 px-4 font-mono text-xs text-sky-600 dark:text-sky-400">IEEE Std 1016-2009</td>
-                <td class="py-4 px-4 text-slate-600 dark:text-slate-300 leading-relaxed">
-                  Mỗi luồng trong <strong>28 luồng nghiệp vụ</strong> đặc tả đủ 4 phần: Phạm vi &amp; DTO, Class Diagram + bảng phương thức, Sequence Diagram luồng chính + bảng từng bước, và Error Flow Sequence + ma trận ngoại lệ <code class="text-xs">AppException</code>.
-                </td>
-                <td class="py-4 px-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">Xuất sắc</span></td>
+                <td class="py-3.5 px-4 text-center font-mono font-bold text-slate-500">4</td>
+                <td class="py-3.5 px-4 font-semibold">Thiết kế Chi tiết 28 Luồng (88+ Biểu đồ)</td>
+                <td class="py-3.5 px-4 font-mono text-xs text-sky-600 dark:text-sky-400">IEEE Std 1016-2009</td>
+                <td class="py-3.5 px-4 text-slate-600 dark:text-slate-300">Đủ <strong>28 luồng</strong> theo cấu trúc 4 phần: Scope &amp; DTO, Class Spec, Main Sequence &amp; Step Table, Error Flow &amp; Ma trận <code class="text-xs">AppException</code>.</td>
+                <td class="py-3.5 px-4 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">Xuất sắc</span></td>
               </tr>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                <td class="py-4 px-4 text-center font-mono font-bold text-slate-500">5</td>
-                <td class="py-4 px-4 font-semibold">An toàn Y tế &amp; Bảo mật Đa lớp</td>
-                <td class="py-4 px-4 font-mono text-xs text-sky-600 dark:text-sky-400">HIPAA &amp; NĐ 13/2023/NĐ-CP</td>
-                <td class="py-4 px-4 text-slate-600 dark:text-slate-300 leading-relaxed">
-                  <code class="text-xs">PatientAccessGuard</code> chống BOLA/IDOR tầng Service (<code class="text-xs">CARE_RELATIONSHIP</code> + <code class="text-xs">audit_logs</code>), <code class="text-xs">MedicalPiiService</code> (khử 6 nhóm PII), <strong>Private Supabase S3</strong> URL ký số HMAC-SHA256 <strong>15 phút</strong> (V20), Dual-Transport Auth (Bearer + HttpOnly Cookie), và <strong>Bảo vệ Secret 3 lớp</strong> (<code class="text-xs">group.dev=local</code> + Vault ngoài Git + <code class="text-xs">.githooks</code>).
-                </td>
-                <td class="py-4 px-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">Xuất sắc</span></td>
+                <td class="py-3.5 px-4 text-center font-mono font-bold text-slate-500">5</td>
+                <td class="py-3.5 px-4 font-semibold">An toàn Y tế &amp; Bảo mật Đa lớp</td>
+                <td class="py-3.5 px-4 font-mono text-xs text-sky-600 dark:text-sky-400">HIPAA &amp; NĐ 13/2023/NĐ-CP</td>
+                <td class="py-3.5 px-4 text-slate-600 dark:text-slate-300"><code class="text-xs">PatientAccessGuard</code> (BOLA), <code class="text-xs">MedicalPiiService</code> (6 nhóm PII), Private S3 15m HMAC (V20), Dual-Transport JWT &amp; <strong>Secret Vault 3 lớp</strong>.</td>
+                <td class="py-3.5 px-4 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">Xuất sắc</span></td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
-
-      <!-- Quick Links to Live Evidence -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <a href="../docs/diagrams/interactive_viewer.html?diagram=architecture" target="_blank" class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 transition flex items-start gap-3 shadow-sm">
-          <div class="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold shrink-0">C4</div>
-          <div>
-            <h4 class="font-bold text-sm">Mở Kiến Trúc 5 Tầng (Vector Zoom)</h4>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Phóng to 1500%, chuyển đổi Sáng/Tối khi thuyết trình Slide 2.</p>
-          </div>
-        </a>
-        <a href="../docs/diagrams/interactive_viewer.html?diagram=erd_full" target="_blank" class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 transition flex items-start gap-3 shadow-sm">
-          <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shrink-0">DB</div>
-          <div>
-            <h4 class="font-bold text-sm">Mở ERD 17 Bảng 3NF (Vector Zoom)</h4>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Soi từng cột, FK và cụm <code class="text-[11px]">pgvector</code> khi trình bày Slide 4.</p>
-          </div>
-        </a>
-        <a href="../report_4/index.html#report_4_main" target="_blank" class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-purple-500 transition flex items-start gap-3 shadow-sm">
-          <div class="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold shrink-0">28</div>
-          <div>
-            <h4 class="font-bold text-sm">Mở Full SDD 28 Luồng (Report 4)</h4>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">WordCraft Studio với Lazy Mermaid &amp; TOC tự động cho Slide 7.</p>
-          </div>
-        </a>
-      </div>
     </section>
 
     <!-- =================================================================== -->
-    <!-- SECTION 2: 6 REVIEW 2 ADJUSTMENTS (BEFORE VS AFTER)                 -->
+    <!-- TAB 2: 6 ADJUSTMENTS WITH DEDICATED BEFORE -> AFTER DIAGRAMS        -->
     <!-- =================================================================== -->
-    <section id="panel-adjustments" class="tab-panel space-y-6 hidden">
-      <div class="rounded-2xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <h2 class="text-xl sm:text-2xl font-extrabold">6 Khuyến Nghị Điều Chỉnh Chuyên Môn Đối Với SDD (Review Lần 2)</h2>
-        <p class="text-sm text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
-          Đây là phần trọng tâm của Review Tuần 8: chỉ ra các điểm không khớp giữa tài liệu SDD cũ và hệ thống thực tế, lý do kỹ thuật và cập nhật chuẩn hóa đã thực thi vào <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs">docs/SDD_MediAssist_AI.md</code>, <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs">report_4/</code> và <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs">docs/CAPSTONE_DEFENSE.md</code>.
+    <section id="panel-adjustments" class="tab-panel space-y-5 hidden">
+      <div class="rounded-2xl p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <h2 class="text-xl sm:text-2xl font-extrabold">6 Khuyến Nghị Điều Chỉnh SDD (Minh Họa Bằng Sơ Đồ Trước ❌ ➔ Sau ✅)</h2>
+        <p class="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+          Mỗi khuyến nghị đều có <strong>Sơ đồ đối chiếu trực quan</strong> giúp bạn chỉ chuột giải thích ngay với Giảng viên/Hội đồng điểm lệch cũ và giải pháp đã chuẩn hóa vào <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs">docs/SDD_MediAssist_AI.md</code>.
         </p>
       </div>
-
-      <div id="adjustments-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-5"></div>
+      <div id="adjustments-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
     </section>
 
     <!-- =================================================================== -->
-    <!-- SECTION 3: INTERACTIVE 10-SLIDE PRESENTATION & TELEPROMPTER SCRIPT  -->
+    <!-- TAB 3: 10-SLIDE VISUAL PRESENTATION DECK (DIAGRAM + TELEPROMPTER)   -->
     <!-- =================================================================== -->
-    <section id="panel-presentation" class="tab-panel space-y-6 hidden">
-      <!-- Control Bar + 15:00 Timer -->
+    <section id="panel-presentation" class="tab-panel space-y-5 hidden">
       <div class="no-print rounded-2xl p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div class="space-y-1">
-          <h2 class="text-lg sm:text-xl font-bold">Kịch Bản Thuyết Trình Hoàn Hảo (10 Slides • 12–15 Phút)</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Dùng phím mũi tên <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono">←</kbd> <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono">→</kbd> để chuyển Slide, bấm <strong>Xem toàn bộ</strong> nếu muốn đọc liền mạch.</p>
+          <h2 class="text-lg sm:text-xl font-bold">Trình Chiếu 10 Slides Bằng Sơ Đồ &amp; Lời Dẫn (12–15 Phút)</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Mỗi slide có <strong>Sơ đồ Mermaid trực quan riêng</strong> + nút <strong>🔍 Phóng to</strong> + Lời dẫn chuẩn Hội đồng. Nhấn <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono">←</kbd> <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono">→</kbd> để chuyển.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800">
@@ -275,7 +254,7 @@
         </div>
       </div>
 
-      <!-- Slide Stepper View -->
+      <!-- Stepper View -->
       <div id="slide-player-wrapper" class="space-y-4">
         <div class="no-print flex flex-wrap items-center justify-between gap-2">
           <div id="slide-pills" class="flex flex-wrap gap-1.5"></div>
@@ -288,18 +267,18 @@
         <div id="active-slide-stage"></div>
       </div>
 
-      <!-- Full 10-Slide List View -->
+      <!-- All Slides View -->
       <div id="all-slides-wrapper" class="space-y-6 hidden"></div>
     </section>
 
     <!-- =================================================================== -->
-    <!-- SECTION 4: TOP 6 REVIEW 2 COUNCIL Q&As                              -->
+    <!-- TAB 4: TOP 6 Q&As WITH VISUAL DEFENSE DIAGRAMS                      -->
     <!-- =================================================================== -->
     <section id="panel-qa" class="tab-panel space-y-5 hidden">
       <div class="rounded-2xl p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 class="text-xl font-bold">Top 6 Câu Hỏi Phản Biện Chuyên Sâu SDD — Review Lần 2 (Tuần 8)</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Mỗi câu gồm <strong>Chốt ý 30 giây</strong> (Key Takeaway), câu trả lời mẫu đầy đủ và trích dẫn ADR / Flyway chính xác.</p>
+          <h2 class="text-xl font-bold">Top 6 Câu Hỏi Phản Biện Review 2 (Kèm Sơ Đồ Trả Lời Hội Đồng)</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Bấm mở từng câu để xem <strong>Chốt ý 30s</strong>, <strong>Sơ đồ minh họa trực quan</strong> và lời giải chi tiết.</p>
         </div>
         <div class="no-print flex flex-wrap items-center gap-2 w-full md:w-auto">
           <input id="qa-search" oninput="renderQAs()" type="text" placeholder="Tìm nhanh (pgvector, BOLA, V23, secret...)" class="px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 w-full sm:w-64">
@@ -312,59 +291,312 @@
 
   </main>
 
+  <!-- Fullscreen Interactive Pan & Zoom Modal -->
+  <div id="diagram-modal" class="no-print fixed inset-0 z-50 hidden bg-slate-950/90 backdrop-blur-sm flex flex-col">
+    <div class="px-5 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <span class="text-[11px] font-mono font-bold uppercase text-sky-600 dark:text-sky-400">FULLSCREEN INTERACTIVE DIAGRAM (PAN &amp; ZOOM)</span>
+        <h3 id="modal-diagram-title" class="text-sm sm:text-base font-bold">Sơ đồ Chi tiết</h3>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="modalZoomIn()" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer">🔍+ Phóng to</button>
+        <button onclick="modalZoomOut()" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer">🔍- Thu nhỏ</button>
+        <button onclick="modalResetZoom()" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer">🔄 Đặt lại</button>
+        <button onclick="downloadModalSvg()" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-sky-600 hover:bg-sky-500 text-white cursor-pointer">📥 Tải SVG</button>
+        <button onclick="closeDiagramModal()" class="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-500 text-white cursor-pointer">✕ Đóng (Esc)</button>
+      </div>
+    </div>
+    <div id="modal-diagram-viewport" class="flex-1 w-full h-full overflow-hidden flex items-center justify-center bg-slate-50 dark:bg-slate-950 canvas-dots p-4"></div>
+  </div>
+
   <footer class="border-t border-slate-200 dark:border-slate-800 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
-    MediAssist-AI • Khóa Luận Tốt Nghiệp Đại Học FPT 2026 • Review 2 SDD Hub • Đồng bộ 1-1 với <code class="text-xs">docs/SDD_MediAssist_AI.md</code> &amp; <code class="text-xs">docs/CAPSTONE_DEFENSE.md</code>
+    MediAssist-AI • Khóa Luận Tốt Nghiệp Đại Học FPT 2026 • Review 2 Visual Diagram Hub • Đồng bộ 1-1 với <code class="text-xs">docs/SDD_MediAssist_AI.md</code>
   </footer>
 
   <script>
+    /* ===================================================================
+       DIAGRAMS REGISTRY (Valid Mermaid 10 Syntax, High-Contrast Styling)
+       =================================================================== */
+    const OVERVIEW_DIAGRAMS = {
+      arch5Tier: {
+        title: "Sơ đồ 1.1: Kiến Trúc Tổng Thể 5 Tầng (Tiered Micro-Modular Monolith + Java 21 Project Loom)",
+        code: `flowchart TB
+    subgraph T1["Tầng 1: Trình Bày Client (React 18.3.1 SPA • Vite 6.2 • TypeScript 5.8)"]
+        C1["Patient Portal (Đặt lịch, Chatbot, OCR)"]
+        C2["Doctor Workstation (Bàn khám EMR 50/50)"]
+        C3["Admin Console (Vetting, Audit, FinOps)"]
+    end
+    subgraph T2["Tầng 2: Biên & Bảo Mật (Nginx Ingress + Spring Security 6)"]
+        E1["SSL/TLS 1.3 & Rate Limiting 100 req/phút"]
+        E2["Dual-Transport JWT (Bearer + HttpOnly Cookie)"]
+    end
+    subgraph T3["Tầng 3: Lõi Nghiệp Vụ Java 21 Project Loom (Spring Boot 3.4)"]
+        direction LR
+        subgraph AI["Clinical AI Engine"]
+            A1["5-Stage Triage & RedFlag <2ms"]
+            A2["Semantic Search (pgvector WHRF)"]
+            A3["Document OCR + 23 LOINC & PII Shield"]
+        end
+        subgraph CORE["Telehealth & Encounter"]
+            B1["Anti-Double Booking 3 Tầng"]
+            B2["Doctor EMR (ICD-10/11 V23)"]
+            B3["Admin Vetting & @Version V24"]
+        end
+        subgraph OPS["Adapters & Async"]
+            O1["PaymentGatewayRouter (Stripe/Mock)"]
+            O2["EmailService (@Async AFTER_COMMIT)"]
+        end
+    end
+    subgraph T4["Tầng 4: Lưu Trữ, Cache 2 Tầng & Private Cloud"]
+        D1[("PostgreSQL 16 + pgvector HNSW<br/>17 Bảng 3NF • Flyway V1-V24")]
+        D2[("Caffeine L1 (<0.05ms)<br/>+ Redis 7 L2 (XFetch)")]
+        D3[("Supabase S3 Private<br/>15-min HMAC Signed URL")]
+    end
+    subgraph T5["Tầng 5: Hạ Tầng Cloud & DevSecOps Ngoài Git"]
+        X1["3-Tier AI Router: Gemini 2.5 -> OpenRouter -> FNV-1a"]
+        X2["Mailpit (:1025) / Gmail SMTP (:587)"]
+        X3["3-Layer Secret Vault (~/.mediassist & .githooks)"]
+    end
+    T1 --> T2 --> T3
+    T3 --> T4
+    T3 --> T5
+    style T1 fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
+    style T2 fill:#fef2f2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    style T3 fill:#f0fdfa,stroke:#0d9488,stroke-width:2px,color:#134e4a
+    style AI fill:#ecfeff,stroke:#06b6d4,color:#164e63
+    style CORE fill:#ecfdf5,stroke:#10b981,color:#064e46
+    style OPS fill:#eef2ff,stroke:#6366f1,color:#312e81
+    style T4 fill:#f5f3ff,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    style T5 fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#78350f
+    style C1 fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style C2 fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style C3 fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style E1 fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style E2 fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style A1 fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style A2 fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style A3 fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style B1 fill:#d1fae5,stroke:#059669,color:#0f172a
+    style B2 fill:#d1fae5,stroke:#059669,color:#0f172a
+    style B3 fill:#d1fae5,stroke:#059669,color:#0f172a
+    style O1 fill:#e0e7ff,stroke:#4f46e5,color:#0f172a
+    style O2 fill:#e0e7ff,stroke:#4f46e5,color:#0f172a
+    style D1 fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style D2 fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style D3 fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style X1 fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style X2 fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style X3 fill:#fef3c7,stroke:#d97706,color:#0f172a`
+      },
+      adrMap: {
+        title: "Sơ đồ 1.2: Bản Đồ 6 Bản Ghi Quyết Định Kiến Trúc (ADRs — ISO/IEC/IEEE 42010) & Chỉ Số Kiểm Chứng",
+        code: `flowchart LR
+    ROOT["ISO/IEC/IEEE 42010<br/>6 Master ADRs"]
+    A1["ADR-001: Modular Monolith + Project Loom<br/>✔ Thay cho Microservices (2PC/Network Hop)<br/>📊 k6 500 VUs • 6,447 req/s • 330MB RAM • 0% lỗi"]
+    A2["ADR-002: PostgreSQL 16 + pgvector HNSW<br/>✔ Thay cho Pinecone/Milvus (Chống Dual-Write)<br/>📊 m=24, ef=128, seqscan=off • 0.72 ms • 99.95%"]
+    A3["ADR-003: Hybrid L1 Caffeine + L2 Redis + XFetch<br/>✔ Chống Cache Stampede giờ cao điểm<br/>📊 L1 <0.05ms • Cache Hit 95.03% • P95 <18ms"]
+    A4["ADR-004: PatientAccessGuard (Service AOP)<br/>✔ Chặn BOLA/IDOR OWASP API1 theo CARE_RELATIONSHIP<br/>📊 403 FORBIDDEN + AuditLog IP bất biến"]
+    A5["ADR-005: 3-Tier AI Router & Deterministic FNV-1a<br/>✔ Gemini 2.5 -> OpenRouter -> FNV-1a (0đ)<br/>📊 SHA-256 Dedupe tiết kiệm 85% token + 23 LOINC"]
+    A6["ADR-006: MedicalPiiService & Private S3 15m<br/>✔ Khử 6 nhóm PII NĐ 13 + HMAC Signed URL (V20)<br/>📊 82.72% PII Precision • Zero Public URL"]
+    ROOT --> A1
+    ROOT --> A2
+    ROOT --> A3
+    ROOT --> A4
+    ROOT --> A5
+    ROOT --> A6
+    style ROOT fill:#4c1d95,stroke:#7c3aed,color:#ffffff,font-weight:700
+    style A1 fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style A2 fill:#d1fae5,stroke:#059669,color:#0f172a
+    style A3 fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style A4 fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style A5 fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style A6 fill:#f3e8ff,stroke:#9333ea,color:#0f172a`
+      },
+      dbTopology: {
+        title: "Sơ đồ 1.3: Kiến Trúc 17 Bảng CSDL Chuẩn 3NF Chia Theo 4 Phân Hệ Nghiệp Vụ (Flyway V1–V24)",
+        code: `flowchart TB
+    subgraph G1["Phân hệ 1: Định Danh & Bảo Mật (5 Bảng)"]
+        U["users (PK, version V24, email_verified V22)"]
+        PRT["password_reset_tokens (SHA-256 V21)"]
+        EVT["email_verification_tokens (V22)"]
+        NOTI["notifications (In-App + Async)"]
+        AUD["audit_logs (HIPAA Immutable Trail)"]
+        U --> PRT
+        U --> EVT
+        U --> NOTI
+        U --> AUD
+    end
+    subgraph G2["Phân hệ 2: Bác Sĩ & Chuyên Khoa (4 Bảng)"]
+        DP["doctor_profiles (1:0..1 users, bio_embedding 1536-d HNSW)"]
+        SP["specialties (GIN pg_trgm FTS)"]
+        DS["doctor_specialties (N:M Join)"]
+        DSL["doctor_schedule_slots (Khung trực)"]
+        DP --> DS --> SP
+        DP --> DSL
+    end
+    subgraph G3["Phân hệ 3: Lâm Sàng & Xét Nghiệm (5 Bảng)"]
+        PP["patient_profiles (1:0..1 users, CCCD/BHYT)"]
+        TR["triage_sessions (5-Stage, SBAR)"]
+        MD["medical_documents (storage_path Private S3 V20)"]
+        DA["document_analyses (LOINC JSONB)"]
+        AP["appointments (icd_code, icd_version V23, @Version)"]
+        MD --> DA
+        TR -. "1:0..1" .-> AP
+        MD -. "1:0..N" .-> AP
+    end
+    subgraph G4["Phân hệ 4: Uy Tín, Tài Chính & FinOps (3 Bảng)"]
+        DR["doctor_reviews (1:0..1 completed appt)"]
+        PT["payment_transactions (@Version + Idempotent)"]
+        AIU["ai_token_usage (REQUIRES_NEW FinOps V18)"]
+        AP --> DR
+        AP --> PT
+        AP --> AIU
+    end
+    U --> DP
+    U --> PP
+    U --> TR
+    U --> MD
+    U --> AP
+    DP --> AP
+    style G1 fill:#fef2f2,stroke:#dc2626,color:#7f1d1d
+    style G2 fill:#ecfdf5,stroke:#059669,color:#064e46
+    style G3 fill:#eff6ff,stroke:#2563eb,color:#1e3a8a
+    style G4 fill:#fffbeb,stroke:#d97706,color:#78350f
+    style U fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style PRT fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style EVT fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style NOTI fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style AUD fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style DP fill:#d1fae5,stroke:#059669,color:#0f172a
+    style SP fill:#d1fae5,stroke:#059669,color:#0f172a
+    style DS fill:#d1fae5,stroke:#059669,color:#0f172a
+    style DSL fill:#d1fae5,stroke:#059669,color:#0f172a
+    style PP fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style TR fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style MD fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style DA fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style AP fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style DR fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style PT fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style AIU fill:#fef3c7,stroke:#d97706,color:#0f172a`
+      }
+    };
+
     const ADJUSTMENTS = [
       {
         num: "01",
         badge: "SCHEMA DRIFT FIX • FLYWAY V23 & V24",
-        title: "Đồng bộ đa phiên bản mã bệnh icd_code / icd_version & Optimistic Locking @Version",
-        before: "Table 2.3.7.A và Figure 2.3 trong SDD vẫn ghi cột icd10_code VARCHAR(20), thiếu icd_version và chỉ mục Partial B-Tree. Bảng users (Table 2.3.1.A) chưa liệt kê cột version khiến dữ liệu seed dễ dính NULL khi Hibernate gọi @Version.",
-        after: "Cập nhật đồng bộ Figure 2.3 + Bảng 2.3.1.A, 2.3.7.A, 2.3.7.B với icd_code VARCHAR(20), icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10', 2 chỉ mục Partial B-Tree (idx_appointments_icd_code, idx_appointments_icd_version_code) theo Flyway V23 và version BIGINT NOT NULL DEFAULT 0 trên users theo Flyway V24.",
-        reason: "Sẵn sàng mở rộng đa chuẩn WHO ICD-10 / ICD-11 không cần đổi schema lớn, đồng thời triệt tiêu lỗi HTTP 500 (NullPointerException) khi Admin cập nhật trạng thái tài khoản seed."
+        title: "Đồng bộ đa phiên bản icd_code / icd_version & Optimistic Locking @Version",
+        before: "Table 2.3.7.A và Figure 2.3 còn ghi icd10_code VARCHAR(20), thiếu icd_version và Partial Index. Bảng users (2.3.1.A) thiếu cột version khiến bản ghi seed có version NULL gây NullPointerException khi Admin khóa tài khoản.",
+        after: "Cập nhật đồng bộ Figure 2.3 + Bảng 2.3.1.A, 2.3.7.A, 2.3.7.B với icd_code VARCHAR(20), icd_version VARCHAR(10) DEFAULT 'ICD-10', Partial Indexes idx_appointments_icd_code / icd_version_code (V23) và version BIGINT NOT NULL DEFAULT 0 trên users (V24).",
+        reason: "Sẵn sàng nâng cấp WHO ICD-10 lên ICD-11 không cần sửa schema và triệt tiêu lỗi 500 @Version trên toàn hệ thống.",
+        diagram: `flowchart LR
+    subgraph OLD["❌ Trước Review 2 (Schema Drift)"]
+        O1["appointments.icd10_code cũ<br/>Không có icd_version / Partial Index"]
+        O2["users.version chưa đặc tả (seed = NULL)<br/>-> LongJavaType.next(null) NPE 500"]
+    end
+    subgraph NEW["✅ Sau Review 2 (Đồng Bộ V23 & V24)"]
+        N1["Flyway V23: icd_code + icd_version ('ICD-10')<br/>+ 2 Partial B-Tree Indexes (Sẵn sàng ICD-11)"]
+        N2["Flyway V24: users.version BIGINT NOT NULL DEFAULT 0<br/>+ Null-safe @Version getter/setter -> 200 OK"]
+    end
+    OLD --> NEW
+    style OLD fill:#fef2f2,stroke:#dc2626,color:#7f1d1d
+    style NEW fill:#ecfdf5,stroke:#059669,color:#064e46
+    style O1 fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style O2 fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style N1 fill:#d1fae5,stroke:#059669,color:#0f172a
+    style N2 fill:#d1fae5,stroke:#059669,color:#0f172a`
       },
       {
         num: "02",
         badge: "STACK & AI ROUTER SYNC",
-        title: "Đối soát React 18.3.1 thực tế & Đồng bộ Bộ định tuyến AI 3 tầng (Gemini 2.5 Flash)",
-        before: "Một số đoạn tài liệu ghi nhầm React 19 hoặc ghi tên model cũ Gemini 1.5 Flash trong Figure 1.1 và Table 1.1 của SDD.",
-        after: "Đối soát frontend/package.json chuẩn hóa lại thành React 18.3.1 (TypeScript 5.8, Vite 6.2, Tailwind CSS 3.4); cập nhật Figure 1.1 & Table 1.1/1.2.2 thành Google Gemini 2.5 Flash (3-Tier AI Router): GeminiAiProvider -> OpenRouterAiProvider Pool -> DeterministicFallbackAiProvider + FNV-1a 1536-d.",
-        reason: "Bảo đảm tính trung thực tuyệt đối giữa SDD với package.json và mã nguồn AiModelRouter khi Hội đồng kiểm tra chéo."
+        title: "Đối soát React 18.3.1 thực tế & Bộ định tuyến AI 3 tầng (Gemini 2.5 Flash)",
+        before: "Một số chỗ ghi nhầm React 19 hoặc ghi tên model cũ Gemini 1.5 Flash trong Figure 1.1 và Table 1.1 của SDD.",
+        after: "Đối soát frontend/package.json chuẩn hóa lại React 18.3.1 (TS 5.8, Vite 6.2, Tailwind 3.4); cập nhật Figure 1.1 & Tables 1.1/1.2.2 thành AiModelRouter 3 tầng: Gemini 2.5 Flash -> OpenRouter Pool -> DeterministicFallbackAiProvider + FNV-1a.",
+        reason: "Bảo đảm tính trung thực 100% giữa tài liệu SDD với package.json và mã nguồn AiModelRouter.",
+        diagram: `flowchart LR
+    subgraph OLD["❌ Trước Review 2 (Stack Drift)"]
+        O1["Tài liệu ghi React 19 & Gemini 1.5 Flash<br/>Chưa mô tả cơ chế xoay tua 3 tầng"]
+    end
+    subgraph NEW["✅ Sau Review 2 (Khớp package.json & Router)"]
+        N1["Frontend: React 18.3.1 + Vite 6.2 + TS 5.8"]
+        N2["Tầng 1: Gemini 2.5 Flash"] --> N3["Tầng 2: OpenRouter Pool"] --> N4["Tầng 3: Deterministic FNV-1a (0đ)"]
+    end
+    OLD --> NEW
+    style OLD fill:#fef2f2,stroke:#dc2626,color:#7f1d1d
+    style NEW fill:#ecfdf5,stroke:#059669,color:#064e46
+    style O1 fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style N1 fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style N2 fill:#d1fae5,stroke:#059669,color:#0f172a
+    style N3 fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style N4 fill:#fef3c7,stroke:#d97706,color:#0f172a`
       },
       {
         num: "03",
         badge: "WORKFLOW REFINEMENT",
         title: "Chuẩn hóa Sequence Diagram & DTO cho Onboarding Bác sĩ 2 bước",
-        before: "Luồng đăng ký bác sĩ cũ gom toàn bộ thông tin tài khoản, avatar URL, số CCHN và chuyên khoa vào một biểu mẫu bước 1 dài dòng (Form Fatigue) và dễ đụng UNIQUE(license_number).",
-        after: "Tách Bước 1 đăng ký định danh gọn nhẹ (POST /api/v1/auth/register/doctor với DoctorRegisterRequest chỉ gồm fullName, email, phone, password; bỏ avatarUrl ở bước 1) khỏi Bước 2 hoàn thiện CCHN & chuyên môn (PUT /api/v1/doctors/me/profile) và Bước 3 Admin thẩm định (vetDoctor đồng bộ pgvector & xóa cache doctors:verified).",
-        reason: "Giảm ma sát đăng ký bác sĩ, ngăn xung đột dữ liệu CCHN rỗng và đảm bảo chỉ bác sĩ đã thẩm định mới xuất hiện trong kết quả tìm kiếm vector."
+        before: "Form bước 1 cũ bắt nhập cùng lúc tài khoản, avatar URL (blouse trắng), số CCHN và chuyên khoa, gây Form Fatigue và dễ đụng UNIQUE(license_number).",
+        after: "Tách Bước 1 tối giản (POST /api/v1/auth/register/doctor với DoctorRegisterRequest: fullName, email, phone, password) khỏi Bước 2 hồ sơ CCHN & chuyên khoa (PUT /api/v1/doctors/me/profile) và Bước 3 Admin thẩm định (vetDoctor).",
+        reason: "Giảm ma sát đăng ký, tránh trùng CCHN null và chỉ mở tìm kiếm pgvector sau khi Admin thẩm định.",
+        diagram: `flowchart LR
+    S1["Bước 1: DoctorRegisterForm<br/>(Họ tên, Email, SĐT, Mật khẩu)<br/>-> User(DOCTOR) + Profile(null CCHN)"]
+    S2["Bước 2: /doctor/profile<br/>(CCHN, Học vị, Chuyên khoa, Phí)<br/>-> PUT /doctors/me/profile"]
+    S3["Bước 3: Admin vetDoctor()<br/>-> is_verified=true + pgvector Sync<br/>+ Evict Cache doctors:verified"]
+    S1 --> S2 --> S3
+    style S1 fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style S2 fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style S3 fill:#d1fae5,stroke:#059669,color:#0f172a`
       },
       {
         num: "04",
         badge: "SSDLC & SECRET GOVERNANCE",
         title: "Kiến trúc Bảo vệ Biến môi trường & Secret 3 lớp (Zero-Leak GitFlow)",
-        before: "SDD chỉ mô tả cấu hình JWT/HTTPS runtime mà chưa đặc tả cơ chế cô lập API Key và SMTP credentials trong quy trình phát triển nhóm nhiều máy (tránh kẹt GitHub Push Protection GH013).",
-        after: "Bổ sung vào Mục Bảo mật SDD kiến trúc 3 lớp: (1) Spring Profile Grouping spring.profiles.group.dev=local và tham số hóa ${ENV_VAR:default} trong application-dev.properties; (2) Kho Secret Vault ngoài Git tại %USERPROFILE%\\.mediassist\\; (3) Bộ Git Hooks (.githooks/pre-push chặn lộ key, post-checkout/post-merge tự khôi phục env).",
-        reason: "Giải quyết triệt để rủi ro lộ secret lên GitHub và giúp thành viên nhóm chuyển nhánh/kéo code mà không mất cấu hình local."
+        before: "application-dev.properties ghi đè application-local.properties do trùng import; thành viên dễ mất cấu hình .env khi checkout/pull hoặc bị GitHub chặn Push Protection GH013.",
+        after: "Thiết lập 3 lớp: (1) spring.profiles.group.dev=local + ${ENV_VAR:default}; (2) Vault ngoài Git tại %USERPROFILE%\\.mediassist\\; (3) Git Hooks (.githooks/pre-push quét chặn secret + post-merge/checkout tự khôi phục .env).",
+        reason: "Vừa ngăn rò rỉ key lên GitHub, vừa giữ nguyên cấu hình local vĩnh viễn khi kéo/đẩy code nhiều máy.",
+        diagram: `flowchart LR
+    L1["Lớp 1: Spring Profile Group<br/>spring.profiles.group.dev=local<br/>(local luôn thắng dev; test cô lập)"]
+    L2["Lớp 2: Secret Vault Ngoài Git<br/>~/.mediassist/local-secrets.properties<br/>(.env, backend.env, local props)"]
+    L3["Lớp 3: Automated Git Hooks<br/>pre-push: Backup + Quét GH013<br/>post-merge/checkout: Auto Restore"]
+    L1 --> L2 --> L3
+    style L1 fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style L2 fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style L3 fill:#d1fae5,stroke:#059669,color:#0f172a`
       },
       {
         num: "05",
         badge: "PORTABILITY & ADAPTERS",
         title: "Làm rõ Payment Adapter (Stripe / Mock VietQR) & Email Môi trường kép",
-        before: "SDD một số mục chỉ ghi cứng tên VNPay và Brevo SMTP, chưa phản ánh cơ chế Adapter linh hoạt cho môi trường sandbox kiểm thử đa cổng và demo trực tiếp.",
-        after: "Đặc tả PaymentGatewayRouter với StripePaymentGateway (webhook signature verify & hoàn tiền) và MockPaymentGateway (VIETQR, VNPAY, MOMO, CASH) kèm @Version chống đúp IPN; và tầng Email (@Async('mailExecutor') + AFTER_COMMIT) chuyển đổi linh hoạt giữa Mailpit (dev :1025) và Gmail SMTP STARTTLS (:587), không kèm dữ liệu lâm sàng.",
-        reason: "Tăng tính khả thi khi demo trực tiếp trước Hội đồng bằng email thật mà vẫn giữ nguyên kiến trúc Port & Adapter sẵn sàng đấu nối cổng quốc gia."
+        before: "Một số mục SDD chỉ nhắc tên VNPay và Brevo SMTP, chưa phản ánh PaymentGatewayRouter (Stripe Sandbox + Mock VietQR/VNPay) và cặp Mailpit / Gmail SMTP.",
+        after: "Đặc tả PaymentGatewayRouter với StripePaymentGateway & MockPaymentGateway kèm @Version chống đúp Webhook; EmailService (@Async + AFTER_COMMIT) chuyển linh hoạt giữa Mailpit (:1025) và Gmail STARTTLS (:587), không chứa dữ liệu y tế.",
+        reason: "Demo mượt mà bằng email thật và thanh toán sandbox trước Hội đồng nhưng vẫn giữ chuẩn Port & Adapter.",
+        diagram: `flowchart TB
+    P1["PaymentGatewayRouter"] --> P2["StripePaymentGateway (Webhook + Refund)"]
+    P1 --> P3["MockPaymentGateway (VIETQR, VNPAY, MOMO, CASH)"]
+    M1["EmailService (@Async AFTER_COMMIT)"] --> M2["Dev: Mailpit (:1025)"]
+    M1 --> M3["Demo: Gmail SMTP STARTTLS (:587)"]
+    style P1 fill:#e0e7ff,stroke:#4f46e5,color:#0f172a
+    style P2 fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style P3 fill:#d1fae5,stroke:#059669,color:#0f172a
+    style M1 fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style M2 fill:#f1f5f9,stroke:#475569,color:#0f172a
+    style M3 fill:#fee2e2,stroke:#dc2626,color:#0f172a`
       },
       {
         num: "06",
         badge: "QUANTITATIVE SLA & FINOPS",
         title: "Gắn tham chiếu định lượng thực nghiệm trực tiếp vào 6 ADRs",
-        before: "Một số chỉ số đo đạc nằm rải rác ở Report 5 (STR) mà chưa gắn trực tiếp vào phần Verification của từng ADR và Record of Changes trong SDD.",
-        after: "Gắn neo số liệu đo đạc thực nghiệm: 322/322 Maven Unit Tests PASS, 0 lỗi TS (2,313 modules), pgvector/pgvector:pg16 (~621 MB), HNSW latency 0.72 ms (Recall 99.95%), k6 500 VUs (6,447 req/s, 0.00% lỗi, 330 MB RAM), Two-Layer Cache (95.03% hit rate) & SHA-256 Deduplication (tiết kiệm 85% chi phí token).",
-        reason: "Nâng sức thuyết phục khoa học của từng quyết định kiến trúc (ADR) theo chuẩn ISO/IEC/IEEE 42010."
+        before: "Các con số đo đạc nằm rời rạc trong Report 5 (STR), chưa gắn vào phần Verification của từng ADR và Record of Changes trong SDD.",
+        after: "Gắn trực tiếp vào ADRs: 322/322 Maven tests PASS, 0 TS Errors (2,313 modules), k6 500 VUs (6,447 req/s, 0% lỗi, 330MB RAM), HNSW 0.72ms (99.95%), XFetch 95.03% cache hit, SHA-256 Dedupe tiết kiệm 85% token.",
+        reason: "Nâng sức thuyết phục khoa học của từng quyết định kiến trúc theo chuẩn ISO/IEC/IEEE 42010.",
+        diagram: `flowchart LR
+    E1["322/322 Maven PASS<br/>0 TS Error (2,313 modules)"] --> ADR["6 ADRs Verified<br/>(ISO/IEC/IEEE 42010)"]
+    E2["k6 500 VUs: 6,447 req/s<br/>0.00% lỗi • 330 MB RAM"] --> ADR
+    E3["HNSW 0.72 ms • XFetch 95.03%<br/>SHA-256 giảm 85% Token"] --> ADR
+    style E1 fill:#d1fae5,stroke:#059669,color:#0f172a
+    style E2 fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style E3 fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style ADR fill:#4c1d95,stroke:#7c3aed,color:#ffffff,font-weight:700`
       }
     ];
 
@@ -375,14 +607,22 @@
         title: "Trang Bìa & Mục Tiêu Thẩm Định SDD (Review 2 – Tuần 8)",
         subtitle: "Chuẩn IEEE Std 1016-2009 & ISO/IEC/IEEE 42010:2011",
         bullets: [
-          "Đề tài: MediAssist-AI — Trợ lý Y tế Ảo Hỗ trợ Đặt lịch & Phân luồng Khám bệnh Thông minh.",
+          "Đề tài: MediAssist-AI — Hệ thống Trợ lý Y tế Ảo Hỗ trợ Đặt lịch & Phân luồng Khám bệnh Thông minh.",
           "Phạm vi Review 2: Đánh giá chuyên môn & đồng bộ tài liệu Software Design Document (Report 4).",
-          "Quy mô SDD: 4,537 dòng (311,627 ký tự), 88+ biểu đồ Mermaid, 28 luồng chi tiết, 17 bảng 3NF (V1–V24).",
-          "Nguyên tắc vàng: Tài liệu SDD ánh xạ 1-1 với codebase thực tế — không viết thiết kế trên giấy."
+          "Quy mô SDD: 4,537 dòng (311,627 ký tự), 88+ biểu đồ Mermaid, 28 luồng chi tiết, 17 bảng 3NF (V1–V24)."
         ],
         linkLabel: "Mở Portal Gốc",
         linkUrl: "../index.html",
-        cue: "Mở sẵn Tab 1: Vector Studio (localhost:8088/docs/diagrams/interactive_viewer.html) và Tab 2: Report 4 (localhost:8088/report_4/index.html).",
+        cue: "Mở sẵn Vector Studio & Report 4 trên trình duyệt; chốt ngay thông điệp: SDD khớp 1-1 với code.",
+        diagram: `flowchart LR
+    SRS["Report 3: SRS<br/>(49 Use Cases • IEEE 830)"] --> SDD["Report 4: SDD<br/>(4,537 dòng • 88+ Mermaid<br/>28 Luồng • 6 ADRs • 17 Bảng)"]
+    SDD --> CODE["Codebase Thực Tế<br/>Java 21 Spring Boot 3.4<br/>React 18.3.1 + pgvector"]
+    CODE --> STR["Report 5: Kiểm Chứng<br/>322/322 Maven PASS<br/>0 TS Error • k6 0% lỗi"]
+    SDD -. "Review 2: Đối chiếu 1-1" .-> CODE
+    style SRS fill:#e0e7ff,stroke:#4f46e5,color:#0f172a
+    style SDD fill:#f3e8ff,stroke:#7c3aed,stroke-width:2px,color:#0f172a
+    style CODE fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style STR fill:#d1fae5,stroke:#059669,color:#0f172a`,
         script: "Kính thưa Quý Thầy Cô trong Hội đồng thẩm định Review lần 2. Hôm nay nhóm xin trình bày báo cáo rà soát và bảo vệ Tài liệu Thiết kế Phần mềm — Report 4: Software Design Document (SDD) của hệ thống MediAssist-AI, được xây dựng theo tiêu chuẩn IEEE Std 1016-2009 và ISO/IEC/IEEE 42010. Điểm cốt lõi nhóm muốn nhấn mạnh ngay từ đầu là tài liệu SDD của nhóm không phải bản thiết kế tĩnh trên giấy, mà ánh xạ trực tiếp 1-1 với mã nguồn thực tế Java 21 LTS (Spring Boot 3.4) và React 18.3.1 SPA."
       },
       {
@@ -391,14 +631,15 @@
         title: "Kiến Trúc Tổng Thể 5 Tầng & 6 ADRs Chính Thức",
         subtitle: "Tiered Micro-Modular Monolith + Java 21 Project Loom Virtual Threads",
         bullets: [
-          "5 tầng rõ ràng: Client SPA (React 18.3.1) -> Edge Security (Nginx + Spring Security 6 + PatientAccessGuard) -> Core Services (Spring Boot 3.4 Loom) -> Persistence & Cache (PostgreSQL pgvector + L1 Caffeine / L2 Redis + Private S3) -> External Cloud (Gemini 2.5 / OpenRouter / Payment / SMTP).",
-          "Java 21 Project Loom (spring.threads.virtual.enabled=true): Unmount carrier thread khi I/O blocking, phục vụ >10,000 kết nối đồng thời với RAM < 512MB (đo thực tế 330MB khi chạy 500 VUs k6).",
-          "6 Bản ghi Quyết định Kiến trúc (ADR-001 đến ADR-006) ghi rõ Context, Trade-offs và Verification."
+          "5 tầng rõ ràng: Client SPA -> Edge Security -> Core Services (Spring Boot Loom) -> Data/Cache/S3 -> Cloud AI/Pay/Mail.",
+          "Java 21 Project Loom (spring.threads.virtual.enabled=true): Unmount carrier thread khi I/O, xử lý >10,000 kết nối với 330 MB RAM.",
+          "6 Bản ghi Quyết định Kiến trúc (ADR-001 đến ADR-006) phân tích Context, Trade-offs & Verification."
         ],
-        linkLabel: "Xem Kiến Trúc 5 Tầng (Zoom 1500%)",
+        linkLabel: "Mở Vector Studio (5-Tier)",
         linkUrl: "../docs/diagrams/interactive_viewer.html?diagram=architecture",
-        cue: "Bấm chuyển sang tab Vector Studio -> Architecture diagram, zoom nhẹ vào Tier 2 và Tier 3.",
-        script: "Mời Thầy Cô quan sát trên Vector Studio sơ đồ Kiến trúc tổng thể 5 tầng của MediAssist-AI. Hệ thống đi theo mô hình Tiered Micro-Modular Monolith (ADR-001). Nhờ kích hoạt Virtual Threads của Java 21 Project Loom, các luồng ảo tự động nhường OS Carrier Thread khi chờ I/O truy vấn DB hay gọi AI đám mây, giúp máy chủ xử lý tải cao với mức RAM tiêu thụ cực thấp (chỉ 330 MB trong bài k6 500 VUs, 0% lỗi). Từng quyết định thiết kế đều được chuẩn hóa thành 6 Bản ghi ADRs theo chuẩn ISO 42010."
+        cue: "Chỉ rõ luồng request đi từ Tier 1 -> Tier 2 (Security + BOLA Guard) -> Tier 3 (Project Loom) -> Tier 4/5.",
+        diagram: OVERVIEW_DIAGRAMS.arch5Tier.code,
+        script: "Mời Thầy Cô quan sát sơ đồ Kiến trúc tổng thể 5 tầng của MediAssist-AI. Hệ thống đi theo mô hình Tiered Micro-Modular Monolith (ADR-001). Nhờ kích hoạt Virtual Threads của Java 21 Project Loom, các luồng ảo tự động nhường OS Carrier Thread khi chờ I/O truy vấn PostgreSQL hay gọi AI đám mây, giúp máy chủ xử lý tải cao với mức RAM tiêu thụ cực thấp (chỉ 330 MB trong bài k6 500 VUs, 0% lỗi). Từng quyết định thiết kế đều được chuẩn hóa thành 6 Bản ghi ADRs theo chuẩn ISO 42010."
       },
       {
         num: 3,
@@ -406,30 +647,78 @@
         title: "Thiết Kế Gói (Package Design) & Clean Architecture",
         subtitle: "7 Bounded Contexts • Loose Coupling • High Cohesion",
         bullets: [
-          "Backend (com.mediassist): 15 REST Controllers, 31+ Services, 16 Repositories, 17 JPA Entities, 6 Enums.",
-          "Phân rã 7 Bounded Contexts: Identity & Auth, Triage AI, Provider & Vector Search, Appointment & EMR, Document OCR & PII, Payment & FinOps, Admin & Audit.",
-          "Giao tiếp liên module qua DTO & Spring Application Events (@TransactionalEventListener AFTER_COMMIT).",
-          "Frontend (React 18.3.1, TypeScript 5.8, Vite 6.2, Tailwind 3.4): phân tách pages/ (Admin, Doctor, Patient), components/, services/ (Axios Dual-Transport), stores/ (Zustand)."
+          "Backend (com.mediassist): 15 REST Controllers, 31+ Services, 16 Repositories, 17 Entities, 6 Enums.",
+          "7 Bounded Contexts giao tiếp qua DTO & Application Events (AppointmentBookedEvent, AFTER_COMMIT).",
+          "Frontend React 18.3.1 (TS 5.8, Vite 6.2, Tailwind 3.4): phân rã pages/, components/, services/, stores/ (Zustand)."
         ],
-        linkLabel: "Mở Section 1.2 SDD (Package)",
+        linkLabel: "Mở Section 1.2 SDD",
         linkUrl: "../report_4/index.html#report_4_main",
-        cue: "Chỉ nhanh cấu trúc 24 package groups backend & frontend trong Mục 1.2 của Report 4.",
+        cue: "Nhấn mạnh đã đối soát package.json dùng React 18.3.1, và sẵn sàng tách service riêng khi cần.",
+        diagram: `flowchart TB
+    subgraph FE["Frontend: React 18.3.1 + TS 5.8 + Vite 6.2"]
+        F1["pages/ (Admin, Doctor, Patient)"] --> F2["services/ (Axios + Dual JWT)"]
+        F1 --> F3["stores/ (Zustand Hydration)"]
+    end
+    subgraph BE["Backend Clean Architecture: 7 Bounded Contexts"]
+        C["controller/ (15 REST Controllers)"] --> S["service/ (31+ Services) & guard/ (PatientAccessGuard)"]
+        S --> R["repository/ (16 Repos) -> entity/ (17 Entities)"]
+        S -. "Spring Events (AFTER_COMMIT)" .-> M["ai/ & storage/ & mail/"]
+    end
+    F2 -- "HTTPS JSON + HttpOnly Cookie" --> C
+    style FE fill:#eff6ff,stroke:#2563eb,color:#1e3a8a
+    style BE fill:#ecfdf5,stroke:#059669,color:#064e46
+    style F1 fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style F2 fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style F3 fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style C fill:#d1fae5,stroke:#059669,color:#0f172a
+    style S fill:#d1fae5,stroke:#059669,color:#0f172a
+    style R fill:#d1fae5,stroke:#059669,color:#0f172a
+    style M fill:#cffafe,stroke:#0891b2,color:#0f172a`,
         script: "Ở góc độ thiết kế gói (Package Design), hệ thống tuân thủ Clean Architecture 4 tầng và chia nội bộ thành 7 Bounded Contexts rõ ràng. Backend có 15 Controllers, 31+ Services và 16 Repositories; các phân hệ giao tiếp qua DTO và Spring Domain Events để không coupling chéo repository tùy tiện. Nhờ vậy, hiện tại hệ thống giữ nguyên sự đơn giản và giao dịch ACID của Monolith, nhưng khi cần mở rộng sau này có thể tách riêng module AI OCR thành microservice mà không phải đập đi viết lại lõi. Ở Frontend, nhóm đối soát lại package.json để đồng nhất chuẩn React 18.3.1, TypeScript 5.8 và Vite 6.2."
       },
       {
         num: 4,
         time: "04:00 – 05:30",
         title: "Thiết Kế CSDL 3NF 17 Bảng & Lộ Trình Flyway V1–V24",
-        subtitle: "PostgreSQL 16 LTS + Table-per-Type + Optimistic/DB Guards",
+        subtitle: "PostgreSQL 16 LTS + Table-per-Type + Optimistic Locking @Version",
         bullets: [
-          "17 bảng chuẩn 3NF chia làm 4 Sub-ERDs: Identity/Security, Clinical Provider/Taxonomy, Appointment/EMR, Diagnostics/Financial Ledger.",
-          "Mẫu Table-per-Type: users (1:0..1) <-> patient_profiles & doctor_profiles, loại bỏ cột NULL dư thừa.",
-          "Nâng cấp mới nhất Review 2: Flyway V23 đổi icd10_code -> icd_code VARCHAR(20) + icd_version (mở rộng ICD-11) kèm Partial Index; Flyway V24 ép version BIGINT NOT NULL DEFAULT 0 trên users phục vụ JPA @Version."
+          "17 bảng chuẩn 3NF theo mẫu Table-per-Type: users (1:0..1) <-> patient_profiles & doctor_profiles.",
+          "Flyway V23: đổi icd10_code -> icd_code VARCHAR(20) + icd_version (mở rộng WHO ICD-11) kèm 2 Partial Indexes.",
+          "Flyway V24: ép users.version BIGINT NOT NULL DEFAULT 0 phục vụ Optimistic Locking @Version."
         ],
-        linkLabel: "Mở ERD 17 Bảng (Vector Studio)",
+        linkLabel: "Mở ERD 17 Bảng (Zoom)",
         linkUrl: "../docs/diagrams/interactive_viewer.html?diagram=erd_full",
-        cue: "Chuyển sang erd_full trong Vector Studio, phóng to cụm users -> appointments -> doctor_profiles.",
-        script: "Về thiết kế cơ sở dữ liệu, mời Thầy Cô xem sơ đồ ERD toàn hệ thống với 17 bảng chuẩn 3NF quản lý chặt chẽ qua 24 bản di trú Flyway (V1 đến V24). Nhóm áp dụng mẫu Table-per-Type tách riêng users với patient_profiles và doctor_profiles. Đặc biệt trong đợt rà soát Review 2 này, nhóm đã phát hiện và cập nhật hai nâng cấp Schema quan trọng vào ERD và bảng đặc tả 2.3.1, 2.3.7: một là Flyway V23 đổi tên icd10_code thành icd_code kèm cột icd_version để sẵn sàng cho chuẩn WHO ICD-11; hai là Flyway V24 chuẩn hóa cột version NOT NULL DEFAULT 0 trên users để Hibernate Optimistic Locking @Version vận hành an toàn tuyệt đối."
+        cue: "Chỉ trực tiếp các cột V23 (icd_code, icd_version) và V24 (version) trong sơ đồ ERD bên dưới.",
+        diagram: `erDiagram
+    users ||--o| doctor_profiles : "1_to_0_1"
+    users ||--o| patient_profiles : "1_to_0_1"
+    users ||--o{ appointments : "patient_books"
+    doctor_profiles ||--o{ appointments : "doctor_attends"
+    appointments ||--o| doctor_reviews : "1_to_0_1"
+    appointments ||--o{ payment_transactions : "bills"
+    users {
+        UUID id PK
+        VARCHAR email UK
+        VARCHAR role "ADMIN, DOCTOR, PATIENT"
+        VARCHAR status "ACTIVE, SUSPENDED"
+        BOOLEAN email_verified "V22"
+        BIGINT version "V24 NOT NULL DEFAULT 0"
+    }
+    doctor_profiles {
+        UUID id PK
+        UUID user_id FK,UK
+        VARCHAR license_number UK
+        BOOLEAN is_verified
+        vector bio_embedding "1536-d HNSW V19"
+    }
+    appointments {
+        UUID id PK
+        VARCHAR icd_code "V23 WHO ICD-10/11"
+        VARCHAR icd_version "V23 DEFAULT ICD-10"
+        VARCHAR status "Partial Unique Slot"
+        BIGINT version "Optimistic @Version"
+    }`,
+        script: "Về thiết kế cơ sở dữ liệu, hệ thống chuẩn hóa 17 bảng đạt chuẩn 3NF quản lý chặt chẽ qua 24 bản di trú Flyway (V1 đến V24). Nhóm áp dụng mẫu Table-per-Type tách riêng users với patient_profiles và doctor_profiles. Đặc biệt trong đợt rà soát Review 2 này, nhóm đã cập nhật hai nâng cấp Schema quan trọng vào ERD và bảng đặc tả 2.3.1, 2.3.7: một là Flyway V23 đổi tên icd10_code thành icd_code kèm cột icd_version để sẵn sàng cho chuẩn WHO ICD-11; hai là Flyway V24 chuẩn hóa cột version NOT NULL DEFAULT 0 trên users để Hibernate Optimistic Locking @Version vận hành an toàn tuyệt đối."
       },
       {
         num: 5,
@@ -437,61 +726,120 @@
         title: "Tìm Kiếm Ngữ Nghĩa pgvector HNSW & WHRF-SOTA (ADR-002)",
         subtitle: "Single-Engine ACID Hybrid Search • 0.72 ms Vector Latency",
         bullets: [
-          "Nhúng extension pgvector (Docker image ~621 MB) trực tiếp trong PostgreSQL 16 thay vì Pinecone/Milvus.",
-          "Triệt tiêu bài toán Dual-Write: lọc điều kiện cứng (is_verified = true, status = ACTIVE, maxFee) + khoảng cách Cosine (<=>) trên vector 1536 chiều trong cùng 1 ACID transaction.",
-          "HNSW Tuning (Flyway V11 & V19): m = 24, ef_construction = 128; Session-Level Tuning: SET LOCAL hnsw.ef_search = 120, enable_seqscan = off, work_mem = '64MB'.",
-          "Tái xếp hạng WHRF-SOTA Min-Heap O(M log K): Cosine + Sigmoid Contrastive + Specialty Bonus + Log Review Credibility Damper -> Top-1 Accuracy 23.2% (tăng 3.9x BM25 trên 150k ca Meddies), 0.72 ms."
+          "Nhúng pgvector (image ~621 MB) trực tiếp trong PostgreSQL 16 thay cho Pinecone/Milvus — triệt tiêu Dual-Write.",
+          "Hybrid SQL ACID: vừa lọc is_verified=true, status=ACTIVE, vừa tính khoảng cách Cosine <=> trong 1 TX.",
+          "HNSW m=24, ef_construction=128; Session Tuning SET LOCAL hnsw.ef_search=120, enable_seqscan=off -> Recall 99.95%, 0.72 ms."
         ],
-        linkLabel: "Xem Chi Tiết ADR-002",
-        linkUrl: "../report_4/index.html#report_4_main",
-        cue: "Nhấn mạnh truy vấn SQL kết hợp WHERE + <=> và lý do cần SET LOCAL enable_seqscan = off.",
+        linkLabel: "Xem Query HNSW (Vector Studio)",
+        linkUrl: "../docs/diagrams/interactive_viewer.html?diagram=seq_search",
+        cue: "Nhấn mạnh bước SET LOCAL enable_seqscan=off ép PostgreSQL dùng đồ thị HNSW thay vì Seq Scan.",
+        diagram: `flowchart LR
+    Q["Truy vấn triệu chứng<br/>(VD: dau nguc, tim mach)"] --> E["Embedding 1536-d<br/>(OpenAI / Fallback FNV-1a)"]
+    E --> TX["Bắt đầu ReadOnly TX<br/>SET LOCAL hnsw.ef_search = 120<br/>SET LOCAL enable_seqscan = off<br/>SET LOCAL work_mem = '64MB'"]
+    TX --> SQL["1 Câu SQL ACID Duy Nhất<br/>WHERE u.status='ACTIVE'<br/>AND d.is_verified=true<br/>ORDER BY bio_embedding <=> vec"]
+    SQL --> WHRF["Tái xếp hạng WHRF Min-Heap O(M log K)<br/>Cosine + Sigmoid + Specialty + Rating<br/>⚡ Độ trễ: 0.72 ms | Recall: 99.95%"]
+    style Q fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style E fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style TX fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style SQL fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style WHRF fill:#d1fae5,stroke:#059669,color:#0f172a`,
         script: "Tại sao nhóm chọn pgvector ngay trong PostgreSQL thay vì Pinecone hay Milvus? Câu trả lời nằm ở ADR-002: tìm bác sĩ y khoa không bao giờ là tìm vector thuần túy — ta bắt buộc phải lọc cứng chứng chỉ hành nghề is_verified = true, trạng thái ACTIVE và biểu phí trong cùng 1 câu lệnh SQL ACID, qua đó triệt tiêu hoàn toàn nguy cơ lệch dữ liệu Dual-Write. Nhóm tối ưu đồ thị HNSW với m=24, ef_construction=128, và ép Planner dùng index bằng SET LOCAL enable_seqscan=off trong session tìm kiếm, đạt độ phủ Recall 99.95% và độ trễ trung bình chỉ 0.72 mili-giây."
       },
       {
         num: 6,
         time: "07:00 – 08:30",
         title: "Chịu Tải Two-Layer Cache & Bộ Định Tuyến AI 3 Tầng",
-        subtitle: "XFetch Anti-Stampede + AiModelRouter Fault-Tolerant Pipeline",
+        subtitle: "XFetch Anti-Stampede (95.03% Hit) + Fault-Tolerant AiModelRouter",
         bullets: [
-          "Two-Layer Cache (ADR-003): L1 Caffeine (< 0.05 ms) cho danh mục tĩnh ICD-10 / LOINC / Specialties + L2 Redis 7 (distributed slot lock & cache phân tán). Kết hợp XFetch Probabilistic Early Recomputation chống Cache Stampede (95.03% hit rate).",
-          "AiModelRouter 3 tầng (ADR-005): (1) Google Gemini 2.5 Flash (Vision OCR & RAG tiếng Việt) -> (2) OpenRouter Pool xoay tua khi 429/timeout -> (3) DeterministicFallbackAiProvider + FNV-1a 1536-d (0đ chi phí, 100% uptime).",
-          "Kiểm soát FinOps: Bảng ai_token_usage ghi nhận chi phí real-time ở transaction độc lập (REQUIRES_NEW) + SHA-256 Deduplication tiết kiệm 85% token."
+          "Cache 2 tầng (ADR-003): L1 Caffeine (< 0.05 ms) + L2 Redis 7 + thuật toán xác suất XFetch chống Cache Stampede.",
+          "AiModelRouter 3 tầng (ADR-005): (1) Gemini 2.5 Flash -> (2) OpenRouter Pool (khi 429/timeout) -> (3) DeterministicFallback + FNV-1a (0đ).",
+          "FinOps: Ghi ai_token_usage ở transaction độc lập (REQUIRES_NEW) + SHA-256 Dedupe tiết kiệm 85% token."
         ],
-        linkLabel: "Xem Thiết Kế Cache & AI",
+        linkLabel: "Mở Chi Tiết Cache & AI",
         linkUrl: "../report_4/index.html#report_4_main",
-        cue: "Nhấn mạnh kiến trúc AiModelRouter 3 tầng đã cập nhật từ Gemini 1.5 -> Gemini 2.5 Flash trong Review 2.",
+        cue: "Chỉ theo 2 nhánh trong sơ đồ: Nhánh trên là Cache L1/L2 XFetch, nhánh dưới là AiModelRouter 3 tầng.",
+        diagram: `flowchart TB
+    REQ["Yêu cầu người dùng"] --> L1{"L1 Caffeine (<0.05ms)"}
+    L1 -- "Hit" --> RET1["Trả về tức thì"]
+    L1 -- "Miss" --> L2{"L2 Redis + XFetch Check"}
+    L2 -- "Hit & chưa tới ngưỡng XFetch" --> RET1
+    L2 -- "Miss / Làm mới sớm XFetch" --> R1["AiModelRouter: Tầng 1<br/>Google Gemini 2.5 Flash"]
+    R1 -- "429 / Timeout" --> R2["Tầng 2: OpenRouter Free Pool"]
+    R2 -- "Cạn nguồn / Mất mạng" --> R3["Tầng 3: DeterministicFallback<br/>+ FNV-1a 1536-d (Chi phí 0đ)"]
+    R1 & R2 & R3 --> FIN["Ghi ai_token_usage (REQUIRES_NEW)<br/>+ SHA-256 Dedupe (-85% Token)"]
+    style REQ fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style L1 fill:#d1fae5,stroke:#059669,color:#0f172a
+    style L2 fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style RET1 fill:#d1fae5,stroke:#059669,color:#0f172a
+    style R1 fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style R2 fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style R3 fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style FIN fill:#f1f5f9,stroke:#475569,color:#0f172a`,
         script: "Để đảm bảo hệ thống không sập giờ cao điểm buổi sáng và không gián đoạn khi API AI gặp giới hạn 429, nhóm thiết kế 2 lớp đệm và bộ định tuyến AI 3 tầng. Về Cache (ADR-003), dữ liệu tĩnh được giữ ở L1 Caffeine trong heap JVM dưới 0.05 ms kết hợp L2 Redis và giải thuật xác suất XFetch để tự làm mới trước khi hết hạn, đạt tỷ lệ hit 95.03%. Về AI (ADR-005), AiModelRouter ưu tiên Gemini 2.5 Flash, tự động xoay vòng qua OpenRouter Pool nếu quá tải, và rơi về DeterministicFallbackAiProvider + FNV-1a nếu mất mạng — bảo đảm dịch vụ luôn phản hồi an toàn."
       },
       {
         num: 7,
         time: "08:30 – 10:00",
-        title: "Đặc Tả 28 Luồng SDD & Onboarding Bác Sĩ 2 Bước",
+        title: "Đặc Tả 28 Luồng SDD & Chống Trùng Lịch 3 Tầng + Onboarding",
         subtitle: "Cấu Trúc 4 Phần Chuẩn IEEE 1016 (80 Biểu Đồ Chi Tiết)",
         bullets: [
-          "28 luồng nghiệp vụ phủ kín 4 Actor (Auth/Profile, 5-Stage AI Triage, Semantic Search & Anti-Double Booking 3 tầng, EMR & LOINC OCR, VNPay/Stripe Adapter, Async Email Outbox, Admin Vetting & Audit).",
-          "Mỗi luồng đều có: (1) Scope & Pre/Postconditions, (2) Class Diagram + bảng chữ ký hàm, (3) Main Flow Sequence + Step Table, (4) Error Sequence + Ma trận AppException.",
-          "Cập nhật Review 2: Onboarding Bác sĩ 2 bước (Bước 1 tạo định danh tối giản -> Bước 2 hồ sơ CCHN & chuyên khoa -> Admin duyệt mở pgvector)."
+          "Mỗi luồng trong 28 luồng có 4 phần: Scope/DTO -> Class Spec -> Main Sequence -> Error Matrix AppException.",
+          "Chống trùng lịch (Booking 3.11): Redis Lock -> REPEATABLE_READ + @Version -> Partial Unique Index.",
+          "Cập nhật Review 2: Chuẩn hóa Onboarding Bác sĩ 2 bước (Bước 1 định danh tối giản -> Bước 2 CCHN -> Admin Vet)."
         ],
-        linkLabel: "Mở Section 3 (28 Luồng SDD)",
-        linkUrl: "../report_4/index.html#report_4_main",
-        cue: "Cuộn nhanh mục 3.11 (Booking concurrency), 3.19 (Document OCR) và 3.24 (Admin Vetting) trong Report 4.",
+        linkLabel: "Mở Booking Concurrency (Vector Studio)",
+        linkUrl: "../docs/diagrams/interactive_viewer.html?diagram=seq_booking",
+        cue: "Nhấn mạnh khuôn mẫu 4 phần đồng bộ cho toàn bộ 28 luồng và cơ chế 3 tầng chặn trùng slot.",
+        diagram: `flowchart TB
+    subgraph IEEE["Khuôn Mẫu 4 Phần Cho Mỗi Trong 28 Luồng SDD"]
+        P1["1. Scope & DTO Boundaries"] --> P2["2. Class Diagram & Method Spec"] --> P3["3. Main Sequence & Step Table"] --> P4["4. Error Sequence & AppException"]
+    end
+    subgraph BOOK["Minh họa Luồng 3.11: Anti-Double Booking 3 Tầng"]
+        B1["Tầng 1: Redis Slot Lock (5m)"] --> B2["Tầng 2: @Transactional REPEATABLE_READ<br/>+ JPA @Version"] --> B3["Tầng 3: PostgreSQL Partial Unique Index<br/>(doctor_id, scheduled_start) WHERE status != CANCELLED"] --> B4["Trùng -> 409 SLOT_CONFLICT"]
+    end
+    style IEEE fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
+    style BOOK fill:#ecfdf5,stroke:#059669,color:#064e46
+    style P1 fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style P2 fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style P3 fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style P4 fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style B1 fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style B2 fill:#d1fae5,stroke:#059669,color:#0f172a
+    style B3 fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style B4 fill:#fee2e2,stroke:#dc2626,color:#0f172a`,
         script: "Ở Mục 3 — Thiết kế Chi tiết của SDD, toàn bộ 28 quy trình nghiệp vụ cốt lõi đều tuân thủ khuôn mẫu 4 phần khép kín: Phạm vi DTO, Biểu đồ Lớp kèm bảng phương thức, Sequence Diagram luồng chính và Error Flow Sequence kèm Ma trận AppException. Đặc biệt luồng đặt lịch sử dụng khóa chống trùng 3 tầng (Redis lock + REPEATABLE_READ với JPA @Version + Partial Unique Index trong PostgreSQL), còn luồng gia nhập của Bác sĩ đã được nhóm tinh gọn thành 2 bước rõ ràng trong Review 2."
       },
       {
         num: 8,
         time: "10:00 – 11:30",
-        title: "An Toàn Y Tế, Bảo Mật Đa Lớp & Quản Trị Secret 3 Lớp",
-        subtitle: "PatientAccessGuard (BOLA) • MedicalPiiService • Private S3 15m • Git Vault",
+        title: "An Toàn Y Tế, Bảo Mật BOLA/IDOR & Quản Trị Secret 3 Lớp",
+        subtitle: "RedFlag <2ms • LOINC QĐ 3280 • PatientAccessGuard • Private S3 15m",
         bullets: [
-          "Rào chắn y tế trước LLM: RedFlagService (< 2ms Java thuần) + 5-Stage Triage + Ontology Grounding với 23 chỉ số LOINC (QĐ 3280/BYT) & ICD-10/11 (QĐ 7603/BYT).",
-          "Chống BOLA/IDOR (ADR-004): PatientAccessGuard đặt tại tầng Service kiểm tra quan hệ điều trị thực tế CARE_RELATIONSHIP và ghi vết audit_logs (HIPAA / NĐ 13).",
-          "MedicalPiiService che 6 nhóm PII trước khi gửi LLM; Private Supabase S3 (V20) cấp URL ký số HMAC-SHA256 sống đúng 15 phút.",
-          "Quản trị Secret 3 lớp (Review 2): spring.profiles.group.dev=local + User-Home Vault ngoài Git + .githooks/pre-push chống GH013."
+          "Lâm sàng: RedFlagService Java thuần (<2ms) ngắt ca 115 + 23 chỉ số LOINC (QĐ 3280/BYT) chống ảo giác LLM.",
+          "Bảo mật BOLA/IDOR (ADR-004): PatientAccessGuard kiểm tra CARE_RELATIONSHIP tại Service + AuditLog IP.",
+          "Dữ liệu riêng tư: MedicalPiiService khử 6 nhóm PII; Private S3 (V20) chỉ mở qua HMAC Signed URL 15 phút; Secret Vault 3 lớp ngoài Git."
         ],
-        linkLabel: "Mở Section 3.20 (BOLA Defense)",
-        linkUrl: "../report_4/index.html#report_4_main",
-        cue: "Mở Sequence BOLA 403 hoặc nhắc lại 4 lớp phòng thủ từ tầng dữ liệu đến tầng kiểm soát Git.",
-        script: "Trong y tế, an toàn dữ liệu và an toàn lâm sàng là ưu tiên số một. Hệ thống chặn dấu hiệu nguy kịch bằng RedFlagService Java thuần dưới 2ms trước khi gọi LLM, và khóa chặt khoảng tham chiếu theo 23 chỉ số LOINC Bộ Y Tế để chống ảo giác. Về bảo mật, PatientAccessGuard đặt ở tầng Service kiểm tra quan hệ điều trị thực tế chống BOLA/IDOR; MedicalPiiService che 6 nhóm PII theo Nghị định 13; ảnh bệnh án lưu Private S3 chỉ xem qua Signed URL 15 phút (Flyway V20); và toàn bộ API Key phát triển được bảo vệ qua cơ chế 3 lớp (Profile Group + Vault ngoài Git + Git Hook pre-push)."
+        linkLabel: "Mở Rào Chắn BOLA (Vector Studio)",
+        linkUrl: "../docs/diagrams/interactive_viewer.html?diagram=seq_bola",
+        cue: "Chỉ theo trình tự từ trên xuống dưới của chuỗi phòng thủ: Y tế -> PII -> Quyền truy cập -> Storage -> Git Secret.",
+        diagram: `sequenceDiagram
+    autonumber
+    actor Doc as Bác sĩ / Người gọi API
+    participant Guard as PatientAccessGuard (Service AOP)
+    participant DB as PostgreSQL (appointments & audit_logs)
+    participant S3 as Private Supabase S3 (V20)
+    Doc->>Guard: Yêu cầu xem hồ sơ / file xét nghiệm bệnh nhân X
+    Guard->>DB: Kiểm tra CARE_RELATIONSHIP (SCHEDULED / IN_PROGRESS / COMPLETED)
+    alt Không có lịch khám hợp lệ (BOLA/IDOR Attack)
+        DB-->>Guard: false
+        Guard->>DB: INSERT audit_logs (FORBIDDEN_ACCESS + IP)
+        Guard-->>Doc: 403 FORBIDDEN_PATIENT_ACCESS
+    else Có quan hệ điều trị hợp lệ
+        DB-->>Guard: true
+        Guard->>S3: Ký URL tạm thời HMAC-SHA256 từ storage_path
+        S3-->>Doc: Presigned URL sống đúng 15 phút (AES-256)
+    end`,
+        script: "Trong y tế, an toàn dữ liệu và an toàn lâm sàng là ưu tiên số một. Hệ thống chặn dấu hiệu nguy kịch bằng RedFlagService Java thuần dưới 2ms trước khi gọi LLM, và khóa chặt khoảng tham chiếu theo 23 chỉ số LOINC Bộ Y Tế để chống ảo giác. Về bảo mật, mời Thầy Cô nhìn trên biểu đồ tuần tự: PatientAccessGuard đặt ở tầng Service kiểm tra quan hệ điều trị thực tế chống BOLA/IDOR; MedicalPiiService che 6 nhóm PII theo Nghị định 13; ảnh bệnh án lưu Private S3 chỉ xem qua Signed URL 15 phút (Flyway V20); và toàn bộ API Key phát triển được bảo vệ qua cơ chế 3 lớp (Profile Group + Vault ngoài Git + Git Hook pre-push)."
       },
       {
         num: 9,
@@ -499,28 +847,52 @@
         title: "Tổng Hợp 6 Điều Chỉnh Review 2 & Bằng Chứng Kiểm Chứng",
         subtitle: "Đối Soát SDD Khớp Code 100% — Không Còn Schema / Stack Drift",
         bullets: [
-          "6 điều chỉnh đã đồng bộ xong vào SDD: (1) V23 icd_code/icd_version & V24 @Version; (2) React 18.3.1 & Gemini 2.5 Flash 3 tầng; (3) Onboarding Bác sĩ 2 bước; (4) Bảo vệ Secret 3 lớp; (5) Payment Adapter Stripe/Mock & Email Mailpit/Gmail STARTTLS; (6) Định lượng SLA vào ADRs.",
-          "Kiểm chứng thực thi mới nhất: 322/322 Backend Unit Tests PASS, Frontend Build 0 lỗi TypeScript (2,313 modules).",
-          "Toàn bộ 21 tài liệu được tự động đóng gói qua scripts/compile_docs_bundle.py (1,225.4 KB) phục vụ trình chiếu offline & in PDF."
+          "6 điều chỉnh đã đồng bộ: (1) V23/V24 ERD & Bảng 2.3; (2) React 18.3.1 & Gemini 2.5 Flash; (3) Onboarding 2 bước; (4) Secret Vault 3 lớp; (5) Payment/Mail Adapters; (6) SLA Metrics vào ADRs.",
+          "Kết quả chạy kiểm thử thực tế sau chỉnh sửa: 322/322 Maven Unit Tests PASS, 0 lỗi TypeScript.",
+          "Đóng gói 21 tài liệu qua scripts/compile_docs_bundle.py (1,225.4 KB) trình chiếu & in PDF."
         ],
-        linkLabel: "Mở Tab 2 (Xem Chi Tiết 6 Điều Chỉnh)",
+        linkLabel: "Mở Tab 2 (6 Sơ Đồ Điều Chỉnh)",
         linkUrl: "#adjustments-jump",
-        cue: "Nhắc Hội đồng đây là 6 điểm tự thẩm định mà nhóm vừa điều chỉnh ở Tuần 8 để khép kín vòng lặp Code <-> SDD.",
+        cue: "Bấm nút sang Tab 2 để cho Hội đồng thấy cả 6 sơ đồ Trước vs Sau nếu Hội đồng muốn soi kỹ.",
+        diagram: `flowchart LR
+    A["Rà soát Review 2 (Tuần 8)<br/>Đối chiếu Code <-> SDD"] --> B1["1. V23 ICD + V24 @Version"]
+    A --> B2["2. React 18.3.1 + Gemini 2.5"]
+    A --> B3["3. Onboarding Bác sĩ 2 bước"]
+    A --> B4["4. Bảo vệ Secret 3 lớp"]
+    A --> B5["5. Payment/Mail Adapters"]
+    A --> B6["6. SLA Metrics trong 6 ADRs"]
+    B1 & B2 & B3 & B4 & B5 & B6 --> VER["Xác thực: 322/322 Maven PASS<br/>0 TS Error • docs-bundle.js 1,225.4 KB"]
+    style A fill:#4c1d95,stroke:#7c3aed,color:#ffffff,font-weight:700
+    style B1 fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style B2 fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style B3 fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style B4 fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style B5 fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style B6 fill:#e0e7ff,stroke:#4f46e5,color:#0f172a
+    style VER fill:#d1fae5,stroke:#059669,color:#064e46,font-weight:700`,
         script: "Điểm tự hào nhất của nhóm trong đợt Review tuần thứ 8 là đã chủ động kiểm toán SDD đối chiếu mã nguồn và thực thi ngay 6 điều chỉnh chuẩn hóa: đồng bộ Flyway V23 và V24 vào ERD/bảng đặc tả; hiệu chỉnh đúng React 18.3.1 và Gemini 2.5 Flash; cập nhật Onboarding Bác sĩ 2 bước; chuẩn hóa bảo vệ Secret 3 lớp; làm rõ đa cổng Payment/Mail và gắn chặt số liệu benchmark vào từng ADR. Mọi thay đổi đều đã được xác thực xanh 100% với 322/322 Backend Unit Tests PASS và 0 lỗi TypeScript."
       },
       {
         num: 10,
         time: "12:45 – 14:00",
-        title: "Kết Luận & Sẵn Sàng Phản Biện Hội Đồng",
+        title: "Kết Luận & Ma Trận Truy Vết 1-1 Sẵn Sàng Phản Biện",
         subtitle: "Từ Thiết Kế SDD Chuẩn Quốc Tế Đến Hệ Thống Thực Thi Sẵn Sàng",
         bullets: [
-          "Tài liệu SDD (4,537 dòng, 88+ biểu đồ, 17 bảng 3NF, 6 ADRs) đạt tính truy vết 1-1 xuyên suốt SRS -> SDD -> Code -> STR.",
-          "Sẵn sàng mở trực tiếp từng sơ đồ trên Vector Studio (1500% zoom) hoặc từng luồng trên Report 4 để giải trình chi tiết.",
-          "Trân trọng cảm ơn Quý Thầy Cô và sẵn sàng tiếp nhận câu hỏi, góp ý phản biện!"
+          "Tài liệu SDD (4,537 dòng, 88+ biểu đồ, 17 bảng 3NF, 6 ADRs) đạt truy vết 1-1 xuyên suốt SRS -> SDD -> Code -> STR.",
+          "Sẵn sàng phóng to mọi sơ đồ ngay trên màn hình này hoặc mở Vector Studio để giải trình.",
+          "Trân trọng cảm ơn Quý Thầy Cô và sẵn sàng tiếp nhận câu hỏi phản biện!"
         ],
-        linkLabel: "Mở Top 6 Q&A Phản Biện",
+        linkLabel: "Mở Tab 4 (Top 6 Q&A + Sơ Đồ)",
         linkUrl: "#qa-jump",
-        cue: "Chuyển ngay sang Tab 4 (Top 6 Câu Hỏi Phản Biện) hoặc giữ Vector Studio sẵn sàng.",
+        cue: "Giữ sẵn Tab 4 Top 6 Q&A kèm sơ đồ trả lời để bật ngay khi Hội đồng đặt câu hỏi.",
+        diagram: `flowchart LR
+    U["49 Use Cases (SRS)<br/>IEEE 830"] <--> D["28 Workflows & 17 Tables (SDD)<br/>IEEE 1016 & ISO 42010"]
+    D <--> S["15 Controllers & 31+ Services<br/>Java 21 Spring Boot & React 18.3.1"]
+    S <--> T["322/322 Unit Tests & k6 Stress<br/>IEEE 829 (STR)"]
+    style U fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style D fill:#f3e8ff,stroke:#7c3aed,color:#0f172a
+    style S fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style T fill:#d1fae5,stroke:#059669,color:#0f172a`,
         script: "Trên đây là toàn bộ phần trình bày đánh giá và các điều chỉnh nâng cấp đối với Tài liệu Thiết kế Phần mềm SDD của nhóm MediAssist-AI trong kỳ Review lần 2. Toàn bộ sơ đồ Vector Studio và mã nguồn kiểm thử đều đang sẵn sàng để nhóm minh họa trực tiếp. Nhóm xin trân trọng cảm ơn Quý Thầy Cô và rất mong nhận được những ý kiến đóng góp chuyên môn từ Hội đồng ạ!"
       }
     ];
@@ -531,52 +903,182 @@
         tag: "ADR-001 • Kiến Trúc",
         question: "Vì sao trong SDD nhóm chọn Tiered Micro-Modular Monolith (7 Bounded Contexts) thay vì tách Microservices ngay từ đầu?",
         takeaway: "Giữ ACID Transaction cục bộ + loại bỏ Network Hop <10ms + tách sẵn 7 Bounded Contexts để scale khi cần.",
-        answer: "Theo ADR-001, hệ thống y tế giai đoạn đầu cần tính toàn vẹn giao dịch ACID cục bộ và độ trễ thấp hơn chi phí vận hành phân tán: (1) Khi bệnh nhân đặt lịch hoặc thanh toán, hệ thống cập nhật nguyên tử bảng appointments, payment_transactions và notifications trong một @Transactional(isolation = REPEATABLE_READ) duy nhất — tránh phức tạp của Saga/2PC hay lỗi Eventual Consistency với tiền và lịch khám; (2) Chạy cùng JVM với Java 21 Virtual Threads giúp loại bỏ network hop giữa các service, chịu tải >10,000 kết nối chỉ với 330 MB RAM (k6 500 VUs 0% lỗi); (3) Bên trong đã định biên sẵn 7 Bounded Contexts giao tiếp qua DTO và Application Events (như AppointmentBookedEvent), sẵn sàng tách riêng module nặng như OCR Vision thành microservice độc lập về sau mà không phải viết lại lõi."
+        answer: "Theo ADR-001, hệ thống y tế giai đoạn đầu cần tính toàn vẹn giao dịch ACID cục bộ và độ trễ thấp hơn chi phí vận hành phân tán: (1) Khi bệnh nhân đặt lịch hoặc thanh toán, hệ thống cập nhật nguyên tử bảng appointments, payment_transactions và notifications trong một @Transactional(isolation = REPEATABLE_READ) duy nhất — tránh phức tạp của Saga/2PC hay lỗi Eventual Consistency; (2) Chạy cùng JVM với Java 21 Virtual Threads loại bỏ network hop, chịu tải >10,000 kết nối chỉ với 330 MB RAM (k6 500 VUs 0% lỗi); (3) Định biên sẵn 7 Bounded Contexts giao tiếp qua DTO và Application Events để tách microservice từng module sau này mà không viết lại lõi.",
+        diagram: `flowchart TB
+    subgraph MM["✅ Chọn: Modular Monolith (1 ACID Transaction)"]
+        M1["@Transactional REPEATABLE_READ<br/>appointments + payment_transactions + notifications"]
+        M2["In-JVM Call (<1ms, 0 Network Hop)<br/>7 Bounded Contexts via DTO & Events"]
+        M1 --- M2
+    end
+    subgraph MS["❌ Tránh sớm: Distributed Microservices"]
+        S1["Saga / 2-Phase Commit phức tạp<br/>Rủi ro Eventual Consistency với tiền & slot"]
+        S2["HTTP/gRPC Hop 15-30ms + K8s vượt ngân sách"]
+    end
+    style MM fill:#ecfdf5,stroke:#059669,color:#064e46
+    style MS fill:#fef2f2,stroke:#dc2626,color:#7f1d1d
+    style M1 fill:#d1fae5,stroke:#059669,color:#0f172a
+    style M2 fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style S1 fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style S2 fill:#fee2e2,stroke:#dc2626,color:#0f172a`
       },
       {
         id: "R2-2",
         tag: "ADR-002 • Vector DB",
         question: "Tại sao lưu vector trong PostgreSQL pgvector HNSW thay vì Pinecone/Milvus, và vì sao cần SET LOCAL enable_seqscan = off?",
         takeaway: "Chống Dual-Write lệch dữ liệu + Hybrid SQL (lọc cứng + Cosine) trong 1 ACID TX + ép Query Planner đi HNSW Index đạt 0.72 ms.",
-        answer: "Có 2 lý do kỹ thuật cốt lõi (ADR-002): Thứ nhất, dùng pgvector (image pgvector/pgvector:pg16 ~621MB) giúp thực thi Hybrid Query kết hợp lọc quan hệ cứng (is_verified = true, status = 'ACTIVE', khung giờ trống, biểu phí) với khoảng cách Cosine (<=> trên vector 1536 chiều) trong 1 câu SQL ACID duy nhất, triệt tiêu hoàn toàn bài toán Dual-Write bị lệch dữ liệu khi Admin duyệt CCHN hoặc bác sĩ đổi chuyên khoa. Thứ hai, ở giai đoạn dữ liệu phòng khám vài trăm đến vài nghìn bác sĩ, Query Planner của PostgreSQL thường ước lượng đọc tuần tự (Seq Scan) rẻ hơn đồ thị nên tự bỏ qua index HNSW. Lệnh SET LOCAL hnsw.ef_search = 120, enable_seqscan = off và work_mem = '64MB' trong transaction tìm kiếm ép PostgreSQL luôn dùng HNSW Index Scan (m=24, ef_construction=128), đạt Recall 99.95% ở độ trễ 0.72 ms."
+        answer: "Thứ nhất, dùng pgvector (~621MB) giúp chạy Hybrid Query kết hợp lọc quan hệ cứng (is_verified=true, status='ACTIVE', khung giờ trống) với Cosine (<=>) trong 1 câu SQL ACID duy nhất, triệt tiêu bài toán Dual-Write bị lệch dữ liệu khi Admin duyệt CCHN hoặc bác sĩ đổi chuyên khoa. Thứ hai, ở quy mô vài trăm đến vài nghìn bác sĩ, PostgreSQL Planner thường ước lượng đọc tuần tự (Seq Scan) rẻ hơn đồ thị nên tự bỏ qua index HNSW. SET LOCAL hnsw.ef_search = 120, enable_seqscan = off và work_mem = '64MB' ép Planner đi HNSW Index Scan (m=24, ef_construction=128), đạt Recall 99.95% ở 0.72 ms.",
+        diagram: `flowchart LR
+    SQL["Truy vấn Hybrid Tìm Bác Sĩ"] --> TUN["Session Tuning<br/>SET LOCAL enable_seqscan = off<br/>SET LOCAL hnsw.ef_search = 120"]
+    TUN --> HNSW["HNSW Index Scan (m=24, ef=128)<br/>Lọc WHERE is_verified=true + Cosine <=>"]
+    HNSW --> RES["0.72 ms • Recall 99.95%<br/>0 Lệch Dữ Liệu Dual-Write"]
+    SQL -. "Không Tuning (Mặc định)" .-> SEQ["Planner chọn Seq Scan<br/>Bỏ qua Index HNSW"]
+    style SQL fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style TUN fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style HNSW fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style RES fill:#d1fae5,stroke:#059669,color:#0f172a
+    style SEQ fill:#fee2e2,stroke:#dc2626,color:#0f172a`
       },
       {
         id: "R2-3",
         tag: "Concurrency • V24",
         question: "Cơ chế chống đặt trùng lịch (Anti-Double Booking) 3 tầng phối hợp với Optimistic Locking @Version (Flyway V24) như thế nào?",
         takeaway: "Redis Lock (phân tán) + JPA @Version / REPEATABLE_READ (ứng dụng) + Partial Unique Index (vật lý PostgreSQL -> 409 SLOT_CONFLICT).",
-        answer: "Nhóm bảo vệ tương tranh bằng 3 lớp đồng tâm: Tầng 1 dùng Redis Distributed Semaphore Lock theo cặp (doctor_id, scheduled_start) để chặn sớm request spam cùng mili-giây; Tầng 2 dùng @Transactional(isolation = REPEATABLE_READ) kết hợp JPA @Version (version BIGINT NOT NULL DEFAULT 0 trên Appointment, User, PaymentTransaction — được Flyway V24 vá triệt để null trên dữ liệu seed) để phát hiện ghi đè đồng thời qua ObjectOptimisticLockingFailureException; Tầng 3 là chốt chặn vật lý cuối cùng tại PostgreSQL bằng Partial Unique Index (unique_doctor_active_slot ON appointments(doctor_id, scheduled_start) WHERE status != 'CANCELLED'), đảm bảo dù 100 luồng lọt qua thì CSDL vẫn chặn cứng và trả về HTTP 409 SLOT_CONFLICT."
+        answer: "Hệ thống phòng thủ 3 tầng đồng tâm: (1) Redis Distributed Semaphore Lock giữ slot theo cặp (doctor_id, scheduled_start); (2) @Transactional(REPEATABLE_READ) kết hợp JPA @Version (version BIGINT NOT NULL DEFAULT 0 trên Appointment, User, PaymentTransaction chuẩn hóa qua Flyway V24) ném ObjectOptimisticLockingFailureException nếu 2 request sửa đồng thời; (3) Partial Unique Index vật lý trong PostgreSQL (unique_doctor_active_slot ON appointments(doctor_id, scheduled_start) WHERE status != 'CANCELLED') chặn cứng 100% va chạm và trả HTTP 409 SLOT_CONFLICT.",
+        diagram: `flowchart TB
+    R["100 Request Đặt Cùng 1 Slot Cùng Mili-giây"] --> L1{"Tầng 1: Redis Semaphore Lock"}
+    L1 -- "Bị khóa" --> E1["Chặn sớm tại tầng Cache"]
+    L1 -- "Qua" --> L2{"Tầng 2: REPEATABLE_READ + JPA @Version (V24)"}
+    L2 -- "Sai lệch Version" --> E2["ObjectOptimisticLockingFailureException"]
+    L2 -- "Lọt 2 luồng" --> L3{"Tầng 3: PostgreSQL Partial Unique Index"}
+    L3 -- "Chỉ 1 giao dịch đầu tiên" --> OK["201 Created + Cấp STT & Vé O2O"]
+    L3 -- "Các giao dịch còn lại" --> E3["409 Conflict (SLOT_CONFLICT)"]
+    style R fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style L1 fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style L2 fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style L3 fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style OK fill:#d1fae5,stroke:#059669,color:#0f172a
+    style E1 fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style E2 fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style E3 fill:#fee2e2,stroke:#dc2626,color:#0f172a`
       },
       {
         id: "R2-4",
         tag: "ADR-004 • BOLA/IDOR",
         question: "Vì sao PatientAccessGuard đặt tại tầng Service thay vì chỉ kiểm tra quyền ở API Gateway / SecurityFilterChain?",
         takeaway: "Gateway/Filter chỉ biết RBAC thô (ROLE_DOCTOR), không có ngữ cảnh quan hệ điều trị (CARE_RELATIONSHIP) chống OWASP API1 BOLA/IDOR.",
-        answer: "API Gateway hay SecurityFilterChain chỉ xác thực được danh tính và vai trò thô (RBAC — biết user là DOCTOR), hoàn toàn không biết bác sĩ A có đang điều trị bệnh nhân B hay không. Nếu chỉ chặn ở Gateway, bác sĩ A chỉ cần đổi UUID bệnh nhân trên URL là xem trộm được hồ sơ (lỗ hổng BOLA/IDOR — OWASP API1). Đặt PatientAccessGuard tại tầng Service (điểm chạm duy nhất của hồ sơ bệnh án, OCR, Triage, Signed URL) cho phép kiểm tra bắt buộc CARE_RELATIONSHIP trong appointments (trạng thái SCHEDULED, IN_PROGRESS, hoặc COMPLETED — lịch hủy/vắng mặt bị từ chối): PATIENT chỉ xem được hồ sơ của mình, ADMIN xem phải ghi vết kiểm toán bất biến VIEW_PATIENT_RECORD kèm IP vào audit_logs, còn vi phạm trả ngay HTTP 403 FORBIDDEN_PATIENT_ACCESS."
+        answer: "API Gateway hay SecurityFilterChain chỉ xác thực RBAC thô (biết user mang ROLE_DOCTOR), không biết bác sĩ A có đang điều trị bệnh nhân B hay không — nếu sửa UUID bệnh nhân trên URL sẽ dính BOLA/IDOR (OWASP API1). Đặt PatientAccessGuard ở tầng Service cho phép truy vấn CARE_RELATIONSHIP trên appointments (SCHEDULED, IN_PROGRESS, COMPLETED): PATIENT chỉ xem hồ sơ chính mình, DOCTOR phải có lịch khám hợp lệ, ADMIN truy cập bắt buộc ghi audit_logs bất biến kèm IP, vi phạm ném 403 FORBIDDEN_PATIENT_ACCESS.",
+        diagram: `sequenceDiagram
+    actor BS as Bác sĩ A (ROLE_DOCTOR hợp lệ)
+    participant GW as SecurityFilterChain (Gateway)
+    participant SVC as PatientAccessGuard (Service AOP)
+    participant DB as PostgreSQL
+    BS->>GW: GET /api/v1/documents/{docCuaBenhNhanB}
+    Note over GW: Gateway chỉ thấy ROLE_DOCTOR -> Cho qua!
+    GW->>SVC: Chuyển tiếp vào Service
+    SVC->>DB: Kiểm tra lịch khám (BS A <-> BN B) IN (SCHEDULED, IN_PROGRESS, COMPLETED)
+    DB-->>SVC: Không tồn tại (0 bản ghi)
+    SVC->>DB: Ghi audit_logs (FORBIDDEN_BOLA + IP)
+    SVC-->>BS: 403 FORBIDDEN_PATIENT_ACCESS`
       },
       {
         id: "R2-5",
         tag: "ADR-005 • Clinical AI Safety",
         question: "Kiến trúc AI Gateway 3 tầng hoạt động ra sao khi LLM lỗi hoặc mất mạng, và làm sao neo giữ Ontology LOINC / ICD chống ảo giác?",
         takeaway: "Gemini 2.5 Flash -> OpenRouter Pool -> Offline Deterministic FNV-1a; kết hợp RedFlag <2ms + 23 LOINC BYT + ICD V23.",
-        answer: "AiModelRouter bảo đảm uptime 100% qua 3 tầng: Tầng 1 ưu tiên Google Gemini 2.5 Flash (Vision OCR & tiếng Việt); khi gặp 429 hoặc timeout, Tầng 2 tự động xoay tua qua OpenRouter Free Models Pool; khi mất mạng hoàn toàn, Tầng 3 chuyển về DeterministicFallbackAiProvider (cùng vector FNV-1a 1536-d) để trả lời theo luật an toàn với chi phí 0đ. Để chống ảo giác y khoa (Hallucination), trước khi gọi LLM hệ thống chạy RedFlagService (Java thuần < 2ms ngắt ca cấp cứu 115), MedicalPiiService (che 6 nhóm PII), đối chiếu 23 chỉ số LOINC chuẩn QĐ 3280/BYT tính lại trạng thái HIGH/LOW/NORMAL bằng code Java xác định, lưu chẩn đoán chuẩn icd_code/icd_version (V23) và giữ nguyên tắc Human-in-the-loop (CDSS, bác sĩ có CCHN ký duyệt cuối cùng)."
+        answer: "AiModelRouter ưu tiên (1) Google Gemini 2.5 Flash; nếu 429/timeout chuyển sang (2) OpenRouter Pool; nếu mất mạng chuyển (3) DeterministicFallbackAiProvider + FNV-1a (0đ). Chống ảo giác: RedFlagService chạy Java thuần < 2ms trước LLM; MedicalPiiService che 6 nhóm PII; Java đối chiếu 23 chỉ số LOINC chuẩn QĐ 3280/BYT tính lại HIGH/LOW/NORMAL xác định trước khi tạo prompt RAG; chẩn đoán lưu chuẩn icd_code/icd_version (V23) với nguyên tắc Human-in-the-loop (CDSS).",
+        diagram: `flowchart LR
+    IN["Triệu chứng / Phiếu XN"] --> RF["RedFlagService<br/>Java thuần (<2ms)"]
+    RF -- "Cấp cứu" --> SOS["Cảnh báo 115 Tức Thì"]
+    RF -- "An toàn" --> PII["MedicalPiiService<br/>(Khử 6 nhóm PII)"]
+    PII --> LOINC["Java ClinicalOntologyService<br/>23 LOINC BYT Tính Lại HIGH/LOW"]
+    LOINC --> AI["AiModelRouter (3 Tầng)<br/>Gemini 2.5 -> OpenRouter -> Fallback 0đ"]
+    AI --> CDSS["CDSS Output (Kèm ICD V23)<br/>Bác sĩ CCHN Phê Duyệt Cuối"]
+    style IN fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style RF fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style SOS fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style PII fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style LOINC fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style AI fill:#e0e7ff,stroke:#4f46e5,color:#0f172a
+    style CDSS fill:#d1fae5,stroke:#059669,color:#0f172a`
       },
       {
         id: "R2-6",
         tag: "Security • V20 & 3-Layer Env",
         question: "SDD xử lý bảo mật tệp xét nghiệm Private S3 15 phút và bảo vệ API Key khi làm việc nhóm trên Git như thế nào?",
         takeaway: "Private Bucket + 15-min HMAC Signed URL (V20) + Kiến trúc Secret 3 lớp (group.dev=local, Vault ngoài Git, pre-push GH013 guard).",
-        answer: "Thứ nhất, theo Flyway V20, bảng medical_documents chỉ lưu khóa nội bộ storage_path trong Supabase Private Bucket (tuyệt đối không lưu URL công khai và đã bỏ mọi fallback sinh PDF giả); chỉ sau khi PatientAccessGuard duyệt quyền thì MedicalDocumentFileAccessService mới cấp Signed URL HMAC-SHA256 có hạn 15 phút. Thứ hai, để không bao giờ rò rỉ API Key/SMTP lên GitHub nhưng thành viên vẫn giữ nguyên biến môi trường chạy local sau khi git pull/push/checkout, nhóm triển khai kiến trúc 3 lớp: spring.profiles.group.dev=local (để application-local.properties luôn thắng application-dev.properties), Vault ngoài repo tại %USERPROFILE%\\.mediassist\\, và Git Hooks (.githooks/pre-push quét chặn secret trong file tracked; post-checkout/post-merge tự khôi phục file env local bị .gitignore)."
+        answer: "Theo Flyway V20, medical_documents chỉ lưu storage_path trong Private Bucket (bỏ mọi URL công khai và fallback PDF giả); sau khi PatientAccessGuard duyệt quyền mới xin URL ký số HMAC-SHA256 sống 15 phút. Với API Key & SMTP dev, nhóm triển khai kiến trúc 3 lớp: spring.profiles.group.dev=local (application-local luôn thắng dev), Vault ngoài repo tại %USERPROFILE%\\.mediassist\\, và Git Hooks (.githooks/pre-push quét chặn rò rỉ trước khi push; post-checkout/post-merge tự khôi phục cấu hình local).",
+        diagram: `flowchart TB
+    subgraph CLOUD["Bảo Mật Tệp Y Tế (Flyway V20)"]
+        DB["medical_documents<br/>Chỉ lưu storage_path"] --> G["PatientAccessGuard OK"] --> URL["Signed URL HMAC-SHA256<br/>Hết hạn sau 15 phút"]
+    end
+    subgraph GIT["Bảo Vệ Secret Nhóm Phát Triển (3 Lớp)"]
+        P1["group.dev=local<br/>local thắng dev"] --> P2["Vault ~/.mediassist<br/>Ngoài thư mục Git"] --> P3[".githooks/pre-push & post-merge<br/>Chặn GH013 + Auto Restore"]
+    end
+    style CLOUD fill:#eff6ff,stroke:#2563eb,color:#1e3a8a
+    style GIT fill:#ecfdf5,stroke:#059669,color:#064e46
+    style DB fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    style G fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    style URL fill:#cffafe,stroke:#0891b2,color:#0f172a
+    style P1 fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    style P2 fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style P3 fill:#d1fae5,stroke:#059669,color:#0f172a`
       }
     ];
 
     let currentTab = 'overview';
+    let currentOverviewKey = 'arch5Tier';
     let allInOneMode = false;
     let currentSlideIdx = 0;
     let allSlidesMode = false;
     let timerSeconds = 15 * 60;
     let timerInterval = null;
     let qaOpenState = new Set(['R2-1']);
+    let modalPanZoom = null;
+    let activeModalTitle = '';
+    let activeModalCode = '';
+    let renderCounter = 0;
+
+    function initMermaidForCurrentTheme() {
+      const isDark = document.documentElement.classList.contains('dark');
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: isDark ? 'dark' : 'default',
+        securityLevel: 'loose',
+        themeVariables: isDark ? {
+          darkMode: true,
+          background: '#020617',
+          lineColor: '#38bdf8',
+          edgeLabelBackground: '#0f172a',
+          textColor: '#f8fafc',
+          clusterBkg: '#0f172a',
+          clusterBorder: '#38bdf8'
+        } : {
+          darkMode: false,
+          background: '#f8fafc',
+          lineColor: '#2563eb',
+          edgeLabelBackground: '#ffffff',
+          textColor: '#0f172a',
+          clusterBkg: '#f1f5f9',
+          clusterBorder: '#0284c7'
+        },
+        flowchart: { useMaxWidth: true, htmlLabels: true, padding: 14, nodeSpacing: 36, rankSpacing: 46 },
+        sequence: { useMaxWidth: true, showSequenceNumbers: true },
+        er: { useMaxWidth: true }
+      });
+    }
+
+    async function renderMermaidInElement(el, code, prefix = 'mmd') {
+      if (!el || !code) return;
+      renderCounter += 1;
+      const renderId = `${prefix}-${Date.now()}-${renderCounter}`;
+      try {
+        const { svg } = await mermaid.render(renderId, code);
+        // Never overwrite Mermaid's generated SVG id! It breaks internal #id CSS selectors.
+        el.innerHTML = svg;
+      } catch (err) {
+        el.innerHTML = `<div class="p-3 rounded-lg bg-rose-500/10 border border-rose-500/40 text-rose-500 text-xs font-mono">Lỗi dựng biểu đồ: ${err.message}</div>`;
+      }
+    }
 
     function toggleTheme() {
       const html = document.documentElement;
@@ -588,9 +1090,48 @@
         html.classList.add('dark');
         btn.textContent = '☀️ Sáng';
       }
+      initMermaidForCurrentTheme();
+      rerenderVisibleDiagrams();
     }
 
-    function switchTab(tabName) {
+    async function rerenderVisibleDiagrams() {
+      await renderOverviewDiagram();
+      if (currentTab === 'adjustments' || allInOneMode) {
+        await renderAdjustmentDiagrams();
+      }
+      if (currentTab === 'presentation' || allInOneMode) {
+        await renderPresentationDiagrams();
+      }
+      if (currentTab === 'qa' || allInOneMode) {
+        await renderOpenQaDiagrams();
+      }
+    }
+
+    function selectOverviewDiagram(key) {
+      currentOverviewKey = key;
+      document.querySelectorAll('.ov-btn').forEach(btn => {
+        const active = btn.getAttribute('data-ov') === key;
+        btn.className = active
+          ? 'ov-btn px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition bg-sky-600 text-white shadow-sm'
+          : 'ov-btn px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300';
+      });
+      renderOverviewDiagram();
+    }
+
+    async function renderOverviewDiagram() {
+      const spec = OVERVIEW_DIAGRAMS[currentOverviewKey];
+      if (!spec) return;
+      document.getElementById('overview-diagram-title').textContent = spec.title;
+      const stage = document.getElementById('overview-diagram-stage');
+      await renderMermaidInElement(stage, spec.code, 'ov');
+    }
+
+    function openOverviewModal() {
+      const spec = OVERVIEW_DIAGRAMS[currentOverviewKey];
+      if (spec) openDiagramModal(spec.title, spec.code);
+    }
+
+    async function switchTab(tabName) {
       currentTab = tabName;
       if (allInOneMode) {
         allInOneMode = false;
@@ -605,41 +1146,51 @@
           : 'tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition cursor-pointer text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800';
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      await rerenderVisibleDiagrams();
     }
 
-    function toggleAllInOnePrint() {
+    async function toggleAllInOnePrint() {
       allInOneMode = !allInOneMode;
       const btn = document.getElementById('btn-all-view');
       if (allInOneMode) {
         btn.textContent = '↩️ Quay lại chế độ Tab';
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('hidden'));
         allSlidesMode = true;
-        renderPresentation();
+        renderPresentationDOM();
         qaOpenState = new Set(QAS.map(q => q.id));
-        renderQAs();
+        renderQAsDOM();
+        await rerenderVisibleDiagrams();
       } else {
         btn.textContent = '📄 Xem Tất Cả / In PDF';
-        switchTab(currentTab);
+        await switchTab(currentTab);
       }
     }
 
-    function renderAdjustments() {
+    function renderAdjustmentsDOM() {
       const container = document.getElementById('adjustments-grid');
-      container.innerHTML = ADJUSTMENTS.map(item => `
-        <article class="rounded-2xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4">
+      container.innerHTML = ADJUSTMENTS.map((item, idx) => `
+        <article class="rounded-2xl p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4">
           <div class="space-y-3">
             <div class="flex items-center justify-between gap-2">
               <span class="px-2.5 py-1 rounded-md text-[11px] font-bold font-mono bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300 border border-violet-300 dark:border-violet-700/60">${item.badge}</span>
-              <span class="text-lg font-extrabold font-mono text-slate-300 dark:text-slate-700">#${item.num}</span>
+              <div class="flex items-center gap-2">
+                <button onclick="openAdjustmentModal(${idx})" class="no-print px-2.5 py-1 rounded-md text-[11px] font-bold bg-sky-600 hover:bg-sky-500 text-white cursor-pointer">🔍 Phóng to</button>
+                <span class="text-lg font-extrabold font-mono text-slate-300 dark:text-slate-700">#${item.num}</span>
+              </div>
             </div>
             <h3 class="text-base font-bold leading-snug">${item.title}</h3>
-            <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs leading-relaxed">
-              <span class="font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider block mb-1">❌ Trước điều chỉnh (Điểm lệch / Hạn chế):</span>
-              <span class="text-slate-700 dark:text-slate-300">${item.before}</span>
+            <div class="rounded-xl p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 canvas-dots">
+              <div id="adj-diagram-${idx}" class="diagram-stage min-h-[140px] flex items-center justify-center overflow-x-auto"></div>
             </div>
-            <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 text-xs leading-relaxed">
-              <span class="font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">✅ Sau điều chỉnh (Đã đồng bộ SDD):</span>
-              <span class="text-slate-700 dark:text-slate-200">${item.after}</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+              <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 leading-relaxed">
+                <span class="font-bold text-rose-700 dark:text-rose-400 block mb-1">❌ Trước điều chỉnh:</span>
+                <span class="text-slate-700 dark:text-slate-300">${item.before}</span>
+              </div>
+              <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 leading-relaxed">
+                <span class="font-bold text-emerald-700 dark:text-emerald-400 block mb-1">✅ Đã đồng bộ SDD:</span>
+                <span class="text-slate-700 dark:text-slate-200">${item.after}</span>
+              </div>
             </div>
           </div>
           <div class="pt-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
@@ -649,10 +1200,22 @@
       `).join('');
     }
 
-    function buildSlideCardHTML(s) {
+    async function renderAdjustmentDiagrams() {
+      for (let i = 0; i < ADJUSTMENTS.length; i++) {
+        const el = document.getElementById(`adj-diagram-${i}`);
+        if (el) await renderMermaidInElement(el, ADJUSTMENTS[i].diagram, `adj-${i}`);
+      }
+    }
+
+    function openAdjustmentModal(idx) {
+      const item = ADJUSTMENTS[idx];
+      if (item) openDiagramModal(`Điều chỉnh #${item.num}: ${item.title}`, item.diagram);
+    }
+
+    function buildSlideCardHTML(s, idx) {
       const bulletsHtml = s.bullets.map(b => `
-        <li class="flex items-start gap-2.5">
-          <span class="w-1.5 h-1.5 rounded-full bg-sky-500 mt-2 shrink-0"></span>
+        <li class="flex items-start gap-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-sky-400 mt-1.5 shrink-0"></span>
           <span>${b}</span>
         </li>
       `).join('');
@@ -664,47 +1227,55 @@
           : `href="${s.linkUrl}" target="_blank"`;
 
       return `
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 rounded-2xl p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <!-- Visual Slide (Left 7 cols) -->
-          <div class="lg:col-span-7 rounded-xl p-6 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950 text-white border border-slate-800 flex flex-col justify-between space-y-5">
-            <div class="space-y-3">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 rounded-2xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+          <!-- Visual Slide + Live Diagram (Left 8 cols) -->
+          <div class="lg:col-span-8 space-y-4 flex flex-col justify-between">
+            <div class="rounded-xl p-5 bg-gradient-to-r from-slate-900 via-slate-900 to-sky-950 text-white border border-slate-800 space-y-3">
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <span class="px-2.5 py-1 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40 text-xs font-mono font-bold">SLIDE ${s.num} / 10</span>
                 <span class="px-2.5 py-1 rounded bg-slate-800 text-amber-300 border border-slate-700 text-xs font-mono font-semibold">⏱️ ${s.time}</span>
               </div>
-              <h3 class="text-xl sm:text-2xl font-extrabold tracking-tight leading-snug">${s.title}</h3>
+              <h3 class="text-lg sm:text-2xl font-extrabold tracking-tight leading-snug">${s.title}</h3>
               <p class="text-xs font-mono text-cyan-300">${s.subtitle}</p>
-              <ul class="pt-2 space-y-2.5 text-xs sm:text-sm text-slate-200 leading-relaxed">
+              <ul class="pt-1 space-y-1.5 text-xs sm:text-sm text-slate-200 leading-relaxed">
                 ${bulletsHtml}
               </ul>
             </div>
-            <div class="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
-              <span class="text-[11px] text-slate-400">🖥️ Thao tác màn hình: <strong class="text-slate-200">${s.cue}</strong></span>
-              <a ${linkAction} class="no-print px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shrink-0">
+
+            <!-- Live Diagram Canvas Inside Slide -->
+            <div class="rounded-xl p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 canvas-dots space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[11px] font-mono font-bold uppercase text-sky-600 dark:text-sky-400">📊 Sơ Đồ Trực Quan Slide ${s.num}</span>
+                <button onclick="openSlideModal(${idx})" class="no-print px-2.5 py-1 rounded-lg text-[11px] font-bold bg-sky-600 hover:bg-sky-500 text-white cursor-pointer">🔍 Phóng to Sơ đồ Slide này</button>
+              </div>
+              <div id="slide-diagram-${idx}" class="diagram-stage min-h-[200px] flex items-center justify-center overflow-x-auto"></div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span class="text-slate-600 dark:text-slate-400">🖥️ Thao tác: <strong>${s.cue}</strong></span>
+              <a ${linkAction} class="no-print px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-bold transition shrink-0">
                 ${s.linkLabel} ↗
               </a>
             </div>
           </div>
 
-          <!-- Teleprompter Script (Right 5 cols) -->
-          <div class="lg:col-span-5 rounded-xl p-5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col justify-between space-y-4">
+          <!-- Teleprompter Script (Right 4 cols) -->
+          <div class="lg:col-span-4 rounded-xl p-5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col justify-between space-y-4">
             <div class="space-y-2.5">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">🎙️ Lời Dẫn Thuyết Trình Mẫu (Teleprompter)</span>
-              </div>
-              <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">
+              <span class="text-xs font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400 block">🎙️ Lời Dẫn Thuyết Trình Mẫu</span>
+              <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
                 "${s.script}"
               </p>
             </div>
             <div class="pt-3 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
-              Mẹo trình bày: Nói chậm, nhấn mạnh các con số kiểm chứng (<strong>322/322 tests</strong>, <strong>0.72 ms</strong>, <strong>17 bảng 3NF</strong>, <strong>V23/V24</strong>) và chỉ chuột trực tiếp lên sơ đồ Vector Studio.
+              💡 Mẹo: Khi thuyết trình, bấm nút <strong>🔍 Phóng to Sơ đồ</strong> ngay trên Slide để vừa kéo phóng to chi tiết, vừa đọc lời dẫn!
             </div>
           </div>
         </div>
       `;
     }
 
-    function renderPresentation() {
+    function renderPresentationDOM() {
       const playerWrapper = document.getElementById('slide-player-wrapper');
       const allWrapper = document.getElementById('all-slides-wrapper');
       const modeBtn = document.getElementById('btn-slide-mode');
@@ -713,7 +1284,7 @@
         playerWrapper.classList.add('hidden');
         allWrapper.classList.remove('hidden');
         modeBtn.textContent = '🎯 Chế độ từng Slide';
-        allWrapper.innerHTML = SLIDES.map(s => buildSlideCardHTML(s)).join('');
+        allWrapper.innerHTML = SLIDES.map((s, idx) => buildSlideCardHTML(s, idx)).join('');
       } else {
         allWrapper.classList.add('hidden');
         playerWrapper.classList.remove('hidden');
@@ -728,17 +1299,36 @@
         `).join('');
 
         document.getElementById('slide-counter').textContent = `${currentSlideIdx + 1} / ${SLIDES.length}`;
-        document.getElementById('active-slide-stage').innerHTML = buildSlideCardHTML(SLIDES[currentSlideIdx]);
+        document.getElementById('active-slide-stage').innerHTML = buildSlideCardHTML(SLIDES[currentSlideIdx], currentSlideIdx);
       }
     }
 
-    function toggleSlideViewMode() {
-      allSlidesMode = !allSlidesMode;
-      renderPresentation();
+    async function renderPresentationDiagrams() {
+      if (allSlidesMode) {
+        for (let i = 0; i < SLIDES.length; i++) {
+          const el = document.getElementById(`slide-diagram-${i}`);
+          if (el) await renderMermaidInElement(el, SLIDES[i].diagram, `sl-all-${i}`);
+        }
+      } else {
+        const el = document.getElementById(`slide-diagram-${currentSlideIdx}`);
+        if (el) await renderMermaidInElement(el, SLIDES[currentSlideIdx].diagram, `sl-${currentSlideIdx}`);
+      }
     }
-    function goToSlide(idx) {
+
+    function openSlideModal(idx) {
+      const s = SLIDES[idx];
+      if (s) openDiagramModal(`Slide ${s.num}: ${s.title}`, s.diagram);
+    }
+
+    async function toggleSlideViewMode() {
+      allSlidesMode = !allSlidesMode;
+      renderPresentationDOM();
+      await renderPresentationDiagrams();
+    }
+    async function goToSlide(idx) {
       currentSlideIdx = Math.max(0, Math.min(SLIDES.length - 1, idx));
-      renderPresentation();
+      renderPresentationDOM();
+      await renderPresentationDiagrams();
     }
     function prevSlide() { goToSlide(currentSlideIdx - 1); }
     function nextSlide() { goToSlide(currentSlideIdx + 1); }
@@ -748,11 +1338,9 @@
       const s = String(timerSeconds % 60).padStart(2, '0');
       const el = document.getElementById('timer-display');
       el.textContent = `${m}:${s}`;
-      if (timerSeconds <= 120) {
-        el.className = 'font-mono font-extrabold text-base text-rose-600 dark:text-rose-400';
-      } else {
-        el.className = 'font-mono font-extrabold text-base text-violet-600 dark:text-violet-400';
-      }
+      el.className = timerSeconds <= 120
+        ? 'font-mono font-extrabold text-base text-rose-600 dark:text-rose-400'
+        : 'font-mono font-extrabold text-base text-violet-600 dark:text-violet-400';
     }
     function startTimer() {
       if (timerInterval) return;
@@ -777,17 +1365,19 @@
       updateTimerDisplay();
     }
 
-    function toggleQA(id) {
+    async function toggleQA(id) {
       if (qaOpenState.has(id)) qaOpenState.delete(id);
       else qaOpenState.add(id);
-      renderQAs();
+      renderQAsDOM();
+      await renderOpenQaDiagrams();
     }
-    function toggleAllQAs(open) {
+    async function toggleAllQAs(open) {
       qaOpenState = open ? new Set(QAS.map(q => q.id)) : new Set();
-      renderQAs();
+      renderQAsDOM();
+      await renderOpenQaDiagrams();
     }
 
-    function renderQAs() {
+    function renderQAsDOM() {
       const query = (document.getElementById('qa-search')?.value || '').trim().toLowerCase();
       const filtered = QAS.filter(q =>
         !query ||
@@ -811,10 +1401,17 @@
               </div>
               <span class="no-print text-xs font-mono font-bold px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 shrink-0">${isOpen ? '▲ Thu gọn' : '▼ Mở đáp án'}</span>
             </button>
-            <div class="${isOpen ? 'block' : 'hidden'} px-6 pb-5 pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
+            <div class="${isOpen ? 'block' : 'hidden'} px-6 pb-6 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-4">
               <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 text-xs">
                 <strong class="text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">⚡ Chốt ý 30 giây:</strong>
                 <span class="text-slate-800 dark:text-slate-200 ml-1">${q.takeaway}</span>
+              </div>
+              <div class="rounded-xl p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 canvas-dots space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-mono font-bold uppercase text-sky-600 dark:text-sky-400">📊 Sơ Đồ Minh Họa Trả Lời Hội Đồng</span>
+                  <button onclick="openQaModal('${q.id}')" class="no-print px-2.5 py-1 rounded text-[11px] font-bold bg-sky-600 hover:bg-sky-500 text-white cursor-pointer">🔍 Phóng to</button>
+                </div>
+                <div id="qa-diagram-${q.id}" class="diagram-stage min-h-[160px] flex items-center justify-center overflow-x-auto"></div>
               </div>
               <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                 <strong class="text-violet-600 dark:text-violet-400">Lời giải chi tiết trước Hội đồng:</strong> ${q.answer}
@@ -825,19 +1422,115 @@
       }).join('') || `<div class="p-6 text-center text-sm text-slate-500">Không tìm thấy câu hỏi phù hợp từ khóa "${query}".</div>`;
     }
 
+    async function renderQAs() {
+      renderQAsDOM();
+      await renderOpenQaDiagrams();
+    }
+
+    async function renderOpenQaDiagrams() {
+      for (const q of QAS) {
+        if (qaOpenState.has(q.id)) {
+          const el = document.getElementById(`qa-diagram-${q.id}`);
+          if (el) await renderMermaidInElement(el, q.diagram, `qa-${q.id}`);
+        }
+      }
+    }
+
+    function openQaModal(id) {
+      const q = QAS.find(item => item.id === id);
+      if (q) openDiagramModal(`${q.id}: ${q.question}`, q.diagram);
+    }
+
+    /* ===================================================================
+       FULLSCREEN PAN & ZOOM MODAL (Preserves Mermaid SVG id!)
+       =================================================================== */
+    async function openDiagramModal(title, code) {
+      activeModalTitle = title;
+      activeModalCode = code;
+      document.getElementById('modal-diagram-title').textContent = title;
+      document.getElementById('diagram-modal').classList.remove('hidden');
+
+      const viewport = document.getElementById('modal-diagram-viewport');
+      viewport.innerHTML = '<div class="text-sm font-mono text-sky-500">Đang dựng sơ đồ vector...</div>';
+
+      if (modalPanZoom) {
+        modalPanZoom.destroy();
+        modalPanZoom = null;
+      }
+
+      await renderMermaidInElement(viewport, code, 'modal');
+      const svgEl = viewport.querySelector('svg');
+      if (svgEl) {
+        svgEl.style.width = '100%';
+        svgEl.style.height = '100%';
+        svgEl.style.maxWidth = 'none';
+        modalPanZoom = svgPanZoom(svgEl, {
+          zoomEnabled: true,
+          controlIconsEnabled: false,
+          fit: true,
+          center: true,
+          minZoom: 0.2,
+          maxZoom: 20,
+          zoomScaleSensitivity: 0.25
+        });
+      }
+    }
+
+    function closeDiagramModal() {
+      if (modalPanZoom) {
+        modalPanZoom.destroy();
+        modalPanZoom = null;
+      }
+      document.getElementById('diagram-modal').classList.add('hidden');
+    }
+    function modalZoomIn() { if (modalPanZoom) modalPanZoom.zoomIn(); }
+    function modalZoomOut() { if (modalPanZoom) modalPanZoom.zoomOut(); }
+    function modalResetZoom() {
+      if (modalPanZoom) {
+        modalPanZoom.resetZoom();
+        modalPanZoom.center();
+      }
+    }
+    function downloadModalSvg() {
+      const svgEl = document.querySelector('#modal-diagram-viewport svg');
+      if (!svgEl) return;
+      const serializer = new XMLSerializer();
+      let source = serializer.serializeToString(svgEl);
+      if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+      }
+      const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mediassist-review2-diagram.svg';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
     document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !document.getElementById('diagram-modal').classList.contains('hidden')) {
+        closeDiagramModal();
+        return;
+      }
       if (currentTab === 'presentation' && !allSlidesMode && document.activeElement.tagName !== 'INPUT') {
         if (e.key === 'ArrowRight') nextSlide();
         if (e.key === 'ArrowLeft') prevSlide();
       }
     });
 
-    // Init
-    switchTab('overview');
-    renderAdjustments();
-    renderPresentation();
-    renderQAs();
-    updateTimerDisplay();
+    // Initialize everything cleanly on DOM load
+    document.addEventListener('DOMContentLoaded', async () => {
+      initMermaidForCurrentTheme();
+      renderAdjustmentsDOM();
+      renderPresentationDOM();
+      renderQAsDOM();
+      updateTimerDisplay();
+      selectOverviewDiagram('arch5Tier');
+      switchTab('overview');
+    });
   </script>
 </body>
 </html>
