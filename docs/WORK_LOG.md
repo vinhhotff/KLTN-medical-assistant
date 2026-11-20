@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#129** | 20/11/2026 | Tái Cấu Trúc Toàn Diện Bộ Slide Canva Review 2 (Từ 10 Lên 15 Trang) Qua Canva REST API: (1) Tách ERD 17 bảng thành mô hình "1 Tổng Thể (Master) + 3 Chi Tiết (Deep-Dive)" giải quyết triệt để lỗi chữ bé trên máy chiếu (Trang 8: Master ERD 17 bảng 3NF; Trang 9: ERD Phân hệ Bác sĩ & pgvector HNSW 1536 chiều; Trang 10: ERD Phân hệ Bệnh nhân, Lịch khám O2O & EMR; Trang 11: ERD Phân hệ Lâm sàng AI, OCR & FinOps Telemetry), (2) Hiện thực hóa toàn diện Mục "04 Detail Design" trước đó bị bỏ trống trên Canva (Trang 12: Clean Architecture Class Diagram 4 tầng; Trang 13: Core Clinical Sequence Diagrams với AI Triage Red-Flag 115 ngắt < 2ms và O2O Booking Slot Lock & PatientAccessGuard BOLA), (3) Nạp sẵn 100% Speaker Notes (Lời thoại chuẩn từng giây) cho từng slide, (4) Commit thành công vào Canva Design ID `DAHa9bmQoV0`. | AI Assistant (Antigravity) | 🟢 Đã Commit Thành Công |
 | **#128** | 18/11/2026 | Thẩm Định Toàn Diện Bộ Slide Canva Review 2 (12 Trang), Đối Soát 98% Khớp Codebase & Xuất Bản Cẩm Nang Thuyết Trình Bảo Vệ: (1) Phân tích đối soát toàn diện 12 slide trên Canva với mã nguồn Backend Spring Boot 3.4, Frontend React 18 SPA và CSDL PostgreSQL 16 pgvector, (2) Xác nhận độ chính xác 98%: Khớp đúng 17 bảng ERD 3NF (Flyway V1-V24), rào chắn PatientAccessGuard chống BOLA/IDOR, 5-stage triage NegEx, Two-Layer Cache L1/L2, Vision OCR LOINC và luồng 3 Actor (Patient, Doctor, Admin), (3) Biên soạn cẩm nang thuyết trình chuẩn từng giây cho 12 slide, bộ 10 câu hỏi phản biện chuyên sâu và kịch bản live demo 5 bước không lỗi, (4) Xuất bản cẩm nang ra `/Users/thanvinh/Downloads/HUONG_DAN_THUYET_TRINH_REVIEW_2_MEDIASSIST_AI.md` (.txt) và `docs/HUONG_DAN_THUYET_TRINH_REVIEW_2.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
 | **#127** | 15/11/2026 | Bổ Sung Liên Kết & Thẻ Nổi Bật Chuyên Đề Biện Luận Y Học Chứng Cứ SOTA Vào Cổng Hồ Sơ Khóa Luận (`docs/index.html`): (1) Bổ sung nút truy cập nhanh "Biện Luận Y Học (SOTA)" trên thanh điều hướng đầu trang của `docs/index.html`, (2) Bổ sung thẻ bài nổi bật "Biện Luận Y Học Chứng Cứ & SOTA" (đối chuẩn Google AMIE Nature 2024, Ada Health BMJ/Lancet, ClinicalRAG ACL 2024) ngay giữa giao diện trang chủ Portal phụ, đồng bộ liên kết trực tiếp với trình đọc WordCraft Studio `../report_1/index.html#clinical_defense`. Xác thực liên kết HTTP 200 thông suốt trên cổng 8088. | AI Assistant (Vinh) | 🟢 Sẵn sàng Review |
 | **#126** | 15/11/2026 | Tích Hợp Xác Thực Email Qua Gmail SMTP Thực Tế & Đăng Nhập Google OAuth2: (1) Cấu hình Gmail SMTP (`hoangkhuong056@gmail.com`) với Google App Password qua biến môi trường an toàn `.env` và `application-local.properties`, chuyển đổi từ Mailpit dev sang gửi email xác thực thực tế (STARTTLS port 587), (2) Xác thực luồng gửi email thật: Kiểm thử gửi email xác thực tài khoản `hoangkhuong056@gmail.com` thành công qua Google SMTP server (`Mail 'verify-email' sent`), (3) Hoàn thiện cấu hình Google OAuth2 (Client ID & Secret), đồng bộ `GoogleLoginButton.tsx` hỗ trợ proxy động, kiểm tra redirect URL `302 accounts.google.com` chính xác. Frontend build 0 lỗi TS, backend 31/31 tests PASS. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -59,6 +60,32 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#129] Tái Cấu Trúc Toàn Diện Bộ Slide Canva Review 2 (Từ 10 Lên 15 Trang) Qua Canva REST API
+* **Thời gian:** 2026-11-20 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Antigravity)
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu kiểm tra kết nối link Canva, bổ sung Class Diagram & Sequence Diagram mapping 1:1 với dự án, và chia ERD thành 3 phân hệ theo chuẩn bài luận tốt nghiệp FPT University.
+* **Nguyên Nhân Gốc Rễ & Bối Cảnh (Root Cause & Context):**
+  - Slide thuyết trình Review 2 (`DAHa9bmQoV0`) trước đó có 10 trang, dồn toàn bộ 17 bảng vào một hình ERD duy nhất trên Slide 8 khiến chữ bị quá nhỏ (6–8pt), không đọc được kiểu dữ liệu `vector(1536)` hay khóa ngoại khi chiếu trên màn hình hội đồng.
+  - Mục "04 Detail Design" được liệt kê trong Table of Contents (Slide 3) nhưng bị thiếu hoàn toàn trên slide (chưa có Class Diagram và Sequence Diagram).
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[MOD]` Slide Canva `DAHa9bmQoV0`:
+     - **Trang 8 (Master ERD):** Cập nhật tiêu đề `03. DATABASE DESIGN - MASTER ERD (17 TABLES)` và Speaker Notes chuyển tiếp.
+     - **Trang 9 [NEW]:** `ERD: Clinical Provider, Taxonomy & pgvector HNSW` (5 bảng: `doctor_profiles`, `specialties`, `doctor_specialties`, `doctor_schedule_slots`, `doctor_reviews`).
+     - **Trang 10 [NEW]:** `ERD: Patient, Telehealth Booking & Clinical EMR` (6 bảng: `users`, `patient_profiles`, `appointments`, `payment_transactions`, `email_verification_tokens`, `password_reset_tokens`).
+     - **Trang 11 [NEW]:** `ERD: Clinical AI Triage, Vision OCR & FinOps` (6 bảng: `triage_sessions`, `medical_documents`, `document_analyses`, `ai_token_usage`, `audit_logs`, `notifications`).
+     - **Trang 12 [NEW]:** `04. Detail Design: Clean Architecture Class Diagram` (4 tầng: Controllers $\to$ Services/Guards $\to$ 17 JPA Entities + Value Objects $\to$ Repositories/TwoLayerCache/S3).
+     - **Trang 13 [NEW]:** `04. Detail Design: Core Clinical Sequence Diagrams` (AI Triage 5 tầng & Red-Flag 115 ngắt < 2ms + O2O Booking Slot Lock & PatientAccessGuard BOLA).
+     - **Trang 14 & 15:** Điều chỉnh lại vị trí của Slide "Thank you" và "MediAssist" về cuối bộ slide.
+  2. Nạp sẵn 100% Speaker Notes (Lời thoại chuẩn từng giây) cho tất cả các slide mới được thêm vào.
+  3. Render 5 sơ đồ vector PNG độ phân giải 2x (1800x900–1050) bằng Playwright Headless Chromium, tải lên Canva media storage và gán vào các slide tương ứng.
+  4. Thực thi commit vĩnh viễn qua Canva REST API `edit-design`.
+* **Bằng Chứng Kiểm Thử & Trạng Thái Dịch Vụ:**
+  - Canva API Commit Status: `committed` (Transaction `3580884482355547252`).
+  - Tổng số trang sau cập nhật: **15 trang** (khớp 100% với mục lục và 7 Bounded Contexts).
+* **Điểm Nóng Tech Lead Cần Duyệt (Review Hotspots):**
+  - Mở liên kết Canva để xem lại toàn bộ 15 trang trực tiếp: `https://www.canva.com/design/DAHa9bmQoV0/sPw8pFBw3eN3IvYDKYKMZQ/edit`.
 
 ### [WORK-LOG-#128] Thẩm Định Toàn Diện Bộ Slide Canva Review 2 (12 Trang), Đối Soát 98% Khớp Codebase & Xuất Bản Cẩm Nang Thuyết Trình
 * **Thời gian:** 2026-11-18 (GMT+7)
