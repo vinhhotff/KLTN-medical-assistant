@@ -53,9 +53,26 @@
 | :---: | :--- | :--- | :--- |
 | **00:00 - 02:00** | **Mở đầu & Nỗi đau thực tế:** Đặt vấn đề nghịch lý quá tải bệnh viện tuyến trên tại Việt Nam, sự hoang mang của bệnh nhân trước các phiếu xét nghiệm khó hiểu. | Slide 1-3 | Trưởng nhóm (Tự tin, cảm xúc) |
 | **02:00 - 05:00** | **Giải pháp & Kiến trúc kỹ thuật:** Giới thiệu MediAssist-AI, sơ đồ kiến trúc tổng thể C4 Container, Backend Java Spring Boot 3 + Redis 2-Layer Cache + PostgreSQL pgvector. | Slide 4-7 | Thành viên phụ trách Backend |
-| **05:00 - 08:00** | **Đặc tả AI & Rào chắn đạo đức y tế:** Trình bày cơ chế AI Symptom Triage, rào chắn Red-flag ngắt đàm thoại cấp cứu, tính năng dịch phiếu xét nghiệm. | Slide 8-11 | Thành viên phụ trách AI/Data |
+| **05:00 - 08:00** | **Cơ sở dữ liệu 17 bảng & Rào chắn AI y tế:** Trình bày Master ERD 17 bảng (Slide 8), đi sâu 3 Sub-ERD (Slide 9-11), rào chắn Red-flag ngắt đàm thoại cấp cứu, tính năng dịch phiếu xét nghiệm. | Slide 8-11 | Thành viên phụ trách AI/Data & Database |
 | **08:00 - 13:00** | **LIVE DEMO HỆ THỐNG (5 Phút vàng):** Thao tác trực tiếp trên môi trường thực tế (Xem chi tiết mục 3). | Màn hình Demo | Cả nhóm phối hợp |
-| **13:00 - 15:00** | **Kết quả thực nghiệm & Kết luận:** Bảng so sánh tải khi có Cache (Latency giảm từ $180\text{ms} \rightarrow 12\text{ms}$), lời cảm ơn Hội đồng. | Slide 12-14 | Trưởng nhóm kết luận |
+| **13:00 - 15:00** | **Kết quả thực nghiệm & Kết luận:** Bảng so sánh tải khi có Cache (Latency giảm từ $180\text{ms} \rightarrow 12\text{ms}$), lời cảm ơn Hội đồng. | Slide 12-15 | Trưởng nhóm kết luận |
+
+### 2.1 Chiến Thuật Thuyết Trình Cơ Sở Dữ Liệu 17 Bảng (Slide 8 - 11) & Vũ Khí "Vector Studio 1000%"
+> [!TIP]
+> **Vấn đề thực tế:** Sơ đồ 17 bảng vật lý có quy mô rất lớn, nếu chiếu toàn cảnh trên Slide 8 thì chữ sẽ bị nhỏ, Hội đồng ngồi xa dễ phàn nàn "chữ bé không đọc được". Nhóm áp dụng **Chiến Lược 3 Tầng** để làm chủ hoàn toàn tình huống:
+>
+> 1. **Tầng 1 - Slide 8 (Bức tranh toàn cảnh Macro - Không đọc từng dòng text):**
+>    - **Mục tiêu:** Chứng minh độ đồ sộ, chuẩn hóa 3NF và sự toàn vẹn của hệ sinh thái 17 bảng quản lý bằng Flyway.
+>    - **Lời thoại mẫu (15-20s):**  
+>      *"Kính thưa Hội đồng, hệ thống MediAssist-AI được chuẩn hóa 3NF hoàn chỉnh gồm 17 bảng vật lý. Do quy mô 17 bảng bao quát trọn vẹn từ Định danh, Lịch khám EMR, AI Triage đến FinOps, nhóm đã chuẩn bị 2 phương án: Nhóm đã chia nhỏ thành 3 phân hệ chuyên sâu ở các slide tiếp theo với cỡ chữ to rõ để Hội đồng dễ theo dõi; đồng thời nhóm đã chuẩn bị sẵn Cổng Vector Studio trực tuyến hỗ trợ zoom vô cực 1000% bằng chuột nếu Thầy Cô muốn soi chi tiết bất kỳ mối quan hệ nào ạ."*
+> 2. **Tầng 2 - Slide 9, 10, 11 (3 Sub-ERD Chuyên Sâu - ĐÂY LÀ NƠI NÓI CHÍNH):**
+>    - Mỗi slide chỉ có 5-6 bảng, chữ to gấp 3 lần Slide 8, đọc rõ từ khoảng cách 10 mét.
+>    - **Slide 9 (Provider & Vector):** Nói sâu về `doctor_profiles` với cột `bio_embedding vector(1536)` + chỉ mục HNSW và bảng đánh giá `doctor_reviews`.
+>    - **Slide 10 (Booking & EMR):** Nói về `appointments` (12 trường lâm sàng, chuẩn WHO ICD-10) và rào chắn chống trùng lịch.
+>    - **Slide 11 (AI Triage & FinOps):** Nói về `sbar_summary`, `storage_path` (Private S3) và bảng giám sát chi phí token `ai_token_usage`.
+> 3. **Tầng 3 - "Live Interactive Vector Studio" (Tuyệt chiêu ăn điểm tối đa):**
+>    - Mở sẵn tab `docs/diagrams/interactive_viewer.html?diagram=erd_full` trên trình duyệt.
+>    - Khi Hội đồng hỏi sâu về mối quan hệ khóa ngoại hoặc tính toàn vẹn: Xin phép Hội đồng bấm `Alt+Tab` chuyển sang tab Vector Studio, vuốt chuột zoom to 500% trực tiếp vào cụm bảng được hỏi. Đây là điểm cộng xuất sắc chứng minh kỹ năng làm tài liệu và đồ án chuyên nghiệp.
 
 ---
 

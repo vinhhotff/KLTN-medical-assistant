@@ -61,6 +61,20 @@
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
+### [WORK-LOG-#132] Xây Dựng Kịch Bản Thuyết Trình CSDL 3 Tầng & Hướng Dẫn Sử Dụng Vector Studio Zoom 1000%
+* **Thời gian:** 2026-11-20 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Antigravity)
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu giải pháp tối ưu cho việc trình chiếu 17 bảng ERD trên Canva (do quy mô lớn khiến chữ bị nhỏ) và định hướng kịch bản xin phép Hội đồng chuyển sang trang Interactive Vector Studio để soi chi tiết.
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[MOD]` [`docs/CAPSTONE_DEFENSE.md`](./docs/CAPSTONE_DEFENSE.md): Bổ sung mục `2.1 Chiến Thuật Thuyết Trình Cơ Sở Dữ Liệu 17 Bảng (Slide 8 - 11) & Vũ Khí "Vector Studio 1000%"` với cấu trúc 3 tầng:
+     - **Tầng 1 (Slide 8 Macro):** Khẳng định tính chuẩn hóa 3NF và quy mô 17 bảng, chủ động nêu phương án 3 Sub-ERD và Cổng Vector để triệt tiêu phàn nàn "chữ nhỏ".
+     - **Tầng 2 (Slide 9-11 Sub-ERDs):** Phân tích 3 phân hệ với cỡ chữ lớn gấp 3 lần (Provider & Vector HNSW, Booking & EMR, AI Triage & FinOps).
+     - **Tầng 3 (Live Vector Studio):** Kịch bản `Alt+Tab` chuyển tab `interactive_viewer.html?diagram=erd_full` vuốt chuột zoom 1000% khi Hội đồng phản biện mối quan hệ khóa ngoại.
+  2. Chuẩn bị Checklist kỹ thuật trước buổi bảo vệ: Mở sẵn tab trình duyệt nền sáng (Light Theme) và gợi ý chèn liên kết trực tiếp trên Canva.
+* **Bằng Chứng Kiểm Thử:** Tài liệu bảo vệ đã được đồng bộ chuẩn xác.
+* **Điểm Nóng Tech Lead Cần Duyệt:** Đọc lời thoại mẫu trong Section 2.1 của `docs/CAPSTONE_DEFENSE.md`.
+
 ### [WORK-LOG-#131] Cập Nhật Ảnh Master ERD Slide 8 Từ Vector Studio HTML & Làm Rõ Cơ Cấu Slide Thuyết Trình
 * **Thời gian:** 2026-11-20 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Antigravity)
