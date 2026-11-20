@@ -61,6 +61,24 @@
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
+### [WORK-LOG-#131] Cập Nhật Ảnh Master ERD Slide 8 Từ Vector Studio HTML & Làm Rõ Cơ Cấu Slide Thuyết Trình
+* **Thời gian:** 2026-11-20 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Antigravity)
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu thay ảnh Master ERD trên Slide 8 bằng ảnh chụp trực tiếp từ tệp vector `docs/diagrams/interactive_viewer.html?diagram=erd_full`, đồng thời giải thích rõ lý do xuất hiện các slide phía sau 3 slide Sub-ERD.
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[MOD]` Dùng Playwright Chromium chụp trực tiếp sơ đồ `erd_full` từ `docs/diagrams/interactive_viewer.html?diagram=erd_full` với độ phân giải siêu nét (3840x1397, 2x scale), ẩn thanh header/controls để lấy trọn vẹn 17 bảng ERD gốc.
+  2. Tải ảnh lên Canva CDN (`mediaId: MAHbdoGT-tM`) và cập nhật thay thế ảnh cũ trên Slide 8 (`PBMtGw5733M13fzP-LB2ySvp3C6WySBSX`), commit vĩnh viễn transaction `8093491307798477721`.
+  3. Làm rõ cơ cấu 15 slide:
+     - Slide 8: Master ERD (17 bảng chuẩn 3NF).
+     - Slide 9, 10, 11: 3 Sub-ERD zoom cận cảnh từng phân hệ.
+     - Slide 12, 13: Class Diagram & Sequence Diagram cho mục "04 Detail Design" (theo yêu cầu bổ sung trước đó của Tech Lead).
+     - Slide 14, 15: Hai slide kết bài "Thank you" & "MediAssist" vốn có sẵn từ ban đầu được đẩy về cuối.
+* **Bằng Chứng Kiểm Thử:**
+  - Canva API Commit Status: `committed`. Thumbnail Slide 8 hiển thị sắc nét sơ đồ vector 17 bảng chuẩn xác 100%.
+* **Điểm Nóng Tech Lead Cần Duyệt:**
+  - Mở Canva xem Slide 8 đã chuẩn ảnh vector: `https://www.canva.com/design/DAHa9bmQoV0/sPw8pFBw3eN3IvYDKYKMZQ/edit`.
+
 ### [WORK-LOG-#130] Khắc Phục Sai Lệch Schema 17 Bảng ERD & Đồng Bộ Chuẩn 1:1 Vector pgvector HNSW Trên Bộ Slide Canva Review 2
 * **Thời gian:** 2026-11-20 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Antigravity)
