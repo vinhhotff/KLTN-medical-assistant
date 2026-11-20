@@ -61,6 +61,31 @@
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
+### [WORK-LOG-#130] Khắc Phục Sai Lệch Schema 17 Bảng ERD & Đồng Bộ Chuẩn 1:1 Vector pgvector HNSW Trên Bộ Slide Canva Review 2
+* **Thời gian:** 2026-11-20 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Antigravity)
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Tech Lead phát hiện sai lệch tên cột và thuộc tính trong các sơ đồ sub-ERD vừa tạo so với 17 bảng trong `docs/DATABASE_DESIGN.md` / `interactive_viewer.html` (`erd_full`) và yêu cầu sửa lại toàn bộ 17 bảng, mapping chuẩn 1:1 phần pgvector HNSW và đối chiếu so sánh chi tiết.
+* **Nguyên Nhân Gốc Rễ & Bối Cảnh (Root Cause & Context):**
+  - Trong lần render đầu tiên của các slide Sub-ERD (Slide 9, 10, 11), một số bảng sử dụng tên thuộc tính chưa chuẩn hóa theo Flyway migrations thực tế (V1–V24), ví dụ: `experience_years` thay vì `years_of_experience`, `chronic_diseases` thay vì `medical_history`, `admission_ticket_qr` và `clinical_notes` (thuộc tính tự chế) thay vì `vital_signs_json`, `icd_code [V23]`, `queue_number`, và `clinic_room`, bảng `doctor_schedule_slots` bị sinh nhầm thành lịch tĩnh ngày thay vì mẫu tuần `day_of_week, start_time, end_time`.
+  - Thuộc tính vector trong bảng `doctor_profiles` cần được thể hiện chính xác tuyệt đối là `vector bio_embedding "HNSW (1536-dim)"` để đối ứng 1:1 với kiến trúc pgvector trong cơ sở dữ liệu và tài liệu luận văn.
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. **Đối soát & Chuẩn hóa 100% 17 Bảng Vật Lý (Physical Tables Audit):**
+     - **Slide 9 (5 bảng - Provider, Taxonomy & pgvector):** `doctor_profiles` (chuẩn hóa `years_of_experience`, `rating`, `review_count [V17]`, `academic_title`, `hospital_affiliation`, `vector bio_embedding "HNSW (1536-dim Cosine)"`), `specialties`, `doctor_specialties` (Composite PK `doctor_profile_id, specialty_id`), `doctor_schedule_slots` (`day_of_week, start_time, end_time, slot_duration_minutes, is_active`), `doctor_reviews` (`appointment_id, doctor_id, patient_id, rating, comment, tags, created_at`).
+     - **Slide 10 (6 bảng - Patient, Booking & Identity):** `users` (`email, password_hash, full_name, phone, role, status, email_verified [V22], failed_login_attempts, locked_until, last_login_at`), `patient_profiles` (`patient_code, citizen_id, health_insurance_number, date_of_birth, gender, blood_group, allergies, medical_history`), `appointments` (bổ sung toàn bộ 12 trường EMR: `vital_signs_json, icd_code [V23], icd_version [V23], icd10_name, prescription_json, treatment_plan, follow_up_date, refund_amount [V15], checked_in_at, queue_number, clinic_room`), `password_reset_tokens` (`token_hash [V21]`), `email_verification_tokens` (`token_hash [V22]`), `notifications`.
+     - **Slide 11 (6 bảng - AI Triage, OCR, FinOps & Audit):** `triage_sessions` (`symptoms_text, is_emergency "115 Flag", urgency_level, primary_specialty, sbar_summary "SBAR Report", ai_advice`), `medical_documents` (`file_name, file_size_bytes, content_type, storage_path [V20], status`), `document_analyses` (`clinical_summary, plain_language_explanation, abnormal_indicators_json "LOINC Standard", recommended_specialty_slug, recommended_specialty_name`), `payment_transactions` (`transaction_code, order_type, reference_id, amount, currency, payment_method, payment_gateway, status, gateway_reference`), `audit_logs` (`action, actor, resource, ip_address`), `ai_token_usage` (`service_type "TRIAGE_CHAT, OCR, VECTOR_EMBED", model_name, prompt_tokens, completion_tokens, cost_usd`).
+  2. **Re-render Hình Ảnh Siêu Nét 2x (1800px):**
+     - Cập nhật script `scratch/render_all.js` với schema chuẩn 100% 1:1.
+     - Dùng Playwright Chromium chụp lại 3 hình ảnh sub-ERD độ phân giải cao (`erd_provider.png`, `erd_booking.png`, `erd_clinical.png`).
+  3. **Tải Lên Canva & Commit Cập Nhật Slide:**
+     - Tải 3 hình ảnh mới lên Canva storage qua `create-upload-url` (Media IDs: `MAHbdqQzj5Y`, `MAHbdgk9KOs`, `MAHbdoPkrRo`).
+     - Mở transaction `1016084495095310784`, cập nhật image fill trên Slide 9, 10, 11 của Canva design `DAHa9bmQoV0`, và commit vĩnh viễn (`status: committed`).
+* **Bằng Chứng Kiểm Thử & Trạng Thái Dịch Vụ:**
+  - Canva API Commit Status: `committed` (Transaction `1016084495095310784`).
+  - Kiểm tra thumbnails 3 slide: Toàn bộ 17 bảng hiển thị sắc nét, thuộc tính và kiểu dữ liệu `vector(1536)` khớp 100% tài liệu và schema database.
+* **Điểm Nóng Tech Lead Cần Duyệt (Review Hotspots):**
+  - Kiểm tra liên kết Canva cập nhật: `https://www.canva.com/design/DAHa9bmQoV0/sPw8pFBw3eN3IvYDKYKMZQ/edit`.
+
 ### [WORK-LOG-#129] Tái Cấu Trúc Toàn Diện Bộ Slide Canva Review 2 (Từ 10 Lên 15 Trang) Qua Canva REST API
 * **Thời gian:** 2026-11-20 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Antigravity)
