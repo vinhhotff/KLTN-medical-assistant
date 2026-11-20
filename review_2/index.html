@@ -46,6 +46,32 @@
       background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.25) 1px, transparent 0);
       background-size: 20px 20px;
     }
+    html:not(.dark) svg[aria-roledescription="classDiagram"] g.classGroup rect,
+    html:not(.dark) svg[aria-roledescription="classDiagram"] g.node rect,
+    html:not(.dark) svg[aria-roledescription="classDiagram"] .classLabel .box {
+      fill: #ffffff !important;
+      stroke: #0284c7 !important;
+      stroke-width: 1.8px !important;
+    }
+    html:not(.dark) svg[aria-roledescription="classDiagram"] g.classGroup text,
+    html:not(.dark) svg[aria-roledescription="classDiagram"] .nodeLabel,
+    html:not(.dark) svg[aria-roledescription="classDiagram"] .classLabel .label {
+      fill: #0f172a !important;
+      color: #0f172a !important;
+    }
+    html.dark svg[aria-roledescription="classDiagram"] g.classGroup rect,
+    html.dark svg[aria-roledescription="classDiagram"] g.node rect,
+    html.dark svg[aria-roledescription="classDiagram"] .classLabel .box {
+      fill: #0f172a !important;
+      stroke: #38bdf8 !important;
+      stroke-width: 1.8px !important;
+    }
+    html.dark svg[aria-roledescription="classDiagram"] g.classGroup text,
+    html.dark svg[aria-roledescription="classDiagram"] .nodeLabel,
+    html.dark svg[aria-roledescription="classDiagram"] .classLabel .label {
+      fill: #f8fafc !important;
+      color: #f8fafc !important;
+    }
     @media print {
       .no-print { display: none !important; }
       body { background: #ffffff !important; color: #0f172a !important; }
@@ -75,6 +101,8 @@
         <a href="../index.html" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition">🏠 Portal Gốc</a>
         <a href="../report_4/index.html#report_4_main" target="_blank" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-sm transition">📘 Report 4 (SDD)</a>
         <a href="../docs/diagrams/interactive_viewer.html?diagram=architecture" target="_blank" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition">🔍 Vector Studio</a>
+        <a href="../docs/diagrams/interactive_viewer.html?diagram=class_master" target="_blank" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition">🧬 Class Diagram</a>
+        <a href="../docs/diagrams/interactive_viewer.html?diagram=seq_e2e_master" target="_blank" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-500 text-white shadow-sm transition">🔄 Sequence Diagram</a>
         <a href="../docs/diagrams/interactive_viewer.html?diagram=erd_full" target="_blank" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition">🗄️ ERD 17 Bảng</a>
         <button onclick="toggleAllInOnePrint()" id="btn-all-view" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-950/70 dark:hover:bg-amber-900/70 dark:text-amber-200 border border-amber-300 dark:border-amber-700/60 transition cursor-pointer">📄 Xem Tất Cả / In PDF</button>
         <button onclick="toggleTheme()" id="btn-theme" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition cursor-pointer">☀️ Sáng</button>
@@ -149,6 +177,8 @@
             <button onclick="selectOverviewDiagram('arch5Tier')" data-ov="arch5Tier" class="ov-btn px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition">1.1 Kiến trúc 5 Tầng</button>
             <button onclick="selectOverviewDiagram('adrMap')" data-ov="adrMap" class="ov-btn px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition">1.2 Bản đồ 6 ADRs</button>
             <button onclick="selectOverviewDiagram('dbTopology')" data-ov="dbTopology" class="ov-btn px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition">1.3 Cụm 17 Bảng 3NF</button>
+            <button onclick="selectOverviewDiagram('classMaster')" data-ov="classMaster" class="ov-btn px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition">1.4 Class Diagram Tổng Thể</button>
+            <button onclick="selectOverviewDiagram('seqMaster')" data-ov="seqMaster" class="ov-btn px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition">1.5 Sequence Khép Kín</button>
             <button onclick="openOverviewModal()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white cursor-pointer transition">🔍 Phóng to toàn màn hình</button>
           </div>
         </div>
@@ -479,6 +509,94 @@
     style DR fill:#fef3c7,stroke:#d97706,color:#0f172a
     style PT fill:#fef3c7,stroke:#d97706,color:#0f172a
     style AIU fill:#fef3c7,stroke:#d97706,color:#0f172a`
+      },
+      classMaster: {
+        title: "Sơ đồ 1.4: Biểu Đồ Lớp Tổng Thể (Master Clean Architecture Class Diagram - 4 Tầng IEEE 1016)",
+        code: `classDiagram
+    direction TB
+    class TriageController {
+        <<Controller>>
+        +assessSymptoms(TriageRequest req) TriageResponse
+        +searchDoctorsSemantic(String query) List~DoctorMatchDto~
+    }
+    class AppointmentController {
+        <<Controller>>
+        +bookAppointment(CreateAppointmentRequest req) AppointmentDto
+        +completeClinical(UUID id, ClinicalEncounterRequest req) AppointmentDto
+    }
+    class MedicalDocumentController {
+        <<Controller>>
+        +analyzeDocument(List~MultipartFile~ files) DocumentAnalysisResponse
+        +getSignedFileUrl(UUID docId) DocumentFileAccessDto
+    }
+    class TriageService {
+        <<Service>>
+        +assessSymptoms(TriageRequest req, String email) TriageResponse
+    }
+    class DoctorSemanticSearchService {
+        <<AI Search WHRF>>
+        +searchDoctors(String query, int limit) List~DoctorMatchDto~
+    }
+    class AppointmentService {
+        <<Service @Version V24>>
+        +bookAppointment(UUID pid, CreateAppointmentRequest req) AppointmentDto
+        +completeClinicalEncounter(UUID id, UUID docId, ClinicalEncounterRequest req) AppointmentDto
+    }
+    class MedicalDocumentAnalysisService {
+        <<Service LOINC & PII>>
+        +analyzeDocuments(List~MultipartFile~ files, String email) DocumentAnalysisResponse
+    }
+    class PatientAccessGuard {
+        <<Security BOLA Guard>>
+        +assertCanAccessPatient(UUID actorId, Role role, UUID patientId, String res) void
+    }
+    class AiModelRouter {
+        <<Gemini 2.5 -> OpenRouter -> FNV-1a>>
+        +routeTriageAnalysis(String sys, String usr) ClinicalAiResult
+    }
+    class Appointment {
+        <<Entity V23 & V24>>
+        -UUID id
+        -String icd10Code
+        -String icdVersion
+        -Long version
+    }
+    TriageController --> TriageService
+    TriageController --> DoctorSemanticSearchService
+    AppointmentController --> AppointmentService
+    AppointmentController --> PatientAccessGuard
+    MedicalDocumentController --> MedicalDocumentAnalysisService
+    MedicalDocumentController --> PatientAccessGuard
+    TriageService --> AiModelRouter
+    AppointmentService --> PatientAccessGuard
+    AppointmentService --> Appointment`
+      },
+      seqMaster: {
+        title: "Sơ đồ 1.5: Biểu Đồ Tuần Tự Khép Kín (End-to-End Sequence Diagram: Triage AI -> HNSW -> Booking 3 Tầng -> EMR V23)",
+        code: `sequenceDiagram
+    autonumber
+    actor BN as Bệnh nhân
+    actor BS as Bác sĩ
+    participant UI as React 18.3 SPA
+    participant API as Spring Boot 3.4 (Loom)
+    participant Guard as RedFlag & PatientAccessGuard
+    participant AI as AiModelRouter (3 Tầng)
+    participant DB as Postgres pgvector (V1-V24) + Redis
+
+    BN->>UI: Nhập triệu chứng ("Đau ngực 3 ngày, không sốt")
+    UI->>API: POST /api/v1/triage/analyze
+    API->>Guard: RedFlag (<2ms) + Vietnamese NegEx Stage 2-4
+    API->>AI: Gemini 2.5 Flash -> SBAR + Tim mạch
+    API->>DB: SET LOCAL hnsw.ef_search=120, enable_seqscan=off (0.72ms)
+    DB-->>UI: Top Bác sĩ đã duyệt (WHRF Re-rank)
+    BN->>UI: Bấm "Đặt lịch khám" (Slot 09:00)
+    UI->>API: POST /api/v1/appointments
+    API->>DB: Redis Lock + REPEATABLE_READ @Version + Partial Index
+    DB-->>UI: 201 Created (STT 04 + Vé QR O2O)
+    BS->>UI: Mở hồ sơ XN & Kê đơn chuẩn WHO ICD V23
+    UI->>API: GET /documents/{id}/signed-url & POST /complete-clinical
+    API->>Guard: PatientAccessGuard (CARE_RELATIONSHIP + AuditLog)
+    API->>DB: URL 15m (V20) + UPDATE icd_code/icd_version (V23)`
       }
     };
 
@@ -651,8 +769,8 @@
           "7 Bounded Contexts giao tiếp qua DTO & Application Events (AppointmentBookedEvent, AFTER_COMMIT).",
           "Frontend React 18.3.1 (TS 5.8, Vite 6.2, Tailwind 3.4): phân rã pages/, components/, services/, stores/ (Zustand)."
         ],
-        linkLabel: "Mở Section 1.2 SDD",
-        linkUrl: "../report_4/index.html#report_4_main",
+        linkLabel: "Mở Class Diagram (Vector Studio)",
+        linkUrl: "../docs/diagrams/interactive_viewer.html?diagram=class_master",
         cue: "Nhấn mạnh đã đối soát package.json dùng React 18.3.1, và sẵn sàng tách service riêng khi cần.",
         diagram: `flowchart TB
     subgraph FE["Frontend: React 18.3.1 + TS 5.8 + Vite 6.2"]
@@ -787,8 +905,8 @@
           "Chống trùng lịch (Booking 3.11): Redis Lock -> REPEATABLE_READ + @Version -> Partial Unique Index.",
           "Cập nhật Review 2: Chuẩn hóa Onboarding Bác sĩ 2 bước (Bước 1 định danh tối giản -> Bước 2 CCHN -> Admin Vet)."
         ],
-        linkLabel: "Mở Booking Concurrency (Vector Studio)",
-        linkUrl: "../docs/diagrams/interactive_viewer.html?diagram=seq_booking",
+        linkLabel: "Mở Sequence Tổng Thể (Vector Studio)",
+        linkUrl: "../docs/diagrams/interactive_viewer.html?diagram=seq_e2e_master",
         cue: "Nhấn mạnh khuôn mẫu 4 phần đồng bộ cho toàn bộ 28 luồng và cơ chế 3 tầng chặn trùng slot.",
         diagram: `flowchart TB
     subgraph IEEE["Khuôn Mẫu 4 Phần Cho Mỗi Trong 28 Luồng SDD"]
@@ -1063,6 +1181,7 @@
         },
         flowchart: { useMaxWidth: true, htmlLabels: true, padding: 14, nodeSpacing: 36, rankSpacing: 46 },
         sequence: { useMaxWidth: true, showSequenceNumbers: true },
+        class: { useMaxWidth: true },
         er: { useMaxWidth: true }
       });
     }

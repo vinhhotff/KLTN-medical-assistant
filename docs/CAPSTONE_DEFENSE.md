@@ -583,6 +583,38 @@ Nhằm triệt tiêu hoàn toàn độ lệch giữa tài liệu thiết kế ba
 
 ---
 
+### 5.5. Hướng dẫn Trình bày Class Diagram & Sequence Diagram Trước Hội Đồng (Trên Vector Studio)
+
+Khi bảo vệ SDD trước Hội đồng trên cổng **Vector Studio** (`http://localhost:8088/docs/diagrams/interactive_viewer.html`), nguyên tắc cốt lõi là **không đọc liệt kê từng dòng code**, mà dẫn dắt từ **Ranh giới Kiến trúc (Structure)** sang **Luồng thực thi & Rào chắn (Behavior & Safety)**.
+
+#### A. Cách trình bày Class Diagram (Bấm mở `?diagram=class_master`, sau đó phóng to từng cụm nếu được hỏi)
+1. **Bước 1 — Đọc từ trên xuống theo 4 tầng Clean Architecture (15 giây):**
+   - Chỉ con trỏ vào tầng trên cùng (`<<Controller>>`: `TriageController`, `AppointmentController`, `MedicalDocumentController`, `AdminController`) $\rightarrow$ giải thích đây là biên tiếp nhận REST API.
+   - Xuống tầng giữa (`<<Service>>` & `<<Security Guard>>`): nhấn mạnh quy tắc **Controller không bao giờ gọi thẳng Repository hay LLM**, mọi nghiệp vụ phải đi qua Service và rào chắn bảo mật (`PatientAccessGuard`, `RedFlagService`, `MedicalPiiService`).
+   - Xuống tầng hạ tầng & miền (`AiModelRouter`, `SupabaseStorageService`, `User`, `DoctorProfile`, `Appointment` V23/V24, `MedicalDocument` V20).
+2. **Bước 2 — Chỉ ra các Design Pattern & Anti-Hallucination ăn điểm (30 giây):**
+   - Bấm sang `6.1 Class Diagram: Phân Luồng AI 5 Tầng` (`?diagram=class_triage_search`) hoặc `6.2 Booking & EMR` (`?diagram=class_booking_emr`): chỉ vào quan hệ **Strategy Pattern** `AiProvider <|..` (`GeminiAiProvider`, `OpenRouterAiProvider`, `DeterministicFallbackAiProvider`) và `PaymentGateway <|..` (`StripePaymentGateway`, `MockPaymentGateway`).
+   - Khẳng định: *"Nhờ Interface + Router Pattern, khi Gemini quá tải 429 hoặc mất mạng, hệ thống tự chuyển tầng dự phòng mà không cần sửa bất kỳ dòng code nào ở `TriageService`."*
+3. **Bước 3 — Nhấn mạnh 3 nâng cấp Review 2 trực tiếp trên Entity (15 giây):**
+   - Chỉ thẳng vào `Appointment` (`icd10Code` ánh xạ cột `icd_code`, `icdVersion` V23, `version: Long` `@Version` V24) và `MedicalDocument` (`storagePath` V20 thay cho public URL).
+
+#### B. Cách trình bày Sequence Diagram (Bấm mở `?diagram=seq_e2e_master`, sau đó zoom từng giai đoạn)
+1. **Bước 1 — Đọc tên các Lifeline (Tác nhân) từ trái sang phải (10 giây):**
+   - Giới thiệu nhanh 7 đường trục: `Bệnh nhân / Bác sĩ` $\rightarrow$ `React 18.3 SPA` $\rightarrow$ `Spring Boot 3.4 (Java 21 Loom)` $\rightarrow$ `Defense & PatientAccessGuard` $\rightarrow$ `AiModelRouter` $\rightarrow$ `Redis Lock / Caffeine` $\rightarrow$ `PostgreSQL 16 + pgvector` $\rightarrow$ `Private S3 + Mail (@Async)`.
+2. **Bước 2 — Dẫn dắt theo 3 Giai đoạn Khép kín (40 giây):**
+   - **Giai đoạn 1 (AI Triage & Vector Search):** Nhấn mạnh bước `RedFlagService.evaluateRedFlag()` `< 2ms` chặn ca cấp cứu trước LLM, qua `NegEx` tách mệnh đề phủ định, rồi `SET LOCAL hnsw.ef_search=120, enable_seqscan=off` truy vấn HNSW `0.72 ms`.
+   - **Giai đoạn 2 (Anti-Double Booking 3 tầng):** Trỏ vào 3 mũi tên liên tiếp: `Redis Semaphore Lock` $\rightarrow$ `REPEATABLE_READ + @Version (V24)` $\rightarrow$ `Partial Unique Index` PostgreSQL và gửi email bất đồng bộ `@Async AFTER_COMMIT`.
+   - **Giai đoạn 3 (EMR Workstation & BOLA/S3):** Chỉ vào bước `PatientAccessGuard.assertCanAccessPatient` kiểm tra `CARE_RELATIONSHIP`, ghi `audit_logs`, xin Presigned URL 15 phút (V20), và lưu chẩn đoán chuẩn WHO `icd_code`/`icd_version` (V23).
+3. **Bước 3 — Xử lý câu hỏi sâu (10 giây):**
+   - Nếu Hội đồng hỏi chi tiết 1 luồng con (ví dụ: chống gian lận BOLA, Webhook VNPay, hoặc Onboarding Bác sĩ 2 bước), chuyển ngay dropdown trên Vector Studio sang `3.20`, `3.22` hoặc `3.24` (`seq_doctor_onboarding`) và cuộn chuột phóng to đúng `alt` / `loop` cần giải trình.
+
+#### C. Lời dẫn mẫu kết nối 2 biểu đồ (60 giây)
+> *"Kính thưa Hội đồng, để chứng minh tài liệu SDD khớp 1-1 với kiến trúc thực thi, mời Thầy Cô theo dõi hai góc nhìn bổ sung cho nhau trên Vector Studio: góc nhìn tĩnh qua **Master Class Diagram** và góc nhìn động qua **End-to-End Sequence Diagram**.*
+> *Trên **Class Diagram**, toàn bộ hệ thống tuân thủ Clean Architecture 4 tầng, trong đó mọi tương tác AI và thanh toán đều được trừu tượng hóa qua Strategy Pattern (`AiProvider` 3 tầng và `PaymentGateway` Router), còn thực thể lõi đã đồng bộ chuẩn Flyway V20, V23 và V24 (`@Version`, `icd_code/icd_version`, `storagePath`).*
+> *Chuyển sang góc nhìn động trên **Sequence Diagram**, mời Thầy Cô nhìn trình tự một ca khám khép kín từ bước 1 đến bước cuối: trước khi chạm vào AI, `RedFlagService` chặn cấp cứu dưới 2ms; tiếp đó tìm kiếm bác sĩ ép HNSW Index chạy 0.72 ms; bước đặt lịch đi qua 3 tầng khóa Redis + `@Version` + Partial Index; và khi bác sĩ mở hồ sơ bệnh nhân, `PatientAccessGuard` luôn chặn kiểm tra quan hệ điều trị trước khi cấp URL S3 sống 15 phút và ghi bệnh án chuẩn ICD V23."*
+
+---
+
 ## 6. Bảng Tiêu Chí Đánh Giá Xuất Sắc Của Hội Đồng (Evaluation Rubric)
 
 | Tiêu Chí Đánh Giá | Trọng Số | Yêu Cầu Để Đạt Điểm Tối Đa (Grade A / 9.0 - 10.0) | Hiện Trạng Dự Án MediAssist-AI |
