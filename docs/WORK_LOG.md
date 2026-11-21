@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#135** | 21/11/2026 | Nâng Cấp Toàn Diện Layout Bảng & Khắc Phục Lỗi Điều Hướng Anchor Trên 5 Trình Xem Báo Cáo Khóa Luận (WordCraft Studio Workbench): (1) Khắc phục triệt để lỗi điều hướng anchor có dấu gạch kép (`--` do dấu `&` sinh ra): Viết lại hàm `normalizeSlug` xử lý gộp dấu gạch nối, bỏ ký tự đặc biệt và hỗ trợ partial match fallback, giúp URL `#41-tầng-1-deterministic-safety--biological-plausibility-filter` mở thẳng tài liệu chính xác thay vì rơi vào trang trắng; (2) Giải quyết triệt để lỗi "Căn lề dòng quá ngu & trống table" (Cột Descriptions bị bóp về 0px, hàng cao 1.828px): Bỏ logic gán nhầm `.table-stakeholders` 4 cột vào bảng 5 cột có từ khóa "actor", thiết lập class `.table-matrix-5col` phân bổ chuẩn 13% - 17% - 14% - 21% - 35% (cột Descriptions nở từ 0px lên 385px, chiều cao dòng co từ 1.828px xuống 66px); (3) Mở rộng viewport đọc `#content-wrapper` từ 880px lên 1.200px (tối đa 96%); (4) Đồng bộ trên 5 báo cáo `report_1` đến `report_5` và xác thực qua Playwright. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
 | **#134** | 21/11/2026 | Giải Mã Cơ Chế Ánh Xạ ICD-10 Sang Chuyên Khoa Bác Sĩ & Làm Rõ Nguồn Gốc Dữ Liệu Lâm Sàng Meddies Phục Vụ Bảo Vệ Luận Văn: (1) Phân tích cơ chế khoa học giải quyết khoảng cách ngữ nghĩa (Semantic Gap): Sử dụng bảng ánh xạ chuẩn WHO ICD-10 (`icd10_specialty_mapper.py`) liên kết các chương mã ICD-10 tới 12 chuyên khoa, gom cụm triệu chứng (top 20) và than phiền (top 6) tiêm vào profile bác sĩ (`train_augment_doctors.py`) trước khi nhúng vector 1536 chiều, (2) Khẳng định tính pháp lý và đạo đức y tế: Dữ liệu huấn luyện & benchmark lấy từ kho dữ liệu mở đã khử định danh trên Hugging Face (`Meddies/meddies-persona-vie` & `Meddies/meddies-pii`) và danh mục chuẩn Bộ Y tế, tuyệt đối KHÔNG xâm phạm bệnh án thật (tuân thủ 100% Nghị định 13/2023/NĐ-CP), (3) Bổ sung 2 câu hỏi phản biện chuyên sâu #26 và #27 vào `docs/CAPSTONE_DEFENSE.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
 | **#133** | 21/11/2026 | Chuẩn Hóa Cột Tên Bệnh Danh ICD (icd_name) Trên Sơ Đồ Vector & Báo Cáo Luận Văn: (1) Chuẩn hóa cột `icd10_name` $\rightarrow$ `icd_name` trong `interactive_viewer.html`, (2) Cập nhật `docs/DATABASE_DESIGN.md` & `docs/SDD_MediAssist_AI.md`, (3) Biên dịch thành công 21 tài liệu `docs-bundle.js`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
 | **#132** | 20/11/2026 | Xây Dựng Kịch Bản Thuyết Trình CSDL 3 Tầng & Hướng Dẫn Sử Dụng Vector Studio Zoom 1000%: Bổ sung chiến thuật thuyết trình 3 tầng (Macro Slide 8, Deep-Dive Slide 9-11, Live Vector Studio Zoom 1000%) vào Section 2.1 của `docs/CAPSTONE_DEFENSE.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
@@ -65,6 +66,31 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#135] Nâng Cấp Toàn Diện Layout Bảng & Khắc Phục Lỗi Điều Hướng Anchor Trên 5 Trình Xem Báo Cáo Khóa Luận (WordCraft Studio Workbench)
+* **Thời gian:** 2026-11-21 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Antigravity)
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Tech Lead phản ánh lỗi nghiêm trọng trên giao diện tài liệu báo cáo: `file:///Users/thanvinh/Desktop/KLTN/report_1/index.html#41-t%E1%BA%A7ng-1-deterministic-safety--biological-plausibility-filter` bị trắng trang / không cuộn tới vị trí, đồng thời tại các bảng có cột `Descriptions` xuất hiện tình trạng *"trống các table quá nhiều, căn lề dòng quá ngu"*.
+* **Nguyên Nhân Gốc Rễ (Root Cause Analysis):**
+  1. **Lỗi gãy điều hướng Anchor do ký tự đặc biệt:** Tiêu đề `### 4.1 Tầng 1: Deterministic Safety & Biological Plausibility Filter` khi trình duyệt chuyển đổi dấu `&` thành slug url sinh ra 2 dấu gạch ngang liên tiếp (`--`). Hàm điều hướng cũ trong `index.html` so sánh trực tiếp `hSlug === cleanSlug` nên không khớp, dẫn đến việc không tài liệu nào được nạp $\rightarrow$ Màn hình hiển thị trống trơn.
+  2. **Lỗi gán nhầm CSS bảng 4 cột vào bảng 5 cột:** Trong hàm định kiểu tự động cho Table, đoạn mã cũ kiểm tra `headerText.includes('actor')` mà **không kiểm tra số lượng cột**. Bất kỳ bảng 5 cột nào có cột `Primary Actor` (ví dụ bảng `2.2.2 Descriptions` trong SRS) đều bị ép nhầm class `.table-stakeholders` vốn chỉ định nghĩa cho 4 cột (`16% + 25% + 37% + 22% = 100%`). Hệ quả: Cột thứ 5 (`Brief Purpose & Functional Description`) bị trình duyệt ép về **độ rộng 0px**, toàn bộ văn bản dài bị bóp nghẹt thành 1 chữ cái mỗi dòng, đẩy chiều cao hàng lên tới **1.828px** và các cột 1-3 xuất hiện khoảng trắng rỗng khổng lồ.
+  3. **Độ rộng Viewport `#content-wrapper` bị bóp nghẹt:** Thẻ chứa nội dung báo cáo bị giới hạn ở `max-w-3xl` và CSS `max-width: 880px`, khiến các bảng ma trận kỹ thuật nhiều cột (như Bảng 9 Trụ cột SOTA Y học chứng cứ) bị co cụm, cột mô tả bị bóp vụn.
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[MOD]` Viết lại cơ chế Anchor Slug Matching:
+     - Xây dựng hàm `normalizeSlug(s)` loại bỏ dấu `#`, chuyển chữ có dấu sang không dấu (NFD), xóa toàn bộ ký tự đặc biệt, gộp chuỗi dấu gạch nối/gạch dưới liên tiếp (`[\s_-]+` $\rightarrow$ `-`).
+     - Bổ sung cơ chế Fallback thông minh: nếu so sánh chính xác không tìm thấy, hệ thống sẽ tìm heading có tiền tố khớp (`hSlug.startsWith(...)`) hoặc fallback về tài liệu mặc định (`default_doc`) thay vì bỏ trống viewport.
+  2. `[MOD]` Sửa cơ chế phân loại Table & Thiết kế CSS tỷ lệ vàng:
+     - Giới hạn `.table-stakeholders` chỉ áp dụng khi bảng có chính xác 4 cột (`colCount === 4`).
+     - Bổ sung bộ quy tắc CSS chuyên biệt `.table-matrix-5col` cho bảng 5 cột: Thiết lập `min-width: 1100px`, phân bổ tỷ lệ vàng: Cột 1 (13%), Cột 2 (17%), Cột 3 (14%), Cột 4 (21%) và đặc biệt dành **35% (tối thiểu 320px) cho Cột 5 (Descriptions / Purpose)**.
+     - Bổ sung `.table-spec-2col` cho bảng đặc tả 2 cột (22% / 78%).
+  3. `[MOD]` Mở rộng khung nhìn `#content-wrapper`:
+     - Bỏ class `max-w-3xl`, tăng `max-width` từ `880px` lên `1.200px` (và tự động co giãn lên `96%` khi người dùng thu gọn thanh công cụ / outline).
+  4. `[MOD]` Triển khai hàng loạt qua `scripts/upgrade_report_tables.py`: Áp dụng nâng cấp toàn diện đồng nhất cho cả 5 tệp giao diện: `report_1/index.html`, `report_2/index.html`, `report_3/index.html`, `report_4/index.html`, `report_5/index.html`.
+* **Bằng Chứng Kiểm Thử Độc Lập (Playwright Test Metrics):**
+  - **Test Case 1 (`report_1/index.html#41-tầng-1-deterministic-safety--biological-plausibility-filter`):** Mở thành công tài liệu *"Biện Luận Y Học Chứng Cứ, SOTA & An Toàn Lâm Sàng"*, bảng 9 Trụ Cột áp dụng thành công `.table-matrix-5col`, chiều cao hàng giảm từ 337px xuống 253px, chữ dàn trải đều đặn.
+  - **Test Case 2 (`report_3/index.html#222-descriptions`):** Cột thứ 5 (Functional Description) mở rộng từ **0px lên 385px**, chiều cao hàng co gọn từ **1.828px xuống chỉ còn 66px** (giảm 96.4% chiều cao thừa vô nghĩa).
+* **Điểm Nóng Tech Lead Cần Duyệt:** Mở lại đường dẫn `report_1/index.html#41-tầng-1-deterministic-safety--biological-plausibility-filter` và `report_3/index.html` để kiểm tra độ mượt mà của layout bảng.
 
 ### [WORK-LOG-#134] Giải Mã Cơ Chế Ánh Xạ ICD-10 Sang Chuyên Khoa Bác Sĩ & Làm Rõ Nguồn Gốc Dữ Liệu Lâm Sàng Meddies Phục Vụ Bảo Vệ Luận Văn
 * **Thời gian:** 2026-11-21 (GMT+7)
