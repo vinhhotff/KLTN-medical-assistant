@@ -37,11 +37,11 @@ export const LoginPage: React.FC = () => {
   const { setUser } = useAuthStore();
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Mode: 'REGISTER' (default per target UI) or 'LOGIN'
+  // Mode: 'LOGIN' (default) or 'REGISTER' (when ?mode=register)
   const [activeTab, setActiveTab] = useState<'REGISTER' | 'LOGIN'>(() => {
     if (sessionExpired || passwordJustReset) return 'LOGIN';
-    if (modeParam === 'login') return 'LOGIN';
-    return 'REGISTER';
+    if (modeParam === 'register') return 'REGISTER';
+    return 'LOGIN';
   });
   const [roleType, setRoleType] = useState<'PATIENT' | 'DOCTOR'>(() =>
     roleParam === 'doctor' ? 'DOCTOR' : 'PATIENT'
@@ -71,6 +71,8 @@ export const LoginPage: React.FC = () => {
       setActiveTab('LOGIN');
     } else if (modeParam === 'register') {
       setActiveTab('REGISTER');
+    } else {
+      setActiveTab('LOGIN');
     }
 
     if (roleParam === 'doctor') {

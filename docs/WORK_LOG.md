@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#133** | 21/11/2026 | Chuẩn Hóa Cặp Nút Điều Hướng Header `Đăng Nhập` & `Đăng Ký` Trên Trang Chủ (`LandingPage.tsx`) & Tab Mặc Định `LOGIN` Tại `LoginPage.tsx`: (1) Đổi nút phải trên thanh Header trang chủ từ `Khám Ngay →` thành `Đăng Ký` điều hướng tới `/login?mode=register` (mở thẳng biểu mẫu đăng ký); (2) Cập nhật nút `Đăng Nhập` trên thanh Header điều hướng tới `/login?mode=login` và chỉnh `activeTab` mặc định của `LoginPage.tsx` sang `'LOGIN'` (trừ khi URL có `?mode=register`), khắc phục triệt để tình trạng bấm `Đăng Nhập` nhưng nhảy vào giao diện Đăng ký; (3) Đồng bộ `frontend/e2e/auth.spec.ts` và `docs/USE_CASES.md` (`UC-COMM-01`). Biên dịch `npm run build` 0 lỗi TypeScript (`2.313` modules), cập nhật bản build trực tiếp trên cổng `5173`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#132** | 20/11/2026 | Bổ Sung Bộ Class Diagrams (4 Biểu Đồ Lớp Clean Architecture & Nghiệp Vụ) Và Sequence Diagrams Chuyên Sâu Vào Vector Studio (`interactive_viewer.html`) & Cổng Review 2 (`review_2/index.html`): (1) Bổ sung CSS High-Contrast tương phản cao (`svg[aria-roledescription="classDiagram"]`) cho cả giao diện Sáng/Tối và cấu hình `class: { useMaxWidth: false }` trong `docs/diagrams/interactive_viewer.html`; (2) Bổ sung **4 Class Diagrams** (`class_master`, `class_triage_search`, `class_booking_emr`, `class_ocr_security`) ánh xạ 1-1 phương thức Java thực tế (`RedFlagService.evaluateRedFlag`, `ClinicalQueryDefenseEngine.analyzeAndDefend`, `AiProvider` 3-Tier Router, `PaymentGateway` Adapter, `PatientAccessGuard`, `Appointment` V23/V24, `MedicalDocument` V20) và **2 Sequence Diagrams mới** (`seq_e2e_master` luồng khép kín Triage -> HNSW -> Booking 3 Tầng -> EMR V23; `seq_doctor_onboarding` Onboarding Bác sĩ 2 Bước & Admin Vet), đồng thời đồng bộ `seq_triage`, `seq_encounter`, `seq_ocr` sang `Gemini 2.5 Flash` & `icd_code`/`icd_version` V23; (3) Tích hợp nút mở nhanh & chuyển sơ đồ `1.4 Class Diagram Tổng Thể`, `1.5 Sequence Khép Kín` cùng liên kết Slide 3/7 trong `review_2/index.html`; (4) Cập nhật `docs/CAPSTONE_DEFENSE.md` (Section `5.5` Hướng dẫn trình bày Class & Sequence Diagram trước Hội đồng) và biên dịch lại `docs-bundle.js`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#131** | 18/11/2026 | Khắc Phục Lỗi Đen Khối SVG Trong `interactive_viewer.html` & Nâng Cấp Toàn Diện `review_2/index.html` Thành Cổng Trình Chiếu Sơ Đồ Trực Quan (Diagram-First Mode): (1) Sửa triệt để lỗi ghi đè SVG `id` (`svgElement.setAttribute("id", "active-svg")` phá vỡ toàn bộ CSS selector `#mermaid-svg-...` khiến khối biểu đồ bị `fill: #000000` đen kịt) và chống cắt chữ `<foreignObject>` (`overflow: visible`) trong `docs/diagrams/interactive_viewer.html`, đồng thời cập nhật sơ đồ `architecture` khớp chuẩn `React 18.3` & `Gemini 2.5 Flash (3-Tier AI Router)` với bảng màu tương phản cao; (2) Nâng cấp `review_2/index.html` tích hợp Mermaid.js + `svg-pan-zoom` nhúng trực tiếp **25 sơ đồ vector trực quan** phủ kín 4 tab (3 sơ đồ Kiến trúc/ADR/17 Bảng ở Tab 1, 6 sơ đồ Trước/Sau ở Tab 2, 10 sơ đồ riêng cho 10 Slides ở Tab 3, 6 sơ đồ minh họa câu trả lời Hội đồng ở Tab 4) kèm Modal Phóng to/Kéo rê toàn màn hình và tải SVG. Kiểm chứng thực tế bằng Edge Playwright headless: **25/25 sơ đồ** tại `review_2` & **33/33 khối** tại `interactive_viewer.html` render sạch (`0` khối đen, `0` lỗi cú pháp), HTTP 200 OK trên cổng `8088`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#130** | 18/11/2026 | Xây Dựng Cổng Web Tổng Hợp Review Lần 2 (Tuần 8 – SDD) & Khởi Chạy Máy Chủ Trình Chiếu (`review_2/index.html`): (1) Tạo trang web tương tác hoàn chỉnh `review_2/index.html` tổng hợp trọn vẹn 4 phân hệ trình bày Review 2: Ma trận Đánh giá Chuyên môn SDD (5 trụ cột IEEE 1016 / ISO 42010), 6 Khuyến nghị Điều chỉnh (Trước vs Sau), Trình chiếu 10 Slides kèm Teleprompter Script & đồng hồ đếm ngược luyện tập 15:00, và Top 6 Câu hỏi Phản biện Hội đồng Review 2 (có tìm kiếm, nút Sáng/Tối & chế độ Xem tất cả / In PDF), (2) Cập nhật Portal gốc `index.html` và `docs/index.html`: bổ sung nút truy cập nhanh `🎯 Review 2 (Tuần 8 - SDD)` trên Header, nút liên kết tại thẻ Report 4 & Defense Hub, đồng bộ chỉ số `322/322` tests và `4,537 dòng` SDD, (3) Khởi chạy máy chủ web cục bộ cổng `8088` phục vụ HTTP 200 cho `/review_2/index.html`, `/index.html`, `/docs/index.html`, `/report_4/index.html`, và `/docs/diagrams/interactive_viewer.html`. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -63,6 +64,24 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#133] Chuẩn Hóa Cặp Nút Header `Đăng Nhập` & `Đăng Ký` Trên Trang Chủ (`LandingPage.tsx`) Và Tab Mặc Định `LOGIN` Tại `LoginPage.tsx`
+* **Thời gian:** 2026-11-21 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/fuction`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu đổi nút `Khám Ngay →` trên thanh Header thành `Đăng Ký` (mở giao diện đăng ký) và sửa nút `Đăng Nhập` để vào đúng giao diện Đăng nhập thay vì nhảy vào Đăng ký.
+* **Danh Sách Tệp Tin Đã Cập Nhật:**
+  1. `[MOD]` `frontend/src/pages/LandingPage.tsx`:
+     - Cập nhật liên kết nút `Đăng Nhập` trên thanh Header trỏ tới `/login?mode=login`.
+     - Đổi nhãn nút `Khám Ngay →` bên phải thành `Đăng Ký` và điều hướng tới `/login?mode=register`.
+  2. `[MOD]` `frontend/src/pages/LoginPage.tsx`:
+     - Đổi giá trị khởi tạo và `useEffect` của `activeTab` sang mặc định `'LOGIN'` (chỉ mở `'REGISTER'` khi `modeParam === 'register'`), đảm bảo mọi thao tác bấm `Đăng Nhập` hoặc truy cập `/login` đều hiển thị đúng biểu mẫu Đăng nhập hệ thống.
+  3. `[MOD]` `frontend/e2e/auth.spec.ts`: Đồng bộ kịch bản E2E với chế độ mặc định `'LOGIN'` tại `/login` và `'REGISTER'` tại `/login?mode=register`.
+  4. `[MOD]` `docs/USE_CASES.md` (`UC-COMM-01`) & `docs/WORK_LOG.md` (`#133`).
+* **Bằng Chứng Kiểm Thử:**
+  - `npm run build` trong `frontend/`: **0 lỗi TypeScript** (`2.313` modules transformed, cập nhật bundle trực tiếp trên `http://localhost:5173/`).
+
+---
 
 ### [WORK-LOG-#132] Bổ Sung Class Diagrams & Sequence Diagrams Vào Vector Studio (`interactive_viewer.html`) & Cổng Review 2 (`review_2/index.html`)
 * **Thời gian:** 2026-11-20 (GMT+7)

@@ -5,7 +5,6 @@ test.describe('UC-SEC-01: Authentication', () => {
   test('login form starts empty and login button needs both fields', async ({ page }) => {
     await installMockApi(page);
     await page.goto('/login');
-    await page.getByRole('button', { name: /Đăng nhập hệ thống ngay/ }).click();
 
     const email = page.locator('form input[type="email"]');
     const password = page.locator('form input[type="password"]');
@@ -23,7 +22,6 @@ test.describe('UC-SEC-01: Authentication', () => {
   test('demo presets are available in dev and log the patient in', async ({ page }) => {
     await installMockApi(page);
     await page.goto('/login');
-    await page.getByRole('button', { name: /Đăng nhập hệ thống ngay/ }).click();
     await expect(page.getByTestId('demo-presets')).toBeVisible();
     await page.getByTestId('demo-presets').getByRole('button', { name: /Bệnh Nhân/ }).click();
     await page.getByRole('button', { name: /Đăng Nhập Vào Hệ Thống/ }).click();
@@ -33,7 +31,6 @@ test.describe('UC-SEC-01: Authentication', () => {
   test('invalid credentials show the backend error', async ({ page }) => {
     await installMockApi(page);
     await page.goto('/login');
-    await page.getByRole('button', { name: /Đăng nhập hệ thống ngay/ }).click();
     await page.locator('form input[type="email"]').fill('nobody@mediassist.local');
     await page.locator('form input[type="password"]').fill('WrongPassword1!');
     await page.getByRole('button', { name: /Đăng Nhập Vào Hệ Thống/ }).click();
@@ -59,7 +56,6 @@ test.describe('UC-SEC-01: Authentication', () => {
       },
     });
     await page.goto('/login');
-    await page.getByRole('button', { name: /Đăng nhập hệ thống ngay/ }).click();
     await page.getByText('Quên mật khẩu?').click();
 
     const dialog = page.getByRole('dialog', { name: 'Khôi phục mật khẩu' });
@@ -82,7 +78,7 @@ test.describe('UC-SEC-01: Authentication', () => {
   test('register validates the password criteria that are displayed', async ({ page }) => {
     const calls: Array<{ method: string; path: string; body: unknown }> = [];
     await installMockApi(page, { calls });
-    await page.goto('/login');
+    await page.goto('/login?mode=register');
     await page.getByPlaceholder('Nguyễn Văn A').fill('Nguyễn Văn Test');
     await page.locator('input[type="date"]').first().fill('1990-01-01');
     await page.getByPlaceholder('0912 345 678').fill('0912345678');
