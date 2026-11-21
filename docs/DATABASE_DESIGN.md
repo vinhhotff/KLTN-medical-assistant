@@ -191,7 +191,7 @@ erDiagram
         TEXT vital_signs_json "BP, HR, SpO2, Temp, BMI"
         VARCHAR icd_code "WHO ICD Code (I10, E11.9) [V23]"
         VARCHAR icd_version "DEFAULT ICD-10 [V23]"
-        VARCHAR icd10_name "Tên bệnh chuẩn Bộ Y Tế"
+        VARCHAR icd_name "Tên bệnh chuẩn Bộ Y Tế"
         TEXT prescription_json "Đơn thuốc điện tử"
         TEXT treatment_plan
         DATE follow_up_date
@@ -512,7 +512,7 @@ CREATE TABLE appointments (
     vital_signs_json TEXT,                       -- JSON chỉ số sinh hiệu (Huyết áp, Mạch, Thân nhiệt, Nhịp thở, SpO2, Chiều cao, Cân nặng, BMI)
     icd_code VARCHAR(20),                        -- [V23] Mã chẩn đoán quốc tế ICD chuẩn hóa (Đổi tên từ icd10_code; VD: I10, I20.9, K21.0, E78.0)
     icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10', -- [V23] Phiên bản danh mục phân loại bệnh quốc tế (Mặc định 'ICD-10', sẵn sàng cho 'ICD-11')
-    icd10_name VARCHAR(255),                     -- Tên bệnh danh ICD tiếng Việt
+    icd_name VARCHAR(255),                       -- [V23] Tên bệnh danh ICD tiếng Việt chuẩn hóa (Đổi tên từ icd10_name)
     prescription_json TEXT,                      -- JSON đơn thuốc điện tử (Tên thuốc, hàm lượng, cách dùng, liều dùng, số lượng, lưu ý)
     treatment_plan TEXT,                         -- Kế hoạch điều trị & Dặn dò y lệnh của Bác sĩ
     follow_up_date DATE,                         -- Ngày hẹn tái khám

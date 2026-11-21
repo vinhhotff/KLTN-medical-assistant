@@ -191,7 +191,7 @@ erDiagram
         TEXT vital_signs_json "BP, HR, SpO2, Temp, BMI"
         VARCHAR icd_code "WHO ICD Code (I10, E11.9) [V23]"
         VARCHAR icd_version "DEFAULT ICD-10 [V23]"
-        VARCHAR icd10_name "Tên bệnh chuẩn Bộ Y Tế"
+        VARCHAR icd_name "Tên bệnh chuẩn Bộ Y Tế"
         TEXT prescription_json "Đơn thuốc điện tử"
         TEXT treatment_plan
         DATE follow_up_date
@@ -315,6 +315,7 @@ CREATE TABLE users (
     failed_login_attempts INT NOT NULL DEFAULT 0,
     locked_until TIMESTAMPTZ,
     last_login_at TIMESTAMPTZ,
+    version BIGINT NOT NULL DEFAULT 0,            -- [V24] Optimistic locking JPA (@Version)
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -511,7 +512,7 @@ CREATE TABLE appointments (
     vital_signs_json TEXT,                       -- JSON chỉ số sinh hiệu (Huyết áp, Mạch, Thân nhiệt, Nhịp thở, SpO2, Chiều cao, Cân nặng, BMI)
     icd_code VARCHAR(20),                        -- [V23] Mã chẩn đoán quốc tế ICD chuẩn hóa (Đổi tên từ icd10_code; VD: I10, I20.9, K21.0, E78.0)
     icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10', -- [V23] Phiên bản danh mục phân loại bệnh quốc tế (Mặc định 'ICD-10', sẵn sàng cho 'ICD-11')
-    icd10_name VARCHAR(255),                     -- Tên bệnh danh ICD tiếng Việt
+    icd_name VARCHAR(255),                       -- [V23] Tên bệnh danh ICD tiếng Việt chuẩn hóa (Đổi tên từ icd10_name)
     prescription_json TEXT,                      -- JSON đơn thuốc điện tử (Tên thuốc, hàm lượng, cách dùng, liều dùng, số lượng, lưu ý)
     treatment_plan TEXT,                         -- Kế hoạch điều trị & Dặn dò y lệnh của Bác sĩ
     follow_up_date DATE,                         -- Ngày hẹn tái khám
@@ -732,6 +733,7 @@ spring.flyway.table=flyway_schema_history
 | **22** | `21` | `V21__password_reset_token_hash.sql` | SQL | Tăng cường an ninh xác thực mật khẩu (BE-5): Chuyển đổi cột `token` thành `token_hash` (VARCHAR(64)), thanh lọc toàn bộ token dạng plaintext và chỉ lưu trữ mã băm SHA-256 đơn dụng có hạn 15 phút. | **SUCCESS** |
 | **23** | `22` | `V22__email_verification.sql` | SQL | Thiết lập cổng xác thực email bắt buộc (Email Verification Gate): Chuẩn hóa cột `email_verified`, backfill `TRUE` cho tài khoản hiện hữu, và tạo bảng `email_verification_tokens` kích hoạt tài khoản. | **SUCCESS** |
 | **24** | `23` | `V23__refactor_icd_code_and_version.sql` | SQL | Chuẩn hóa lược đồ phân loại bệnh quốc tế đa phiên bản (ICD-10 / ICD-11): Đổi tên cột `icd10_code` (hoặc `"icd-10"` / `icd10`) thành `icd_code VARCHAR(20)`, bổ sung cột `icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10'`, và tạo Partial B-Tree Index `idx_appointments_icd_code` phục vụ truy vấn dịch tễ học tốc độ cao. | **SUCCESS** |
+| **25** | `24` | `V24__fix_users_version_not_null.sql` | SQL | Khắc phục triệt để `NullPointerException` ở Hibernate `@Version` khi Admin khóa/cập nhật tài khoản: Backfill `users.version = 0 WHERE version IS NULL` và áp đặt ràng buộc `DEFAULT 0 NOT NULL` cho `users.version`. | **SUCCESS** |
 
 ### 6.3. Chi Tiết Tập Dữ Liệu Bệnh Viện Mẫu (Enterprise Hospital Seed Data)
 1. **12 Chuyên Khoa Toàn Diện:** Tim mạch, Thần kinh, Tiêu hóa - Gan mật, Da liễu, Nhi khoa, Nội tổng quát, Hô hấp & Phổi, Cơ Xương Khớp, Thận & Tiết niệu, Sản Phụ Khoa, Nội tiết & Đái tháo đường, Tai Mũi Họng.
@@ -1152,4 +1154,18 @@ email_verification_tokens (
 - Các luồng đặt `email_verified = true`: liên kết xác thực, đặt lại mật khẩu thành công, tài khoản Google mới, liên kết Google (kèm xóa mật khẩu nếu chưa xác thực), bác sĩ do admin tạo, `DataInitializer`.
 
 ### 14.3. Kiểm chứng V21 + V22
-Chạy trên **PostgreSQL 16.4 embedded (scratch, không đụng DB dev)** với bảng tối giản mô phỏng đúng cột liên quan của V1/V16, 3 kịch bản: (A) schema gốc (có `is_email_verified`, `token` UNIQUE + `idx_prt_token`); (B) chạy V21 + V22 **hai lần**; (C) không có `is_email_verified`, có thêm UNIQUE do Hibernate sinh với tên ngẫu nhiên. Cả 3 cho cùng kết quả: `password_reset_tokens` còn 0 dòng, cột `token_hash VARCHAR NOT NULL`, chỉ còn khóa chính + khóa ngoại + `idx_prt_token_hash` UNIQUE + `idx_prt_user_id`; `users.email_verified BOOLEAN NOT NULL DEFAULT false`; user cũ `email_verified = t` và có `email_verified_at`; user chèn sau migration `email_verified = f`; chèn trùng `token_hash` bị từ chối. Kiểm chứng trên DB dev thật bằng Docker: xem WORK_LOG #083.
+Chạy trên **PostgreSQL 16.4 embedded (scratch, không đụng DB dev)** với bảng tối giản mô phỏng đúng cột liên quan của V1/V16, 3 kịch bản: (A) schema gốc (có `is_email_verified`, `token` UNIQUE + `idx_prt_token`); (B) chạy V21 + V22 **hai lần**; (C) không có `is_email_verified`, có thêm UNIQUE do Hibernate sinh với tên ngẫu nhiên. Cả 3 cho cùng kết quả: `password_reset_tokens` còn 0 dòng, cột `token_hash VARCHAR NOT NULL`, chỉ còn khóa chính + khóa ngoại + `idx_prt_token_hash` UNIQUE + `idx_prt_user_id`; `users.email_verified BOOLEAN NOT NULL DEFAULT false`; user cũ `email_verified = t` và có `email_verified_at`; user chèn sau migration `email_verified = f`; chèn trùng `token_hash` bị từ từ chối. Kiểm chứng trên DB dev thật bằng Docker: xem WORK_LOG #083.
+
+---
+
+## 17. Vá Lỗi Null `@Version` Trên Bảng `users` (Flyway V24)
+
+Bản di trú `V24__fix_users_version_not_null.sql` xử lý lỗi `NullPointerException` tại Hibernate `LongJavaType.next()` khi Admin cập nhật trạng thái (`PATCH /api/v1/admin/users/{id}/status`) đối với các tài khoản seed trước đó có cột `users.version IS NULL`:
+
+```sql
+UPDATE users SET version = 0 WHERE version IS NULL;
+ALTER TABLE users ALTER COLUMN version SET DEFAULT 0;
+ALTER TABLE users ALTER COLUMN version SET NOT NULL;
+```
+
+Song song ở tầng JPA Entity (`User.java`, `Appointment.java`, `PaymentTransaction.java`), cột `version` được đánh dấu `@Column(name = "version", nullable = false)` kèm getter/setter phòng vệ null (`return version != null ? version : 0L;` và fallback `0L` khi gán `null`).

@@ -61,6 +61,18 @@
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
+### [WORK-LOG-#133] Chuẩn Hóa Cột Tên Bệnh Danh ICD (icd_name) Trên Sơ Đồ Vector & Báo Cáo Luận Văn
+* **Thời gian:** 2026-11-21 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Antigravity)
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu làm rõ ý nghĩa của cột `icd10_name`, chuẩn hóa tên cột thành `icd_name` trên sơ đồ vector để đưa số 10 vào cột `icd_version` (Version-Agnostic), và bỏ qua cập nhật lại Canva.
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[MOD]` `docs/diagrams/interactive_viewer.html`: Chuẩn hóa cột `icd10_name` $\rightarrow$ `icd_name` trong cả 2 sơ đồ `erd_full` và `erd_sub_appointment`.
+  2. `[MOD]` `docs/DATABASE_DESIGN.md` & `docs/SDD_MediAssist_AI.md`: Cập nhật đồng bộ `icd_name VARCHAR(255)` khớp với Flyway V23 (`icd_code, icd_version, icd_name`).
+  3. `[BUILD]` Chạy script `compile_docs_bundle.py` đồng bộ hóa thành công toàn bộ bundle báo cáo luận văn từ Report 1 đến Report 5.
+* **Bằng Chứng Kiểm Thử:** `compile_docs_bundle.py` exit code 0, 21 tài liệu đồng bộ thành công.
+* **Điểm Nóng Tech Lead Cần Duyệt:** Kiểm tra trực tiếp trên trình xem vector `docs/diagrams/interactive_viewer.html`.
+
 ### [WORK-LOG-#132] Xây Dựng Kịch Bản Thuyết Trình CSDL 3 Tầng & Hướng Dẫn Sử Dụng Vector Studio Zoom 1000%
 * **Thời gian:** 2026-11-20 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Antigravity)

@@ -686,8 +686,9 @@ erDiagram
         VARCHAR queue_number "STT 01, STT 02..."
         VARCHAR clinic_room
         TEXT vital_signs_json "BP, HR, SpO2, Temp, BMI"
-        VARCHAR icd10_code "WHO ICD-10 (I10, E11.9)"
-        VARCHAR icd10_name "Tên bệnh chuẩn Bộ Y Tế"
+        VARCHAR icd_code "WHO ICD (I10, E11.9) [V23]"
+        VARCHAR icd_version "ICD-10 / ICD-11 [V23]"
+        VARCHAR icd_name "Tên bệnh chuẩn Bộ Y Tế"
         TEXT prescription_json "Đơn thuốc điện tử"
         TEXT treatment_plan
         DATE follow_up_date
