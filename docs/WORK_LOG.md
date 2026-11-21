@@ -11,6 +11,11 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#134** | 21/11/2026 | Giải Mã Cơ Chế Ánh Xạ ICD-10 Sang Chuyên Khoa Bác Sĩ & Làm Rõ Nguồn Gốc Dữ Liệu Lâm Sàng Meddies Phục Vụ Bảo Vệ Luận Văn: (1) Phân tích cơ chế khoa học giải quyết khoảng cách ngữ nghĩa (Semantic Gap): Sử dụng bảng ánh xạ chuẩn WHO ICD-10 (`icd10_specialty_mapper.py`) liên kết các chương mã ICD-10 tới 12 chuyên khoa, gom cụm triệu chứng (top 20) và than phiền (top 6) tiêm vào profile bác sĩ (`train_augment_doctors.py`) trước khi nhúng vector 1536 chiều, (2) Khẳng định tính pháp lý và đạo đức y tế: Dữ liệu huấn luyện & benchmark lấy từ kho dữ liệu mở đã khử định danh trên Hugging Face (`Meddies/meddies-persona-vie` & `Meddies/meddies-pii`) và danh mục chuẩn Bộ Y tế, tuyệt đối KHÔNG xâm phạm bệnh án thật (tuân thủ 100% Nghị định 13/2023/NĐ-CP), (3) Bổ sung 2 câu hỏi phản biện chuyên sâu #26 và #27 vào `docs/CAPSTONE_DEFENSE.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
+| **#133** | 21/11/2026 | Chuẩn Hóa Cột Tên Bệnh Danh ICD (icd_name) Trên Sơ Đồ Vector & Báo Cáo Luận Văn: (1) Chuẩn hóa cột `icd10_name` $\rightarrow$ `icd_name` trong `interactive_viewer.html`, (2) Cập nhật `docs/DATABASE_DESIGN.md` & `docs/SDD_MediAssist_AI.md`, (3) Biên dịch thành công 21 tài liệu `docs-bundle.js`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
+| **#132** | 20/11/2026 | Xây Dựng Kịch Bản Thuyết Trình CSDL 3 Tầng & Hướng Dẫn Sử Dụng Vector Studio Zoom 1000%: Bổ sung chiến thuật thuyết trình 3 tầng (Macro Slide 8, Deep-Dive Slide 9-11, Live Vector Studio Zoom 1000%) vào Section 2.1 của `docs/CAPSTONE_DEFENSE.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
+| **#131** | 20/11/2026 | Cập Nhật Ảnh Master ERD Slide 8 Từ Vector Studio HTML & Làm Rõ Cơ Cấu Slide Thuyết Trình: Thay ảnh nét cao 3840x1397 trên Canva Slide 8 và làm rõ cấu trúc 15 slide. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
+| **#130** | 20/11/2026 | Đồng Bộ Cấu Trúc Khóa Ngoại & Lược Đồ Sub-ERD Cho Slide 9, 10, 11: Làm rõ các nhánh liên kết giữa 17 bảng trong 3 Sub-ERD. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
 | **#129** | 20/11/2026 | Tái Cấu Trúc Toàn Diện Bộ Slide Canva Review 2 (Từ 10 Lên 15 Trang) Qua Canva REST API: (1) Tách ERD 17 bảng thành mô hình "1 Tổng Thể (Master) + 3 Chi Tiết (Deep-Dive)" giải quyết triệt để lỗi chữ bé trên máy chiếu (Trang 8: Master ERD 17 bảng 3NF; Trang 9: ERD Phân hệ Bác sĩ & pgvector HNSW 1536 chiều; Trang 10: ERD Phân hệ Bệnh nhân, Lịch khám O2O & EMR; Trang 11: ERD Phân hệ Lâm sàng AI, OCR & FinOps Telemetry), (2) Hiện thực hóa toàn diện Mục "04 Detail Design" trước đó bị bỏ trống trên Canva (Trang 12: Clean Architecture Class Diagram 4 tầng; Trang 13: Core Clinical Sequence Diagrams với AI Triage Red-Flag 115 ngắt < 2ms và O2O Booking Slot Lock & PatientAccessGuard BOLA), (3) Nạp sẵn 100% Speaker Notes (Lời thoại chuẩn từng giây) cho từng slide, (4) Commit thành công vào Canva Design ID `DAHa9bmQoV0`. | AI Assistant (Antigravity) | 🟢 Đã Commit Thành Công |
 | **#128** | 18/11/2026 | Thẩm Định Toàn Diện Bộ Slide Canva Review 2 (12 Trang), Đối Soát 98% Khớp Codebase & Xuất Bản Cẩm Nang Thuyết Trình Bảo Vệ: (1) Phân tích đối soát toàn diện 12 slide trên Canva với mã nguồn Backend Spring Boot 3.4, Frontend React 18 SPA và CSDL PostgreSQL 16 pgvector, (2) Xác nhận độ chính xác 98%: Khớp đúng 17 bảng ERD 3NF (Flyway V1-V24), rào chắn PatientAccessGuard chống BOLA/IDOR, 5-stage triage NegEx, Two-Layer Cache L1/L2, Vision OCR LOINC và luồng 3 Actor (Patient, Doctor, Admin), (3) Biên soạn cẩm nang thuyết trình chuẩn từng giây cho 12 slide, bộ 10 câu hỏi phản biện chuyên sâu và kịch bản live demo 5 bước không lỗi, (4) Xuất bản cẩm nang ra `/Users/thanvinh/Downloads/HUONG_DAN_THUYET_TRINH_REVIEW_2_MEDIASSIST_AI.md` (.txt) và `docs/HUONG_DAN_THUYET_TRINH_REVIEW_2.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
 | **#127** | 15/11/2026 | Bổ Sung Liên Kết & Thẻ Nổi Bật Chuyên Đề Biện Luận Y Học Chứng Cứ SOTA Vào Cổng Hồ Sơ Khóa Luận (`docs/index.html`): (1) Bổ sung nút truy cập nhanh "Biện Luận Y Học (SOTA)" trên thanh điều hướng đầu trang của `docs/index.html`, (2) Bổ sung thẻ bài nổi bật "Biện Luận Y Học Chứng Cứ & SOTA" (đối chuẩn Google AMIE Nature 2024, Ada Health BMJ/Lancet, ClinicalRAG ACL 2024) ngay giữa giao diện trang chủ Portal phụ, đồng bộ liên kết trực tiếp với trình đọc WordCraft Studio `../report_1/index.html#clinical_defense`. Xác thực liên kết HTTP 200 thông suốt trên cổng 8088. | AI Assistant (Vinh) | 🟢 Sẵn sàng Review |
@@ -60,6 +65,24 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#134] Giải Mã Cơ Chế Ánh Xạ ICD-10 Sang Chuyên Khoa Bác Sĩ & Làm Rõ Nguồn Gốc Dữ Liệu Lâm Sàng Meddies Phục Vụ Bảo Vệ Luận Văn
+* **Thời gian:** 2026-11-21 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Antigravity)
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu làm rõ hai vấn đề mấu chốt: (1) Vì sao biết dữ liệu ca bệnh nào phù hợp với bác sĩ nào để gán vào profile bác sĩ? (2) Nhóm dùng dữ liệu bệnh viện lớn là ở đâu ra, tính pháp lý và đạo đức ra sao?
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[EXPLAIN]` Phân tích chi tiết cơ chế khoa học:
+     - **Vấn đề Semantic Gap:** Sự lệch pha giữa ngôn ngữ bình dân của người bệnh và học hàm/học vị hàn lâm của bác sĩ.
+     - **Cơ chế Cầu nối ICD-10:** Mỗi ca bệnh trong tập dữ liệu đều mang mã ICD-10 chuẩn (Ground Truth). Script `scripts/meddies_pipeline/icd10_specialty_mapper.py` dùng regex đối sánh tiền tố mã bệnh với 12 chuyên khoa (vd: `I00-I99` $\rightarrow$ Tim mạch, `K20-K93` $\rightarrow$ Tiêu hóa).
+     - **Gom cụm & Tiêm tri thức (Clustering & Augmentation):** Script `scripts/meddies_pipeline/train_augment_doctors.py` gom các ca bệnh theo chuyên khoa, rút trích Top 20 triệu chứng và Top 6 câu than phiền thực tế, tiêm vào cấu trúc văn bản HL7/FHIR của bác sĩ trước khi tạo vector 1536 chiều bằng `text-embedding-3-small`.
+  2. `[LEGAL]` Làm rõ nguồn gốc và tính hợp pháp của bộ dữ liệu:
+     - Khẳng định 100% nhóm **KHÔNG** lấy cắp dữ liệu bệnh viện nội bộ (tránh vi phạm Nghị định 13/2023/NĐ-CP và Luật Khám bệnh, chữa bệnh).
+     - Dữ liệu thực tế đến từ tập dữ liệu chuẩn y tế mở đã khử định danh (De-identified) trên Hugging Face: `Meddies/meddies-persona-vie` và `Meddies/meddies-pii`.
+     - Danh mục chuẩn quốc gia từ Bộ Y tế Việt Nam (QĐ 4469/QĐ-BYT về ICD-10 tiếng Việt) và phương pháp sinh hoán vị lâm sàng (Synthetic Clinical Permutations) để kiểm thử tải 10.000 - 150.000 ca.
+  3. `[MOD]` [`docs/CAPSTONE_DEFENSE.md`](./docs/CAPSTONE_DEFENSE.md): Bổ sung 2 câu hỏi phản biện chuyên sâu #26 và #27 kèm câu trả lời mẫu hoàn chỉnh dành cho Tech Lead.
+* **Bằng Chứng Kiểm Thử:** `docs/CAPSTONE_DEFENSE.md` và `docs/WORK_LOG.md` được đồng bộ.
+* **Điểm Nóng Tech Lead Cần Duyệt:** Nắm chắc kịch bản trả lời phản biện tại Câu hỏi 26 & 27 trong `docs/CAPSTONE_DEFENSE.md`.
 
 ### [WORK-LOG-#133] Chuẩn Hóa Cột Tên Bệnh Danh ICD (icd_name) Trên Sơ Đồ Vector & Báo Cáo Luận Văn
 * **Thời gian:** 2026-11-21 (GMT+7)
