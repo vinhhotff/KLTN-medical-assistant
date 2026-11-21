@@ -112,17 +112,29 @@ public class DoctorService {
                     .collect(Collectors.toList());
         }
 
-        List<DoctorSlotDto> slots = new ArrayList<>();
+        Map<LocalTime, DoctorSlotDto> uniqueSlotsMap = new TreeMap<>();
         LocalTime nowTime = LocalTime.now();
         boolean isToday = date.isEqual(LocalDate.now());
 
         for (DoctorScheduleSlot slotConfig : slotConfigs) {
             int duration = slotConfig.getSlotDurationMinutes() > 0 ? slotConfig.getSlotDurationMinutes() : 30;
-            addTimeSlots(date, slotConfig.getStartTime(), slotConfig.getEndTime(), duration, bookedAppointments, slots, isToday, nowTime);
+            List<DoctorSlotDto> generated = new ArrayList<>();
+            addTimeSlots(date, slotConfig.getStartTime(), slotConfig.getEndTime(), duration, bookedAppointments, generated, isToday, nowTime);
+            for (DoctorSlotDto s : generated) {
+                uniqueSlotsMap.merge(s.getStartTime(), s, (existing, incoming) -> {
+                    boolean isAvail = existing.isAvailable() && incoming.isAvailable();
+                    return new DoctorSlotDto(
+                            existing.getStartTime(),
+                            existing.getEndTime(),
+                            existing.getStartDateTime(),
+                            existing.getEndDateTime(),
+                            isAvail
+                    );
+                });
+            }
         }
 
-        slots.sort(Comparator.comparing(DoctorSlotDto::getStartTime));
-        return slots;
+        return new ArrayList<>(uniqueSlotsMap.values());
     }
 
     private void addTimeSlots(LocalDate date, LocalTime start, LocalTime end, int durationMinutes, List<Appointment> bookedAppointments, List<DoctorSlotDto> slots, boolean isToday, LocalTime nowTime) {
@@ -319,6 +331,11 @@ public class DoctorService {
 
     @Transactional
     public List<DoctorScheduleSlot> initializeDefaultDoctorSchedules(DoctorProfile profile) {
+        List<DoctorScheduleSlot> existing = doctorScheduleSlotRepository.findByDoctorProfileIdAndIsActiveTrue(profile.getId());
+        if (existing != null && !existing.isEmpty()) {
+            return existing;
+        }
+
         List<DoctorScheduleSlot> defaultSlots = new ArrayList<>();
         DayOfWeek[] weekdays = {
                 DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
