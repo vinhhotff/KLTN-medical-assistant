@@ -923,7 +923,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `GET /api/v1/doctors/me/schedules, PUT /api/v1/doctors/me/schedules` (Quyền: `hasRole('DOCTOR')`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/profile` $\rightarrow$ Màn hình `DoctorProfilePage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/schedule` $\rightarrow$ Màn hình `DoctorSchedulePage.tsx` (lịch hằng tuần theo khoảng giờ + thời lượng ca 15/20/30/45/60′, cảnh báo lịch hẹn nằm ngoài giờ mới, xem ca theo ngày — giao diện Stitch, WORK_LOG #134; thay modal cấu hình lịch trực cũ trong `DoctorDashboard.tsx`)
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_schedule_slots, doctor_profiles` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V7__slot_collision_guard_and_dedup_constraints.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService` $\rightarrow$ `DoctorScheduleSlotRepository, DoctorProfileRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java` (**100% PASS**)
@@ -989,7 +989,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `MedicalDocumentController, TriageController` $\rightarrow$ `GET /api/v1/documents/{id}/file, GET /api/v1/triage/patient/{patientId}` (Quyền: `PUBLIC / AUTH_DEFAULT, hasAnyRole('DOCTOR', 'ADMIN')`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor, /doctor/patients` $\rightarrow$ Màn hình `DoctorDashboard.tsx (Split View), DoctorPatientRecordsPage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor, /doctor/appointments/:id, /doctor/patients` $\rightarrow$ Màn hình `DoctorDashboard.tsx (Split View), DoctorAppointmentDetailPage.tsx (Chi tiết ca khám: SBAR theo dòng S/B/A/R, xét nghiệm đính kèm, hồ sơ & lịch sử bệnh nhân; nút Bắt đầu khám mở bàn khám qua `/doctor?encounter=<id>`), DoctorPatientRecordsPage.tsx`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `medical_documents, triage_sessions` $\rightarrow$ Bản di trú `V20__private_document_storage_path.sql, V15__add_triage_session_and_refund_to_appointments.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `MedicalDocumentFileAccessService, TriageService, PatientAccessGuard` $\rightarrow$ `MedicalDocumentRepository, TriageSessionRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `MedicalDocumentFileAccessServiceTest.java, PatientAccessGuardTest.java` (**100% PASS**)
@@ -1253,7 +1253,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `PUT /api/v1/doctors/me/profile` (Quyền: `hasRole('DOCTOR')`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/profile` $\rightarrow$ Màn hình `DoctorProfilePage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/profile` $\rightarrow$ Màn hình `DoctorProfilePage.tsx` (bố cục 4 bước Tài khoản → Thông tin hành nghề → Hồ sơ công khai → Xét duyệt theo Stitch, WORK_LOG #134)
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V10__optimize_doctor_hnsw_index.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService, EmbeddingService, TwoLayerCacheService` $\rightarrow$ `DoctorProfileRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java, EmbeddingServiceTest.java` (**100% PASS**)

@@ -27,6 +27,7 @@ export interface AppointmentItem {
   appointmentCode: string;
   patientId: string;
   patientName: string;
+  patientPhone?: string;
   doctorId: string;
   doctorName: string;
   doctorEmail: string;

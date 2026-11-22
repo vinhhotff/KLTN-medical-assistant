@@ -69,7 +69,8 @@ Bộ 14 màn hình thiết kế trên Google Stitch (thư mục `design/stitch/`
 3. **Ngôn ngữ đời thường:** "Theo dõi tại nhà / Khám trong 1–3 ngày / Cấp cứu ngay" thay cho ROUTINE/URGENT/EMERGENCY; bảng chỉ số xét nghiệm có thanh "So với ngưỡng" và nhãn ↑ Cao / ↓ Thấp / ✓ Bình thường.
 4. **Màn hình cấp cứu riêng:** khi Red-Flag kích hoạt, toàn bộ khung chat được thay bằng màn hình đỏ với nút "Gọi cấp cứu 115" cỡ lớn, nút gọi người thân (lấy từ hồ sơ), 4 việc cần làm trong lúc chờ xe, và khóa trò chuyện với AI.
 5. **Chỉ hiển thị dữ liệu thật:** phần nào của thiết kế mà backend chưa có dữ liệu (bản đồ bệnh viện gần nhất, giờ trống gần nhất của bác sĩ, chiều cao/cân nặng/thuốc đang dùng, khám qua video…) được ẩn đi thay vì điền số liệu giả. Màn "Chi tiết lịch hẹn" giữ đúng mô hình khám trực tiếp (O2O): phòng khám, số thứ tự, phiếu QR check-in.
-6. **Rào chắn không đổi:** banner "Cảnh báo y tế" cố định trên mọi trang bệnh nhân (không tắt được), số 115 luôn bấm được, Red-Flag chạy trước khi gọi LLM.
+6. **Cổng bác sĩ (WORK_LOG #134):** điều hướng ngang màu teal; "Chi tiết ca khám" đặt tóm tắt SBAR từ AI, xét nghiệm đính kèm và hồ sơ bệnh nhân trên cùng một trang trước khi mở bàn khám; "Lịch làm việc" cho bác sĩ mở khung giờ theo buổi và chọn thời lượng ca thay vì bật từng ô 30 phút.
+7. **Rào chắn không đổi:** banner "Cảnh báo y tế" cố định trên mọi trang bệnh nhân (không tắt được), số 115 luôn bấm được, Red-Flag chạy trước khi gọi LLM.
 
 ---
 
