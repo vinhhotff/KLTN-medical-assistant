@@ -5,14 +5,13 @@ test.describe('UC-SEC-01: Authentication', () => {
   test('login form starts empty and login button needs both fields', async ({ page }) => {
     await installMockApi(page);
     await page.goto('/login');
-    await page.getByRole('button', { name: /Đăng nhập hệ thống ngay/ }).click();
 
     const email = page.locator('form input[type="email"]');
     const password = page.locator('form input[type="password"]');
     await expect(email).toHaveValue('');
     await expect(password).toHaveValue('');
 
-    const submit = page.getByRole('button', { name: /Đăng Nhập Vào Hệ Thống/ });
+    const submit = page.locator('form').getByRole('button', { name: 'Đăng nhập', exact: true });
     await expect(submit).toBeDisabled();
     await email.fill('patient@mediassist.local');
     await expect(submit).toBeDisabled();
@@ -23,20 +22,18 @@ test.describe('UC-SEC-01: Authentication', () => {
   test('demo presets are available in dev and log the patient in', async ({ page }) => {
     await installMockApi(page);
     await page.goto('/login');
-    await page.getByRole('button', { name: /Đăng nhập hệ thống ngay/ }).click();
     await expect(page.getByTestId('demo-presets')).toBeVisible();
-    await page.getByTestId('demo-presets').getByRole('button', { name: /Bệnh Nhân/ }).click();
-    await page.getByRole('button', { name: /Đăng Nhập Vào Hệ Thống/ }).click();
+    await page.getByTestId('demo-presets').getByRole('button', { name: 'Bệnh nhân Bình' }).click();
+    await page.locator('form').getByRole('button', { name: 'Đăng nhập', exact: true }).click();
     await expect(page).toHaveURL(/\/patient$/);
   });
 
   test('invalid credentials show the backend error', async ({ page }) => {
     await installMockApi(page);
     await page.goto('/login');
-    await page.getByRole('button', { name: /Đăng nhập hệ thống ngay/ }).click();
     await page.locator('form input[type="email"]').fill('nobody@mediassist.local');
     await page.locator('form input[type="password"]').fill('WrongPassword1!');
-    await page.getByRole('button', { name: /Đăng Nhập Vào Hệ Thống/ }).click();
+    await page.locator('form').getByRole('button', { name: 'Đăng nhập', exact: true }).click();
     await expect(page.getByText('Email hoặc mật khẩu không đúng')).toBeVisible();
   });
 
@@ -44,7 +41,7 @@ test.describe('UC-SEC-01: Authentication', () => {
     await installMockApi(page);
     await page.goto('/login?expired=true');
     await expect(page.getByText('Phiên đăng nhập đã hết hạn')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Đăng Nhập Vào Hệ Thống/ })).toBeVisible();
+    await expect(page.locator('form').getByRole('button', { name: 'Đăng nhập', exact: true })).toBeVisible();
   });
 
   test('forgot password calls the API, disables while sending and shows the neutral message', async ({ page }) => {
@@ -59,7 +56,6 @@ test.describe('UC-SEC-01: Authentication', () => {
       },
     });
     await page.goto('/login');
-    await page.getByRole('button', { name: /Đăng nhập hệ thống ngay/ }).click();
     await page.getByText('Quên mật khẩu?').click();
 
     const dialog = page.getByRole('dialog', { name: 'Khôi phục mật khẩu' });
@@ -82,7 +78,7 @@ test.describe('UC-SEC-01: Authentication', () => {
   test('register validates the password criteria that are displayed', async ({ page }) => {
     const calls: Array<{ method: string; path: string; body: unknown }> = [];
     await installMockApi(page, { calls });
-    await page.goto('/login');
+    await page.goto('/login?mode=register');
     await page.getByPlaceholder('Nguyễn Văn A').fill('Nguyễn Văn Test');
     await page.locator('input[type="date"]').first().fill('1990-01-01');
     await page.getByPlaceholder('0912 345 678').fill('0912345678');
@@ -90,7 +86,7 @@ test.describe('UC-SEC-01: Authentication', () => {
     await page.getByPlaceholder('Tối thiểu 8 ký tự').fill('password1');
     await page.getByPlaceholder('Nhập lại mật khẩu').fill('password1');
 
-    const submit = page.getByRole('button', { name: /Tạo Tài Khoản/ });
+    const submit = page.getByRole('button', { name: /Tạo tài khoản/ });
     await expect(submit).toBeDisabled(); // terms not accepted by default
     await page.locator('#terms').check();
     await submit.click();

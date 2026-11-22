@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertCircle,
   ArrowRight,
   Calendar,
-  CheckCircle2,
-  Eye,
-  EyeOff,
+  Dices,
+  IdCard,
   Lock,
   Mail,
   Phone,
@@ -16,6 +14,7 @@ import {
 import { api, getApiErrorMessage } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { ENABLE_DEMO_LOGIN } from '../../config/app';
+import { AuthAlert, AuthLabel, AuthHint, IconInput, PasswordStrengthMeter, SubmitButton } from './authUi';
 import { todayLocal } from '../../utils/date';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -121,7 +120,7 @@ export const PatientRegisterForm: React.FC = () => {
     }
 
     return {
-      label: 'Rất mạnh (Tối ưu Y Tế 256-Bit)',
+      label: 'Rất mạnh',
       level: 100,
       color: 'bg-emerald-500',
       textColor: 'text-emerald-600',
@@ -248,278 +247,146 @@ export const PatientRegisterForm: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
       {error && (
-        <div className="p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl flex items-start gap-2.5 text-xs text-rose-900 animate-fadeIn">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <div className="font-mono font-bold">LỖI ĐĂNG KÝ BỆNH NHÂN:</div>
-            <div className="text-[12px] text-rose-800 mt-0.5 leading-snug">{error}</div>
-          </div>
-        </div>
+        <AuthAlert tone="error" title="Chưa đăng ký được">
+          {error}
+        </AuthAlert>
       )}
-
-      {successMsg && (
-        <div className="p-3.5 bg-emerald-50 border-2 border-emerald-300 rounded-2xl flex items-start gap-2.5 text-xs text-emerald-900 animate-fadeIn">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-          <div className="flex-1 font-bold leading-snug">{successMsg}</div>
-        </div>
-      )}
+      {successMsg && <AuthAlert tone="success">{successMsg}</AuthAlert>}
 
       {ENABLE_DEMO_LOGIN && (
-        <div className="p-3 bg-[#F8FAFC] rounded-2xl border border-slate-300 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-900">
-            <Sparkles className="w-4 h-4 text-teal-600 animate-pulse" />
-            <span>Dữ liệu mẫu để demo:</span>
-          </div>
+        <div className="p-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+            <Sparkles className="w-4 h-4 text-teal-600" /> Điền nhanh dữ liệu mẫu
+          </span>
           <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => handleRandomFill('RANDOM')}
-              className="px-3 py-1.5 rounded-xl font-display text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm shadow-teal-600/20 transition-all flex items-center gap-1 cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-teal-200 bg-teal-50 text-sm font-semibold text-teal-700 hover:bg-teal-100 transition cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[15px]">casino</span>
-              <span>🎲 Random Bệnh Nhân</span>
+              <Dices className="w-3.5 h-3.5" /> Ngẫu nhiên
             </button>
             <button
               type="button"
               onClick={() => handleRandomFill('SENIOR')}
-              className="px-2.5 py-1.5 rounded-xl font-mono text-[11px] font-bold bg-[#FFFFFF] hover:bg-slate-200 text-slate-800 border border-slate-300 transition cursor-pointer"
+              className="px-3 py-1.5 rounded-full border border-slate-300 bg-white text-sm font-medium text-slate-800 hover:bg-slate-100 transition cursor-pointer"
             >
-              Người Cao Tuổi
+              Người cao tuổi
             </button>
             <button
               type="button"
               onClick={() => handleRandomFill('YOUNG')}
-              className="px-2.5 py-1.5 rounded-xl font-mono text-[11px] font-bold bg-[#FFFFFF] hover:bg-slate-200 text-slate-800 border border-slate-300 transition cursor-pointer"
+              className="px-3 py-1.5 rounded-full border border-slate-300 bg-white text-sm font-medium text-slate-800 hover:bg-slate-100 transition cursor-pointer"
             >
-              Thanh Niên
+              Thanh niên
             </button>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Full Name */}
-        <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wider font-bold text-slate-800 mb-1">
-            Họ và tên bệnh nhân <span className="text-rose-500">*</span>
-          </label>
-          <div className="relative">
-            <UserIcon className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-            <input
-              type="text"
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Nguyễn Văn A"
-              className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
-            />
-          </div>
-          <span className="font-mono text-[10px] text-slate-500 mt-1 block">Khớp đúng với BHYT hoặc CCCD</span>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
+        <div className="min-w-0">
+          <AuthLabel htmlFor="reg-name" required>
+            Họ và tên bệnh nhân
+          </AuthLabel>
+          <IconInput id="reg-name" icon={UserIcon} type="text" required autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nguyễn Văn A" />
+          <AuthHint>Khớp đúng với BHYT hoặc CCCD</AuthHint>
         </div>
 
-        {/* Date of Birth */}
-        <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wider font-bold text-slate-800 mb-1">
-            Ngày sinh <span className="text-rose-500">*</span>
-          </label>
-          <div className="relative">
-            <Calendar className="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
-            <input
-              type="date"
-              required
-              max={todayLocal()}
-              value={dob}
-              onChange={(e) => setDob(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
-            />
-          </div>
-          <span className="font-mono text-[10px] text-slate-500 mt-1 block">Dùng để phân chuẩn chỉ số sinh hóa</span>
+        <div className="min-w-0">
+          <AuthLabel htmlFor="reg-dob" required>
+            Ngày sinh
+          </AuthLabel>
+          <IconInput id="reg-dob" icon={Calendar} type="date" required max={todayLocal()} value={dob} onChange={(e) => setDob(e.target.value)} />
+          <AuthHint>Dùng để phân chuẩn chỉ số sinh hóa</AuthHint>
         </div>
 
-        {/* Phone */}
-        <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wider font-bold text-slate-800 mb-1">
-            Số điện thoại di động <span className="text-rose-500">*</span>
-          </label>
-          <div className="relative">
-            <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-            <input
-              type="tel"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="0912 345 678"
-              className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
-            />
-          </div>
+        <div className="min-w-0">
+          <AuthLabel htmlFor="reg-phone" required>
+            Số điện thoại di động
+          </AuthLabel>
+          <IconInput id="reg-phone" icon={Phone} type="tel" required autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0912 345 678" />
         </div>
 
-        {/* Email */}
-        <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wider font-bold text-slate-800 mb-1">
-            Email nhận phân tích &amp; xác thực <span className="text-rose-500">*</span>
-          </label>
-          <div className="relative">
-            <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="nguyena@gmail.com"
-              className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
-            />
-          </div>
+        <div className="min-w-0">
+          <AuthLabel htmlFor="reg-email" required>
+            Email nhận phân tích &amp; xác thực
+          </AuthLabel>
+          <IconInput id="reg-email" icon={Mail} type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nguyena@gmail.com" />
         </div>
 
-        {/* Password */}
-        <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wider font-bold text-slate-800 mb-1">
-            Mật khẩu truy cập <span className="text-rose-500">*</span>
-          </label>
-          <div className="relative">
-            <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-            <input
-              type={showPassword ? 'text' : 'password'}
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Tối thiểu 8 ký tự"
-              className="w-full pl-9 pr-9 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-              className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-800 cursor-pointer"
-            >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Confirm Password */}
-        <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wider font-bold text-slate-800 mb-1">
-            Xác nhận mật khẩu <span className="text-rose-500">*</span>
-          </label>
-          <div className="relative">
-            <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-            <input
-              type={showConfirmPassword ? 'text' : 'password'}
-              required
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Nhập lại mật khẩu"
-              className="w-full pl-9 pr-9 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              aria-label={showConfirmPassword ? 'Ẩn mật khẩu xác nhận' : 'Hiện mật khẩu xác nhận'}
-              className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-800 cursor-pointer"
-            >
-              {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Gender Selection */}
-        <div className="col-span-1 sm:col-span-2 flex items-center gap-4 py-0.5">
-          <span className="font-mono text-[11px] uppercase font-bold text-slate-800">Giới tính:</span>
-          <label className="flex items-center gap-1.5 text-xs text-slate-800 cursor-pointer font-semibold">
-            <input
-              type="radio"
-              name="patientGender"
-              value="MALE"
-              checked={gender === 'MALE'}
-              onChange={() => setGender('MALE')}
-              className="text-teal-600 focus:ring-teal-500 cursor-pointer"
-            />
-            <span>Nam</span>
-          </label>
-          <label className="flex items-center gap-1.5 text-xs text-slate-800 cursor-pointer font-semibold">
-            <input
-              type="radio"
-              name="patientGender"
-              value="FEMALE"
-              checked={gender === 'FEMALE'}
-              onChange={() => setGender('FEMALE')}
-              className="text-teal-600 focus:ring-teal-500 cursor-pointer"
-            />
-            <span>Nữ</span>
-          </label>
-          <label className="flex items-center gap-1.5 text-xs text-slate-800 cursor-pointer font-semibold">
-            <input
-              type="radio"
-              name="patientGender"
-              value="OTHER"
-              checked={gender === 'OTHER'}
-              onChange={() => setGender('OTHER')}
-              className="text-teal-600 focus:ring-teal-500 cursor-pointer"
-            />
-            <span>Khác</span>
-          </label>
-        </div>
-      </div>
-
-      {/* Password Strength Indicator */}
-      <div className="p-3.5 bg-[#F8FAFC] rounded-2xl border border-slate-300">
-        <div className="flex items-center justify-between text-[11px] mb-1.5">
-          <span className="font-mono font-bold text-slate-700">Độ mạnh mật khẩu y tế:</span>
-          <span className={`font-mono font-bold ${passwordStrength.textColor}`}>
-            {passwordStrength.label}
-          </span>
-        </div>
-        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mb-2.5">
-          <div
-            className={`h-full transition-all duration-300 ${passwordStrength.color}`}
-            style={{ width: `${passwordStrength.level}%` }}
+        <div className="min-w-0">
+          <AuthLabel htmlFor="reg-password" required>
+            Mật khẩu truy cập
+          </AuthLabel>
+          <IconInput
+            id="reg-password"
+            icon={Lock}
+            type={showPassword ? 'text' : 'password'}
+            required
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Tối thiểu 8 ký tự"
+            reveal={{ shown: showPassword, onToggle: () => setShowPassword(!showPassword), label: showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu' }}
           />
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 font-mono text-[10px]">
-          <span
-            className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors ${
-              passCriteria.length
-                ? 'bg-emerald-100 text-emerald-800 font-bold border border-emerald-300'
-                : 'bg-slate-200/70 text-slate-500'
-            }`}
-          >
-            <span>{passCriteria.length ? '✓' : '○'}</span>
-            <span>8+ ký tự</span>
-          </span>
-          <span
-            className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors ${
-              passCriteria.uppercase
-                ? 'bg-emerald-100 text-emerald-800 font-bold border border-emerald-300'
-                : 'bg-slate-200/70 text-slate-500'
-            }`}
-          >
-            <span>{passCriteria.uppercase ? '✓' : '○'}</span>
-            <span>Chữ hoa (A-Z)</span>
-          </span>
-          <span
-            className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors ${
-              passCriteria.special
-                ? 'bg-emerald-100 text-emerald-800 font-bold border border-emerald-300'
-                : 'bg-slate-200/70 text-slate-500'
-            }`}
-          >
-            <span>{passCriteria.special ? '✓' : '○'}</span>
-            <span>Ký tự đặc biệt (!@#)</span>
-          </span>
+
+        <div className="min-w-0">
+          <AuthLabel htmlFor="reg-password2" required>
+            Xác nhận mật khẩu
+          </AuthLabel>
+          <IconInput
+            id="reg-password2"
+            icon={Lock}
+            type={showConfirmPassword ? 'text' : 'password'}
+            required
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Nhập lại mật khẩu"
+            reveal={{
+              shown: showConfirmPassword,
+              onToggle: () => setShowConfirmPassword(!showConfirmPassword),
+              label: showConfirmPassword ? 'Ẩn mật khẩu xác nhận' : 'Hiện mật khẩu xác nhận',
+            }}
+          />
         </div>
+
+        <fieldset className="sm:col-span-2 flex flex-wrap items-center gap-x-5 gap-y-2">
+          <legend className="float-left mr-1 text-sm font-semibold text-slate-800">Giới tính:</legend>
+          {(
+            [
+              ['MALE', 'Nam'],
+              ['FEMALE', 'Nữ'],
+              ['OTHER', 'Khác'],
+            ] as const
+          ).map(([value, text]) => (
+            <label key={value} className="flex items-center gap-1.5 text-sm text-slate-800 cursor-pointer">
+              <input
+                type="radio"
+                name="patientGender"
+                value={value}
+                checked={gender === value}
+                onChange={() => setGender(value)}
+                className="text-teal-600 focus:ring-teal-500 cursor-pointer"
+              />
+              {text}
+            </label>
+          ))}
+        </fieldset>
       </div>
 
-      <p className="text-[11px] text-slate-600 flex items-center gap-1">
-        <span className="material-symbols-outlined text-[14px] text-teal-600">badge</span>
-        Bạn có thể bổ sung số BHYT / CCCD trong mục &quot;Hồ sơ y tế&quot; sau khi đăng ký.
+      <PasswordStrengthMeter strength={passwordStrength} criteria={passCriteria} />
+
+      <p className="flex items-start gap-1.5 text-xs text-slate-600">
+        <IdCard className="w-4 h-4 text-teal-600 shrink-0" />
+        Bạn có thể bổ sung số BHYT / CCCD trong mục “Hồ sơ y tế” sau khi đăng ký.
       </p>
 
-      {/* Terms Agreement */}
-      <div className="flex items-start gap-2 pt-1">
+      <div className="flex items-start gap-2.5">
         <input
           type="checkbox"
           id="terms"
@@ -527,31 +394,21 @@ export const PatientRegisterForm: React.FC = () => {
           onChange={(e) => setAgreeTerms(e.target.checked)}
           className="mt-0.5 rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
         />
-        <label htmlFor="terms" className="text-[11px] text-slate-600 leading-snug cursor-pointer">
-          Tôi đồng ý với <span className="text-slate-900 font-bold underline">Điều khoản Dịch vụ</span> và chấp thuận quy chế xử lý{' '}
-          <span className="text-slate-900 font-bold underline">Dữ liệu Y tế e-PHI chuẩn HIPAA / Bộ Y Tế</span>. Dữ liệu chỉ phục vụ mục đích hội chẩn lâm sàng.
+        <label htmlFor="terms" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
+          Tôi đồng ý với <span className="font-semibold text-slate-900 underline">Điều khoản Dịch vụ</span> và chấp thuận quy chế xử lý{' '}
+          <span className="font-semibold text-slate-900 underline">Chính sách bảo vệ dữ liệu sức khỏe</span>. Dữ liệu chỉ phục vụ mục đích hội chẩn lâm sàng.
         </label>
       </div>
 
-      {/* Primary Submit Button */}
-      <button
-        type="submit"
+      <SubmitButton
         disabled={loading || !agreeTerms}
+        loading={loading}
+        loadingText="Đang tạo tài khoản…"
         title={!agreeTerms ? 'Cần đồng ý điều khoản trước khi tạo tài khoản' : undefined}
-        className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-display text-xs font-bold transition-all shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
       >
-        {loading ? (
-          <>
-            <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
-            <span>Đang khởi tạo danh tính y tế...</span>
-          </>
-        ) : (
-          <>
-            <span>Tạo Tài Khoản</span>
-            <ArrowRight className="w-4 h-4" />
-          </>
-        )}
-      </button>
+        <span>Tạo tài khoản</span>
+        <ArrowRight className="w-4 h-4" />
+      </SubmitButton>
     </form>
   );
 };
