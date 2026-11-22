@@ -1348,7 +1348,7 @@ export const DoctorDashboard: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-3">
           {/* Realtime Live Pulse Badge */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-700 bg-[#FCFBF8] px-3.5 py-2 rounded-xl border border-slate-200/90 shadow-2xs">
+          <div className="flex items-center gap-1.5 text-xs text-slate-700 bg-[#FFFFFF] px-3.5 py-2 rounded-xl border border-slate-200/90 shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
             <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
           </div>
@@ -1356,7 +1356,7 @@ export const DoctorDashboard: React.FC = () => {
           <button
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FCFBF8] hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200/90 transition shadow-2xs cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FFFFFF] hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200/90 transition shadow-2xs cursor-pointer disabled:opacity-50"
             title="Làm mới dữ liệu tức thì"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-teal-600' : ''}`} />
@@ -1375,7 +1375,7 @@ export const DoctorDashboard: React.FC = () => {
 
           <button
             onClick={openScheduleModal}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FCFBF8] hover:bg-teal-50 text-teal-800 hover:text-teal-900 text-xs font-bold rounded-xl border border-teal-200/80 transition cursor-pointer shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FFFFFF] hover:bg-teal-50 text-teal-800 hover:text-teal-900 text-xs font-bold rounded-xl border border-teal-200/80 transition cursor-pointer shadow-2xs"
           >
             <Settings className="w-3.5 h-3.5 text-teal-600" />
             <span>Cấu Hình Lịch Trực</span>

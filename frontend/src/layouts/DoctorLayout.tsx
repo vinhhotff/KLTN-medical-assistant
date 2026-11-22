@@ -101,13 +101,13 @@ export const DoctorLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F6F3EC] text-slate-900 font-sans">
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900 font-sans">
       <EmailVerificationBanner />
 
       <div className="flex-1 flex min-h-0">
         {/* DESKTOP TACTICAL PHYSICIAN RAIL — Clean Warm Clinical Atelier Palette */}
         <aside
-        className="hidden md:flex md:w-72 flex-col justify-between bg-[#FCFBF8] text-slate-800 border-r border-slate-200/90 sticky top-0 h-screen shrink-0 select-none shadow-[2px_0_12px_rgba(0,0,0,0.02)]"
+        className="hidden md:flex md:w-72 flex-col justify-between bg-[#FFFFFF] text-slate-800 border-r border-slate-200/90 sticky top-0 h-screen shrink-0 select-none shadow-[2px_0_12px_rgba(0,0,0,0.02)]"
         aria-label="Điều hướng bác sĩ"
       >
         <div className="p-6 space-y-6 overflow-y-auto">
@@ -211,7 +211,7 @@ export const DoctorLayout: React.FC = () => {
 
       {/* MAIN WORKSPACE COLUMN */}
       <div className="flex-1 flex flex-col min-w-0 bg-atelier-dots">
-        <header className="bg-[#FCFBF8]/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-30 shadow-xs">
+        <header className="bg-[#FFFFFF]/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-30 shadow-xs">
           <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <button
@@ -264,7 +264,7 @@ export const DoctorLayout: React.FC = () => {
           {menuOpen && (
             <nav
               id="doctor-mobile-menu"
-              className="md:hidden border-t border-slate-200 bg-[#FCFBF8] text-slate-800 px-4 py-3 space-y-1.5 text-sm font-semibold shadow-lg"
+              className="md:hidden border-t border-slate-200 bg-[#FFFFFF] text-slate-800 px-4 py-3 space-y-1.5 text-sm font-semibold shadow-lg"
               aria-label="Điều hướng bác sĩ (di động)"
             >
               {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (

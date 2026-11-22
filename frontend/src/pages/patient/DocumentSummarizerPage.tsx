@@ -5,14 +5,11 @@ import {
   Sparkles,
   CheckCircle2,
   AlertCircle,
-  Calendar,
-  UserCheck,
-  ShieldCheck,
-  HelpCircle,
+  CalendarDays,
   X,
   Stethoscope,
+  ChevronLeft,
   ChevronRight,
-  Building2,
   Printer,
   RotateCcw,
   ExternalLink,
@@ -22,16 +19,22 @@ import {
   CreditCard,
   Wallet,
   BadgeCheck,
-  AlertTriangle,
+  TriangleAlert,
   FileQuestion,
   Download,
   Image as ImageIcon,
-  Layers,
   Plus,
   Trash2,
   Users,
-  User,
-  Star
+  Star,
+  Camera,
+  Info,
+  Lock,
+  Search,
+  ArrowUp,
+  ArrowDown,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import { api, EMAIL_NOT_VERIFIED_MESSAGE, EMAIL_NOT_VERIFIED_TOOLTIP, isEmailNotVerified } from '../../services/api';
 import { useEmailVerification } from '../../hooks/useEmailVerification';
@@ -96,7 +99,9 @@ const PACKAGE_DISPLAY: Record<PackageCode, { tag: string; badge?: string; highli
     tone: 'amber',
   },
 };
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import type { PatientDocumentItem } from '../../types/patient';
+import { placeOnRange } from '../../utils/labRange';
 
 interface AbnormalIndicator {
   name: string;
@@ -192,7 +197,7 @@ export const DocumentSummarizerPage: React.FC = () => {
   const { user } = useAuthStore();
   const toast = useToast();
   const { isUnverified } = useEmailVerification();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const focusId = searchParams.get('focusId');
   const [loadingFocusDoc, setLoadingFocusDoc] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -671,1245 +676,863 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
     });
   };
 
+  // Recent documents (GET /documents/my) for the "Tài liệu gần đây" sidebar
+  const [recentDocs, setRecentDocs] = useState<PatientDocumentItem[]>([]);
+  useEffect(() => {
+    if (!user) return;
+    api
+      .get('/documents/my')
+      .then((res) => {
+        if (Array.isArray(res.data?.data)) {
+          const docs = [...(res.data.data as PatientDocumentItem[])].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+          setRecentDocs(docs.slice(0, 5));
+        }
+      })
+      .catch((err) => devLog.warn('Could not load recent documents:', err));
+  }, [user, analysis?.documentId]);
+
+  const [indicatorFilter, setIndicatorFilter] = useState<'all' | 'abnormal'>('all');
+
+  const resetToUpload = () => {
+    if (analyzing) return;
+    setAnalysis(null);
+    setAnalysisSuccessNotification(null);
+    setSelectedFiles([]);
+    setError(null);
+    if (focusId) setSearchParams({}, { replace: true });
+  };
+
+  const isAbnormal = (ind: AbnormalIndicator) => ind.status === 'ELEVATED' || ind.status === 'LOW' || (ind.status as string) === 'HIGH';
+  const isHigh = (ind: AbnormalIndicator) => ind.status === 'ELEVATED' || (ind.status as string) === 'HIGH';
+
+  const STEPS = [
+    { title: 'Tải lên an toàn', desc: 'Ẩn tên, số định danh trước khi phân tích' },
+    { title: 'Nhận dạng chữ trên phiếu', desc: 'Đọc bảng kết quả xét nghiệm' },
+    { title: 'Đối chiếu khoảng tham chiếu', desc: 'So từng chỉ số với ngưỡng bình thường in trên phiếu' },
+    { title: 'Tìm bác sĩ phù hợp', desc: 'Theo chuyên khoa liên quan' },
+    { title: 'Viết lời giải thích dễ hiểu', desc: 'Kèm gợi ý chuyên khoa nếu cần' },
+  ];
+  const progressPct = Math.min(95, (analysisStage + 1) * 20);
+
+  const errorAlert = error && (
+    <div role="alert" data-testid="scan-error" data-kind={errorKind} className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-sm flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-start gap-2 max-w-2xl">
+        <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+        <span>{error}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        {errorKind === 'retryable' && selectedFiles.length > 0 && (
+          <button
+            type="button"
+            onClick={() => executeAnalysis()}
+            disabled={Boolean(scanBlockedReason)}
+            className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 text-white rounded-lg text-sm font-semibold transition flex items-center gap-1.5 cursor-pointer"
+          >
+            <RotateCcw className="w-4 h-4" /> Thử lại
+          </button>
+        )}
+        {errorKind === 'quota' && (
+          <button
+            type="button"
+            onClick={() => setShowPricingModal(true)}
+            className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition flex items-center gap-1.5 cursor-pointer"
+          >
+            <Crown className="w-4 h-4" /> Gói quét / VIP
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  const quotaBadge = quota?.vip ? (
+    <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg text-sm font-medium">
+      <Crown className="w-4 h-4 text-amber-600" /> Hội viên VIP
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm">
+      <Zap className="w-4 h-4 text-teal-600" />
+      <span className="inline-flex items-center gap-1" data-testid="quota-badge">
+        Lượt quét:{' '}
+        {quotaStatus === 'loading' ? (
+          <Skeleton className="inline-block h-3.5 w-5 align-middle" />
+        ) : quotaStatus === 'error' || !quota ? (
+          <strong className="text-slate-500" title="Chưa tải được số lượt quét">—</strong>
+        ) : (
+          <strong className={quota.scanQuota <= 0 ? 'text-rose-600' : 'text-teal-700'}>{quota.scanQuota}</strong>
+        )}
+      </span>
+      <button
+        type="button"
+        onClick={() => setShowPricingModal(true)}
+        className="ml-1 px-2 py-0.5 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-md text-xs font-semibold transition cursor-pointer"
+      >
+        + Mua thêm
+      </button>
+    </span>
+  );
+
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-16">
-
+    <div className="space-y-6">
       {loadingFocusDoc && (
-        <div className="p-4 bg-teal-50 border border-teal-200 rounded-2xl flex items-center gap-3 text-sm font-semibold text-teal-800 animate-fadeIn shadow-xs">
-          <Sparkles className="w-5 h-5 text-teal-600 animate-spin flex-shrink-0" />
-          <span>Đang tải kết quả bóc tách chỉ số xét nghiệm và gợi ý bác sĩ cho tài liệu đã chọn...</span>
+        <div className="p-4 bg-teal-50 border border-teal-200 rounded-xl flex items-center gap-3 text-sm text-teal-800" role="status">
+          <Loader2 className="w-5 h-5 text-teal-600 animate-spin shrink-0" />
+          Đang tải kết quả đọc phiếu của tài liệu đã chọn…
         </div>
       )}
 
-      {/* Prominent Instant Upload & Analysis Success Notification */}
-      {analysisSuccessNotification && (
-        <div className="p-5 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-2 border-emerald-500 rounded-3xl flex flex-wrap items-center justify-between gap-4 text-emerald-950 shadow-md animate-fadeIn ring-4 ring-emerald-500/10">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-sm flex-shrink-0">
-              <CheckCircle2 className="w-6 h-6 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className={`px-2.5 py-0.5 ${analysisSuccessNotification.modelUsed?.toLowerCase().includes('offline') || analysisSuccessNotification.modelUsed?.toLowerCase().includes('deterministic') ? 'bg-amber-600' : 'bg-emerald-600'} text-white text-[10px] font-extrabold rounded-full uppercase tracking-wider shadow-xs`}>
-                  {analysisSuccessNotification.modelUsed?.toLowerCase().includes('offline') || analysisSuccessNotification.modelUsed?.toLowerCase().includes('deterministic') ? 'Chế Độ Ngoại Tuyến' : 'AI Phân Tích Hoàn Tất'}
-                </span>
-                <h4 className="font-bold text-emerald-900 text-base">
-                  {analysisSuccessNotification.modelUsed?.toLowerCase().includes('offline') || analysisSuccessNotification.modelUsed?.toLowerCase().includes('deterministic')
-                    ? 'Đã Bóc Tách Chỉ Số & Khớp Nối Bác Sĩ (Ngoại Tuyến)!'
-                    : 'Đã Phân Tích & Số Hóa Tài Liệu Y Tế Thành Công!'}
-                </h4>
-              </div>
-              <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
-                Tệp <strong>{analysisSuccessNotification.fileName}</strong> đã được trích xuất{' '}
-                <strong>{analysisSuccessNotification.indicatorsCount} chỉ số lâm sàng</strong>, định hướng chuyên khoa{' '}
-                <strong className="underline decoration-emerald-500">{analysisSuccessNotification.specialtyName}</strong>{' '}
-                và gợi ý <strong>{analysisSuccessNotification.matchedDoctorsCount} bác sĩ chuyên khoa</strong> phù hợp.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => document.getElementById('analysis-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>Xem Kết Quả Ngay</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setAnalysisSuccessNotification(null)}
-              className="text-slate-400 hover:text-slate-600 p-2 rounded-lg hover:bg-emerald-100 transition cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      {/* ─────────────── 05 · Result view ─────────────── */}
+      {analysis && !analyzing ? (
+        (() => {
+          const isMulti = Boolean(analysis.multiPatientDetected && analysis.patientAnalyses && analysis.patientAnalyses.length > 1);
+          const activePatient = isMulti ? analysis.patientAnalyses![activePatientIndex] || analysis.patientAnalyses![0] : null;
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-teal-600 text-white rounded-2xl shadow-md shadow-teal-600/20">
-            <UploadCloud className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="font-mono text-[11px] uppercase tracking-widest text-teal-600 font-bold">
-              MODULE 04 // VISION OCR &amp; SINH HÓA
-            </div>
-            <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-              Đọc Kết Quả Xét Nghiệm &amp; <span className="font-bold text-teal-600">Gợi Ý Bác Sĩ</span>
-            </h1>
-            <p className="text-slate-600 text-sm mt-0.5">
-              Tải lên phiếu xét nghiệm, đơn thuốc hoặc bệnh án (PDF/ảnh). Hệ thống giải thích các chỉ số bất thường bằng lời dễ hiểu và gợi ý bác sĩ chuyên khoa phù hợp.
-            </p>
-          </div>
-        </div>
+          const displayHospital = activePatient?.hospitalName || analysis.hospitalName;
+          const displayDate = activePatient?.testDate || analysis.testDate;
+          const displayPatientName = activePatient?.patientName || analysis.patientName || user?.fullName || 'Người bệnh';
+          const displaySpecialtyName = activePatient?.recommendedSpecialtyName || analysis.recommendedSpecialtyName;
+          const displaySpecialtySlug = activePatient?.recommendedSpecialtySlug || analysis.recommendedSpecialtySlug;
+          const displaySpecialtyReason = activePatient?.doctorRecommendationReason || analysis.doctorRecommendationReason;
+          const displayExplanation = activePatient?.plainLanguageExplanation || analysis.plainLanguageExplanation;
+          const displaySummary = activePatient?.clinicalSummary || analysis.clinicalSummary;
+          const displayIndicators = activePatient?.indicators ?? analysis.indicators ?? [];
+          const displayDoctors = activePatient?.matchedDoctors ?? analysis.matchedDoctors ?? [];
+          const displayQuestions = activePatient?.suggestedQuestions ?? analysis.suggestedQuestions ?? [];
+          const displayFileName = activePatient?.sourceFileName || analysis.fileName;
+          const isOffline = !!analysis.modelUsed && /offline|deterministic/i.test(analysis.modelUsed);
 
-        {/* Quota & Subscription Status Badge */}
-        <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
-          {quota?.vip ? (
-            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-amber-500/15 via-amber-400/20 to-amber-500/15 border border-amber-300 text-amber-900 rounded-full text-xs font-semibold shadow-xs">
-              <Crown className="w-4 h-4 text-amber-600 animate-pulse" />
-              <span>Hội Viên MediPass VIP</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-white border border-slate-200/90 text-slate-800 rounded-xl font-mono text-xs font-semibold shadow-xs">
-              <Zap className="w-4 h-4 text-teal-600" />
-              <span className="inline-flex items-center gap-1" data-testid="quota-badge">
-                Lượt quét:{' '}
-                {quotaStatus === 'loading' ? (
-                  <Skeleton className="inline-block h-3.5 w-5 align-middle" />
-                ) : quotaStatus === 'error' || !quota ? (
-                  <strong className="text-slate-500" title="Chưa tải được số lượt quét">—</strong>
-                ) : (
-                  <strong className={quota.scanQuota <= 0 ? 'text-rose-600' : 'text-teal-700'}>{quota.scanQuota}</strong>
-                )}
-              </span>
+          const abnormal = displayIndicators.filter(isAbnormal);
+          const shown = indicatorFilter === 'abnormal' ? abnormal : displayIndicators;
+          const meta = [
+            displayHospital,
+            displayDate && `Lấy mẫu ${displayDate}`,
+            analysis.filesCount && analysis.filesCount > 1 ? `${analysis.filesCount} tệp` : null,
+          ].filter(Boolean);
+
+          return (
+            <div id="analysis-results" className="space-y-5 scroll-mt-6">
               <button
                 type="button"
-                onClick={() => setShowPricingModal(true)}
-                className="ml-1 px-2.5 py-0.5 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-full text-[11px] font-bold transition border border-teal-200 cursor-pointer"
+                onClick={resetToUpload}
+                className="inline-flex items-center gap-1 text-sm font-medium text-teal-700 hover:text-teal-900 cursor-pointer"
               >
-                + Mua thêm
+                <ChevronLeft className="w-4 h-4" /> Tải tài liệu khác
               </button>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* Upload Zone */}
-      <div
-        aria-busy={analyzing || undefined}
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (!analyzing) setIsDragging(true);
-        }}
-        onDragLeave={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setIsDragging(false);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setIsDragging(false);
-          if (!analyzing && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            handleFilesSelected(Array.from(e.dataTransfer.files));
-          }
-        }}
-        className={`p-5 sm:p-8 rounded-3xl border-2 border-dashed transition text-center space-y-4 ${
-          analyzing
-            ? 'bg-[#EDE8DF] border-slate-400 opacity-80'
-            : isDragging
-            ? 'bg-teal-50/70 border-teal-600 ring-4 ring-teal-500/20'
-            : 'bg-white border-slate-300 hover:border-teal-500 hover:bg-teal-50/20'
-        }`}
-      >
-        <UploadCloud
-          className={`w-14 h-14 mx-auto transition-transform duration-200 ${
-            isDragging ? 'text-teal-600 scale-110' : 'text-teal-500'
-          }`}
-        />
-        <div>
-          <p className="font-display text-base font-bold text-slate-900">
-            Kéo thả tệp PDF và Ảnh phiếu xét nghiệm vào đây hoặc bấm để chọn tệp
-          </p>
-          <p className="text-xs text-slate-400 mt-1">
-            Hỗ trợ kết hợp đồng thời nhiều tệp: <strong>PDF, JPG, PNG</strong> (tối đa 5 tệp, tổng dung lượng &le; 25MB, mỗi tệp &le; 10MB). Dữ liệu được mã hóa an toàn.
-          </p>
-        </div>
-
-        <label
-          htmlFor="multi-file-upload-input"
-          aria-disabled={analyzing || undefined}
-          className={`inline-block px-5 py-2.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-xl text-sm font-semibold cursor-pointer transition border border-teal-200 shadow-xs ${
-            analyzing ? 'opacity-50 pointer-events-none' : ''
-          }`}
-        >
-          Chọn tệp PDF hoặc ảnh
-          <input
-            id="multi-file-upload-input"
-            type="file"
-            multiple
-            accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
-            onChange={handleFileUpload}
-            disabled={analyzing}
-            className="hidden"
-          />
-        </label>
-
-        {/* Selected Multi-File Queue Card */}
-        {selectedFiles.length > 0 && (
-          <div className="mt-4 p-5 bg-slate-50/90 rounded-2xl border border-teal-200/80 max-w-xl mx-auto text-left shadow-xs space-y-3 animate-fadeIn">
-            <div className="flex items-center justify-between border-b border-slate-200/70 pb-2.5">
-              <div className="flex items-center gap-2">
-                <Layers className="w-4 h-4 text-teal-600" />
-                <span className="text-xs font-bold text-slate-800">
-                  Hàng Đợi Tệp Đã Chọn ({selectedFiles.length}/5 tệp)
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] font-mono text-slate-500">
-                  {(selectedFiles.reduce((acc, f) => acc + f.size, 0) / 1024).toFixed(1)} KB / 25 MB
-                </span>
-                <button
-                  type="button"
-                  onClick={handleClearFiles}
-                  disabled={analyzing}
-                  className="text-[11px] text-slate-500 hover:text-rose-600 transition flex items-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                  title="Xóa toàn bộ hàng đợi"
-                >
-                  <Trash2 className="w-3 h-3" /> Xóa tất cả
-                </button>
-              </div>
-            </div>
-
-            {/* File Queue Items */}
-            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-              {selectedFiles.map((f, idx) => {
-                const isPdf = f.name.toLowerCase().endsWith('.pdf');
-                return (
-                  <div
-                    key={`${f.name}-${idx}`}
-                    className="p-2.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between gap-3 shadow-2xs hover:border-teal-300 transition"
-                  >
-                    <div className="flex items-center gap-2.5 overflow-hidden">
-                      <div
-                        className={`p-1.5 rounded-lg flex-shrink-0 ${
-                          isPdf ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'
-                        }`}
-                      >
-                        {isPdf ? <FileText className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
-                      </div>
-                      <div className="overflow-hidden">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-xs font-bold text-slate-800 truncate max-w-[200px] sm:max-w-xs">{f.name}</p>
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                              isPdf
-                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                            }`}
-                          >
-                            {isPdf ? 'PDF' : 'ẢNH'}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-400">{(f.size / 1024).toFixed(1)} KB</p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile(idx)}
-                      disabled={analyzing}
-                      aria-label={`Xóa tệp ${f.name}`}
-                      className="p-1 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition flex-shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                      title="Xóa tệp này"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Action Bar */}
-            <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
-              <label
-                htmlFor="multi-file-upload-input"
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-medium cursor-pointer transition ${
-                  selectedFiles.length >= 5 || analyzing ? 'opacity-50 pointer-events-none' : ''
-                }`}
-              >
-                <Plus className="w-3.5 h-3.5 text-teal-600" />
-                <span>Thêm tệp (PDF/Ảnh)</span>
-              </label>
-
-              {quotaExhausted && !analyzing ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-rose-700" data-testid="quota-exhausted">Hết lượt quét</span>
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div className="min-w-0">
+                  <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 break-words">{displayFileName}</h1>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {meta.length > 0 ? meta.join(' · ') : 'Kết quả AI đọc phiếu'}
+                    {isMulti && <> · Bệnh nhân: {displayPatientName}</>}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0 print:hidden">
                   <button
                     type="button"
-                    onClick={() => setShowPricingModal(true)}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                    onClick={() => window.print()}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-800 hover:bg-slate-50 transition cursor-pointer"
                   >
-                    <Crown className="w-3.5 h-3.5" /> Xem bảng giá
+                    <Printer className="w-4 h-4" /> In kết quả
+                  </button>
+                  {displaySpecialtyName && (
+                    <a
+                      href="#matched-doctors"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold transition"
+                    >
+                      <Stethoscope className="w-4 h-4" /> Đặt lịch với bác sĩ
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {analysisSuccessNotification && (
+                <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-900" role="status">
+                  <span className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    Đã đọc xong {analysisSuccessNotification.indicatorsCount} chỉ số từ {analysisSuccessNotification.fileName}.
+                  </span>
+                  <button type="button" onClick={() => setAnalysisSuccessNotification(null)} className="p-1 rounded hover:bg-emerald-100 cursor-pointer" aria-label="Đóng thông báo">
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => executeAnalysis()}
-                  disabled={Boolean(scanBlockedReason)}
-                  title={scanBlockedReason || undefined}
-                  aria-busy={analyzing || undefined}
-                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  {analyzing ? (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5 animate-spin" /> Đang phân tích {selectedFiles.length} tệp...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Phân Tích {selectedFiles.length} Tệp
-                    </>
-                  )}
-                </button>
               )}
-            </div>
-          </div>
-        )}
 
-        {/* Random Meddies Patient PDF Generator Card */}
-        <div className="pt-4 border-t border-slate-100 text-left">
-          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-teal-50 via-emerald-50 to-cyan-50 border border-teal-200 rounded-2xl shadow-2xs">
-            <div className="flex items-center gap-2.5 min-w-[240px]">
-              <div className="p-2 bg-teal-600 text-white rounded-xl shadow-xs flex-shrink-0">
-                <Download className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
-                  <span>Tải phiếu xét nghiệm mẫu (bộ dữ liệu Meddies)</span>
-                  <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded-md text-[10px] font-semibold">Dữ liệu mẫu</span>
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  Tạo một tệp PDF mẫu (không phải hồ sơ của bạn) để thử tính năng quét.
+              <div className="flex items-start gap-2.5 p-4 rounded-xl bg-sky-50 border border-sky-200 text-sm text-sky-900">
+                <Info className="w-4 h-4 mt-0.5 shrink-0 text-sky-700" />
+                <p>
+                  <strong>Chưa có bác sĩ xem lại.</strong> Lời giải thích dưới đây do AI viết để bạn dễ hiểu, không thay thế kết luận của bác sĩ. Nếu số nào khác với phiếu gốc, hãy đối chiếu lại với tệp gốc.
                 </p>
               </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleDownloadRandomMeddiesPdf}
-              disabled={downloadingPdf || analyzing}
-              className="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer"
-            >
-              {downloadingPdf ? (
-                <>
-                  <Sparkles className="w-3.5 h-3.5 animate-spin" /> Đang Tạo PDF...
-                </>
-              ) : (
-                <>
-                  <Download className="w-3.5 h-3.5" /> Tải PDF Ngẫu Nhiên
-                </>
+
+              {analysis.cachedResult && (
+                <p className="flex items-center gap-2 text-sm text-emerald-800">
+                  <Zap className="w-4 h-4 text-emerald-600" /> Tài liệu này bạn đã quét trước đó — kết quả lấy lại từ hồ sơ và không trừ lượt quét.
+                </p>
               )}
-            </button>
-          </div>
-
-          {downloadSuccessToast && (
-            <div className="mt-2.5 p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-medium flex items-center justify-between gap-2 animate-fadeIn">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>{downloadSuccessToast}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDownloadSuccessToast(null)}
-                className="text-emerald-700 hover:text-emerald-900 p-0.5 rounded cursor-pointer transition"
-                title="Đóng thông báo"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-
-          {downloadPdfError && (
-            <div className="mt-2.5 p-3 bg-rose-50 border border-rose-300 text-rose-900 rounded-xl text-xs font-medium flex items-center justify-between gap-2 animate-fadeIn">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-                <span>{downloadPdfError}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDownloadPdfError(null)}
-                className="text-rose-700 hover:text-rose-900 p-0.5 rounded cursor-pointer transition"
-                title="Đóng thông báo"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Quick Sample Presets */}
-        <div className="pt-4 border-t border-slate-100 text-left">
-          <p className="text-xs font-semibold text-slate-600 mb-2">
-            Hoặc thử với phiếu mẫu <span className="font-normal text-slate-500">(dữ liệu minh hoạ, mỗi lần thử dùng 1 lượt quét)</span>:
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-            {samplePresets.map((preset, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleSelectPreset(preset)}
-                disabled={Boolean(scanBlockedReason)}
-                title={scanBlockedReason || undefined}
-                className="p-3 bg-slate-50 hover:bg-teal-50 hover:border-teal-300 border border-slate-200 rounded-xl text-left transition flex items-center justify-between group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-50 disabled:hover:border-slate-200"
-              >
-                <div className="overflow-hidden pr-2">
-                  <p className="text-xs font-bold text-slate-800 group-hover:text-teal-800 truncate">{preset.title}</p>
-                  <p className="text-[10px] text-slate-400">{preset.fileName}</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-teal-600 flex-shrink-0" />
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {error && (
-        <div role="alert" data-testid="scan-error" data-kind={errorKind} className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-medium flex flex-wrap items-center justify-between gap-3 shadow-xs animate-fadeIn">
-          <div className="flex items-center gap-2 max-w-2xl">
-            <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {errorKind === 'retryable' && selectedFiles.length > 0 && (
-              <button
-                type="button"
-                onClick={() => executeAnalysis()}
-                disabled={Boolean(scanBlockedReason)}
-                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-              >
-                <RotateCcw className="w-3.5 h-3.5" /> Thử lại
-              </button>
-            )}
-            {errorKind === 'quota' && (
-              <button
-                type="button"
-                onClick={() => setShowPricingModal(true)}
-                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-              >
-                <Crown className="w-3.5 h-3.5" /> Gói quét / VIP
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 🚀 Multi-Stage Progressive Visual Stepper State */}
-      {analyzing && (
-        <div className="bg-white rounded-3xl border border-teal-200/80 p-6 sm:p-8 space-y-6 shadow-sm animate-fadeIn">
-          {/* Top Progress Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-teal-50 text-teal-600 rounded-2xl border border-teal-200">
-                <Sparkles className="w-6 h-6 animate-spin text-teal-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                  <span>Hệ Thống Đang Xử Lý Tài Liệu Y Tế</span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-teal-100 text-teal-800 animate-pulse">
-                    Giai đoạn {analysisStage + 1}/5
-                  </span>
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {selectedFiles.length > 1 ? (
-                    <span>
-                      Đang phân tích đồng thời <strong>{selectedFiles.length} tệp</strong>:{' '}
-                      <span className="text-slate-700 font-medium">
-                        {selectedFiles.map((f) => f.name).join(', ')}
-                      </span>
-                    </span>
-                  ) : (
-                    <span>
-                      Đang phân tích tệp: <strong className="text-slate-700">{file?.name || 'Tài liệu cận lâm sàng'}</strong>
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-
-            {/* Percentage Badge */}
-            <div className="flex items-center gap-3 self-end sm:self-auto">
-              <div className="text-right">
-                <span className="text-xs text-slate-400 font-medium">Tiến độ ước tính</span>
-                <p className="text-lg font-black text-teal-700 leading-none">
-                  {Math.min(95, (analysisStage + 1) * 20)}%
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Smooth Progress Bar */}
-          <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-teal-500 via-emerald-500 to-teal-600 rounded-full transition-all duration-700 ease-out"
-              style={{ width: `${Math.min(95, (analysisStage + 1) * 20)}%` }}
-            />
-          </div>
-
-          {/* 5-Stage Stepper Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 pt-1">
-            {[
-              {
-                step: 0,
-                title: 'Ẩn thông tin cá nhân',
-                desc: 'Che tên, số định danh trước khi phân tích',
-                icon: ShieldCheck
-              },
-              {
-                step: 1,
-                title: 'Đọc nội dung tài liệu',
-                desc: 'Nhận diện bảng kết quả xét nghiệm',
-                icon: FileText
-              },
-              {
-                step: 2,
-                title: 'Tìm chỉ số bất thường',
-                desc: 'So với khoảng tham chiếu',
-                icon: AlertTriangle
-              },
-              {
-                step: 3,
-                title: 'Tìm bác sĩ phù hợp',
-                desc: 'Theo chuyên khoa liên quan',
-                icon: Stethoscope
-              },
-              {
-                step: 4,
-                title: 'Tổng hợp giải thích',
-                desc: 'Viết lời giải thích dễ hiểu',
-                icon: Sparkles
-              }
-            ].map((item) => {
-              const Icon = item.icon;
-              const isDone = analysisStage > item.step;
-              const isCurrent = analysisStage === item.step;
-
-              return (
-                <div
-                  key={item.step}
-                  className={`p-3.5 rounded-2xl border transition-all text-left flex flex-col justify-between ${
-                    isDone
-                      ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900 shadow-2xs'
-                      : isCurrent
-                      ? 'bg-gradient-to-br from-teal-50 to-emerald-50 border-teal-300 ring-2 ring-teal-500/20 shadow-xs'
-                      : 'bg-slate-50/60 border-slate-200 text-slate-400 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div
-                      className={`p-1.5 rounded-xl ${
-                        isDone
-                          ? 'bg-emerald-600 text-white'
-                          : isCurrent
-                          ? 'bg-teal-600 text-white animate-pulse'
-                          : 'bg-slate-200 text-slate-500'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    {isDone ? (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Xong
-                      </span>
-                    ) : isCurrent ? (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-md animate-pulse">
-                        Đang chạy
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-medium text-slate-400">Chờ</span>
-                    )}
-                  </div>
-                  <div>
-                    <p
-                      className={`text-xs font-bold leading-tight ${
-                        isDone
-                          ? 'text-emerald-950'
-                          : isCurrent
-                          ? 'text-teal-950 font-extrabold'
-                          : 'text-slate-600'
-                      }`}
-                    >
-                      {item.title}
-                    </p>
-                    <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
-                      {item.desc}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Medical Privacy & Trust Assurance */}
-          <div className="pt-2 flex items-center justify-center gap-2 text-xs text-slate-400">
-            <ShieldCheck className="w-4 h-4 text-teal-600 flex-shrink-0" />
-            <span>
-              Mọi dữ liệu danh tính cá nhân (CCCD, Họ tên, SĐT) đều được khử định danh tự động theo chuẩn HIPAA trước khi gửi đến mô hình AI.
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* 📊 Analysis Results Display */}
-      {analysis && !analyzing && (
-        <div id="analysis-results" className="space-y-6 animate-fadeIn scroll-mt-6">
-          {/* Deduplication Cache Hit Banner */}
-          {analysis.cachedResult && (
-            <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-emerald-950 text-xs shadow-xs animate-fadeIn">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-emerald-600 text-white rounded-xl flex-shrink-0">
-                  <Zap className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="font-bold text-emerald-900 text-sm">Tài liệu này bạn đã quét trước đó</p>
-                  <p className="text-emerald-700 mt-0.5">
-                    Kết quả được lấy lại từ hồ sơ của bạn và <strong>không trừ lượt quét</strong>.
+              {isOffline && (
+                <div className="flex items-start gap-2.5 p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900">
+                  <TriangleAlert className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
+                  <p>
+                    <strong>Chế độ hạn chế:</strong> trợ lý AI tạm thời không khả dụng nên kết quả chỉ gồm các chỉ số đọc được trực tiếp từ tài liệu, không có phần diễn giải. Hãy hỏi bác sĩ để được giải thích đầy đủ.
                   </p>
                 </div>
-              </div>
-              <span className="px-3 py-1 bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 text-[11px] whitespace-nowrap">
-                Miễn phí
-              </span>
-            </div>
-          )}
+              )}
 
-          {/* Multi-Document Synthesis Banner */}
-          {analysis.filesCount && analysis.filesCount > 1 && (
-            <div className="p-4 bg-gradient-to-r from-indigo-50 via-purple-50 to-teal-50 border border-indigo-200 rounded-2xl flex items-start gap-3 text-xs shadow-xs animate-fadeIn">
-              <div className="p-2 bg-indigo-600 text-white rounded-xl flex-shrink-0 mt-0.5 shadow-xs">
-                <Layers className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="font-bold text-indigo-950 text-sm">
-                  Đã Phân Tích Đồng Thời {analysis.filesCount} Tài Liệu Cận Lâm Sàng (PDF & Hình Ảnh)
-                </p>
-                <p className="text-indigo-800 mt-1 leading-relaxed">
-                  Hệ thống AI đã trích xuất đồng thời toàn bộ nội dung từ{' '}
-                  <strong>{analysis.fileNames?.join(', ') || analysis.fileName}</strong> và gộp các chỉ số vào một bản tóm tắt chung.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Top Medical Disclaimer Notice */}
-          <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 text-xs flex items-start gap-3 shadow-xs">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <strong>Lưu ý y tế quan trọng:</strong> Kết quả phân tích được thực hiện bởi Trợ lý AI nhằm hỗ trợ diễn giải các chỉ số chuyên môn phức tạp.
-              Đây <strong>không phải là kết luận chẩn đoán thay thế bác sĩ</strong>. Hãy tham khảo ý kiến bác sĩ chuyên khoa bên dưới để được thăm khám chính xác.
-            </div>
-          </div>
-
-          {/* 🤖 OpenRouter Model Attribution & Failover Status */}
-          {analysis.modelUsed && (() => {
-            const isOffline = analysis.modelUsed.toLowerCase().includes('offline') || analysis.modelUsed.toLowerCase().includes('deterministic');
-            return isOffline ? (
-              <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs animate-fadeIn">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-amber-500 text-white rounded-xl flex-shrink-0 shadow-xs">
-                    <AlertCircle className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-amber-950">Chế độ hạn chế</span>
-                      <span className="font-mono font-semibold px-2 py-0.5 bg-amber-100 text-amber-900 rounded-md border border-amber-300">
-                        {analysis.modelUsed}
-                      </span>
-                    </div>
-                    <p className="text-amber-800 text-[11px] mt-0.5">
-                      Trợ lý AI tạm thời không khả dụng nên kết quả chỉ gồm các chỉ số đọc được trực tiếp từ tài liệu, <strong>không có phần diễn giải</strong>. Hãy hỏi bác sĩ để được giải thích đầy đủ.
-                    </p>
-                    <details className="mt-1">
-                      <summary className="text-[11px] text-amber-700 cursor-pointer">Chi tiết kỹ thuật</summary>
-                      <p className="text-[11px] text-amber-700 mt-1 font-mono">
-                        Offline fallback (thiếu OPENROUTER_API_KEY hoặc mất mạng). Parser thô + tìm bác sĩ bằng pgvector cosine.
-                      </p>
-                    </details>
-                  </div>
-                </div>
-                <span className="px-3 py-1 bg-white text-amber-800 font-semibold rounded-xl border border-amber-200 text-[11px] shadow-2xs whitespace-nowrap">
-                  ⚠️ Chế Độ Ngoại Tuyến
-                </span>
-              </div>
-            ) : (
-              <div className="p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-300 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs animate-fadeIn">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-emerald-600 text-white rounded-xl flex-shrink-0 shadow-xs">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-emerald-950">Đã phân tích bằng trợ lý AI</span>
-                      <span className="font-mono font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded-md border border-emerald-300">
-                        {analysis.modelUsed}
-                      </span>
-
-                    </div>
-                    <p className="text-emerald-800 text-[11px] mt-0.5">
-                      Kết quả chỉ mang tính tham khảo, không thay thế chẩn đoán của bác sĩ.
-                    </p>
-                    <details className="mt-1">
-                      <summary className="text-[11px] text-emerald-700 cursor-pointer">Chi tiết kỹ thuật</summary>
-                      <p className="text-[11px] text-emerald-700 mt-1 font-mono">
-                        OpenRouter AI Gateway · gợi ý bác sĩ bằng PostgreSQL pgvector (cosine).
-                      </p>
-                    </details>
-                  </div>
-                </div>
-
-              </div>
-            );
-          })()}
-
-          {/* 👥 Multi-Patient Clinical Segregation Safety Card & Tab Switcher */}
-          {analysis.multiPatientDetected && analysis.patientAnalyses && analysis.patientAnalyses.length > 1 && (
-            <div className="p-5 bg-gradient-to-r from-amber-50 via-orange-50 to-rose-50 border-2 border-amber-400 rounded-3xl space-y-4 shadow-sm animate-fadeIn">
-              <div className="flex items-start gap-3.5">
-                <div className="p-2.5 bg-amber-600 text-white rounded-2xl shrink-0 mt-0.5 shadow-xs">
-                  <Users className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="font-bold text-amber-950 text-base">
-                      Phát Hiện Hồ Sơ Của Nhiều Bệnh Nhân Khác Nhau ({analysis.patientAnalyses.length} Người Bệnh)
-                    </h4>
-                    <span className="px-2.5 py-0.5 bg-amber-600 text-white text-[11px] font-bold rounded-full">
-                      Tách Biệt Lâm Sàng Độc Lập
-                    </span>
-                  </div>
-                  <p className="text-amber-900 text-xs leading-relaxed">
-                    Hệ thống nhận diện các tài liệu tải lên thuộc về các bệnh nhân khác nhau (dựa trên họ tên, giới tính hoặc mã định danh SID).
-                    Để đảm bảo <strong>an toàn y khoa và chống nhiễm chéo hồ sơ</strong>, AI đã phân tích độc lập từng bệnh án, bóc tách chỉ số riêng biệt và đối chiếu đề xuất Bác sĩ chuyên khoa phù hợp cho từng người.
+              {isMulti && (
+                <div className="p-4 rounded-xl border border-amber-300 bg-amber-50 space-y-3">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-amber-950">
+                    <Users className="w-4 h-4" /> Phát hiện tài liệu của {analysis.patientAnalyses!.length} người bệnh khác nhau — mỗi người được phân tích riêng.
                   </p>
-                </div>
-              </div>
-
-              {/* Patient Selector Tabs */}
-              <div className="pt-2 border-t border-amber-200/80">
-                <p className="text-xs font-bold text-amber-950 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-amber-700" /> Chọn Hồ Sơ Bệnh Nhân Để Xem Chi Tiết & Đặt Khám Bác Sĩ:
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {analysis.patientAnalyses.map((p, idx) => {
-                    const isSelected = activePatientIndex === idx;
-                    const patientName = p.patientName || `Bệnh nhân #${idx + 1}`;
-                    const indCount = p.indicators ? p.indicators.length : 0;
-                    const docCount = p.matchedDoctors ? p.matchedDoctors.length : 0;
-                    return (
+                  <div className="flex flex-wrap gap-2">
+                    {analysis.patientAnalyses!.map((p, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={() => setActivePatientIndex(idx)}
-                        className={`p-3.5 rounded-2xl text-left transition flex flex-col justify-between gap-2 border-2 cursor-pointer ${
-                          isSelected
-                            ? 'bg-white border-teal-600 shadow-md ring-2 ring-teal-500/20'
-                            : 'bg-white/70 hover:bg-white border-amber-200 hover:border-amber-300 shadow-2xs'
+                        className={`px-3 py-1.5 rounded-lg text-sm border transition cursor-pointer ${
+                          activePatientIndex === idx ? 'bg-white border-teal-600 text-teal-800 font-semibold' : 'bg-white/60 border-amber-200 text-slate-700 hover:bg-white'
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
-                              isSelected ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'
-                            }`}>
-                              {idx + 1}
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-900 text-sm block leading-tight">
-                                {patientName}
-                              </span>
-                              <span className="text-[11px] text-slate-500">
-                                {p.patientAge ? `${p.patientAge}t` : ''} {p.patientGender ? `(${p.patientGender})` : ''}
-                              </span>
-                            </div>
-                          </div>
-                          {isSelected && (
-                            <span className="px-2 py-0.5 bg-teal-100 text-teal-800 text-[10px] font-bold rounded-md">
-                              Đang xem
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-600 font-mono">
-                          <span className="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200 truncate max-w-[140px]" title={p.sourceFileName}>
-                            📄 {p.sourceFileName}
-                          </span>
-                          <span className="px-1.5 py-0.5 bg-teal-50 text-teal-700 rounded border border-teal-200">
-                            {indCount} chỉ số
-                          </span>
-                          <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-200">
-                            {docCount} bác sĩ
-                          </span>
-                        </div>
+                        {p.patientName || `Bệnh nhân #${idx + 1}`} · {p.indicators?.length ?? 0} chỉ số
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Active Patient Clinical Details & Scribe Summary */}
-          {(() => {
-            const isMulti = Boolean(analysis.multiPatientDetected && analysis.patientAnalyses && analysis.patientAnalyses.length > 1);
-            const activePatient = isMulti ? (analysis.patientAnalyses![activePatientIndex] || analysis.patientAnalyses![0]) : null;
-
-            const displayHospital = activePatient?.hospitalName || analysis.hospitalName;
-            const displayDept = activePatient?.departmentName || analysis.departmentName;
-            const displayDoctor = activePatient?.orderingDoctor || analysis.orderingDoctor;
-            const displayDate = activePatient?.testDate || analysis.testDate;
-            const displaySid = activePatient?.sidCode || analysis.sidCode;
-            const displayPatientName = activePatient?.patientName || analysis.patientName || user?.fullName || 'Người Bệnh';
-            const displayPatientAge = activePatient?.patientAge || analysis.patientAge;
-            const displayPatientGender = activePatient?.patientGender || analysis.patientGender;
-            const displayDeviceModel = activePatient?.deviceModel || analysis.deviceModel;
-            const displaySpecialtyName = activePatient?.recommendedSpecialtyName || analysis.recommendedSpecialtyName;
-            const displayExplanation = activePatient?.plainLanguageExplanation || analysis.plainLanguageExplanation;
-            const displaySummary = activePatient?.clinicalSummary || analysis.clinicalSummary;
-            const displayIndicators = activePatient?.indicators ?? analysis.indicators ?? [];
-            const displayDoctors = activePatient?.matchedDoctors ?? analysis.matchedDoctors ?? [];
-            const displayQuestions = activePatient?.suggestedQuestions ?? analysis.suggestedQuestions ?? [];
-            const displayFileName = activePatient?.sourceFileName || analysis.fileName;
-
-            return (
-              <>
-                {/* Scribe Summary & Patient Translation */}
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-6">
-                  {/* 🏥 Official Hospital Header */}
-                  <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl p-5 shadow-sm space-y-4">
-                    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-700/60 pb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-teal-400 flex-shrink-0">
-                          <Building2 className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-base tracking-tight text-white uppercase">
-                              {displayHospital || 'Cơ Sở Khám Chữa Bệnh / Đơn Vị Xét Nghiệm'}
-                            </h4>
-                            {isMulti && (
-                              <span className="px-2.5 py-0.5 bg-teal-500/30 text-teal-300 border border-teal-500/40 rounded-full text-[11px] font-semibold">
-                                Bệnh nhân #{activePatientIndex + 1}/{analysis.patientAnalyses!.length}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-slate-400">
-                            {displayDept || 'Khoa Xét Nghiệm Cận Lâm Sàng | Tiêu Chuẩn ISO 15189'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right text-xs space-y-1">
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full font-mono text-[11px]">
-                          <ShieldCheck className="w-3.5 h-3.5" /> Chữ ký số điện tử hợp lệ
-                        </div>
-                        <p className="text-slate-400 font-mono">
-                          Mã SID: <span className="text-teal-300 font-bold">{displaySid || (analysis.documentId ? `SID-${analysis.documentId.substring(0, 8).toUpperCase()}` : 'SID-CHƯA-XÁC-ĐỊNH')}</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                      <div className="p-2.5 bg-slate-800/80 rounded-xl">
-                        <span className="text-slate-400 text-[10px] block">Người Bệnh:</span>
-                        <span className="font-bold text-white">
-                          {displayPatientName}
-                          {displayPatientAge ? ` (${displayPatientAge}t` : ''}
-                          {displayPatientGender ? ` - ${displayPatientGender})` : (displayPatientAge ? ')' : '')}
-                        </span>
-                      </div>
-                      <div className="p-2.5 bg-slate-800/80 rounded-xl">
-                        <span className="text-slate-400 text-[10px] block">Thiết Bị Tự Động:</span>
-                        <span className="font-bold text-slate-200">
-                          {displayDeviceModel || 'Hệ thống phân tích tự động'}
-                        </span>
-                      </div>
-                      <div className="p-2.5 bg-slate-800/80 rounded-xl">
-                        <span className="text-slate-400 text-[10px] block">Bác Sĩ Chỉ Định:</span>
-                        <span className="font-bold text-slate-200">
-                          {displayDoctor || 'Bác sĩ điều trị / KTV'}
-                        </span>
-                      </div>
-                      <div className="p-2.5 bg-slate-800/80 rounded-xl">
-                        <span className="text-slate-400 text-[10px] block">Thời Gian Tiếp Nhận:</span>
-                        <span className="font-mono text-slate-200">
-                          {displayDate || 'Không xác định trong tài liệu'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-teal-50 text-teal-600 rounded-xl">
-                        <Stethoscope className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-slate-900 text-lg">Báo Cáo Phân Tích Chỉ Số Cận Lâm Sàng</h3>
-                        {isMulti ? (
-                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                            <span className="px-2 py-0.5 bg-amber-100 text-amber-900 rounded-md text-[11px] font-bold flex items-center gap-1">
-                              <User className="w-3 h-3" /> Bệnh nhân: {displayPatientName}
-                            </span>
-                            <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-mono border border-slate-200">
-                              📄 Tệp nguồn: {displayFileName}
-                            </span>
-                          </div>
-                        ) : analysis.filesCount && analysis.filesCount > 1 ? (
-                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                            <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-md text-[11px] font-bold flex items-center gap-1">
-                              <Layers className="w-3 h-3" /> Hồ sơ tổng hợp ({analysis.filesCount} tệp):
-                            </span>
-                            {analysis.fileNames && analysis.fileNames.length > 0 ? (
-                              analysis.fileNames.map((name, idx) => (
-                                <span
-                                  key={idx}
-                                  className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-mono border border-slate-200"
-                                >
-                                  {name}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-xs text-slate-500">{analysis.fileName}</span>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-slate-500">Tệp: {analysis.fileName}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      {analysis.hasFile && analysis.documentId && (
-                        <button
-                          type="button"
-                          onClick={() => handleViewOriginalFile(analysis.documentId)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-xs font-semibold transition cursor-pointer"
-                          title="Mở tệp gốc bằng liên kết tạm thời (hết hạn sau 15 phút)"
-                        >
-                          <UploadCloud className="w-3.5 h-3.5 text-sky-600" />
-                          <span>Xem tệp gốc</span>
-                          <ExternalLink className="w-3 h-3 text-sky-500" />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => window.print()}
-                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Printer className="w-3.5 h-3.5" /> In Phiếu Xét Nghiệm
-                      </button>
-                      <span className="px-3.5 py-1.5 bg-teal-50 text-teal-700 rounded-full text-xs font-bold border border-teal-200">
-                        {displaySpecialtyName
-                          ? `Chuyên khoa: ${displaySpecialtyName}`
-                          : 'Chuyên khoa: Chưa xác định (Cần bổ sung kết quả)'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {originalFileError && (
-                    <div className="p-3 bg-rose-50 border border-rose-300 text-rose-900 rounded-xl text-xs font-medium flex items-center justify-between gap-2" role="alert">
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-                        <span>{originalFileError}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setOriginalFileError(null)}
-                        className="text-rose-700 hover:text-rose-900 p-0.5 rounded cursor-pointer transition"
-                        title="Đóng thông báo"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Medical Safety Alert Banner when document has NO indicators (blank order form or blurry) */}
-                  {displayIndicators.length === 0 && (
-                    <div className="p-4.5 bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl flex items-start gap-3.5 text-amber-900 shadow-xs">
-                      <div className="p-2 bg-amber-500 text-white rounded-xl shrink-0 mt-0.5 shadow-xs">
-                        <AlertTriangle className="w-5 h-5" />
-                      </div>
-                      <div className="space-y-1 text-xs">
-                        <h4 className="font-bold text-amber-950 text-sm flex items-center gap-2">
-                          Phiếu Xét Nghiệm Chưa Có Kết Quả Đo Lường Hoặc Ảnh Không Rõ Số Liệu
-                        </h4>
-                        <p className="text-amber-900 leading-relaxed">
-                          Hệ thống không nhận diện được giá trị kết quả cận lâm sàng nào trong tài liệu này (phiếu chỉ định chưa điền kết quả hoặc ảnh bị mờ/mất nét).
-                          Theo tiêu chuẩn an toàn y tế <strong>MediAssist Medical Integrity</strong>: Hệ thống <strong>tuyệt đối không suy đoán chẩn đoán hoặc chỉ định bác sĩ khi thiếu dữ liệu lâm sàng</strong>.
-                        </p>
-                        <p className="text-amber-800 font-medium">
-                          👉 <strong>Khuyến nghị</strong>: Vui lòng chụp lại ảnh rõ nét, đủ ánh sáng, căn thẳng góc hoặc tải tệp PDF điện tử gốc từ bệnh viện để AI phân tích chính xác.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Plain Language Explanation Box */}
-                  <div className="p-5 bg-teal-50/50 rounded-2xl border border-teal-100 space-y-2">
-                    <h4 className="text-xs font-bold text-teal-900 uppercase tracking-wider flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-teal-600" /> Bản Dịch Ngôn Ngữ Dễ Hiểu Dành Cho Người Bệnh
-                    </h4>
-                    <p className="text-xs text-teal-950 whitespace-pre-line leading-relaxed">
-                      {displayExplanation}
-                    </p>
-                  </div>
-
-                  {/* Clinical Summary */}
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1 font-mono text-xs text-slate-700">
-                    <p className="font-semibold text-slate-800 uppercase tracking-wider text-[11px]">Tóm tắt lâm sàng (Clinical Summary):</p>
-                    <p className="leading-relaxed">{displaySummary}</p>
+                    ))}
                   </div>
                 </div>
+              )}
 
-                {/* Indicators Comparison Table */}
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-slate-900 text-base">
-                      Bảng Đối Chiếu Chỉ Số Xét Nghiệm {isMulti ? `- ${displayPatientName}` : ''}
-                    </h3>
-                    <span className="text-xs text-slate-500 font-mono">
-                      {displayIndicators.length} chỉ số
-                    </span>
-                  </div>
-                  {displayIndicators.length === 0 ? (
-                    <div className="text-center py-10 px-4 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200 space-y-3">
-                      <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
-                        <FileQuestion className="w-6 h-6" />
-                      </div>
-                      <div className="space-y-1 max-w-md mx-auto">
-                        <p className="font-bold text-slate-800 text-sm">Chưa có chỉ số cận lâm sàng để đối chiếu</p>
-                        <p className="text-xs text-slate-500">
-                          Toàn bộ cột kết quả xét nghiệm trong tài liệu đang để trống hoặc chất lượng ảnh quá mờ để nhận diện số liệu đo lường.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead>
-                          <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                            <th className="py-3 px-4 font-semibold">Tên Xét Nghiệm</th>
-                            <th className="py-3 px-4 font-semibold">Kết Quả Đo Được</th>
-                            <th className="py-3 px-4 font-semibold">Khoảng Tham Chiếu</th>
-                            <th className="py-3 px-4 font-semibold">Đánh Giá</th>
-                            <th className="py-3 px-4 font-semibold">Ý Nghĩa Lâm Sàng</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {displayIndicators.map((ind, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50/60 transition">
-                              <td className="py-3 px-4 text-slate-800">
-                                <div className="font-bold">{ind.name}</div>
-                                {ind.loincCode && (
-                                  <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Mã chuẩn hóa quốc tế LOINC">
-                                      LOINC: {ind.loincCode}
-                                    </span>
-                                  </div>
-                                )}
-                              </td>
-                              <td className="py-3 px-4 font-mono font-bold text-indigo-700">
-                                {ind.value} {ind.unit}
-                              </td>
-                              <td className="py-3 px-4 text-slate-500">
-                                <div>{ind.referenceRange}</div>
-                                {ind.bytReferenceRange && ind.bytReferenceRange !== ind.referenceRange && (
-                                  <div className="mt-0.5 text-[10px] font-medium text-emerald-700 flex items-center gap-1">
-                                    <span className="font-semibold">Chuẩn BYT:</span> {ind.bytReferenceRange}
-                                  </div>
-                                )}
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                                  ind.status === 'ELEVATED' || (ind.status as string) === 'HIGH'
-                                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                    : ind.status === 'LOW'
-                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                }`}>
-                                  {ind.status === 'ELEVATED' || (ind.status as string) === 'HIGH' ? 'TĂNG CAO' : ind.status === 'LOW' ? 'HẠ THẤP' : 'BÌNH THƯỜNG'}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4 text-slate-600 text-[11px] leading-relaxed">
-                                <div>{ind.clinicalSignificance}</div>
-                                {ind.scientificBasis && (
-                                  <div className="mt-1 text-[10px] text-teal-800 bg-teal-50/80 px-2 py-0.5 rounded border border-teal-200/60 inline-flex items-center gap-1">
-                                    <span>🔬 Luận cứ:</span>
-                                    <span>{ind.scientificBasis}</span>
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-
-                {/* 🧑‍⚕️ Recommended Doctors (pgvector Cosine Similarity Match from PDF findings) */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <UserCheck className="w-5 h-5 text-teal-600" />
-                        {isMulti
-                          ? `Bác Sĩ Chuyên Khoa Đề Xuất Riêng Cho: ${displayPatientName}`
-                          : 'Bác Sĩ Chuyên Khoa Được AI Đề Xuất Cho Bệnh Án Này'}
-                      </h3>
-                      <p className="text-xs text-slate-500">
-                        {isMulti
-                          ? `Dựa trên các chỉ số bất thường trong tệp ${displayFileName}, đây là những bác sĩ có chuyên môn phù hợp nhất cho ${displayPatientName}.`
-                          : 'Dựa trên các chỉ số bất thường trong tài liệu, đây là những bác sĩ có chuyên môn phù hợp nhất.'}
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
+                <div className="space-y-5 min-w-0">
+                  {/* Quick summary */}
+                  <section className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 flex flex-col sm:flex-row gap-5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Tóm tắt nhanh</p>
+                      <p className="mt-2 text-base sm:text-lg text-slate-900 leading-relaxed whitespace-pre-line">
+                        {displayExplanation || displaySummary || 'Chưa có phần diễn giải cho tài liệu này.'}
                       </p>
                     </div>
-                    <span className="text-xs text-slate-400">
-                      Tìm thấy {displayDoctors.length} bác sĩ phù hợp
-                    </span>
-                  </div>
+                    {displayIndicators.length > 0 && (
+                      <div className="flex sm:flex-col lg:flex-row gap-2 shrink-0">
+                        <div className="w-24 p-3 rounded-xl bg-orange-50 border border-orange-200">
+                          <p className="text-2xl font-bold text-orange-700">{abnormal.length}</p>
+                          <p className="text-xs text-orange-800">Cần chú ý</p>
+                        </div>
+                        <div className="w-24 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                          <p className="text-2xl font-bold text-slate-900">{displayIndicators.length - abnormal.length}</p>
+                          <p className="text-xs text-slate-600">Bình thường</p>
+                        </div>
+                      </div>
+                    )}
+                  </section>
 
-                  {displayDoctors.length > 0 && displayIndicators.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      {displayDoctors.map((doc) => {
-                        const matchPct = Math.round(doc.similarityScore * 100);
-                        const docKey = doc.doctorId || (doc as any).id;
-                        return (
-                          <div
-                            key={docKey}
-                            className={`rounded-2xl transition p-5 flex flex-col justify-between space-y-4 ${
-                              doc.aiRecommended
-                                ? 'bg-gradient-to-b from-teal-50/50 to-white border-2 border-teal-500 shadow-md ring-2 ring-teal-500/20'
-                                : 'bg-white border border-slate-200 shadow-xs hover:shadow-md'
-                            }`}
-                          >
-                            {/* AI Recommendation Highlight Badge */}
-                            {doc.aiRecommended && (
-                              <div className="flex items-center gap-1.5 px-3 py-1 bg-teal-600 text-white text-[11px] font-bold rounded-lg shadow-xs -mt-1">
-                                <Sparkles className="w-3.5 h-3.5" />
-                                <span>Được AI Lựa Chọn Ưu Tiên Cho Ca Bệnh Này</span>
-                              </div>
-                            )}
+                  {/* Indicator table */}
+                  <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                      <h2 className="font-semibold text-slate-900">Chỉ số chi tiết</h2>
+                      {displayIndicators.length > 0 && (
+                        <div className="inline-flex p-1 rounded-lg bg-slate-100 text-sm" role="tablist">
+                          {(['all', 'abnormal'] as const).map((f) => (
+                            <button
+                              key={f}
+                              type="button"
+                              role="tab"
+                              aria-selected={indicatorFilter === f}
+                              onClick={() => setIndicatorFilter(f)}
+                              className={`px-3 py-1.5 rounded-md transition cursor-pointer ${
+                                indicatorFilter === f ? 'bg-white text-slate-900 font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              {f === 'all' ? `Tất cả (${displayIndicators.length})` : `Cần chú ý (${abnormal.length})`}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
-                            <div className="space-y-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className="flex items-center gap-1.5">
-                                    {doc.academicTitle && (
-                                      <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
-                                        {doc.academicTitle}
-                                      </span>
+                    {displayIndicators.length === 0 ? (
+                      <div className="mx-5 mb-5 p-5 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900 space-y-1">
+                        <p className="flex items-center gap-2 font-semibold">
+                          <FileQuestion className="w-4 h-4" /> Chưa đọc được chỉ số nào trên phiếu
+                        </p>
+                        <p>
+                          Phiếu có thể chưa điền kết quả, hoặc ảnh bị mờ. Hệ thống không suy đoán chẩn đoán hay gợi ý bác sĩ khi thiếu số liệu. Hãy chụp lại rõ nét, đủ sáng, hoặc tải tệp PDF gốc từ bệnh viện.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm min-w-[640px]">
+                          <thead>
+                            <tr className="border-y border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+                              <th className="py-2.5 px-5 font-semibold">Chỉ số</th>
+                              <th className="py-2.5 px-3 font-semibold">Kết quả</th>
+                              <th className="py-2.5 px-3 font-semibold">Tham chiếu</th>
+                              <th className="py-2.5 px-3 font-semibold w-[170px]">So với ngưỡng</th>
+                              <th className="py-2.5 px-5 font-semibold">Đánh giá</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {shown.map((ind, idx) => {
+                              const high = isHigh(ind);
+                              const low = ind.status === 'LOW';
+                              const place = placeOnRange(ind.value, ind.referenceRange);
+                              return (
+                                <tr key={`${ind.name}-${idx}`}>
+                                  <td className="py-3 px-5">
+                                    <p className="font-medium text-slate-900">{ind.name}</p>
+                                    {ind.loincCode && <p className="text-xs text-slate-500">LOINC {ind.loincCode}</p>}
+                                  </td>
+                                  <td className="py-3 px-3 whitespace-nowrap">
+                                    <span className={`font-bold ${high ? 'text-rose-700' : low ? 'text-blue-700' : 'text-slate-900'}`}>{ind.value}</span>{' '}
+                                    <span className="text-xs text-slate-500">{ind.unit}</span>
+                                  </td>
+                                  <td className="py-3 px-3 text-slate-600">
+                                    {ind.referenceRange}
+                                    {ind.bytReferenceRange && ind.bytReferenceRange !== ind.referenceRange && (
+                                      <p className="text-xs text-emerald-700">Chuẩn BYT: {ind.bytReferenceRange}</p>
                                     )}
-                                    <h4 className="font-bold text-slate-900 text-base">{doc.fullName}</h4>
-                                    <span title="Đã thẩm định CCHN">
-                                      <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-500">
-                                    {doc.hospitalAffiliation && (
-                                      <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
-                                        <Building2 className="w-3.5 h-3.5 text-teal-600" />
-                                        {doc.hospitalAffiliation}
-                                      </span>
-                                    )}
-                                    <span>•</span>
-                                    <span className="font-mono">CCHN: {doc.licenseNumber}</span>
-                                    <span>•</span>
-                                    {formatRating(doc.rating, doc.reviewCount) ? (
-                                      <span className="inline-flex items-center gap-1 text-amber-700 font-bold">
-                                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" aria-hidden />
-                                        {formatRating(doc.rating, doc.reviewCount)}
-                                        <span className="text-slate-500 font-normal">({doc.reviewCount})</span>
-                                      </span>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    {place ? (
+                                      <div className="relative h-1.5 rounded-full bg-slate-200" aria-hidden>
+                                        <span
+                                          className="absolute inset-y-0 rounded-full bg-teal-300"
+                                          style={{ left: `${place.bandStart}%`, width: `${Math.max(2, place.bandEnd - place.bandStart)}%` }}
+                                        />
+                                        <span
+                                          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border-2 border-white ${
+                                            high ? 'bg-rose-600' : low ? 'bg-blue-600' : 'bg-slate-800'
+                                          }`}
+                                          style={{ left: `${place.marker}%` }}
+                                        />
+                                      </div>
                                     ) : (
-                                      <span className="italic">Chưa có đánh giá</span>
+                                      <span className="text-xs text-slate-400">—</span>
                                     )}
-                                  </div>
-                                </div>
+                                  </td>
+                                  <td className="py-3 px-5">
+                                    <span
+                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold whitespace-nowrap ${
+                                        high
+                                          ? 'bg-orange-50 border-orange-200 text-orange-700'
+                                          : low
+                                            ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                            : 'bg-white border-slate-200 text-slate-700'
+                                      }`}
+                                    >
+                                      {high ? <ArrowUp className="w-3 h-3" /> : low ? <ArrowDown className="w-3 h-3" /> : <Check className="w-3 h-3" />}
+                                      {high ? 'Cao' : low ? 'Thấp' : 'Bình thường'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 border-t border-slate-200 text-xs text-slate-500">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="w-5 h-1.5 rounded-full bg-teal-300" /> Khoảng bình thường theo phiếu
+                          </span>
+                          Khoảng tham chiếu có thể khác nhau giữa các phòng xét nghiệm.
+                        </p>
+                      </div>
+                    )}
+                  </section>
 
-                                {/* Match Score Badge */}
-                                <div className="flex flex-col items-end">
-                                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                    matchPct >= 80
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
-                                      : 'bg-teal-50 text-teal-700 border border-teal-200'
-                                  }`}>
-                                    Độ khớp: {matchPct}%
-                                  </span>
-                                </div>
-                              </div>
+                  {/* What abnormal indicators mean */}
+                  {abnormal.some((i) => i.clinicalSignificance) && (
+                    <section className="space-y-3">
+                      <h2 className="font-semibold text-slate-900">Các chỉ số cần chú ý nghĩa là gì?</h2>
+                      {abnormal
+                        .filter((i) => i.clinicalSignificance)
+                        .map((ind, idx) => (
+                          <div key={`${ind.name}-mean-${idx}`} className="bg-white rounded-2xl border border-slate-200 p-5">
+                            <p className="flex items-center gap-2 font-semibold text-slate-900">
+                              {ind.name}
+                              <span
+                                className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${
+                                  isHigh(ind) ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-blue-50 border-blue-200 text-blue-700'
+                                }`}
+                              >
+                                {isHigh(ind) ? 'Cao' : 'Thấp'}
+                              </span>
+                            </p>
+                            <p className="mt-2 text-sm text-slate-700 leading-relaxed">{ind.clinicalSignificance}</p>
+                            {ind.scientificBasis && <p className="mt-2 text-xs text-slate-500">Nguồn tham chiếu: {ind.scientificBasis}</p>}
+                          </div>
+                        ))}
+                    </section>
+                  )}
 
-                              {/* Specialties */}
-                              <div className="flex flex-wrap gap-1.5">
-                                {doc.specialties && doc.specialties.map((spec, i) => (
-                                  <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-md">
-                                    {spec}
-                                  </span>
-                                ))}
-                              </div>
+                  {displaySummary && displayExplanation && (
+                    <details className="bg-white rounded-2xl border border-slate-200 p-5 group">
+                      <summary className="cursor-pointer font-semibold text-slate-900 text-sm">Tóm tắt lâm sàng (dành cho bác sĩ)</summary>
+                      <p className="mt-3 text-sm text-slate-700 leading-relaxed whitespace-pre-line">{displaySummary}</p>
+                    </details>
+                  )}
 
-                              {/* Bio */}
-                              <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
-                                {doc.bio}
-                              </p>
-
-                              {/* AI Doctor Recommendation Reason Callout */}
-                              {doc.aiRecommendationReason && (
-                                <div className="p-3 bg-teal-50/80 rounded-xl border border-teal-200 text-xs text-teal-950 flex items-start gap-2">
-                                  <span className="font-bold text-teal-800 flex-shrink-0">Lý do đề xuất:</span>
-                                  <span className="leading-relaxed">{doc.aiRecommendationReason}</span>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Footer / Booking Action */}
-                            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                              <div>
-                                <span className="text-xs text-slate-500">Phí khám:</span>
-                                <p className="text-sm font-bold text-teal-700">
-                                  {formatVnd(doc.consultationFee) ?? 'Liên hệ'}
+                  {/* Matched doctors (pgvector) — booking attaches medicalDocumentId */}
+                  <section id="matched-doctors" className="space-y-3 scroll-mt-6">
+                    <h2 className="font-semibold text-slate-900">
+                      Bác sĩ phù hợp {displaySpecialtyName ? `· ${displaySpecialtyName}` : ''}
+                    </h2>
+                    {displayDoctors.length > 0 && displayIndicators.length > 0 ? (
+                      <ul className="space-y-2">
+                        {displayDoctors.map((doc) => {
+                          const docKey = doc.doctorId || doc.id || doc.fullName;
+                          const rating = formatRating(doc.rating, doc.reviewCount);
+                          const sub = [doc.specialties?.join(' – '), doc.yearsOfExperience ? `${doc.yearsOfExperience} năm kinh nghiệm` : null, formatVnd(doc.consultationFee)].filter(Boolean);
+                          return (
+                            <li
+                              key={docKey}
+                              className={`flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border bg-white p-4 ${doc.aiRecommended ? 'border-teal-400' : 'border-slate-200'}`}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-slate-900">
+                                  {doc.academicTitle ? `${doc.academicTitle} ` : ''}
+                                  {doc.fullName}
                                 </p>
+                                {sub.length > 0 && <p className="text-xs text-slate-500">{sub.join(' · ')}</p>}
+                                <p className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                                  <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">
+                                    Phù hợp {Math.round(doc.similarityScore * 100)}%
+                                  </span>
+                                  {doc.aiRecommended && <span className="px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 font-semibold">AI ưu tiên</span>}
+                                  {rating ? (
+                                    <span className="inline-flex items-center gap-1 text-slate-600">
+                                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" aria-hidden /> {rating} ({doc.reviewCount})
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400">Chưa có đánh giá</span>
+                                  )}
+                                </p>
+                                {doc.aiRecommendationReason && <p className="mt-1.5 text-xs text-slate-600">{doc.aiRecommendationReason}</p>}
                               </div>
                               <button
-                                onClick={() => handleOpenBooking(
-                                  doc,
-                                  isMulti
-                                    ? `Bệnh nhân: ${displayPatientName} (${displayFileName}) - ${displaySummary.slice(0, 140)}...`
-                                    : undefined
-                                )}
-                                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                                type="button"
+                                onClick={() =>
+                                  handleOpenBooking(
+                                    doc,
+                                    isMulti ? `Bệnh nhân: ${displayPatientName} (${displayFileName}) - ${displaySummary.slice(0, 140)}...` : undefined,
+                                  )
+                                }
+                                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold transition cursor-pointer shrink-0"
                               >
-                                <Calendar className="w-3.5 h-3.5" /> Đặt Khám Với Bác Sĩ Này
+                                <CalendarDays className="w-4 h-4" /> Đặt lịch
                               </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="p-8 bg-slate-50 border border-slate-200 rounded-3xl text-center space-y-2">
-                      <Stethoscope className="w-8 h-8 text-slate-400 mx-auto" />
-                      <p className="text-sm font-bold text-slate-700">Chưa có chỉ định Bác sĩ chuyên khoa</p>
-                      <p className="text-xs text-slate-500 max-w-lg mx-auto leading-relaxed">
-                        Hệ thống tuân thủ tiêu chuẩn an toàn y tế <strong>MediAssist Medical Safety</strong>: Chỉ đề xuất Bác sĩ chuyên khoa khi có kết quả xét nghiệm định lượng bất thường cụ thể. Khi tài liệu là phiếu trắng hoặc ảnh không rõ số liệu, hệ thống không chỉ định bác sĩ để bảo đảm an toàn điều trị cho người bệnh.
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="p-5 rounded-2xl border border-slate-200 bg-white text-sm text-slate-600">
+                        Hệ thống chỉ gợi ý bác sĩ khi đọc được chỉ số bất thường cụ thể trên phiếu.
                       </p>
-                    </div>
-                  )}
+                    )}
+                  </section>
                 </div>
 
-                {/* Suggested Questions for Doctor */}
-                {displayQuestions.length > 0 && (
-                  <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 md:p-8 space-y-3">
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                      <HelpCircle className="w-4 h-4 text-teal-600" />
-                      Câu Hỏi Gợi Ý Bạn Nên Trao Đổi Với Bác Sĩ Trong Buổi Khám {isMulti ? `Cho ${displayPatientName}` : ''}
-                    </h4>
-                    <ul className="space-y-2 text-xs text-slate-600">
-                      {displayQuestions.map((q, idx) => (
-                        <li key={idx} className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                          <span className="font-bold text-teal-600 flex-shrink-0">{idx + 1}.</span>
-                          <span>{q}</span>
+                {/* Sidebar */}
+                <aside className="space-y-4">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                    <div className="h-36 rounded-xl bg-slate-100 flex items-center justify-center">
+                      <div className="w-24 h-28 rounded-md bg-white border border-slate-200 p-2.5 space-y-1.5" aria-hidden>
+                        <span className="block h-1.5 w-12 rounded bg-slate-300" />
+                        {[0, 1, 2, 3, 4, 5].map((i) => (
+                          <span key={i} className={`block h-1 rounded ${i === 2 ? 'bg-orange-200' : i === 3 ? 'bg-blue-200' : 'bg-slate-200'}`} />
+                        ))}
+                      </div>
+                    </div>
+                    {analysis.hasFile && analysis.documentId ? (
+                      <button
+                        type="button"
+                        onClick={() => handleViewOriginalFile(analysis.documentId)}
+                        className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-800 hover:bg-slate-50 transition cursor-pointer"
+                        title="Mở tệp gốc bằng liên kết tạm thời (hết hạn sau 15 phút)"
+                      >
+                        Xem ảnh gốc <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <p className="mt-3 text-center text-xs text-slate-500">Tệp gốc không được lưu cho lượt quét này.</p>
+                    )}
+                    {originalFileError && (
+                      <p className="mt-2 text-xs text-rose-700" role="alert">
+                        {originalFileError}
+                      </p>
+                    )}
+                  </div>
+
+                  {displayQuestions.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                      <h2 className="font-semibold text-slate-900">Câu hỏi nên hỏi bác sĩ</h2>
+                      <ul className="mt-3 space-y-2">
+                        {displayQuestions.map((q, idx) => (
+                          <li key={idx} className="p-3 rounded-lg bg-slate-50 text-sm text-slate-700">
+                            {q}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {displaySpecialtyName && (
+                    <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700">Nên trao đổi với</p>
+                      <p className="mt-1 font-display text-xl font-bold text-slate-900">{displaySpecialtyName}</p>
+                      {displaySpecialtyReason && <p className="mt-1.5 text-sm text-indigo-800">{displaySpecialtyReason}</p>}
+                      <Link
+                        to={`/patient/doctors?specialty=${encodeURIComponent(displaySpecialtySlug || displaySpecialtyName)}`}
+                        className="mt-4 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition"
+                      >
+                        <Search className="w-4 h-4" /> Tìm bác sĩ phù hợp
+                      </Link>
+                    </div>
+                  )}
+                </aside>
+              </div>
+            </div>
+          );
+        })()
+      ) : (
+        /* ─────────────── 04 · Upload view ─────────────── */
+        <>
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div className="max-w-2xl">
+              <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900">Tóm tắt &amp; giải nghĩa bệnh án</h1>
+              <p className="mt-1.5 text-slate-600">
+                Tải lên phiếu xét nghiệm, đơn thuốc hoặc kết quả chẩn đoán hình ảnh. AI sẽ đọc từng chỉ số và giải thích bằng lời dễ hiểu.
+              </p>
+            </div>
+            <div className="shrink-0">{quotaBadge}</div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
+            <div className="space-y-5 min-w-0">
+              {/* Drop zone */}
+              <div
+                aria-busy={analyzing || undefined}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!analyzing) setIsDragging(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
+                  if (!analyzing && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleFilesSelected(Array.from(e.dataTransfer.files));
+                  }
+                }}
+                className={`px-5 py-10 sm:py-12 rounded-2xl border-2 border-dashed text-center transition ${
+                  analyzing ? 'bg-slate-100 border-slate-300 opacity-80' : isDragging ? 'bg-teal-50 border-teal-500' : 'bg-white border-teal-300'
+                }`}
+              >
+                <span className="w-14 h-14 mx-auto rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+                  <UploadCloud className="w-7 h-7" />
+                </span>
+                <p className="mt-4 font-semibold text-slate-900 text-lg">Kéo thả ảnh hoặc PDF vào đây</p>
+                <p className="mt-1 text-sm text-slate-500">PDF, JPG, PNG · tối đa 5 tệp · mỗi tệp ≤ 10 MB, tổng ≤ 25 MB</p>
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                  <label
+                    htmlFor="multi-file-upload-input"
+                    aria-disabled={analyzing || undefined}
+                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold cursor-pointer transition ${
+                      analyzing ? 'opacity-50 pointer-events-none' : ''
+                    }`}
+                  >
+                    <FileText className="w-4 h-4" /> Chọn tệp
+                    <input
+                      id="multi-file-upload-input"
+                      type="file"
+                      multiple
+                      accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                      onChange={handleFileUpload}
+                      disabled={analyzing}
+                      className="hidden"
+                    />
+                  </label>
+                  <label
+                    htmlFor="camera-upload-input"
+                    aria-disabled={analyzing || undefined}
+                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-sm font-medium cursor-pointer transition ${
+                      analyzing ? 'opacity-50 pointer-events-none' : ''
+                    }`}
+                  >
+                    <Camera className="w-4 h-4" /> Chụp ảnh
+                    <input
+                      id="camera-upload-input"
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      capture="environment"
+                      onChange={handleFileUpload}
+                      disabled={analyzing}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                <p className="mt-5 text-xs text-slate-500 max-w-md mx-auto">
+                  Mẹo: đặt phiếu trên mặt phẳng, đủ sáng, chụp thẳng và thấy đủ 4 góc giấy để AI đọc chính xác hơn.
+                </p>
+              </div>
+
+              {/* Selected files queue */}
+              {selectedFiles.length > 0 && (
+                <section className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-900">
+                      Tệp đã chọn ({selectedFiles.length}/5) · {(selectedFiles.reduce((acc, f) => acc + f.size, 0) / 1024).toFixed(1)} KB
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleClearFiles}
+                      disabled={analyzing}
+                      className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-rose-600 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Xóa tất cả
+                    </button>
+                  </div>
+                  <ul className="space-y-2">
+                    {selectedFiles.map((f, idx) => {
+                      const isPdf = f.name.toLowerCase().endsWith('.pdf');
+                      return (
+                        <li key={`${f.name}-${idx}`} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200">
+                          <span className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                            {isPdf ? <FileText className="w-5 h-5" /> : <ImageIcon className="w-5 h-5" />}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">{f.name}</p>
+                            <p className="text-xs text-slate-500">
+                              {isPdf ? 'PDF' : 'Ảnh'} · {(f.size / 1024).toFixed(1)} KB
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile(idx)}
+                            disabled={analyzing}
+                            aria-label={`Xóa tệp ${f.name}`}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="pt-1 flex flex-wrap items-center justify-between gap-2">
+                    <label
+                      htmlFor="multi-file-upload-input"
+                      className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer transition ${
+                        selectedFiles.length >= 5 || analyzing ? 'opacity-50 pointer-events-none' : ''
+                      }`}
+                    >
+                      <Plus className="w-4 h-4 text-teal-600" /> Thêm tệp
+                    </label>
+                    {quotaExhausted && !analyzing ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-rose-700" data-testid="quota-exhausted">
+                          Hết lượt quét
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowPricingModal(true)}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition cursor-pointer"
+                        >
+                          <Crown className="w-4 h-4" /> Xem bảng giá
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => executeAnalysis()}
+                        disabled={Boolean(scanBlockedReason)}
+                        title={scanBlockedReason || undefined}
+                        aria-busy={analyzing || undefined}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition cursor-pointer"
+                      >
+                        {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                        {analyzing ? `Đang phân tích ${selectedFiles.length} tệp…` : `Phân tích ${selectedFiles.length} tệp`}
+                      </button>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {/* Progress */}
+              {analyzing && (
+                <section className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6" aria-live="polite">
+                  <div className="flex items-center gap-3">
+                    <span className="w-12 h-12 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                      {file && file.name.toLowerCase().endsWith('.pdf') ? <FileText className="w-5 h-5" /> : <ImageIcon className="w-5 h-5" />}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-slate-900 truncate">
+                        {selectedFiles.length > 1 ? `${selectedFiles.length} tệp: ${selectedFiles.map((f) => f.name).join(', ')}` : file?.name || 'Tài liệu'}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {(selectedFiles.reduce((acc, f) => acc + f.size, 0) / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full bg-teal-50 text-teal-700 text-xs font-semibold">Đang xử lý</span>
+                  </div>
+
+                  <div className="mt-5 h-2 rounded-full bg-teal-100 overflow-hidden">
+                    <div className="h-full bg-teal-700 rounded-full transition-all duration-700" style={{ width: `${progressPct}%` }} />
+                  </div>
+                  <div className="mt-2 flex justify-between text-xs text-slate-500">
+                    <span>
+                      Bước {analysisStage + 1}/{STEPS.length}
+                    </span>
+                    <span>{progressPct}%</span>
+                  </div>
+
+                  <ol className="mt-4 space-y-1">
+                    {STEPS.map((s, i) => {
+                      const done = analysisStage > i;
+                      const current = analysisStage === i;
+                      return (
+                        <li key={s.title} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg ${current ? 'bg-teal-50' : ''}`}>
+                          <span
+                            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold ${
+                              done ? 'bg-teal-700 text-white' : current ? 'text-teal-700' : 'border border-slate-300 text-slate-500'
+                            }`}
+                          >
+                            {done ? <Check className="w-4 h-4" /> : current ? <Loader2 className="w-5 h-5 animate-spin" /> : i + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium ${current ? 'text-teal-900' : done ? 'text-slate-900' : 'text-slate-600'}`}>{s.title}</p>
+                            <p className={`text-xs ${current ? 'text-teal-700' : 'text-slate-500'}`}>{s.desc}</p>
+                          </div>
+                          <span className={`text-xs ${current ? 'text-teal-700 font-semibold' : 'text-slate-500'}`}>
+                            {done ? 'Xong' : current ? 'Đang chạy' : 'Chờ'}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                  <p className="mt-4 pt-4 border-t border-slate-200 text-sm text-slate-600">
+                    Thông tin cá nhân (họ tên, CCCD, số điện thoại) được ẩn tự động trước khi gửi tới AI. Vui lòng giữ trang này mở đến khi có kết quả.
+                  </p>
+                </section>
+              )}
+
+              {errorAlert}
+
+              {/* Sample data for trying the feature */}
+              <section className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Chưa có phiếu để thử?</p>
+                    <p className="text-xs text-slate-500">Tải một phiếu xét nghiệm mẫu (bộ dữ liệu Meddies, không phải hồ sơ của bạn) rồi kéo thả vào khung trên.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDownloadRandomMeddiesPdf}
+                    disabled={downloadingPdf || analyzing}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+                  >
+                    {downloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    {downloadingPdf ? 'Đang tạo PDF…' : 'Tải PDF mẫu'}
+                  </button>
+                </div>
+                {downloadSuccessToast && (
+                  <p className="flex items-center justify-between gap-2 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-900">
+                    <span className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      {downloadSuccessToast}
+                    </span>
+                    <button type="button" onClick={() => setDownloadSuccessToast(null)} className="p-0.5 cursor-pointer" aria-label="Đóng thông báo">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </p>
+                )}
+                {downloadPdfError && (
+                  <p className="flex items-center justify-between gap-2 p-3 rounded-lg bg-rose-50 border border-rose-200 text-sm text-rose-900" role="alert">
+                    <span className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      {downloadPdfError}
+                    </span>
+                    <button type="button" onClick={() => setDownloadPdfError(null)} className="p-0.5 cursor-pointer" aria-label="Đóng thông báo">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </p>
+                )}
+                <div>
+                  <p className="text-xs text-slate-500 mb-2">Hoặc thử nhanh với phiếu mẫu (mỗi lần thử dùng 1 lượt quét):</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    {samplePresets.map((preset) => (
+                      <button
+                        key={preset.fileName}
+                        type="button"
+                        onClick={() => handleSelectPreset(preset)}
+                        disabled={Boolean(scanBlockedReason)}
+                        title={scanBlockedReason || undefined}
+                        className="group flex items-center justify-between gap-2 p-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-teal-50 hover:border-teal-300 text-left transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-xs font-semibold text-slate-800 truncate">{preset.title}</span>
+                          <span className="block text-[11px] text-slate-500">{preset.fileName}</span>
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-teal-600 shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            {/* Sidebar */}
+            <aside className="space-y-4">
+              {user && (
+                <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                  <h2 className="font-semibold text-slate-900">Tài liệu gần đây</h2>
+                  {recentDocs.length === 0 ? (
+                    <p className="mt-3 text-sm text-slate-500">Bạn chưa tải tài liệu nào.</p>
+                  ) : (
+                    <ul className="mt-2 divide-y divide-slate-100">
+                      {recentDocs.map((d) => (
+                        <li key={d.id}>
+                          <Link to={`/patient/documents?focusId=${d.id}`} className="flex items-center gap-3 py-3 group">
+                            <span className="w-9 h-9 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
+                              <FileText className="w-4 h-4" />
+                            </span>
+                            <span className="flex-1 min-w-0">
+                              <span className="block text-sm font-medium text-slate-900 truncate group-hover:text-teal-800">{d.fileName}</span>
+                              <span className="block text-xs text-slate-500">{new Date(d.createdAt).toLocaleDateString('vi-VN')}</span>
+                            </span>
+                            <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                          </Link>
                         </li>
                       ))}
                     </ul>
-                  </div>
-                )}
-              </>
-            );
-          })()}
-        </div>
+                  )}
+                </div>
+              )}
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                <h2 className="font-semibold text-slate-900">AI đọc được gì?</h2>
+                <ul className="mt-3 space-y-1.5 text-sm text-slate-700 list-disc pl-5">
+                  <li>Phiếu xét nghiệm máu, nước tiểu</li>
+                  <li>Đơn thuốc in hoặc viết tay rõ chữ</li>
+                  <li>Phần kết luận bằng chữ của siêu âm, X-quang</li>
+                </ul>
+                <p className="mt-3 text-xs text-slate-500">AI không đọc trực tiếp ảnh phim X-quang hay ảnh siêu âm.</p>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                <h2 className="flex items-center gap-2 font-semibold text-slate-900">
+                  <Lock className="w-4 h-4" /> Dữ liệu của bạn
+                </h2>
+                <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                  Chỉ bạn xem được tài liệu này, trừ khi bạn chọn chia sẻ với bác sĩ khi đặt lịch. Tệp gốc chỉ mở qua liên kết tạm thời 15 phút.
+                </p>
+              </div>
+            </aside>
+          </div>
+        </>
       )}
 
       <BookingModal

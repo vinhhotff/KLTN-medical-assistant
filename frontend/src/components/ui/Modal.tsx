@@ -103,7 +103,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, description,
           className,
         )}
       >
-        <div className="flex items-start justify-between gap-3 px-6 py-4 bg-[#FCFBF8] border-b border-slate-200/90 shrink-0">
+        <div className="flex items-start justify-between gap-3 px-6 py-4 bg-[#FFFFFF] border-b border-slate-200/90 shrink-0">
           <div className="min-w-0">
             <span className="block font-mono text-[10px] uppercase tracking-widest text-teal-600 font-bold mb-0.5">
               AETHER // DIALOG TERMINAL
@@ -125,7 +125,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, description,
         </div>
         <div className="px-6 py-5 overflow-y-auto flex-1">{children}</div>
         {footer && (
-          <div className="px-6 py-3.5 border-t border-slate-200/90 bg-[#FCFBF8] flex flex-wrap justify-end gap-2.5 shrink-0">
+          <div className="px-6 py-3.5 border-t border-slate-200/90 bg-[#FFFFFF] flex flex-wrap justify-end gap-2.5 shrink-0">
             {footer}
           </div>
         )}

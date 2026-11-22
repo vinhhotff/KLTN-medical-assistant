@@ -31,7 +31,7 @@ export const Field: React.FC<FieldProps> = ({ label, htmlFor, error, hint, requi
 
 export const inputClass = (hasError?: boolean) =>
   cn(
-    'w-full px-3.5 py-2.5 text-sm bg-[#FCFBF8] border rounded-xl focus:outline-none focus:ring-2 transition shadow-[inset_0_1px_2px_rgba(18,16,14,0.04)]',
+    'w-full px-3.5 py-2.5 text-sm bg-[#FFFFFF] border rounded-xl focus:outline-none focus:ring-2 transition shadow-[inset_0_1px_2px_rgba(18,16,14,0.04)]',
     'disabled:bg-slate-100 disabled:text-slate-500 placeholder:text-slate-400',
     hasError ? 'border-rose-400 focus:ring-rose-400' : 'border-slate-300 focus:border-teal-600 focus:ring-teal-500/25',
   );

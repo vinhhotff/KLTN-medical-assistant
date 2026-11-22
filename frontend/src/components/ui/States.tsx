@@ -11,7 +11,7 @@ export const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
 export const SkeletonList: React.FC<{ rows?: number; className?: string }> = ({ rows = 3, className }) => (
   <div className={cn('space-y-3', className)} role="status" aria-label="Đang tải">
     {Array.from({ length: rows }, (_, i) => (
-      <div key={i} className="p-5 rounded-2xl border border-slate-300 bg-[#FCFBF8] shadow-xs space-y-2.5">
+      <div key={i} className="p-5 rounded-2xl border border-slate-300 bg-[#FFFFFF] shadow-xs space-y-2.5">
         <Skeleton className="h-4 w-1/3" />
         <Skeleton className="h-3 w-2/3" />
         <Skeleton className="h-3 w-1/2" />
@@ -47,8 +47,8 @@ interface EmptyStateProps {
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ title, description, icon, action, className }) => (
-  <div className={cn('py-12 px-6 text-center border-2 border-dashed border-slate-300 rounded-3xl bg-[#FCFBF8]/90 bg-atelier-dots', className)}>
-    <div className="mx-auto w-14 h-14 rounded-2xl bg-slate-900 text-[#F6F3EC] flex items-center justify-center mb-3.5 shadow-sm">
+  <div className={cn('py-12 px-6 text-center border-2 border-dashed border-slate-300 rounded-3xl bg-[#FFFFFF]/90 bg-atelier-dots', className)}>
+    <div className="mx-auto w-14 h-14 rounded-2xl bg-slate-900 text-[#F8FAFC] flex items-center justify-center mb-3.5 shadow-sm">
       {icon ?? <Inbox className="w-6 h-6" aria-hidden />}
     </div>
     <p className="font-display font-bold text-slate-900 text-base tracking-tight">{title}</p>

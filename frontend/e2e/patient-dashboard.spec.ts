@@ -27,7 +27,7 @@ test.describe('Patient dashboard shows only real data', () => {
     await expect(page.getByText('Chưa xếp phòng — sẽ thông báo khi check-in').first()).toBeVisible();
     await expect(page.getByText('Chưa có phí')).toBeVisible();
     // The disclaimer banner stays on every patient page
-    await expect(page.getByText('Khuyến Cáo Lâm Sàng')).toBeVisible();
+    await expect(page.getByText('Cảnh báo y tế:')).toBeVisible();
   });
 
   test('completed EMR shows "Chưa đo" and no invented diagnosis', async ({ page }) => {

@@ -52,7 +52,7 @@ export const AdminLayout: React.FC = () => {
   );
 
   const sidebar = (
-    <div className="h-full bg-[#FCFBF8] text-slate-800 flex flex-col justify-between border-r border-slate-200/90 shadow-[2px_0_12px_rgba(0,0,0,0.02)] select-none">
+    <div className="h-full bg-[#FFFFFF] text-slate-800 flex flex-col justify-between border-r border-slate-200/90 shadow-[2px_0_12px_rgba(0,0,0,0.02)] select-none">
       <div className="overflow-y-auto p-6 space-y-6">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 bg-teal-600 rounded-2xl text-white flex items-center justify-center shadow-md shadow-teal-600/20 shrink-0">
@@ -151,7 +151,7 @@ export const AdminLayout: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen flex bg-[#F6F3EC] text-slate-900 font-sans">
+    <div className="min-h-screen flex bg-[#F8FAFC] text-slate-900 font-sans">
       {/* Desktop sidebar */}
       <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-0 h-screen">{sidebar}</aside>
 
@@ -164,7 +164,7 @@ export const AdminLayout: React.FC = () => {
       )}
 
       <main className="flex-1 flex flex-col min-w-0 bg-atelier-dots">
-        <header className="h-16 bg-[#FCFBF8]/95 backdrop-blur-md border-b border-slate-200/90 flex items-center justify-between gap-3 px-4 lg:px-8 sticky top-0 z-30 shadow-xs">
+        <header className="h-16 bg-[#FFFFFF]/95 backdrop-blur-md border-b border-slate-200/90 flex items-center justify-between gap-3 px-4 lg:px-8 sticky top-0 z-30 shadow-xs">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"

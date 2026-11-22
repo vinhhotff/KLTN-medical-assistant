@@ -27,7 +27,7 @@ test.describe('Document scanner', () => {
     await page.goto('/patient/documents');
     await pick(page, [pdf('ket-qua.pdf')]);
     await expect(page.getByTestId('quota-exhausted')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Phân Tích 1 Tệp/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Phân tích 1 tệp/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Phiếu Xét Nghiệm Máu/ })).toBeDisabled();
 
     await page.getByRole('button', { name: 'Xem bảng giá' }).click();
@@ -61,7 +61,7 @@ test.describe('Document scanner', () => {
     });
     await page.goto('/patient/documents');
     await pick(page, [pdf('ket-qua.pdf')]);
-    const analyse = page.getByRole('button', { name: /Phân Tích 1 Tệp/ });
+    const analyse = page.getByRole('button', { name: /Phân tích 1 tệp/ });
     await analyse.dblclick();
     await expect(page.getByRole('button', { name: /Đang phân tích/ })).toBeDisabled();
     await expect(page.locator('#multi-file-upload-input')).toBeDisabled();
@@ -86,7 +86,7 @@ test.describe('Document scanner', () => {
     });
     await page.goto('/patient/documents');
     await pick(page, [pdf('ket-qua.pdf')]);
-    await page.getByRole('button', { name: /Phân Tích 1 Tệp/ }).click();
+    await page.getByRole('button', { name: /Phân tích 1 tệp/ }).click();
     const err = page.getByTestId('scan-error');
     await expect(err).toHaveAttribute('data-kind', 'quota');
     await expect(err.getByRole('button', { name: /Thử lại/ })).toHaveCount(0);

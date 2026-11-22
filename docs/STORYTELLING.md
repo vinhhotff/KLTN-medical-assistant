@@ -61,6 +61,16 @@ Trong các ứng dụng y tế thông thường, nhà phát triển thường m�
 * **Cơ chế Xoay Tua Tự Động (Auto-Rotation on HTTP 429):** Mô hình miễn phí thường xuyên bị giới hạn tần suất trong giờ cao điểm. Thuật toán `AiModelRouter` tự động bắt mã `HTTP 429` và nhảy sang mô hình dự phòng kế tiếp trong chưa đầy 1 giây mà người dùng không hề hay biết.
 * **Động cơ Offline Safe Fallback Engine:** Nếu toàn bộ mô hình đám mây bị ngắt, động cơ phân tích quy tắc cục bộ sẽ kích hoạt ngay lập tức, đảm bảo bệnh nhân luôn nhận được đánh giá an toàn mà không bao giờ gặp lỗi sập web.
 
+### 2.5. Giao Diện Thiết Kế Lại Theo Google Stitch — Rõ Ràng, Bình Tĩnh, Trung Thực (WORK_LOG #133)
+Bộ 14 màn hình thiết kế trên Google Stitch (thư mục `design/stitch/`) thay cho phong cách "Aether Bio-Atelier" ở mục 2.3. Mục tiêu là để người bệnh như Bác Ba hay Chị Mai đọc được ngay điều quan trọng, không phải giải mã một "bảng điều khiển kỹ thuật".
+
+1. **Nền xám lạnh, mỗi vai trò một màu nhấn:** nền `slate-50`, thẻ trắng viền mảnh. Bệnh nhân dùng tím **indigo** (trợ lý triệu chứng, đặt lịch, hồ sơ), phần bệnh án và cổng bác sĩ dùng **teal**, cổng quản trị dùng sidebar xanh navy đậm. Đỏ `rose` chỉ dành cho cấp cứu, vàng `amber` cho cảnh báo y tế.
+2. **Điều hướng ngang cho bệnh nhân:** bỏ sidebar đánh số module; thanh trên cùng gồm Lịch hẹn · Trợ lý triệu chứng AI · Tóm tắt bệnh án · Tìm & đặt bác sĩ · Lịch sử sức khỏe, cùng ảnh đại diện dẫn tới "Hồ sơ của tôi". Trên điện thoại là thanh 5 mục ở đáy màn hình.
+3. **Ngôn ngữ đời thường:** "Theo dõi tại nhà / Khám trong 1–3 ngày / Cấp cứu ngay" thay cho ROUTINE/URGENT/EMERGENCY; bảng chỉ số xét nghiệm có thanh "So với ngưỡng" và nhãn ↑ Cao / ↓ Thấp / ✓ Bình thường.
+4. **Màn hình cấp cứu riêng:** khi Red-Flag kích hoạt, toàn bộ khung chat được thay bằng màn hình đỏ với nút "Gọi cấp cứu 115" cỡ lớn, nút gọi người thân (lấy từ hồ sơ), 4 việc cần làm trong lúc chờ xe, và khóa trò chuyện với AI.
+5. **Chỉ hiển thị dữ liệu thật:** phần nào của thiết kế mà backend chưa có dữ liệu (bản đồ bệnh viện gần nhất, giờ trống gần nhất của bác sĩ, chiều cao/cân nặng/thuốc đang dùng, khám qua video…) được ẩn đi thay vì điền số liệu giả. Màn "Chi tiết lịch hẹn" giữ đúng mô hình khám trực tiếp (O2O): phòng khám, số thứ tự, phiếu QR check-in.
+6. **Rào chắn không đổi:** banner "Cảnh báo y tế" cố định trên mọi trang bệnh nhân (không tắt được), số 115 luôn bấm được, Red-Flag chạy trước khi gọi LLM.
+
 ---
 
 ## 3. Chân Dung Người Dùng & Bản Đồ Đồng Cảm (User Personas & Empathy Map)

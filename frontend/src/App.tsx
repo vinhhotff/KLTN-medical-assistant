@@ -29,6 +29,9 @@ const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard').t
 const DoctorSearchPage = lazy(() => import('./pages/patient/DoctorSearchPage').then((m) => ({ default: m.DoctorSearchPage })));
 const DocumentSummarizerPage = lazy(() => import('./pages/patient/DocumentSummarizerPage').then((m) => ({ default: m.DocumentSummarizerPage })));
 const SymptomTriagePage = lazy(() => import('./pages/patient/SymptomTriagePage').then((m) => ({ default: m.SymptomTriagePage })));
+const PatientProfilePage = lazy(() => import('./pages/patient/PatientProfilePage').then((m) => ({ default: m.PatientProfilePage })));
+const HealthHistoryPage = lazy(() => import('./pages/patient/HealthHistoryPage').then((m) => ({ default: m.HealthHistoryPage })));
+const AppointmentDetailPage = lazy(() => import('./pages/patient/AppointmentDetailPage').then((m) => ({ default: m.AppointmentDetailPage })));
 const PaymentSuccessPage = lazy(() => import('./pages/patient/PaymentSuccessPage').then((m) => ({ default: m.PaymentSuccessPage })));
 
 const RouteFallback = () => (
@@ -88,6 +91,9 @@ export function App() {
               <Route path="triage" element={<SymptomTriagePage />} />
               <Route path="documents" element={<DocumentSummarizerPage />} />
               <Route path="doctors" element={<DoctorSearchPage />} />
+              <Route path="history" element={<HealthHistoryPage />} />
+              <Route path="profile" element={<PatientProfilePage />} />
+              <Route path="appointments/:id" element={<AppointmentDetailPage />} />
             </Route>
           </Route>
 

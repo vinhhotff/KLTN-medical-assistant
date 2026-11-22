@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#133** | 22/11/2026 | Thiết kế lại giao diện Bệnh nhân theo Google Stitch (Đợt 1/3): bảng màu toàn cục xám lạnh + indigo/teal, `PatientLayout` điều hướng ngang, banner cảnh báo y tế mới, viết lại `SymptomTriagePage` (màn 01 chat + màn 03 cấp cứu) và `DocumentSummarizerPage` (màn 04 tải lên + màn 05 kết quả), 3 trang mới `PatientProfilePage`, `HealthHistoryPage`, `AppointmentDetailPage`. Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | ⏳ Chờ Tech Lead duyệt |
 | **#132** | 20/11/2026 | Bổ Sung Bộ Class Diagrams (4 Biểu Đồ Lớp Clean Architecture & Nghiệp Vụ) Và Sequence Diagrams Chuyên Sâu Vào Vector Studio (`interactive_viewer.html`) & Cổng Review 2 (`review_2/index.html`): (1) Bổ sung CSS High-Contrast tương phản cao (`svg[aria-roledescription="classDiagram"]`) cho cả giao diện Sáng/Tối và cấu hình `class: { useMaxWidth: false }` trong `docs/diagrams/interactive_viewer.html`; (2) Bổ sung **4 Class Diagrams** (`class_master`, `class_triage_search`, `class_booking_emr`, `class_ocr_security`) ánh xạ 1-1 phương thức Java thực tế (`RedFlagService.evaluateRedFlag`, `ClinicalQueryDefenseEngine.analyzeAndDefend`, `AiProvider` 3-Tier Router, `PaymentGateway` Adapter, `PatientAccessGuard`, `Appointment` V23/V24, `MedicalDocument` V20) và **2 Sequence Diagrams mới** (`seq_e2e_master` luồng khép kín Triage -> HNSW -> Booking 3 Tầng -> EMR V23; `seq_doctor_onboarding` Onboarding Bác sĩ 2 Bước & Admin Vet), đồng thời đồng bộ `seq_triage`, `seq_encounter`, `seq_ocr` sang `Gemini 2.5 Flash` & `icd_code`/`icd_version` V23; (3) Tích hợp nút mở nhanh & chuyển sơ đồ `1.4 Class Diagram Tổng Thể`, `1.5 Sequence Khép Kín` cùng liên kết Slide 3/7 trong `review_2/index.html`; (4) Cập nhật `docs/CAPSTONE_DEFENSE.md` (Section `5.5` Hướng dẫn trình bày Class & Sequence Diagram trước Hội đồng) và biên dịch lại `docs-bundle.js`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#131** | 18/11/2026 | Khắc Phục Lỗi Đen Khối SVG Trong `interactive_viewer.html` & Nâng Cấp Toàn Diện `review_2/index.html` Thành Cổng Trình Chiếu Sơ Đồ Trực Quan (Diagram-First Mode): (1) Sửa triệt để lỗi ghi đè SVG `id` (`svgElement.setAttribute("id", "active-svg")` phá vỡ toàn bộ CSS selector `#mermaid-svg-...` khiến khối biểu đồ bị `fill: #000000` đen kịt) và chống cắt chữ `<foreignObject>` (`overflow: visible`) trong `docs/diagrams/interactive_viewer.html`, đồng thời cập nhật sơ đồ `architecture` khớp chuẩn `React 18.3` & `Gemini 2.5 Flash (3-Tier AI Router)` với bảng màu tương phản cao; (2) Nâng cấp `review_2/index.html` tích hợp Mermaid.js + `svg-pan-zoom` nhúng trực tiếp **25 sơ đồ vector trực quan** phủ kín 4 tab (3 sơ đồ Kiến trúc/ADR/17 Bảng ở Tab 1, 6 sơ đồ Trước/Sau ở Tab 2, 10 sơ đồ riêng cho 10 Slides ở Tab 3, 6 sơ đồ minh họa câu trả lời Hội đồng ở Tab 4) kèm Modal Phóng to/Kéo rê toàn màn hình và tải SVG. Kiểm chứng thực tế bằng Edge Playwright headless: **25/25 sơ đồ** tại `review_2` & **33/33 khối** tại `interactive_viewer.html` render sạch (`0` khối đen, `0` lỗi cú pháp), HTTP 200 OK trên cổng `8088`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#130** | 18/11/2026 | Xây Dựng Cổng Web Tổng Hợp Review Lần 2 (Tuần 8 – SDD) & Khởi Chạy Máy Chủ Trình Chiếu (`review_2/index.html`): (1) Tạo trang web tương tác hoàn chỉnh `review_2/index.html` tổng hợp trọn vẹn 4 phân hệ trình bày Review 2: Ma trận Đánh giá Chuyên môn SDD (5 trụ cột IEEE 1016 / ISO 42010), 6 Khuyến nghị Điều chỉnh (Trước vs Sau), Trình chiếu 10 Slides kèm Teleprompter Script & đồng hồ đếm ngược luyện tập 15:00, và Top 6 Câu hỏi Phản biện Hội đồng Review 2 (có tìm kiếm, nút Sáng/Tối & chế độ Xem tất cả / In PDF), (2) Cập nhật Portal gốc `index.html` và `docs/index.html`: bổ sung nút truy cập nhanh `🎯 Review 2 (Tuần 8 - SDD)` trên Header, nút liên kết tại thẻ Report 4 & Defense Hub, đồng bộ chỉ số `322/322` tests và `4,537 dòng` SDD, (3) Khởi chạy máy chủ web cục bộ cổng `8088` phục vụ HTTP 200 cho `/review_2/index.html`, `/index.html`, `/docs/index.html`, `/report_4/index.html`, và `/docs/diagrams/interactive_viewer.html`. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -63,6 +64,38 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#133] Thiết Kế Lại Giao Diện Bệnh Nhân Theo Google Stitch (Đợt 1/3 — Phân Hệ Bệnh Nhân)
+* **Thời gian:** 2026-11-22 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/stitch-ui-redesign` (tách từ `develop`)
+* **Mã Yêu Cầu:** Tech Lead yêu cầu sửa frontend theo 14 màn hình Google Stitch (`design/stitch/*.png`). Quyết định đã chốt: (1) chỉ đổi giao diện, giữ nguyên API/state/route cũ và banner miễn trừ y khoa; (2) phần thiết kế chưa có dữ liệu backend thì ẩn, không dựng số liệu giả; (3) đổi bảng màu toàn cục; (4) màn chi tiết lịch hẹn dùng khám trực tiếp (O2O) thay cho video; (5) làm theo vai trò, đợt 1 là Bệnh nhân.
+* **Danh Sách Tệp Tin:**
+  1. `[NEW]` `design/stitch/*.png` — 14 màn hình tham chiếu xuất từ Stitch (01, 03–15; Stitch không có màn 02).
+  2. `[MOD]` `frontend/tailwind.config.js` — bỏ ghi đè `slate`→be ấm và `teal`→tím; `brand`=indigo, token ngữ nghĩa trỏ về slate/indigo; bóng đổ mềm; bo góc nhỏ hơn.
+  3. `[MOD]` `frontend/src/index.css` + 18 tệp `.tsx` — đổi mã màu be hard-code (`#F6F3EC`, `#FCFBF8`, `#EDE8DF`, `#12100E`) sang tông lạnh tương ứng.
+  4. `[MOD]` `frontend/src/components/common/MedicalDisclaimerBanner.tsx` — banner vàng "Cảnh báo y tế", vẫn cố định, số 115 bấm gọi được.
+  5. `[MOD]` `frontend/src/layouts/PatientLayout.tsx` — thanh điều hướng ngang (Lịch hẹn · Trợ lý triệu chứng AI · Tóm tắt bệnh án · Tìm & đặt bác sĩ · Lịch sử sức khỏe), ảnh đại diện → Hồ sơ của tôi, thanh đáy 5 mục trên điện thoại.
+  6. `[MOD]` `frontend/src/pages/patient/SymptomTriagePage.tsx` — màn 01 (chat + thẻ "Kết quả phân luồng" 3 mức khẩn cấp, chuyên khoa, bác sĩ phù hợp, checkbox gửi kèm tóm tắt khi đặt lịch; cột phải "Tóm tắt phiên" và checklist 4 nhóm Red-Flag khớp `RedFlagService`) và màn 03 (màn cấp cứu: gọi 115, gọi người thân từ hồ sơ, 4 việc khi chờ xe, khóa chat).
+  7. `[MOD]` `frontend/src/pages/patient/DocumentSummarizerPage.tsx` — viết lại phần hiển thị: màn 04 (vùng kéo thả, nút Chụp ảnh dùng camera, tiến trình 5 bước, tài liệu gần đây từ `GET /documents/my`) và màn 05 (tóm tắt nhanh, bảng chỉ số có thanh "So với ngưỡng", lọc "Cần chú ý", giải nghĩa chỉ số bất thường, câu hỏi nên hỏi bác sĩ, bác sĩ phù hợp). Logic quét, quota, thanh toán, modal giữ nguyên.
+  8. `[NEW]` `frontend/src/pages/patient/PatientProfilePage.tsx` (`/patient/profile`) — màn 12, dùng `GET/PUT /patient/profile`.
+  9. `[NEW]` `frontend/src/pages/patient/HealthHistoryPage.tsx` (`/patient/history`) — màn 13, dòng thời gian gộp lịch hẹn + phiên AI + tài liệu.
+  10. `[NEW]` `frontend/src/pages/patient/AppointmentDetailPage.tsx` (`/patient/appointments/:id`) — màn 14, khám trực tiếp: phòng/STT/phiếu QR, thanh toán, đổi giờ, hủy lịch, thêm vào lịch (.ics), lời dặn bác sĩ.
+  11. `[NEW]` `frontend/src/types/patient.ts`, `frontend/src/utils/labRange.ts` — kiểu dữ liệu dùng chung, hàm đặt giá trị xét nghiệm lên thanh khoảng tham chiếu (không vẽ khi không đọc được khoảng).
+  12. `[MOD]` `frontend/src/App.tsx` (3 route mới), `frontend/src/pages/patient/PatientDashboard.tsx` (link "Xem chi tiết" tới trang 14).
+  13. `[MOD]` `frontend/e2e/triage.spec.ts`, `document-scan.spec.ts`, `mobile-nav.spec.ts`, `patient-dashboard.spec.ts` — cập nhật chữ/selector theo giao diện mới, giữ nguyên ý nghĩa kiểm thử.
+* **Tài Liệu Đã Đồng Bộ:** `[x]` `docs/STORYTELLING.md` (mục 2.5) · `[x]` `docs/USE_CASES.md` (ánh xạ frontend UC hồ sơ, PAT-12, PAT-14, PAT-15, PAT-17) · `[ ]` `docs/DATABASE_DESIGN.md` (không đổi DB) · `[ ]` `docs/CAPSTONE_DEFENSE.md` (chưa đổi kịch bản demo).
+* **Bằng Chứng Kiểm Thử:**
+  - `npx tsc --noEmit`: 0 lỗi. `npm run build`: thành công.
+  - Playwright (chromium + mobile-chrome) cho `triage`, `document-scan`, `mobile-nav`, `patient-dashboard`, `admission-ticket`, `doctor-search`: 71/72 đạt ở lần chạy đầy đủ; test "queue and presets are frozen while analysing" hỏng 1 lần trên chromium khi chạy song song, chạy lại riêng `document-scan` 3 lần (30/30) đều đạt — nghi chập chờn do cửa sổ trễ giả lập 2,5 giây.
+  - Backend: không đổi mã nguồn, không chạy `mvn test`.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Đổi bảng màu toàn cục: trang bác sĩ/admin/landing/login chưa thiết kế lại sẽ chuyển sang tông lạnh và `teal` thật (trước là tím) cho tới đợt 2–3.
+  - Phần Stitch bị ẩn vì thiếu backend: bản đồ + bệnh viện gần nhất (03), giờ trống gần nhất của bác sĩ, "có thể thay thế", danh sách "Trong lúc chờ khám" (01), tải PDF tóm tắt phiên (01), chiều cao/cân nặng/thuốc đang dùng/mang thai/quyền riêng tư (12), chỉ số cần theo dõi + tạo bản tóm tắt (13), khám video + ghi chú gửi bác sĩ (14), nút Hủy khi đang quét (04).
+  - Danh sách "Trong lúc chờ xe cấp cứu" (03) là nội dung sơ cứu tĩnh trong frontend — cần bác sĩ cố vấn duyệt câu chữ.
+  - Mã phiên hiển thị `TRG-XXXXXXXX` lấy 8 ký tự đầu UUID, chỉ để đọc, không phải mã nghiệp vụ.
+
+---
 
 ### [WORK-LOG-#132] Bổ Sung Class Diagrams & Sequence Diagrams Vào Vector Studio (`interactive_viewer.html`) & Cổng Review 2 (`review_2/index.html`)
 * **Thời gian:** 2026-11-20 (GMT+7)

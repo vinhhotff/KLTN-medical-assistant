@@ -405,7 +405,7 @@ export const DoctorProfilePage: React.FC = () => {
 
       {/* Demo Quick-Fill Helper */}
       {ENABLE_DEMO_LOGIN && (
-        <div className="p-3.5 rounded-2xl bg-[#FCFBF8] border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div className="p-3.5 rounded-2xl bg-[#FFFFFF] border border-slate-200 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
             <Sparkles className="w-4 h-4 text-teal-600" />
             <span>Demo nhanh Bước 2: Điền mẫu Chứng chỉ CCHN, Bệnh viện, Chuyên khoa &amp; Phí khám</span>

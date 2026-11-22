@@ -252,7 +252,7 @@ export const DoctorRegisterForm: React.FC = () => {
       )}
 
       {ENABLE_DEMO_LOGIN && (
-        <div className="p-3 bg-[#F6F3EC] rounded-2xl border border-slate-300 flex flex-wrap items-center justify-between gap-2">
+        <div className="p-3 bg-[#F8FAFC] rounded-2xl border border-slate-300 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-900">
             <Sparkles className="w-4 h-4 text-teal-600 animate-pulse" />
             <span>Tài khoản bác sĩ mẫu (Bước 1):</span>
@@ -269,7 +269,7 @@ export const DoctorRegisterForm: React.FC = () => {
       )}
 
       {/* Nhóm 1: Định danh & Tài khoản */}
-      <div className="space-y-3.5 p-4 rounded-2xl bg-[#FCFBF8] border border-slate-200">
+      <div className="space-y-3.5 p-4 rounded-2xl bg-[#FFFFFF] border border-slate-200">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider font-bold text-teal-700">
             <UserIcon className="w-3.5 h-3.5" />
@@ -291,7 +291,7 @@ export const DoctorRegisterForm: React.FC = () => {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Nguyễn Văn A"
-              className="w-full pl-9 pr-3 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
+              className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
             />
           </div>
         </div>
@@ -310,7 +310,7 @@ export const DoctorRegisterForm: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="bacsi.nguyenvana@gmail.com"
-                className="w-full pl-9 pr-3 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
+                className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
               />
             </div>
           </div>
@@ -328,7 +328,7 @@ export const DoctorRegisterForm: React.FC = () => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="0901234567"
-                className="w-full pl-9 pr-3 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
+                className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
               />
             </div>
           </div>
@@ -349,7 +349,7 @@ export const DoctorRegisterForm: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Tối thiểu 8 ký tự"
-              className="w-full pl-9 pr-9 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
+              className="w-full pl-9 pr-9 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
             />
             <button
               type="button"
@@ -374,7 +374,7 @@ export const DoctorRegisterForm: React.FC = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Nhập lại mật khẩu"
-              className="w-full pl-9 pr-9 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
+              className="w-full pl-9 pr-9 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
             />
             <button
               type="button"
@@ -389,7 +389,7 @@ export const DoctorRegisterForm: React.FC = () => {
       </div>
 
       {/* Password Strength Meter */}
-      <div className="p-3.5 bg-[#F6F3EC] rounded-2xl border border-slate-300">
+      <div className="p-3.5 bg-[#F8FAFC] rounded-2xl border border-slate-300">
         <div className="flex items-center justify-between text-[11px] mb-1.5">
           <span className="font-mono font-bold text-slate-700">Độ mạnh mật khẩu bác sĩ:</span>
           <span className={`font-mono font-bold ${passwordStrength.textColor}`}>

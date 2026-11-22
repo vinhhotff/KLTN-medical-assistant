@@ -267,7 +267,7 @@ export const PatientRegisterForm: React.FC = () => {
       )}
 
       {ENABLE_DEMO_LOGIN && (
-        <div className="p-3 bg-[#F6F3EC] rounded-2xl border border-slate-300 flex flex-wrap items-center justify-between gap-2">
+        <div className="p-3 bg-[#F8FAFC] rounded-2xl border border-slate-300 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-900">
             <Sparkles className="w-4 h-4 text-teal-600 animate-pulse" />
             <span>Dữ liệu mẫu để demo:</span>
@@ -284,14 +284,14 @@ export const PatientRegisterForm: React.FC = () => {
             <button
               type="button"
               onClick={() => handleRandomFill('SENIOR')}
-              className="px-2.5 py-1.5 rounded-xl font-mono text-[11px] font-bold bg-[#FCFBF8] hover:bg-slate-200 text-slate-800 border border-slate-300 transition cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl font-mono text-[11px] font-bold bg-[#FFFFFF] hover:bg-slate-200 text-slate-800 border border-slate-300 transition cursor-pointer"
             >
               Người Cao Tuổi
             </button>
             <button
               type="button"
               onClick={() => handleRandomFill('YOUNG')}
-              className="px-2.5 py-1.5 rounded-xl font-mono text-[11px] font-bold bg-[#FCFBF8] hover:bg-slate-200 text-slate-800 border border-slate-300 transition cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl font-mono text-[11px] font-bold bg-[#FFFFFF] hover:bg-slate-200 text-slate-800 border border-slate-300 transition cursor-pointer"
             >
               Thanh Niên
             </button>
@@ -313,7 +313,7 @@ export const PatientRegisterForm: React.FC = () => {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Nguyễn Văn A"
-              className="w-full pl-9 pr-3 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
+              className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
             />
           </div>
           <span className="font-mono text-[10px] text-slate-500 mt-1 block">Khớp đúng với BHYT hoặc CCCD</span>
@@ -332,7 +332,7 @@ export const PatientRegisterForm: React.FC = () => {
               max={todayLocal()}
               value={dob}
               onChange={(e) => setDob(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
+              className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
             />
           </div>
           <span className="font-mono text-[10px] text-slate-500 mt-1 block">Dùng để phân chuẩn chỉ số sinh hóa</span>
@@ -351,7 +351,7 @@ export const PatientRegisterForm: React.FC = () => {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="0912 345 678"
-              className="w-full pl-9 pr-3 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
+              className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
             />
           </div>
         </div>
@@ -369,7 +369,7 @@ export const PatientRegisterForm: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="nguyena@gmail.com"
-              className="w-full pl-9 pr-3 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
+              className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
             />
           </div>
         </div>
@@ -387,7 +387,7 @@ export const PatientRegisterForm: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Tối thiểu 8 ký tự"
-              className="w-full pl-9 pr-9 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
+              className="w-full pl-9 pr-9 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
             />
             <button
               type="button"
@@ -413,7 +413,7 @@ export const PatientRegisterForm: React.FC = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Nhập lại mật khẩu"
-              className="w-full pl-9 pr-9 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
+              className="w-full pl-9 pr-9 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
             />
             <button
               type="button"
@@ -466,7 +466,7 @@ export const PatientRegisterForm: React.FC = () => {
       </div>
 
       {/* Password Strength Indicator */}
-      <div className="p-3.5 bg-[#F6F3EC] rounded-2xl border border-slate-300">
+      <div className="p-3.5 bg-[#F8FAFC] rounded-2xl border border-slate-300">
         <div className="flex items-center justify-between text-[11px] mb-1.5">
           <span className="font-mono font-bold text-slate-700">Độ mạnh mật khẩu y tế:</span>
           <span className={`font-mono font-bold ${passwordStrength.textColor}`}>
