@@ -109,8 +109,8 @@ export const DoctorRegisterForm: React.FC = () => {
       return {
         label: 'Khá mạnh (Gần đạt chuẩn tối ưu)',
         level: 85,
-        color: 'bg-teal-500',
-        textColor: 'text-teal-600',
+        color: 'bg-indigo-500',
+        textColor: 'text-indigo-600',
       };
     }
 
@@ -240,12 +240,12 @@ export const DoctorRegisterForm: React.FC = () => {
       {ENABLE_DEMO_LOGIN && (
         <div className="p-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-            <Sparkles className="w-4 h-4 text-teal-600" /> Điền nhanh dữ liệu mẫu
+            <Sparkles className="w-4 h-4 text-indigo-600" /> Điền nhanh dữ liệu mẫu
           </span>
           <button
             type="button"
             onClick={handleQuickDemoDoctor}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-teal-200 bg-teal-50 text-sm font-semibold text-teal-700 hover:bg-teal-100 transition cursor-pointer"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-indigo-200 bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition cursor-pointer"
           >
             <Dices className="w-3.5 h-3.5" /> Bác sĩ mẫu
           </button>
@@ -328,7 +328,7 @@ export const DoctorRegisterForm: React.FC = () => {
           id="doctor-terms"
           checked={agreeTerms}
           onChange={(e) => setAgreeTerms(e.target.checked)}
-          className="mt-0.5 rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
+          className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
         />
         <label htmlFor="doctor-terms" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
           Tôi đồng ý với <span className="font-semibold text-slate-900 underline">Quy chế bảo mật dữ liệu bệnh nhân</span> và sẽ cung cấp{' '}

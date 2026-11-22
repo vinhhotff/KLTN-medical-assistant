@@ -531,7 +531,7 @@ export const LandingPage: React.FC = () => {
                   Đăng Nhập
                 </Link>
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate('/login?mode=register')}
                   className="px-5 py-2 font-display text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-md shadow-teal-600/20 transition-all cursor-pointer"
                 >
                   Khám Ngay →

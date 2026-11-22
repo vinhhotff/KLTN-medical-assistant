@@ -173,17 +173,17 @@ export const LoginPage: React.FC = () => {
   const isRegister = activeTab === 'REGISTER';
 
   return (
-    <div className="min-h-screen bg-slate-50 bg-atelier-dots text-slate-900 flex flex-col font-sans selection:bg-teal-600 selection:text-white">
+    <div className="min-h-screen bg-slate-50 bg-atelier-dots text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
       {/* Header — same pill as the landing page */}
       <header className="px-4 sm:px-8 pt-3">
         <div className="max-w-[1440px] mx-auto bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.04)] px-3 sm:px-6 h-16 flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-3 group min-w-0">
-            <span className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-display font-bold text-base shadow-md shadow-teal-600/20 group-hover:scale-105 transition-transform duration-300 shrink-0">
+            <span className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-display font-bold text-base shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform duration-300 shrink-0">
               M+
             </span>
             <span className="min-w-0">
               <span className="font-display text-base sm:text-lg text-slate-900 tracking-tight font-bold block leading-none truncate">
-                MediAssist <span className="text-teal-600">Atelier</span>
+                MediAssist <span className="text-indigo-600">Atelier</span>
               </span>
               <span className="text-xs text-slate-500 block mt-1 truncate">Trợ lý sức khỏe AI</span>
             </span>
@@ -202,7 +202,7 @@ export const LoginPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           {/* Form card */}
           <section className="lg:col-span-7 relative overflow-hidden bg-white rounded-3xl border border-slate-200/90 shadow-[0_10px_35px_rgba(0,0,0,0.03)] px-5 py-7 sm:px-10 sm:py-10">
-            <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-teal-100/60 blur-3xl" />
+            <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-indigo-100/60 blur-3xl" />
             <div className="relative max-w-[576px] mx-auto">
               {/* Sign-in / register switch */}
               <div className="grid grid-cols-2 p-1 rounded-full bg-slate-100 border border-slate-200" role="group" aria-label="Chọn đăng nhập hoặc đăng ký">
@@ -254,10 +254,14 @@ export const LoginPage: React.FC = () => {
                         aria-pressed={on}
                         onClick={() => setRoleType(role)}
                         className={`flex items-center gap-3 p-4 rounded-2xl border text-left transition cursor-pointer ${
-                          on ? 'border-teal-500 bg-teal-50/70 ring-2 ring-teal-500/20' : 'border-slate-200 bg-white hover:bg-slate-50'
+                          on
+                            ? role === 'DOCTOR'
+                              ? 'border-teal-500 bg-teal-50/70 ring-2 ring-teal-500/20'
+                              : 'border-indigo-500 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                            : 'border-slate-200 bg-white hover:bg-slate-50'
                         }`}
                       >
-                        <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${on ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                        <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${on ? (role === 'DOCTOR' ? 'bg-teal-600 text-white' : 'bg-indigo-600 text-white') : role === 'DOCTOR' ? 'bg-teal-50 text-teal-700' : 'bg-slate-100 text-slate-600'}`}>
                           <Icon className="w-5 h-5" />
                         </span>
                         <span className="min-w-0">
@@ -315,7 +319,7 @@ export const LoginPage: React.FC = () => {
                       <label htmlFor="login-password" className="text-sm font-semibold text-slate-800">
                         Mật khẩu
                       </label>
-                      <Link to="/forgot-password" className="text-sm font-semibold text-teal-600 hover:underline">
+                      <Link to="/forgot-password" className="text-sm font-semibold text-indigo-600 hover:underline">
                         Quên mật khẩu?
                       </Link>
                     </div>
@@ -346,7 +350,7 @@ export const LoginPage: React.FC = () => {
                   {ENABLE_DEMO_LOGIN && (
                     <div className="p-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50" data-testid="demo-presets">
                       <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-                        <Sparkles className="w-4 h-4 text-teal-600" /> Tài khoản demo — bấm để điền sẵn
+                        <Sparkles className="w-4 h-4 text-indigo-600" /> Tài khoản demo — bấm để điền sẵn
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {DEMO_ACCOUNTS.map((a) => (
@@ -355,7 +359,7 @@ export const LoginPage: React.FC = () => {
                             type="button"
                             onClick={() => handleQuickPreset(a.email, a.password)}
                             className={`px-3 py-1.5 rounded-full border text-sm font-medium transition cursor-pointer ${
-                              loginEmail === a.email ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
+                              loginEmail === a.email ? 'border-indigo-500 bg-indigo-50 text-indigo-800' : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
                             }`}
                           >
                             {a.label}
@@ -369,7 +373,7 @@ export const LoginPage: React.FC = () => {
 
               <p className="mt-8 pt-6 border-t border-slate-200 text-center text-sm text-slate-600">
                 {isRegister ? 'Đã có tài khoản?' : 'Chưa có tài khoản?'}{' '}
-                <button type="button" onClick={() => switchTab(isRegister ? 'LOGIN' : 'REGISTER')} className="font-bold text-teal-600 hover:underline cursor-pointer">
+                <button type="button" onClick={() => switchTab(isRegister ? 'LOGIN' : 'REGISTER')} className="font-bold text-indigo-600 hover:underline cursor-pointer">
                   {isRegister ? 'Đăng nhập' : 'Đăng ký miễn phí'}
                 </button>
               </p>
@@ -379,20 +383,20 @@ export const LoginPage: React.FC = () => {
           {/* Side column */}
           <aside className="lg:col-span-5 space-y-5">
             <div className="hidden lg:block relative overflow-hidden bg-white rounded-3xl border border-slate-200/90 shadow-[0_10px_35px_rgba(0,0,0,0.03)] p-10">
-              <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-teal-100/60 blur-3xl" />
+              <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-indigo-100/60 blur-3xl" />
               <div className="relative">
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-sm font-bold text-teal-800">
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-sm font-bold text-indigo-800">
                   <span className="w-2 h-2 rounded-full bg-emerald-500" /> MediAssist AI
                 </span>
                 <h2 className="mt-6 font-display text-3xl xl:text-4xl font-bold text-slate-900 tracking-tight leading-tight">
-                  Một tài khoản cho <span className="text-teal-600">cả hành trình chăm sóc sức khỏe.</span>
+                  Một tài khoản cho <span className="text-indigo-600">cả hành trình chăm sóc sức khỏe.</span>
                 </h2>
                 <p className="mt-4 text-slate-600 leading-relaxed">Lưu hồ sơ, hiểu kết quả xét nghiệm và kết nối bác sĩ chuyên khoa ở cùng một nơi.</p>
 
                 <ul className="mt-8 space-y-6">
                   {FEATURES.map(({ icon: Icon, title, text }) => (
                     <li key={title} className="flex gap-4">
-                      <span className="w-11 h-11 rounded-full bg-teal-50 border border-teal-200 text-teal-600 flex items-center justify-center shrink-0">
+                      <span className="w-11 h-11 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0">
                         <Icon className="w-5 h-5" />
                       </span>
                       <span>
@@ -468,7 +472,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setPolicy(null)}
-                className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold transition cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition cursor-pointer"
               >
                 Đã hiểu
               </button>

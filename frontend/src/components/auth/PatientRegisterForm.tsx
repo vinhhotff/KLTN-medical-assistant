@@ -114,8 +114,8 @@ export const PatientRegisterForm: React.FC = () => {
       return {
         label: 'Khá mạnh (Gần đạt chuẩn tối ưu)',
         level: 85,
-        color: 'bg-teal-500',
-        textColor: 'text-teal-600',
+        color: 'bg-indigo-500',
+        textColor: 'text-indigo-600',
       };
     }
 
@@ -258,13 +258,13 @@ export const PatientRegisterForm: React.FC = () => {
       {ENABLE_DEMO_LOGIN && (
         <div className="p-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-            <Sparkles className="w-4 h-4 text-teal-600" /> Điền nhanh dữ liệu mẫu
+            <Sparkles className="w-4 h-4 text-indigo-600" /> Điền nhanh dữ liệu mẫu
           </span>
           <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => handleRandomFill('RANDOM')}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-teal-200 bg-teal-50 text-sm font-semibold text-teal-700 hover:bg-teal-100 transition cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-indigo-200 bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition cursor-pointer"
             >
               <Dices className="w-3.5 h-3.5" /> Ngẫu nhiên
             </button>
@@ -371,7 +371,7 @@ export const PatientRegisterForm: React.FC = () => {
                 value={value}
                 checked={gender === value}
                 onChange={() => setGender(value)}
-                className="text-teal-600 focus:ring-teal-500 cursor-pointer"
+                className="text-indigo-600 focus:ring-indigo-500 cursor-pointer"
               />
               {text}
             </label>
@@ -382,7 +382,7 @@ export const PatientRegisterForm: React.FC = () => {
       <PasswordStrengthMeter strength={passwordStrength} criteria={passCriteria} />
 
       <p className="flex items-start gap-1.5 text-xs text-slate-600">
-        <IdCard className="w-4 h-4 text-teal-600 shrink-0" />
+        <IdCard className="w-4 h-4 text-indigo-600 shrink-0" />
         Bạn có thể bổ sung số BHYT / CCCD trong mục “Hồ sơ y tế” sau khi đăng ký.
       </p>
 
@@ -392,7 +392,7 @@ export const PatientRegisterForm: React.FC = () => {
           id="terms"
           checked={agreeTerms}
           onChange={(e) => setAgreeTerms(e.target.checked)}
-          className="mt-0.5 rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
+          className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
         />
         <label htmlFor="terms" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
           Tôi đồng ý với <span className="font-semibold text-slate-900 underline">Điều khoản Dịch vụ</span> và chấp thuận quy chế xử lý{' '}

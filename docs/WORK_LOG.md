@@ -78,6 +78,7 @@
   2. `[MOD]` `frontend/src/components/auth/PatientRegisterForm.tsx`, `DoctorRegisterForm.tsx` — nhãn viết thường không `font-mono`, ô nhập nền trắng `text-sm`, chip điền dữ liệu mẫu, bỏ "e-PHI / HIPAA" và "Tối ưu Y Tế 256-Bit". Logic kiểm tra và gọi API không đổi.
   3. `[NEW]` `frontend/src/components/auth/authUi.tsx` — `AuthLabel`, `IconInput`, `AuthAlert`, `PasswordStrengthMeter`, `SubmitButton` dùng chung.
   4. `[MOD]` `frontend/e2e/auth.spec.ts` — bỏ bước bấm sang tab đăng nhập, nút gửi tìm trong `form` (tab chuyển trùng tên "Đăng nhập"), chip "Bệnh nhân Bình", đăng ký qua `/login?mode=register`, nút "Tạo tài khoản".
+  5. `[MOD]` (sau khi rebase lên `feature/stitch-ui-redesign`) `LoginPage.tsx`, `authUi.tsx`, 2 form đăng ký — đổi màu chính sang indigo như phía bệnh nhân, nền xám lạnh; thẻ vai trò Bác sĩ và khối "Quy trình 3 bước" giữ teal. `frontend/src/pages/LandingPage.tsx`: nút "Khám Ngay →" trỏ `/login?mode=register`, nút "Đăng Nhập" giữ `/login`.
 * **Tài Liệu Đã Đồng Bộ:** `[x]` `docs/WORK_LOG.md` · `[ ]` `docs/USE_CASES.md` (không đổi luồng/API).
 * **Bằng Chứng Kiểm Thử:**
   - `npx tsc --noEmit -p .`: 0 lỗi.
