@@ -1124,7 +1124,19 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                       </ul>
                     ) : (
                       <p className="p-5 rounded-2xl border border-slate-200 bg-white text-sm text-slate-600">
-                        Hệ thống chỉ gợi ý bác sĩ khi đọc được chỉ số bất thường cụ thể trên phiếu.
+                        {abnormal.length === 0 ? (
+                          'Hệ thống chỉ gợi ý bác sĩ khi đọc được chỉ số bất thường cụ thể trên phiếu.'
+                        ) : (
+                          <>
+                            Chưa tìm được bác sĩ phù hợp cho kết quả này.{' '}
+                            <Link
+                              to={`/patient/doctors${displaySpecialtySlug || displaySpecialtyName ? `?specialty=${encodeURIComponent(displaySpecialtySlug || displaySpecialtyName || '')}` : ''}`}
+                              className="font-medium text-indigo-700 underline underline-offset-2"
+                            >
+                              Tìm bác sĩ theo chuyên khoa
+                            </Link>
+                          </>
+                        )}
                       </p>
                     )}
                   </section>
