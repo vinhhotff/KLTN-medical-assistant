@@ -14,4 +14,7 @@ public interface DoctorScheduleSlotRepository extends JpaRepository<DoctorSchedu
     List<DoctorScheduleSlot> findByDoctorProfileIdAndIsActiveTrue(UUID doctorProfileId);
 
     List<DoctorScheduleSlot> findByDoctorProfileIdAndDayOfWeekAndIsActiveTrue(UUID doctorProfileId, DayOfWeek dayOfWeek);
+
+    /** True once the doctor has ever saved a schedule (rows are deactivated, never deleted, on update). */
+    boolean existsByDoctorProfileId(UUID doctorProfileId);
 }

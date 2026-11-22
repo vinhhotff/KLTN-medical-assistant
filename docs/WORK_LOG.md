@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#137** | 23/11/2026 | Sửa lỗi ngày làm việc bác sĩ đã tắt bị tự mở lại: `DoctorService` chỉ gieo lịch mặc định cho bác sĩ chưa từng lưu lịch (`existsByDoctorProfileId`). Thêm `DoctorServiceScheduleTest` (3 test). | AI Assistant | ⏳ Chờ Tech Lead duyệt |
 | **#132** | 20/11/2026 | Bổ Sung Bộ Class Diagrams (4 Biểu Đồ Lớp Clean Architecture & Nghiệp Vụ) Và Sequence Diagrams Chuyên Sâu Vào Vector Studio (`interactive_viewer.html`) & Cổng Review 2 (`review_2/index.html`): (1) Bổ sung CSS High-Contrast tương phản cao (`svg[aria-roledescription="classDiagram"]`) cho cả giao diện Sáng/Tối và cấu hình `class: { useMaxWidth: false }` trong `docs/diagrams/interactive_viewer.html`; (2) Bổ sung **4 Class Diagrams** (`class_master`, `class_triage_search`, `class_booking_emr`, `class_ocr_security`) ánh xạ 1-1 phương thức Java thực tế (`RedFlagService.evaluateRedFlag`, `ClinicalQueryDefenseEngine.analyzeAndDefend`, `AiProvider` 3-Tier Router, `PaymentGateway` Adapter, `PatientAccessGuard`, `Appointment` V23/V24, `MedicalDocument` V20) và **2 Sequence Diagrams mới** (`seq_e2e_master` luồng khép kín Triage -> HNSW -> Booking 3 Tầng -> EMR V23; `seq_doctor_onboarding` Onboarding Bác sĩ 2 Bước & Admin Vet), đồng thời đồng bộ `seq_triage`, `seq_encounter`, `seq_ocr` sang `Gemini 2.5 Flash` & `icd_code`/`icd_version` V23; (3) Tích hợp nút mở nhanh & chuyển sơ đồ `1.4 Class Diagram Tổng Thể`, `1.5 Sequence Khép Kín` cùng liên kết Slide 3/7 trong `review_2/index.html`; (4) Cập nhật `docs/CAPSTONE_DEFENSE.md` (Section `5.5` Hướng dẫn trình bày Class & Sequence Diagram trước Hội đồng) và biên dịch lại `docs-bundle.js`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#131** | 18/11/2026 | Khắc Phục Lỗi Đen Khối SVG Trong `interactive_viewer.html` & Nâng Cấp Toàn Diện `review_2/index.html` Thành Cổng Trình Chiếu Sơ Đồ Trực Quan (Diagram-First Mode): (1) Sửa triệt để lỗi ghi đè SVG `id` (`svgElement.setAttribute("id", "active-svg")` phá vỡ toàn bộ CSS selector `#mermaid-svg-...` khiến khối biểu đồ bị `fill: #000000` đen kịt) và chống cắt chữ `<foreignObject>` (`overflow: visible`) trong `docs/diagrams/interactive_viewer.html`, đồng thời cập nhật sơ đồ `architecture` khớp chuẩn `React 18.3` & `Gemini 2.5 Flash (3-Tier AI Router)` với bảng màu tương phản cao; (2) Nâng cấp `review_2/index.html` tích hợp Mermaid.js + `svg-pan-zoom` nhúng trực tiếp **25 sơ đồ vector trực quan** phủ kín 4 tab (3 sơ đồ Kiến trúc/ADR/17 Bảng ở Tab 1, 6 sơ đồ Trước/Sau ở Tab 2, 10 sơ đồ riêng cho 10 Slides ở Tab 3, 6 sơ đồ minh họa câu trả lời Hội đồng ở Tab 4) kèm Modal Phóng to/Kéo rê toàn màn hình và tải SVG. Kiểm chứng thực tế bằng Edge Playwright headless: **25/25 sơ đồ** tại `review_2` & **33/33 khối** tại `interactive_viewer.html` render sạch (`0` khối đen, `0` lỗi cú pháp), HTTP 200 OK trên cổng `8088`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#130** | 18/11/2026 | Xây Dựng Cổng Web Tổng Hợp Review Lần 2 (Tuần 8 – SDD) & Khởi Chạy Máy Chủ Trình Chiếu (`review_2/index.html`): (1) Tạo trang web tương tác hoàn chỉnh `review_2/index.html` tổng hợp trọn vẹn 4 phân hệ trình bày Review 2: Ma trận Đánh giá Chuyên môn SDD (5 trụ cột IEEE 1016 / ISO 42010), 6 Khuyến nghị Điều chỉnh (Trước vs Sau), Trình chiếu 10 Slides kèm Teleprompter Script & đồng hồ đếm ngược luyện tập 15:00, và Top 6 Câu hỏi Phản biện Hội đồng Review 2 (có tìm kiếm, nút Sáng/Tối & chế độ Xem tất cả / In PDF), (2) Cập nhật Portal gốc `index.html` và `docs/index.html`: bổ sung nút truy cập nhanh `🎯 Review 2 (Tuần 8 - SDD)` trên Header, nút liên kết tại thẻ Report 4 & Defense Hub, đồng bộ chỉ số `322/322` tests và `4,537 dòng` SDD, (3) Khởi chạy máy chủ web cục bộ cổng `8088` phục vụ HTTP 200 cho `/review_2/index.html`, `/index.html`, `/docs/index.html`, `/report_4/index.html`, và `/docs/diagrams/interactive_viewer.html`. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -63,6 +64,28 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#137] Sửa Lỗi Ngày Làm Việc Đã Tắt Bị Tự Mở Lại (DoctorService)
+* **Thời gian:** 2026-11-23 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `fix/doctor-schedule-reopen` (tách từ `develop`)
+* **Nguyên Nhân Gốc Rễ:**
+  - `getAvailableSlots(date)`: khi ngày được hỏi không có dòng lịch đang bật, hàm gọi `initializeDefaultDoctorSchedules()` — hàm này **lưu** bộ lịch mặc định T2–T7 vào `doctor_schedule_slots` rồi trả về giờ mặc định của ngày đó. Hậu quả: ngày bác sĩ đã tắt bị mở lại ngay khi có người xem ca trống của ngày đó, và mỗi lần như vậy lại lưu thêm một bộ dòng trùng.
+  - `getDoctorSchedules()`: khi bác sĩ tắt **mọi** ngày (lần lưu trước không còn dòng nào đang bật), màn sửa lịch cũng gieo lại lịch mặc định.
+  - Gốc chung: code coi "không có dòng đang bật" là "chưa cấu hình", trong khi `updateDoctorSchedules` chỉ vô hiệu hóa dòng cũ (không xóa) — nên phân biệt được bằng việc có tồn tại dòng nào hay không.
+* **Danh Sách Tệp Tin:**
+  1. `[MOD]` `backend/src/main/java/com/mediassist/repository/DoctorScheduleSlotRepository.java` — thêm `existsByDoctorProfileId(UUID)` (truy vấn dẫn xuất, không đổi schema).
+  2. `[MOD]` `backend/src/main/java/com/mediassist/service/DoctorService.java` — `getAvailableSlots` và `getDoctorSchedules` chỉ dùng/gieo lịch mặc định khi bác sĩ **chưa từng lưu lịch**; ngày trống của bác sĩ đã cấu hình được coi là ngày nghỉ.
+  3. `[NEW]` `backend/src/test/java/com/mediassist/service/DoctorServiceScheduleTest.java` — `disabledDayStaysClosed`, `allDaysOffIsNotReseeded`, `neverConfiguredGetsDefaults`.
+* **Tài Liệu Đã Đồng Bộ:** `[x]` `docs/WORK_LOG.md` · `[ ]` `docs/DATABASE_DESIGN.md` (không đổi bảng/cột/index) · `[ ]` `docs/USE_CASES.md` (không đổi API).
+* **Bằng Chứng Kiểm Thử:**
+  - Trước khi sửa service (đã thêm phương thức repository để test biên dịch được): `mvn test -Dtest=DoctorServiceScheduleTest` → 3 chạy, **2 thất bại**: "Tuesday is off, but 15 slots were offered" và "All days are off, but 11 rows came back".
+  - Sau khi sửa: `DoctorServiceScheduleTest` 3/3 đạt; `mvn test` toàn bộ backend **325 test, 0 lỗi, BUILD SUCCESS**.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Dữ liệu cũ: bác sĩ nào đã bị lỗi này có thể đang có dòng lịch mặc định bị lưu trùng/mở lại trong DB — bản sửa không tự dọn; bác sĩ lưu lại lịch một lần (màn Lịch làm việc) sẽ vô hiệu hóa các dòng cũ.
+  - Bác sĩ mới (chưa có dòng lịch nào) vẫn nhận lịch mặc định T2–T7 như trước.
+
+---
 
 ### [WORK-LOG-#132] Bổ Sung Class Diagrams & Sequence Diagrams Vào Vector Studio (`interactive_viewer.html`) & Cổng Review 2 (`review_2/index.html`)
 * **Thời gian:** 2026-11-20 (GMT+7)
