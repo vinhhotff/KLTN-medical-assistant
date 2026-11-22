@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#135** | 23/11/2026 | Thiết kế lại giao diện Quản trị theo Google Stitch (Đợt 3/3): `AdminLayout` sidebar navy 2 nhóm + trạng thái hệ thống thật từ `/health/ready`, trang mới `AiStatsPage` (màn 09) và `AiCostPage` (màn 10), viết lại `AuditLogPage` (màn 11). Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | ⏳ Chờ Tech Lead duyệt |
 | **#134** | 22/11/2026 | Thiết kế lại giao diện Bác sĩ theo Google Stitch (Đợt 2/3): `DoctorLayout` điều hướng ngang teal, trang mới `DoctorSchedulePage` (màn 08, lịch theo khoảng giờ + thời lượng ca) và `DoctorAppointmentDetailPage` (màn 06), dàn lại `DoctorProfilePage` (màn 15). Gỡ modal lịch trực cũ khỏi `DoctorDashboard`. Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | ⏳ Chờ Tech Lead duyệt |
 | **#133** | 22/11/2026 | Thiết kế lại giao diện Bệnh nhân theo Google Stitch (Đợt 1/3): bảng màu toàn cục xám lạnh + indigo/teal, `PatientLayout` điều hướng ngang, banner cảnh báo y tế mới, viết lại `SymptomTriagePage` (màn 01 chat + màn 03 cấp cứu) và `DocumentSummarizerPage` (màn 04 tải lên + màn 05 kết quả), 3 trang mới `PatientProfilePage`, `HealthHistoryPage`, `AppointmentDetailPage`. Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | ⏳ Chờ Tech Lead duyệt |
 | **#132** | 20/11/2026 | Bổ Sung Bộ Class Diagrams (4 Biểu Đồ Lớp Clean Architecture & Nghiệp Vụ) Và Sequence Diagrams Chuyên Sâu Vào Vector Studio (`interactive_viewer.html`) & Cổng Review 2 (`review_2/index.html`): (1) Bổ sung CSS High-Contrast tương phản cao (`svg[aria-roledescription="classDiagram"]`) cho cả giao diện Sáng/Tối và cấu hình `class: { useMaxWidth: false }` trong `docs/diagrams/interactive_viewer.html`; (2) Bổ sung **4 Class Diagrams** (`class_master`, `class_triage_search`, `class_booking_emr`, `class_ocr_security`) ánh xạ 1-1 phương thức Java thực tế (`RedFlagService.evaluateRedFlag`, `ClinicalQueryDefenseEngine.analyzeAndDefend`, `AiProvider` 3-Tier Router, `PaymentGateway` Adapter, `PatientAccessGuard`, `Appointment` V23/V24, `MedicalDocument` V20) và **2 Sequence Diagrams mới** (`seq_e2e_master` luồng khép kín Triage -> HNSW -> Booking 3 Tầng -> EMR V23; `seq_doctor_onboarding` Onboarding Bác sĩ 2 Bước & Admin Vet), đồng thời đồng bộ `seq_triage`, `seq_encounter`, `seq_ocr` sang `Gemini 2.5 Flash` & `icd_code`/`icd_version` V23; (3) Tích hợp nút mở nhanh & chuyển sơ đồ `1.4 Class Diagram Tổng Thể`, `1.5 Sequence Khép Kín` cùng liên kết Slide 3/7 trong `review_2/index.html`; (4) Cập nhật `docs/CAPSTONE_DEFENSE.md` (Section `5.5` Hướng dẫn trình bày Class & Sequence Diagram trước Hội đồng) và biên dịch lại `docs-bundle.js`. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -65,6 +66,29 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#135] Thiết Kế Lại Giao Diện Quản Trị Theo Google Stitch (Đợt 3/3 — Phân Hệ Quản Trị)
+* **Thời gian:** 2026-11-23 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/stitch-ui-redesign`
+* **Mã Yêu Cầu:** Tiếp nối #133–#134, làm màn 09 (Thống kê AI), 10 (Chi phí AI), 11 (Nhật ký kiểm toán).
+* **Danh Sách Tệp Tin:**
+  1. `[MOD]` `frontend/src/layouts/AdminLayout.tsx` — sidebar `slate-900` chia nhóm "Vận hành" / "AI & An toàn", thêm mục Thống kê AI, Chi phí AI; badge "Hệ thống ổn định / gặp sự cố" gọi thật `GET /health/ready` mỗi 60 giây; giữ drawer di động (`Menu quản trị`).
+  2. `[NEW]` `frontend/src/pages/admin/AiStatsPage.tsx` (`/admin/ai-stats`) — màn 09, tính từ `GET /admin/triage-sessions` (phiên theo ngày, so kỳ trước, mức khẩn cấp, chuyên khoa gợi ý — đổi slug sang tên qua `GET /specialties`, danh sách cảnh báo đỏ gần đây) + `GET /admin/ai-usage` (lượt giải nghĩa tài liệu, tỉ lệ lỗi). Biểu đồ đường 1 chuỗi + "Xem dạng bảng", xuất CSV.
+  3. `[NEW]` `frontend/src/pages/admin/AiCostPage.tsx` (`/admin/ai-cost`) — màn 10, từ `GET /admin/ai-usage?days=7|30|90`: tổng USD/VND + tỷ giá suy ra, chi phí mỗi phiên/tài liệu, biểu đồ cột chi phí mỗi ngày, bảng theo tính năng, tỉ lệ lỗi, xuất CSV. Số tiền < $1 hiển thị 4 chữ số thập phân để không thành "$0.00".
+  4. `[MOD]` `frontend/src/pages/admin/AuditLogPage.tsx` — màn 11: nhóm theo ngày, nhãn tiếng Việt cho các mã hành động backend thật sự ghi, lọc nhanh có đếm, hàng mở rộng (mã bản ghi, metadata, trình duyệt), xuất CSV. Logic tải/tự làm mới 30 giây/"Làm mới"/lọc server `?action=` giữ nguyên.
+  5. `[NEW]` `frontend/src/types/admin.ts`, `frontend/src/utils/csv.ts` (CSV UTF-8 có BOM cho Excel). `[MOD]` `frontend/src/App.tsx` (2 route).
+* **Tài Liệu Đã Đồng Bộ:** `[x]` `docs/USE_CASES.md` (UC FinOps AI, UC nhật ký kiểm toán) · `[x]` `docs/STORYTELLING.md` (mục 2.5) · `[ ]` `docs/DATABASE_DESIGN.md` (không đổi DB).
+* **Bằng Chứng Kiểm Thử:**
+  - `npx tsc --noEmit`: 0 lỗi. `npm run build`: thành công.
+  - Bảng màu biểu đồ (indigo `#4F46E5`, teal `#0D9488`) chạy `validate_palette.js --mode light`: ALL CHECKS PASS.
+  - Playwright `admin-actions`, `admin-finops`, `mobile-nav` (4 worker): 30 đạt, 2 hỏng = `admin-actions.spec.ts:70` có sẵn từ trước (đã đối chứng trên `origin/develop` ở #134).
+  - Chụp màn hình thật (đăng nhập admin vào backend dev) 3 trang mới để soát bố cục; đã sửa: chuyên khoa hiện slug, chi phí nhỏ bị làm tròn "$0.00", nhãn mã hành động thiếu, cỡ trang phân trang lệch.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Phần Stitch bị ẩn vì thiếu backend: "Bác sĩ duyệt không cần sửa" và lỗi AI theo loại (09 — phụ thuộc màn 07), bảng cảnh báo đỏ theo nhóm dấu hiệu + tỉ lệ báo nhầm (09 — phiên triage không lưu nhóm Red-Flag), ngân sách tháng/ngưỡng cảnh báo/giới hạn lượt dùng và "người dùng gọi AI nhiều nhất" (10 — không có API cấu hình hạn mức hay thống kê theo người dùng), chi phí theo tính năng từng ngày (10 — `dailyStats` chưa tách theo service), lọc theo vai trò và chip "Đăng nhập thất bại" / "Cảnh báo đỏ" (11 — backend không ghi audit cho 2 sự kiện này và `AuditLogDto` không có vai trò).
+  - Màn 09 tải toàn bộ `GET /admin/triage-sessions` rồi lọc ở trình duyệt; ổn với dữ liệu hiện tại, nhưng khi số phiên lớn nên thêm tham số khoảng ngày ở backend.
+
+---
 
 ### [WORK-LOG-#134] Thiết Kế Lại Giao Diện Bác Sĩ Theo Google Stitch (Đợt 2/3 — Phân Hệ Bác Sĩ)
 * **Thời gian:** 2026-11-22 (GMT+7)

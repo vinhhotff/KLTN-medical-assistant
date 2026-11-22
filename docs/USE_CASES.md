@@ -1392,7 +1392,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/ai-usage` (Quyền: `PUBLIC / AUTH_DEFAULT`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin` $\rightarrow$ Màn hình `AdminDashboard.tsx (Card FinOps AI Analytics)`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin, /admin/ai-cost, /admin/ai-stats` $\rightarrow$ Màn hình `AdminDashboard.tsx (Card FinOps AI Analytics), AiCostPage.tsx (Chi phí AI: tổng USD/VND, chi phí mỗi ngày, theo tính năng, xuất CSV), AiStatsPage.tsx (Thống kê AI & an toàn: phiên phân luồng mỗi ngày, mức khẩn cấp, chuyên khoa gợi ý, cảnh báo đỏ gần đây)` — giao diện Stitch, WORK_LOG #135
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `ai_token_usage` $\rightarrow$ Bản di trú `V18__align_ai_token_usage_schema.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AiUsageAnalyticsService` $\rightarrow$ `AiTokenUsageRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `AiUsageAnalyticsServiceTest.java` (**100% PASS**)
@@ -1689,7 +1689,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/audit-logs` (Quyền: `PUBLIC / AUTH_DEFAULT`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/audit-logs` $\rightarrow$ Màn hình `AuditLogPage.tsx, Pagination.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/audit-logs` $\rightarrow$ Màn hình `AuditLogPage.tsx (nhóm theo ngày, nhãn tiếng Việt cho mã hành động, lọc nhanh Cần chú ý / Thao tác quản trị / Truy cập hồ sơ y tế, mở rộng xem metadata, xuất CSV — Stitch, WORK_LOG #135), Pagination.tsx`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `audit_logs` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V6__fix_user_status_and_audit_logs.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `PatientAccessGuard` $\rightarrow$ `AuditLogRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `PatientAccessGuardTest.java` (**100% PASS**)

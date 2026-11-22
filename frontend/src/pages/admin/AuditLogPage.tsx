@@ -1,22 +1,12 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { 
-  FileSpreadsheet, 
-  Search, 
-  Filter, 
-  User, 
-  Globe, 
-  Terminal, 
-  Info, 
-  ShieldCheck, 
-  RefreshCw,
-  X
-} from 'lucide-react';
+import { Search, RefreshCw, Download, Lock, ChevronDown, ChevronUp, TriangleAlert } from 'lucide-react';
 import { api } from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
 import { Pagination } from '../../components/common/Pagination';
 import { devLog } from '../../utils/logger';
-import { EmptyState, ErrorState, SkeletonTable, useToast } from '../../components/ui';
+import { EmptyState, ErrorState, SkeletonTable, useToast, cn } from '../../components/ui';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { downloadCsv } from '../../utils/csv';
 
 interface AuditLogItem {
   id: string;
@@ -30,6 +20,61 @@ interface AuditLogItem {
   createdAt: string;
 }
 
+/** Human labels for the audit actions the backend actually writes. Unknown codes fall back to the raw code. */
+const ACTION_LABEL: Record<string, string> = {
+  PATIENT_REGISTERED: 'Bệnh nhân đăng ký',
+  DOCTOR_SELF_REGISTERED: 'Bác sĩ tự đăng ký',
+  EMAIL_VERIFIED: 'Xác thực email',
+  PASSWORD_RESET_REQUESTED: 'Yêu cầu đặt lại mật khẩu',
+  PASSWORD_RESET_COMPLETED: 'Đặt lại mật khẩu',
+  ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED: 'Liên kết Google, xóa mật khẩu cũ',
+  ACCOUNT_LOCKED: 'Khóa tài khoản tạm thời',
+  UPDATE_USER_STATUS: 'Đổi trạng thái tài khoản',
+  ADMIN_CREATE_DOCTOR: 'Tạo hồ sơ bác sĩ',
+  ADMIN_UPDATE_DOCTOR: 'Sửa hồ sơ bác sĩ',
+  DOCTOR_VETTED: 'Duyệt hồ sơ bác sĩ',
+  VET_DOCTOR_APPROVED: 'Phê duyệt hồ sơ bác sĩ',
+  VET_DOCTOR_REJECTED: 'Từ chối hồ sơ bác sĩ',
+  SYSTEM_INITIALIZATION: 'Khởi tạo hệ thống',
+  TOGGLE_DOCTOR_STATUS: 'Bật/tắt bác sĩ',
+  CREATE_SPECIALTY: 'Thêm chuyên khoa',
+  SYNC_DOCTOR_VECTOR: 'Đồng bộ vector bác sĩ',
+  SYNC_ALL_DOCTOR_VECTORS: 'Đồng bộ toàn bộ vector bác sĩ',
+  ADMIN_CANCEL_APPOINTMENT: 'Quản trị viên hủy lịch hẹn',
+  APPOINTMENT_BOOKED: 'Đặt lịch khám',
+  APPOINTMENT_RESCHEDULED: 'Đổi giờ lịch khám',
+  PATIENT_CHECKED_IN: 'Check-in bệnh nhân',
+  CLINICAL_ENCOUNTER_COMPLETED: 'Hoàn tất ca khám',
+  FOLLOW_UP_APPOINTMENT_CREATED: 'Hẹn tái khám',
+  SUBMIT_DOCTOR_REVIEW: 'Đánh giá bác sĩ',
+  PAYMENT_COMPLETED: 'Thanh toán thành công',
+  PAYMENT_REFUNDED: 'Hoàn tiền',
+  PAYMENT_ORPHAN: 'Thanh toán không khớp đơn',
+  DOCUMENT_SIGNED_URL_ISSUED: 'Mở tệp y tế (liên kết 15 phút)',
+  VIEW_PATIENT_RECORD: 'Xem hồ sơ bệnh nhân',
+};
+
+const QUICK = [
+  {
+    key: 'attention',
+    label: 'Cần chú ý',
+    match: (a: string) => ['ACCOUNT_LOCKED', 'UPDATE_USER_STATUS', 'ADMIN_CANCEL_APPOINTMENT', 'PAYMENT_ORPHAN', 'PAYMENT_REFUNDED', 'ACCOUNT_GOOGLE_LINKED_PASSWORD_CLEARED'].includes(a) || /SUSPEND|FORBIDDEN|FAILED/.test(a),
+  },
+  {
+    key: 'admin',
+    label: 'Thao tác của quản trị viên',
+    match: (a: string) => a.startsWith('ADMIN_') || a.startsWith('VET_DOCTOR_') || ['DOCTOR_VETTED', 'TOGGLE_DOCTOR_STATUS', 'UPDATE_USER_STATUS', 'CREATE_SPECIALTY', 'SYNC_DOCTOR_VECTOR', 'SYNC_ALL_DOCTOR_VECTORS'].includes(a),
+  },
+  { key: 'phi', label: 'Truy cập hồ sơ y tế', match: (a: string) => ['DOCUMENT_SIGNED_URL_ISSUED', 'VIEW_PATIENT_RECORD'].includes(a) },
+] as const;
+type QuickKey = (typeof QUICK)[number]['key'];
+const isAttention = QUICK[0].match;
+
+const dayHeader = (iso: string) => {
+  const s = new Date(iso).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
 export const AuditLogPage: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,333 +84,266 @@ export const AuditLogPage: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('ALL');
-  const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null);
+  const [quick, setQuick] = useState<QuickKey | null>(null);
+  const [knownActions, setKnownActions] = useState<string[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
   // Background (silent) refreshes never replace a loaded table with an error
   // — a manual "Làm mới" (notify) reports the failure in a toast instead
-  const fetchLogs = useCallback(async (action?: string, silent = false, notify = false) => {
-    try {
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
-      const url = action && action !== 'ALL' 
-        ? `/admin/audit-logs?action=${encodeURIComponent(action)}` 
-        : '/admin/audit-logs';
-      const res = await api.get(url);
-      setLogs(Array.isArray(res.data?.data) ? res.data.data : []);
-      setLastUpdated(new Date());
-      setLoadError(null);
-    } catch (err) {
-      devLog.error('Failed to load audit logs:', err);
-      const message = getApiErrorMessage(err, 'Không tải được nhật ký kiểm toán.');
-      if (!silent) setLoadError(message);
-      else if (notify) toast.error(message);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [toast]);
+  const fetchLogs = useCallback(
+    async (action?: string, silent = false, notify = false) => {
+      try {
+        if (!silent) setLoading(true);
+        else setRefreshing(true);
+        const url = action && action !== 'ALL' ? `/admin/audit-logs?action=${encodeURIComponent(action)}` : '/admin/audit-logs';
+        const res = await api.get(url);
+        const data: AuditLogItem[] = Array.isArray(res.data?.data) ? res.data.data : [];
+        setLogs(data);
+        setKnownActions((prev) => Array.from(new Set([...prev, ...data.map((l) => l.action)])).sort());
+        setLastUpdated(new Date());
+        setLoadError(null);
+      } catch (err) {
+        devLog.error('Failed to load audit logs:', err);
+        const message = getApiErrorMessage(err, 'Không tải được nhật ký kiểm toán.');
+        if (!silent) setLoadError(message);
+        else if (notify) toast.error(message);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [toast],
+  );
 
   useEffect(() => {
     fetchLogs(actionFilter);
-    const interval = setInterval(() => {
-      fetchLogs(actionFilter, true);
-    }, 30000);
+    const interval = setInterval(() => fetchLogs(actionFilter, true), 30000);
     return () => clearInterval(interval);
   }, [actionFilter]);
 
   const debouncedSearch = useDebounce(searchTerm, 250);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearch, actionFilter]);
+  useEffect(() => setCurrentPage(1), [debouncedSearch, actionFilter, quick]);
 
   const filteredLogs = useMemo(() => {
     const tokens = debouncedSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    if (tokens.length === 0) return logs;
-    return logs.filter((log) => {
-      const searchableContent = `${log.action || ''} ${log.userEmail || ''} ${log.resource || ''} ${log.ipAddress || ''} ${log.userAgent || ''} ${log.metadata || ''}`.toLowerCase();
-      return tokens.every((token) => searchableContent.includes(token));
-    });
-  }, [logs, debouncedSearch]);
+    const q = QUICK.find((x) => x.key === quick);
+    return logs
+      .filter((log) => !q || q.match(log.action))
+      .filter((log) => {
+        if (tokens.length === 0) return true;
+        const text = `${log.action} ${ACTION_LABEL[log.action] || ''} ${log.userEmail || ''} ${log.resource || ''} ${log.ipAddress || ''} ${log.userAgent || ''} ${log.metadata || ''}`.toLowerCase();
+        return tokens.every((t) => text.includes(t));
+      })
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  }, [logs, debouncedSearch, quick]);
+
+  const quickCounts = useMemo(() => Object.fromEntries(QUICK.map((q) => [q.key, logs.filter((l) => q.match(l.action)).length])) as Record<QuickKey, number>, [logs]);
 
   const paginatedLogs = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredLogs.slice(start, start + pageSize);
   }, [filteredLogs, currentPage, pageSize]);
 
-  const getActionBadge = (action: string) => {
-    if (action.includes('DOCTOR') || action.includes('VET')) {
-      return (
-        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-          {action}
-        </span>
-      );
-    }
-    if (action === 'PATIENT_REGISTERED' || action === 'EMAIL_VERIFIED') {
-      return (
-        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200">
-          {action}
-        </span>
-      );
-    }
-    if (action.includes('CLINICAL') || action.includes('ENCOUNTER')) {
-      return (
-        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-          {action}
-        </span>
-      );
-    }
-    if (action.includes('CANCEL') || action.includes('SUSPEND') || action.includes('DELETE') || action === 'UPDATE_USER_STATUS') {
-      return (
-        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-          {action}
-        </span>
-      );
-    }
-    if (action === 'DOCUMENT_SIGNED_URL_ISSUED' || action === 'VIEW_PATIENT_RECORD') {
-      return (
-        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-          {action}
-        </span>
-      );
-    }
-    if (action.includes('APPOINTMENT')) {
-      return (
-        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
-          {action}
-        </span>
-      );
-    }
-    return (
-      <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-slate-100 text-slate-700">
-        {action}
-      </span>
+  const exportCsv = () =>
+    downloadCsv(
+      `nhat-ky-kiem-toan-${new Date().toISOString().slice(0, 10)}.csv`,
+      ['Thời gian', 'Người thực hiện', 'Hành động', 'Đối tượng', 'Địa chỉ IP', 'Trình duyệt', 'Metadata', 'Mã bản ghi'],
+      filteredLogs.map((l) => [l.createdAt, l.userEmail, l.action, l.resource, l.ipAddress, l.userAgent, l.metadata, l.id]),
     );
-  };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-5">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-            <FileSpreadsheet className="w-6 h-6 text-indigo-600" />
-            Nhật Ký Kiểm Toán Hệ Thống (Enterprise Audit Trail)
-          </h2>
-          <p className="text-slate-500 text-sm mt-1">
-            Ghi nhận toàn bộ vết tương tác, xác thực, điều phối lịch khám và thẩm định bác sĩ tuân thủ bảo mật y tế HIPAA.
-          </p>
+          <h1 className="flex flex-wrap items-center gap-3 font-display text-2xl sm:text-3xl font-bold text-slate-900">
+            Nhật ký kiểm toán
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-slate-300 text-xs font-medium text-slate-600">
+              <Lock className="w-3 h-3" /> Chỉ ghi thêm
+            </span>
+          </h1>
+          <p className="mt-1.5 text-slate-600">Mọi thao tác nhạy cảm trên hệ thống. Không có API nào để sửa hoặc xóa bản ghi, kể cả quản trị viên.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
-          </div>
+        <div className="flex items-center gap-2 shrink-0">
           <button
+            type="button"
             onClick={() => fetchLogs(actionFilter, true, true)}
-            disabled={refreshing}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
-            title="Làm mới nhật ký kiểm toán"
+            disabled={loading || refreshing}
+            title={`Làm mới nhật ký kiểm toán (cập nhật lúc ${lastUpdated.toLocaleTimeString('vi-VN')})`}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-600' : ''}`} />
+            <RefreshCw className={cn('w-4 h-4', refreshing && 'animate-spin')} />
             <span>Làm mới</span>
+          </button>
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={loading || filteredLogs.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+          >
+            <Download className="w-4 h-4" /> Xuất CSV
           </button>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center gap-4 justify-between">
-        <div className="relative w-full md:w-96">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+      <div className="flex flex-col lg:flex-row gap-3">
+        <label className="flex-1 flex items-center gap-2 px-3.5 rounded-lg border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-indigo-500">
+          <Search className="w-4 h-4 text-slate-400 shrink-0" />
           <input
-            type="text"
-            placeholder="Tìm theo hành động, email, IP, tài nguyên..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+            placeholder="Email người thực hiện, mã lịch hẹn, địa chỉ IP…"
+            aria-label="Tìm trong nhật ký"
+            className="w-full py-2.5 text-sm bg-transparent focus:outline-none"
           />
-        </div>
-
-        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          <div className="flex items-center gap-1 text-xs font-semibold text-slate-500 mr-1">
-            <Filter className="w-3.5 h-3.5" /> Hành động:
-          </div>
-          {[
-            { key: 'ALL', label: 'Tất cả' },
-            { key: 'DOCTOR_VETTED', label: 'Duyệt Bác Sĩ' },
-            { key: 'APPOINTMENT_BOOKED', label: 'Đặt Lịch' },
-            { key: 'CLINICAL_ENCOUNTER_COMPLETED', label: 'Khám Lâm Sàng' },
-            { key: 'ADMIN_CANCEL_APPOINTMENT', label: 'Hủy Cuộc Hẹn' },
-            { key: 'UPDATE_USER_STATUS', label: 'Khóa/Mở TK' },
-            { key: 'CREATE_SPECIALTY', label: 'Chuyên Khoa' },
-            { key: 'DOCUMENT_SIGNED_URL_ISSUED', label: 'Xem Tệp Y Tế' },
-          ].map((act) => (
-            <button
-              key={act.key}
-              onClick={() => setActionFilter(act.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
-                actionFilter === act.key
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {act.label}
-            </button>
+        </label>
+        <select
+          value={actionFilter}
+          onChange={(e) => setActionFilter(e.target.value)}
+          aria-label="Lọc theo hành động"
+          className="px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 lg:w-72"
+        >
+          <option value="ALL">Hành động: Tất cả</option>
+          {knownActions.map((a) => (
+            <option key={a} value={a}>
+              {ACTION_LABEL[a] || a}
+            </option>
           ))}
-        </div>
+        </select>
       </div>
 
-      {/* Audit Logs Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        {loading ? (
-          <SkeletonTable rows={6} cols={5} />
-        ) : loadError ? (
-          <ErrorState message={loadError} onRetry={() => fetchLogs(actionFilter)} className="m-4" />
-        ) : logs.length === 0 ? (
-          <EmptyState title="Chưa có bản ghi kiểm toán" description="Thao tác của người dùng và quản trị viên sẽ được ghi lại tại đây." className="m-4" />
-        ) : filteredLogs.length === 0 ? (
-          <div className="py-20 text-center text-slate-400 text-sm">
-            Không tìm thấy bản ghi kiểm toán nào phù hợp.
-          </div>
-        ) : (
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-slate-500">Lọc nhanh</span>
+        {QUICK.map((q) => (
+          <button
+            key={q.key}
+            type="button"
+            aria-pressed={quick === q.key}
+            onClick={() => setQuick((v) => (v === q.key ? null : q.key))}
+            className={cn(
+              'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm transition cursor-pointer',
+              quick === q.key
+                ? q.key === 'attention'
+                  ? 'bg-amber-50 border-amber-400 text-amber-900 font-semibold'
+                  : 'bg-indigo-50 border-indigo-400 text-indigo-900 font-semibold'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50',
+            )}
+          >
+            {q.key === 'attention' && <TriangleAlert className="w-3.5 h-3.5" />}
+            {q.label} · {quickCounts[q.key]}
+          </button>
+        ))}
+      </div>
+
+      {loadError && !loading ? (
+        <ErrorState message={loadError} onRetry={() => fetchLogs(actionFilter)} retrying={loading} />
+      ) : loading ? (
+        <SkeletonTable rows={6} cols={5} />
+      ) : logs.length === 0 ? (
+        <EmptyState title="Chưa có bản ghi kiểm toán" description="Thao tác của người dùng và quản trị viên sẽ được ghi lại tại đây." />
+      ) : (
+        <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-sm min-w-[880px]">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3.5 px-4">Thời Gian</th>
-                  <th className="py-3.5 px-4">Hành Động</th>
-                  <th className="py-3.5 px-4">Người Thực Hiện</th>
-                  <th className="py-3.5 px-4">Tài Nguyên Tác Động</th>
-                  <th className="py-3.5 px-4">Địa Chỉ IP</th>
-                  <th className="py-3.5 px-4 text-right">Chi Tiết</th>
+                <tr className="bg-slate-50 text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                  <th className="py-3 px-5 font-semibold w-28">Giờ</th>
+                  <th className="py-3 px-3 font-semibold">Người thực hiện</th>
+                  <th className="py-3 px-3 font-semibold">Hành động</th>
+                  <th className="py-3 px-3 font-semibold">Đối tượng</th>
+                  <th className="py-3 px-3 font-semibold">Địa chỉ IP</th>
+                  <th className="py-3 px-5 w-14">
+                    <span className="sr-only">Chi tiết</span>
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {paginatedLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50/70 transition">
-                    <td className="py-3.5 px-4 text-xs font-mono text-slate-600 whitespace-nowrap">
-                      <div>{new Date(log.createdAt).toLocaleDateString('vi-VN')}</div>
-                      <div className="text-[11px] text-slate-400">
-                        {new Date(log.createdAt).toLocaleTimeString('vi-VN')}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      {getActionBadge(log.action)}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-slate-400" />
-                        {log.userEmail}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-xs text-slate-600">
-                      {log.resource}
-                    </td>
-                    <td className="py-3.5 px-4 text-xs text-slate-500 font-mono flex items-center gap-1">
-                      <Globe className="w-3 h-3 text-slate-400" />
-                      {log.ipAddress}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => setSelectedLog(log)}
-                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1"
-                      >
-                        <Info className="w-3.5 h-3.5 text-slate-500" /> Xem Vết
-                      </button>
+              <tbody>
+                {paginatedLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-6 px-5 text-center text-slate-500">
+                      Không có bản ghi nào khớp bộ lọc.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  paginatedLogs.map((log, i) => {
+                    const newDay = i === 0 || paginatedLogs[i - 1].createdAt.slice(0, 10) !== log.createdAt.slice(0, 10);
+                    const warn = isAttention(log.action);
+                    const open = expanded === log.id;
+                    return (
+                      <React.Fragment key={log.id}>
+                        {newDay && (
+                          <tr className="bg-slate-50 border-y border-slate-200">
+                            <td colSpan={6} className="py-2 px-5 text-sm font-semibold text-slate-800">
+                              {dayHeader(log.createdAt)}
+                            </td>
+                          </tr>
+                        )}
+                        <tr className={cn('border-b border-slate-100 align-top', warn && 'bg-amber-50/60')}>
+                          <td className="py-3.5 px-5 tabular-nums text-slate-700">{new Date(log.createdAt).toLocaleTimeString('vi-VN')}</td>
+                          <td className="py-3.5 px-3 font-medium text-slate-900 break-all">{log.userEmail || 'Hệ thống'}</td>
+                          <td className="py-3.5 px-3">
+                            <p className="flex items-start gap-1.5 font-medium text-slate-900">
+                              {warn && <TriangleAlert className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" aria-label="Cần chú ý" />}
+                              {ACTION_LABEL[log.action] || log.action}
+                            </p>
+                            <p className="text-xs font-code text-slate-500">{log.action}</p>
+                          </td>
+                          <td className="py-3.5 px-3 text-slate-700 break-all">{log.resource || '—'}</td>
+                          <td className="py-3.5 px-3 font-code text-xs text-slate-700">{log.ipAddress || '—'}</td>
+                          <td className="py-3.5 px-5">
+                            <button
+                              type="button"
+                              onClick={() => setExpanded(open ? null : log.id)}
+                              aria-expanded={open}
+                              aria-label={open ? 'Thu gọn chi tiết' : 'Xem chi tiết'}
+                              className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+                            >
+                              {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </button>
+                          </td>
+                        </tr>
+                        {open && (
+                          <tr className="border-b border-slate-100 bg-white">
+                            <td />
+                            <td colSpan={5} className="pb-4 pr-5">
+                              <dl className="grid grid-cols-[110px_1fr] gap-x-4 gap-y-2 text-sm">
+                                <dt className="text-slate-500">Mã bản ghi</dt>
+                                <dd className="font-code text-xs text-slate-800 break-all">{log.id}</dd>
+                                <dt className="text-slate-500">Metadata</dt>
+                                <dd>
+                                  {log.metadata ? (
+                                    <pre className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 font-code text-xs text-slate-800 whitespace-pre-wrap break-all">
+                                      {log.metadata}
+                                    </pre>
+                                  ) : (
+                                    <span className="text-slate-400">—</span>
+                                  )}
+                                </dd>
+                                <dt className="text-slate-500">Trình duyệt</dt>
+                                <dd className="font-code text-xs text-slate-700 break-all">{log.userAgent || '—'}</dd>
+                              </dl>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
-        )}
-        {filteredLogs.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalItems={filteredLogs.length}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            itemLabel="bản ghi"
-          />
-        )}
-      </div>
-
-      {/* Audit Detail Modal */}
-      {selectedLog && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Chi Tiết Vết Kiểm Toán</h3>
-                  <span className="text-xs font-mono text-slate-500">{selectedLog.id}</span>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedLog(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-                <div>
-                  <span className="text-slate-400 font-bold uppercase text-[10px]">Hành Động</span>
-                  <div className="mt-1">{getActionBadge(selectedLog.action)}</div>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-bold uppercase text-[10px]">Thời Điểm</span>
-                  <p className="font-mono font-bold text-slate-800 mt-1">
-                    {new Date(selectedLog.createdAt).toLocaleString('vi-VN')}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-bold uppercase text-[10px]">Người Thực Hiện</span>
-                  <p className="font-bold text-slate-800 mt-1">{selectedLog.userEmail}</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-bold uppercase text-[10px]">Địa Chỉ IP</span>
-                  <p className="font-mono text-slate-800 mt-1">{selectedLog.ipAddress}</p>
-                </div>
-              </div>
-
-              <div>
-                <span className="text-slate-500 font-bold uppercase text-[10px]">Tài Nguyên (Resource)</span>
-                <p className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 font-mono text-indigo-700 text-xs mt-1">
-                  {selectedLog.resource}
-                </p>
-              </div>
-
-              {selectedLog.metadata && (
-                <div>
-                  <span className="text-slate-500 font-bold uppercase text-[10px] flex items-center gap-1">
-                    <Terminal className="w-3.5 h-3.5" /> Dữ Liệu Metadata
-                  </span>
-                  <pre className="p-3 bg-slate-900 text-emerald-400 rounded-xl font-mono text-xs overflow-x-auto mt-1 whitespace-pre-wrap">
-                    {selectedLog.metadata}
-                  </pre>
-                </div>
-              )}
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 flex justify-end">
-              <button
-                onClick={() => setSelectedLog(null)}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition"
-              >
-                Đóng
-              </button>
-            </div>
+          <div className="px-5 py-3 border-t border-slate-200">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredLogs.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="bản ghi"
+            />
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

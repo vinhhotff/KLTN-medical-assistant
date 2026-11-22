@@ -21,6 +21,8 @@ const UserManagementPage = lazy(() => import('./pages/admin/UserManagementPage')
 const SpecialtyManagementPage = lazy(() => import('./pages/admin/SpecialtyManagementPage').then((m) => ({ default: m.SpecialtyManagementPage })));
 const AppointmentSupervisionPage = lazy(() => import('./pages/admin/AppointmentSupervisionPage').then((m) => ({ default: m.AppointmentSupervisionPage })));
 const TriageSupervisionPage = lazy(() => import('./pages/admin/TriageSupervisionPage').then((m) => ({ default: m.TriageSupervisionPage })));
+const AiStatsPage = lazy(() => import('./pages/admin/AiStatsPage').then((m) => ({ default: m.AiStatsPage })));
+const AiCostPage = lazy(() => import('./pages/admin/AiCostPage').then((m) => ({ default: m.AiCostPage })));
 const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage').then((m) => ({ default: m.AuditLogPage })));
 const DoctorDashboard = lazy(() => import('./pages/doctor/DoctorDashboard').then((m) => ({ default: m.DoctorDashboard })));
 const DoctorProfilePage = lazy(() => import('./pages/doctor/DoctorProfilePage').then((m) => ({ default: m.DoctorProfilePage })));
@@ -74,6 +76,8 @@ export function App() {
               <Route path="users" element={<UserManagementPage />} />
               <Route path="specialties" element={<SpecialtyManagementPage />} />
               <Route path="audit-logs" element={<AuditLogPage />} />
+              <Route path="ai-stats" element={<AiStatsPage />} />
+              <Route path="ai-cost" element={<AiCostPage />} />
             </Route>
           </Route>
 
