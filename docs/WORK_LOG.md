@@ -7,6 +7,20 @@
 
 ---
 
+## [2026-11-23 15:27:49] - KIỂM TOÁN MỤC III (SRS) LINK 1 VS LINK 2 VÀ BỔ SUNG UML USE CASE DIAGRAM CHUẨN
+
+### 1. Phân Tích & Đối Soát Kiến Trúc
+- **Phần III (SRS):** Đối soát 1-1 toàn bộ các đề mục giữa Link 2 (AITA Benchmark - 5.391 dòng) và Link 1 (MediAssist-AI - 3.640 dòng).
+- **Lý giải sơ đồ Use Case 2.2.1:**
+  + Link 2 có "nối dây tùm lum": Bản chất là quan hệ chuẩn UML 2.5 (`<<include>>`, `<<extend>>`, `generalization`).
+  + Link 1 chia làm 2-3 hình: Hoàn toàn đúng chuẩn kiến trúc phân rã (Hierarchical Decomposition) để tránh Spaghetti Diagram với 49 Use Cases.
+  + Chuẩn hóa: Bổ sung System Boundary và đầy đủ các đường nối phụ thuộc `<<include>>`, `<<extend>>` cho cả 3 sơ đồ con.
+- **Bổ sung Gap lớn nhất cho Link 1:** Xây dựng danh mục chuẩn hóa 80+ thông điệp ứng dụng (Table 5.4: Application Messages List) từ MSG-AUTH-001 đến MSG-SYS-010.
+
+### 2. Kiểm toán Report 4 SDD (Doc 3):
+- Chỉ ra 4 nguyên nhân khiến tài liệu của bạn bị ngắn (780 dòng so với chuẩn 4.000 dòng).
+- Thống kê 34 "hình vẽ ma" và các lỗ hổng kỹ thuật (thiếu NEWS-2, DDI, Panic values, pgvector, concurrency lock).
+
 ## 📑 Bảng Mục Lục Lịch Sử Cập Nhật
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
