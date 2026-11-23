@@ -97,6 +97,7 @@
 | **06/11/2026** | M | VinhHT & KhuongH | Chuẩn hóa đa phiên bản chẩn đoán quốc tế Flyway V23: Đổi tên cột `icd10_code` thành `icd_code VARCHAR(20)`, bổ sung `icd_version VARCHAR(10) DEFAULT 'ICD-10'` và Partial Index `idx_appointments_icd_code`. |
 | **15/11/2026** | M | KhuongH & VinhHT | Nâng cấp cơ chế chống xung đột đồng thời Optimistic Locking (`@Version`) Flyway V24 (`version BIGINT NOT NULL DEFAULT 0` trên `users`, `appointments`, `payment_transactions`) và quy trình Onboarding Bác sĩ 2 bước. |
 | **18/11/2026** | M | KhuongH & VinhHT | Review lần 2 (Tuần thứ 8) – Đồng bộ hóa SDD với kiến trúc thực tế: React 18.3 SPA (Vite 6.2, TypeScript 5.8), bộ định tuyến AI 3 tầng (`Gemini 2.5 Flash -> OpenRouter Pool -> Offline Deterministic FNV-1a`), và kiến trúc bảo vệ biến môi trường 3 lớp (`spring.profiles.group.dev=local` + User-Home Secret Vault + Git Hooks). |
+| **23/11/2026** | M | VinhHT | Nâng cấp toàn diện luồng Onboarding & Kiểm định Bác sĩ theo Luật Khám bệnh, chữa bệnh 2023 (Flyway V25): Tích hợp Supabase Cloud Storage Private Bucket lưu tệp scan CCHN, cấp Signed URL 15 phút an toàn, quản lý vòng đời 4 trạng thái `verification_status` (`UNSUBMITTED`, `PENDING_VERIFICATION`, `APPROVED`, `REJECTED`), lưu vết lý do từ chối `rejection_reason`/`rejection_at`, chỉ mục B-Tree `idx_doctor_verification_status`, và tự động đồng bộ vector pgvector HNSW sau khi duyệt. |
 
 *(*) Ghi chú: **A** - Added (Thêm mới), **M** - Modified (Chỉnh sửa/Cập nhật), **D** - Deleted (Xóa).*
 
@@ -628,6 +629,12 @@ erDiagram
         UUID user_id FK, UK
         TEXT bio
         VARCHAR license_number UK
+        VARCHAR license_document_storage_path "Supabase Storage Key [V25]"
+        DATE license_issued_date "Ngày cấp CCHN [V25]"
+        TEXT scope_of_practice "Phạm vi chuyên môn [V25]"
+        VARCHAR verification_status "UNSUBMITTED, PENDING_VERIFICATION, APPROVED, REJECTED [V25]"
+        TEXT rejection_reason "Lý do từ chối [V25]"
+        TIMESTAMPTZ rejection_at "Thời điểm từ chối [V25]"
         NUMERIC consultation_fee
         INT years_of_experience
         VARCHAR academic_title "GS, PGS, TS, BSCKII"
@@ -891,7 +898,7 @@ Danh mục các chuyên khoa y tế phục vụ phân loại bác sĩ và phân 
 ---
 
 ##### 2.3.3 doctor_profiles Table
-Hồ sơ học thuật, chứng chỉ hành nghề và vector đặc trưng ngữ nghĩa của bác sĩ (Flyway V1, V10, V17, V19).
+Hồ sơ học thuật, chứng chỉ hành nghề, trạng thái thẩm định CCHN và vector đặc trưng ngữ nghĩa của bác sĩ (Flyway V1, V10, V17, V19, V25).
 
 ###### Table 2.3.3.A: doctor_profiles Column Specifications
 | No | Column Name | Data Type | Not Null | Key | Constraints & Default | Detailed Functional Description |
@@ -900,21 +907,27 @@ Hồ sơ học thuật, chứng chỉ hành nghề và vector đặc trưng ng�
 | 2 | `user_id` | `UUID` | True | FK | UNIQUE, REFERENCES `users(id)` | Khóa ngoại tham chiếu đến tài khoản người dùng tương ứng của bác sĩ. |
 | 3 | `bio` | `TEXT` | False | - | - | Tiểu sử chuyên môn, đề tài nghiên cứu, thành tựu lâm sàng và thế mạnh điều trị. |
 | 4 | `license_number` | `VARCHAR(255)` | False | UNIQUE | - | Số chứng chỉ hành nghề khám chữa bệnh do Bộ Y Tế hoặc Sở Y Tế cấp. |
-| 5 | `license_document_url` | `VARCHAR(255)` | False | - | - | Đường dẫn tệp ảnh/PDF chứng chỉ hành nghề phục vụ xác minh phê duyệt. |
-| 6 | `consultation_fee` | `NUMERIC(10, 2)` | False | - | `0.00` | Mức viện phí khám bệnh cơ sở (VND) cho một lượt khám 30 phút. |
-| 7 | `years_of_experience` | `INT` | False | - | `0` | Số năm kinh nghiệm công tác lâm sàng thực tế trong ngành y tế. |
-| 8 | `academic_title` | `VARCHAR(50)` | False | - | - | Học vị, học hàm y khoa: ThS.BS, BSCKI, BSCKII, TS.BS, PGS.TS.BS, GS.TS.BS. |
-| 9 | `hospital_affiliation` | `VARCHAR(150)` | False | - | - | Bệnh viện hoặc cơ sở y tế nơi bác sĩ đang công tác chính thức. |
-| 10 | `department` | `VARCHAR(150)` | False | - | - | Khoa phòng trực thuộc tại bệnh viện công tác (ví dụ: Khoa Tim mạch can thiệp). |
-| 11 | `license_issued_by` | `VARCHAR(150)` | False | - | - | Cơ quan có thẩm quyền cấp chứng chỉ hành nghề (Bộ Y Tế / Sở Y Tế tỉnh/thành). |
-| 12 | `rating` | `DOUBLE PRECISION`| False | - | `4.9` | Điểm đánh giá trung bình tích lũy từ các bệnh nhân (thang điểm 1.0 đến 5.0). |
-| 13 | `total_consultations` | `INT` | False | - | `1250` | Tổng số lượt ca khám lâm sàng bác sĩ đã thực hiện trong sự nghiệp. |
-| 14 | `review_count` | `INT` | True | - | `0` | Tổng số lượt bệnh nhân thực tế đã để lại đánh giá nhận xét sau ca khám (Flyway V17). |
-| 15 | `is_verified` | `BOOLEAN` | True | - | `FALSE` | Cờ xác nhận hồ sơ và chứng chỉ đã được Admin phê duyệt hợp lệ. |
-| 16 | `verified_at` | `TIMESTAMPTZ` | False | - | - | Dấu thời gian khi Quản trị viên thực hiện phê duyệt hồ sơ bác sĩ. |
-| 17 | `bio_embedding` | `vector(1536)` | False | - | HNSW (m=24, ef_construction=128) | Vector đặc trưng ngữ nghĩa 1536 chiều của tiểu sử bác sĩ sinh bởi OpenAI (Flyway V19). |
-| 18 | `created_at` | `TIMESTAMPTZ` | True | - | `CURRENT_TIMESTAMP` | Thời điểm đăng ký hồ sơ bác sĩ vào hệ thống. |
-| 19 | `updated_at` | `TIMESTAMPTZ` | True | - | `CURRENT_TIMESTAMP` | Thời điểm cập nhật hồ sơ bác sĩ gần nhất. |
+| 5 | `license_document_url` | `VARCHAR(255)` | False | - | - | Đường dẫn tương thích ngược xem bản scan CCHN. |
+| 6 | `license_document_storage_path` | `TEXT` | False | - | - | [V25] Object key nội bộ trong bucket Supabase Storage private (`doctor-licenses/{doctorId}/...`). |
+| 7 | `license_issued_date` | `DATE` | False | - | - | [V25] Ngày cấp chứng chỉ hành nghề theo quyết định của Bộ Y Tế / Sở Y Tế. |
+| 8 | `scope_of_practice` | `TEXT` | False | - | - | [V25] Phạm vi hoạt động chuyên môn theo CCHN được cơ quan y tế cấp phép. |
+| 9 | `verification_status` | `VARCHAR(30)` | False | - | `'UNSUBMITTED'` | [V25] Trạng thái thẩm định 4 mức: `UNSUBMITTED`, `PENDING_VERIFICATION`, `APPROVED`, `REJECTED`. |
+| 10 | `rejection_reason` | `TEXT` | False | - | - | [V25] Lý do từ chối thẩm định chi tiết từ Quản trị viên/Hội đồng y tế phản hồi cho bác sĩ. |
+| 11 | `rejection_at` | `TIMESTAMPTZ` | False | - | - | [V25] Dấu thời gian khi Quản trị viên từ chối hồ sơ thẩm định. |
+| 12 | `consultation_fee` | `NUMERIC(10, 2)` | False | - | `0.00` | Mức viện phí khám bệnh cơ sở (VND) cho một lượt khám 30 phút. |
+| 13 | `years_of_experience` | `INT` | False | - | `0` | Số năm kinh nghiệm công tác lâm sàng thực tế trong ngành y tế. |
+| 14 | `academic_title` | `VARCHAR(50)` | False | - | - | Học vị, học hàm y khoa: ThS.BS, BSCKI, BSCKII, TS.BS, PGS.TS.BS, GS.TS.BS. |
+| 15 | `hospital_affiliation` | `VARCHAR(150)` | False | - | - | Bệnh viện hoặc cơ sở y tế nơi bác sĩ đang công tác chính thức. |
+| 16 | `department` | `VARCHAR(150)` | False | - | - | Khoa phòng trực thuộc tại bệnh viện công tác (ví dụ: Khoa Tim mạch can thiệp). |
+| 17 | `license_issued_by` | `VARCHAR(150)` | False | - | - | Cơ quan có thẩm quyền cấp chứng chỉ hành nghề (Bộ Y Tế / Sở Y Tế tỉnh/thành). |
+| 18 | `rating` | `DOUBLE PRECISION`| False | - | `4.9` | Điểm đánh giá trung bình tích lũy từ các bệnh nhân (thang điểm 1.0 đến 5.0). |
+| 19 | `total_consultations` | `INT` | False | - | `1250` | Tổng số lượt ca khám lâm sàng bác sĩ đã thực hiện trong sự nghiệp. |
+| 20 | `review_count` | `INT` | True | - | `0` | Tổng số lượt bệnh nhân thực tế đã để lại đánh giá nhận xét sau ca khám (Flyway V17). |
+| 21 | `is_verified` | `BOOLEAN` | True | - | `FALSE` | Cờ xác nhận hồ sơ và chứng chỉ đã được Admin phê duyệt hợp lệ. |
+| 22 | `verified_at` | `TIMESTAMPTZ` | False | - | - | Dấu thời gian khi Quản trị viên thực hiện phê duyệt hồ sơ bác sĩ. |
+| 23 | `bio_embedding` | `vector(1536)` | False | - | HNSW (m=24, ef_construction=128) | Vector đặc trưng ngữ nghĩa 1536 chiều của tiểu sử bác sĩ sinh bởi OpenAI (Flyway V19). |
+| 24 | `created_at` | `TIMESTAMPTZ` | True | - | `CURRENT_TIMESTAMP` | Thời điểm đăng ký hồ sơ bác sĩ vào hệ thống. |
+| 25 | `updated_at` | `TIMESTAMPTZ` | True | - | `CURRENT_TIMESTAMP` | Thời điểm cập nhật hồ sơ bác sĩ gần nhất. |
 
 ###### Table 2.3.3.B: doctor_profiles Physical Indexes & Optimization
 | Index Name | Index Type | Columns / Expressions | Performance & Architectural Purpose |
@@ -922,6 +935,7 @@ Hồ sơ học thuật, chứng chỉ hành nghề và vector đặc trưng ng�
 | `doctor_profiles_pkey` | B-Tree (PK) | `id` | Khóa chính định danh hồ sơ bác sĩ. |
 | `doctor_profiles_user_id_key`| B-Tree (Unique) | `user_id` | Đảm bảo quan hệ 1:1 nghiêm ngặt giữa tài khoản người dùng và hồ sơ bác sĩ. |
 | `idx_doctor_verified` | B-Tree | `is_verified` | Lọc nhanh các bác sĩ đã được phê duyệt khi hiển thị ra cổng tìm kiếm người bệnh. |
+| `idx_doctor_verification_status` | B-Tree | `verification_status` | [V25] Tăng tốc độ lọc danh sách hồ sơ chờ duyệt `PENDING_VERIFICATION` trên hàng đợi Admin. |
 | `idx_doctor_license` | B-Tree (Unique) | `license_number` | Chống giả mạo và trùng lặp số chứng chỉ hành nghề y tế. |
 | `idx_doctor_bio_hnsw` | **HNSW (vector_cosine_ops)** | `bio_embedding` | **Chỉ mục đồ thị vector HNSW (m=24, ef_construction=128)** phục vụ tìm kiếm ngữ nghĩa Cosine Similarity với độ trễ < 1ms (Flyway V10, V19). |
 
@@ -4069,109 +4083,207 @@ sequenceDiagram
 
 ---
 
-#### 3.24 Doctor License Verification & Credential Approval (Admin)
+#### 3.24 Doctor License Verification, Supabase Private Storage & Credential Vetting (Admin & Doctor Onboarding)
 
 ##### Context & Design Scope
-* **Tác nhân:** Quản trị viên hệ thống (Admin).
-* **Mục tiêu:** Thẩm định tính hợp pháp của Chứng chỉ hành nghề khám chữa bệnh (CCHN), hồ sơ năng lực của bác sĩ đăng ký mới trước khi cho phép xuất hiện trên cổng đặt lịch của người bệnh.
-* **Cơ chế đồng bộ Vector tự động:** Khi Admin nhấn **Phê duyệt (Verify)**, hệ thống tự động nạp tiểu sử chuyên môn `bio`, gọi OpenAI API sinh vector đặc trưng ngữ nghĩa 1536 chiều và lưu vào cột `bio_embedding` với chỉ mục HNSW để bác sĩ có thể được tìm kiếm ngay lập tức qua ngôn ngữ tự nhiên.
+* **Tác nhân:** Bác sĩ (`DOCTOR`) và Quản trị viên hệ thống (`ADMIN`).
+* **Mục tiêu:** Thiết lập quy trình thẩm định pháp lý y tế khép kín theo **Luật Khám bệnh, chữa bệnh 2023** và **Nghị định 13/2023/NĐ-CP**:
+  1. Bác sĩ hoàn tất Onboarding: Khai báo số CCHN, ngày cấp, phạm vi hoạt động chuyên môn, và tải tệp scan CCHN (PDF/ảnh) trực tiếp lên **Supabase Cloud Storage (Private Bucket)**.
+  2. Quản trị viên đối soát hồ sơ qua **Document Inspector** bằng **Signed URL 15 phút (900s)** kèm bảng kiểm tra 4 tiêu chuẩn Bộ Y Tế.
+  3. Quản lý vòng đời thẩm định 4 trạng thái (`UNSUBMITTED`, `PENDING_VERIFICATION`, `APPROVED`, `REJECTED`), lưu vết lý do từ chối phản hồi cho bác sĩ nộp lại.
+* **Cơ chế đồng bộ Vector pgvector HNSW tự động:** Khi Admin nhấn **Phê duyệt (Approve)**, hệ thống tự động gọi `DoctorSemanticSearchService.updateDoctorVector(doctor)` nén thông tin chuyên môn thành vector 1536 chiều, nạp thẳng vào đồ thị HNSW của `pgvector` và xóa cache 2 tầng L1/L2 (`doctors:verified`) để bác sĩ xuất hiện tức thời trên công cụ tìm kiếm ngữ nghĩa của bệnh nhân.
 
 ##### 3.24.1. Class Diagram
 ```mermaid
 classDiagram
+    class VerificationStatus {
+        <<enumeration>>
+        UNSUBMITTED
+        PENDING_VERIFICATION
+        APPROVED
+        REJECTED
+    }
+
+    class DoctorController {
+        -DoctorService doctorService
+        +getMyProfile(UserPrincipal principal) ResponseEntity~ApiResponse~DoctorDetailDto~~
+        +uploadLicenseDocument(MultipartFile file, UserPrincipal principal) ResponseEntity~ApiResponse~DoctorLicenseUploadResponseDto~~
+        +getLicenseDocumentAccess(UserPrincipal principal) ResponseEntity~ApiResponse~DocumentFileAccessDto~~
+        +updateProfile(UpdateDoctorProfileRequest request, UserPrincipal principal) ResponseEntity~ApiResponse~DoctorDetailDto~~
+    }
+
     class AdminController {
         -AdminVettingService adminVettingService
-        +verifyDoctor(UUID doctorId, VetDoctorRequest request) ResponseEntity~ApiResponse~DoctorDetailDto~~
-        +rejectDoctor(UUID doctorId, String reason) ResponseEntity~ApiResponse~DoctorDetailDto~~
+        +getDoctorLicenseForAdmin(UUID id, UserPrincipal principal) ResponseEntity~ApiResponse~DocumentFileAccessDto~~
+        +verifyDoctor(UUID id, VetDoctorRequest request, UserPrincipal principal) ResponseEntity~ApiResponse~DoctorDetailDto~~
+        +syncDoctorVectors() ResponseEntity~ApiResponse~Void~~
     }
+
+    class DoctorService {
+        -DoctorProfileRepository doctorRepo
+        -StorageService storageService
+        -AuditLogService auditLogService
+        +uploadDoctorLicense(UUID doctorUserId, MultipartFile file) DoctorLicenseUploadResponseDto
+        +getDoctorLicenseAccess(UUID doctorUserId) DocumentFileAccessDto
+        +updateDoctorProfile(UUID doctorUserId, UpdateDoctorProfileRequest request) DoctorDetailDto
+    }
+
     class AdminVettingService {
         -DoctorProfileRepository doctorRepo
         -UserRepository userRepo
         -DoctorSemanticSearchService searchService
-        -EmailService emailService
+        -StorageService storageService
+        -NotificationService notificationService
         -AuditLogService auditLogService
-        +vetDoctor(UUID doctorProfileId, boolean approve, String notes) DoctorDetailDto
+        +getDoctorLicenseForAdmin(UUID doctorProfileId, UUID adminId) DocumentFileAccessDto
+        +vetDoctor(UUID doctorProfileId, VetDoctorRequest request, UUID adminId) DoctorDetailDto
     }
 
+    class StorageService {
+        <<interface>>
+        +uploadDoctorLicense(byte[] fileBytes, String fileName, String contentType, UUID doctorProfileId) String
+        +createSignedUrl(String storagePath, int expireSeconds) String
+    }
+
+    class SupabaseStorageService {
+        -RestTemplate restTemplate
+        -String supabaseUrl
+        -String serviceRoleKey
+        +uploadDoctorLicense(...) String
+        +createSignedUrl(...) String
+    }
+
+    class DoctorProfile {
+        -UUID id
+        -User user
+        -String licenseNumber
+        -String licenseDocumentStoragePath
+        -LocalDate licenseIssuedDate
+        -String scopeOfPractice
+        -VerificationStatus verificationStatus
+        -String rejectionReason
+        -Instant rejectionAt
+        -boolean isVerified
+        -float[] bioEmbedding
+    }
+
+    DoctorController --> DoctorService
     AdminController --> AdminVettingService
+    DoctorService --> StorageService
+    AdminVettingService --> StorageService
+    StorageService <|.. SupabaseStorageService
+    DoctorProfile --> VerificationStatus
 ```
 
-###### Table 3.24.1: Doctor Verification Class Specification
+###### Table 3.24.1: Doctor Onboarding & Verification Class Specification
 | Component Name | Architectural Layer | Responsibilities | Key Attributes & Method Signatures |
 | :--- | :--- | :--- | :--- |
-| `AdminController` | Presentation (REST) | Cung cấp endpoint `POST /api/v1/admin/doctors/{id}/vet`, bảo vệ quyền Admin `@PreAuthorize("hasRole('ADMIN')")`. | `+ verifyDoctor(@PathVariable UUID, @Valid @RequestBody VetDoctorRequest): ResponseEntity<ApiResponse<DoctorDetailDto>>` |
-| `AdminVettingService` | Application Service | Cập nhật cờ `is_verified = true`, kích hoạt sinh vector `bio_embedding`, kích hoạt tài khoản `status = 'ACTIVE'`, và gửi email chúc mừng. | `+ vetDoctor(UUID, boolean, String): DoctorDetailDto` |
+| `DoctorController` | Presentation (REST) | Cung cấp endpoints cho bác sĩ: Tải scan CCHN (`POST /me/license-document`), xin Signed URL xem lại CCHN (`GET /me/license-document/view`), nộp hồ sơ (`PUT /me/profile`). | `+ uploadLicenseDocument(MultipartFile, UserPrincipal): ResponseEntity`<br>`+ getLicenseDocumentAccess(UserPrincipal): ResponseEntity` |
+| `AdminController` | Presentation (REST) | Cung cấp endpoints cho Admin: Xem CCHN thanh tra (`GET /{id}/license-document/view`), phê duyệt/từ chối (`POST /{id}/vet`), đồng bộ batch vector (`POST /sync-vectors`). | `+ getDoctorLicenseForAdmin(UUID, UserPrincipal): ResponseEntity`<br>`+ verifyDoctor(UUID, VetDoctorRequest, UserPrincipal): ResponseEntity` |
+| `DoctorService` | Application Service | Kiểm tra kích thước ($\le 10\text{MB}$), MIME type, upload Supabase Storage, lưu `license_document_storage_path`, ghi audit `UPLOAD_DOCTOR_LICENSE_DOCUMENT`. | `+ uploadDoctorLicense(UUID, MultipartFile): DoctorLicenseUploadResponseDto`<br>`+ getDoctorLicenseAccess(UUID): DocumentFileAccessDto` |
+| `AdminVettingService` | Application Service | Cấp Signed URL 15 phút cho Admin (audit `ADMIN_VIEW_DOCTOR_LICENSE`), xử lý Approve (`verificationStatus = APPROVED`, sync pgvector, evict cache) hoặc Reject (lưu `rejection_reason`, gửi thông báo in-app). | `+ vetDoctor(UUID, VetDoctorRequest, UUID): DoctorDetailDto`<br>`+ getDoctorLicenseForAdmin(UUID, UUID): DocumentFileAccessDto` |
+| `SupabaseStorageService` | Infrastructure (Cloud) | Tương tác với Supabase Storage Private Bucket `medical-documents`: Upload tệp vào key `doctor-licenses/{doctorId}/{uuid}_{name}`, cấp URL ký số HMAC-SHA256 15 phút, fallback local. | `+ uploadDoctorLicense(byte[], String, String, UUID): String`<br>`+ createSignedUrl(String, int): String` |
 
-##### 3.24.2. Sequence Diagram: Admin Verification, Vector Bio-Embedding Generation & Approval
+##### 3.24.2. Sequence Diagram: Doctor CCHN Upload & Admin Verification Pipeline
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Admin as Quản trị viên
-    participant UI as React 18 SPA (DoctorManagementPage)
-    participant Ctrl as AdminController
-    participant Svc as AdminVettingService
-    participant SearchSvc as DoctorSemanticSearchService
-    participant AI as OpenAI API (text-embedding-3-small)
-    participant DB as PostgreSQL (doctor_profiles, users, audit_logs)
-    participant Mail as EmailService (@Async Loom)
+    actor Doctor as Bác Sĩ (Doctor)
+    participant D_UI as React SPA (/doctor/profile)
+    actor Admin as Quản Trị Viên (Admin)
+    participant A_UI as React SPA (/admin/doctors)
+    participant Ctrl as Spring Boot API (Doctor & Admin Ctrl)
+    participant Svc as Doctor & AdminVetting Service
+    participant Storage as Supabase Storage (Private Bucket)
+    participant Search as DoctorSemanticSearchService
+    participant DB as PostgreSQL 16 (doctor_profiles, audit_logs)
+    participant Notif as NotificationService
 
-    Admin->>UI: Kiểm tra ảnh chụp chứng chỉ CCHN, nhấn "Phê duyệt hồ sơ"
-    UI->>Ctrl: POST /api/v1/admin/doctors/{id}/vet (approve=true, notes="Chứng chỉ hợp lệ")
-    Ctrl->>Svc: vetDoctor(id, true, notes)
-    Svc->>DB: findByIdWithDetails(id)
-    DB-->>Svc: DoctorProfile (is_verified = false, bio = "Bác sĩ chuyên khoa Tim mạch...")
-    Svc->>SearchSvc: syncDoctorEmbedding(doctorProfile)
-    SearchSvc->>AI: POST /v1/embeddings (input: bioText)
-    AI-->>SearchSvc: Vector float[1536] (bioEmbedding)
-    Svc->>DB: UPDATE doctor_profiles SET is_verified = true, verified_at = NOW(), bio_embedding = bioEmbedding WHERE id = id
-    Svc->>DB: UPDATE users SET status = 'ACTIVE' WHERE id = doctorProfile.userId
-    Svc->>DB: INSERT INTO audit_logs (action='APPROVE_DOCTOR_LICENSE', actor='ADMIN', resource=id)
-    Svc->>Mail: sendDoctorAccountActivatedEmail(doctor.getEmail())
-    Svc-->>Ctrl: DoctorDetailDto (isVerified = true)
-    Ctrl-->>UI: 200 OK + DoctorDetailDto
-    UI-->>Admin: Cập nhật giao diện: Huy hiệu chuyển sang "Đã xác minh" (Màu xanh)
+    %% Giai đoạn 1: Bác sĩ tải CCHN lên Supabase Storage
+    Doctor->>D_UI: Kéo-thả bản scan CCHN (PDF/ảnh < 10MB)
+    D_UI->>Ctrl: POST /api/v1/doctors/me/license-document (MultipartFile)
+    Ctrl->>Svc: uploadDoctorLicense(doctorUserId, file)
+    Svc->>Storage: uploadDoctorLicense(bytes, key: "doctor-licenses/...")
+    Storage-->>Svc: storagePath ("doctor-licenses/{id}/{uuid}.pdf")
+    Svc->>DB: UPDATE doctor_profiles SET license_document_storage_path = storagePath
+    Svc->>DB: INSERT INTO audit_logs (action='UPLOAD_DOCTOR_LICENSE_DOCUMENT')
+    Svc-->>Ctrl: DoctorLicenseUploadResponseDto
+    Ctrl-->>D_UI: 200 OK (Uploaded successfully)
+
+    Doctor->>D_UI: Khai báo ngày cấp, phạm vi chuyên môn & bấm "Gửi thẩm định"
+    D_UI->>Ctrl: PUT /api/v1/doctors/me/profile (submitForVerification=true)
+    Ctrl->>Svc: updateDoctorProfile()
+    Svc->>DB: UPDATE doctor_profiles SET verification_status='PENDING_VERIFICATION'
+    Ctrl-->>D_UI: 200 OK (Banner: Chờ thẩm định 24h)
+
+    %% Giai đoạn 2: Admin thanh tra & đối soát tài liệu qua Signed URL 15 phút
+    Admin->>A_UI: Mở hàng đợi duyệt CCHN, bấm "Xem bản scan CCHN"
+    A_UI->>Ctrl: GET /api/v1/admin/doctors/{id}/license-document/view
+    Ctrl->>Svc: getDoctorLicenseForAdmin(id, adminId)
+    Svc->>Storage: createSignedUrl(storagePath, expireSeconds=900)
+    Storage-->>Svc: signedUrl ("https://...supabase.co/storage/v1/object/sign/...?token=...")
+    Svc->>DB: INSERT INTO audit_logs (action='ADMIN_VIEW_DOCTOR_LICENSE')
+    Svc-->>Ctrl: DocumentFileAccessDto(signedUrl, expiresAt)
+    Ctrl-->>A_UI: 200 OK
+    A_UI-->>Admin: Hiển thị Document Inspector Modal + Checklist 4 tiêu chuẩn Bộ Y Tế
+
+    %% Giai đoạn 3: Phê duyệt & Đồng bộ Vector
+    Admin->>A_UI: Xác nhận thông tin hợp lệ, bấm "Phê duyệt hồ sơ"
+    A_UI->>Ctrl: POST /api/v1/admin/doctors/{id}/vet (approved=true)
+    Ctrl->>Svc: vetDoctor(id, request, adminId)
+    Svc->>DB: UPDATE doctor_profiles SET verification_status='APPROVED', is_verified=true, rejection_reason=NULL
+    Svc->>DB: UPDATE users SET status='ACTIVE' WHERE id=user_id
+    Svc->>Search: updateDoctorVector(doctorProfile)
+    Search->>DB: UPDATE doctor_profiles SET bio_embedding = vector(1536) [HNSW]
+    Svc->>Notif: dispatchNotification(VETTING_APPROVED, "Hồ sơ của bạn đã được duyệt!")
+    Svc-->>Ctrl: DoctorDetailDto(status=APPROVED, isVerified=true)
+    Ctrl-->>A_UI: 200 OK + Toast chúc mừng
 ```
 
-###### Table 3.24.2: Step-by-Step Flow Specification (Doctor Approval)
+###### Table 3.24.2: Step-by-Step Flow Specification (Approval & Vector Sync)
 | Step (#) | Source | Target | Message / Method Call | Parameters / Payload | Database & System Action |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | Quản trị viên | React SPA | Nhấn Phê duyệt hồ sơ | `doctorId, notes` | Mở modal thẩm định `DoctorVettingModal`. |
-| **2** | React SPA | `AdminController` | `POST /api/v1/admin/doctors/{id}/vet` | `VetDoctorRequest` | Gửi yêu cầu phê duyệt kèm Admin Bearer Token. |
-| **3** | Controller | `AdminVettingService` | `vetDoctor()` | `id, approve, notes` | Bắt đầu quy trình kích hoạt và sinh vector. |
-| **4** | Service | `DoctorProfileRepository` | `findByIdWithDetails()` | `id` | `SELECT * FROM doctor_profiles JOIN users ... WHERE id = ?`. |
-| **5-7** | Service | `EmbeddingService` | Sinh vector ngữ nghĩa tiểu sử | `bioText` | Gọi OpenAI API chuyển hóa tiểu sử thành vector 1536 chiều. |
-| **8** | Service | `DoctorProfileRepository` | Cập nhật trạng thái duyệt & vector | `bioEmbedding` | `UPDATE doctor_profiles SET is_verified=true, bio_embedding=? WHERE id=?`. |
-| **9** | Service | `UserRepository` | Kích hoạt tài khoản | `ACTIVE` | `UPDATE users SET status='ACTIVE' WHERE id=?`. |
-| **10** | Service | `AuditLogRepository` | `save(auditLog)` | `AuditLog` | Ghi nhật ký kiểm toán hành vi quản trị viên. |
-| **11** | Service | `EmailService` | `sendWelcomeEmail()` | `doctorEmail` | Gửi email thông báo hồ sơ đã được phê duyệt. |
-| **12-13**| Controller | Quản trị viên | `200 OK` | `DoctorDetailDto` | Hiển thị thông báo Toast phê duyệt thành công. |
+| **1-3** | Bác sĩ | `DoctorController` | `POST /me/license-document` | `MultipartFile` (PDF/JPEG/PNG) | Gửi tệp scan CCHN có mộc đỏ lên máy chủ. |
+| **4-5** | Service | `SupabaseStorageService` | `uploadDoctorLicense()` | `byte[], key, contentType` | Lưu tệp vào bucket private `medical-documents/doctor-licenses/...`. |
+| **6-7** | Service | PostgreSQL | Cập nhật key & Ghi Audit | `storagePath` | `UPDATE doctor_profiles SET license_document_storage_path=?`, ghi `audit_logs`. |
+| **8-10**| Bác sĩ | `DoctorController` | `PUT /me/profile` | `submitForVerification=true` | Chuyển trạng thái sang `PENDING_VERIFICATION` và hiển thị banner chờ duyệt. |
+| **11-16**| Admin | `AdminController` | `GET /{id}/license-document/view` | `doctorProfileId` | Tạo Signed URL 15 phút (900s) từ Supabase, ghi audit `ADMIN_VIEW_DOCTOR_LICENSE`. |
+| **17-18**| Admin | Document Inspector | Đối soát 4 tiêu chí Bộ Y Tế | Mộc đỏ, số CCHN, ngày cấp | Đối chiếu Cổng thông tin Quản lý hành nghề y tế quốc gia. |
+| **19-21**| Admin | `AdminController` | `POST /{id}/vet` | `approved=true` | Bắt đầu quy trình kích hoạt và đồng bộ vector. |
+| **22** | Service | `DoctorProfileRepository` | Cập nhật trạng thái duyệt | `verification_status='APPROVED'` | `UPDATE doctor_profiles SET verification_status='APPROVED', is_verified=true`. |
+| **23-24**| Service | `DoctorSemanticSearchService` | `updateDoctorVector()` | `doctorProfile` | Gọi mô hình embedding sinh vector 1536 chiều nạp vào pgvector HNSW. |
+| **25** | Service | `NotificationService` | Gửi chuông thông báo In-App | `VETTING_APPROVED` | Bác sĩ nhận được thông báo hồ sơ đã được duyệt thành công. |
 
-##### 3.24.3. Sequence Diagram: Credential Rejection with Justification Feedback
+##### 3.24.3. Sequence Diagram: Rejection Flow with Actionable Reason Feedback
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Admin as Quản trị viên
-    participant UI as React 18 SPA
+    actor Admin as Quản Trị Viên (Admin)
+    participant UI as React SPA (DoctorManagementPage)
     participant Ctrl as AdminController
     participant Svc as AdminVettingService
-    participant DB as PostgreSQL (doctor_profiles, users)
-    participant Mail as EmailService (@Async Loom)
+    participant DB as PostgreSQL 16
+    participant Notif as NotificationService
 
-    Admin->>UI: Nhập lý do từ chối: "Ảnh chụp chứng chỉ mờ, không rõ số hiệu CCHN", bấm "Từ chối"
-    UI->>Ctrl: POST /api/v1/admin/doctors/{id}/vet (approve=false, notes="...")
-    Ctrl->>Svc: vetDoctor(id, false, notes)
-    Svc->>DB: UPDATE users SET status = 'SUSPENDED' WHERE id = doctorProfile.userId
-    Svc->>Mail: sendDoctorApplicationRejectedEmail(doctor.getEmail(), notes)
-    Svc-->>Ctrl: DoctorDetailDto (isVerified = false)
-    Ctrl-->>UI: 200 OK
-    UI-->>Admin: Chuyển trạng thái bác sĩ sang "Bị từ chối" (Màu xám)
+    Admin->>UI: Bấm "Từ chối" & nhập lý do: "Bản scan CCHN mờ dấu mộc đỏ, yêu cầu nộp lại trang 2"
+    UI->>Ctrl: POST /api/v1/admin/doctors/{id}/vet (approved=false, rejectionReason="...")
+    Ctrl->>Svc: vetDoctor(id, request, adminId)
+    Svc->>DB: UPDATE doctor_profiles SET verification_status='REJECTED', is_verified=false, rejection_reason='...', rejection_at=NOW()
+    Svc->>DB: INSERT INTO audit_logs (action='REJECT_DOCTOR_LICENSE')
+    Svc->>Notif: dispatchNotification(VETTING_REJECTED, rejectionReason)
+    Svc-->>Ctrl: DoctorDetailDto(verificationStatus=REJECTED)
+    Ctrl-->>UI: 200 OK (Cập nhật huy hiệu REJECTED)
 ```
 
-###### Table 3.24.3: Error Handling & Exception Matrix (Doctor Approval)
+###### Table 3.24.3: Error Handling & Exception Matrix (Doctor Onboarding & Vetting)
 | Error Scenario | Trigger Condition | HTTP Status | ErrorCode | User Message & System Defense Action |
 | :--- | :--- | :---: | :---: | :--- |
-| **Hồ sơ bác sĩ không tồn tại** | `findById() == Optional.empty()` | `404 Not Found` | `DOCTOR_NOT_FOUND` | "Không tìm thấy hồ sơ bác sĩ yêu cầu." |
-| **Không có quyền Admin** | Người dùng không mang vai trò `ADMIN` | `403 Forbidden` | `FORBIDDEN` | "Chỉ Quản trị viên hệ thống mới có quyền phê duyệt hồ sơ bác sĩ." |
+| **Tệp CCHN vượt kích thước** | File size > 10MB | `400 Bad Request` | `FILE_TOO_LARGE` | "Kích thước tệp chứng chỉ không được vượt quá 10MB." |
+| **Sai định dạng MIME tệp** | Content-Type không thuộc PDF, PNG, JPG, WEBP | `400 Bad Request` | `INVALID_DOCUMENT_TYPE` | "Định dạng tệp không được hỗ trợ. Vui lòng tải lên tệp PDF, JPG, PNG hoặc WEBP." |
+| **Chưa tải bản scan CCHN** | Duyệt bác sĩ nhưng `license_document_storage_path` null | `400 Bad Request` | `DOCTOR_LICENSE_NOT_FOUND` | "Bác sĩ chưa tải lên bản scan chứng chỉ hành nghề (CCHN)." |
+| **Trùng lặp số CCHN** | Số CCHN đã tồn tại ở tài khoản khác | `409 Conflict` | `LICENSE_EXISTS` | "Số chứng chỉ hành nghề này đã được đăng ký bởi một bác sĩ khác." |
+| **Không có quyền Admin** | User không có vai trò `ROLE_ADMIN` gọi API duyệt | `403 Forbidden` | `FORBIDDEN` | "Chỉ Quản trị viên hệ thống mới có quyền phê duyệt hồ sơ bác sĩ." |
+| **Supabase Storage lỗi** | Token hết hạn hoặc mạng gián đoạn | `503 Service Unavailable` | `STORAGE_SERVICE_UNAVAILABLE` | "Dịch vụ lưu trữ Supabase Storage tạm thời gián đoạn. Kích hoạt fallback lưu trữ nội bộ." |
 
 ---
 

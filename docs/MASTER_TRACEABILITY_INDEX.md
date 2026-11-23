@@ -94,14 +94,14 @@ Bảng ma trận dưới đây thiết lập **quan hệ ánh xạ 1-1 tuyệt �
 | **UC-DOC-09** | **Lên Lịch Hẹn Tái Khám Trực Tiếp Cho Bệnh Nhân** | Doctor | `AppointmentController`<br>`/api/v1/appointments/follow-up` | `DoctorDashboard.tsx (Form Hẹn tái khám)`<br>`/doctor` | `appointments`<br>`V1` | `AppointmentServiceTest.java` | **100% PASS** |
 | **UC-DOC-10** | **Bác Sĩ Hủy Lịch Khẩn Cấp & Tự Động Hoàn Tiền 100% Cho Bệnh Nhân** | Doctor | `AppointmentController`<br>`/api/v1/appointments/{id}/status` | `DoctorDashboard.tsx (Action Hủy ca khám)`<br>`/doctor` | `appointments`<br>`V1` | `AppointmentServiceTest.java` | **100% PASS** |
 | **UC-DOC-11** | **Theo Dõi Đánh Giá, Phản Hồi & Thang Điểm Uy Tín Của Bác Sĩ** | Doctor | `DoctorReviewController`<br>`/api/v1/doctors/{doctorId}/reviews` | `DoctorProfilePage.tsx`<br>`/doctor/profile` | `doctor_reviews`<br>`V17` | `DoctorReviewServiceTest.java` | **100% PASS** |
-| **UC-DOC-12** | **Cập Nhật Hồ Sơ Chuyên Môn, Tiểu Sử & Tự Động Tái Tạo Vector AI** | Doctor | `DoctorController`<br>`/api/v1/doctors/me/profile` | `DoctorProfilePage.tsx`<br>`/doctor/profile` | `doctor_profiles`<br>`V1` | `DoctorServiceTest.java` | **100% PASS** |
+| **UC-DOC-12** | **Cập Nhật Hồ Sơ Chuyên Môn, Tải Scan CCHN Lên Supabase & Tái Tạo Vector AI** | Doctor | `DoctorController`<br>`/api/v1/doctors/me/profile`<br>`/api/v1/doctors/me/license-document` | `DoctorProfilePage.tsx`<br>`/doctor/profile` | `doctor_profiles`<br>`V1, V25` | `DoctorServiceTest.java` | **100% PASS** |
 | **UC-DOC-13** | **Xuất Phiếu Khám & Đơn Thuốc Điện Tử Ra Tệp PDF Chuẩn Meddies** | Doctor, Patient | `MedicalDocumentController, AppointmentController`<br>`/api/v1/documents/sample-random-pdf` | `DoctorDashboard.tsx`<br>`/doctor` | `appointments`<br>`V1` | `MeddiesPdfGeneratorServiceTest.java` | **100% PASS** |
 | **UC-DOC-14** | **Quản Lý & Đăng Ký Danh Mục Chuyên Khoa Khám Bệnh** | Doctor | `SpecialtyController, DoctorController`<br>`/api/v1/specialties` | `DoctorProfilePage.tsx`<br>`/doctor/profile` | `specialties`<br>`V1` | `DoctorServiceTest.java` | **100% PASS** |
 | **UC-ADM-01** | **Giám Sát Vận Hành Toàn Viện, KPIs & Sức Khỏe Hạ Tầng** | Admin | `AdminController, HealthController`<br>`/api/v1/admin/stats` | `AdminDashboard.tsx`<br>`/admin` | `users`<br>`V1` | `AdminVettingServiceTest.java` | **100% PASS** |
 | **UC-ADM-02** | **Giám Sát FinOps Tiêu Thụ Token & Chi Phí Mô Hình AI** | Admin | `AdminController`<br>`/api/v1/admin/ai-usage` | `AdminDashboard.tsx (Card FinOps AI Analytics)`<br>`/admin` | `ai_token_usage`<br>`V18` | `AiUsageAnalyticsServiceTest.java` | **100% PASS** |
 | **UC-ADM-03** | **Chuyển Đổi Nhà Cung Cấp Mô Hình AI & Kiểm Thử Fallback Offline** | Admin | `SystemConfigController`<br>`/api/v1/system/ai-mode/toggle` | `AdminDashboard.tsx (Công tắc AI Engine Switcher)`<br>`/admin` | `doctor_profiles`<br>`V10` | `SystemConfigControllerTest.java` | **100% PASS** |
 | **UC-ADM-04** | **Đồng Bộ Hóa Hàng Loạt Vector Embedding Bác Sĩ** | Admin | `AdminController, SystemConfigController`<br>`/api/v1/admin/doctors/sync-vectors` | `DoctorManagementPage.tsx (Nút Đồng bộ Vector)`<br>`/admin/doctors` | `doctor_profiles`<br>`V10` | `EmbeddingServiceTest.java` | **100% PASS** |
-| **UC-ADM-05** | **Thẩm Định Chứng Chỉ Hành Nghề CCHN & Phê Duyệt Bác Sĩ** | Admin | `AdminController`<br>`/api/v1/admin/doctors/{id}/vet` | `DoctorManagementPage.tsx`<br>`/admin/doctors` | `doctor_profiles`<br>`V1` | `AdminVettingServiceTest.java` | **100% PASS** |
+| **UC-ADM-05** | **Thẩm Định Chứng Chỉ Hành Nghề CCHN & Phê Duyệt Bác Sĩ** | Admin | `AdminController`<br>`/api/v1/admin/doctors/{id}/vet` | `DoctorManagementPage.tsx`<br>`/admin/doctors` | `doctor_profiles`<br>`V1, V25` | `AdminVettingServiceTest.java` | **100% PASS** |
 | **UC-ADM-06** | **Quản Lý Danh Sách, Phân Trang Offset & Trạng Thái Bác Sĩ** | Admin | `AdminController`<br>`/api/v1/admin/doctors/paged` | `DoctorManagementPage.tsx`<br>`/admin/doctors` | `doctor_profiles`<br>`V1` | `DoctorServiceTest.java` | **100% PASS** |
 | **UC-ADM-07** | **Quản Trị Tài Khoản Người Dùng, Phân Quyền RBAC & Khóa Tài Khoản** | Admin | `AdminController`<br>`/api/v1/admin/users` | `UserManagementPage.tsx`<br>`/admin/users` | `users`<br>`V1` | `SecurityHardeningTest.java` | **100% PASS** |
 | **UC-ADM-08** | **Quản Lý Danh Mục Chuyên Khoa Lâm Sàng Toàn Viện** | Admin | `AdminController, SpecialtyController`<br>`/api/v1/admin/specialties` | `SpecialtyManagementPage.tsx`<br>`/admin/specialties` | `specialties`<br>`V1` | `DoctorServiceTest.java` | **100% PASS** |
@@ -370,13 +370,13 @@ Toàn bộ 22 trang giao diện được tổ chức theo kiến trúc phân vù
 
 ---
 
-## 8. Bản Đồ Bộ Kiểm Thử Chất Lượng (37 Lớp Test, 308 Unit Tests 100% PASS)
+## 8. Bản Đồ Bộ Kiểm Thử Chất Lượng (38 Lớp Test, 331 Unit Tests 100% PASS)
 
-Hệ thống duy trì bộ kiểm thử tự động toàn diện đạt tỷ lệ vượt qua **100% (308/308 tests pass)**:
+Hệ thống duy trì bộ kiểm thử tự động toàn diện đạt tỷ lệ vượt qua **100% (331/331 tests pass)**:
 
 | STT | Lớp Kiểm Thử (Test Class) | Gói Java (Package) | Số Lượng Tests | Phân Vùng Chức Năng & Thuật Toán Được Kiểm Thử |
 | :---: | :--- | :--- | :---: | :--- |
-| 1 | `AdminVettingServiceTest.java` | `com.mediassist.service` | **12 tests** | Thẩm định CCHN bác sĩ, phê duyệt, từ chối và ghi nhật ký kiểm toán |
+| 1 | `AdminVettingServiceTest.java` | `com.mediassist.service` | **22 tests** | Thẩm định CCHN bác sĩ (Flyway V25), phê duyệt, từ chối kèm lý do, cấp Signed URL Supabase Storage và ghi audit `ADMIN_VIEW_DOCTOR_LICENSE` |
 | 2 | `AiModelRouterTest.java` | `com.mediassist.ai` | **6 tests** | Hedged Requests, xoay tua mô hình Gemini / OpenRouter / Fallback |
 | 3 | `AiUsageAnalyticsServiceTest.java` | `com.mediassist.service` | **8 tests** | Tính toán FinOps tiêu thụ token AI, doanh thu và chi phí USD/VND |
 | 4 | `AppointmentMailPrivacyTest.java` | `com.mediassist.mail` | **7 tests** | Quyền riêng tư dữ liệu y tế trong nội dung email gửi bệnh nhân |
@@ -413,6 +413,7 @@ Hệ thống duy trì bộ kiểm thử tự động toàn diện đạt tỷ l�
 | 35 | `SystemConfigControllerTest.java` | `com.mediassist.controller` | **6 tests** | Bật tắt chế độ AI Engine, kích hoạt đồng bộ vector toàn hệ thống |
 | 36 | `TriageServiceTest.java` | `com.mediassist.service` | **14 tests** | Quy trình phân luồng triệu chứng AI, lưu trữ phiên hội thoại và tạo SBAR |
 | 37 | `TwoLayerCacheServiceTest.java` | `com.mediassist.service` | **11 tests** | Bộ đệm Caffeine L1 + Redis L2 và thuật toán chống bão tuyết XFetch |
+| 38 | `DoctorServiceScheduleTest.java` | `com.mediassist.service` | **3 tests** | Khởi tạo lịch trực mặc định và bảo toàn cấu hình lịch khám khi bác sĩ lưu thiết lập |
 
 ---
 

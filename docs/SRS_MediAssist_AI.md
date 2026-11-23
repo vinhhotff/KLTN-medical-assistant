@@ -1324,28 +1324,28 @@ flowchart LR
 | **User Interface Controls** | Rating distribution bar, review cards list. |
 
 
-##### 2.3.3.12 Update Doctor Profile & Biography (UC-DOC-12)
+##### 2.3.3.12 Update Doctor Profile & CCHN Credential Onboarding (UC-DOC-12)
 
 | Attribute | Specification Details |
 | :--- | :--- |
 | **Use Case ID** | `UC-DOC-12` |
-| **Use Case Name** | Update Doctor Profile & Biography |
+| **Use Case Name** | Update Doctor Profile & CCHN Credential Onboarding |
 | **Created By** | SE-AI Capstone Team |
-| **Created Date** | 15/02/2026 |
+| **Created Date** | 15/02/2026 (Updated 23/11/2026 - Flyway V25 & Supabase Storage) |
 | **Primary Actor** | Doctor |
-| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
-| **Description** | MediAssist-AI Doctor Subsystem — - `doctor_profiles` updated.<br>- If bio changed, 1536-d vector embedding re-computed asynchronously. |
-| **Trigger** | Doctor updates bio, consultation fee, or clinic room. |
-| **Pre-conditions** | Doctor is authenticated. |
-| **Post-conditions** | - `doctor_profiles` updated.<br>- If bio changed, 1536-d vector embedding re-computed asynchronously. |
-| **Normal Flow** | Step 1: Doctor edits bio, fee, or clinic room on `/doctor/profile`.<br>Step 2: Frontend calls HTTP PUT `/api/v1/doctors/me/profile` with `UpdateDoctorProfileRequest`.<br>Step 3: Backend updates `doctor_profiles` table.<br>Step 4: If bio was modified, backend triggers asynchronous re-embedding via `EmbeddingService`.<br>Step 5: Backend updates `doctor_profiles.bio_embedding`.<br>Step 6: Backend invalidates doctor cache in Redis.<br>Step 7: Frontend displays success notification. |
-| **Alternative Flow** | None. |
-| **Exceptions** | None. |
-| **Priority** | Medium (P2) |
-| **Frequency of Use** | Medium (Periodic / Administrative) |
-| **Business Rules** | - BR-31: CCHN license number cannot be altered without admin re-vetting. |
-| **Data Entities Involved** | `doctor_profiles`. |
-| **User Interface Controls** | Bio textarea, fee input, clinic room input, save button. |
+| **Secondary Actor** | Supabase Cloud Storage (Private Bucket), PostgreSQL pgvector, Audit Logger |
+| **Description** | Doctor completes Step 2 of onboarding: uploads medical practice certificate (CCHN) scan, inputs issuing date and scope of practice, and submits profile for administrative vetting. |
+| **Trigger** | Doctor accesses `/doctor/profile` to update professional credentials or submit application. |
+| **Pre-conditions** | Doctor is authenticated (`ROLE_DOCTOR`). |
+| **Post-conditions** | - `doctor_profiles` updated with `license_number`, `license_issued_date`, `scope_of_practice`, `license_document_storage_path`.<br>- Document scan uploaded safely to Supabase Private Bucket `medical-documents/doctor-licenses/...`<br>- Status set to `PENDING_VERIFICATION` upon submission; doctor notified. |
+| **Normal Flow** | Step 1: Doctor navigates to `/doctor/profile`.<br>Step 2: Doctor drags and drops CCHN license scan file (PDF/JPEG/PNG/WEBP, $\le$ 10MB) into the Upload Zone.<br>Step 3: Frontend calls HTTP POST `/api/v1/doctors/me/license-document` with `MultipartFile`.<br>Step 4: Backend stores document in Supabase Storage Private Bucket, updates `license_document_storage_path`, records `UPLOAD_DOCTOR_LICENSE_DOCUMENT` audit log.<br>Step 5: Doctor inputs `licenseNumber`, `licenseIssuedDate`, `scopeOfPractice`, bio, and consultation fee.<br>Step 6: Doctor clicks "Gửi hồ sơ thẩm định CCHN".<br>Step 7: Frontend calls HTTP PUT `/api/v1/doctors/me/profile` with `UpdateDoctorProfileRequest(submitForVerification=true)`.<br>Step 8: Backend updates profile, transitions `verification_status` to `PENDING_VERIFICATION`, evicts Redis cache.<br>Step 9: Frontend displays amber banner: "Hồ sơ của bạn đang được Ban quản trị thẩm định trong vòng 24h". |
+| **Alternative Flow** | - Alt Flow 12a: View Uploaded Document Scan:<br>1. Doctor clicks "Xem bản scan CCHN".<br>2. Frontend calls HTTP GET `/api/v1/doctors/me/license-document/view`.<br>3. Backend generates 15-minute HMAC-SHA256 Signed URL from Supabase Storage.<br>4. Frontend displays document in modal (iframe/img).<br>- Alt Flow 12b: Re-submit after Rejection:<br>1. Doctor views rejection banner with specific `rejection_reason` from Admin.<br>2. Doctor rectifies CCHN document or information and resubmits (`verification_status` transitions from `REJECTED` $\rightarrow$ `PENDING_VERIFICATION`). |
+| **Exceptions** | - Exc 12a: File size > 10MB or unsupported MIME type $\rightarrow$ Backend returns `400 INVALID_DOCUMENT_TYPE`.<br>- Exc 12b: Duplicate license number $\rightarrow$ Backend returns `409 LICENSE_EXISTS`. |
+| **Priority** | High (P0 - Legal Compliance) |
+| **Frequency of Use** | Medium (Periodic / Onboarding) |
+| **Business Rules** | - BR-13: Unverified doctors cannot be searched or booked.<br>- BR-31: Approved CCHN license number cannot be altered without admin re-vetting.<br>- BR-35: Doctor verification adheres strictly to 4-state lifecycle (`UNSUBMITTED`, `PENDING_VERIFICATION`, `APPROVED`, `REJECTED`).<br>- BR-36: CCHN document scans must reside in private storage and are accessible strictly via 15-minute signed URLs. |
+| **Data Entities Involved** | `doctor_profiles`, `audit_logs`, `users`. |
+| **User Interface Controls** | File upload drag-and-drop zone, Document Badge preview modal, license input, date picker, scope of practice textarea, submit button. |
 
 
 ##### 2.3.3.13 Export Medical Record & Prescription PDF (UC-DOC-13)
@@ -1503,21 +1503,21 @@ flowchart LR
 | **Use Case ID** | `UC-ADM-05` |
 | **Use Case Name** | Vet & Approve Doctor CCHN License |
 | **Created By** | SE-AI Capstone Team |
-| **Created Date** | 15/02/2026 |
+| **Created Date** | 15/02/2026 (Updated 23/11/2026 - Flyway V25 & Supabase Storage) |
 | **Primary Actor** | Admin |
-| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
-| **Description** | MediAssist-AI Vetting Subsystem — Doctor verified (`is_verified = true`) and activated for public search. |
-| **Trigger** | Admin reviews pending doctor license applications. |
-| **Pre-conditions** | Doctor account exists with `is_verified = false`. |
-| **Post-conditions** | Doctor verified (`is_verified = true`) and activated for public search. |
-| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/pending`.<br>Step 3: Backend returns doctors with `is_verified = false`.<br>Step 4: Admin inspects CCHN license number, issuing authority, and specialty credentials.<br>Step 5: Admin clicks "Phê Duyệt" (Approve).<br>Step 6: Frontend calls HTTP POST `/api/v1/admin/doctors/{id}/vet` with `VetDoctorRequest(approved=true)`.<br>Step 7: Backend sets `doctor_profiles.is_verified = true`.<br>Step 8: Backend triggers vector embedding generation if missing.<br>Step 9: Backend sends approval email to doctor.<br>Step 10: Frontend removes doctor from pending queue. |
-| **Alternative Flow** | - Alt Flow 11a: Reject Application:<br>1. Admin calls vetting endpoint with `approved = false` and rejection reason.<br>2. Backend sends rejection email prompting re-submission. |
-| **Exceptions** | None. |
+| **Secondary Actor** | Supabase Cloud Storage, PostgreSQL pgvector HNSW, Notification Service, Audit Subsystem |
+| **Description** | MediAssist-AI Vetting Subsystem — Admin inspects doctor CCHN credentials, audits high-resolution scan via 15-minute Signed URL with Ministry of Health (MoH) checklist, and approves or rejects application. Upon approval, doctor vector embeddings are synchronized into `pgvector` HNSW index for instant public semantic search. |
+| **Trigger** | Admin reviews doctor applications with `verification_status = 'PENDING_VERIFICATION'` or manages active directory. |
+| **Pre-conditions** | Admin is authenticated (`ROLE_ADMIN`). Doctor application exists in `doctor_profiles`. |
+| **Post-conditions** | - If Approved: `verification_status = 'APPROVED'`, `is_verified = true`, `rejection_reason = NULL`, `bio_embedding` synchronized into `pgvector`, cache evicted, and in-app notification `VETTING_APPROVED` sent.<br>- If Rejected: `verification_status = 'REJECTED'`, `is_verified = false`, `rejection_reason` and `rejection_at` recorded, in-app notification `VETTING_REJECTED` sent. |
+| **Normal Flow (Approval)** | Step 1: Admin navigates to `/admin/doctors` (Vetting tab).<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors/pending`.<br>Step 3: Backend returns doctors with `verification_status = 'PENDING_VERIFICATION'`.<br>Step 4: Admin clicks "Xem Bản Scan CCHN" (Eye icon).<br>Step 5: Frontend calls HTTP GET `/api/v1/admin/doctors/{id}/license-document/view`.<br>Step 6: Backend issues 15-minute Signed URL from Supabase Storage Private Bucket and records `ADMIN_VIEW_DOCTOR_LICENSE` audit log.<br>Step 7: Admin reviews CCHN scan in Document Inspector Modal against MoH 4-step checklist: (1) CCHN license number, (2) License issue date, (3) Scope of practice, (4) Red stamp & signature authenticity.<br>Step 8: Admin clicks "Phê Duyệt" (Approve).<br>Step 9: Frontend calls HTTP POST `/api/v1/admin/doctors/{id}/vet` with `VetDoctorRequest(approved=true)`.<br>Step 10: Backend sets `verification_status = 'APPROVED'`, `is_verified = true`, updates `users.status = 'ACTIVE'`.<br>Step 11: Backend calls `DoctorSemanticSearchService.updateDoctorVector(doctor)` to sync 1536-d embedding into pgvector HNSW.<br>Step 12: Backend evicts L1/L2 cache `doctors:verified`, sends in-app notification, and returns updated `DoctorDetailDto`. |
+| **Alternative Flow (Rejection)** | - Alt Flow 5a: Reject Application with Feedback:<br>1. In Document Inspector or table, Admin clicks "Từ Chối" (Reject).<br>2. Prompt modal requires Admin to input specific rejection reason (e.g., "Bản scan CCHN bị mờ dấu mộc đỏ, yêu cầu chụp lại trang 2").<br>3. Frontend calls HTTP POST `/api/v1/admin/doctors/{id}/vet` with `VetDoctorRequest(approved=false, rejectionReason="...")`.<br>4. Backend sets `verification_status = 'REJECTED'`, `is_verified = false`, stores `rejection_reason` and `rejection_at`.<br>5. Backend dispatches in-app notification `VETTING_REJECTED` to doctor with rejection reason.<br>6. Doctor is removed from pending queue and appears in directory as REJECTED with rejection badge. |
+| **Exceptions** | - Exc 5a: Doctor has no license document uploaded $\rightarrow$ Backend returns `400 BAD_REQUEST` ("Bác sĩ chưa tải lên bản scan chứng chỉ hành nghề").<br>- Exc 5b: Supabase Storage unavailable $\rightarrow$ Backend returns 503 with fallback guidance. |
 | **Priority** | High (P0 - Legal Compliance) |
 | **Frequency of Use** | Medium (Periodic / Administrative) |
-| **Business Rules** | - BR-13: Unverified doctors are strictly excluded from public search and booking. |
-| **Data Entities Involved** | `doctor_profiles`, `audit_logs`. |
-| **User Interface Controls** | Pending doctors tab, "Phê Duyệt" button, "Từ Chối" button. |
+| **Business Rules** | - BR-13: Unverified doctors are strictly excluded from public search and booking.<br>- BR-31: Approved CCHN license number cannot be altered without admin re-vetting.<br>- BR-35: Doctor verification adheres strictly to 4-state lifecycle (`UNSUBMITTED`, `PENDING_VERIFICATION`, `APPROVED`, `REJECTED`).<br>- BR-36: CCHN document scans must reside in private storage and are accessible strictly via 15-minute signed URLs with mandatory audit trail. |
+| **Data Entities Involved** | `doctor_profiles`, `users`, `audit_logs`, `notifications`. |
+| **User Interface Controls** | Vetting queue table, "Xem Bản Scan CCHN" button, Document Inspector modal, MoH checklist card, "Phê Duyệt" button, "Từ Chối" button with reason prompt. |
 
 
 ##### 2.3.4.6 Manage Doctor Directory (UC-ADM-06)
@@ -2251,6 +2251,8 @@ public void assertCanAccessPatient(UUID actorUserId, Role role, UUID patientId, 
 | **BR-32** | Administrative Lockout | Locking a user account immediately invalidates all active authentication tokens and terminates web sessions. | Admin Governance |
 | **BR-33** | AI Mode Administration | System-wide AI inference provider switching is strictly restricted to authenticated users with `ADMIN` role (Security Fix BE-1). | System Configuration |
 | **BR-34** | Audit Log Immutability | Audit log entries are strictly append-only. Deletion or modification of audit records is programmatically blocked. | Audit Subsystem |
+| **BR-35** | Doctor Vetting 4-State Lifecycle | Doctor verification must adhere to a strict 4-state finite state machine: `UNSUBMITTED` $\rightarrow$ `PENDING_VERIFICATION` $\rightarrow$ `APPROVED` or `REJECTED`. Only `APPROVED` doctors appear in public directory and semantic search. | Admin Governance / V25 |
+| **BR-36** | Private Storage & Audit for Credentials | All CCHN license document scans must reside in private storage buckets. Viewing access is strictly regulated via 15-minute signed URLs and generates an immutable audit record (`ADMIN_VIEW_DOCTOR_LICENSE`). | Storage & Security / V25 |
 
 ---
 
@@ -2388,11 +2390,11 @@ The Requirements Traceability Matrix maps every Functional Requirement (FR) to i
 | **FR-CLIN-07** | EMR Legal Immutability | UC-DOC-08 | V1 | `AppointmentServiceTest.testCompleteClinical_Status` | 100% PASS |
 | **FR-CLIN-08** | Encounter Summary PDF | UC-DOC-13 | In-memory | `MeddiesPdfGeneratorServiceTest.testGeneratePdf` | 100% PASS |
 | **FR-ADM-01** | Executive Telemetry | UC-ADM-01 | V1, V13 | `AdminControllerTest.testGetStats` | 100% PASS |
-| **FR-ADM-02** | Doctor Credential Vetting | UC-ADM-05 | V14 (`is_verified`) | `AdminVettingServiceTest.testVetDoctor` | 100% PASS |
+| **FR-ADM-02** | Doctor Credential Vetting | UC-ADM-05 | V14, V25 (`verification_status`, Supabase Storage Signed URL) | `AdminVettingServiceTest.testVetDoctor` | 100% PASS |
 | **FR-ADM-03** | AI FinOps Token Monitor | UC-ADM-02 | V1, V12 | `AiUsageAnalyticsServiceTest.testGetUsage` | 100% PASS |
 | **FR-ADM-04** | AI Provider Failover Mode | UC-ADM-03 | In-memory | `SystemConfigControllerTest.testToggleAiMode` | 100% PASS |
 | **FR-ADM-05** | Immutable Audit Trail | UC-ADM-11 | V1 (`audit_logs`) | `PatientAccessGuardTest.testAuditLogRecording` | 100% PASS |
-| **FR-ADM-06** | Flyway Migration Baseline | Infr | V1 - V22 | `FlywayMigrationTest.testMigrationsBaseline` | 100% PASS |
+| **FR-ADM-06** | Flyway Migration Baseline | Infr | V1 - V25 | `FlywayMigrationTest.testMigrationsBaseline` | 100% PASS |
 
 ---
 

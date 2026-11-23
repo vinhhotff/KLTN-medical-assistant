@@ -124,8 +124,15 @@
   16. `[MOD]` `frontend/src/pages/doctor/DoctorProfilePage.tsx`
   17. `[MOD]` `frontend/src/pages/admin/DoctorVettingPage.tsx`
   18. `[MOD]` `frontend/src/pages/admin/DoctorManagementPage.tsx`
-  19. `[MOD]` `docs/DATABASE_DESIGN.md`
-  20. `[MOD]` `docs/USE_CASES.md`
+  19. `[MOD]` `docs/DATABASE_DESIGN.md` (Cập nhật 6 cột V25 và lược đồ `doctor_profiles`)
+  20. `[MOD]` `docs/USE_CASES.md` (Cập nhật chi tiết UC-DOC-12 và UC-ADM-05)
+  21. `[MOD]` `docs/SRS_MediAssist_AI.md` & `report_3/` (Đặc tả UC-DOC-12, UC-ADM-05, BR-35, BR-36, FR-ADM-02 V25)
+  22. `[MOD]` `docs/SDD_MediAssist_AI.md` & `report_4/` (Cập nhật Figure 2.2, Table 2.3.3.A, Section 3.24 Class & Sequence Diagrams)
+  23. `[MOD]` `docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md` & `report_2/` (Cập nhật Bảng 3.2 Invariants, Table 6.2 doctor_profiles)
+  24. `[MOD]` `docs/TEST_REPORT_MediAssist_AI.md` & `report_5/` (Đồng bộ chỉ số 331/331 tests PASS, 2.325 modules TS)
+  25. `[MOD]` `docs/MASTER_TRACEABILITY_INDEX.md` (Cập nhật bảng 38 test classes, 331 tests, endpoints V25)
+  26. `[MOD]` `docs/CAPSTONE_DEFENSE.md` (Bổ sung Section 2.2 và Câu hỏi phản biện 28)
+  27. `[MOD]` `docs-bundle.js` và 5 báo cáo `report_1..5/docs-bundle.js` (Tái biên dịch 21 tài liệu)
 * **Bằng Chứng Kiểm Thử:**
   - `mvn test`: **331/331 tests PASS** (100% SUCCESS, 0 failures, 0 errors).
   - `npm run build`: **0 lỗi TypeScript** (2.325 modules transformed, built in 2.56s).

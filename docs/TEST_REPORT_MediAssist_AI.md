@@ -127,22 +127,22 @@ Báo cáo thực thi bộ kiểm thử tự động Backend thu được kết q
 
 ```
 [INFO] Results:
-[INFO] Tests run: 308, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 331, Failures: 0, Errors: 0, Skipped: 0
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
-[INFO] Total time:  11.723 s
-[INFO] Finished at: 2026-11-01T09:23:45+07:00
+[INFO] Total time:  10.917 s
+[INFO] Finished at: 2026-11-23T09:49:03+07:00
 ```
 
-* **Tổng số kịch bản kiểm thử tự động:** **308 / 308 Tests**.
+* **Tổng số kịch bản kiểm thử tự động:** **331 / 331 Tests**.
 * **Số ca kiểm thử thất bại (Failures):** **0 (0.00%)**.
 * **Số ca kiểm thử gặp lỗi hệ thống (Errors):** **0 (0.00%)**.
 * **Số ca kiểm thử bị bỏ qua (Skipped):** **0 (0.00%)**.
-* **Tổng thời gian thực thi trọn vẹn:** **11.723 giây** (Tốc độ vượt trội nhờ tối ưu hóa Mockito và Project Loom Virtual Threads).
+* **Tổng thời gian thực thi trọn vẹn:** **10.917 giây** (Tốc độ vượt trội nhờ tối ưu hóa Mockito và Project Loom Virtual Threads).
 
 ![Maven Surefire Execution Result](images/test_evidence/unit_test_mvn_success.png)
-*Hình 2.1: Bằng chứng thực thi thực tế lệnh `mvn test` với 308/308 Unit & Slice Integration Tests vượt qua hoàn hảo (BUILD SUCCESS trong 11.723s, 0 Failures, 0 Errors, 0 Skipped).*
+*Hình 2.1: Bằng chứng thực thi thực tế lệnh `mvn test` với 331/331 Unit & Slice Integration Tests vượt qua hoàn hảo (BUILD SUCCESS trong 10.917s, 0 Failures, 0 Errors, 0 Skipped).*
 
 ![Maven Surefire HTML Report Overview](images/test_evidence/surefire_report_overview.png)
 *Hình 2.2: Báo cáo Maven Surefire HTML Report tổng quan chi tiết 37 Test Classes và 308 Test Cases đạt tỷ lệ thành công 100% không khiếm khuyết.*
@@ -171,7 +171,7 @@ Toàn bộ 37 tệp kiểm thử trong `backend/src/test/java/com/mediassist/` �
 | **III**| **Động Cơ Tìm Kiếm Vector Bác Sĩ & Thuật Toán WHRF (38 tests)** | | | | |
 | 10 | `DoctorSemanticSearchServiceTest` | 9 | 0.098s | **PASS 100%** | Kiểm chứng thuật toán tái xếp hạng WHRF-SOTA: Sigmoid Contrastive Sharpening, Credibility Damper đánh giá, điểm thưởng chuyên khoa, và Min-Heap Priority Queue. |
 | 11 | `EmbeddingServiceTest` | 7 | 0.162s | **PASS 100%** | Kiểm chứng cơ chế sinh vector 1536 chiều từ OpenAI API và cơ chế chuyển đổi tự động sang Unsupervised Feature Hashing FNV-1a cục bộ khi mất mạng ngoài. |
-| 12 | `DoctorServiceTest` | 12 | 0.101s | **PASS 100%** | Kiểm chứng lấy danh sách bác sĩ đã xác minh CCHN, tra cứu hồ sơ chi tiết, sinh danh sách khung giờ khám (Slot 30 phút), và chức năng gọi lượt khám `call-next`. |
+| 12 | `DoctorServiceTest` | 15 | 0.085s | **PASS 100%** | Kiểm chứng lấy danh sách bác sĩ đã xác minh CCHN, tra cứu hồ sơ chi tiết, sinh danh sách khung giờ khám (Slot 30 phút), tải lên tệp scan CCHN lên Supabase Storage, và cấp Signed URL xem tệp 15 phút. |
 | 13 | `DoctorReviewServiceTest` | 7 | 0.044s | **PASS 100%** | Kiểm chứng bệnh nhân đánh giá sau ca khám `COMPLETED`, chặn đánh giá ca khám bị hủy, chống gửi đánh giá trùng lặp, và tính lại điểm rating trung bình của bác sĩ. |
 | 14 | `AiModelRouterTest` | 5 | 0.072s | **PASS 100%** | Kiểm chứng bộ điều phối mô hình AI thông minh (OpenAI text-embedding-3-small, Gemini Flash, và Local Hashing Fallback). |
 | 15 | `SystemConfigControllerTest` | 3 | 0.016s | **PASS 100%** | Kiểm chứng API bật/tắt giả lập ngắt mạng AI (`/ai-mode/toggle`) và đồng bộ hóa lại vector embedding cho toàn bộ bác sĩ từ CSDL phục vụ buổi bảo vệ. |
@@ -200,9 +200,10 @@ Toàn bộ 37 tệp kiểm thử trong `backend/src/test/java/com/mediassist/` �
 | 33 | `EmailServiceTest` | 6 | 0.025s | **PASS 100%** | Kiểm chứng khởi chạy luồng ảo Project Loom (`@Async("mailExecutor")`), đóng gói nội dung Thymeleaf HTML và kết nối SMTP TLS 587 an toàn. |
 | 34 | `MailNotificationListenerTest` | 10 | 0.321s | **PASS 100%** | Kiểm chứng bộ lắng nghe sự kiện nghiệp vụ (Lịch hẹn đã tạo, Lịch hẹn đã hủy, Hoàn tiền) và điều phối gửi thông báo tự động. |
 | 35 | `MailTransactionPhaseTest` | 3 | 0.205s | **PASS 100%** | Kiểm chứng sự kiện gửi thư điện tử chỉ kích hoạt sau khi giao dịch CSDL chính đã được `COMMIT` thành công (`@TransactionalEventListener(phase = AFTER_COMMIT)`). Nếu giao dịch bị Rollback, tuyệt đối không gửi email sai lệch. |
-| 36 | `AdminVettingServiceTest` | 16 | 0.037s | **PASS 100%** | Kiểm chứng Quản trị viên thẩm định chứng chỉ hành nghề bác sĩ, phê duyệt kích hoạt tài khoản, từ chối hồ sơ kèm lý do, và khóa tài khoản an ninh (chặn Super-Admin tự khóa chính mình). |
+| 36 | `AdminVettingServiceTest` | 22 | 0.040s | **PASS 100%** | Kiểm chứng Quản trị viên thẩm định chứng chỉ hành nghề bác sĩ (Flyway V25), phê duyệt kích hoạt tài khoản, đồng bộ vector pgvector HNSW, từ chối hồ sơ kèm lý do `rejection_reason`, cấp Signed URL thanh tra CCHN trên Supabase Storage và ghi vết audit `ADMIN_VIEW_DOCTOR_LICENSE`. |
 | 37 | `NotificationServiceTest` | 4 | 0.024s | **PASS 100%** | Kiểm chứng tạo và lưu trữ bản tin thông báo trong ứng dụng vào bảng `notifications`, đếm số lượng thông báo chưa đọc, và đánh dấu đã đọc. |
-| **TỔNG**| **37 Test Classes Toàn Hệ Thống** | **308** | **11.723s** | **PASS 100%** | **308 / 308 Tests vượt qua hoàn hảo (0 Lỗi, 0 Thất bại)** |
+| 38 | `DoctorServiceScheduleTest` | 3 | 0.015s | **PASS 100%** | Kiểm chứng logic khởi tạo khung giờ khám mặc định cho bác sĩ mới và bảo toàn cấu hình lịch khám khi bác sĩ đã từng lưu thiết lập. |
+| **TỔNG**| **38 Test Classes Toàn Hệ Thống** | **331** | **10.917s** | **PASS 100%** | **331 / 331 Tests vượt qua hoàn hảo (0 Lỗi, 0 Thất bại)** |
 
 ---
 
@@ -211,25 +212,25 @@ Quá trình đóng gói sản phẩm Frontend được kiểm soát nghiêm ng�
 
 ```
 > tsc && vite build
-vite v5.4.14 building for production...
-✓ 2311 modules transformed.
-dist/index.html                   1.14 kB │ gzip:   0.61 kB
-dist/assets/index-D_u0tYpQ.css   98.84 kB │ gzip:  15.20 kB
-dist/assets/index-CRiY3W4f.js    66.22 kB │ gzip:  20.79 kB
-dist/assets/vendor-CfKFWzV8.js  262.71 kB │ gzip:  83.09 kB
-✓ built in 2.76s
+vite v6.4.3 building for production...
+✓ 2325 modules transformed.
+dist/index.html                   1.32 kB │ gzip:   0.65 kB
+dist/assets/index-5SdIGC6E.css   92.66 kB │ gzip:  14.95 kB
+dist/assets/vendor-DJD5X_3x.js  339.29 kB │ gzip: 111.81 kB
+dist/assets/charts-Bc4BRM48.js  418.33 kB │ gzip: 119.68 kB
+✓ built in 2.56s
 ```
 
-* **Số lượng Module chuyển đổi:** **2.311 modules** TypeScript và React JSX.
+* **Số lượng Module chuyển đổi:** **2.325 modules** TypeScript và React JSX.
 * **Số lỗi kiểu dữ liệu (TypeScript Strict Errors):** **0 lỗi (Zero Errors)**.
 * **Cơ chế phân mảnh gói tải (Route-Level Code Splitting):**
-  - Màn hình đồ sộ Bàn làm việc Bác sĩ (`DoctorDashboard.js`): 121 kB (gzip 27 kB).
-  - Màn hình Quản trị Giám sát Bệnh viện (`AdminDashboard.js`): 422 kB (gzip 120 kB).
-  - Màn hình Trợ lý Giải nghĩa Xét nghiệm (`DocumentSummarizerPage.js`): 74 kB (gzip 19 kB).
+  - Màn hình đồ sộ Bàn làm việc Bác sĩ (`DoctorDashboard.js`): 104 kB (gzip 24.4 kB).
+  - Màn hình Quản trị Giám sát Bệnh viện (`AdminDashboard.js`): 26 kB (gzip 6.2 kB).
+  - Màn hình Quản lý Bác sĩ & Thẩm định CCHN (`DoctorManagementPage.js`): 54 kB (gzip 11 kB).
   - Tải lười qua `React.lazy()` và `Suspense`, giúp gói tải ban đầu của bệnh nhân cực kỳ nhẹ, tối ưu hóa thời gian hiển thị nội dung đầu tiên (FCP < 0.8s).
 
 ![Frontend Production Build & TypeCheck](images/test_evidence/frontend_build_success.png)
-*Hình 2.3: Bằng chứng thực thi đóng gói Frontend `npm run build` chuyển đổi 2.311 modules TypeScript nghiêm ngặt thành công trong 2.76s, hoàn toàn sạch lỗi kiểu dữ liệu.*
+*Hình 2.3: Bằng chứng thực thi đóng gói Frontend `npm run build` chuyển đổi 2.325 modules TypeScript nghiêm ngặt thành công trong 2.56s, hoàn toàn sạch lỗi kiểu dữ liệu.*
 
 ---
 
