@@ -21,14 +21,21 @@ const UserManagementPage = lazy(() => import('./pages/admin/UserManagementPage')
 const SpecialtyManagementPage = lazy(() => import('./pages/admin/SpecialtyManagementPage').then((m) => ({ default: m.SpecialtyManagementPage })));
 const AppointmentSupervisionPage = lazy(() => import('./pages/admin/AppointmentSupervisionPage').then((m) => ({ default: m.AppointmentSupervisionPage })));
 const TriageSupervisionPage = lazy(() => import('./pages/admin/TriageSupervisionPage').then((m) => ({ default: m.TriageSupervisionPage })));
+const AiStatsPage = lazy(() => import('./pages/admin/AiStatsPage').then((m) => ({ default: m.AiStatsPage })));
+const AiCostPage = lazy(() => import('./pages/admin/AiCostPage').then((m) => ({ default: m.AiCostPage })));
 const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage').then((m) => ({ default: m.AuditLogPage })));
 const DoctorDashboard = lazy(() => import('./pages/doctor/DoctorDashboard').then((m) => ({ default: m.DoctorDashboard })));
 const DoctorProfilePage = lazy(() => import('./pages/doctor/DoctorProfilePage').then((m) => ({ default: m.DoctorProfilePage })));
 const DoctorPatientRecordsPage = lazy(() => import('./pages/doctor/DoctorPatientRecordsPage').then((m) => ({ default: m.DoctorPatientRecordsPage })));
+const DoctorSchedulePage = lazy(() => import('./pages/doctor/DoctorSchedulePage').then((m) => ({ default: m.DoctorSchedulePage })));
+const DoctorAppointmentDetailPage = lazy(() => import('./pages/doctor/DoctorAppointmentDetailPage').then((m) => ({ default: m.DoctorAppointmentDetailPage })));
 const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard').then((m) => ({ default: m.PatientDashboard })));
 const DoctorSearchPage = lazy(() => import('./pages/patient/DoctorSearchPage').then((m) => ({ default: m.DoctorSearchPage })));
 const DocumentSummarizerPage = lazy(() => import('./pages/patient/DocumentSummarizerPage').then((m) => ({ default: m.DocumentSummarizerPage })));
 const SymptomTriagePage = lazy(() => import('./pages/patient/SymptomTriagePage').then((m) => ({ default: m.SymptomTriagePage })));
+const PatientProfilePage = lazy(() => import('./pages/patient/PatientProfilePage').then((m) => ({ default: m.PatientProfilePage })));
+const HealthHistoryPage = lazy(() => import('./pages/patient/HealthHistoryPage').then((m) => ({ default: m.HealthHistoryPage })));
+const AppointmentDetailPage = lazy(() => import('./pages/patient/AppointmentDetailPage').then((m) => ({ default: m.AppointmentDetailPage })));
 const PaymentSuccessPage = lazy(() => import('./pages/patient/PaymentSuccessPage').then((m) => ({ default: m.PaymentSuccessPage })));
 
 const RouteFallback = () => (
@@ -69,6 +76,8 @@ export function App() {
               <Route path="users" element={<UserManagementPage />} />
               <Route path="specialties" element={<SpecialtyManagementPage />} />
               <Route path="audit-logs" element={<AuditLogPage />} />
+              <Route path="ai-stats" element={<AiStatsPage />} />
+              <Route path="ai-cost" element={<AiCostPage />} />
             </Route>
           </Route>
 
@@ -78,6 +87,8 @@ export function App() {
               <Route index element={<DoctorDashboard />} />
               <Route path="patients" element={<DoctorPatientRecordsPage />} />
               <Route path="profile" element={<DoctorProfilePage />} />
+              <Route path="schedule" element={<DoctorSchedulePage />} />
+              <Route path="appointments/:id" element={<DoctorAppointmentDetailPage />} />
             </Route>
           </Route>
 
@@ -88,6 +99,9 @@ export function App() {
               <Route path="triage" element={<SymptomTriagePage />} />
               <Route path="documents" element={<DocumentSummarizerPage />} />
               <Route path="doctors" element={<DoctorSearchPage />} />
+              <Route path="history" element={<HealthHistoryPage />} />
+              <Route path="profile" element={<PatientProfilePage />} />
+              <Route path="appointments/:id" element={<AppointmentDetailPage />} />
             </Route>
           </Route>
 

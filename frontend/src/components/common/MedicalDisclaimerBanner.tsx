@@ -1,43 +1,38 @@
 import React, { useState } from 'react';
-import { X, ShieldAlert, PhoneCall } from 'lucide-react';
+import { X, TriangleAlert } from 'lucide-react';
+import { EMERGENCY_NUMBER } from '../../config/app';
 
 interface Props {
   dismissible?: boolean;
 }
 
+/** Permanent medical disclaimer shown on every patient page (AGENTS.md §2.2). */
 export const MedicalDisclaimerBanner: React.FC<Props> = ({ dismissible = false }) => {
   const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) return null;
 
   return (
-    <div className="bg-rose-50/90 text-rose-950 text-xs py-2 px-4 border-b border-rose-200/80 relative z-40 backdrop-blur-md">
-      <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest font-bold bg-rose-100 text-rose-800 border border-rose-300/80 px-2.5 py-0.5 rounded-full shrink-0">
-            <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
-            <span>Khuyến Cáo Lâm Sàng</span>
+    <div className="bg-amber-50 text-amber-900 text-xs border-b border-amber-200 relative z-40" role="note">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-20 py-2.5 flex items-center justify-between gap-4">
+        <p className="flex items-start sm:items-center gap-2 leading-snug">
+          <TriangleAlert className="w-4 h-4 text-amber-700 shrink-0" aria-hidden />
+          <span>
+            <strong className="font-semibold text-amber-950">Cảnh báo y tế:</strong>{' '}
+            <span className="hidden sm:inline">
+              MediAssist-AI chỉ hỗ trợ thông tin sơ bộ, không đưa ra chẩn đoán và không thay thế bác sĩ. Trường hợp khẩn cấp, hãy gọi{' '}
+            </span>
+            <span className="sm:hidden">Chỉ để tham khảo, không thay thế bác sĩ. Khẩn cấp gọi </span>
+            <a href={`tel:${EMERGENCY_NUMBER}`} className="font-bold text-amber-950 underline underline-offset-2">
+              {EMERGENCY_NUMBER}
+            </a>
+            .
           </span>
-          {/* Short copy on phones so the 115 emergency number is never truncated */}
-          <p className="sm:hidden text-rose-900 text-[11px] leading-snug font-medium">
-            Chỉ để tham khảo, <u>không</u> thay thế bác sĩ. Khẩn cấp gọi{' '}
-            <a href="tel:115" className="font-mono font-bold text-rose-700 underline">115</a>.
-          </p>
-          <p className="hidden sm:block text-rose-900/90 text-xs font-medium">
-            Hệ thống <strong className="text-rose-950 font-display">MediAssist-AI</strong> chỉ hỗ trợ định hướng sơ bộ và giải thích kết quả xét nghiệm, <u>không</u> thay thế chẩn đoán từ Bác sĩ chuyên khoa. Trường hợp khẩn cấp, vui lòng đến ngay cơ sở y tế gần nhất hoặc gọi cấp cứu{' '}
-            <a
-              href="tel:115"
-              className="inline-flex items-center gap-1 font-mono font-bold text-rose-800 bg-rose-200/70 border border-rose-300 px-2 py-0.5 rounded-full hover:bg-rose-200 transition ml-1 underline"
-            >
-              <PhoneCall className="w-3 h-3" />
-              115
-            </a>.
-          </p>
-        </div>
+        </p>
         {dismissible && (
           <button
             onClick={() => setDismissed(true)}
-            className="text-rose-600 hover:text-rose-950 p-1 transition shrink-0 rounded-lg hover:bg-rose-100/60"
+            className="text-amber-700 hover:text-amber-950 p-1 transition shrink-0 rounded-lg hover:bg-amber-100"
             aria-label="Đóng cảnh báo"
           >
             <X className="w-3.5 h-3.5" />

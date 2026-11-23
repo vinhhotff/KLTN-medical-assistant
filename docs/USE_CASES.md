@@ -185,7 +185,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `PatientProfileController` $\rightarrow$ `GET /api/v1/patient/profile, PUT /api/v1/patient/profile, GET /api/v1/patient/profile/by-user/{userId}` (Quyền: `isAuthenticated(), hasAnyRole('DOCTOR', 'ADMIN')`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient` $\rightarrow$ Màn hình `PatientDashboard.tsx (Tab Hồ sơ bệnh án), DoctorPatientRecordsPage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient, /patient/profile` $\rightarrow$ Màn hình `PatientProfilePage.tsx (Hồ sơ của tôi — mức hoàn thành, dị ứng, tiền sử, người liên hệ khẩn cấp; WORK_LOG #133), PatientDashboard.tsx (Tab Hồ sơ bệnh án), DoctorPatientRecordsPage.tsx`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `patient_profiles, users` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V6__fix_user_status_and_audit_logs.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `PatientProfileService` $\rightarrow$ `PatientProfileRepository, UserRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `PatientProfileServiceTest.java` (**100% PASS**)
@@ -653,7 +653,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AppointmentController` $\rightarrow$ `GET /api/v1/appointments/my` (Quyền: `isAuthenticated()`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient` $\rightarrow$ Màn hình `PatientDashboard.tsx (Tab Lịch hẹn)`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient, /patient/appointments/:id, /patient/history` $\rightarrow$ Màn hình `PatientDashboard.tsx (Tab Lịch hẹn), AppointmentDetailPage.tsx (Chi tiết lịch hẹn: phòng khám, STT, phiếu QR, lời dặn bác sĩ, tài liệu/phiên AI đã gửi kèm, thêm vào lịch .ics), HealthHistoryPage.tsx (Dòng thời gian sức khỏe)` — giao diện Stitch, WORK_LOG #133
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, doctor_profiles, specialties` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V11__add_composite_performance_indexes.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService` $\rightarrow$ `AppointmentRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java` (**100% PASS**)
@@ -719,7 +719,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AppointmentController` $\rightarrow$ `PATCH /api/v1/appointments/{id}/reschedule` (Quyền: `isAuthenticated()`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient` $\rightarrow$ Màn hình `PatientDashboard.tsx (Action Đổi lịch)`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient, /patient/appointments/:id` $\rightarrow$ Màn hình `PatientDashboard.tsx (Action Đổi lịch), AppointmentDetailPage.tsx (nút Đổi giờ — cùng API PATCH /reschedule + SlotPicker)`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, doctor_schedule_slots, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V7__slot_collision_guard_and_dedup_constraints.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService, NotificationService` $\rightarrow$ `AppointmentRepository, DoctorScheduleSlotRepository, NotificationRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java` (**100% PASS**)
@@ -752,7 +752,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AppointmentController` $\rightarrow$ `PATCH /api/v1/appointments/{id}/status` (Quyền: `isAuthenticated()`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient` $\rightarrow$ Màn hình `PatientDashboard.tsx (Action Hủy lịch)`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient, /patient/appointments/:id` $\rightarrow$ Màn hình `PatientDashboard.tsx (Action Hủy lịch), AppointmentDetailPage.tsx (nút Hủy lịch — cùng API PATCH /status)`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, payment_transactions, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V13__create_payment_transactions.sql, V15__add_triage_session_and_refund_to_appointments.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService, AppointmentRefundService, NotificationService, EmailService` $\rightarrow$ `AppointmentRepository, PaymentTransactionRepository, NotificationRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java, AppointmentRefundServiceTest.java, MailTransactionPhaseTest.java` (**100% PASS**)
@@ -818,7 +818,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `TriageController` $\rightarrow$ `GET /api/v1/triage/history` (Quyền: `PUBLIC / AUTH_DEFAULT`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/triage, /patient` $\rightarrow$ Màn hình `SymptomTriagePage.tsx, PatientDashboard.tsx (Tab Lịch sử tư vấn)`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/patient/triage, /patient, /patient/history` $\rightarrow$ Màn hình `SymptomTriagePage.tsx, PatientDashboard.tsx (Tab Lịch sử tư vấn), HealthHistoryPage.tsx (bộ lọc Trợ lý AI, xem tóm tắt từng phiên)`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `triage_sessions` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V15__add_triage_session_and_refund_to_appointments.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `TriageService` $\rightarrow$ `TriageSessionRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `TriageServiceTest.java` (**100% PASS**)
@@ -923,7 +923,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `GET /api/v1/doctors/me/schedules, PUT /api/v1/doctors/me/schedules` (Quyền: `hasRole('DOCTOR')`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/profile` $\rightarrow$ Màn hình `DoctorProfilePage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/schedule` $\rightarrow$ Màn hình `DoctorSchedulePage.tsx` (lịch hằng tuần theo khoảng giờ + thời lượng ca 15/20/30/45/60′, cảnh báo lịch hẹn nằm ngoài giờ mới, xem ca theo ngày — giao diện Stitch, WORK_LOG #134; thay modal cấu hình lịch trực cũ trong `DoctorDashboard.tsx`)
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_schedule_slots, doctor_profiles` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V7__slot_collision_guard_and_dedup_constraints.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService` $\rightarrow$ `DoctorScheduleSlotRepository, DoctorProfileRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java` (**100% PASS**)
@@ -989,7 +989,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `MedicalDocumentController, TriageController` $\rightarrow$ `GET /api/v1/documents/{id}/file, GET /api/v1/triage/patient/{patientId}` (Quyền: `PUBLIC / AUTH_DEFAULT, hasAnyRole('DOCTOR', 'ADMIN')`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor, /doctor/patients` $\rightarrow$ Màn hình `DoctorDashboard.tsx (Split View), DoctorPatientRecordsPage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor, /doctor/appointments/:id, /doctor/patients` $\rightarrow$ Màn hình `DoctorDashboard.tsx (Split View), DoctorAppointmentDetailPage.tsx (Chi tiết ca khám: SBAR theo dòng S/B/A/R, xét nghiệm đính kèm, hồ sơ & lịch sử bệnh nhân; nút Bắt đầu khám mở bàn khám qua `/doctor?encounter=<id>`), DoctorPatientRecordsPage.tsx`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `medical_documents, triage_sessions` $\rightarrow$ Bản di trú `V20__private_document_storage_path.sql, V15__add_triage_session_and_refund_to_appointments.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `MedicalDocumentFileAccessService, TriageService, PatientAccessGuard` $\rightarrow$ `MedicalDocumentRepository, TriageSessionRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `MedicalDocumentFileAccessServiceTest.java, PatientAccessGuardTest.java` (**100% PASS**)
@@ -1253,7 +1253,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `PUT /api/v1/doctors/me/profile` (Quyền: `hasRole('DOCTOR')`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/profile` $\rightarrow$ Màn hình `DoctorProfilePage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/profile` $\rightarrow$ Màn hình `DoctorProfilePage.tsx` (bố cục 4 bước Tài khoản → Thông tin hành nghề → Hồ sơ công khai → Xét duyệt theo Stitch, WORK_LOG #134)
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V10__optimize_doctor_hnsw_index.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService, EmbeddingService, TwoLayerCacheService` $\rightarrow$ `DoctorProfileRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java, EmbeddingServiceTest.java` (**100% PASS**)
@@ -1392,7 +1392,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/ai-usage` (Quyền: `PUBLIC / AUTH_DEFAULT`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin` $\rightarrow$ Màn hình `AdminDashboard.tsx (Card FinOps AI Analytics)`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin, /admin/ai-cost, /admin/ai-stats` $\rightarrow$ Màn hình `AdminDashboard.tsx (Card FinOps AI Analytics), AiCostPage.tsx (Chi phí AI: tổng USD/VND, chi phí mỗi ngày, theo tính năng, xuất CSV), AiStatsPage.tsx (Thống kê AI & an toàn: phiên phân luồng mỗi ngày, mức khẩn cấp, chuyên khoa gợi ý, cảnh báo đỏ gần đây)` — giao diện Stitch, WORK_LOG #135
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `ai_token_usage` $\rightarrow$ Bản di trú `V18__align_ai_token_usage_schema.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AiUsageAnalyticsService` $\rightarrow$ `AiTokenUsageRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `AiUsageAnalyticsServiceTest.java` (**100% PASS**)
@@ -1689,7 +1689,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/audit-logs` (Quyền: `PUBLIC / AUTH_DEFAULT`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/audit-logs` $\rightarrow$ Màn hình `AuditLogPage.tsx, Pagination.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/audit-logs` $\rightarrow$ Màn hình `AuditLogPage.tsx (nhóm theo ngày, nhãn tiếng Việt cho mã hành động, lọc nhanh Cần chú ý / Thao tác quản trị / Truy cập hồ sơ y tế, mở rộng xem metadata, xuất CSV — Stitch, WORK_LOG #135), Pagination.tsx`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `audit_logs` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V6__fix_user_status_and_audit_logs.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `PatientAccessGuard` $\rightarrow$ `AuditLogRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `PatientAccessGuardTest.java` (**100% PASS**)

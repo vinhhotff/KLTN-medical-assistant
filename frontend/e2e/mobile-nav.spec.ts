@@ -12,7 +12,7 @@ test.describe('Mobile navigation (390×844)', () => {
     await nav.getByRole('link', { name: 'Bác sĩ' }).click();
     await expect(page).toHaveURL(/\/patient\/doctors$/);
     await expect(nav.getByRole('link', { name: 'Bác sĩ' })).toHaveAttribute('aria-current', 'page');
-    await nav.getByRole('link', { name: 'Xét nghiệm' }).click();
+    await nav.getByRole('link', { name: 'Bệnh án' }).click();
     await expect(page).toHaveURL(/\/patient\/documents$/);
     // The emergency number stays visible on phones (banner is not truncated)
     await expect(page.locator('a[href="tel:115"]').first()).toBeVisible();

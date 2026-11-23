@@ -144,7 +144,7 @@ export const LoginPage: React.FC = () => {
   return (
     <div
       ref={rootRef}
-      className="min-h-screen bg-[#F6F3EC] bg-atelier-dots text-slate-900 flex flex-col justify-between font-sans selection:bg-teal-600 selection:text-white"
+      className="min-h-screen bg-[#F8FAFC] bg-atelier-dots text-slate-900 flex flex-col justify-between font-sans selection:bg-teal-600 selection:text-white"
     >
       {/* ==================== 1. TOP ARCHITECTURAL HEADER ==================== */}
       <header className="gsap-vault-header w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
@@ -172,7 +172,7 @@ export const LoginPage: React.FC = () => {
             </div>
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full font-display text-xs font-bold text-slate-700 bg-[#FCFBF8] hover:bg-slate-100 border border-slate-200/90 transition shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full font-display text-xs font-bold text-slate-700 bg-[#FFFFFF] hover:bg-slate-100 border border-slate-200/90 transition shadow-2xs cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Về Trang Chủ</span>
@@ -216,7 +216,7 @@ export const LoginPage: React.FC = () => {
 
             {/* Role Switcher Pills (Register mode) */}
             {activeTab === 'REGISTER' && (
-              <div className="grid grid-cols-2 gap-2 p-1.5 bg-[#F6F3EC] rounded-2xl border border-slate-200 mb-4">
+              <div className="grid grid-cols-2 gap-2 p-1.5 bg-[#F8FAFC] rounded-2xl border border-slate-200 mb-4">
                 <button
                   type="button"
                   onClick={() => setRoleType('PATIENT')}
@@ -255,7 +255,7 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setSsoModalType('VNEID')}
-                  className="py-2.5 px-3 rounded-xl border border-slate-300 bg-[#F6F3EC] hover:bg-slate-200/70 transition font-display text-xs font-bold text-slate-900 flex items-center justify-center gap-2 cursor-pointer"
+                  className="py-2.5 px-3 rounded-xl border border-slate-300 bg-[#F8FAFC] hover:bg-slate-200/70 transition font-display text-xs font-bold text-slate-900 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[18px] text-teal-600">badge</span>
                   <span>Liên kết CCCD / VNeID</span>
@@ -305,7 +305,7 @@ export const LoginPage: React.FC = () => {
               /* ==================== FORM: LOGIN MODE ==================== */
               <form onSubmit={handleLogin} className="space-y-4">
                 {ENABLE_DEMO_LOGIN && (
-                  <div className="p-3.5 bg-[#F6F3EC] rounded-2xl border border-slate-300" data-testid="demo-presets">
+                  <div className="p-3.5 bg-[#F8FAFC] rounded-2xl border border-slate-300" data-testid="demo-presets">
                     <div className="font-mono text-[11px] font-bold text-slate-800 mb-2 flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5 text-teal-600" />
                       <span>Tài khoản demo (dữ liệu mẫu):</span>
@@ -363,7 +363,7 @@ export const LoginPage: React.FC = () => {
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       placeholder="email@mediassist.local"
-                      className="w-full pl-9 pr-3 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
+                      className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
                     />
                   </div>
                 </div>
@@ -388,7 +388,7 @@ export const LoginPage: React.FC = () => {
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="Mật khẩu tài khoản"
-                      className="w-full pl-9 pr-9 py-2.5 bg-[#F6F3EC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
+                      className="w-full pl-9 pr-9 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
                     />
                     <button
                       type="button"
@@ -464,7 +464,7 @@ export const LoginPage: React.FC = () => {
               </p>
 
               {/* Sample OCR Interactive Result Box */}
-              <div className="p-3.5 bg-[#FCFBF8] rounded-2xl border border-slate-200/80 space-y-2.5">
+              <div className="p-3.5 bg-[#FFFFFF] rounded-2xl border border-slate-200/80 space-y-2.5">
                 <div className="flex items-center justify-between font-mono text-[11px] pb-2 border-b border-slate-200">
                   <div className="flex items-center gap-1.5 text-slate-800 font-bold">
                     <FileText className="w-3.5 h-3.5 text-teal-600" />
@@ -632,7 +632,7 @@ export const LoginPage: React.FC = () => {
                   <p>
                     Hệ thống <strong>MediAssist-AI</strong> đã xây dựng sẵn hạ tầng lọc bảo mật Spring Security JWT tương thích với chuẩn <strong>Google OAuth 2.0 / OpenID Connect</strong>.
                   </p>
-                  <div className="p-3.5 bg-[#FCFBF8] border border-slate-200/90 rounded-2xl space-y-1 text-[11px] text-teal-800 font-mono">
+                  <div className="p-3.5 bg-[#FFFFFF] border border-slate-200/90 rounded-2xl space-y-1 text-[11px] text-teal-800 font-mono">
                     <p>• Endpoint Whitelist: /api/v1/auth/google/**</p>
                     <p>• Protocol: OAuth 2.0 Auth Code Flow with PKCE</p>
                     <p>• Security Layer: Dual-Transport JWT (Bearer + HttpOnly Cookie)</p>
@@ -646,7 +646,7 @@ export const LoginPage: React.FC = () => {
                   <p>
                     Hệ sinh thái liên thông căn cước công dân gắn chip <strong>VNeID Cấp độ 2</strong> tuân thủ Đề án 06/CP của Chính phủ về phát triển ứng dụng dữ liệu dân cư, định danh và xác thực điện tử phục vụ chuyển đổi số y tế quốc gia.
                   </p>
-                  <div className="p-3.5 bg-[#FCFBF8] border border-slate-200/90 rounded-2xl space-y-1 text-[11px] text-teal-800 font-mono">
+                  <div className="p-3.5 bg-[#FFFFFF] border border-slate-200/90 rounded-2xl space-y-1 text-[11px] text-teal-800 font-mono">
                     <p>• Tích hợp: Mã định danh công dân 12 số (Citizen ID)</p>
                     <p>• Đồng bộ: Thẻ Bảo hiểm Y tế (BHYT) &amp; Sổ Sức Khỏe Điện Tử</p>
                     <p>• Tuân thủ: Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân</p>

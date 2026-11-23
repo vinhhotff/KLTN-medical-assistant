@@ -11,6 +11,9 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#140** | 23/11/2026 | Thiết kế lại giao diện Quản trị theo Google Stitch (Đợt 3/3): `AdminLayout` sidebar navy 2 nhóm + trạng thái hệ thống thật từ `/health/ready`, trang mới `AiStatsPage` (màn 09) và `AiCostPage` (màn 10), viết lại `AuditLogPage` (màn 11). Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#139** | 22/11/2026 | Thiết kế lại giao diện Bác sĩ theo Google Stitch (Đợt 2/3): `DoctorLayout` điều hướng ngang teal, trang mới `DoctorSchedulePage` (màn 08, lịch theo khoảng giờ + thời lượng ca) và `DoctorAppointmentDetailPage` (màn 06), dàn lại `DoctorProfilePage` (màn 15). Gỡ modal lịch trực cũ khỏi `DoctorDashboard`. Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#138** | 22/11/2026 | Thiết kế lại giao diện Bệnh nhân theo Google Stitch (Đợt 1/3): bảng màu toàn cục xám lạnh + indigo/teal, `PatientLayout` điều hướng ngang, banner cảnh báo y tế mới, viết lại `SymptomTriagePage` (màn 01 chat + màn 03 cấp cứu) và `DocumentSummarizerPage` (màn 04 tải lên + màn 05 kết quả), 3 trang mới `PatientProfilePage`, `HealthHistoryPage`, `AppointmentDetailPage`. Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#137** | 23/11/2026 | Sửa lỗi ngày làm việc bác sĩ đã tắt bị tự mở lại: `DoctorService` chỉ gieo lịch mặc định cho bác sĩ chưa từng lưu lịch (`existsByDoctorProfileId`). Thêm `DoctorServiceScheduleTest` (3 test). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#136** | 21/11/2026 | Khắc Phục Triệt Để 4 Điểm Nghẽn Trọng Tâm Trên Bàn Làm Việc Bác Sĩ, Đặt Lịch Khám & Định Tuyến AI (Clinical Workstation, Slot Booking, Notification & Gemini AI Overhaul): (1) Khử trùng lặp khung giờ khám (15 slot duy nhất 08:00 - 17:00 qua `TreeMap` trong `DoctorService.java`, dọn sạch 184 dòng trùng trong DB và chặn kép Set-based tại `SlotPicker.tsx`); (2) Vá lỗi xem hồ sơ bệnh án PDF trên trạm bác sĩ (`ClinicalEmbeddedFileViewer` tải Blob Object URL an toàn kèm Bearer auth); (3) Kích hoạt chuông thông báo In-App thời gian thực cho bác sĩ và bệnh nhân (`APPOINTMENT_NEW`, `CONFIRMED`, `CANCELLED`, `CHECKED_IN`, `COMPLETED`, `RESCHEDULED`); (4) Đưa mô hình AI trở lại trực tuyến: cập nhật `gemini-3.5-flash` và `openrouter/free`; (5) Tích hợp Supabase URL và Publishable Key. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#135** | 21/11/2026 | Nâng Cấp Toàn Diện Layout Bảng & Khắc Phục Lỗi Điều Hướng Anchor Trên 5 Trình Xem Báo Cáo Khóa Luận (WordCraft Studio Workbench): (1) Khắc phục triệt để lỗi điều hướng anchor có dấu gạch kép (`--` do dấu `&` sinh ra): Viết lại hàm `normalizeSlug` xử lý gộp dấu gạch nối, bỏ ký tự đặc biệt và hỗ trợ partial match fallback, giúp URL `#41-tầng-1-deterministic-safety--biological-plausibility-filter` mở thẳng tài liệu chính xác thay vì rơi vào trang trắng; (2) Giải quyết triệt để lỗi "Căn lề dòng quá ngu & trống table" (Cột Descriptions bị bóp về 0px, hàng cao 1.828px): Bỏ logic gán nhầm `.table-stakeholders` 4 cột vào bảng 5 cột có từ khóa "actor", thiết lập class `.table-matrix-5col` phân bổ chuẩn 13% - 17% - 14% - 21% - 35% (cột Descriptions nở từ 0px lên 385px, chiều cao dòng co từ 1.828px xuống 66px); (3) Mở rộng viewport đọc `#content-wrapper` từ 880px lên 1.200px (tối đa 96%); (4) Đồng bộ trên 5 báo cáo `report_1` đến `report_5` và xác thực qua Playwright. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
@@ -74,6 +77,85 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#140] Thiết Kế Lại Giao Diện Quản Trị Theo Google Stitch (Đợt 3/3 — Phân Hệ Quản Trị)
+* **Thời gian:** 2026-11-23 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/stitch-ui-redesign`
+* **Mã Yêu Cầu:** Tiếp nối #133–#134, làm màn 09 (Thống kê AI), 10 (Chi phí AI), 11 (Nhật ký kiểm toán).
+* **Danh Sách Tệp Tin:**
+  1. `[MOD]` `frontend/src/layouts/AdminLayout.tsx` — sidebar `slate-900` chia nhóm "Vận hành" / "AI & An toàn", thêm mục Thống kê AI, Chi phí AI; badge "Hệ thống ổn định / gặp sự cố" gọi thật `GET /health/ready` mỗi 60 giây; giữ drawer di động (`Menu quản trị`).
+  2. `[NEW]` `frontend/src/pages/admin/AiStatsPage.tsx` (`/admin/ai-stats`) — màn 09, tính từ `GET /admin/triage-sessions` (phiên theo ngày, so kỳ trước, mức khẩn cấp, chuyên khoa gợi ý — đổi slug sang tên qua `GET /specialties`, danh sách cảnh báo đỏ gần đây) + `GET /admin/ai-usage` (lượt giải nghĩa tài liệu, tỉ lệ lỗi). Biểu đồ đường 1 chuỗi + "Xem dạng bảng", xuất CSV.
+  3. `[NEW]` `frontend/src/pages/admin/AiCostPage.tsx` (`/admin/ai-cost`) — màn 10, từ `GET /admin/ai-usage?days=7|30|90`: tổng USD/VND + tỷ giá suy ra, chi phí mỗi phiên/tài liệu, biểu đồ cột chi phí mỗi ngày, bảng theo tính năng, tỉ lệ lỗi, xuất CSV. Số tiền < $1 hiển thị 4 chữ số thập phân để không thành "$0.00".
+  4. `[MOD]` `frontend/src/pages/admin/AuditLogPage.tsx` — màn 11: nhóm theo ngày, nhãn tiếng Việt cho các mã hành động backend thật sự ghi, lọc nhanh có đếm, hàng mở rộng (mã bản ghi, metadata, trình duyệt), xuất CSV. Logic tải/tự làm mới 30 giây/"Làm mới"/lọc server `?action=` giữ nguyên.
+  5. `[NEW]` `frontend/src/types/admin.ts`, `frontend/src/utils/csv.ts` (CSV UTF-8 có BOM cho Excel). `[MOD]` `frontend/src/App.tsx` (2 route).
+* **Tài Liệu Đã Đồng Bộ:** `[x]` `docs/USE_CASES.md` (UC FinOps AI, UC nhật ký kiểm toán) · `[x]` `docs/STORYTELLING.md` (mục 2.5) · `[ ]` `docs/DATABASE_DESIGN.md` (không đổi DB).
+* **Bằng Chứng Kiểm Thử:**
+  - `npx tsc --noEmit`: 0 lỗi. `npm run build`: thành công.
+  - Bảng màu biểu đồ (indigo `#4F46E5`, teal `#0D9488`) chạy `validate_palette.js --mode light`: ALL CHECKS PASS.
+  - Playwright `admin-actions`, `admin-finops`, `mobile-nav` (4 worker): 30 đạt, 2 hỏng = `admin-actions.spec.ts:70` có sẵn từ trước (đã đối chứng trên `origin/develop` ở #134).
+  - Chụp màn hình thật (đăng nhập admin vào backend dev) 3 trang mới để soát bố cục; đã sửa: chuyên khoa hiện slug, chi phí nhỏ bị làm tròn "$0.00", nhãn mã hành động thiếu, cỡ trang phân trang lệch.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Phần Stitch bị ẩn vì thiếu backend: "Bác sĩ duyệt không cần sửa" và lỗi AI theo loại (09 — phụ thuộc màn 07), bảng cảnh báo đỏ theo nhóm dấu hiệu + tỉ lệ báo nhầm (09 — phiên triage không lưu nhóm Red-Flag), ngân sách tháng/ngưỡng cảnh báo/giới hạn lượt dùng và "người dùng gọi AI nhiều nhất" (10 — không có API cấu hình hạn mức hay thống kê theo người dùng), chi phí theo tính năng từng ngày (10 — `dailyStats` chưa tách theo service), lọc theo vai trò và chip "Đăng nhập thất bại" / "Cảnh báo đỏ" (11 — backend không ghi audit cho 2 sự kiện này và `AuditLogDto` không có vai trò).
+  - Màn 09 tải toàn bộ `GET /admin/triage-sessions` rồi lọc ở trình duyệt; ổn với dữ liệu hiện tại, nhưng khi số phiên lớn nên thêm tham số khoảng ngày ở backend.
+
+---
+
+### [WORK-LOG-#139] Thiết Kế Lại Giao Diện Bác Sĩ Theo Google Stitch (Đợt 2/3 — Phân Hệ Bác Sĩ)
+* **Thời gian:** 2026-11-22 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/stitch-ui-redesign`
+* **Mã Yêu Cầu:** Tiếp nối #133, làm màn 06 (chi tiết ca khám), 08 (lịch làm việc), 15 (thông tin hành nghề). Màn 07 "Duyệt kết quả AI" tạm bỏ qua vì backend chưa có luồng bác sĩ duyệt kết quả AI.
+* **Danh Sách Tệp Tin:**
+  1. `[MOD]` `frontend/src/layouts/DoctorLayout.tsx` — bỏ sidebar, thanh điều hướng ngang (Lịch hẹn & khám bệnh · Lịch làm việc · Danh bạ bệnh nhân · Hồ sơ bác sĩ), trạng thái "Đã xác thực / Chờ thẩm định CCHN" lấy từ `GET /doctors/{id}`; giữ menu di động `#doctor-mobile-menu`.
+  2. `[NEW]` `frontend/src/pages/doctor/DoctorSchedulePage.tsx` (`/doctor/schedule`) — màn 08. Dùng đúng mô hình backend sẵn có: mỗi dòng `doctor_schedule_slots` là một khoảng giờ + `slotDurationMinutes`, backend tự chia ca (`DoctorService.getAvailableSlots`). Gộp các dòng 30 phút liền kề do modal cũ lưu thành khoảng giờ khi tải. Kiểm tra chồng giờ, khung ngắn hơn 1 ca; cảnh báo lịch hẹn sắp tới nằm ngoài giờ mới; "Xem theo ngày" dùng `GET /doctors/{id}/slots` + lịch hẹn thật.
+  3. `[NEW]` `frontend/src/pages/doctor/DoctorAppointmentDetailPage.tsx` (`/doctor/appointments/:id`) — màn 06: SBAR tách dòng S/B/A/R (fallback văn bản gốc), xét nghiệm đính kèm (`GET /documents/{id}/analysis`), hồ sơ bệnh nhân (`GET /patient/profile/by-user/{id}`), lịch sử tại MediAssist, Check-in, Hủy lịch (lý do ≥ 10 ký tự), "Bắt đầu khám" mở bàn khám có sẵn.
+  4. `[MOD]` `frontend/src/pages/doctor/DoctorDashboard.tsx` — gỡ modal cấu hình lịch trực cũ (~640 dòng; nó giả định ca 30 phút cố định nên hiển thị sai lịch theo khoảng giờ), nút đổi thành link `/doctor/schedule`; mã lịch hẹn là link tới màn 06; hỗ trợ deep link `/doctor?encounter=<id>` gọi `handleStartExam` có sẵn đúng 1 lần.
+  5. `[MOD]` `frontend/src/pages/doctor/DoctorProfilePage.tsx` — màn 15: thanh 4 bước (Tài khoản → Thông tin hành nghề → Hồ sơ công khai → Xét duyệt) tính từ dữ liệu thật, các khối Chứng chỉ hành nghề / Chuyên môn / Hồ sơ công khai, cột "Sau khi gửi hồ sơ". Logic tải/kiểm tra/lưu/điền mẫu demo giữ nguyên.
+  6. `[MOD]` `frontend/src/App.tsx` (2 route), `frontend/src/types/patient.ts` (`patientPhone`).
+* **Tài Liệu Đã Đồng Bộ:** `[x]` `docs/USE_CASES.md` (UC-DOC-02, UC-DOC-04, UC-DOC-12) · `[x]` `docs/STORYTELLING.md` (mục 2.5) · `[ ]` `docs/DATABASE_DESIGN.md` (không đổi DB).
+* **Bằng Chứng Kiểm Thử:**
+  - `npx tsc --noEmit`: 0 lỗi. `npm run build`: thành công.
+  - Playwright toàn bộ (4 worker): 116 đạt, 64 bỏ qua, 2 test hỏng × 2 trình duyệt: `admin-actions.spec.ts:70` (Doctor profile giữ chuyên khoa khi lưu) và `auth.spec.ts:50` (quên mật khẩu). **Cả hai cũng hỏng trên `origin/develop` chưa sửa** (đã chạy đối chứng) → lỗi có sẵn, không do đợt này. Chạy song song mặc định có thêm vài timeout do máy quá tải.
+  - Backend: không đổi mã nguồn.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - **Lỗi backend có sẵn (chưa sửa vì phạm vi chỉ giao diện):** `DoctorService.getAvailableSlots` — khi một ngày không có khung giờ, hàm gọi `initializeDefaultDoctorSchedules()` và **lưu thêm lịch mặc định T2–T7 vào DB**, làm ngày bác sĩ đã tắt bị mở lại (và có thể nhân bản dòng lịch). Trang 08 tránh gọi API ca trống cho ngày nghỉ, nhưng trang đặt lịch của bệnh nhân vẫn kích hoạt lỗi này. Đề xuất: chỉ dùng lịch mặc định (không lưu) khi bác sĩ chưa từng cấu hình.
+  - Màn 06 không dựng form "Ghi chú khám" rút gọn như Stitch; ghi chú, sinh hiệu, ICD-10, đơn thuốc và cảnh báo dị ứng vẫn ở bàn khám có sẵn để không nhân đôi logic ký duyệt.
+  - Phần Stitch bị ẩn vì thiếu backend: "Ngày nghỉ" theo ngày cụ thể (08), "Đổi giờ" phía bác sĩ, nút "Xác nhận/Sửa tóm tắt" SBAR, cờ "AI không chắc" theo chỉ số (06), upload ảnh CCHN/CCCD và giới hạn 3 chuyên khoa (15 — giữ ô đường dẫn ảnh CCHN như cũ), màn 07.
+
+---
+
+### [WORK-LOG-#138] Thiết Kế Lại Giao Diện Bệnh Nhân Theo Google Stitch (Đợt 1/3 — Phân Hệ Bệnh Nhân)
+* **Thời gian:** 2026-11-22 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/stitch-ui-redesign` (tách từ `develop`)
+* **Mã Yêu Cầu:** Tech Lead yêu cầu sửa frontend theo 14 màn hình Google Stitch (`design/stitch/*.png`). Quyết định đã chốt: (1) chỉ đổi giao diện, giữ nguyên API/state/route cũ và banner miễn trừ y khoa; (2) phần thiết kế chưa có dữ liệu backend thì ẩn, không dựng số liệu giả; (3) đổi bảng màu toàn cục; (4) màn chi tiết lịch hẹn dùng khám trực tiếp (O2O) thay cho video; (5) làm theo vai trò, đợt 1 là Bệnh nhân.
+* **Danh Sách Tệp Tin:**
+  1. `[NEW]` `design/stitch/*.png` — 14 màn hình tham chiếu xuất từ Stitch (01, 03–15; Stitch không có màn 02).
+  2. `[MOD]` `frontend/tailwind.config.js` — bỏ ghi đè `slate`→be ấm và `teal`→tím; `brand`=indigo, token ngữ nghĩa trỏ về slate/indigo; bóng đổ mềm; bo góc nhỏ hơn.
+  3. `[MOD]` `frontend/src/index.css` + 18 tệp `.tsx` — đổi mã màu be hard-code (`#F6F3EC`, `#FCFBF8`, `#EDE8DF`, `#12100E`) sang tông lạnh tương ứng.
+  4. `[MOD]` `frontend/src/components/common/MedicalDisclaimerBanner.tsx` — banner vàng "Cảnh báo y tế", vẫn cố định, số 115 bấm gọi được.
+  5. `[MOD]` `frontend/src/layouts/PatientLayout.tsx` — thanh điều hướng ngang (Lịch hẹn · Trợ lý triệu chứng AI · Tóm tắt bệnh án · Tìm & đặt bác sĩ · Lịch sử sức khỏe), ảnh đại diện → Hồ sơ của tôi, thanh đáy 5 mục trên điện thoại.
+  6. `[MOD]` `frontend/src/pages/patient/SymptomTriagePage.tsx` — màn 01 (chat + thẻ "Kết quả phân luồng" 3 mức khẩn cấp, chuyên khoa, bác sĩ phù hợp, checkbox gửi kèm tóm tắt khi đặt lịch; cột phải "Tóm tắt phiên" và checklist 4 nhóm Red-Flag khớp `RedFlagService`) và màn 03 (màn cấp cứu: gọi 115, gọi người thân từ hồ sơ, 4 việc khi chờ xe, khóa chat).
+  7. `[MOD]` `frontend/src/pages/patient/DocumentSummarizerPage.tsx` — viết lại phần hiển thị: màn 04 (vùng kéo thả, nút Chụp ảnh dùng camera, tiến trình 5 bước, tài liệu gần đây từ `GET /documents/my`) và màn 05 (tóm tắt nhanh, bảng chỉ số có thanh "So với ngưỡng", lọc "Cần chú ý", giải nghĩa chỉ số bất thường, câu hỏi nên hỏi bác sĩ, bác sĩ phù hợp). Logic quét, quota, thanh toán, modal giữ nguyên.
+  8. `[NEW]` `frontend/src/pages/patient/PatientProfilePage.tsx` (`/patient/profile`) — màn 12, dùng `GET/PUT /patient/profile`.
+  9. `[NEW]` `frontend/src/pages/patient/HealthHistoryPage.tsx` (`/patient/history`) — màn 13, dòng thời gian gộp lịch hẹn + phiên AI + tài liệu.
+  10. `[NEW]` `frontend/src/pages/patient/AppointmentDetailPage.tsx` (`/patient/appointments/:id`) — màn 14, khám trực tiếp: phòng/STT/phiếu QR, thanh toán, đổi giờ, hủy lịch, thêm vào lịch (.ics), lời dặn bác sĩ.
+  11. `[NEW]` `frontend/src/types/patient.ts`, `frontend/src/utils/labRange.ts` — kiểu dữ liệu dùng chung, hàm đặt giá trị xét nghiệm lên thanh khoảng tham chiếu (không vẽ khi không đọc được khoảng).
+  12. `[MOD]` `frontend/src/App.tsx` (3 route mới), `frontend/src/pages/patient/PatientDashboard.tsx` (link "Xem chi tiết" tới trang 14).
+  13. `[MOD]` `frontend/e2e/triage.spec.ts`, `document-scan.spec.ts`, `mobile-nav.spec.ts`, `patient-dashboard.spec.ts` — cập nhật chữ/selector theo giao diện mới, giữ nguyên ý nghĩa kiểm thử.
+* **Tài Liệu Đã Đồng Bộ:** `[x]` `docs/STORYTELLING.md` (mục 2.5) · `[x]` `docs/USE_CASES.md` (ánh xạ frontend UC hồ sơ, PAT-12, PAT-14, PAT-15, PAT-17) · `[ ]` `docs/DATABASE_DESIGN.md` (không đổi DB) · `[ ]` `docs/CAPSTONE_DEFENSE.md` (chưa đổi kịch bản demo).
+* **Bằng Chứng Kiểm Thử:**
+  - `npx tsc --noEmit`: 0 lỗi. `npm run build`: thành công.
+  - Playwright (chromium + mobile-chrome) cho `triage`, `document-scan`, `mobile-nav`, `patient-dashboard`, `admission-ticket`, `doctor-search`: 71/72 đạt ở lần chạy đầy đủ; test "queue and presets are frozen while analysing" hỏng 1 lần trên chromium khi chạy song song, chạy lại riêng `document-scan` 3 lần (30/30) đều đạt — nghi chập chờn do cửa sổ trễ giả lập 2,5 giây.
+  - Backend: không đổi mã nguồn, không chạy `mvn test`.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Đổi bảng màu toàn cục: trang bác sĩ/admin/landing/login chưa thiết kế lại sẽ chuyển sang tông lạnh và `teal` thật (trước là tím) cho tới đợt 2–3.
+  - Phần Stitch bị ẩn vì thiếu backend: bản đồ + bệnh viện gần nhất (03), giờ trống gần nhất của bác sĩ, "có thể thay thế", danh sách "Trong lúc chờ khám" (01), tải PDF tóm tắt phiên (01), chiều cao/cân nặng/thuốc đang dùng/mang thai/quyền riêng tư (12), chỉ số cần theo dõi + tạo bản tóm tắt (13), khám video + ghi chú gửi bác sĩ (14), nút Hủy khi đang quét (04).
+  - Danh sách "Trong lúc chờ xe cấp cứu" (03) là nội dung sơ cứu tĩnh trong frontend — cần bác sĩ cố vấn duyệt câu chữ.
+  - Mã phiên hiển thị `TRG-XXXXXXXX` lấy 8 ký tự đầu UUID, chỉ để đọc, không phải mã nghiệp vụ.
+
+---
 
 ### [WORK-LOG-#137] Sửa Lỗi Ngày Làm Việc Đã Tắt Bị Tự Mở Lại (DoctorService)
 * **Thời gian:** 2026-11-23 (GMT+7)

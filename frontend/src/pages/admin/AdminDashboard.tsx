@@ -192,7 +192,7 @@ export const AdminDashboard: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 font-mono text-xs text-slate-700 bg-[#FCFBF8] px-3.5 py-2 rounded-xl border border-slate-200/90 shadow-2xs">
+          <div className="hidden sm:flex items-center gap-1.5 font-mono text-xs text-slate-700 bg-[#FFFFFF] px-3.5 py-2 rounded-xl border border-slate-200/90 shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
           </div>

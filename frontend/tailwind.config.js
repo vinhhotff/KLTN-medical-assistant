@@ -1,39 +1,13 @@
 import colors from 'tailwindcss/colors.js';
 
 /**
- * AETHER BIO-ATELIER // SWISS CLINICAL PRECISION PALETTE
- * Replaces generic hospital teal + cool slate with:
- * - Warm Alabaster, Travertine & Obsidian Carbon (`slate` / `neutral` / `surface`)
- * - Electric Cobalt-Violet (`teal` / `brand` / `secondary`)
- * - Editorial Vermilion & Botanical Sage (`accent` / `success`)
+ * MEDIASSIST CLINICAL PALETTE (Stitch redesign, 2026-11)
+ * - Cool neutral canvas: Tailwind `slate` (no remap) — page bg slate-50, cards white, hairlines slate-200
+ * - Patient accent: `indigo` (`brand`) — triage, booking, profile, history
+ * - Doctor / document accent: real Tailwind `teal`
+ * - Admin chrome: slate-900 sidebar + indigo accent
+ * - Safety: `rose` for red-flag / emergency, `amber` for the medical disclaimer and warnings
  */
-const obsidianStone = {
-  50: '#F6F3EC',   // Warm Alabaster Paper Canvas
-  100: '#EDE8DF',  // Soft Travertine Stone
-  200: '#DDD6C9',  // Architectural Hairline Border
-  300: '#C6BDB0',  // Warm Pewter
-  400: '#9A9083',  // Muted Graphite
-  500: '#6E665C',  // Editorial Secondary Ink
-  600: '#504941',  // Deep Charcoal Ink
-  700: '#36312B',  // Espresso Carbon
-  800: '#1F1C18',  // Dark Obsidian Surface
-  900: '#12100E',  // Pure Bio-Obsidian Ink
-  950: '#090807',  // Void Carbon
-};
-
-const electricCobalt = {
-  50: '#EEF0FF',
-  100: '#DFE3FF',
-  200: '#C5CCFF',
-  300: '#9EA8FF',
-  400: '#747DFF',
-  500: '#5658F6',
-  600: '#4338CA',  // Primary Electric Cobalt-Indigo
-  700: '#352BA8',
-  800: '#2A2287',
-  900: '#1E1966',
-  950: '#120E42',
-};
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -45,11 +19,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Remap legacy scales so every component adopts the Aether Bio-Atelier aesthetic
-        teal: electricCobalt,
-        slate: obsidianStone,
-        brand: electricCobalt,
-        neutral: obsidianStone,
+        brand: colors.indigo,
+        neutral: colors.slate,
         success: colors.emerald,
         warning: colors.amber,
         danger: colors.rose,
@@ -62,30 +33,30 @@ export default {
           700: '#B42D0B',
         },
 
-        primary: obsidianStone[900],
-        "on-primary": '#F6F3EC',
-        "primary-container": obsidianStone[800],
-        "primary-fixed": electricCobalt[100],
-        "on-primary-fixed": obsidianStone[900],
+        primary: colors.slate[900],
+        "on-primary": '#FFFFFF',
+        "primary-container": colors.slate[800],
+        "primary-fixed": colors.indigo[100],
+        "on-primary-fixed": colors.slate[900],
 
-        secondary: electricCobalt[600],
+        secondary: colors.indigo[600],
         "on-secondary": '#FFFFFF',
-        "secondary-container": electricCobalt[100],
-        "on-secondary-container": electricCobalt[800],
-        "secondary-fixed": electricCobalt[200],
-        "secondary-fixed-dim": electricCobalt[300],
-        "on-secondary-fixed": electricCobalt[950],
+        "secondary-container": colors.indigo[100],
+        "on-secondary-container": colors.indigo[800],
+        "secondary-fixed": colors.indigo[200],
+        "secondary-fixed-dim": colors.indigo[300],
+        "on-secondary-fixed": colors.indigo[950],
 
-        surface: obsidianStone[50],
-        "surface-variant": obsidianStone[200],
-        "surface-container-lowest": '#FCFBF8',
-        "surface-container-low": obsidianStone[100],
-        "surface-container": obsidianStone[100],
-        "surface-container-high": obsidianStone[200],
-        "on-surface": obsidianStone[900],
-        "on-surface-variant": obsidianStone[600],
-        outline: obsidianStone[500],
-        "outline-variant": obsidianStone[300],
+        surface: colors.slate[50],
+        "surface-variant": colors.slate[200],
+        "surface-container-lowest": '#FFFFFF',
+        "surface-container-low": colors.slate[100],
+        "surface-container": colors.slate[100],
+        "surface-container-high": colors.slate[200],
+        "on-surface": colors.slate[900],
+        "on-surface-variant": colors.slate[600],
+        outline: colors.slate[500],
+        "outline-variant": colors.slate[300],
 
         error: colors.rose[700],
         "error-container": colors.rose[100],
@@ -110,16 +81,6 @@ export default {
         serif: ["'Be Vietnam Pro'", "'Inter'", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "Roboto", "sans-serif"],
         mono: ["'Be Vietnam Pro'", "'Inter'", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "Roboto", "sans-serif"],
         code: ["'JetBrains Mono'", "monospace"],
-        "display-lg": ["'Be Vietnam Pro'", "'Inter'", "sans-serif"],
-        "headline-lg": ["'Be Vietnam Pro'", "'Inter'", "sans-serif"],
-        "headline-md": ["'Be Vietnam Pro'", "'Inter'", "sans-serif"],
-        "headline-sm": ["'Be Vietnam Pro'", "'Inter'", "sans-serif"],
-        "title-md": ["'Be Vietnam Pro'", "'Inter'", "sans-serif"],
-        "body-lg": ["'Be Vietnam Pro'", "'Inter'", "sans-serif"],
-        "body-md": ["'Be Vietnam Pro'", "'Inter'", "sans-serif"],
-        "body-sm": ["'Be Vietnam Pro'", "'Inter'", "sans-serif"],
-        "label-md": ["'Be Vietnam Pro'", "'Inter'", "sans-serif"],
-        "label-sm": ["'Be Vietnam Pro'", "'Inter'", "sans-serif"],
       },
       fontSize: {
         "display-lg": ["42px", { lineHeight: "52px", letterSpacing: "-0.02em", fontWeight: "700" }],
@@ -135,22 +96,19 @@ export default {
       },
       borderRadius: {
         "DEFAULT": "0.375rem",
-        "lg": "0.625rem",
-        "xl": "0.875rem",
-        "2xl": "1.25rem",
-        "3xl": "1.75rem",
+        "lg": "0.5rem",
+        "xl": "0.75rem",
+        "2xl": "1rem",
+        "3xl": "1.25rem",
         "full": "9999px"
       },
       boxShadow: {
-        "2xs": "0 1px 0 0 rgba(18, 16, 14, 0.06)",
-        "xs": "0 2px 0 0 rgba(18, 16, 14, 0.07)",
-        "sm": "0 2px 0 0 rgba(18, 16, 14, 0.08), 0 4px 12px -2px rgba(18, 16, 14, 0.05)",
-        "md": "0 3px 0 0 rgba(18, 16, 14, 0.1), 0 8px 20px -4px rgba(18, 16, 14, 0.07)",
-        "lg": "0 4px 0 0 rgba(18, 16, 14, 0.12), 0 14px 28px -6px rgba(18, 16, 14, 0.09)",
-        "xl": "0 6px 0 0 rgba(18, 16, 14, 0.14), 0 20px 38px -8px rgba(18, 16, 14, 0.12)",
-        "atelier": "0 3px 0 0 #12100E",
-        "atelier-sm": "0 2px 0 0 #12100E",
-        "atelier-cobalt": "0 3px 0 0 #2A2287",
+        "2xs": "0 1px 1px 0 rgba(15, 23, 42, 0.03)",
+        "xs": "0 1px 2px 0 rgba(15, 23, 42, 0.05)",
+        "sm": "0 1px 2px 0 rgba(15, 23, 42, 0.05), 0 1px 3px 0 rgba(15, 23, 42, 0.04)",
+        "md": "0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.05)",
+        "lg": "0 10px 15px -3px rgba(15, 23, 42, 0.07), 0 4px 6px -4px rgba(15, 23, 42, 0.05)",
+        "xl": "0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.05)",
       },
       backdropBlur: {
         xs: "2px",

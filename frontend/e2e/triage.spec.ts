@@ -29,8 +29,8 @@ test.describe('UC-CLIN-02: Symptom triage assistant', () => {
   test('welcome message and disclaimer are shown on /patient/triage', async ({ page }) => {
     await installMockApi(page, { role: 'PATIENT' });
     await page.goto('/patient/triage');
-    await expect(page.getByText('Xin chào! Tôi là Trợ lý Y tế AI của MediAssist')).toBeVisible();
-    await expect(page.getByText('Khuyến Cáo Lâm Sàng')).toBeVisible();
+    await expect(page.getByText('Bạn đang gặp triệu chứng gì?')).toBeVisible();
+    await expect(page.getByText('Cảnh báo y tế:')).toBeVisible();
   });
 
   test('booking from triage links the session instead of copying a truncated SBAR into notes', async ({ page }) => {
@@ -41,7 +41,7 @@ test.describe('UC-CLIN-02: Symptom triage assistant', () => {
       overrides: { 'POST /triage/assess': { body: routineResponse } },
     });
     await page.goto('/patient/triage');
-    await page.getByPlaceholder(/Nhập triệu chứng của bạn/).fill('Đau thượng vị sau ăn, ợ chua');
+    await page.getByLabel('Mô tả triệu chứng').fill('Đau thượng vị sau ăn, ợ chua');
     await page.keyboard.press('Enter');
 
     // No fake "5.0" rating or 350.000đ fee for a doctor without reviews / fee
@@ -49,7 +49,7 @@ test.describe('UC-CLIN-02: Symptom triage assistant', () => {
     await expect(page.getByText('Phí: liên hệ')).toBeVisible();
     await expect(page.getByText('350.000')).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Đặt Khám' }).click();
+    await page.getByRole('button', { name: 'Đặt lịch' }).click();
     const dialog = page.getByRole('dialog');
     const notes = dialog.locator('#booking-notes');
     await expect(notes).toHaveValue(/Triệu chứng: Đau thượng vị sau ăn, ợ chua/);
@@ -83,9 +83,9 @@ test.describe('UC-CLIN-02: Symptom triage assistant', () => {
   test('long symptoms are not silently cut: the modal blocks > 1000 chars', async ({ page }) => {
     await installMockApi(page, { role: 'PATIENT', overrides: { 'POST /triage/assess': { body: routineResponse } } });
     await page.goto('/patient/triage');
-    await page.getByPlaceholder(/Nhập triệu chứng của bạn/).fill('Đau thượng vị '.repeat(80).trim());
+    await page.getByLabel('Mô tả triệu chứng').fill('Đau thượng vị '.repeat(80).trim());
     await page.keyboard.press('Enter');
-    await page.getByRole('button', { name: 'Đặt Khám' }).click();
+    await page.getByRole('button', { name: 'Đặt lịch' }).click();
     const dialog = page.getByRole('dialog');
     const value = await dialog.locator('#booking-notes').inputValue();
     expect(value.length).toBeGreaterThan(1000);
@@ -100,9 +100,9 @@ test.describe('UC-CLIN-02: Symptom triage assistant', () => {
       overrides: { 'POST /triage/assess': { body: { ...routineResponse, data: { ...routineResponse.data, sessionId: null } } } },
     });
     await page.goto('/patient/triage');
-    await page.getByPlaceholder(/Nhập triệu chứng của bạn/).fill('Đau thượng vị sau ăn, ợ chua');
+    await page.getByLabel('Mô tả triệu chứng').fill('Đau thượng vị sau ăn, ợ chua');
     await page.keyboard.press('Enter');
-    await page.getByRole('button', { name: 'Đặt Khám' }).click();
+    await page.getByRole('button', { name: 'Đặt lịch' }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByTestId('triage-link-missing')).toContainText('Không liên kết được phiên phân luồng AI');
     await expect(dialog.getByTestId('triage-link-info')).toHaveCount(0);
@@ -131,10 +131,12 @@ test.describe('UC-CLIN-02: Symptom triage assistant', () => {
       },
     });
     await page.goto('/patient/triage');
-    await page.getByPlaceholder(/Nhập triệu chứng của bạn/).fill('Đau thắt ngực dữ dội, vã mồ hôi');
+    await page.getByLabel('Mô tả triệu chứng').fill('Đau thắt ngực dữ dội, vã mồ hôi');
     await page.keyboard.press('Enter');
-    await expect(page.getByText(/TÌNH TRẠNG KHẨN CẤP/)).toBeVisible();
-    await expect(page.getByRole('link', { name: /Gọi 115/ }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Đặt Khám' })).toBeDisabled();
+    await expect(page.getByText('Có dấu hiệu cần cấp cứu ngay')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Gọi cấp cứu 115/ }).first()).toBeVisible();
+    // Emergency screen replaces the chat: no routine booking and no further messages to the AI
+    await expect(page.getByRole('button', { name: 'Đặt lịch' })).toHaveCount(0);
+    await expect(page.getByLabel('Mô tả triệu chứng')).toHaveCount(0);
   });
 });

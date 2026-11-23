@@ -38,7 +38,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({ icon, title, subtitle, child
   return (
     <div
       ref={rootRef}
-      className="min-h-screen bg-[#F6F3EC] bg-atelier-dots flex flex-col items-center justify-center px-4 py-10 relative overflow-hidden"
+      className="min-h-screen bg-[#F8FAFC] bg-atelier-dots flex flex-col items-center justify-center px-4 py-10 relative overflow-hidden"
     >
       <div className="auth-atelier-anim flex items-center gap-3 mb-7">
         <Link to="/" className="flex items-center gap-3 text-slate-900 group">

@@ -416,7 +416,7 @@ export const LandingPage: React.FC = () => {
   const currentSample = SAMPLE_PROFILES[activeSample];
 
   return (
-    <div ref={pageRef} className="bg-[#F6F3EC] bg-atelier-dots font-sans text-slate-900 antialiased min-h-screen overflow-x-hidden">
+    <div ref={pageRef} className="bg-[#F8FAFC] bg-atelier-dots font-sans text-slate-900 antialiased min-h-screen overflow-x-hidden">
       {/* 1. Top Clinical Emergency Telemetry Strip — Soft Clinical Rose Palette */}
       <div className="bg-rose-50/90 text-rose-950 border-b border-rose-200/80 px-4 sm:px-8 py-2 relative z-50">
         <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-3 font-mono text-[11px]">
@@ -585,7 +585,7 @@ export const LandingPage: React.FC = () => {
                       <span>Tải Lên Bệnh Án PDF Miễn Phí</span>
                     </a>
                     <a
-                      className="gsap-hero-cta inline-flex items-center justify-center gap-2 bg-[#F6F3EC] text-slate-800 hover:bg-slate-200/70 font-display text-sm px-5 py-3.5 rounded-2xl border border-slate-300/80 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer font-bold"
+                      className="gsap-hero-cta inline-flex items-center justify-center gap-2 bg-[#F8FAFC] text-slate-800 hover:bg-slate-200/70 font-display text-sm px-5 py-3.5 rounded-2xl border border-slate-300/80 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer font-bold"
                       href="#specialists-section"
                     >
                       <span className="material-symbols-outlined text-[20px] text-teal-600">stethoscope</span>
@@ -596,7 +596,7 @@ export const LandingPage: React.FC = () => {
 
                 {/* Bottom Architectural Telemetry Strip */}
                 <div className="mt-10 pt-6 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="p-3.5 rounded-2xl bg-[#FCFBF8] border border-slate-200/80">
+                  <div className="p-3.5 rounded-2xl bg-[#FFFFFF] border border-slate-200/80">
                     <div className="font-mono text-[10px] text-slate-400 font-bold uppercase tracking-widest">01 // QUYỀN RIÊNG TƯ</div>
                     <div className="font-display text-sm text-slate-900 font-bold mt-1">Ẩn thông tin cá nhân</div>
                   </div>
@@ -657,7 +657,7 @@ export const LandingPage: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-[#FCFBF8] border border-slate-200/80 flex items-center justify-between gap-3 shadow-xs">
+                  <div className="p-3.5 rounded-2xl bg-[#FFFFFF] border border-slate-200/80 flex items-center justify-between gap-3 shadow-xs">
                     <div className="flex items-center gap-3 min-w-0">
                       <img
                         alt={topDoctor?.fullName || "Bác sĩ tiêu biểu"}
@@ -719,7 +719,7 @@ export const LandingPage: React.FC = () => {
               {/* Main Interactive Sandbox Area */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
                 {/* Left 7 cols: Upload and File Selector */}
-                <div className="lg:col-span-7 flex flex-col justify-between bg-[#FCFBF8] text-slate-900 p-6 sm:p-7 rounded-2xl border border-slate-200/90 shadow-xs">
+                <div className="lg:col-span-7 flex flex-col justify-between bg-[#FFFFFF] text-slate-900 p-6 sm:p-7 rounded-2xl border border-slate-200/90 shadow-xs">
                   {/* Test Action Bar */}
                   <div className="mb-5 p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-xs">
                     <div className="flex flex-wrap items-center gap-2.5">
@@ -738,7 +738,7 @@ export const LandingPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleDownloadSamplePdf}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#F6F3EC] hover:bg-slate-200/70 text-slate-800 font-display text-xs font-bold transition-all border border-slate-300/80 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#F8FAFC] hover:bg-slate-200/70 text-slate-800 font-display text-xs font-bold transition-all border border-slate-300/80 cursor-pointer"
                         title="Tải về file PDF mẫu phiếu xét nghiệm y khoa chuẩn Meddies để kiểm thử tải lên"
                       >
                         <span className="material-symbols-outlined text-[16px] text-teal-600">download</span>
@@ -858,7 +858,7 @@ export const LandingPage: React.FC = () => {
                     <div className="text-xs text-slate-500 mt-1">
                       Hỗ trợ PDF, PNG, JPG • Tệp cần có nội dung xét nghiệm • Bản xem trước không lưu vào hồ sơ
                     </div>
-                    <div className="mt-4 inline-flex items-center gap-2 bg-[#FCFBF8] px-4 py-2 rounded-xl border border-slate-300 shadow-xs text-slate-900 font-display text-xs font-bold">
+                    <div className="mt-4 inline-flex items-center gap-2 bg-[#FFFFFF] px-4 py-2 rounded-xl border border-slate-300 shadow-xs text-slate-900 font-display text-xs font-bold">
                       <span className="material-symbols-outlined text-[18px] text-teal-600">folder_open</span> Duyệt file từ máy tính
                     </div>
                   </div>
@@ -936,7 +936,7 @@ export const LandingPage: React.FC = () => {
                       <div className="flex flex-col gap-2 mb-4 max-h-56 overflow-y-auto pr-1">
                         {realAnalysis.indicators && realAnalysis.indicators.length > 0 ? (
                           realAnalysis.indicators.map((item, idx) => (
-                            <div key={idx} className="p-3 bg-[#FCFBF8] rounded-xl flex items-center justify-between border border-slate-200/80">
+                            <div key={idx} className="p-3 bg-[#FFFFFF] rounded-xl flex items-center justify-between border border-slate-200/80">
                               <div>
                                 <div className="font-display text-xs font-bold text-slate-900">{item.name}</div>
                                 <div className="font-mono text-[10px] text-slate-400">Tham chiếu: {item.referenceRange}</div>
@@ -971,7 +971,7 @@ export const LandingPage: React.FC = () => {
 
                     <div className="pt-2">
                       {realAnalysis.matchedDoctors && realAnalysis.matchedDoctors.length > 0 ? (
-                        <div className="flex items-center gap-3 p-3 bg-[#FCFBF8] rounded-xl mb-3 border border-slate-200">
+                        <div className="flex items-center gap-3 p-3 bg-[#FFFFFF] rounded-xl mb-3 border border-slate-200">
                           <img
                             alt={realAnalysis.matchedDoctors[0].fullName}
                             className="w-11 h-11 rounded-xl object-cover border border-slate-200"
@@ -1013,7 +1013,7 @@ export const LandingPage: React.FC = () => {
 
                       <div className="flex flex-col gap-2.5 mb-4">
                         {currentSample.items.map((item, idx) => (
-                          <div key={idx} className="p-3 bg-[#FCFBF8] border border-slate-200/80 rounded-xl flex items-center justify-between shadow-2xs">
+                          <div key={idx} className="p-3 bg-[#FFFFFF] border border-slate-200/80 rounded-xl flex items-center justify-between shadow-2xs">
                             <div>
                               <div className="font-display text-xs font-bold text-slate-900">{item.name}</div>
                               <div className="font-mono text-[10px] text-slate-400">{item.ref}</div>
@@ -1036,7 +1036,7 @@ export const LandingPage: React.FC = () => {
 
                     <div className="pt-2">
                       {recommendedDoctorForSample ? (
-                        <div className="flex items-center gap-3 p-3 bg-[#FCFBF8] border border-slate-200/80 rounded-xl mb-3 shadow-2xs">
+                        <div className="flex items-center gap-3 p-3 bg-[#FFFFFF] border border-slate-200/80 rounded-xl mb-3 shadow-2xs">
                           <img
                             alt={recommendedDoctorForSample.fullName}
                             className="w-11 h-11 rounded-xl object-cover border border-slate-200"
@@ -1134,23 +1134,23 @@ export const LandingPage: React.FC = () => {
           {/* ==================== METRICS & CLINICAL ACCREDITATION ==================== */}
           <section className="my-14 bg-white text-slate-900 border border-slate-200/90 rounded-3xl p-8 sm:p-10 shadow-sm">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 text-center">
-              <div className="p-4 rounded-2xl bg-[#FCFBF8] border border-slate-200/80">
+              <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-slate-200/80">
                 <div className="font-mono text-3xl sm:text-4xl text-teal-700 font-bold tracking-tight">
                   {totalConsultationsCount ?? '—'}
                 </div>
                 <div className="font-mono text-[11px] text-slate-500 mt-1 uppercase">Lượt khám đã hoàn tất</div>
               </div>
-              <div className="p-4 rounded-2xl bg-[#FCFBF8] border border-slate-200/80">
+              <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-slate-200/80">
                 <div className="font-mono text-3xl sm:text-4xl text-emerald-600 font-bold tracking-tight">24/7</div>
                 <div className="font-mono text-[11px] text-slate-500 mt-1 uppercase">Trợ lý triệu chứng sẵn sàng</div>
               </div>
-              <div className="p-4 rounded-2xl bg-[#FCFBF8] border border-slate-200/80">
+              <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-slate-200/80">
                 <div className="font-mono text-3xl sm:text-4xl text-slate-900 font-bold tracking-tight">
                   {isLoadingData ? '…' : doctors.length > 0 ? `${doctors.length} Bác Sĩ` : '—'}
                 </div>
                 <div className="font-mono text-[11px] text-slate-500 mt-1 uppercase">Bác sĩ thẩm định chứng chỉ</div>
               </div>
-              <div className="p-4 rounded-2xl bg-[#FCFBF8] border border-slate-200/80">
+              <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-slate-200/80">
                 <div className="font-mono text-3xl sm:text-4xl text-amber-600 font-bold tracking-tight">
                   {isLoadingData ? '…' : specialties.length > 0 ? `${specialties.length} Khoa` : '—'}
                 </div>
@@ -1265,7 +1265,7 @@ export const LandingPage: React.FC = () => {
                         {doc.bio || (doc.hospitalAffiliation ? `Công tác tại ${doc.hospitalAffiliation}.` : 'Bác sĩ chưa cập nhật giới thiệu.')}
                       </p>
 
-                      <div className="flex items-center justify-between text-xs mb-4 bg-[#FCFBF8] p-2.5 rounded-xl border border-slate-200/80">
+                      <div className="flex items-center justify-between text-xs mb-4 bg-[#FFFFFF] p-2.5 rounded-xl border border-slate-200/80">
                         <span className="font-mono text-[11px] text-slate-500">Đánh giá:</span>
                         {formatRating(doc.rating, doc.reviewCount) ? (
                           <span className="font-mono font-bold text-slate-900 flex items-center gap-1">
@@ -1302,7 +1302,7 @@ export const LandingPage: React.FC = () => {
       </main>
 
       {/* ==================== FOOTER ==================== */}
-      <footer className="w-full bg-[#FCFBF8] text-slate-600 border-t border-slate-200/90 py-8">
+      <footer className="w-full bg-[#FFFFFF] text-slate-600 border-t border-slate-200/90 py-8">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-8 flex flex-col md:flex-row items-center justify-between gap-4 font-mono text-xs text-slate-500">
           <div>© 2026 MediAssist — Đồ án tốt nghiệp Kỹ sư phần mềm. Thông tin mang tính hỗ trợ tham khảo lâm sàng.</div>
           <div className="flex items-center gap-6 font-bold">
