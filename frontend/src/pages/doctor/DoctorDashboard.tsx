@@ -47,8 +47,10 @@ import {
   evaluateBmiAsia,
   evaluateSpO2,
   evaluateHeartRate,
+  evaluateNews2Score,
   generateClinicalVitalsNote
 } from '../../utils/clinicalStaging';
+import { evaluatePrescriptionSafety } from '../../utils/drugSafety';
 import { ConfirmDialog, Field, Input, Missing, useToast } from '../../components/ui';
 import { VitalValue } from '../../components/clinical/VitalValue';
 import {
@@ -414,16 +416,37 @@ export const DoctorDashboard: React.FC = () => {
   const spo2Evaluation = useMemo(() => evaluateSpO2(spO2), [spO2]);
   const hrEvaluation = useMemo(() => evaluateHeartRate(heartRate), [heartRate]);
 
+  // Real-time National Early Warning Score (NEWS-2)
+  const news2Evaluation = useMemo(
+    () => evaluateNews2Score(respiratoryRate, spO2, bpSystolic, heartRate, temperature),
+    [respiratoryRate, spO2, bpSystolic, heartRate, temperature]
+  );
+
   // 1-Click insert clinical vitals note to treatment plan
   const handleInsertVitalsNote = () => {
-    const note = generateClinicalVitalsNote(bpSystolic, bpDiastolic, weight, height);
+    const note = generateClinicalVitalsNote(
+      bpSystolic,
+      bpDiastolic,
+      weight,
+      height,
+      respiratoryRate,
+      spO2,
+      heartRate,
+      temperature
+    );
     if (!note) return;
     setTreatmentPlan((prev) => (prev ? `${prev}\n\n${note}` : note));
-    toast.success('Đã nạp nhận xét phân độ Huyết Áp & BMI vào Lời dặn Bác sĩ!');
+    toast.success('Đã nạp nhận xét phân độ Huyết Áp, BMI & NEWS-2 vào Lời dặn Bác sĩ!');
   };
 
   // Supercharged Clinical Encounter States (Patient 360 Integration)
   const [patientPassport, setPatientPassport] = useState<PatientProfileData | null>(null);
+
+  // Client-side Drug Interaction (DDI) & Allergy Safety Engine
+  const prescriptionSafety = useMemo(
+    () => evaluatePrescriptionSafety(prescriptionItems, patientPassport?.allergies),
+    [prescriptionItems, patientPassport?.allergies]
+  );
   const [patientTriageHistory, setPatientTriageHistory] = useState<TriageHistoryItem[]>([]);
   const [patientDocuments, setPatientDocuments] = useState<PatientDocumentItem[]>([]);
   const [patientPastAppointments, setPatientPastAppointments] = useState<DoctorAppointment[]>([]);
@@ -738,18 +761,6 @@ export const DoctorDashboard: React.FC = () => {
     });
   };
 
-  // Helper to check drug-allergy conflict against patient's known allergies
-  const checkDrugAllergyConflict = (drugName: string, allergies?: string): string | null => {
-    if (!allergies || !drugName || allergies.toLowerCase().includes('chưa ghi nhận')) return null;
-    const cleanDrug = drugName.toLowerCase();
-    const allergyKeywords = allergies.toLowerCase().split(/[,;.\n]+/).map((s) => s.trim()).filter(Boolean);
-    for (const kw of allergyKeywords) {
-      if (kw.length >= 3 && (cleanDrug.includes(kw) || kw.includes(cleanDrug))) {
-        return kw;
-      }
-    }
-    return null;
-  };
 
   // 1-Click Import AI Triage Symptoms & SBAR Assessment into EMR Encounter
   const handleImportTriage = (triage: TriageHistoryItem) => {
@@ -1044,16 +1055,17 @@ export const DoctorDashboard: React.FC = () => {
     setSubmitAttempted(true);
     if (signBlockers.length > 0) return;
 
-    // DOC-04: Check if any prescription item has allergy conflicts
+    // Check if any prescription item has allergy conflicts or critical DDIs
     if (!skipAllergyCheck) {
       const conflicts: string[] = [];
-      prescriptionItems.forEach((item) => {
-        const conflict = checkDrugAllergyConflict(item.drugName, patientPassport?.allergies) ||
-                         checkDrugAllergyConflict(item.activeIngredient, patientPassport?.allergies);
-        if (conflict) {
-          conflicts.push(`${item.drugName || 'Thuốc'} (Cảnh báo dị ứng: "${conflict}")`);
-        }
+      prescriptionSafety.allergyConflicts.forEach((conf) => {
+        conflicts.push(`${conf.drugName} (Cảnh báo dị ứng: "${conf.matchedAllergyKeyword}"): ${conf.explanation}`);
       });
+      prescriptionSafety.interactions
+        .filter((it) => it.severity === 'CRITICAL')
+        .forEach((it) => {
+          conflicts.push(`Tương tác thuốc nguy hiểm (CRITICAL): ${it.drug1} + ${it.drug2} (${it.pair.pairName}): ${it.pair.clinicalEffect}`);
+        });
 
       if (conflicts.length > 0) {
         setAllergyConflictModal({
@@ -2540,15 +2552,20 @@ export const DoctorDashboard: React.FC = () => {
                       )}
                     </div>
                     {([
-                      { key: 'heartRate', id: 'vs-hr', label: 'Mạch (lần/phút)', value: heartRate, set: setHeartRate, mode: 'numeric' },
-                      { key: 'temperature', id: 'vs-temp', label: 'Nhiệt độ (°C)', value: temperature, set: setTemperature, mode: 'decimal' },
-                      { key: 'spO2', id: 'vs-spo2', label: 'SpO2 (%)', value: spO2, set: setSpO2, mode: 'numeric' },
-                      { key: 'height', id: 'vs-height', label: 'Chiều cao (cm)', value: height, set: setHeight, mode: 'decimal' },
-                      { key: 'weight', id: 'vs-weight', label: 'Cân nặng (kg)', value: weight, set: setWeight, mode: 'decimal' },
-                      { key: 'respiratoryRate', id: 'vs-rr', label: 'Nhịp thở (lần/phút)', value: respiratoryRate, set: setRespiratoryRate, mode: 'numeric' }
+                      { key: 'heartRate', id: 'vs-hr', label: 'Mạch (lần/phút)', value: heartRate, set: setHeartRate, mode: 'numeric', placeholder: 'Chưa đo' },
+                      { key: 'temperature', id: 'vs-temp', label: 'Nhiệt độ (°C)', value: temperature, set: setTemperature, mode: 'decimal', placeholder: 'Chưa đo' },
+                      { key: 'spO2', id: 'vs-spo2', label: 'SpO2 (%)', value: spO2, set: setSpO2, mode: 'numeric', placeholder: 'Chưa đo' },
+                      { key: 'height', id: 'vs-height', label: 'Chiều cao (cm)', value: height, set: setHeight, mode: 'decimal', placeholder: 'Chưa đo' },
+                      { key: 'weight', id: 'vs-weight', label: 'Cân nặng (kg)', value: weight, set: setWeight, mode: 'decimal', placeholder: 'Chưa đo' },
+                      { key: 'respiratoryRate', id: 'vs-rr', label: 'Nhịp thở (lần/phút)', value: respiratoryRate, set: setRespiratoryRate, mode: 'numeric', placeholder: '16' }
                     ] as const).map((f) => (
                       <div key={f.key}>
-                        <label htmlFor={f.id} className="text-slate-600 font-semibold block mb-1">{f.label}</label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label htmlFor={f.id} className="text-slate-600 font-semibold block">{f.label}</label>
+                          {f.key === 'respiratoryRate' && (
+                            <span className="text-[10px] text-teal-600 font-mono font-medium">8–40 l/p</span>
+                          )}
+                        </div>
                         <input
                           id={f.id}
                           inputMode={f.mode}
@@ -2557,7 +2574,7 @@ export const DoctorDashboard: React.FC = () => {
                           aria-invalid={Boolean(vitalError(f.key)) || undefined}
                           aria-describedby={vitalError(f.key) ? `${f.id}-error` : undefined}
                           className={`w-full px-2.5 py-1.5 border rounded-lg font-mono font-bold ${vitalError(f.key) ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
-                          placeholder="Chưa đo"
+                          placeholder={f.placeholder}
                         />
                         {vitalError(f.key) && (
                           <p id={`${f.id}-error`} role="alert" className="text-[11px] text-rose-600 font-medium mt-1">
@@ -2625,6 +2642,82 @@ export const DoctorDashboard: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* REAL-TIME NEWS-2 CLINICAL EARLY WARNING SCORE BADGE & CARD */}
+                  <div className={`p-4 rounded-2xl border flex flex-col justify-between transition-all ${news2Evaluation.bgClass} ${news2Evaluation.borderClass}`}>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                          <Activity className="w-3.5 h-3.5 text-teal-600" />
+                          <span>Thang Điểm Cảnh Báo Sớm NEWS-2</span>
+                          <span className="text-[9px] font-normal text-slate-400">(National Early Warning Score - RCP UK)</span>
+                        </div>
+                        <div className="text-xs font-black mt-1 flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-base font-black">
+                            {news2Evaluation.totalScore} <span className="text-xs font-semibold text-slate-500">/ 20 điểm</span>
+                          </span>
+                          <span
+                            data-testid="news2-badge"
+                            className={`text-[11px] font-black px-3 py-1 rounded-full shadow-2xs flex items-center gap-1.5 ${news2Evaluation.badgeClass}`}
+                          >
+                            {news2Evaluation.riskLevel === 'HIGH' && (
+                              <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                            )}
+                            {news2Evaluation.label}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {news2Evaluation.hasSingleScore3 && (
+                          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300">
+                            Điểm đơn lẻ đạt 3
+                          </span>
+                        )}
+                        <span className="text-[10px] font-medium text-slate-500 bg-white/70 px-2 py-0.5 rounded-lg border border-slate-200">
+                          Nhịp thở chuẩn: 16 (8–40 l/p)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Sub-scores breakdown */}
+                    <div className="mt-3 pt-2.5 border-t border-slate-200/60 grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-[10px]">
+                      <div className="p-1.5 rounded-xl bg-white/80 border border-slate-200/80 shadow-2xs">
+                        <div className="text-slate-500 font-medium">Nhịp thở</div>
+                        <div className="font-mono font-bold text-slate-800 text-xs mt-0.5">
+                          {respiratoryRate || '16'} <span className="text-[9px] font-semibold text-teal-700">({news2Evaluation.subScores.respiratoryRate}đ)</span>
+                        </div>
+                      </div>
+                      <div className="p-1.5 rounded-xl bg-white/80 border border-slate-200/80 shadow-2xs">
+                        <div className="text-slate-500 font-medium">SpO2</div>
+                        <div className="font-mono font-bold text-slate-800 text-xs mt-0.5">
+                          {spO2 ? `${spO2}%` : '--'} <span className="text-[9px] font-semibold text-teal-700">({news2Evaluation.subScores.spO2}đ)</span>
+                        </div>
+                      </div>
+                      <div className="p-1.5 rounded-xl bg-white/80 border border-slate-200/80 shadow-2xs">
+                        <div className="text-slate-500 font-medium">HA tâm thu</div>
+                        <div className="font-mono font-bold text-slate-800 text-xs mt-0.5">
+                          {bpSystolic || '--'} <span className="text-[9px] font-semibold text-teal-700">({news2Evaluation.subScores.systolicBp}đ)</span>
+                        </div>
+                      </div>
+                      <div className="p-1.5 rounded-xl bg-white/80 border border-slate-200/80 shadow-2xs">
+                        <div className="text-slate-500 font-medium">Mạch</div>
+                        <div className="font-mono font-bold text-slate-800 text-xs mt-0.5">
+                          {heartRate || '--'} <span className="text-[9px] font-semibold text-teal-700">({news2Evaluation.subScores.heartRate}đ)</span>
+                        </div>
+                      </div>
+                      <div className="p-1.5 rounded-xl bg-white/80 border border-slate-200/80 shadow-2xs col-span-2 sm:col-span-1">
+                        <div className="text-slate-500 font-medium">Thân nhiệt</div>
+                        <div className="font-mono font-bold text-slate-800 text-xs mt-0.5">
+                          {temperature ? `${temperature}°C` : '--'} <span className="text-[9px] font-semibold text-teal-700">({news2Evaluation.subScores.temperature}đ)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className={`text-[11px] mt-2.5 leading-relaxed font-medium ${news2Evaluation.textClass}`}>
+                      {news2Evaluation.recommendation}
+                    </p>
+                  </div>
+
                   {/* Auxiliary Status Badges (SpO2 & Heart Rate) */}
                   <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Chỉ số khác:</span>
@@ -2633,6 +2726,9 @@ export const DoctorDashboard: React.FC = () => {
                     </span>
                     <span className={`px-2.5 py-0.5 rounded-lg border font-semibold ${hrEvaluation.badgeClass}`}>
                       Nhịp Tim {heartRate ? `${heartRate} bpm` : '--'}: {hrEvaluation.label}
+                    </span>
+                    <span className={`px-2.5 py-0.5 rounded-lg border font-semibold ${news2Evaluation.badgeClass}`}>
+                      {news2Evaluation.badgeText}
                     </span>
                   </div>
                 </div>
@@ -2818,6 +2914,120 @@ export const DoctorDashboard: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* CLINICAL DRUG-DRUG INTERACTION (DDI) ALERT BANNER */}
+                  {prescriptionSafety.interactions.length > 0 && (
+                    <div
+                      data-testid="ddi-alert-banner"
+                      className={`p-4 rounded-2xl border space-y-3 ${
+                        prescriptionSafety.hasCritical
+                          ? 'bg-rose-50 border-rose-400 text-rose-950'
+                          : 'bg-amber-50 border-amber-300 text-amber-950'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className={`w-5 h-5 flex-shrink-0 ${prescriptionSafety.hasCritical ? 'text-rose-600 animate-bounce' : 'text-amber-600'}`} />
+                          <div>
+                            <span className="font-black text-xs uppercase tracking-wider">
+                              CẢNH BÁO TƯƠNG TÁC THUỐC LÂM SÀNG (DRUG-DRUG INTERACTION - DDI)
+                            </span>
+                            <span className="text-[11px] text-slate-600 ml-2">
+                              Phát hiện {prescriptionSafety.interactions.length} cặp tương tác bất lợi trong đơn
+                            </span>
+                          </div>
+                        </div>
+                        <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase ${
+                          prescriptionSafety.hasCritical
+                            ? 'bg-rose-600 text-white animate-pulse'
+                            : 'bg-amber-500 text-white'
+                        }`}>
+                          {prescriptionSafety.hasCritical ? 'Mức độ nguy hại cao' : 'Cần theo dõi sát'}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2 pt-1">
+                        {prescriptionSafety.interactions.map((inter, idx) => (
+                          <div key={idx} className="p-3 bg-white/95 rounded-xl border border-slate-200 shadow-2xs space-y-1.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                                <span className="font-mono text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">{inter.drug1}</span>
+                                <span className="text-slate-400">⚡</span>
+                                <span className="font-mono text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">{inter.drug2}</span>
+                                <span className="text-slate-500 font-normal">({inter.pair.pairName})</span>
+                              </span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                inter.severity === 'CRITICAL' ? 'bg-rose-100 text-rose-800 border border-rose-300' : 'bg-amber-100 text-amber-800 border border-amber-300'
+                              }`}>
+                                {inter.severity === 'CRITICAL' ? 'CRITICAL / NGUY CƠ CAO' : 'MAJOR / QUAN TRỌNG'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-700">
+                              <strong>Cơ chế:</strong> {inter.pair.mechanism}
+                            </div>
+                            <div className="text-[11px] text-rose-900 font-medium">
+                              <strong>Hậu quả lâm sàng:</strong> {inter.pair.clinicalEffect}
+                            </div>
+                            <div className="text-[11px] text-teal-800 bg-teal-50 p-2 rounded-lg border border-teal-200">
+                              <strong>💡 Khuyến cáo xử trí:</strong> {inter.pair.recommendation}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CLINICAL DRUG-ALLERGY CONFLICT ALERT BANNER */}
+                  {prescriptionSafety.allergyConflicts.length > 0 && (
+                    <div
+                      data-testid="allergy-alert-banner"
+                      className="p-4 rounded-2xl border space-y-2.5 bg-rose-50 border-rose-400 text-rose-950 animate-fadeIn"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <ShieldAlert className="w-5 h-5 text-rose-600 flex-shrink-0 animate-pulse" />
+                          <div>
+                            <span className="font-black text-xs uppercase tracking-wider text-rose-900">
+                              CẢNH BÁO XUNG ĐỘT DỊ ỨNG THUỐC (ALLERGY SAFETY ALERT)
+                            </span>
+                            <span className="text-[11px] text-rose-700 ml-2">
+                              Thuốc kê xung đột với tiền sử dị ứng đã ghi nhận của bệnh nhân
+                            </span>
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase bg-rose-600 text-white">
+                          Nguy cơ sốc phản vệ
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5 pt-1">
+                        {prescriptionSafety.allergyConflicts.map((conf, idx) => (
+                          <div key={idx} className="p-3 bg-white/95 rounded-xl border border-rose-200 text-xs space-y-1 shadow-2xs">
+                            <div className="font-bold text-rose-900 flex flex-wrap items-center justify-between gap-2">
+                              <span className="flex items-center gap-1.5">
+                                <span>🚨 Thuốc kê: <strong className="underline">{conf.drugName}</strong></span>
+                                {conf.activeIngredient && <span className="text-slate-500 font-normal">({conf.activeIngredient})</span>}
+                              </span>
+                              <span className="text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full font-semibold border border-rose-200">
+                                Trùng tiền sử: {conf.matchedAllergyKeyword}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-rose-800 leading-relaxed font-medium">
+                              {conf.explanation}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SAFE CONFIRMATION BADGE */}
+                  {prescriptionItems.length > 1 && prescriptionSafety.isSafe && (
+                    <div className="p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/70 text-emerald-800 text-xs flex items-center gap-2 font-medium">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      <span>Kiểm tra an toàn dược lâm sàng: 0 tương tác thuốc nguy hiểm &amp; 0 xung đột dị ứng.</span>
+                    </div>
+                  )}
+
                   <div className="border border-slate-200 rounded-2xl overflow-x-auto">
                     <table className="w-full text-left">
                       <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
@@ -2834,10 +3044,27 @@ export const DoctorDashboard: React.FC = () => {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {prescriptionItems.map((item, index) => {
-                          const conflict = checkDrugAllergyConflict(item.drugName, patientPassport?.allergies) ||
-                                           checkDrugAllergyConflict(item.activeIngredient, patientPassport?.allergies);
+                          const itemConflicts = prescriptionSafety.allergyConflicts.filter(
+                            (c) => (item.drugName && c.drugName.toLowerCase().includes(item.drugName.toLowerCase())) ||
+                                   (item.activeIngredient && c.drugName.toLowerCase().includes(item.activeIngredient.toLowerCase()))
+                          );
+                          const itemInteractions = prescriptionSafety.interactions.filter(
+                            (it) => (item.drugName && (it.drug1.toLowerCase().includes(item.drugName.toLowerCase()) || it.drug2.toLowerCase().includes(item.drugName.toLowerCase()))) ||
+                                    (item.activeIngredient && (it.drug1.toLowerCase().includes(item.activeIngredient.toLowerCase()) || it.drug2.toLowerCase().includes(item.activeIngredient.toLowerCase())))
+                          );
+                          const hasConflict = itemConflicts.length > 0;
+                          const hasDdi = itemInteractions.length > 0;
                           return (
-                            <tr key={index} className={conflict ? "bg-rose-50/80 border-l-4 border-rose-500" : "hover:bg-slate-50"}>
+                            <tr
+                              key={index}
+                              className={
+                                hasConflict
+                                  ? 'bg-rose-50/80 border-l-4 border-rose-500'
+                                  : hasDdi
+                                  ? 'bg-amber-50/60 border-l-4 border-amber-500'
+                                  : 'hover:bg-slate-50'
+                              }
+                            >
                               <td className="p-2 text-slate-400 font-mono">{index + 1}</td>
                               <td className="p-2">
                                 <input
@@ -2845,14 +3072,24 @@ export const DoctorDashboard: React.FC = () => {
                                   value={item.drugName}
                                   onChange={(e) => updatePrescriptionRow(index, 'drugName', e.target.value)}
                                   className={`w-full px-2 py-1 border rounded text-xs font-bold ${
-                                    conflict ? 'border-rose-400 bg-white text-rose-950 focus:ring-rose-500' : 'border-slate-200'
+                                    hasConflict
+                                      ? 'border-rose-400 bg-white text-rose-950 focus:ring-rose-500'
+                                      : hasDdi
+                                      ? 'border-amber-400 bg-white text-amber-950 focus:ring-amber-500'
+                                      : 'border-slate-200'
                                   }`}
                                   placeholder="Lipitor 20mg"
                                 />
-                                {conflict && (
+                                {hasConflict && (
                                   <div className="text-[10px] text-rose-700 font-bold flex items-center gap-1 mt-0.5">
                                     <ShieldAlert className="w-3 h-3 text-rose-600 flex-shrink-0" />
-                                    <span>Trùng dị ứng: "{conflict}"</span>
+                                    <span>Trùng dị ứng: "{itemConflicts[0].matchedAllergyKeyword}"</span>
+                                  </div>
+                                )}
+                                {hasDdi && !hasConflict && (
+                                  <div className="text-[10px] text-amber-800 font-bold flex items-center gap-1 mt-0.5">
+                                    <AlertTriangle className="w-3 h-3 text-amber-600 flex-shrink-0" />
+                                    <span>Tương tác: {itemInteractions[0].pair.pairName}</span>
                                   </div>
                                 )}
                                 {prescriptionRowErrors[index] && (

@@ -24,7 +24,7 @@ export const VITAL_RANGES: Record<VitalKey, { min: number; max: number; label: s
   bpDiastolic: { min: 30, max: 150, label: 'HA tâm trương', unit: 'mmHg' },
   heartRate: { min: 30, max: 220, label: 'Mạch', unit: 'lần/phút' },
   temperature: { min: 34, max: 43, label: 'Nhiệt độ', unit: '°C' },
-  respiratoryRate: { min: 5, max: 60, label: 'Nhịp thở', unit: 'lần/phút' },
+  respiratoryRate: { min: 8, max: 40, label: 'Nhịp thở', unit: 'lần/phút' },
   spO2: { min: 50, max: 100, label: 'SpO2', unit: '%' },
   height: { min: 40, max: 250, label: 'Chiều cao', unit: 'cm' },
   weight: { min: 2, max: 300, label: 'Cân nặng', unit: 'kg' },

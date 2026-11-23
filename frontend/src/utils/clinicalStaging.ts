@@ -396,6 +396,183 @@ export function evaluateHeartRate(hrVal: string | number | undefined): HeartRate
   };
 }
 
+export interface News2SubScores {
+  respiratoryRate: number;
+  spO2: number;
+  systolicBp: number;
+  heartRate: number;
+  temperature: number;
+}
+
+export interface News2Evaluation {
+  totalScore: number;
+  subScores: News2SubScores;
+  hasSingleScore3: boolean;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  label: string;
+  badgeText: string;
+  badgeClass: string;
+  bgClass: string;
+  borderClass: string;
+  textClass: string;
+  recommendation: string;
+  hasData: boolean;
+}
+
+/**
+ * Thang điểm Cảnh Báo Sớm Quốc Gia NEWS-2 (National Early Warning Score 2)
+ * Tính điểm thời gian thực dựa trên 5 thông số sinh hiệu chính:
+ * 1. Nhịp thở (Respiratory Rate)
+ * 2. Độ bão hòa oxy máu mao mạch (SpO2)
+ * 3. Huyết áp tâm thu (Systolic Blood Pressure)
+ * 4. Tần số tim / nhịp mạch (Heart Rate)
+ * 5. Thân nhiệt (Temperature)
+ */
+export function evaluateNews2Score(
+  respiratoryRateVal: string | number | undefined,
+  spO2Val: string | number | undefined,
+  systolicBpVal: string | number | undefined,
+  heartRateVal: string | number | undefined,
+  temperatureVal: string | number | undefined
+): News2Evaluation {
+  const parseVal = (val: string | number | undefined): number | null => {
+    if (val === undefined || val === null || val === '') return null;
+    const n = typeof val === 'number' ? val : Number(String(val).trim().replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const rrRaw = parseVal(respiratoryRateVal);
+  const spo2Raw = parseVal(spO2Val);
+  const sbpRaw = parseVal(systolicBpVal);
+  const hrRaw = parseVal(heartRateVal);
+  const tempRaw = parseVal(temperatureVal);
+
+  const hasAnyMeasurement =
+    rrRaw !== null || spo2Raw !== null || sbpRaw !== null || hrRaw !== null || tempRaw !== null;
+
+  // 1. Nhịp thở: nếu chưa nhập nhưng có các chỉ số khác, mặc định 16 lần/phút (0 điểm theo chuẩn sinh lý)
+  let rrScore = 0;
+  const effectiveRr = rrRaw !== null ? rrRaw : 16;
+  if (effectiveRr <= 8) rrScore = 3;
+  else if (effectiveRr <= 11) rrScore = 1;
+  else if (effectiveRr <= 20) rrScore = 0;
+  else if (effectiveRr <= 24) rrScore = 2;
+  else rrScore = 3;
+
+  // 2. SpO2 (%)
+  let spo2Score = 0;
+  if (spo2Raw !== null) {
+    if (spo2Raw <= 91) spo2Score = 3;
+    else if (spo2Raw <= 93) spo2Score = 2;
+    else if (spo2Raw <= 95) spo2Score = 1;
+    else spo2Score = 0;
+  }
+
+  // 3. Huyết áp tâm thu (mmHg)
+  let sbpScore = 0;
+  if (sbpRaw !== null) {
+    if (sbpRaw <= 90) sbpScore = 3;
+    else if (sbpRaw <= 100) sbpScore = 2;
+    else if (sbpRaw <= 110) sbpScore = 1;
+    else if (sbpRaw <= 219) sbpScore = 0;
+    else sbpScore = 3;
+  }
+
+  // 4. Mạch / Tần số tim (bpm)
+  let hrScore = 0;
+  if (hrRaw !== null) {
+    if (hrRaw <= 40) hrScore = 3;
+    else if (hrRaw <= 50) hrScore = 1;
+    else if (hrRaw <= 90) hrScore = 0;
+    else if (hrRaw <= 110) hrScore = 1;
+    else if (hrRaw <= 130) hrScore = 2;
+    else hrScore = 3;
+  }
+
+  // 5. Thân nhiệt (°C)
+  let tempScore = 0;
+  if (tempRaw !== null) {
+    if (tempRaw <= 35.0) tempScore = 3;
+    else if (tempRaw <= 36.0) tempScore = 1;
+    else if (tempRaw <= 38.0) tempScore = 0;
+    else if (tempRaw <= 39.0) tempScore = 1;
+    else tempScore = 2;
+  }
+
+  const subScores: News2SubScores = {
+    respiratoryRate: rrScore,
+    spO2: spo2Score,
+    systolicBp: sbpScore,
+    heartRate: hrScore,
+    temperature: tempScore
+  };
+
+  const totalScore = rrScore + spo2Score + sbpScore + hrScore + tempScore;
+  const hasSingleScore3 =
+    rrScore === 3 || spo2Score === 3 || sbpScore === 3 || hrScore === 3 || tempScore === 3;
+
+  // Phân tầng nguy cơ theo chuẩn NEWS-2:
+  // - 0 - 4: Low Risk (Green) "Nguy cơ thấp - Ổn định lâm sàng"
+  // - 5 - 6 (hoặc có điểm đơn lẻ 3): Medium Risk (Amber) "Nguy cơ trung bình - Cần theo dõi sát"
+  // - >= 7: High Risk (Red) "Nguy cơ cao - Cảnh báo suy sụp lâm sàng cấp tính"
+  let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  let label: string;
+  let badgeText: string;
+  let badgeClass: string;
+  let bgClass: string;
+  let borderClass: string;
+  let textClass: string;
+  let recommendation: string;
+
+  if (totalScore >= 7) {
+    riskLevel = 'HIGH';
+    label = 'Nguy cơ cao - Cảnh báo suy sụp lâm sàng cấp tính';
+    badgeText = `NEWS-2: ${totalScore} điểm (Nguy cơ cao)`;
+    badgeClass = 'bg-rose-600 text-white animate-pulse shadow-sm';
+    bgClass = 'bg-rose-50/90';
+    borderClass = 'border-rose-400';
+    textClass = 'text-rose-950';
+    recommendation = 'Khẩn cấp: Nguy cơ suy sụp lâm sàng cấp tính đe dọa tính mạng. Bác sĩ cần đánh giá cấp cứu ngay lập tức và theo dõi liên tục.';
+  } else if (totalScore >= 5 || hasSingleScore3) {
+    riskLevel = 'MEDIUM';
+    label = 'Nguy cơ trung bình - Cần theo dõi sát';
+    badgeText = hasSingleScore3 && totalScore < 5
+      ? `NEWS-2: ${totalScore} điểm (Nguy cơ trung bình - Điểm đơn lẻ 3)`
+      : `NEWS-2: ${totalScore} điểm (Nguy cơ trung bình)`;
+    badgeClass = 'bg-amber-500 text-white shadow-sm';
+    bgClass = 'bg-amber-50/90';
+    borderClass = 'border-amber-400';
+    textClass = 'text-amber-950';
+    recommendation = hasSingleScore3 && totalScore < 5
+      ? 'Cảnh báo: Có ít nhất một chỉ số sinh hiệu ở mức báo động đỏ (3 điểm). Cần theo dõi sát và cân nhắc can thiệp y tế khẩn.'
+      : 'Bệnh nhân có nguy cơ diễn tiến bất lợi. Cần theo dõi sát các dấu hiệu sinh tồn và đánh giá lại đáp ứng lâm sàng thường xuyên.';
+  } else {
+    riskLevel = 'LOW';
+    label = 'Nguy cơ thấp - Ổn định lâm sàng';
+    badgeText = `NEWS-2: ${totalScore} điểm (Nguy cơ thấp)`;
+    badgeClass = 'bg-emerald-600 text-white shadow-sm';
+    bgClass = 'bg-emerald-50/70';
+    borderClass = 'border-emerald-300';
+    textClass = 'text-emerald-950';
+    recommendation = 'Dấu hiệu sinh tồn trong giới hạn an toàn, ổn định lâm sàng. Tiếp tục theo dõi và điều trị theo phác đồ thường quy.';
+  }
+
+  return {
+    totalScore,
+    subScores,
+    hasSingleScore3,
+    riskLevel,
+    label,
+    badgeText,
+    badgeClass,
+    bgClass,
+    borderClass,
+    textClass,
+    recommendation,
+    hasData: hasAnyMeasurement
+  };
+}
+
 /**
  * Tạo câu nhận xét lâm sàng tự động chuẩn y khoa để nạp vào Lời dặn dò / Kế hoạch điều trị
  */
@@ -403,10 +580,15 @@ export function generateClinicalVitalsNote(
   systolic: string | number,
   diastolic: string | number,
   weight: string | number,
-  height: string | number
+  height: string | number,
+  respiratoryRate?: string | number,
+  spO2?: string | number,
+  heartRate?: string | number,
+  temperature?: string | number
 ): string {
   const bp = evaluateBloodPressure(systolic, diastolic);
   const bmi = evaluateBmiAsia(weight, height);
+  const news2 = evaluateNews2Score(respiratoryRate, spO2, systolic, heartRate, temperature);
 
   const parts: string[] = [];
   if (bp.stage !== 'UNKNOWN') {
@@ -415,12 +597,16 @@ export function generateClinicalVitalsNote(
   if (bmi.stage !== 'UNKNOWN') {
     parts.push(`Thể trạng: BMI ${bmi.bmi} kg/m² (${bmi.badgeText} theo chuẩn WHO Châu Á).`);
   }
+  if (news2.hasData) {
+    parts.push(`Thang điểm cảnh báo sớm NEWS-2: ${news2.totalScore} điểm (${news2.label}).`);
+  }
 
   const adviceParts: string[] = [];
   if (bp.advice) adviceParts.push(bp.advice);
   if (bmi.advice) adviceParts.push(bmi.advice);
+  if (news2.hasData && news2.recommendation) adviceParts.push(news2.recommendation);
 
   if (parts.length === 0) return '';
 
-  return `[ĐÁNH GIÁ THỂ TRẠNG & SINH HIỆU]: ${parts.join(' ')}\n[KHUYẾN CÁO LỐI SỐNG & DINH DƯỠNG]: ${adviceParts.join(' ')}`;
+  return `[ĐÁNH GIÁ THỂ TRẠNG & SINH HIỆU]: ${parts.join(' ')}\n[KHUYẾN CÁO LỐI SỐNG & LÂM SÀNG]: ${adviceParts.join(' ')}`;
 }

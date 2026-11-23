@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#145** | 23/11/2026 | Nâng Cấp Giao Diện Bàn Khám Bác Sĩ (Doctor Clinical Workstation UI Overhaul): Tính Điểm Cảnh Báo Sớm NEWS-2 Thời Gian Thực & Rào Chắn An Toàn Dược Lâm Sàng (DDI & Drug Allergy Screening) Trên DoctorDashboard.tsx: (1) Vital Signs & NEWS-2 Score: Thêm `respiratoryRate` (Nhịp thở, lần/phút; mặc định 16, dải hợp lệ 8–40), tính toán thời gian thực thang điểm cảnh báo sớm Quốc gia NEWS-2 dựa trên 5 thông số sinh hiệu (Nhịp thở, SpO2, Huyết áp tâm thu, Mạch, Thân nhiệt); hiển thị huy hiệu lâm sàng chuẩn phân tầng nguy cơ 3 cấp độ: Nguy cơ thấp (0–4 điểm, Xanh lá), Nguy cơ trung bình (5–6 điểm hoặc điểm đơn lẻ 3, Hổ phách), Nguy cơ cao (≥ 7 điểm, Đỏ cảnh báo); (2) Drug Safety Engine (`drugSafety.ts`): Hiện thực hóa bộ máy phát hiện tương tác thuốc bất lợi (DDI) giữa nhiều loại thuốc kê đơn (Warfarin + Aspirin/NSAID, Clopidogrel + Omeprazole, Simvastatin + Clarithromycin, ACEI/ARB + Kali, Nitrate + PDE5) kèm banner cảnh báo CRITICAL/MAJOR, cơ chế và khuyến cáo xử trí; rà soát xung đột tiền sử dị ứng chéo nhóm kháng sinh (Penicillin / Amoxicillin / Augmentin, Cephalosporin, Sulfa, NSAID); (3) Tích hợp vào modal ký duyệt bệnh án EMR; (4) E2E Playwright test mới `clinical-safety-news2.spec.ts` 6/6 test PASS, `doctor-encounter.spec.ts` 6/6 test PASS; Frontend `npm run build` 0 lỗi TypeScript. | AI Assistant (workstation_ui) | 🟢 Sẵn sàng Review |
 | **#144** | 23/11/2026 | Chuẩn Hóa Bản Thể Luận Lâm Sàng Nâng Cao & Rào Chắn An Toàn Dược Lâm Sàng (Clinical Ontology Standardization, Panic Values, NEWS-2 Scoring, DDI & Drug-Allergy Safety): (1) Panic Values: Bổ sung `criticalLow` và `criticalHigh` vào danh mục cận lâm sàng LOINC (`lab_indicators_loinc_byt.json`) cho Kali K+ (< 2.8 hoặc > 6.2 mmol/L), Glucose (< 2.2 hoặc > 25.0 mmol/L), Natri Na+ (< 120 hoặc > 160 mmol/L, bổ sung chuẩn LOINC 2951-2), Tiểu cầu PLT (< 30 G/L), Troponin T hs (> 0.05 ng/mL); cập nhật `LabIndicatorDto` và hiện thực hóa `evaluateIndicatorStatus` trả về `CRITICAL_PANIC`, `ELEVATED`, `LOW`, `NORMAL`; (2) NEWS-2 Score: Hiện thực hóa `calculateNews2Score` theo chuẩn Royal College of Physicians (RCP) chấm điểm 6 thông số sinh hiệu (nhịp thở, SpO2, HA tâm thu, mạch, tri giác ACVPU, thân nhiệt), phân tầng rủi ro chính xác (LOW 0-4, MEDIUM 5-6 hoặc có điểm đơn 3, HIGH >= 7) kèm khuyến cáo đáp ứng lâm sàng / ICU Code Blue; (3) Drug-Drug Interactions (DDI): Hiện thực hóa `checkDrugInteractions` phát hiện các cặp tương tác nghiêm trọng (Warfarin + NSAID/Aspirin, Clopidogrel + Omeprazole, Simvastatin/Atorvastatin + Clarithromycin, ACEi/ARB + Spironolactone, Metformin + Thuốc cản quang, Methotrexate + NSAID, PDE5 + Nitrate); (4) Drug Allergy Cross-check: Hiện thực hóa `checkDrugAllergyConflict` ánh xạ hoạt chất và phát hiện dị ứng chéo (Augmentin/Amoxicillin -> Penicillin/Beta-lactam, dị ứng chéo Cephalosporin, Ibuprofen/Aspirin -> NSAID, Bactrim -> Sulfonamide, Macrolide, Quinolone, Opioid, Paracetamol); (5) Sinh mới 3 DTO lâm sàng: `News2ScoreDto`, `DrugInteractionDto`, `DrugAllergyConflictDto`; (6) Bổ sung 4 unit tests chuyên sâu trong `ClinicalOntologyServiceTest.java`. 12/12 test service PASS, 335/335 backend tests toàn hệ thống PASS 100%. | AI Assistant (clinical_core) | 🟢 Sẵn sàng Review |
 | **#143** | 23/11/2026 | Nâng Cấp Toàn Diện Luồng Onboarding & Kiểm Định Bác Sĩ (Doctor Onboarding & Vetting Overhaul) với Supabase Cloud Storage & Thẩm Định CCHN Chuẩn Bộ Y Tế: (1) Flyway V25: thêm `verification_status` (UNSUBMITTED, PENDING_VERIFICATION, APPROVED, REJECTED), `rejection_reason`, `rejection_at`, `license_issued_date`, `scope_of_practice`, `license_document_storage_path` và index `idx_doctor_verification_status`; (2) Tích hợp Supabase Cloud Storage Private Bucket `medical-documents` (`doctor-licenses/...`), cấp Signed URL 15 phút an toàn kèm fallback local an toàn; (3) Cập nhật DoctorService & AdminVettingService: upload scan CCHN, lấy Signed URL, đối soát hồ sơ, từ chối có lý do, phê duyệt đồng bộ pgvector embedding, ghi audit log `UPLOAD_DOCTOR_LICENSE_DOCUMENT` & `ADMIN_VIEW_DOCTOR_LICENSE`; (4) Làm mới giao diện `DoctorProfilePage.tsx` (upload zone kéo thả, xem scan CCHN phóng to, banner 4 trạng thái, nút nộp thẩm định), `DoctorVettingPage.tsx` (xem scan CCHN, modal Document Inspector với checklist BYT), `DoctorManagementPage.tsx`; (5) 331/331 unit tests PASS, frontend build 0 lỗi TS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#142** | 23/11/2026 | Kiểm Tra & Đồng Bộ Toàn Diện Ma Trận Biến Môi Trường (Environment Audit & Secret Persistence Baseline): (1) Kiểm tra live 100% các cổng AI: Google Gemini 3.5 Flash API (23 flash models, phản hồi test live 200 OK), OpenRouter Free Fallback (phản hồi test live 200 OK); (2) Kiểm tra live Supabase Cloud Private Storage: bucket `medical-documents` phản hồi 200 OK với `service_role` key; (3) Kiểm tra Google OAuth2 Client ID/Secret; (4) Đồng bộ và sinh tệp `.env` (gốc) & `backend/.env` từ `application-local.properties`; (5) Bổ sung `VITE_ENABLE_DEMO_LOGIN=true` vào `frontend/.env`; (6) Rà soát trạng thái Gmail SMTP (`SMTP_PASSWORD` hiện trống, cần App Password 16 ký tự nếu gửi email thật hoặc chuyển Mailpit localhost:1025). | AI Assistant | 🟢 Sẵn sàng Review |
@@ -81,6 +82,60 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#145] Nâng Cấp Giao Diện Bàn Khám Bác Sĩ: Tính Điểm Cảnh Báo Sớm NEWS-2 Thời Gian Thực & Rào Chắn An Toàn Dược Lâm Sàng (DDI & Drug Allergy Screening) Trên DoctorDashboard.tsx
+* **Thời gian:** 2026-11-23 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (workstation_ui)
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Cập nhật trạm làm việc lâm sàng Bác sĩ (`DoctorDashboard.tsx`):
+  1. Dấu hiệu sinh tồn (Vital Signs) trong modal khám lâm sàng:
+     - Thêm trường `respiratoryRate` (Nhịp thở, lần/phút; mặc định 16, dải sinh lý 8–40).
+     - Tính toán thời gian thực thang điểm cảnh báo sớm Quốc gia NEWS-2 (National Early Warning Score 2) dựa trên: Nhịp thở, SpO2, Huyết áp tâm thu, Mạch, Thân nhiệt.
+     - Hiển thị Huy hiệu NEWS-2 lâm sàng trực quan theo 3 cấp độ:
+       * 0–4 điểm: Nguy cơ thấp (Xanh lá) "Nguy cơ thấp - Ổn định lâm sàng"
+       * 5–6 điểm (hoặc có điểm đơn lẻ 3): Nguy cơ trung bình (Hổ phách) "Nguy cơ trung bình - Cần theo dõi sát"
+       * ≥ 7 điểm: Nguy cơ cao (Đỏ) "Nguy cơ cao - Cảnh báo suy sụp lâm sàng cấp tính"
+  2. Kê đơn thuốc ngoại trú (Prescription) & Rào chắn an toàn dược:
+     - Tự động phát hiện tương tác thuốc bất lợi (DDI) khi kê nhiều thuốc (ví dụ: Warfarin + Aspirin/NSAID, Clopidogrel + Omeprazole/Esomeprazole, Simvastatin/Atorvastatin + Clarithromycin, ACEI/ARB + Kali, Nitrate + PDE-5).
+     - Hiển thị banner cảnh báo lâm sàng nổi bật (Đỏ - CRITICAL, Vàng - MAJOR) kèm cơ chế dược lý, hậu quả lâm sàng và khuyến cáo xử trí.
+     - Kiểm tra xung đột tiền sử dị ứng thuốc và dị ứng chéo (ví dụ: dị ứng Penicillin cảnh báo khi kê Augmentin/Amoxicillin, Cephalosporin, Sulfa, NSAID).
+  3. Đảm bảo toàn bộ hệ thống biên dịch sạch 0 lỗi TS và các test E2E Playwright đều vượt qua.
+* **Chi Tiết Thực Thi Kỹ Thuật:**
+  1. **NEWS-2 Engine (`frontend/src/utils/clinicalStaging.ts` & `DoctorDashboard.tsx`):**
+     - Hiện thực hóa hàm `evaluateNews2Score(respiratoryRate, spO2, systolicBp, heartRate, temperature)` theo chuẩn Royal College of Physicians (RCP UK).
+     - Hỗ trợ phân tích sub-scores chi tiết cho từng chỉ số (Nhịp thở, SpO2, HA tâm thu, Tần số tim, Thân nhiệt).
+     - Nhận diện cờ `hasSingleScore3` khi có bất kỳ chỉ số đơn lẻ nào đạt 3 điểm cực đoan (kích hoạt ngay mức Nguy cơ trung bình).
+     - Tích hợp thẻ giao diện hiển thị điểm số, badge phân tầng nguy cơ và breakdown 5 thành phần trên giao diện sinh hiệu.
+     - Đồng bộ vào hàm `generateClinicalVitalsNote` giúp 1-click nạp tự động điểm NEWS-2 vào lời dặn bác sĩ.
+  2. **Drug Safety Engine (`frontend/src/utils/drugSafety.ts`):**
+     - Xây dựng cơ sở tri thức tương tác thuốc lâm sàng `KNOWN_INTERACTIONS` gồm các cặp tương tác trọng yếu trong thực hành nội trú/ngoại trú.
+     - Xây dựng ontology phân nhóm dị ứng `ALLERGY_GROUPS` hỗ trợ phát hiện dị ứng chéo phân nhóm (Penicillin, Cephalosporin, Sulfa, NSAID, Macrolide, Paracetamol).
+     - Hàm `evaluatePrescriptionSafety(drugs, allergies)` trả về toàn diện danh sách tương tác DDI, xung đột dị ứng và mức độ rủi ro (`CRITICAL`, `MAJOR`).
+  3. **Tích Hợp Giao Diện Trạm Khám Bác Sĩ (`DoctorDashboard.tsx`):**
+     - Thêm trường `respiratoryRate` vào form sinh hiệu tiếp đón với placeholder `16`, hiển thị dải hợp lệ `8–40 l/p`.
+     - Cập nhật `VITAL_RANGES` trong `vitals.ts` cho `respiratoryRate`: `min: 8, max: 40`.
+     - Hiển thị Banner cảnh báo DDI và Banner cảnh báo Dị ứng nổi bật ngay trên bảng kê đơn thuốc.
+     - Đánh dấu trực quan các dòng thuốc có xung đột (viền đỏ/hổ phách, nhãn cảnh báo tương tác/dị ứng).
+     - Tích hợp rào chắn kiểm tra an toàn dược vào luồng ký duyệt ca khám (`handleSubmitEncounter`).
+  4. **Kiểm Thử Toàn Diện (Testing & Verification):**
+     - Viết mới test suite E2E Playwright `frontend/e2e/clinical-safety-news2.spec.ts` kiểm thử toàn diện: Tính điểm NEWS-2 thời gian thực (0-4 -> 3 điểm đơn lẻ -> >= 7 điểm), phát hiện DDI Warfarin + Aspirin, phát hiện dị ứng chéo Penicillin - Augmentin (6/6 tests PASS).
+     - Kiểm thử hồi quy `frontend/e2e/doctor-encounter.spec.ts` (6/6 tests PASS).
+     - Biên dịch Frontend `npm run build --prefix frontend` thành công 100% với 0 lỗi TypeScript (2.326 modules transformed, 2.69s).
+* **Danh Sách Tệp Tin Cập Nhật:**
+  1. `[NEW]` `frontend/src/utils/drugSafety.ts`
+  2. `[NEW]` `frontend/e2e/clinical-safety-news2.spec.ts`
+  3. `[MOD]` `frontend/src/pages/doctor/DoctorDashboard.tsx`
+  4. `[MOD]` `frontend/src/utils/clinicalStaging.ts`
+  5. `[MOD]` `frontend/src/utils/vitals.ts`
+  6. `[MOD]` `docs/USE_CASES.md`
+  7. `[MOD]` `docs/WORK_LOG.md`
+* **Bằng Chứng Kiểm Thử:**
+  - `npm run build --prefix frontend`: Built in 2.69s, 0 TypeScript errors.
+  - `npm run test:e2e -- e2e/clinical-safety-news2.spec.ts`: 6/6 tests PASS (21.0s).
+  - `npm run test:e2e -- e2e/doctor-encounter.spec.ts`: 6/6 tests PASS (8.7s).
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Công thức tính điểm NEWS-2 và điều kiện kích hoạt cấp độ nguy cơ trung bình khi có điểm đơn lẻ đạt 3 điểm đã tuân thủ chuẩn RCP.
+  - Cơ chế nhận diện nhóm kháng sinh dị ứng chéo (Penicillin -> Augmentin/Amoxicillin) chạy 100% ở client-side với zero latency.
 
 ### [WORK-LOG-#143] Nâng Cấp Toàn Diện Luồng Onboarding & Kiểm Định Bác Sĩ (Doctor Onboarding & Vetting Overhaul) Với Supabase Cloud Storage & Thẩm Định CCHN Chuẩn Bộ Y Tế
 * **Thời gian:** 2026-11-23 (GMT+7)
