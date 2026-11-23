@@ -59,7 +59,15 @@ export const SlotPicker: React.FC<SlotPickerProps> = ({ doctorId, date, onDateCh
     try {
       const res = await api.get(`/doctors/${doctorId}/slots`, { params: { date } });
       if (id !== requestId.current) return; // a newer request superseded this one
-      setSlots(Array.isArray(res.data?.data) ? res.data.data : []);
+      const rawSlots = Array.isArray(res.data?.data) ? res.data.data : [];
+      const seenTimes = new Set<string>();
+      const dedupedSlots = rawSlots.filter((s: DoctorSlot) => {
+        const timeKey = s.startTime?.slice(0, 5) || slotStart(s, date);
+        if (seenTimes.has(timeKey)) return false;
+        seenTimes.add(timeKey);
+        return true;
+      });
+      setSlots(dedupedSlots);
     } catch (err) {
       if (id !== requestId.current) return;
       setSlots([]);

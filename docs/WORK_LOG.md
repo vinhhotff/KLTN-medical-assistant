@@ -11,12 +11,12 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
-| **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
-| :---: | :---: | :--- | :--- | :--- |
 | **#137** | 23/11/2026 | Sửa lỗi ngày làm việc bác sĩ đã tắt bị tự mở lại: `DoctorService` chỉ gieo lịch mặc định cho bác sĩ chưa từng lưu lịch (`existsByDoctorProfileId`). Thêm `DoctorServiceScheduleTest` (3 test). | AI Assistant | 🟢 Sẵn sàng Review |
+| **#136** | 21/11/2026 | Khắc Phục Triệt Để 4 Điểm Nghẽn Trọng Tâm Trên Bàn Làm Việc Bác Sĩ, Đặt Lịch Khám & Định Tuyến AI (Clinical Workstation, Slot Booking, Notification & Gemini AI Overhaul): (1) Khử trùng lặp khung giờ khám (15 slot duy nhất 08:00 - 17:00 qua `TreeMap` trong `DoctorService.java`, dọn sạch 184 dòng trùng trong DB và chặn kép Set-based tại `SlotPicker.tsx`); (2) Vá lỗi xem hồ sơ bệnh án PDF trên trạm bác sĩ (`ClinicalEmbeddedFileViewer` tải Blob Object URL an toàn kèm Bearer auth); (3) Kích hoạt chuông thông báo In-App thời gian thực cho bác sĩ và bệnh nhân (`APPOINTMENT_NEW`, `CONFIRMED`, `CANCELLED`, `CHECKED_IN`, `COMPLETED`, `RESCHEDULED`); (4) Đưa mô hình AI trở lại trực tuyến: cập nhật `gemini-3.5-flash` và `openrouter/free`; (5) Tích hợp Supabase URL và Publishable Key. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#135** | 21/11/2026 | Nâng Cấp Toàn Diện Layout Bảng & Khắc Phục Lỗi Điều Hướng Anchor Trên 5 Trình Xem Báo Cáo Khóa Luận (WordCraft Studio Workbench): (1) Khắc phục triệt để lỗi điều hướng anchor có dấu gạch kép (`--` do dấu `&` sinh ra): Viết lại hàm `normalizeSlug` xử lý gộp dấu gạch nối, bỏ ký tự đặc biệt và hỗ trợ partial match fallback, giúp URL `#41-tầng-1-deterministic-safety--biological-plausibility-filter` mở thẳng tài liệu chính xác thay vì rơi vào trang trắng; (2) Giải quyết triệt để lỗi "Căn lề dòng quá ngu & trống table" (Cột Descriptions bị bóp về 0px, hàng cao 1.828px): Bỏ logic gán nhầm `.table-stakeholders` 4 cột vào bảng 5 cột có từ khóa "actor", thiết lập class `.table-matrix-5col` phân bổ chuẩn 13% - 17% - 14% - 21% - 35% (cột Descriptions nở từ 0px lên 385px, chiều cao dòng co từ 1.828px xuống 66px); (3) Mở rộng viewport đọc `#content-wrapper` từ 880px lên 1.200px (tối đa 96%); (4) Đồng bộ trên 5 báo cáo `report_1` đến `report_5` và xác thực qua Playwright. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
 | **#134** | 21/11/2026 | Giải Mã Cơ Chế Ánh Xạ ICD-10 Sang Chuyên Khoa Bác Sĩ & Làm Rõ Nguồn Gốc Dữ Liệu Lâm Sàng Meddies Phục Vụ Bảo Vệ Luận Văn: (1) Phân tích cơ chế khoa học giải quyết khoảng cách ngữ nghĩa (Semantic Gap): Sử dụng bảng ánh xạ chuẩn WHO ICD-10 (`icd10_specialty_mapper.py`) liên kết các chương mã ICD-10 tới 12 chuyên khoa, gom cụm triệu chứng (top 20) và than phiền (top 6) tiêm vào profile bác sĩ (`train_augment_doctors.py`) trước khi nhúng vector 1536 chiều, (2) Khẳng định tính pháp lý và đạo đức y tế: Dữ liệu huấn luyện & benchmark lấy từ kho dữ liệu mở đã khử định danh trên Hugging Face (`Meddies/meddies-persona-vie` & `Meddies/meddies-pii`) và danh mục chuẩn Bộ Y tế, tuyệt đối KHÔNG xâm phạm bệnh án thật (tuân thủ 100% Nghị định 13/2023/NĐ-CP), (3) Bổ sung 2 câu hỏi phản biện chuyên sâu #26 và #27 vào `docs/CAPSTONE_DEFENSE.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
-| **#133** | 21/11/2026 | Chuẩn Hóa Cột Tên Bệnh Danh ICD (icd_name) Trên Sơ Đồ Vector & Báo Cáo Luận Văn: (1) Chuẩn hóa cột `icd10_name` $\rightarrow$ `icd_name` trong `interactive_viewer.html`, (2) Cập nhật `docs/DATABASE_DESIGN.md` & `docs/SDD_MediAssist_AI.md`, (3) Biên dịch thành công 21 tài liệu `docs-bundle.js`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
+| **#133-B** | 21/11/2026 | Chuẩn Hóa Cột Tên Bệnh Danh ICD (icd_name) Trên Sơ Đồ Vector & Báo Cáo Luận Văn: (1) Chuẩn hóa cột `icd10_name` $\rightarrow$ `icd_name` trong `interactive_viewer.html`, (2) Cập nhật `docs/DATABASE_DESIGN.md` & `docs/SDD_MediAssist_AI.md`, (3) Biên dịch thành công 21 tài liệu `docs-bundle.js`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
+| **#133-A** | 21/11/2026 | Chuẩn Hóa Cặp Nút Điều Hướng Header `Đăng Nhập` & `Đăng Ký` Trên Trang Chủ (`LandingPage.tsx`) & Tab Mặc Định `LOGIN` Tại `LoginPage.tsx`: (1) Đổi nút phải trên thanh Header trang chủ từ `Khám Ngay →` thành `Đăng Ký` điều hướng tới `/login?mode=register` (mở thẳng biểu mẫu đăng ký); (2) Cập nhật nút `Đăng Nhập` trên thanh Header điều hướng tới `/login?mode=login` và chỉnh `activeTab` mặc định của `LoginPage.tsx` sang `'LOGIN'` (trừ khi URL có `?mode=register`), khắc phục triệt để tình trạng bấm `Đăng Nhập` nhưng nhảy vào giao diện Đăng ký; (3) Đồng bộ `frontend/e2e/auth.spec.ts` và `docs/USE_CASES.md` (`UC-COMM-01`). Biên dịch `npm run build` 0 lỗi TypeScript (`2.313` modules), cập nhật bản build trực tiếp trên cổng `5173`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#132-B** | 20/11/2026 | Xây Dựng Kịch Bản Thuyết Trình CSDL 3 Tầng & Hướng Dẫn Sử Dụng Vector Studio Zoom 1000%: Bổ sung chiến thuật thuyết trình 3 tầng (Macro Slide 8, Deep-Dive Slide 9-11, Live Vector Studio Zoom 1000%) vào Section 2.1 của `docs/CAPSTONE_DEFENSE.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
 | **#132-A** | 20/11/2026 | Bổ Sung Bộ Class Diagrams (4 Biểu Đồ Lớp Clean Architecture & Nghiệp Vụ) Và Sequence Diagrams Chuyên Sâu Vào Vector Studio (`interactive_viewer.html`) & Cổng Review 2 (`review_2/index.html`): (1) Bổ sung CSS High-Contrast tương phản cao (`svg[aria-roledescription="classDiagram"]`) cho cả giao diện Sáng/Tối và cấu hình `class: { useMaxWidth: false }` trong `docs/diagrams/interactive_viewer.html`; (2) Bổ sung **4 Class Diagrams** (`class_master`, `class_triage_search`, `class_booking_emr`, `class_ocr_security`) ánh xạ 1-1 phương thức Java thực tế (`RedFlagService.evaluateRedFlag`, `ClinicalQueryDefenseEngine.analyzeAndDefend`, `AiProvider` 3-Tier Router, `PaymentGateway` Adapter, `PatientAccessGuard`, `Appointment` V23/V24, `MedicalDocument` V20) và **2 Sequence Diagrams mới** (`seq_e2e_master` luồng khép kín Triage -> HNSW -> Booking 3 Tầng -> EMR V23; `seq_doctor_onboarding` Onboarding Bác sĩ 2 Bước & Admin Vet), đồng thời đồng bộ `seq_triage`, `seq_encounter`, `seq_ocr` sang `Gemini 2.5 Flash` & `icd_code`/`icd_version` V23; (3) Tích hợp nút mở nhanh & chuyển sơ đồ `1.4 Class Diagram Tổng Thể`, `1.5 Sequence Khép Kín` cùng liên kết Slide 3/7 trong `review_2/index.html`; (4) Cập nhật `docs/CAPSTONE_DEFENSE.md` (Section `5.5` Hướng dẫn trình bày Class & Sequence Diagram trước Hội đồng) và biên dịch lại `docs-bundle.js`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#131-B** | 20/11/2026 | Cập Nhật Ảnh Master ERD Slide 8 Từ Vector Studio HTML & Làm Rõ Cơ Cấu Slide Thuyết Trình: Thay ảnh nét cao 3840x1397 trên Canva Slide 8 và làm rõ cấu trúc 15 slide. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
@@ -97,6 +97,55 @@
 
 ---
 
+### [WORK-LOG-#136] Khắc Phục Triệt Để 5 Vấn Đề Vận Hành Trọng Yếu: Khử Trùng Lịch Khám, Lỗi Xem Bệnh Án PDF (🚫), Chuông Thông Báo Bác Sĩ, Nâng Cấp Gemini Flash & OpenRouter Online, và Cấu Hình Supabase
+* **Thời gian:** 2026-11-21 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/fuction`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu giải quyết 5 vấn đề:
+  1. Lịch khám hiển thị quá nhiều slot trùng nhau (55/59 slot trên modal đặt khám).
+  2. Không xem được bệnh án/hồ sơ xét nghiệm PDF của bệnh nhân trên Trạm bác sĩ đa màn hình (hiện biểu tượng cấm đỏ `🚫`).
+  3. Bác sĩ được đặt lịch nhưng không thấy thông báo gì trên giao diện web.
+  4. API Gemini và OpenRouter báo offline trong ghi chú EMR ("Chế độ Ngoại tuyến... do chưa kết nối API Key hoặc ngoại tuyến").
+  5. Gắn Supabase URL và Publishable Key mới vào dự án.
+* **Nguyên Nhân Gốc Rễ (Root Cause Analysis):**
+  1. **Trùng lịch khám:** Trong cơ sở dữ liệu `doctor_schedule_slots`, tồn tại đồng thời các cấu hình dải giờ rộng (ví dụ 08:00 - 12:00) và các khung rời rạc 30 phút do chạy lặp khởi tạo mặc định. Phương thức `DoctorService.getAvailableSlots` trước đó chưa có cơ chế deduplicate theo mốc thời gian bắt đầu `startTime`, dẫn đến một mốc giờ (08:30) sinh ra 4 bản ghi lặp.
+  2. **Biểu tượng cấm đỏ `🚫` khi xem PDF:** Trình duyệt Chrome nhúng thẻ `<iframe>` không tự động đính kèm header `Authorization: Bearer <jwt>`. Đồng thời Spring Security mặc định chặn hiển thị khung hình bằng `X-Frame-Options: DENY`. Khi request `/api/v1/documents/{id}/file` bị từ chối (401/Frame Denied), Chrome PDF plugin hiển thị biểu tượng cấm đỏ `🚫`.
+  3. **Thiếu thông báo bác sĩ:** Lớp `AppointmentService` khi tiếp nhận đặt lịch (`bookAppointment`), đổi trạng thái (`updateAppointmentStatus`) hoặc dời lịch (`rescheduleAppointment`) chưa được tiêm `NotificationService` để phát sinh bản ghi `Notification` cho bác sĩ điều trị và bệnh nhân.
+  4. **AI Provider báo offline:** Model `gemini-2.5-flash` được Google deprecate và trả về mã lỗi 404 cho tài khoản mới; các slug OpenRouter cũ cũng không còn khả dụng. Ngoài ra, ca khám trong ảnh chụp màn hình được tạo từ thời điểm hệ thống chưa kết nối API key, khiến đoạn text offline cũ bị lưu cứng vào cột `consultation_notes` và `chief_complaint`.
+* **Danh Sách Tệp Tin Đã Cập Nhật:**
+  1. `[MOD]` `backend/src/main/java/com/mediassist/service/DoctorService.java`:
+     - Khử trùng triệt để trong `getAvailableSlots`: sử dụng `TreeMap<LocalTime, DoctorSlotDto>` để gộp các slot trùng `startTime`, ưu tiên trạng thái đã đặt (`isAvailable = false`) và tính toán `isAvailable` chính xác theo múi giờ `Asia/Ho_Chi_Minh`.
+     - Ngăn ngừa chèn lặp lịch mặc định trong `initializeDefaultDoctorSchedules` bằng điều kiện kiểm tra tồn tại `if (existing != null && !existing.isEmpty()) return existing;`.
+  2. `[MOD]` `backend/src/main/java/com/mediassist/config/SecurityConfig.java`:
+     - Bổ sung cấu hình `.headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))` cho phép nhúng iframe từ cùng domain ứng dụng.
+  3. `[MOD]` `backend/src/main/java/com/mediassist/security/JwtAuthenticationFilter.java`:
+     - Bổ sung cơ chế trích xuất JWT dự phòng từ Query Parameter `?token=` phục vụ cho việc tải tài nguyên nhúng qua thẻ iframe/media.
+  4. `[MOD]` `backend/src/main/java/com/mediassist/service/AppointmentService.java`:
+     - Tiêm `@Autowired(required = false) private NotificationService notificationService;`.
+     - Tự động phát sinh thông báo in-app:
+       - Khi đặt lịch: `APPOINTMENT_NEW` cho Bác sĩ và `APPOINTMENT_CONFIRMED` cho Bệnh nhân.
+       - Khi chuyển trạng thái: `APPOINTMENT_CANCELLED` (cho Bác sĩ/Bệnh nhân), `PATIENT_CHECKED_IN` (cho Bác sĩ), `APPOINTMENT_COMPLETED` (cho Bệnh nhân).
+       - Khi dời lịch: `APPOINTMENT_RESCHEDULED` cho Bác sĩ.
+  5. `[MOD]` `backend/src/main/resources/application.properties` & `application-dev.properties`:
+     - Nâng cấp `app.ai.gemini.model=gemini-3.5-flash` (đã xác thực live phản hồi 200 OK).
+     - Chuẩn hóa `app.ai.openrouter.models=openrouter/free` và `app.ai.openrouter.vision-models=openrouter/free`.
+  6. `[MOD]` `frontend/src/components/booking/SlotPicker.tsx`:
+     - Bổ sung lớp phòng thủ Set-based phía Client để lọc bỏ mọi slot trùng lặp `startTime.slice(0, 5)` trước khi render lên giao diện lưới.
+  7. `[MOD]` `frontend/src/pages/doctor/DoctorDashboard.tsx`:
+     - Tái cấu trúc khung hiển thị hồ sơ cận lâm sàng thành component chuyên dụng `ClinicalEmbeddedFileViewer`.
+     - Thay vì truyền trực tiếp URL không kèm token vào iframe, sử dụng Axios tải file nhị phân dưới dạng Blob (`api.get(url, { responseType: 'blob' })`) có gắn kèm token Bearer JWT đầy đủ, tạo `URL.createObjectURL(blob)`, giải phóng bộ nhớ khi unmount, hiển thị Spinner khi đang tải, giao diện lỗi trực quan có nút "Thử lại", cùng 2 nút tiện ích "Mở tab mới" và "Tải về máy".
+  8. `[MOD]` Cấu hình Supabase & CSDL:
+     - Làm sạch 184 dòng trùng lặp trong bảng `doctor_schedule_slots`.
+     - Tích hợp `NEXT_PUBLIC_SUPABASE_URL=https://wakgzrzchmqdqyrgxlaq.supabase.co` và `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_8oAIAHTackCTa7P9GKRJLA_-cTglwwA` vào cấu hình môi trường Frontend & Backend.
+* **Bằng Chứng Kiểm Thử (Verification Evidence):**
+  - **Slot Booking:** Gọi API `GET /api/v1/doctors/b0000000-0000-0000-0000-000000000012/slots?date=2026-11-23` trả về đúng **15 slot duy nhất** (08:00 đến 16:30, bước nhảy 30 phút), không còn hiện tượng 55/59 slot trùng lặp.
+  - **Chuông thông báo:** Đặt ca khám thử nghiệm `AP-20261121-B99907`, bảng `notifications` ghi nhận ngay lập tức bản ghi loại `APPOINTMENT_NEW` cho Bác sĩ Phạm Quốc Tuấn (`b0000000-0000-0000-0000-000000000012`), hiển thị trên chuông web.
+  - **Mô hình AI Online & OCR:** Đã gửi tệp PDF xét nghiệm vào `/api/v1/documents/analyze-preview`, kết nối thành công với Gemini 3.5 Flash & OpenRouter, trích xuất chính xác WBC 13.8, Neutrophil 78.5%, CRP 24.5 và đối soát gợi ý bác sĩ RAG thực tế.
+  - **Frontend Build:** `npm run build` trong `frontend/`: **0 lỗi TypeScript** (`2.313` modules transformed, built in 20.27s).
+  - **Backend Test:** `mvn test` trong `backend/`: **322/322 tests PASS (100%)**.
+
+---
+
 ### [WORK-LOG-#135] Nâng Cấp Toàn Diện Layout Bảng & Khắc Phục Lỗi Điều Hướng Anchor Trên 5 Trình Xem Báo Cáo Khóa Luận (WordCraft Studio Workbench)
 * **Thời gian:** 2026-11-21 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Antigravity)
@@ -140,7 +189,7 @@
 * **Bằng Chứng Kiểm Thử:** `docs/CAPSTONE_DEFENSE.md` và `docs/WORK_LOG.md` được đồng bộ.
 * **Điểm Nóng Tech Lead Cần Duyệt:** Nắm chắc kịch bản trả lời phản biện tại Câu hỏi 26 & 27 trong `docs/CAPSTONE_DEFENSE.md`.
 
-### [WORK-LOG-#133] Chuẩn Hóa Cột Tên Bệnh Danh ICD (icd_name) Trên Sơ Đồ Vector & Báo Cáo Luận Văn
+### [WORK-LOG-#133-B] Chuẩn Hóa Cột Tên Bệnh Danh ICD (icd_name) Trên Sơ Đồ Vector & Báo Cáo Luận Văn
 * **Thời gian:** 2026-11-21 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Antigravity)
 * **Nhánh:** `develop`
@@ -254,6 +303,24 @@
 * **Bằng Chứng Kiểm Thử & Xác Thực:**
   - Kiểm tra file vật lý tồn tại và đủ dung lượng 29 KB tại `Downloads/HUONG_DAN_THUYET_TRINH_REVIEW_2_MEDIASSIST_AI.md` và `.txt`.
   - Frontend và Backend hiện tại đang hoạt động bình thường trên cổng 5173 và 5001.
+
+---
+
+### [WORK-LOG-#133-A] Chuẩn Hóa Cặp Nút Header `Đăng Nhập` & `Đăng Ký` Trên Trang Chủ (`LandingPage.tsx`) Và Tab Mặc Định `LOGIN` Tại `LoginPage.tsx`
+* **Thời gian:** 2026-11-21 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/fuction`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu đổi nút `Khám Ngay →` trên thanh Header thành `Đăng Ký` (mở giao diện đăng ký) và sửa nút `Đăng Nhập` để vào đúng giao diện Đăng nhập thay vì nhảy vào Đăng ký.
+* **Danh Sách Tệp Tin Đã Cập Nhật:**
+  1. `[MOD]` `frontend/src/pages/LandingPage.tsx`:
+     - Cập nhật liên kết nút `Đăng Nhập` trên thanh Header trỏ tới `/login?mode=login`.
+     - Đổi nhãn nút `Khám Ngay →` bên phải thành `Đăng Ký` và điều hướng tới `/login?mode=register`.
+  2. `[MOD]` `frontend/src/pages/LoginPage.tsx`:
+     - Đổi giá trị khởi tạo và `useEffect` của `activeTab` sang mặc định `'LOGIN'` (chỉ mở `'REGISTER'` khi `modeParam === 'register'`), đảm bảo mọi thao tác bấm `Đăng Nhập` hoặc truy cập `/login` đều hiển thị đúng biểu mẫu Đăng nhập hệ thống.
+  3. `[MOD]` `frontend/e2e/auth.spec.ts`: Đồng bộ kịch bản E2E với chế độ mặc định `'LOGIN'` tại `/login` và `'REGISTER'` tại `/login?mode=register`.
+  4. `[MOD]` `docs/USE_CASES.md` (`UC-COMM-01`) & `docs/WORK_LOG.md` (`#133`).
+* **Bằng Chứng Kiểm Thử:**
+  - `npm run build` trong `frontend/`: **0 lỗi TypeScript** (`2.313` modules transformed, cập nhật bundle trực tiếp trên `http://localhost:5173/`).
 
 ---
 

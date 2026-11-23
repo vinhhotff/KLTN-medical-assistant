@@ -86,7 +86,7 @@ graph TD
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AuthController` $\rightarrow$ `POST /api/v1/auth/login, POST /api/v1/auth/register, POST /api/v1/auth/register/doctor, GET /oauth2/authorization/google` (Quyền: `PUBLIC`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/login` (hỗ trợ `?mode=register|login&role=patient|doctor`), `/oauth2/callback` $\rightarrow$ Màn hình `LoginPage.tsx, PatientRegisterForm.tsx, DoctorRegisterForm.tsx, OAuth2CallbackPage.tsx`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/login` (mặc định mở giao diện Đăng nhập `LOGIN`, hỗ trợ `?mode=register|login&role=patient|doctor`; nút Header `Đăng Nhập` điều hướng tới `/login?mode=login` và nút `Đăng Ký` điều hướng tới `/login?mode=register`), `/oauth2/callback` $\rightarrow$ Màn hình `LandingPage.tsx, LoginPage.tsx, PatientRegisterForm.tsx, DoctorRegisterForm.tsx, OAuth2CallbackPage.tsx`
 > - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `users, patient_profiles, doctor_profiles, doctor_specialties` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V3__account_lockout_and_security_hardening.sql, V8__allow_null_password_hash_for_oauth.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AuthService, SecurityRateLimiterService` $\rightarrow$ `UserRepository, PatientProfileRepository, DoctorProfileRepository, SpecialtyRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `AuthServiceEmailVerificationTest.java, OAuth2SecurityTest.java, SecurityHardeningTest.java` (**100% PASS**)

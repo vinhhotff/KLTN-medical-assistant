@@ -525,16 +525,16 @@ export const LandingPage: React.FC = () => {
             ) : (
               <div className="flex items-center gap-2">
                 <Link
-                  to="/login"
+                  to="/login?mode=login"
                   className="px-4 py-2 font-display text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors"
                 >
                   Đăng Nhập
                 </Link>
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate('/login?mode=register')}
                   className="px-5 py-2 font-display text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-md shadow-teal-600/20 transition-all cursor-pointer"
                 >
-                  Khám Ngay →
+                  Đăng Ký
                 </button>
               </div>
             )}

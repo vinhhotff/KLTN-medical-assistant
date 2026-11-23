@@ -33,7 +33,8 @@ import {
   ChevronLeft,
   ChevronRight,
   List,
-  Download
+  Download,
+  Loader2
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api, isPatientAccessDenied } from '../../services/api';
@@ -171,6 +172,169 @@ interface DoctorScheduleSlot {
   slotDurationMinutes: number;
   active: boolean;
 }
+
+const ClinicalEmbeddedFileViewer: React.FC<{
+  doc: PatientDocumentItem;
+  onOpenOriginal: (id: string) => void;
+  onOpenModal: (id: string, name?: string) => void;
+}> = ({ doc, onOpenOriginal, onOpenModal }) => {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const isPdf = doc.fileName.toLowerCase().endsWith('.pdf') || (doc.contentType?.toLowerCase().includes('pdf') ?? false);
+  const isImage = doc.contentType?.toLowerCase().startsWith('image') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(doc.fileName);
+
+  useEffect(() => {
+    let active = true;
+    let url: string | null = null;
+    setLoading(true);
+    setError(null);
+
+    api.get(`/documents/${doc.id}/file`, { responseType: 'blob' })
+      .then((res) => {
+        if (!active) return;
+        const mimeType = doc.contentType || (isPdf ? 'application/pdf' : 'application/octet-stream');
+        const blob = new Blob([res.data], { type: mimeType });
+        url = URL.createObjectURL(blob);
+        setBlobUrl(url);
+      })
+      .catch((err) => {
+        if (!active) return;
+        devLog.error('Failed to load clinical document blob:', err);
+        setError('Không thể nhúng tệp trực tiếp trong khung làm việc. Vui lòng mở trong tab mới.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [doc.id, doc.contentType, isPdf]);
+
+  if (loading) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-2xs">
+        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-3" />
+        <h4 className="font-bold text-slate-800 text-sm">Đang tải hồ sơ bệnh án...</h4>
+        <p className="text-xs text-slate-400 mt-1">Đang xác thực bảo mật và truyền luồng tệp y tế ({doc.fileName})</p>
+      </div>
+    );
+  }
+
+  if (error || !blobUrl) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-2xs">
+        <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3">
+          <FileText className="w-7 h-7" />
+        </div>
+        <h4 className="font-bold text-slate-800 text-sm">Xem hồ sơ bệnh án</h4>
+        <p className="text-xs text-slate-500 max-w-sm mt-1 mb-4">
+          {error || 'Tài liệu sẵn sàng để xem hoặc bóc tách dữ liệu.'}
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => onOpenOriginal(doc.id)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Mở Trong Tab Mới
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenModal(doc.id, doc.fileName)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
+          >
+            <Eye className="w-3.5 h-3.5 text-indigo-600" /> Bóc Tách AI
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPdf) {
+    return (
+      <div className="h-full flex flex-col bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
+        <div className="px-3 py-1.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-600">
+          <span className="font-semibold truncate max-w-sm">📄 {doc.fileName}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-slate-400">PDF Viewer</span>
+            <button
+              type="button"
+              onClick={() => onOpenOriginal(doc.id)}
+              className="text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 cursor-pointer"
+              title="Mở toàn màn hình trong tab mới"
+            >
+              <ExternalLink className="w-3 h-3" /> Mở tab mới
+            </button>
+          </div>
+        </div>
+        <iframe
+          src={blobUrl}
+          className="w-full flex-1 border-0"
+          title={doc.fileName}
+        />
+      </div>
+    );
+  }
+
+  if (isImage) {
+    return (
+      <div className="h-full flex flex-col bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-2xs">
+        <div className="px-3 py-1.5 bg-slate-800 border-b border-slate-700 flex items-center justify-between text-xs text-slate-300">
+          <span className="font-semibold truncate max-w-sm">🖼️ {doc.fileName}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-slate-400">Ảnh kết quả</span>
+            <button
+              type="button"
+              onClick={() => onOpenOriginal(doc.id)}
+              className="text-sky-400 hover:text-sky-300 text-[11px] font-bold flex items-center gap-0.5 cursor-pointer"
+            >
+              <ExternalLink className="w-3 h-3" /> Mở tab mới
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+          <img
+            src={blobUrl}
+            alt={doc.fileName}
+            className="max-h-full max-w-full object-contain rounded-lg shadow-lg"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-2xs">
+      <div className="w-16 h-16 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mb-3">
+        <FileText className="w-8 h-8" />
+      </div>
+      <h4 className="font-bold text-slate-900 text-sm">{doc.fileName}</h4>
+      <p className="text-xs text-slate-400 mt-1">
+        Định dạng tệp: {doc.contentType || 'Tài liệu'} ({(doc.fileSizeBytes / 1024).toFixed(1)} KB)
+      </p>
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => onOpenOriginal(doc.id)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
+        >
+          <ExternalLink className="w-3.5 h-3.5" /> Mở Tệp Trực Tiếp
+        </button>
+        <button
+          type="button"
+          onClick={() => onOpenModal(doc.id, doc.fileName)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
+        >
+          <Eye className="w-3.5 h-3.5 text-sky-600" /> Bóc Tách AI
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export const DoctorDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -2621,70 +2785,12 @@ export const DoctorDashboard: React.FC = () => {
                       );
                     }
 
-                    const fileUrl = `/api/v1/documents/${activeDoc.id}/file`;
-                    const isPdf = activeDoc.fileName.toLowerCase().endsWith('.pdf') || (activeDoc.contentType?.toLowerCase().includes('pdf') ?? false);
-                    const isImage = activeDoc.contentType?.toLowerCase().startsWith('image') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(activeDoc.fileName);
-
-                    if (isPdf) {
-                      return (
-                        <div className="h-full flex flex-col bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
-                          <div className="px-3 py-1.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-600">
-                            <span className="font-semibold truncate max-w-sm">📄 {activeDoc.fileName}</span>
-                            <span className="text-[11px] text-slate-400">PDF Viewer</span>
-                          </div>
-                          <iframe
-                            src={fileUrl}
-                            className="w-full flex-1 border-0"
-                            title={activeDoc.fileName}
-                          />
-                        </div>
-                      );
-                    }
-
-                    if (isImage) {
-                      return (
-                        <div className="h-full flex flex-col bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-2xs">
-                          <div className="px-3 py-1.5 bg-slate-800 border-b border-slate-700 flex items-center justify-between text-xs text-slate-300">
-                            <span className="font-semibold truncate max-w-sm">🖼️ {activeDoc.fileName}</span>
-                            <span className="text-[11px] text-slate-400">Ảnh kết quả</span>
-                          </div>
-                          <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
-                            <img
-                              src={fileUrl}
-                              alt={activeDoc.fileName}
-                              className="max-h-full max-w-full object-contain rounded-lg shadow-lg"
-                            />
-                          </div>
-                        </div>
-                      );
-                    }
-
                     return (
-                      <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-2xs">
-                        <div className="w-16 h-16 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mb-3">
-                          <FileText className="w-8 h-8" />
-                        </div>
-                        <h4 className="font-bold text-slate-900 text-sm">{activeDoc.fileName}</h4>
-                        <p className="text-xs text-slate-400 mt-1">
-                          Định dạng tệp: {activeDoc.contentType || 'Tài liệu'} ({(activeDoc.fileSizeBytes / 1024).toFixed(1)} KB)
-                        </p>
-                        <div className="mt-4 flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenOriginalFile(activeDoc.id)}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" /> Mở Tệp Trực Tiếp
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenDocumentModal(activeDoc.id, activeDoc.fileName)}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
-                          >
-                            <Eye className="w-3.5 h-3.5 text-sky-600" /> Bóc Tách AI
-                          </button>
-                        </div>
-                      </div>
+                      <ClinicalEmbeddedFileViewer
+                        doc={activeDoc}
+                        onOpenOriginal={handleOpenOriginalFile}
+                        onOpenModal={handleOpenDocumentModal}
+                      />
                     );
                   })()}
                 </div>

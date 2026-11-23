@@ -62,6 +62,9 @@ public class AppointmentService {
     @org.springframework.context.annotation.Lazy
     private PaymentService paymentService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private NotificationService notificationService;
+
     public AppointmentService(AppointmentRepository appointmentRepository,
                               UserRepository userRepository,
                               DoctorProfileRepository doctorProfileRepository,
@@ -187,6 +190,26 @@ public class AppointmentService {
         // Email xac nhan (benh nhan) + bao lich moi (bac si) - gui sau khi transaction commit
         eventPublisher.publishEvent(new AppointmentBookedEvent(AppointmentMailInfo.from(saved, doctorProfile), false));
 
+        // In-app Notification: Notify Doctor & Patient immediately
+        if (notificationService != null) {
+            String apptTime = scheduledStart.format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"));
+            String meta = "{\"appointmentId\":\"" + saved.getId() + "\",\"appointmentCode\":\"" + appointmentCode + "\"}";
+            notificationService.sendNotification(
+                    doctor.getId(),
+                    "APPOINTMENT_NEW",
+                    "Lịch Hẹn Mới: " + appointmentCode,
+                    "Bệnh nhân " + patient.getFullName() + " vừa đặt lịch khám với bạn vào lúc " + apptTime + " (" + saved.getClinicRoom() + ").",
+                    meta
+            );
+            notificationService.sendNotification(
+                    patient.getId(),
+                    "APPOINTMENT_CONFIRMED",
+                    "Đặt Khám Thành Công: " + appointmentCode,
+                    "Lịch khám với BS. " + doctor.getFullName() + " vào lúc " + apptTime + " (" + saved.getClinicRoom() + ") đã được xác nhận.",
+                    meta
+            );
+        }
+
         log.info("✅ Appointment booked: {} for patient {} with doctor {}", appointmentCode, patient.getEmail(), doctor.getEmail());
         return toDto(saved);
     }
@@ -289,6 +312,49 @@ public class AppointmentService {
             DoctorProfile profile = doctorProfileRepository.findByUserId(updated.getDoctor().getId()).orElse(null);
             eventPublisher.publishEvent(new AppointmentCancelledEvent(
                     AppointmentMailInfo.from(updated, profile), cancelledBy, refund.refunded(), refund.amount()));
+        }
+
+        // In-app Notifications for Status Transitions
+        if (notificationService != null) {
+            String meta = "{\"appointmentId\":\"" + updated.getId() + "\",\"appointmentCode\":\"" + updated.getAppointmentCode() + "\"}";
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy");
+            String timeStr = updated.getScheduledStart().format(dtf);
+
+            if (newStatus == AppointmentStatus.CANCELLED) {
+                if (isPatient) {
+                    notificationService.sendNotification(
+                            updated.getDoctor().getId(),
+                            "APPOINTMENT_CANCELLED",
+                            "Hủy Lịch Khám: " + updated.getAppointmentCode(),
+                            "Bệnh nhân " + updated.getPatient().getFullName() + " đã hủy lịch khám lúc " + timeStr + ". Lý do: " + (notes != null ? notes : "Không nêu"),
+                            meta
+                    );
+                } else {
+                    notificationService.sendNotification(
+                            updated.getPatient().getId(),
+                            "APPOINTMENT_CANCELLED",
+                            "Lịch Khám Đã Bị Hủy: " + updated.getAppointmentCode(),
+                            "Bác sĩ " + updated.getDoctor().getFullName() + " đã hủy lịch khám lúc " + timeStr + ". Lý do: " + (notes != null ? notes : "Bận lịch đột xuất"),
+                            meta
+                    );
+                }
+            } else if (newStatus == AppointmentStatus.CHECKED_IN) {
+                notificationService.sendNotification(
+                        updated.getDoctor().getId(),
+                        "PATIENT_CHECKED_IN",
+                        "Bệnh Nhân Đã Có Mặt: " + updated.getQueueNumber(),
+                        "Bệnh nhân " + updated.getPatient().getFullName() + " (" + updated.getQueueNumber() + ") đã check-in tại " + updated.getClinicRoom() + ".",
+                        meta
+                );
+            } else if (newStatus == AppointmentStatus.COMPLETED) {
+                notificationService.sendNotification(
+                        updated.getPatient().getId(),
+                        "APPOINTMENT_COMPLETED",
+                        "Hoàn Tất Thăm Khám: " + updated.getAppointmentCode(),
+                        "Buổi khám với BS. " + updated.getDoctor().getFullName() + " đã hoàn tất. Bạn có thể xem kết luận và đơn thuốc điện tử trong hồ sơ.",
+                        meta
+                );
+            }
         }
 
         log.info("ℹ️ Appointment {} status updated to {} by user {}", appointment.getAppointmentCode(), newStatus, userId);
@@ -553,6 +619,25 @@ public class AppointmentService {
         audit.setResource("appointments/" + saved.getId());
         audit.setMetadata("Rescheduled: " + saved.getAppointmentCode() + " to " + newStart);
         auditLogRepository.save(audit);
+
+        if (notificationService != null) {
+            String meta = "{\"appointmentId\":\"" + saved.getId() + "\",\"appointmentCode\":\"" + saved.getAppointmentCode() + "\"}";
+            String newTimeStr = newStart.format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"));
+            notificationService.sendNotification(
+                    saved.getDoctor().getId(),
+                    "APPOINTMENT_RESCHEDULED",
+                    "Đổi Lịch Hẹn: " + saved.getAppointmentCode(),
+                    "Cuộc hẹn với bệnh nhân " + saved.getPatient().getFullName() + " đã được dời sang " + newTimeStr + " (" + saved.getClinicRoom() + ").",
+                    meta
+            );
+            notificationService.sendNotification(
+                    saved.getPatient().getId(),
+                    "APPOINTMENT_RESCHEDULED",
+                    "Đổi Lịch Thành Công: " + saved.getAppointmentCode(),
+                    "Cuộc hẹn với BS. " + saved.getDoctor().getFullName() + " đã được dời sang " + newTimeStr + " (" + saved.getClinicRoom() + ").",
+                    meta
+            );
+        }
 
         log.info("🗓️ Appointment {} rescheduled to {} by user {}", saved.getAppointmentCode(), newStart, userId);
         return toDto(saved);
