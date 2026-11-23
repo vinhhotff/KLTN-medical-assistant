@@ -108,7 +108,7 @@ interface AbnormalIndicator {
   value: string;
   unit: string;
   referenceRange: string;
-  status: 'ELEVATED' | 'NORMAL' | 'LOW';
+  status: 'ELEVATED' | 'NORMAL' | 'LOW' | 'CRITICAL_PANIC';
   clinicalSignificance: string;
   loincCode?: string;
   bytReferenceRange?: string;
@@ -152,6 +152,8 @@ interface DocumentPatientAnalysis {
   doctorRecommendationReason?: string;
   matchedDoctors: DoctorMatch[];
   suggestedQuestions: string[];
+  isCriticalPanic?: boolean;
+  criticalPanic?: boolean;
 }
 
 interface AnalysisResult {
@@ -183,6 +185,8 @@ interface AnalysisResult {
   fileNames?: string[];
   multiPatientDetected?: boolean;
   patientAnalyses?: DocumentPatientAnalysis[];
+  isCriticalPanic?: boolean;
+  criticalPanic?: boolean;
 }
 
 interface UserQuota {
@@ -702,8 +706,9 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
     if (focusId) setSearchParams({}, { replace: true });
   };
 
-  const isAbnormal = (ind: AbnormalIndicator) => ind.status === 'ELEVATED' || ind.status === 'LOW' || (ind.status as string) === 'HIGH';
-  const isHigh = (ind: AbnormalIndicator) => ind.status === 'ELEVATED' || (ind.status as string) === 'HIGH';
+  const isPanic = (ind: AbnormalIndicator) => ind.status === 'CRITICAL_PANIC';
+  const isAbnormal = (ind: AbnormalIndicator) => ind.status === 'ELEVATED' || ind.status === 'LOW' || (ind.status as string) === 'HIGH' || ind.status === 'CRITICAL_PANIC';
+  const isHigh = (ind: AbnormalIndicator) => (ind.status === 'ELEVATED' || (ind.status as string) === 'HIGH') && ind.status !== 'CRITICAL_PANIC';
 
   const STEPS = [
     { title: 'Tải lên an toàn', desc: 'Ẩn tên, số định danh trước khi phân tích' },
@@ -800,7 +805,16 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
           const displayFileName = activePatient?.sourceFileName || analysis.fileName;
           const isOffline = !!analysis.modelUsed && /offline|deterministic/i.test(analysis.modelUsed);
 
+          const isCriticalPanic = Boolean(
+            analysis.isCriticalPanic ||
+            analysis.criticalPanic ||
+            activePatient?.isCriticalPanic ||
+            activePatient?.criticalPanic ||
+            displayIndicators.some((i) => i.status === 'CRITICAL_PANIC')
+          );
+
           const abnormal = displayIndicators.filter(isAbnormal);
+          const criticalList = displayIndicators.filter(isPanic);
           const shown = indicatorFilter === 'abnormal' ? abnormal : displayIndicators;
           const meta = [
             displayHospital,
@@ -844,6 +858,34 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   )}
                 </div>
               </div>
+
+              {isCriticalPanic && (
+                <div
+                  className="flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-rose-50 border-2 border-rose-500 shadow-md text-rose-950 animate-pulse-slow"
+                  role="alert"
+                >
+                  <div className="p-2.5 rounded-xl bg-rose-600 text-white shrink-0 shadow-sm animate-pulse">
+                    <TriangleAlert className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <h3 className="font-bold text-base sm:text-lg text-rose-900 tracking-tight flex items-center gap-2">
+                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping" />
+                      CẢNH BÁO NGUY KỊCH (CRITICAL PANIC VALUE)
+                    </h3>
+                    <p className="text-sm sm:text-base font-semibold text-rose-800 leading-relaxed">
+                      Phát hiện chỉ số xét nghiệm vượt ngưỡng an toàn đe dọa tính mạng! Đề nghị bệnh nhân liên hệ Cấp cứu 115 hoặc đến ngay Bệnh viện gần nhất để xử trí khẩn cấp.
+                    </p>
+                    <div className="pt-2 flex flex-wrap gap-2">
+                      <a
+                        href="tel:115"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                      >
+                        Gọi Cấp cứu 115
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {analysisSuccessNotification && (
                 <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-900" role="status">
@@ -912,8 +954,14 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                     </div>
                     {displayIndicators.length > 0 && (
                       <div className="flex sm:flex-col lg:flex-row gap-2 shrink-0">
+                        {criticalList.length > 0 && (
+                          <div className="w-24 p-3 rounded-xl bg-rose-50 border-2 border-rose-400 animate-pulse">
+                            <p className="text-2xl font-bold text-rose-700">{criticalList.length}</p>
+                            <p className="text-xs font-bold text-rose-800">Nguy kịch</p>
+                          </div>
+                        )}
                         <div className="w-24 p-3 rounded-xl bg-orange-50 border border-orange-200">
-                          <p className="text-2xl font-bold text-orange-700">{abnormal.length}</p>
+                          <p className="text-2xl font-bold text-orange-700">{abnormal.length - criticalList.length}</p>
                           <p className="text-xs text-orange-800">Cần chú ý</p>
                         </div>
                         <div className="w-24 p-3 rounded-xl bg-slate-50 border border-slate-200">
@@ -971,17 +1019,26 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                           </thead>
                           <tbody className="divide-y divide-slate-100">
                             {shown.map((ind, idx) => {
+                              const isPanicItem = ind.status === 'CRITICAL_PANIC';
                               const high = isHigh(ind);
                               const low = ind.status === 'LOW';
                               const place = placeOnRange(ind.value, ind.referenceRange);
                               return (
-                                <tr key={`${ind.name}-${idx}`}>
+                                <tr key={`${ind.name}-${idx}`} className={isPanicItem ? 'bg-rose-50/70 border-l-4 border-l-rose-600' : undefined}>
                                   <td className="py-3 px-5">
-                                    <p className="font-medium text-slate-900">{ind.name}</p>
+                                    <div className="flex items-center gap-2">
+                                      {isPanicItem && (
+                                        <span className="relative flex h-2.5 w-2.5 shrink-0" title="Chỉ số nguy kịch">
+                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
+                                        </span>
+                                      )}
+                                      <p className={`font-medium ${isPanicItem ? 'text-rose-950 font-bold' : 'text-slate-900'}`}>{ind.name}</p>
+                                    </div>
                                     {ind.loincCode && <p className="text-xs text-slate-500">LOINC {ind.loincCode}</p>}
                                   </td>
                                   <td className="py-3 px-3 whitespace-nowrap">
-                                    <span className={`font-bold ${high ? 'text-rose-700' : low ? 'text-blue-700' : 'text-slate-900'}`}>{ind.value}</span>{' '}
+                                    <span className={`font-bold ${isPanicItem ? 'text-rose-800 text-base font-extrabold' : high ? 'text-rose-700' : low ? 'text-blue-700' : 'text-slate-900'}`}>{ind.value}</span>{' '}
                                     <span className="text-xs text-slate-500">{ind.unit}</span>
                                   </td>
                                   <td className="py-3 px-3 text-slate-600">
@@ -999,7 +1056,7 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                                         />
                                         <span
                                           className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border-2 border-white ${
-                                            high ? 'bg-rose-600' : low ? 'bg-blue-600' : 'bg-slate-800'
+                                            isPanicItem ? 'bg-rose-700 ring-2 ring-rose-400 animate-pulse' : high ? 'bg-rose-600' : low ? 'bg-blue-600' : 'bg-slate-800'
                                           }`}
                                           style={{ left: `${place.marker}%` }}
                                         />
@@ -1009,18 +1066,25 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                                     )}
                                   </td>
                                   <td className="py-3 px-5">
-                                    <span
-                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold whitespace-nowrap ${
-                                        high
-                                          ? 'bg-orange-50 border-orange-200 text-orange-700'
-                                          : low
-                                            ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                            : 'bg-white border-slate-200 text-slate-700'
-                                      }`}
-                                    >
-                                      {high ? <ArrowUp className="w-3 h-3" /> : low ? <ArrowDown className="w-3 h-3" /> : <Check className="w-3 h-3" />}
-                                      {high ? 'Cao' : low ? 'Thấp' : 'Bình thường'}
-                                    </span>
+                                    {isPanicItem ? (
+                                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-rose-300 bg-rose-100 text-rose-800 text-xs font-bold whitespace-nowrap shadow-xs animate-pulse">
+                                        <TriangleAlert className="w-3.5 h-3.5 text-rose-600 animate-bounce" />
+                                        Nguy kịch (PANIC)
+                                      </span>
+                                    ) : (
+                                      <span
+                                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold whitespace-nowrap ${
+                                          high
+                                            ? 'bg-orange-50 border-orange-200 text-orange-700'
+                                            : low
+                                              ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                              : 'bg-white border-slate-200 text-slate-700'
+                                        }`}
+                                      >
+                                        {high ? <ArrowUp className="w-3 h-3" /> : low ? <ArrowDown className="w-3 h-3" /> : <Check className="w-3 h-3" />}
+                                        {high ? 'Cao' : low ? 'Thấp' : 'Bình thường'}
+                                      </span>
+                                    )}
                                   </td>
                                 </tr>
                               );
@@ -1043,22 +1107,35 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                       <h2 className="font-semibold text-slate-900">Các chỉ số cần chú ý nghĩa là gì?</h2>
                       {abnormal
                         .filter((i) => i.clinicalSignificance)
-                        .map((ind, idx) => (
-                          <div key={`${ind.name}-mean-${idx}`} className="bg-white rounded-2xl border border-slate-200 p-5">
-                            <p className="flex items-center gap-2 font-semibold text-slate-900">
-                              {ind.name}
-                              <span
-                                className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${
-                                  isHigh(ind) ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-blue-50 border-blue-200 text-blue-700'
-                                }`}
-                              >
-                                {isHigh(ind) ? 'Cao' : 'Thấp'}
-                              </span>
-                            </p>
-                            <p className="mt-2 text-sm text-slate-700 leading-relaxed">{ind.clinicalSignificance}</p>
-                            {ind.scientificBasis && <p className="mt-2 text-xs text-slate-500">Nguồn tham chiếu: {ind.scientificBasis}</p>}
-                          </div>
-                        ))}
+                        .map((ind, idx) => {
+                          const isPanicCard = ind.status === 'CRITICAL_PANIC';
+                          return (
+                            <div
+                              key={`${ind.name}-mean-${idx}`}
+                              className={`bg-white rounded-2xl border p-5 ${
+                                isPanicCard ? 'border-2 border-rose-400 bg-rose-50/20 shadow-xs' : 'border-slate-200'
+                              }`}
+                            >
+                              <p className="flex items-center gap-2 font-semibold text-slate-900">
+                                {ind.name}
+                                <span
+                                  className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${
+                                    isPanicCard
+                                      ? 'bg-rose-100 border-rose-300 text-rose-800 animate-pulse flex items-center gap-1'
+                                      : isHigh(ind)
+                                        ? 'bg-orange-50 border-orange-200 text-orange-700'
+                                        : 'bg-blue-50 border-blue-200 text-blue-700'
+                                  }`}
+                                >
+                                  {isPanicCard && <TriangleAlert className="w-3 h-3" />}
+                                  {isPanicCard ? 'Nguy kịch' : isHigh(ind) ? 'Cao' : 'Thấp'}
+                                </span>
+                              </p>
+                              <p className="mt-2 text-sm text-slate-700 leading-relaxed">{ind.clinicalSignificance}</p>
+                              {ind.scientificBasis && <p className="mt-2 text-xs text-slate-500">Nguồn tham chiếu: {ind.scientificBasis}</p>}
+                            </div>
+                          );
+                        })}
                     </section>
                   )}
 

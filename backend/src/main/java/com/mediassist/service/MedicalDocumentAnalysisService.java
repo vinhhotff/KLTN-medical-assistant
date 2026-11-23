@@ -102,6 +102,80 @@ public class MedicalDocumentAnalysisService {
         this.medicalOcrExecutor = medicalOcrExecutor;
     }
 
+    public static final String CRITICAL_PANIC_WARNING = "⚠️ CẢNH BÁO NGUY KỊCH (CRITICAL PANIC VALUE): Phát hiện chỉ số xét nghiệm vượt ngưỡng an toàn đe dọa tính mạng! Đề nghị bệnh nhân liên hệ Cấp cứu 115 hoặc đến ngay Bệnh viện gần nhất để xử trí khẩn cấp.\n\n";
+
+    /**
+     * Evaluates whether a lab indicator hits life-threatening critical panic value thresholds:
+     * - Potassium (K+): < 2.8 or > 6.2 mmol/L (Arryhthmia / Cardiac arrest risk)
+     * - Glucose: < 2.2 or > 25.0 mmol/L (Severe Hypoglycemia coma / DKA / HHS hyperosmolar coma)
+     * - Sodium (Na+): < 120.0 or > 160.0 mmol/L (Severe Hyponatremia brain edema / Hypernatremia)
+     * - Platelets (PLT): < 30 x10^9/L (Spontaneous intracranial / internal hemorrhage risk)
+     * - Troponin (cTnT, cTnI): > 0.05 ng/mL (Acute Myocardial Infarction / ACS)
+     */
+    public static boolean isPanicIndicator(String name, Double valNum, String unit) {
+        if (name == null || valNum == null) return false;
+        String n = stripAccents(name).toLowerCase().trim();
+
+        // 1. Potassium / Kali / K+ (< 2.8 or > 6.2 mmol/L)
+        if (n.contains("kali") || n.contains("potassium") || n.matches(".*\\bk\\+?\\b.*")) {
+            return valNum < 2.8 || valNum > 6.2;
+        }
+
+        // 2. Glucose / Đường huyết (< 2.2 or > 25.0 mmol/L, or in mg/dL < 40 or > 450)
+        if (n.contains("glucose") || n.contains("duong huyet") || n.contains("duong mau") || n.matches(".*\\bglu\\b.*")) {
+            if (unit != null && unit.toLowerCase().contains("mg/dl")) {
+                return valNum < 40.0 || valNum > 450.0;
+            }
+            return valNum < 2.2 || valNum > 25.0;
+        }
+
+        // 3. Sodium / Natri / Na+ (< 120.0 or > 160.0 mmol/L)
+        if (n.contains("natri") || n.contains("sodium") || n.matches(".*\\bna\\+?\\b.*")) {
+            return valNum < 120.0 || valNum > 160.0;
+        }
+
+        // 4. Platelets / Tiểu cầu / PLT (< 30 x10^9/L)
+        if (n.contains("tieu cau") || n.contains("platelet") || n.matches(".*\\bplt\\b.*")) {
+            return valNum < 30.0;
+        }
+
+        // 5. Troponin (cTnT, cTnI, Troponin) (> 0.05 ng/mL)
+        if (n.contains("troponin") || n.matches(".*\\btnt\\b.*") || n.matches(".*\\btni\\b.*")) {
+            return valNum > 0.05;
+        }
+
+        return false;
+    }
+
+    public List<AbnormalIndicatorDto> evaluateAndFlagPanicValues(List<AbnormalIndicatorDto> indicators) {
+        if (indicators == null || indicators.isEmpty()) {
+            return indicators;
+        }
+        for (AbnormalIndicatorDto ind : indicators) {
+            Double val = null;
+            if (ind.getValue() != null) {
+                try {
+                    val = Double.parseDouble(ind.getValue().replace(',', '.'));
+                } catch (Exception ignored) {}
+            }
+            if ("CRITICAL_PANIC".equalsIgnoreCase(ind.getStatus()) || (val != null && isPanicIndicator(ind.getName(), val, ind.getUnit()))) {
+                ind.setStatus("CRITICAL_PANIC");
+                if (ind.getClinicalSignificance() == null || !ind.getClinicalSignificance().contains("CẢNH BÁO NGUY KỊCH")) {
+                    ind.setClinicalSignificance(String.format(
+                            "CẢNH BÁO NGUY KỊCH: Chỉ số %s đo được %s %s đạt ngưỡng báo động đỏ đe dọa tính mạng! Đề nghị cấp cứu 115 hoặc can thiệp y tế khẩn cấp ngay lập tức.",
+                            ind.getName(), ind.getValue(), ind.getUnit() != null ? ind.getUnit() : ""
+                    ));
+                }
+            }
+        }
+        return indicators;
+    }
+
+    public static boolean containsCriticalPanic(List<AbnormalIndicatorDto> indicators) {
+        if (indicators == null || indicators.isEmpty()) return false;
+        return indicators.stream().anyMatch(i -> "CRITICAL_PANIC".equalsIgnoreCase(i.getStatus()));
+    }
+
     public DocumentAnalysisResponse getDocumentAnalysis(UUID documentId) {
         MedicalDocument doc = medicalDocumentRepository.findById(documentId)
                 .orElseThrow(() -> new com.mediassist.common.AppException(
@@ -135,8 +209,11 @@ public class MedicalDocumentAnalysisService {
                     questions = objectMapper.readValue(da.getSuggestedQuestionsJson(), new TypeReference<List<String>>() {});
                 }
             } catch (Exception ignored) {}
+            indicators = evaluateAndFlagPanicValues(indicators);
             resp.setIndicators(indicators);
             resp.setSuggestedQuestions(questions);
+
+            boolean isCriticalPanic = containsCriticalPanic(indicators);
 
             if (da.getMetadataJson() != null && !da.getMetadataJson().isBlank()) {
                 try {
@@ -150,8 +227,12 @@ public class MedicalDocumentAnalysisService {
                     if (metaNode.has("patientAge") && !metaNode.get("patientAge").isNull()) resp.setPatientAge(metaNode.get("patientAge").asText());
                     if (metaNode.has("patientGender") && !metaNode.get("patientGender").isNull()) resp.setPatientGender(metaNode.get("patientGender").asText());
                     if (metaNode.has("deviceModel") && !metaNode.get("deviceModel").isNull()) resp.setDeviceModel(metaNode.get("deviceModel").asText());
+                    if (metaNode.has("isCriticalPanic") && !metaNode.get("isCriticalPanic").isNull()) {
+                        isCriticalPanic = isCriticalPanic || metaNode.get("isCriticalPanic").asBoolean();
+                    }
                 } catch (Exception ignored) {}
             }
+            resp.setCriticalPanic(isCriticalPanic);
         } else {
             resp.setClinicalSummary("Chưa có kết quả phân tích AI lưu trữ cho hồ sơ này.");
             resp.setIndicators(Collections.emptyList());
@@ -226,6 +307,9 @@ public class MedicalDocumentAnalysisService {
         resp.setContentType(existingDoc.getContentType());
         resp.setClinicalSummary(existingAnalysis.getClinicalSummary());
         resp.setPlainLanguageExplanation(existingAnalysis.getPlainLanguageExplanation());
+        cachedIndicators = evaluateAndFlagPanicValues(cachedIndicators);
+        boolean isCriticalPanic = containsCriticalPanic(cachedIndicators);
+
         resp.setIndicators(cachedIndicators);
         resp.setRecommendedSpecialtySlug(specialtySlug);
         resp.setRecommendedSpecialtyName(specialtyName);
@@ -248,6 +332,9 @@ public class MedicalDocumentAnalysisService {
                 if (metaNode.has("patientAge") && !metaNode.get("patientAge").isNull()) resp.setPatientAge(metaNode.get("patientAge").asText());
                 if (metaNode.has("patientGender") && !metaNode.get("patientGender").isNull()) resp.setPatientGender(metaNode.get("patientGender").asText());
                 if (metaNode.has("deviceModel") && !metaNode.get("deviceModel").isNull()) resp.setDeviceModel(metaNode.get("deviceModel").asText());
+                if (metaNode.has("isCriticalPanic") && !metaNode.get("isCriticalPanic").isNull()) {
+                    isCriticalPanic = isCriticalPanic || metaNode.get("isCriticalPanic").asBoolean();
+                }
 
                 boolean isMulti = metaNode.has("multiPatientDetected") && (metaNode.get("multiPatientDetected").asBoolean() || "true".equalsIgnoreCase(metaNode.get("multiPatientDetected").asText()));
                 resp.setMultiPatientDetected(isMulti);
@@ -265,6 +352,7 @@ public class MedicalDocumentAnalysisService {
                 }
             } catch (Exception ignored) {}
         }
+        resp.setCriticalPanic(isCriticalPanic);
 
         return resp;
     }
@@ -554,7 +642,15 @@ public class MedicalDocumentAnalysisService {
                 List<DoctorMatchDto> combinedDoctors = new ArrayList<>();
                 List<String> combinedQuestions = new ArrayList<>();
                 for (com.mediassist.dto.DocumentPatientAnalysisDto p : patientAnalyses) {
-                    if (p.getIndicators() != null) combinedIndicators.addAll(p.getIndicators());
+                    if (p.getIndicators() != null) {
+                        p.setIndicators(evaluateAndFlagPanicValues(p.getIndicators()));
+                        boolean pPanic = containsCriticalPanic(p.getIndicators());
+                        p.setCriticalPanic(pPanic);
+                        if (pPanic && p.getClinicalSummary() != null && !p.getClinicalSummary().contains("CRITICAL PANIC VALUE")) {
+                            p.setClinicalSummary(CRITICAL_PANIC_WARNING + p.getClinicalSummary());
+                        }
+                        combinedIndicators.addAll(p.getIndicators());
+                    }
                     if (p.getMatchedDoctors() != null) {
                         for (DoctorMatchDto d : p.getMatchedDoctors()) {
                             if (combinedDoctors.stream().noneMatch(cd -> cd.getDoctorId().equals(d.getDoctorId()))) {
@@ -639,7 +735,12 @@ public class MedicalDocumentAnalysisService {
                     metadataMap.put("patientAge", first.getPatientAge());
                     metadataMap.put("patientGender", first.getPatientGender());
                 }
+                boolean isBatchPanic = containsCriticalPanic(combinedIndicators);
+                if (isBatchPanic && sumSb.indexOf("CRITICAL PANIC VALUE") == -1) {
+                    sumSb.insert(0, CRITICAL_PANIC_WARNING);
+                }
                 metadataMap.put("multiPatientDetected", "true");
+                metadataMap.put("isCriticalPanic", String.valueOf(isBatchPanic));
                 try {
                     metadataMap.put("patientAnalysesJson", objectMapper.writeValueAsString(patientAnalyses));
                 } catch (Exception e) {
@@ -691,6 +792,7 @@ public class MedicalDocumentAnalysisService {
                 response.setFileNames(fileNames);
                 response.setMultiPatientDetected(true);
                 response.setPatientAnalyses(patientAnalyses);
+                response.setCriticalPanic(isBatchPanic);
                 if (!patientAnalyses.isEmpty()) {
                     com.mediassist.dto.DocumentPatientAnalysisDto first = patientAnalyses.get(0);
                     response.setHospitalName(first.getHospitalName());
@@ -763,6 +865,8 @@ public class MedicalDocumentAnalysisService {
             List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
                     ? ragResult.getIndicators()
                     : parsedIndicators;
+            indicators = evaluateAndFlagPanicValues(indicators);
+            boolean isCriticalPanic = containsCriticalPanic(indicators);
 
             boolean hasClinicalIndicators = indicators != null && !indicators.isEmpty();
 
@@ -829,6 +933,10 @@ public class MedicalDocumentAnalysisService {
             String clinicalSummary = (ragResult.getClinicalSummary() != null && !ragResult.getClinicalSummary().isBlank())
                     ? ragResult.getClinicalSummary()
                     : (hasClinicalIndicators ? generateClinicalSummary(indicators, specialtyName) : "Tài liệu y tế chưa ghi nhận kết quả đo lường cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu. Hệ thống không chỉ định chuyên khoa và bác sĩ khi thiếu dữ liệu lâm sàng.");
+
+            if (isCriticalPanic && clinicalSummary != null && !clinicalSummary.contains("CRITICAL PANIC VALUE")) {
+                clinicalSummary = CRITICAL_PANIC_WARNING + clinicalSummary;
+            }
 
             String plainExplanation = (ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank())
                     ? ragResult.getPlainLanguageExplanation()
@@ -951,6 +1059,7 @@ public class MedicalDocumentAnalysisService {
             metadataMap.put("patientGender", finalGender);
             metadataMap.put("deviceModel", finalDev);
             metadataMap.put("multiPatientDetected", "false");
+            metadataMap.put("isCriticalPanic", String.valueOf(isCriticalPanic));
 
             final MedicalDocument targetDoc = medDoc;
             Optional<DocumentAnalysis> existingAnalysisOpt = documentAnalysisRepository.findByDocumentId(targetDoc.getId());
@@ -1011,6 +1120,7 @@ public class MedicalDocumentAnalysisService {
             response.setPiiProtected(ragResult.isPiiProtected());
             response.setPiiEntitiesCount(ragResult.getPiiEntitiesCount());
             response.setPiiMaskedTypes(ragResult.getPiiMaskedTypes());
+            response.setCriticalPanic(isCriticalPanic);
             // 13. Record AI FinOps Token Usage
             if (aiUsageAnalyticsService != null) {
                 try {
@@ -1198,6 +1308,8 @@ public class MedicalDocumentAnalysisService {
         List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
                 ? ragResult.getIndicators()
                 : parsedIndicators;
+        indicators = evaluateAndFlagPanicValues(indicators);
+        boolean isCriticalPanic = containsCriticalPanic(indicators);
 
         boolean hasClinicalIndicators = indicators != null && !indicators.isEmpty();
 
@@ -1265,6 +1377,10 @@ public class MedicalDocumentAnalysisService {
                 ? ragResult.getClinicalSummary()
                 : (hasClinicalIndicators ? generateClinicalSummary(indicators, specialtyName) : "Tài liệu y tế chưa ghi nhận kết quả đo lường cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu. Hệ thống không chỉ định chuyên khoa và bác sĩ khi thiếu dữ liệu lâm sàng.");
 
+        if (isCriticalPanic && clinicalSummary != null && !clinicalSummary.contains("CRITICAL PANIC VALUE")) {
+            clinicalSummary = CRITICAL_PANIC_WARNING + clinicalSummary;
+        }
+
         String plainExplanation = (ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank())
                 ? ragResult.getPlainLanguageExplanation()
                 : (hasClinicalIndicators ? generatePlainLanguageExplanation(indicators, specialtyName) : "⚠️ Thông báo an toàn y tế: Phiếu xét nghiệm của bạn chưa có kết quả đo lường (phiếu chỉ định trắng hoặc hình ảnh mờ không đọc được số liệu). Để bảo đảm an toàn và không chẩn đoán sai lệch, hệ thống chưa đề xuất chuyên khoa và bác sĩ. Vui lòng chụp lại ảnh rõ nét hoặc tải phiếu có kết quả đầy đủ từ bệnh viện.");
@@ -1323,6 +1439,7 @@ public class MedicalDocumentAnalysisService {
         response.setPiiProtected(ragResult.isPiiProtected());
         response.setPiiEntitiesCount(ragResult.getPiiEntitiesCount());
         response.setPiiMaskedTypes(ragResult.getPiiMaskedTypes());
+        response.setCriticalPanic(isCriticalPanic);
 
         return response;
     }
@@ -1634,9 +1751,11 @@ public class MedicalDocumentAnalysisService {
                 Double valNum = null;
                 try { valNum = Double.parseDouble(valStr); } catch (Exception ignored) {}
 
-                String status = calculateStatus(valNum, refRange, null, null, line, patientGender);
+                String status = calculateStatus(valNum, refRange, null, null, line, patientGender, candidateName);
                 String significance = "Chỉ số cận lâm sàng đo được trong tài liệu y tế.";
-                if ("ELEVATED".equals(status)) {
+                if ("CRITICAL_PANIC".equals(status)) {
+                    significance = String.format("CẢNH BÁO NGUY KỊCH: Chỉ số %s đo được %s %s vượt ngưỡng an toàn đe dọa tính mạng! Đề nghị bệnh nhân liên hệ Cấp cứu 115 hoặc đến Bệnh viện gần nhất để xử trí khẩn cấp.", candidateName, valStr, unit);
+                } else if ("ELEVATED".equals(status)) {
                     significance = String.format("Chỉ số %s đo được %s %s vượt ngưỡng tham chiếu (%s), cần đánh giá chuyên khoa.", candidateName, valStr, unit, refRange);
                 } else if ("LOW".equals(status)) {
                     significance = String.format("Chỉ số %s đo được %s %s thấp hơn mức tham chiếu chuẩn (%s).", candidateName, valStr, unit, refRange);
@@ -1709,11 +1828,25 @@ public class MedicalDocumentAnalysisService {
                 }
             }
 
-            // 3. Re-verify status using canonical BYT min/max bounds (overrides OCR-derived status)
+            // 3. Re-verify status using canonical BYT min/max bounds & panic thresholds
             Double valNum = null;
             try { valNum = Double.parseDouble(ind.getValue().replace(',', '.')); } catch (Exception ignored) {}
 
-            if (valNum != null && loinc.getRefRangeMin() != null && loinc.getRefRangeMax() != null) {
+            boolean isPanic = "CRITICAL_PANIC".equalsIgnoreCase(ind.getStatus());
+            if (!isPanic && valNum != null) {
+                String ontologyStatus = clinicalOntologyService.evaluateIndicatorStatus(loinc, valNum);
+                if ("CRITICAL_PANIC".equalsIgnoreCase(ontologyStatus)) {
+                    isPanic = true;
+                } else {
+                    isPanic = isPanicIndicator(ind.getName(), valNum, ind.getUnit())
+                            || isPanicIndicator(loinc.getId(), valNum, ind.getUnit())
+                            || isPanicIndicator(loinc.getNameEn(), valNum, ind.getUnit());
+                }
+            }
+
+            if (isPanic) {
+                ind.setStatus("CRITICAL_PANIC");
+            } else if (valNum != null && loinc.getRefRangeMin() != null && loinc.getRefRangeMax() != null) {
                 String recalculatedStatus;
                 if (valNum > loinc.getRefRangeMax()) {
                     recalculatedStatus = "ELEVATED";
@@ -1734,7 +1867,13 @@ public class MedicalDocumentAnalysisService {
 
             // 4. Enrich clinical significance with evidence-based explanation
             String evidenceSignificance;
-            if ("ELEVATED".equals(ind.getStatus())) {
+            if ("CRITICAL_PANIC".equals(ind.getStatus())) {
+                evidenceSignificance = String.format(
+                        "CẢNH BÁO NGUY KỊCH: Chỉ số %s (%s) đo được %s %s, VƯỢT NGƯỠNG AN TOÀN ĐE DỌA TÍNH MẠNG (Tham chiếu chuẩn: %s). " +
+                        "Nguy cơ biến chứng cấp tính nguy hiểm, đề nghị liên hệ Cấp cứu 115 hoặc cơ sở y tế gần nhất ngay lập tức! [Mã LOINC: %s]",
+                        loinc.getNameVi(), ind.getName(), ind.getValue(), ind.getUnit(),
+                        bytRef, loinc.getLoincCode());
+            } else if ("ELEVATED".equals(ind.getStatus())) {
                 evidenceSignificance = String.format(
                         "Chỉ số %s (%s) đo được %s %s, VƯỢT NGƯỠNG tham chiếu chuẩn Bộ Y Tế (%s). " +
                         "Ý nghĩa lâm sàng: %s. [Cơ sở: QĐ 3280/QĐ-BYT, mã LOINC %s]",
@@ -1764,10 +1903,18 @@ public class MedicalDocumentAnalysisService {
     }
 
     private String calculateStatus(Double valNum, String refRange, Double defaultLow, Double defaultHigh, String line) {
-        return calculateStatus(valNum, refRange, defaultLow, defaultHigh, line, null);
+        return calculateStatus(valNum, refRange, defaultLow, defaultHigh, line, null, null);
     }
 
     private String calculateStatus(Double valNum, String refRange, Double defaultLow, Double defaultHigh, String line, String patientGender) {
+        return calculateStatus(valNum, refRange, defaultLow, defaultHigh, line, patientGender, null);
+    }
+
+    private String calculateStatus(Double valNum, String refRange, Double defaultLow, Double defaultHigh, String line, String patientGender, String candidateName) {
+        if (candidateName != null && valNum != null && isPanicIndicator(candidateName, valNum, null)) {
+            return "CRITICAL_PANIC";
+        }
+
         String lineClean = stripAccents(line).toLowerCase();
         String genderClean = patientGender != null ? stripAccents(patientGender).toLowerCase() : "";
 
@@ -1848,7 +1995,7 @@ public class MedicalDocumentAnalysisService {
 
         if (indicators != null && !indicators.isEmpty()) {
             List<String> abnormalSummary = indicators.stream()
-                    .filter(i -> "ELEVATED".equalsIgnoreCase(i.getStatus()) || "LOW".equalsIgnoreCase(i.getStatus()))
+                    .filter(i -> "ELEVATED".equalsIgnoreCase(i.getStatus()) || "LOW".equalsIgnoreCase(i.getStatus()) || "CRITICAL_PANIC".equalsIgnoreCase(i.getStatus()))
                     .map(i -> String.format("%s (%s %s)", i.getName(), i.getValue(), i.getUnit()))
                     .limit(3)
                     .toList();
@@ -1887,7 +2034,7 @@ public class MedicalDocumentAnalysisService {
 
     private String generateClinicalSummary(List<AbnormalIndicatorDto> indicators, String specialtyName) {
         long abnormalCount = indicators != null ? indicators.stream()
-                .filter(i -> "ELEVATED".equals(i.getStatus()) || "LOW".equals(i.getStatus()))
+                .filter(i -> "ELEVATED".equals(i.getStatus()) || "LOW".equals(i.getStatus()) || "CRITICAL_PANIC".equals(i.getStatus()))
                 .count() : 0;
         int totalCount = indicators != null ? indicators.size() : 0;
 
@@ -1906,7 +2053,7 @@ public class MedicalDocumentAnalysisService {
 
         if (indicators != null && !indicators.isEmpty()) {
             List<AbnormalIndicatorDto> abnormalList = indicators.stream()
-                    .filter(i -> "ELEVATED".equals(i.getStatus()) || "LOW".equals(i.getStatus()))
+                    .filter(i -> "ELEVATED".equals(i.getStatus()) || "LOW".equals(i.getStatus()) || "CRITICAL_PANIC".equals(i.getStatus()))
                     .toList();
             if (!abnormalList.isEmpty()) {
                 sb.append("**Các chỉ số cần lưu ý (nằm ngoài khoảng tham chiếu)**:\n");
@@ -2065,7 +2212,7 @@ public class MedicalDocumentAnalysisService {
         if (indicators != null && !indicators.isEmpty()) {
             boolean hasAbnormal = false;
             for (AbnormalIndicatorDto ind : indicators) {
-                if ("ELEVATED".equals(ind.getStatus()) || "LOW".equals(ind.getStatus())) {
+                if ("ELEVATED".equals(ind.getStatus()) || "LOW".equals(ind.getStatus()) || "CRITICAL_PANIC".equals(ind.getStatus())) {
                     distilled.append(String.format("- %s: %s %s (Tham chiếu: %s, Đánh giá: %s) -> %s\n",
                             ind.getName(), ind.getValue(), ind.getUnit(), ind.getReferenceRange(), ind.getStatus(), ind.getClinicalSignificance()));
                     hasAbnormal = true;
@@ -2151,7 +2298,7 @@ public class MedicalDocumentAnalysisService {
         List<String> abnormalSummary = new ArrayList<>();
         if (indicators != null) {
             for (AbnormalIndicatorDto ind : indicators) {
-                if ("ELEVATED".equals(ind.getStatus()) || "LOW".equals(ind.getStatus())) {
+                if ("ELEVATED".equals(ind.getStatus()) || "LOW".equals(ind.getStatus()) || "CRITICAL_PANIC".equals(ind.getStatus())) {
                     abnormalSummary.add(ind.getName() + " " + ind.getValue() + " " + ind.getUnit() + " (" + ind.getStatus() + ")");
                 }
             }
@@ -2192,6 +2339,8 @@ public class MedicalDocumentAnalysisService {
         List<AbnormalIndicatorDto> indicators = (ragResult.getIndicators() != null && !ragResult.getIndicators().isEmpty())
                 ? ragResult.getIndicators()
                 : parsedIndicators;
+        indicators = evaluateAndFlagPanicValues(indicators);
+        boolean isCriticalPanic = containsCriticalPanic(indicators);
 
         boolean hasClinicalIndicators = indicators != null && !indicators.isEmpty();
 
@@ -2255,6 +2404,10 @@ public class MedicalDocumentAnalysisService {
                 ? ragResult.getClinicalSummary()
                 : (hasClinicalIndicators ? generateClinicalSummary(indicators, specialtyName) : "Tài liệu y tế chưa ghi nhận kết quả đo lường cụ thể hoặc hình ảnh quá mờ để nhận diện số liệu.");
 
+        if (isCriticalPanic && clinicalSummary != null && !clinicalSummary.contains("CRITICAL PANIC VALUE")) {
+            clinicalSummary = CRITICAL_PANIC_WARNING + clinicalSummary;
+        }
+
         String plainExplanation = (ragResult.getPlainLanguageExplanation() != null && !ragResult.getPlainLanguageExplanation().isBlank())
                 ? ragResult.getPlainLanguageExplanation()
                 : (hasClinicalIndicators ? generatePlainLanguageExplanation(indicators, specialtyName) : "⚠️ Thông báo an toàn y tế: Phiếu xét nghiệm chưa có kết quả đo lường cụ thể.");
@@ -2300,13 +2453,14 @@ public class MedicalDocumentAnalysisService {
         dto.setDoctorRecommendationReason(ragResult.getDoctorRecommendationReason());
         dto.setMatchedDoctors(matchedDoctors != null ? matchedDoctors : Collections.emptyList());
         dto.setSuggestedQuestions(suggestedQuestions != null ? suggestedQuestions : Collections.emptyList());
+        dto.setCriticalPanic(isCriticalPanic);
 
         return dto;
     }
 
     private static final Pattern DIACRITICS_PATTERN = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
 
-    private String stripAccents(String s) {
+    private static String stripAccents(String s) {
         if (s == null) return "";
         String n = Normalizer.normalize(s, Normalizer.Form.NFD);
         return DIACRITICS_PATTERN.matcher(n).replaceAll("").replace('đ', 'd').replace('Đ', 'D');

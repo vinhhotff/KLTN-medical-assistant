@@ -24,8 +24,18 @@ public class DocumentPatientAnalysisDto {
     private String doctorRecommendationReason;
     private List<DoctorMatchDto> matchedDoctors = new ArrayList<>();
     private List<String> suggestedQuestions = new ArrayList<>();
+    private boolean isCriticalPanic;
 
     public DocumentPatientAnalysisDto() {}
+
+    @com.fasterxml.jackson.annotation.JsonProperty("isCriticalPanic")
+    public boolean isCriticalPanic() { return isCriticalPanic; }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("isCriticalPanic")
+    public void setCriticalPanic(boolean criticalPanic) { this.isCriticalPanic = criticalPanic; }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("criticalPanic")
+    public boolean getCriticalPanic() { return isCriticalPanic; }
 
     public String getSourceFileName() { return sourceFileName; }
     public void setSourceFileName(String sourceFileName) { this.sourceFileName = sourceFileName; }

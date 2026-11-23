@@ -45,7 +45,19 @@ public class DocumentAnalysisResponse {
     private boolean multiPatientDetected;
     private List<DocumentPatientAnalysisDto> patientAnalyses = new java.util.ArrayList<>();
 
+    // Laboratory Panic Value Alert Flag
+    private boolean isCriticalPanic;
+
     public DocumentAnalysisResponse() {}
+
+    @com.fasterxml.jackson.annotation.JsonProperty("isCriticalPanic")
+    public boolean isCriticalPanic() { return isCriticalPanic; }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("isCriticalPanic")
+    public void setCriticalPanic(boolean criticalPanic) { this.isCriticalPanic = criticalPanic; }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("criticalPanic")
+    public boolean getCriticalPanic() { return isCriticalPanic; }
 
     public boolean isMultiPatientDetected() { return multiPatientDetected; }
     public void setMultiPatientDetected(boolean multiPatientDetected) { this.multiPatientDetected = multiPatientDetected; }

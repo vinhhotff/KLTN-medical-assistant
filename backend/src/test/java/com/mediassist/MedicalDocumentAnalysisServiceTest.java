@@ -1163,4 +1163,65 @@ class MedicalDocumentAnalysisServiceTest {
         assertEquals("VIP_MONTHLY", testUser.getSubscriptionTier());
         assertNotNull(testUser.getVipValidUntil());
     }
+
+    @Test
+    @DisplayName("evaluateAndFlagPanicValues: phat hien chi so nguy kich va danh dau CRITICAL_PANIC")
+    void testPanicValueDetection_FlagsCriticalPanic() {
+        com.mediassist.dto.AbnormalIndicatorDto k = new com.mediassist.dto.AbnormalIndicatorDto(
+                "Kali (K+)", "6.8", "mmol/L", "3.5 - 5.0", "ELEVATED", "Tang kali mau"
+        );
+        com.mediassist.dto.AbnormalIndicatorDto glu = new com.mediassist.dto.AbnormalIndicatorDto(
+                "Glucose huyet doi", "28.5", "mmol/L", "3.9 - 6.4", "ELEVATED", "Tang duong huyet"
+        );
+        com.mediassist.dto.AbnormalIndicatorDto na = new com.mediassist.dto.AbnormalIndicatorDto(
+                "Natri (Na+)", "115.0", "mmol/L", "135 - 145", "LOW", "Ha natri mau nang"
+        );
+        com.mediassist.dto.AbnormalIndicatorDto normalAst = new com.mediassist.dto.AbnormalIndicatorDto(
+                "AST (GOT)", "25.0", "U/L", "10 - 40", "NORMAL", "Binh thuong"
+        );
+
+        List<com.mediassist.dto.AbnormalIndicatorDto> list = new java.util.ArrayList<>(List.of(k, glu, na, normalAst));
+        List<com.mediassist.dto.AbnormalIndicatorDto> evaluated = analysisService.evaluateAndFlagPanicValues(list);
+
+        assertEquals("CRITICAL_PANIC", evaluated.get(0).getStatus());
+        assertEquals("CRITICAL_PANIC", evaluated.get(1).getStatus());
+        assertEquals("CRITICAL_PANIC", evaluated.get(2).getStatus());
+        assertEquals("NORMAL", evaluated.get(3).getStatus());
+        assertTrue(MedicalDocumentAnalysisService.containsCriticalPanic(evaluated));
+    }
+
+    @Test
+    @DisplayName("analyzeDocument: neu phat hien chi so nguy kich thi flag isCriticalPanic va prepend canh bao vao clinicalSummary")
+    void testAnalyzeDocument_PrependPanicWarning() {
+        String panicLabText = """
+                BỆNH VIỆN BẠCH MAI
+                KHOA XÉT NGHIỆM HÓA SINH
+                Họ và tên: Nguyễn Văn Nguy Kịch
+                Giới tính: Nam
+                
+                KẾT QUẢ XÉT NGHIỆM:
+                Kali (K+) : 6.8 mmol/L (3.5 - 5.0) [!] TĂNG NGUY HIỂM
+                Glucose : 26.0 mmol/L (3.9 - 6.4) [!] TĂNG RẤT CAO
+                """;
+
+        when(pdfExtractionService.extractTextFromPdf(any(byte[].class))).thenReturn(panicLabText);
+
+        com.mediassist.ai.ClinicalAiResult mockRag = new com.mediassist.ai.ClinicalAiResult();
+        mockRag.setClinicalSummary("Bệnh nhân có tăng kali máu và đường huyết cao.");
+        mockRag.setPlainLanguageExplanation("Chỉ số đường và kali trong máu của bạn đang rất cao.");
+        mockRag.setRecommendedSpecialtySlug("endocrinology");
+        mockRag.setRecommendedSpecialtyName("Nội Tiết & Đái Tháo Đường");
+        when(clinicalRagService.performDocumentRagAnalysis(any(), any(), any())).thenReturn(mockRag);
+
+        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "critical_lab.pdf", "application/pdf", panicLabText.getBytes()
+        );
+
+        com.mediassist.dto.DocumentAnalysisResponse response = analysisService.analyzeDocument(file, "patient@mediassist.local");
+
+        assertNotNull(response);
+        assertTrue(response.isCriticalPanic());
+        assertTrue(response.getClinicalSummary().contains("CẢNH BÁO NGUY KỊCH (CRITICAL PANIC VALUE)"));
+        assertTrue(response.getIndicators().stream().anyMatch(i -> "CRITICAL_PANIC".equals(i.getStatus())));
+    }
 }

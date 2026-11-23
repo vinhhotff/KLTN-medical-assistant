@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#146** | 23/11/2026 | Nâng Cấp Hệ Thống Báo Động Nguy Kịch Xét Nghiệm (Laboratory Panic Value Alert & Emergency Clinical Triage) Trên DocumentSummarizerPage.tsx & MedicalDocumentAnalysisService.java: (1) MedicalDocumentAnalysisService.java: Bổ sung logic rà soát giá trị nguy kịch sinh học (Critical Panic Values: Kali K+ < 2.8 hoặc > 6.2 mmol/L, Glucose < 2.2 hoặc > 25.0 mmol/L, Natri Na+ < 120 hoặc > 160 mmol/L, Tiểu cầu PLT < 30 G/L, Troponin > 0.05 ng/mL); khi phát hiện bất kỳ chỉ số nào chạm ngưỡng nguy kịch hoặc có trạng thái CRITICAL_PANIC, tự động thiết lập `isCriticalPanic = true` và chèn cảnh báo cấp cứu đỏ vào đầu tóm tắt lâm sàng `clinicalSummary`; cập nhật đồng bộ cho cả luồng phân tích đơn tệp, phân tích chùm đa bệnh nhân (batch), phân tích offline an toàn và trích xuất cache; (2) DTOs: Cập nhật DocumentAnalysisResponse và DocumentPatientAnalysisDto hỗ trợ thuộc tính `isCriticalPanic` với Jackson annotation đa tương thích; (3) Giao diện DocumentSummarizerPage.tsx: Hiển thị Banner Cảnh Báo Nguy Kịch Đỏ khẩn cấp (Emergency Panic Alert) ở đầu kết quả kèm nút gọi nhanh Cấp cứu 115; hiển thị hàng bảng nổi bật với viền đỏ đậm, hiệu ứng đèn hiệu xung nhịp (pulsating alarm beacon), trị số đỏ in đậm và Red Badge 'Nguy kịch (PANIC)' kèm icon cảnh báo; bổ sung thẻ thống kê số lượng chỉ số nguy kịch riêng biệt; (4) Backend unit test: Bổ sung 2 bài test chuyên sâu trong MedicalDocumentAnalysisServiceTest.java; xác nhận 30/30 unit tests PASS, 337/337 tests toàn backend PASS, frontend build 0 lỗi TypeScript. | AI Assistant (lab_panic_ui) | 🟢 Sẵn sàng Review |
 | **#145** | 23/11/2026 | Nâng Cấp Giao Diện Bàn Khám Bác Sĩ (Doctor Clinical Workstation UI Overhaul): Tính Điểm Cảnh Báo Sớm NEWS-2 Thời Gian Thực & Rào Chắn An Toàn Dược Lâm Sàng (DDI & Drug Allergy Screening) Trên DoctorDashboard.tsx: (1) Vital Signs & NEWS-2 Score: Thêm `respiratoryRate` (Nhịp thở, lần/phút; mặc định 16, dải hợp lệ 8–40), tính toán thời gian thực thang điểm cảnh báo sớm Quốc gia NEWS-2 dựa trên 5 thông số sinh hiệu (Nhịp thở, SpO2, Huyết áp tâm thu, Mạch, Thân nhiệt); hiển thị huy hiệu lâm sàng chuẩn phân tầng nguy cơ 3 cấp độ: Nguy cơ thấp (0–4 điểm, Xanh lá), Nguy cơ trung bình (5–6 điểm hoặc điểm đơn lẻ 3, Hổ phách), Nguy cơ cao (≥ 7 điểm, Đỏ cảnh báo); (2) Drug Safety Engine (`drugSafety.ts`): Hiện thực hóa bộ máy phát hiện tương tác thuốc bất lợi (DDI) giữa nhiều loại thuốc kê đơn (Warfarin + Aspirin/NSAID, Clopidogrel + Omeprazole, Simvastatin + Clarithromycin, ACEI/ARB + Kali, Nitrate + PDE5) kèm banner cảnh báo CRITICAL/MAJOR, cơ chế và khuyến cáo xử trí; rà soát xung đột tiền sử dị ứng chéo nhóm kháng sinh (Penicillin / Amoxicillin / Augmentin, Cephalosporin, Sulfa, NSAID); (3) Tích hợp vào modal ký duyệt bệnh án EMR; (4) E2E Playwright test mới `clinical-safety-news2.spec.ts` 6/6 test PASS, `doctor-encounter.spec.ts` 6/6 test PASS; Frontend `npm run build` 0 lỗi TypeScript. | AI Assistant (workstation_ui) | 🟢 Sẵn sàng Review |
 | **#144** | 23/11/2026 | Chuẩn Hóa Bản Thể Luận Lâm Sàng Nâng Cao & Rào Chắn An Toàn Dược Lâm Sàng (Clinical Ontology Standardization, Panic Values, NEWS-2 Scoring, DDI & Drug-Allergy Safety): (1) Panic Values: Bổ sung `criticalLow` và `criticalHigh` vào danh mục cận lâm sàng LOINC (`lab_indicators_loinc_byt.json`) cho Kali K+ (< 2.8 hoặc > 6.2 mmol/L), Glucose (< 2.2 hoặc > 25.0 mmol/L), Natri Na+ (< 120 hoặc > 160 mmol/L, bổ sung chuẩn LOINC 2951-2), Tiểu cầu PLT (< 30 G/L), Troponin T hs (> 0.05 ng/mL); cập nhật `LabIndicatorDto` và hiện thực hóa `evaluateIndicatorStatus` trả về `CRITICAL_PANIC`, `ELEVATED`, `LOW`, `NORMAL`; (2) NEWS-2 Score: Hiện thực hóa `calculateNews2Score` theo chuẩn Royal College of Physicians (RCP) chấm điểm 6 thông số sinh hiệu (nhịp thở, SpO2, HA tâm thu, mạch, tri giác ACVPU, thân nhiệt), phân tầng rủi ro chính xác (LOW 0-4, MEDIUM 5-6 hoặc có điểm đơn 3, HIGH >= 7) kèm khuyến cáo đáp ứng lâm sàng / ICU Code Blue; (3) Drug-Drug Interactions (DDI): Hiện thực hóa `checkDrugInteractions` phát hiện các cặp tương tác nghiêm trọng (Warfarin + NSAID/Aspirin, Clopidogrel + Omeprazole, Simvastatin/Atorvastatin + Clarithromycin, ACEi/ARB + Spironolactone, Metformin + Thuốc cản quang, Methotrexate + NSAID, PDE5 + Nitrate); (4) Drug Allergy Cross-check: Hiện thực hóa `checkDrugAllergyConflict` ánh xạ hoạt chất và phát hiện dị ứng chéo (Augmentin/Amoxicillin -> Penicillin/Beta-lactam, dị ứng chéo Cephalosporin, Ibuprofen/Aspirin -> NSAID, Bactrim -> Sulfonamide, Macrolide, Quinolone, Opioid, Paracetamol); (5) Sinh mới 3 DTO lâm sàng: `News2ScoreDto`, `DrugInteractionDto`, `DrugAllergyConflictDto`; (6) Bổ sung 4 unit tests chuyên sâu trong `ClinicalOntologyServiceTest.java`. 12/12 test service PASS, 335/335 backend tests toàn hệ thống PASS 100%. | AI Assistant (clinical_core) | 🟢 Sẵn sàng Review |
 | **#143** | 23/11/2026 | Nâng Cấp Toàn Diện Luồng Onboarding & Kiểm Định Bác Sĩ (Doctor Onboarding & Vetting Overhaul) với Supabase Cloud Storage & Thẩm Định CCHN Chuẩn Bộ Y Tế: (1) Flyway V25: thêm `verification_status` (UNSUBMITTED, PENDING_VERIFICATION, APPROVED, REJECTED), `rejection_reason`, `rejection_at`, `license_issued_date`, `scope_of_practice`, `license_document_storage_path` và index `idx_doctor_verification_status`; (2) Tích hợp Supabase Cloud Storage Private Bucket `medical-documents` (`doctor-licenses/...`), cấp Signed URL 15 phút an toàn kèm fallback local an toàn; (3) Cập nhật DoctorService & AdminVettingService: upload scan CCHN, lấy Signed URL, đối soát hồ sơ, từ chối có lý do, phê duyệt đồng bộ pgvector embedding, ghi audit log `UPLOAD_DOCTOR_LICENSE_DOCUMENT` & `ADMIN_VIEW_DOCTOR_LICENSE`; (4) Làm mới giao diện `DoctorProfilePage.tsx` (upload zone kéo thả, xem scan CCHN phóng to, banner 4 trạng thái, nút nộp thẩm định), `DoctorVettingPage.tsx` (xem scan CCHN, modal Document Inspector với checklist BYT), `DoctorManagementPage.tsx`; (5) 331/331 unit tests PASS, frontend build 0 lỗi TS. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -82,6 +83,62 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#146] Nâng Cấp Hệ Thống Báo Động Nguy Kịch Xét Nghiệm (Laboratory Panic Value Alert & Emergency Clinical Triage) Trên Phân Hệ Bóc Tách Hồ Sơ Y Tế (DocumentSummarizerPage.tsx & MedicalDocumentAnalysisService.java)
+* **Thời gian:** 2026-11-23 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (lab_panic_ui)
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Bổ sung cơ chế phát hiện và rào chắn lâm sàng đối với các chỉ số cận lâm sàng đạt ngưỡng nguy kịch (Panic Values / Critical Lab Values):
+  1. Trong `MedicalDocumentAnalysisService.java`:
+     - Rà soát các chỉ số bất thường, nếu trạng thái là `CRITICAL_PANIC` hoặc rơi vào các ngưỡng báo động đỏ đe dọa tính mạng (K+ > 6.2 hoặc < 2.8 mmol/L, Glucose < 2.2 hoặc > 25.0 mmol/L, Na+ < 120 hoặc > 160 mmol/L, Tiểu cầu PLT < 30 G/L, Troponin > 0.05 ng/mL), đánh dấu cờ `isCriticalPanic = true`.
+     - Tự động chèn cảnh báo cấp cứu khẩn cấp vào đầu tóm tắt lâm sàng `clinicalSummary`: `"⚠️ CẢNH BÁO NGUY KỊCH (CRITICAL PANIC VALUE): Phát hiện chỉ số xét nghiệm vượt ngưỡng an toàn đe dọa tính mạng! Đề nghị bệnh nhân liên hệ Cấp cứu 115 hoặc đến ngay Bệnh viện gần nhất để xử trí khẩn cấp.\n\n"`.
+     - Áp dụng đồng bộ trên tất cả các nhánh phân tích: Phân tích đơn tệp, phân tích chùm tài liệu đa bệnh nhân (batching), phân tích ngoại tuyến an toàn (Safe Offline Fallback), và nạp từ bộ nhớ đệm cache deduplication.
+  2. Trong `DocumentSummarizerPage.tsx`:
+     - Kiểm tra kết quả trả về: Nếu `isCriticalPanic` là true hoặc có bất kỳ chỉ số nào mang trạng thái `CRITICAL_PANIC`, hiển thị Banner Báo Động Nguy Kịch Đỏ khẩn cấp (Emergency Panic Value Alert banner) ở đầu màn hình kết quả kèm hành động gọi Cấp cứu 115 ngay lập tức.
+     - Trong bảng chỉ số: Hiển thị viền đỏ đậm (`border-l-4 border-l-rose-500`), đèn hiệu nhấp nháy đỏ (pulsating beacon), trị số đỏ in đậm và Red Badge `"Nguy kịch (PANIC)"` có icon tam giác cảnh báo nổi bật tách biệt hoàn toàn khỏi mức tăng/giảm thông thường (`ELEVATED`/`LOW`).
+     - Bổ sung thẻ đếm số lượng chỉ số nguy kịch trong thanh tổng quan trạng thái.
+  3. Cập nhật DTO:
+     - Thêm trường `isCriticalPanic` vào `DocumentAnalysisResponse.java` và `DocumentPatientAnalysisDto.java` kèm Jackson annotations `@JsonProperty("isCriticalPanic")` và `@JsonProperty("criticalPanic")`.
+  4. Kiểm thử & Thẩm định:
+     - Bổ sung 2 unit test trong `MedicalDocumentAnalysisServiceTest.java`.
+     - Đảm bảo 100% backend tests PASS và frontend `npm run build` 0 lỗi TypeScript.
+* **Chi Tiết Thực Thi Kỹ Thuật:**
+  1. **Panic Value Detection Engine (`MedicalDocumentAnalysisService.java`):**
+     - Hiện thực hóa `isPanicIndicator(String name, Double valNum, String unit)` kiểm tra các ngưỡng nguy kịch sinh học đã được chuẩn hóa bởi Hội Hóa Sinh Y Học và Hiệp hội Tim mạch:
+       * Kali máu (K+): `< 2.8 mmol/L` (hạ kali máu ác tính gây rung thất) hoặc `> 6.2 mmol/L` (tăng kali máu gây ngừng tim tâm trương).
+       * Đường huyết (Glucose): `< 2.2 mmol/L` (hôn mê hạ đường huyết) hoặc `> 25.0 mmol/L` (nhiễm toan ceton đái tháo đường DKA / tăng áp lực thẩm thấu HHS).
+       * Natri máu (Na+): `< 120.0 mmol/L` (phù não) hoặc `> 160.0 mmol/L` (hôn mê tăng natri máu).
+       * Tiểu cầu (PLT): `< 30.0 G/L` (nguy cơ xuất huyết tự phát đe dọa tính mạng).
+       * Troponin T hs / Troponin I: `> 0.05 ng/mL` (hoại tử cơ tim cấp / nhồi máu cơ tim cấp).
+     - Tích hợp hàm `evaluateAndFlagPanicValues(List<AbnormalIndicatorDto>)` và `containsCriticalPanic(List<AbnormalIndicatorDto>)`.
+     - Ủy thác kiểm tra trạng thái qua `clinicalOntologyService.evaluateIndicatorStatus` khi nạp từ danh mục LOINC Bộ Y tế, có cơ chế fallback nhận diện trực tiếp bằng thuật toán nội tại.
+     - Cập nhật logic xử lý trên `analyzeDocument`, `analyzeDocumentsBatch`, `analyzeDocumentSynchronouslyOffline`, `analyzeIndividualDocument`, `buildCachedResponse` và `getDocumentAnalysis`.
+  2. **Giao Diện Bệnh Nhân Khẩn Cấp (`DocumentSummarizerPage.tsx`):**
+     - Mở rộng kiểu dữ liệu `AbnormalIndicator.status`: `'ELEVATED' | 'NORMAL' | 'LOW' | 'CRITICAL_PANIC'`.
+     - Bổ sung `isCriticalPanic` và `criticalPanic` vào interface `DocumentPatientAnalysis` và `AnalysisResult`.
+     - Cập nhật helper `isPanic(indicator)` nhận diện chính xác trạng thái nguy kịch.
+     - Render Banner Cảnh Báo Nguy Kịch Khẩn Cấp (Red Emergency Panic Banner) với viền đỏ dày, nền gradient hồng-đỏ, hiệu ứng chuông báo động, lời khuyên y tế khẩn cấp và nút bấm trực tiếp `"Gọi Cấp cứu 115 ngay"` (`href="tel:115"`).
+     - Bổ sung thẻ thống kê KPI màu đỏ `"Nguy kịch"` hiển thị số lượng chỉ số chạm ngưỡng đe dọa tính mạng.
+     - Render bảng chỉ số xét nghiệm với hiệu ứng hàng nguy kịch: `bg-rose-50/60 dark:bg-rose-950/20`, viền trái `border-l-rose-500`, pulsating dot màu đỏ, badge đỏ `Nguy kịch (PANIC)`.
+     - Trong danh sách giải thích ý nghĩa chỉ số (Layperson Explanation), đánh dấu thẻ màu đỏ với viền rose cho các chỉ số nguy kịch.
+  3. **DTOs & Unit Testing:**
+     - `DocumentAnalysisResponse.java`: Bổ sung `isCriticalPanic` với getter/setter null-safe.
+     - `DocumentPatientAnalysisDto.java`: Bổ sung `isCriticalPanic` cho phân tích nhóm bệnh nhân.
+     - `MedicalDocumentAnalysisServiceTest.java`: Thêm 2 bài test tự động `testPanicValueDetection_FlagsCriticalPanic` và `testAnalyzeDocument_PrependPanicWarning`.
+* **Danh Sách Tệp Thay Đổi:**
+  - `[MOD]` `backend/src/main/java/com/mediassist/dto/DocumentAnalysisResponse.java`
+  - `[MOD]` `backend/src/main/java/com/mediassist/dto/DocumentPatientAnalysisDto.java`
+  - `[MOD]` `backend/src/main/java/com/mediassist/service/MedicalDocumentAnalysisService.java`
+  - `[MOD]` `backend/src/test/java/com/mediassist/MedicalDocumentAnalysisServiceTest.java`
+  - `[MOD]` `frontend/src/pages/patient/DocumentSummarizerPage.tsx`
+  - `[MOD]` `docs/USE_CASES.md` (Đồng bộ Use Case UC-PAT-06)
+  - `[MOD]` `docs/WORK_LOG.md` (Bản ghi phiên #146)
+* **Bằng Chứng Kiểm Thử & Biên Dịch:**
+  - `mvn test -f backend/pom.xml -Dtest=MedicalDocumentAnalysisServiceTest`: **30/30 tests PASS 100%** (1.109s).
+  - `mvn test -f backend/pom.xml`: **337/337 tests PASS 100%**, 0 failures, 0 errors.
+  - `npm run build --prefix frontend`: **0 lỗi TypeScript**, Vite production build hoàn tất trong 2.70s.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Việc gắn cờ `isCriticalPanic` và chèn lời cảnh báo khẩn cấp vào đầu `clinicalSummary` được thực thi ở cả 4 tầng (Online AI, Safe Offline Fallback, Multi-Patient Batching, và Cached Ingestion), bảo đảm an toàn người bệnh tuyệt đối ngay cả khi mất mạng hoặc nạp lại tài liệu cũ.
 
 ### [WORK-LOG-#145] Nâng Cấp Giao Diện Bàn Khám Bác Sĩ: Tính Điểm Cảnh Báo Sớm NEWS-2 Thời Gian Thực & Rào Chắn An Toàn Dược Lâm Sàng (DDI & Drug Allergy Screening) Trên DoctorDashboard.tsx
 * **Thời gian:** 2026-11-23 (GMT+7)
