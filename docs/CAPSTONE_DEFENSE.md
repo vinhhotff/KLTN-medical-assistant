@@ -44,6 +44,19 @@
 * **5.2. Đánh giá chất lượng phân luồng AI:** Độ chính xác gợi ý chuyên khoa dựa trên tập dữ liệu thử nghiệm 100 ca lâm sàng mẫu.
 * **5.3. Hạn chế của đề tài:** Phụ thuộc vào API bên thứ ba, chi phí token, bài toán kết nối thiết bị IoT y tế gia đình.
 * **5.4. Hướng phát triển:** Triển khai mô hình cục bộ (Local SLM như BioMistral 7B) phục vụ Edge Computing, tích hợp thanh toán cổng quốc gia VNPay/MoMo.
+* **5.5. Hồ sơ kiểm thử thực tế & Bảng tính trực tuyến (Live Testing Artifacts):** Tích hợp liên kết Drive trực tiếp cho Hội đồng truy cập trọn bộ `Report5_Test_Report.xlsx` (49 Use Cases) và `Report5_Unit_Test.xlsx` (337/337 Unit Tests).
+
+---
+
+### 📌 Khung Tham Chiếu Hồ Sơ Kiểm Thử Trực Tuyến (Online Testing Artifacts Reference)
+> **Liên kết Google Drive chính thức dành cho Hội đồng chấm bảo vệ:**  
+> 🔗 [**Google Drive: MediAssist-AI Testing Report & Sheets Repository**](https://drive.google.com/drive/folders/15mI8IYhS6AnGK5fJQy7xnXKoJHCa6CT8)  
+> *(URL: `https://drive.google.com/drive/folders/15mI8IYhS6AnGK5fJQy7xnXKoJHCa6CT8`)*
+>
+> | STT | Tên Tệp Bảng Tính | Định Dạng | Phạm Vi Kiểm Thử (Scope) | Kết Quả Thực Thi |
+> | :---: | :--- | :---: | :--- | :---: |
+> | 01 | **`Report5_Test_Report.xlsx`** | Excel / Google Sheets | Báo cáo kiểm thử tổng thể: Functional Testing (49 UCs), Integration Testing, Performance Testing, Security IDOR, E2E Browser Testing. | **100% PASS** |
+> | 02 | **`Report5_Unit_Test.xlsx`** | Excel / Google Sheets | Danh mục kịch bản kiểm thử đơn vị: 37 Test Classes, 337 Unit Tests (JUnit 5 + Mockito + AssertJ), 0 lỗi. | **337/337 PASS** |
 
 ---
 

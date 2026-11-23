@@ -7,6 +7,17 @@
 
 ---
 
+## [2026-11-23 15:36:37] - TÍCH HỢP LIÊN KẾT TESTING DRIVE SHEETS VÀO MỤC TESTING REPORT 7 VÀ CAPSTONE DEFENSE
+
+### 1. Chi Tiết Thực Hiện
+- **Hồ Sơ Testing Drive:** Đã giải mã thư mục Google Drive testing: `https://drive.google.com/drive/folders/15mI8IYhS6AnGK5fJQy7xnXKoJHCa6CT8`.
+- **Tệp tin đã phát hiện:**
+  + `Report5_Test_Report.xlsx`: Báo cáo kiểm thử tổng hợp (Functional 49 UCs, Integration, E2E, Performance, Security).
+  + `Report5_Unit_Test.xlsx`: Danh mục kịch bản Unit Test (37 test classes, 337 unit tests, 100% PASS).
+- **Tích hợp vào tài liệu:**
+  + [MOD] `docs/CAPSTONE_DEFENSE.md`: Bổ sung Mục 5.5 và bảng tham chiếu hồ sơ kiểm thử trực tuyến dành cho Hội đồng chấm bảo vệ.
+  + [MOD] `docs/REPORT7_SECTION_III_ENHANCEMENT.md`: Thêm Mục 3 (Testing Sheets Reference Card) sẵn sàng copy dán vào đầu Chương V (`V. Software Testing Documentation`) của Report 7 Link 1.
+
 ## [2026-11-23 15:27:49] - KIỂM TOÁN MỤC III (SRS) LINK 1 VS LINK 2 VÀ BỔ SUNG UML USE CASE DIAGRAM CHUẨN
 
 ### 1. Phân Tích & Đối Soát Kiến Trúc

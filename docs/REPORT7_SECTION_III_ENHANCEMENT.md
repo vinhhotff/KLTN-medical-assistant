@@ -261,3 +261,26 @@ graph LR
 | `MSG-SYS-001` | Error | Toast | Đã xảy ra lỗi máy chủ nội bộ. Đội ngũ kỹ thuật đã nhận được cảnh báo lỗi. | 500 Internal Error | `GlobalExceptionHandler` |
 | `MSG-SYS-002` | Error | Toast | Dịch vụ cơ sở dữ liệu tạm thời gián đoạn. Vui lòng thử lại sau giây lát. | 503 Service Unavail | Connection pool timeout |
 | `MSG-SYS-003` | Info | Badge | Trạng thái hạ tầng: TẤT CẢ DỊCH VỤ HOẠT ĐỘNG TỐT (PostgreSQL UP, Redis UP, pgvector UP). | 200 OK | Endpoint `/health/ready` |
+
+
+---
+
+## 3. MỤC V: BỔ SUNG KHUNG THAM CHIẾU HỒ SƠ KIỂM THỬ TRỰC TUYẾN (TESTING SHEETS REFERENCE CARD)
+> **Vị trí chèn:** Ngay đầu Chương `V. Software Testing Documentation` của Báo cáo Report 7 (Link 1), đặt trước Mục `1. Scope of Testing`.
+
+### 📌 Live Testing Artifacts & Continuous Quality Dashboard (Hồ Sơ & Bảng Kiểm Thử Trực Tuyến)
+
+> [!IMPORTANT]
+> **Toàn bộ hồ sơ kiểm thử chi tiết, ma trận kịch bản kiểm thử (Test Cases), biên bản thực thi và nhật ký kiểm thử tự động của dự án MediAssist-AI được lưu trữ trực tuyến và cập nhật liên tục tại Google Drive / Google Sheets.**  
+> Giám khảo và Hội đồng phản biện có thể nhấp trực tiếp vào liên kết bên dưới để truy cập và theo dõi trực tiếp các tệp bảng tính:
+> 
+> 🔗 **Thư mục Báo cáo Kiểm thử Trực tuyến (Live Testing Artifacts Repository):**  
+> 👉 [**Google Drive: MediAssist-AI Testing Report & Sheets Repository**](https://drive.google.com/drive/folders/15mI8IYhS6AnGK5fJQy7xnXKoJHCa6CT8)  
+> *(URL: `https://drive.google.com/drive/folders/15mI8IYhS6AnGK5fJQy7xnXKoJHCa6CT8`)*
+
+#### Bảng Thống Kê Các Tệp Hồ Sơ Kiểm Thử Trực Tuyến (Online Testing Artifacts Index)
+| STT | Tên Tệp Bảng Tính / Hồ Sơ | Định Dạng | Phạm Vi Kiểm Thử (Testing Scope) | Trạng Thái Thực Thi | Liên Kết Mở Trực Tiếp |
+| :---: | :--- | :---: | :--- | :---: | :---: |
+| 01 | **`Report5_Test_Report.xlsx`** | Excel / Google Sheets | Báo cáo kiểm thử tổng thể: Functional Testing (49 Use Cases), Integration Testing, Performance Testing, Security & IDOR Testing, E2E Browser Testing. | **100% PASS** | [Truy Cập Tệp](https://drive.google.com/drive/folders/15mI8IYhS6AnGK5fJQy7xnXKoJHCa6CT8) |
+| 02 | **`Report5_Unit_Test.xlsx`** | Excel / Google Sheets | Danh mục chi tiết toàn bộ các kịch bản kiểm thử đơn vị (Unit Tests): 37 Test Classes, 337 Unit Tests (JUnit 5 + Mockito + AssertJ), độ bao phủ mã nguồn. | **337/337 PASS** | [Truy Cập Tệp](https://drive.google.com/drive/folders/15mI8IYhS6AnGK5fJQy7xnXKoJHCa6CT8) |
+| 03 | **`k6 & JMeter Stress Logs`** | Metric Logs / CSV | Biên bản kiểm thử tải đồng thời (High-Concurrency Stress Testing), đo lường P95 Latency, Throughput (RPS), và tính sẵn sàng của Two-Layer Cache L1/L2. | **Đạt Chỉ Tiêu P95 < 200ms** | [Truy Cập Thư Mục](https://drive.google.com/drive/folders/15mI8IYhS6AnGK5fJQy7xnXKoJHCa6CT8) |
