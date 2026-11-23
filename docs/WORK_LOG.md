@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#142** | 23/11/2026 | Kiểm Tra & Đồng Bộ Toàn Diện Ma Trận Biến Môi Trường (Environment Audit & Secret Persistence Baseline): (1) Kiểm tra live 100% các cổng AI: Google Gemini 3.5 Flash API (23 flash models, phản hồi test live 200 OK), OpenRouter Free Fallback (phản hồi test live 200 OK); (2) Kiểm tra live Supabase Cloud Private Storage: bucket `medical-documents` phản hồi 200 OK với `service_role` key; (3) Kiểm tra Google OAuth2 Client ID/Secret; (4) Đồng bộ và sinh tệp `.env` (gốc) & `backend/.env` từ `application-local.properties`; (5) Bổ sung `VITE_ENABLE_DEMO_LOGIN=true` vào `frontend/.env`; (6) Rà soát trạng thái Gmail SMTP (`SMTP_PASSWORD` hiện trống, cần App Password 16 ký tự nếu gửi email thật hoặc chuyển Mailpit localhost:1025). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#141** | 23/11/2026 | Làm lại giao diện trang Đăng nhập / Đăng ký theo 2 ảnh thiết kế mới: `/login` mặc định Đăng nhập (`?mode=register` mở Đăng ký), bỏ CCCD/VNeID giả lập và các nhãn HIPAA/e-PHI chưa triển khai, thêm chip đăng nhập nhanh khi bật `ENABLE_DEMO_LOGIN`, đổi sang bảng màu indigo của Stitch. Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#140** | 23/11/2026 | Thiết kế lại giao diện Quản trị theo Google Stitch (Đợt 3/3): `AdminLayout` sidebar navy 2 nhóm + trạng thái hệ thống thật từ `/health/ready`, trang mới `AiStatsPage` (màn 09) và `AiCostPage` (màn 10), viết lại `AuditLogPage` (màn 11). Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#139** | 22/11/2026 | Thiết kế lại giao diện Bác sĩ theo Google Stitch (Đợt 2/3): `DoctorLayout` điều hướng ngang teal, trang mới `DoctorSchedulePage` (màn 08, lịch theo khoảng giờ + thời lượng ca) và `DoctorAppointmentDetailPage` (màn 06), dàn lại `DoctorProfilePage` (màn 15). Gỡ modal lịch trực cũ khỏi `DoctorDashboard`. Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -78,6 +79,27 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#142] Kiểm Tra & Đồng Bộ Toàn Diện Ma Trận Biến Môi Trường (Environment Audit & Secret Persistence Baseline)
+* **Thời gian:** 2026-11-23 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu kiểm tra toàn diện hiện trạng biến môi trường (`.env`, `properties`, AI, Database, Storage, Mail, OAuth2) xem đã đủ và hoạt động thông suốt hay chưa.
+* **Kết Quả Kiểm Tra Thực Nghiệm (Live Validation):**
+  1. `[PASS]` **Google Gemini API Key:** Gọi trực tiếp Google AI Studio API với model `gemini-3.5-flash`, xác nhận phản hồi HTTP 200 OK (test live sinh nội dung thành công: "Pong! How can I help you today?").
+  2. `[PASS]` **OpenRouter API Key:** Gọi trực tiếp OpenRouter endpoint `/auth/key` và `/chat/completions` với model `openrouter/free`, phản hồi HTTP 200 OK.
+  3. `[PASS]` **Supabase Cloud Storage:** Gọi trực tiếp Supabase REST API `/storage/v1/bucket` với `service_role` key, xác thực bucket y tế private `medical-documents` kết nối thông suốt 100%.
+  4. `[PASS]` **Google OAuth2 SSO:** Khóa Client ID và Client Secret định dạng chuẩn, tích hợp sẵn sàng trong `application-local.properties`, `backend/.env` và `.env`.
+  5. `[PASS]` **Frontend Environment:** Cập nhật `frontend/.env` bổ sung `VITE_ENABLE_DEMO_LOGIN=true` và `VITE_ENABLE_DEV_TOOLS=false`, hỗ trợ đăng nhập demo nhanh một chạm trên mọi môi trường.
+  6. `[NOTE]` **Email SMTP:** `application-dev.properties` cấu hình gửi qua `smtp.gmail.com:587` với tài khoản `hoangkhuong056@gmail.com`. Tham số `SMTP_PASSWORD` hiện đang để trống; nếu muốn test gửi email thật cần điền Google App Password 16 ký tự, nếu dùng dev cục bộ có thể bật container Mailpit (`localhost:1025`).
+* **Danh Sách Tệp Tin Cập Nhật:**
+  1. `[NEW]` `.env`: Đồng bộ đầy đủ các khóa môi trường cho Docker Compose và root workspace.
+  2. `[NEW]` `backend/.env`: Đồng bộ đầy đủ các khóa từ `application-local.properties`.
+  3. `[MOD]` `frontend/.env`: Bổ sung cờ demo login.
+  4. `[MOD]` `docs/WORK_LOG.md`: Ghi nhật ký #142.
+* **Bằng Chứng Kiểm Thử:** `npm run build` 0 lỗi TS, `mvn test` 325/325 PASS.
+
+---
 
 ### [WORK-LOG-#141] Làm Lại Giao Diện Trang Đăng Nhập / Đăng Ký (Đồng Bộ Trang Chủ)
 * **Thời gian:** 2026-11-23 (GMT+7)
