@@ -13,6 +13,7 @@
 | :---: | :---: | :--- | :--- | :--- |
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#137** | 23/11/2026 | Sửa lỗi ngày làm việc bác sĩ đã tắt bị tự mở lại: `DoctorService` chỉ gieo lịch mặc định cho bác sĩ chưa từng lưu lịch (`existsByDoctorProfileId`). Thêm `DoctorServiceScheduleTest` (3 test). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#135** | 21/11/2026 | Nâng Cấp Toàn Diện Layout Bảng & Khắc Phục Lỗi Điều Hướng Anchor Trên 5 Trình Xem Báo Cáo Khóa Luận (WordCraft Studio Workbench): (1) Khắc phục triệt để lỗi điều hướng anchor có dấu gạch kép (`--` do dấu `&` sinh ra): Viết lại hàm `normalizeSlug` xử lý gộp dấu gạch nối, bỏ ký tự đặc biệt và hỗ trợ partial match fallback, giúp URL `#41-tầng-1-deterministic-safety--biological-plausibility-filter` mở thẳng tài liệu chính xác thay vì rơi vào trang trắng; (2) Giải quyết triệt để lỗi "Căn lề dòng quá ngu & trống table" (Cột Descriptions bị bóp về 0px, hàng cao 1.828px): Bỏ logic gán nhầm `.table-stakeholders` 4 cột vào bảng 5 cột có từ khóa "actor", thiết lập class `.table-matrix-5col` phân bổ chuẩn 13% - 17% - 14% - 21% - 35% (cột Descriptions nở từ 0px lên 385px, chiều cao dòng co từ 1.828px xuống 66px); (3) Mở rộng viewport đọc `#content-wrapper` từ 880px lên 1.200px (tối đa 96%); (4) Đồng bộ trên 5 báo cáo `report_1` đến `report_5` và xác thực qua Playwright. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
 | **#134** | 21/11/2026 | Giải Mã Cơ Chế Ánh Xạ ICD-10 Sang Chuyên Khoa Bác Sĩ & Làm Rõ Nguồn Gốc Dữ Liệu Lâm Sàng Meddies Phục Vụ Bảo Vệ Luận Văn: (1) Phân tích cơ chế khoa học giải quyết khoảng cách ngữ nghĩa (Semantic Gap): Sử dụng bảng ánh xạ chuẩn WHO ICD-10 (`icd10_specialty_mapper.py`) liên kết các chương mã ICD-10 tới 12 chuyên khoa, gom cụm triệu chứng (top 20) và than phiền (top 6) tiêm vào profile bác sĩ (`train_augment_doctors.py`) trước khi nhúng vector 1536 chiều, (2) Khẳng định tính pháp lý và đạo đức y tế: Dữ liệu huấn luyện & benchmark lấy từ kho dữ liệu mở đã khử định danh trên Hugging Face (`Meddies/meddies-persona-vie` & `Meddies/meddies-pii`) và danh mục chuẩn Bộ Y tế, tuyệt đối KHÔNG xâm phạm bệnh án thật (tuân thủ 100% Nghị định 13/2023/NĐ-CP), (3) Bổ sung 2 câu hỏi phản biện chuyên sâu #26 và #27 vào `docs/CAPSTONE_DEFENSE.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
 | **#133** | 21/11/2026 | Chuẩn Hóa Cột Tên Bệnh Danh ICD (icd_name) Trên Sơ Đồ Vector & Báo Cáo Luận Văn: (1) Chuẩn hóa cột `icd10_name` $\rightarrow$ `icd_name` trong `interactive_viewer.html`, (2) Cập nhật `docs/DATABASE_DESIGN.md` & `docs/SDD_MediAssist_AI.md`, (3) Biên dịch thành công 21 tài liệu `docs-bundle.js`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
@@ -73,6 +74,28 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#137] Sửa Lỗi Ngày Làm Việc Đã Tắt Bị Tự Mở Lại (DoctorService)
+* **Thời gian:** 2026-11-23 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `fix/doctor-schedule-reopen` (tách từ `develop`)
+* **Nguyên Nhân Gốc Rễ:**
+  - `getAvailableSlots(date)`: khi ngày được hỏi không có dòng lịch đang bật, hàm gọi `initializeDefaultDoctorSchedules()` — hàm này **lưu** bộ lịch mặc định T2–T7 vào `doctor_schedule_slots` rồi trả về giờ mặc định của ngày đó. Hậu quả: ngày bác sĩ đã tắt bị mở lại ngay khi có người xem ca trống của ngày đó, và mỗi lần như vậy lại lưu thêm một bộ dòng trùng.
+  - `getDoctorSchedules()`: khi bác sĩ tắt **mọi** ngày (lần lưu trước không còn dòng nào đang bật), màn sửa lịch cũng gieo lại lịch mặc định.
+  - Gốc chung: code coi "không có dòng đang bật" là "chưa cấu hình", trong khi `updateDoctorSchedules` chỉ vô hiệu hóa dòng cũ (không xóa) — nên phân biệt được bằng việc có tồn tại dòng nào hay không.
+* **Danh Sách Tệp Tin:**
+  1. `[MOD]` `backend/src/main/java/com/mediassist/repository/DoctorScheduleSlotRepository.java` — thêm `existsByDoctorProfileId(UUID)` (truy vấn dẫn xuất, không đổi schema).
+  2. `[MOD]` `backend/src/main/java/com/mediassist/service/DoctorService.java` — `getAvailableSlots` và `getDoctorSchedules` chỉ dùng/gieo lịch mặc định khi bác sĩ **chưa từng lưu lịch**; ngày trống của bác sĩ đã cấu hình được coi là ngày nghỉ.
+  3. `[NEW]` `backend/src/test/java/com/mediassist/service/DoctorServiceScheduleTest.java` — `disabledDayStaysClosed`, `allDaysOffIsNotReseeded`, `neverConfiguredGetsDefaults`.
+* **Tài Liệu Đã Đồng Bộ:** `[x]` `docs/WORK_LOG.md` · `[ ]` `docs/DATABASE_DESIGN.md` (không đổi bảng/cột/index) · `[ ]` `docs/USE_CASES.md` (không đổi API).
+* **Bằng Chứng Kiểm Thử:**
+  - Trước khi sửa service (đã thêm phương thức repository để test biên dịch được): `mvn test -Dtest=DoctorServiceScheduleTest` → 3 chạy, **2 thất bại**: "Tuesday is off, but 15 slots were offered" và "All days are off, but 11 rows came back".
+  - Sau khi sửa: `DoctorServiceScheduleTest` 3/3 đạt; `mvn test` toàn bộ backend **325 test, 0 lỗi, BUILD SUCCESS**.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Dữ liệu cũ: bác sĩ nào đã bị lỗi này có thể đang có dòng lịch mặc định bị lưu trùng/mở lại trong DB — bản sửa không tự dọn; bác sĩ lưu lại lịch một lần (màn Lịch làm việc) sẽ vô hiệu hóa các dòng cũ.
+  - Bác sĩ mới (chưa có dòng lịch nào) vẫn nhận lịch mặc định T2–T7 như trước.
+
+---
 
 ### [WORK-LOG-#135] Nâng Cấp Toàn Diện Layout Bảng & Khắc Phục Lỗi Điều Hướng Anchor Trên 5 Trình Xem Báo Cáo Khóa Luận (WordCraft Studio Workbench)
 * **Thời gian:** 2026-11-21 (GMT+7)

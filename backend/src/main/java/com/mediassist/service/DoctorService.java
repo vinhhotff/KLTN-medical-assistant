@@ -106,10 +106,15 @@ public class DoctorService {
         List<DoctorScheduleSlot> slotConfigs = doctorScheduleSlotRepository
                 .findByDoctorProfileIdAndDayOfWeekAndIsActiveTrue(profile.getId(), targetDow);
 
-        if (slotConfigs == null || slotConfigs.isEmpty()) {
+        // An empty day means "closed" once the doctor has saved a schedule. Default hours are only for a
+        // doctor who never configured one — seeding them for any empty day re-opened days the doctor turned off.
+        if ((slotConfigs == null || slotConfigs.isEmpty()) && !doctorScheduleSlotRepository.existsByDoctorProfileId(profile.getId())) {
             slotConfigs = initializeDefaultDoctorSchedules(profile).stream()
                     .filter(s -> s.getDayOfWeek() == targetDow && s.isActive())
                     .collect(Collectors.toList());
+        }
+        if (slotConfigs == null) {
+            slotConfigs = Collections.emptyList();
         }
 
         List<DoctorSlotDto> slots = new ArrayList<>();
@@ -306,8 +311,12 @@ public class DoctorService {
                 .orElseThrow(() -> new com.mediassist.common.AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
 
         List<DoctorScheduleSlot> slots = doctorScheduleSlotRepository.findByDoctorProfileIdAndIsActiveTrue(profile.getId());
-        if (slots == null || slots.isEmpty()) {
+        // Seed defaults only for a doctor who never saved a schedule; an all-off week must stay all-off.
+        if ((slots == null || slots.isEmpty()) && !doctorScheduleSlotRepository.existsByDoctorProfileId(profile.getId())) {
             slots = initializeDefaultDoctorSchedules(profile);
+        }
+        if (slots == null) {
+            slots = Collections.emptyList();
         }
 
         return slots.stream()
