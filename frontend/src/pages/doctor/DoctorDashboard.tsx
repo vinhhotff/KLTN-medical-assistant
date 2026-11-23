@@ -162,16 +162,6 @@ interface DoctorStats {
   totalConsultations: number;
 }
 
-interface DoctorScheduleSlot {
-  id: string;
-  dayOfWeek: string;
-  dayOfWeekLabel: string;
-  startTime: string;
-  endTime: string;
-  slotDurationMinutes: number;
-  active: boolean;
-}
-
 const ClinicalEmbeddedFileViewer: React.FC<{
   doc: PatientDocumentItem;
   onOpenOriginal: (id: string) => void;
