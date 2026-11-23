@@ -127,22 +127,22 @@ Báo cáo thực thi bộ kiểm thử tự động Backend thu được kết q
 
 ```
 [INFO] Results:
-[INFO] Tests run: 331, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 337, Failures: 0, Errors: 0, Skipped: 0
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
-[INFO] Total time:  10.917 s
-[INFO] Finished at: 2026-11-23T09:49:03+07:00
+[INFO] Total time:  10.623 s
+[INFO] Finished at: 2026-11-23T10:29:45+07:00
 ```
 
-* **Tổng số kịch bản kiểm thử tự động:** **331 / 331 Tests**.
+* **Tổng số kịch bản kiểm thử tự động:** **337 / 337 Tests**.
 * **Số ca kiểm thử thất bại (Failures):** **0 (0.00%)**.
 * **Số ca kiểm thử gặp lỗi hệ thống (Errors):** **0 (0.00%)**.
 * **Số ca kiểm thử bị bỏ qua (Skipped):** **0 (0.00%)**.
-* **Tổng thời gian thực thi trọn vẹn:** **10.917 giây** (Tốc độ vượt trội nhờ tối ưu hóa Mockito và Project Loom Virtual Threads).
+* **Tổng thời gian thực thi trọn vẹn:** **10.623 giây** (Tốc độ vượt trội nhờ tối ưu hóa Mockito và Project Loom Virtual Threads).
 
 ![Maven Surefire Execution Result](images/test_evidence/unit_test_mvn_success.png)
-*Hình 2.1: Bằng chứng thực thi thực tế lệnh `mvn test` với 331/331 Unit & Slice Integration Tests vượt qua hoàn hảo (BUILD SUCCESS trong 10.917s, 0 Failures, 0 Errors, 0 Skipped).*
+*Hình 2.1: Bằng chứng thực thi thực tế lệnh `mvn test` với 337/337 Unit & Slice Integration Tests vượt qua hoàn hảo (BUILD SUCCESS trong 10.623s, 0 Failures, 0 Errors, 0 Skipped).*
 
 ![Maven Surefire HTML Report Overview](images/test_evidence/surefire_report_overview.png)
 *Hình 2.2: Báo cáo Maven Surefire HTML Report tổng quan chi tiết 37 Test Classes và 308 Test Cases đạt tỷ lệ thành công 100% không khiếm khuyết.*
@@ -203,7 +203,7 @@ Toàn bộ 37 tệp kiểm thử trong `backend/src/test/java/com/mediassist/` �
 | 36 | `AdminVettingServiceTest` | 22 | 0.040s | **PASS 100%** | Kiểm chứng Quản trị viên thẩm định chứng chỉ hành nghề bác sĩ (Flyway V25), phê duyệt kích hoạt tài khoản, đồng bộ vector pgvector HNSW, từ chối hồ sơ kèm lý do `rejection_reason`, cấp Signed URL thanh tra CCHN trên Supabase Storage và ghi vết audit `ADMIN_VIEW_DOCTOR_LICENSE`. |
 | 37 | `NotificationServiceTest` | 4 | 0.024s | **PASS 100%** | Kiểm chứng tạo và lưu trữ bản tin thông báo trong ứng dụng vào bảng `notifications`, đếm số lượng thông báo chưa đọc, và đánh dấu đã đọc. |
 | 38 | `DoctorServiceScheduleTest` | 3 | 0.015s | **PASS 100%** | Kiểm chứng logic khởi tạo khung giờ khám mặc định cho bác sĩ mới và bảo toàn cấu hình lịch khám khi bác sĩ đã từng lưu thiết lập. |
-| **TỔNG**| **38 Test Classes Toàn Hệ Thống** | **331** | **10.917s** | **PASS 100%** | **331 / 331 Tests vượt qua hoàn hảo (0 Lỗi, 0 Thất bại)** |
+| **TỔNG**| **38 Test Classes Toàn Hệ Thống** | **337** | **10.623s** | **PASS 100%** | **337 / 337 Tests vượt qua hoàn hảo (0 Lỗi, 0 Thất bại)** |
 
 ---
 
@@ -213,15 +213,15 @@ Quá trình đóng gói sản phẩm Frontend được kiểm soát nghiêm ng�
 ```
 > tsc && vite build
 vite v6.4.3 building for production...
-✓ 2325 modules transformed.
+✓ 2326 modules transformed.
 dist/index.html                   1.32 kB │ gzip:   0.65 kB
 dist/assets/index-5SdIGC6E.css   92.66 kB │ gzip:  14.95 kB
 dist/assets/vendor-DJD5X_3x.js  339.29 kB │ gzip: 111.81 kB
 dist/assets/charts-Bc4BRM48.js  418.33 kB │ gzip: 119.68 kB
-✓ built in 2.56s
+✓ built in 2.79s
 ```
 
-* **Số lượng Module chuyển đổi:** **2.325 modules** TypeScript và React JSX.
+* **Số lượng Module chuyển đổi:** **2.326 modules** TypeScript và React JSX.
 * **Số lỗi kiểu dữ liệu (TypeScript Strict Errors):** **0 lỗi (Zero Errors)**.
 * **Cơ chế phân mảnh gói tải (Route-Level Code Splitting):**
   - Màn hình đồ sộ Bàn làm việc Bác sĩ (`DoctorDashboard.js`): 104 kB (gzip 24.4 kB).
