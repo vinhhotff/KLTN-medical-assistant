@@ -516,7 +516,158 @@
 
 ---
 
-## 5. Bảng Tiêu Chí Đánh Giá Xuất Sắc Của Hội Đồng (Evaluation Rubric)
+## 5. Cẩm Nang Review Lần 2 (Tuần Thứ 8): Thẩm Định Chuyên Môn & Khuyến Nghị Điều Chỉnh SDD (IEEE 1016-2009 & ISO/IEC/IEEE 42010)
+
+> **Bối cảnh Kiểm định Review 2:** Vào Tuần thứ 8 của đồ án, Hội đồng thẩm định kỹ thuật tập trung đánh giá **Report 4 – Software Design Document (SDD)** nhằm bảo đảm tính nhất quán giữa hồ sơ thiết kế (`docs/SDD_MediAssist_AI.md`, `docs/DATABASE_DESIGN.md`) và mã nguồn thực tế (`Spring Boot 3.4` + `React 18.3.1` + `PostgreSQL 16 pgvector`). Mục này tổng hợp ma trận thẩm định, 6 khuyến nghị đồng bộ hóa SDD, kịch bản thuyết trình 12–15 phút và 6 câu hỏi phản biện chuyên sâu SDD.
+
+### 5.1. Ma trận Đánh giá Chuyên môn Tài liệu SDD
+
+| STT | Tiêu Chí Thẩm Định SDD | Chuẩn Tham Chiếu | Hiện Trạng & Bằng Chứng Trong Hệ Thống | Mức Đạt |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | **Kiến trúc Tổng thể & 6 ADRs** | ISO/IEC/IEEE 42010:2011 | Kiến trúc **Tiered Micro-Modular Monolith** (Java 21 Project Loom `spring.threads.virtual.enabled=true` + Nginx Edge Ingress); chuẩn hóa **6 ADRs chính thức** (`ADR-001` đến `ADR-006`) có đầy đủ bối cảnh, đánh đổi (trade-offs) và kiểm chứng định lượng. | **Xuất sắc** |
+| **2** | **Thiết kế Gói & Clean Architecture** | Clean Architecture / DDD | Tách bạch 4 tầng (`Presentation -> Application -> Domain -> Infrastructure`), **15 REST Controllers**, **31+ Services**, **16 Repositories**; Frontend `React 18.3.1` (`TypeScript 5.8`, `Vite 6.2`, `Tailwind 3.4`) phân tách `pages/`, `components/`, `services/`, `stores/`. | **Xuất sắc** |
+| **3** | **Thiết kế CSDL 3NF 17 bảng & pgvector HNSW** | 3NF + PostgreSQL 16 / pgvector | **17 bảng chuẩn 3NF** theo mẫu Table-per-Type (`users` $\leftrightarrow$ `patient_profiles` / `doctor_profiles`), **24 bản di trú Flyway (`V1–V24`)**, đồ thị **HNSW `m=24, ef_construction=128`** kèm Session Tuning (`hnsw.ef_search=120`, `enable_seqscan=off`, `work_mem='64MB'`). | **Xuất sắc** |
+| **4** | **Thiết kế Chi tiết 28 Luồng (88+ Biểu đồ Mermaid)** | IEEE Std 1016-2009 | Đặc tả đầy đủ **28 luồng nghiệp vụ cốt lõi** theo cấu trúc 4 phần: Scope & Boundaries, Class Diagram & bảng phương thức, Sequence Diagram luồng chính, Error Flow Sequence & ma trận `AppException` (`88+` biểu đồ theo chuẩn Report 4 gốc, mở rộng tới `92` khối Mermaid trong SDD đầy đủ). | **Xuất sắc** |
+| **5** | **An toàn Y tế & Bảo mật HIPAA / Nghị định 13** | HIPAA Privacy/Security Rule & NĐ 13/2023/NĐ-CP | **4 lớp rào chắn cứng:** `PatientAccessGuard` chống BOLA/IDOR tầng Service (`CARE_RELATIONSHIP` + `audit_logs`), `MedicalPiiService` (khử 6 nhóm PII), **Private Supabase S3** cấp URL ký số HMAC-SHA256 **15 phút** (`Flyway V20`), Dual-Transport Auth (Bearer + `HttpOnly` Cookie) và email không chứa dữ liệu y tế. | **Xuất sắc** |
+
+---
+
+### 5.2. Danh mục 6 Khuyến nghị Điều chỉnh Chuyên môn (Review 2 Adjustments)
+
+Nhằm triệt tiêu hoàn toàn độ lệch giữa tài liệu thiết kế ban đầu và các nâng cấp thực tế từ mã nguồn (Schema Drift & Stack Drift), nhóm thực hiện **6 điều chỉnh chuẩn hóa** trực tiếp vào SDD:
+
+1. **Đồng bộ đa phiên bản mã bệnh `icd_code` / `icd_version` (Flyway V23) & Optimistic Locking `@Version` (Flyway V24) vào ERD/SDD:**
+   - Trong thực tế triển khai, bản di trú `V23__refactor_icd_code_and_version.sql` đã đổi tên cột `icd10_code` $\rightarrow$ `icd_code VARCHAR(20)`, bổ sung `icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10'` và 2 Partial Indexes (`idx_appointments_icd_code`, `idx_appointments_icd_version_code`) để sẵn sàng mở rộng lên WHO **ICD-11**.
+   - Bản di trú `V24__fix_users_version_not_null.sql` cùng annotation `@Version` trong `User`, `Appointment`, `PaymentTransaction` đảm bảo cột `version BIGINT NOT NULL DEFAULT 0` chống xung đột ghi đồng thời. Cả Figure 2.3 lẫn Bảng `2.3.1.A`, `2.3.7.A`, `2.3.7.B` trong `docs/SDD_MediAssist_AI.md` và `report_4/REPORT_4_EXECUTIVE_SUMMARY.md` đã được cập nhật đồng bộ 100%.
+2. **Cập nhật Frontend stack `React 18.3` (`18.3.1`, `Vite 6.2`, `TypeScript 5.8`) & 3-Tier AI Gateway (`Gemini 2.5 Flash` $\rightarrow$ `OpenRouter Pool` $\rightarrow$ `Offline Deterministic Engine FNV-1a`):**
+   - Đối soát trực tiếp với `frontend/package.json` xác nhận phiên bản React đang chạy là **`React 18.3.1`** (`TypeScript 5.8`, `Vite 6.2`, `Tailwind CSS 3.4`), tránh ghi sai lệch phiên bản trong bảng công nghệ SDD.
+   - Đồng bộ model AI thực tế từ `Gemini 1.5 Flash` sang **`Gemini 2.5 Flash`** và phản ánh đầy đủ kiến trúc định tuyến 3 tầng trong `AiModelRouter`: **Tầng 1** `GeminiAiProvider` (`gemini-2.5-flash`) $\rightarrow$ **Tầng 2** `OpenRouterAiProvider` (xoay tua pool model dự phòng khi 429/timeout) $\rightarrow$ **Tầng 3** `DeterministicFallbackAiProvider` kết hợp `Offline Feature Hashing FNV-1a` (chi phí 0đ, đảm bảo 100% uptime).
+3. **Chuẩn hóa Sequence Diagram & DTO cho Onboarding Bác sĩ 2 bước:**
+   - Tách rõ **Bước 1 – Đăng ký định danh gọn nhẹ** (`POST /api/v1/auth/register/doctor` qua `DoctorRegisterRequest` chỉ yêu cầu `fullName`, `email`, `phone`, `password`, tránh Form Fatigue và đụng `UNIQUE(license_number)`) khỏi **Bước 2 – Hoàn thiện hồ sơ pháp lý & chuyên môn** (`PUT /api/v1/doctors/me/profile` qua `UpdateDoctorProfileRequest` gồm `licenseNumber`, `licenseDocumentUrl`, `specialtySlugs`, `consultationFee`) và **Bước 3 – Admin thẩm định CCHN** (`AdminVettingService.vetDoctor`) kích hoạt đồng bộ vector `bio_embedding` vào `pgvector` và evict cache `doctors:verified`.
+4. **Tách lớp bảo vệ biến môi trường 3 lớp (`spring.profiles.group.dev=local` + User-Home Secret Vault + `.githooks`) vào mục Architectural Security / Config Management:**
+   - Ghi nhận chính thức kiến trúc cấu hình an toàn 3 lớp trong SDD:
+     * **Lớp 1 (Spring Profile Layering):** `spring.profiles.group.dev=local` trong `application.properties` và tham số hóa `${ENV_VAR:default}` trong `application-dev.properties`.
+     * **Lớp 2 (User-Home Secret Vault):** Kho cấu hình cục bộ ngoài thư mục Git tại `%USERPROFILE%\.mediassist\local-secrets.properties` và bản sao dự phòng cho `.env`, `backend/.env`, `application-local.properties`.
+     * **Lớp 3 (Automated Git Hooks & Sync):** `.githooks/pre-push` quét rò rỉ secret trước khi đẩy code lên remote, kết hợp `post-checkout` / `post-merge` / `post-rewrite` và `scripts/sync-local-env.ps1` tự động phục hồi cấu hình local khi chuyển nhánh.
+5. **Bổ sung chi tiết thực tế chuyển đổi Payment Adapter (`Stripe Sandbox` / `VNPay / VietQR Mock Adapter` idempotent) và Email Outbox/SMTP (`Gmail SMTP STARTTLS` + `Mailpit dev`):**
+   - Trong `PaymentGatewayRouter`, hệ thống triển khai chiến lược đa cổng qua interface `PaymentGateway`: `StripePaymentGateway` (`STRIPE` / `CARD` / `STRIPE_SANDBOX` với webhook signature verification) và `MockPaymentGateway` (`VIETQR`, `VNPAY`, `MOMO`, `CASH` cho sandbox nội bộ), đảm bảo tính nguyên tử nhờ `@Version` và kiểm tra trạng thái kép chống xử lý trùng IPN/Webhook.
+   - Tầng gửi thư (`EmailService` + `MailNotificationListener` chạy `@Async("mailExecutor")` với `@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)`) chuyển đổi linh hoạt bằng biến môi trường giữa **Mailpit** (`localhost:1025`, UI `8025` khi dev cục bộ) và **Gmail SMTP STARTTLS** (`smtp.gmail.com:587` khi demo thực tế), tuyệt đối không chứa dữ liệu lâm sàng trong nội dung email.
+6. **Gắn tham chiếu định lượng SLA/FinOps trực tiếp vào ADR & Component Description:**
+   - Mọi quyết định kiến trúc trong SDD được gắn neo chỉ số đo đạc thực nghiệm: image DB gọn nhẹ **`pgvector/pgvector:pg16` (~621MB)**, độ trễ tìm kiếm vector HNSW **`0.72 ms`** (P95 **`0.88 ms`**), tập kiểm thử tự động **`308+` unit tests** (đạt **`322/322 PASS`** sau các bản vá Onboarding, `@Version` V24 và Two-Layer Cache), chịu tải **`k6` 500 VUs (`6.447 req/s`, `0.00%` lỗi, `330 MB` RAM)**, cơ chế **XFetch** chống Cache Stampede (`95.03%` cache hit) và **SHA-256 Deduplication** tiết kiệm `85%` chi phí token ghi nhận trên `ai_token_usage`.
+
+---
+
+### 5.3. Kịch bản Thuyết trình Hoàn hảo Review 2 (12–15 phút)
+
+#### Bảng Phân Bổ Thời Lượng 10 Slides (Mục tiêu: 13 phút + 2 phút đệm)
+
+| Slide | Thời Lượng | Nội Dung Trọng Tâm | Tài Liệu / Công Cụ Minh Họa Trực Quan |
+| :---: | :---: | :--- | :--- |
+| **1** | `00:00 – 01:00` | **Trang bìa & Bối cảnh bài toán Review 2:** Quá tải bệnh viện, rào cản thuật ngữ xét nghiệm và mục tiêu chuẩn hóa kiến trúc SDD. | Slide mở đầu + Portal `http://localhost:8088/` |
+| **2** | `01:00 – 02:30` | **Kiến trúc Tổng thể 5 tầng & 6 ADRs:** Tiered Micro-Modular Monolith, Java 21 Project Loom Virtual Threads, Nginx Ingress. | `interactive_viewer.html?diagram=architecture` (Zoom 1500%) |
+| **3** | `02:30 – 04:00` | **Thiết kế Gói & Clean Architecture:** 7 Bounded Contexts, 15 Controllers, 31+ Services, Frontend `React 18.3.1` (`Vite 6.2`, `TS 5.8`). | `report_4/index.html#report_4_main` (Section 1.2) |
+| **4** | `04:00 – 05:30` | **Thiết kế CSDL 3NF 17 Bảng & Flyway V1–V24:** Table-per-Type, `V23` (`icd_code`/`icd_version`), `V24` (`@Version` NOT NULL). | `interactive_viewer.html?diagram=erd_full` (Light/Dark toggle) |
+| **5** | `05:30 – 07:00` | **Tìm kiếm Ngữ nghĩa `pgvector` HNSW & WHRF-SOTA:** Tuning `m=24, ef_construction=128, ef_search=120, enable_seqscan=off` đạt **0.72 ms**. | Biểu đồ Benchmark Meddies 150k & Min-Heap $O(M \log K)$ |
+| **6** | `07:00 – 08:30` | **Khả năng Chịu tải & Bộ định tuyến AI 3 Tầng:** Two-Layer Cache (Caffeine L1 + Redis L2 + XFetch) & `Gemini 2.5 Flash -> OpenRouter -> FNV-1a`. | Slide FinOps & sơ đồ 3-Tier AI Routing |
+| **7** | `08:30 – 10:00` | **Đặc tả 28 Luồng SDD & Onboarding Bác sĩ 2 bước:** Cấu trúc 4 phần IEEE 1016 (Class, Sequence, Step Table, AppException Matrix). | `report_4/index.html` (Lazy Mermaid Viewer) |
+| **8** | `10:00 – 11:30` | **An toàn Y tế & Bảo mật Đa lớp:** `PatientAccessGuard` (BOLA/IDOR), `MedicalPiiService` (NĐ 13), Private S3 15m HMAC, 3-Layer Secret Vault. | Sequence Diagram BOLA 403 & `V20`/`V21`/`V22` |
+| **9** | `11:30 – 12:45` | **Tổng hợp 6 Điều chỉnh Review 2 & Bằng chứng Kiểm thử:** `322/322` Maven Tests PASS, `0` lỗi TS, `k6` 500 VUs `0.00%` lỗi. | `report_4/index.html#report_4_exec` & `report_5/index.html` |
+| **10** | `12:45 – 14:00` | **Kết luận & Sẵn sàng Phản biện Hội đồng:** Tóm tắt giá trị kỹ nghệ phần mềm và mời Hội đồng đặt câu hỏi. | Portal tổng hợp & cửa sổ terminal / Vector Studio sẵn sàng |
+
+#### Script Lời Dẫn Mẫu Chi Tiết & Thao Tác Trực Quan
+
+> **Hướng dẫn thao tác mở màn:** Trước khi vào phòng Review, mở sẵn 2 tab trình duyệt trên cổng tài liệu `8088`:
+> - Tab 1: `http://localhost:8088/docs/diagrams/interactive_viewer.html` (Vector Studio với chế độ phóng to/thu nhỏ 1500% và nút đổi theme Sáng/Tối ☀️/🌙).
+> - Tab 2: `http://localhost:8088/report_4/index.html` (Trình đọc Report 4 với Lazy Mermaid Rendering và Executive Summary).
+
+* **Lời dẫn Mở đầu (Slide 1–2):**
+  *"Kính thưa Quý Thầy Cô trong Hội đồng thẩm định Review 2. Hôm nay nhóm xin trình bày chi tiết Tài liệu Thiết kế Phần mềm **Report 4 – Software Design Document** của hệ thống **MediAssist-AI**, được biên soạn theo chuẩn **IEEE 1016-2009** và **ISO/IEC/IEEE 42010**. Thay vì thiết kế trên giấy tách rời mã nguồn, tài liệu SDD của nhóm ánh xạ trực tiếp 1-1 với codebase Java 21 Spring Boot 3.4 và React 18.3.1 SPA. Xin mời Thầy Cô quan sát trên **Vector Studio** (`interactive_viewer.html?diagram=architecture`): hệ thống tổ chức theo mô hình Tiered Micro-Modular Monolith 5 tầng, tận dụng Java 21 Project Loom Virtual Threads để duy trì hàng nghìn kết nối đồng thời với mức tiêu thụ RAM thấp."*
+* **Lời dẫn Cơ sở dữ liệu & pgvector (Slide 4–5):**
+  *(Chuyển sang `interactive_viewer.html?diagram=erd_full`, cuộn zoom vào `users`, `doctor_profiles`, `appointments`)*  
+  *"Ở tầng dữ liệu, nhóm chuẩn hóa 17 bảng đạt chuẩn 3NF trên PostgreSQL 16 tích hợp `pgvector` (container image gọn nhẹ ~621MB) cùng lộ trình 24 bản di trú Flyway. Cụ thể trong đợt rà soát Review 2, nhóm đã đồng bộ Flyway V23 đổi `icd10_code` thành `icd_code` + `icd_version` để sẵn sàng mở rộng ICD-11, và Flyway V24 chuẩn hóa `@Version` chống ghi đè đồng thời. Trên bảng `doctor_profiles`, chỉ mục đồ thị HNSW (`m=24, ef_construction=128`) kết hợp kỹ thuật ép Index Scan ở cấp phiên (`enable_seqscan=off`) giúp truy vấn tương đồng vector 1536 chiều đạt trung bình **0.72 mili-giây**."*
+* **Lời dẫn 28 Luồng SDD, AI 3 Tầng & Bảo mật (Slide 6–9):**
+  *(Chuyển sang `http://localhost:8088/report_4/index.html`)*  
+  *"Tại Report 4, toàn bộ **28 quy trình nghiệp vụ cốt lõi** đều được đặc tả theo chuẩn 4 phần khép kín: Phạm vi DTO, Biểu đồ Lớp, Biểu đồ Tuần tự Luồng chính và Biểu đồ Xử lý Lỗi kèm Ma trận `AppException`. Để bảo đảm tính sẵn sàng y tế, `AiModelRouter` vận hành theo cơ chế 3 tầng (`Gemini 2.5 Flash` $\rightarrow$ `OpenRouter Pool` $\rightarrow$ `Offline Deterministic FNV-1a`). Về bảo mật, `PatientAccessGuard` chặn đứng truy cập chéo BOLA/IDOR ở tầng Service, `MedicalPiiService` khử 6 nhóm PII theo Nghị định 13, tệp xét nghiệm nằm trong Private Bucket chỉ mở qua URL ký số 15 phút, và bí mật triển khai được bảo vệ bởi kiến trúc 3 lớp (`spring.profiles.group.dev=local` + Secret Vault ngoài Git + `.githooks`). Tất cả thay đổi đều đã vượt qua **322/322 Backend Unit Tests** và **0 lỗi TypeScript**."*
+
+---
+
+### 5.4. Bộ 6 Câu hỏi Phản biện Chuyên sâu SDD Review 2 (Tuần 8) & Câu trả lời mẫu
+
+#### Câu hỏi R2-1: Vì sao trong SDD nhóm chọn Modular Monolith chia 7 Bounded Contexts thay vì tách Microservices ngay từ đầu?
+> **Trả lời mẫu:**  
+> *"Thưa Thầy Cô, theo nguyên lý kiến trúc phần mềm thực dụng (ADR-001), một nền tảng y tế ở giai đoạn đầu cần **tính toàn vẹn ACID cục bộ** và **tốc độ phản hồi dưới 10ms** hơn là chi phí phân tán mạng của Microservices:*  
+> *1. **Giao dịch ACID xuyên miền không cần 2PC/Saga phức tạp:** Khi bệnh nhân đặt lịch hoặc hoàn tất thanh toán, hệ thống cập nhật nguyên tử bảng `appointments`, `payment_transactions` và `notifications` trong một `@Transactional(isolation = Isolation.REPEATABLE_READ)` duy nhất — triệt tiêu lỗi mất nhất quán cuối cùng (Eventual Consistency) với tiền và lịch khám.*  
+> *2. **Định biên sẵn 7 Bounded Contexts theo DDD:** Trong `com.mediassist`, các phân hệ (Identity/Auth, Triage AI, Provider/Vector Search, Appointment/EMR, Document/OCR/PII, Payment/FinOps, Admin/Audit) giao tiếp qua DTO và Spring Application Events (`AppointmentBookedEvent`, `PaymentCompletedEvent`) chứ không coupling chéo repository tùy tiện. Nhờ vậy khi tải tăng ở một phân hệ (ví dụ OCR Vision), nhóm có thể tách phân hệ đó thành service độc lập mà không phải viết lại logic lõi."*
+
+#### Câu hỏi R2-2: Tại sao lưu vector trong PostgreSQL `pgvector` HNSW thay vì Pinecone/Milvus, và vì sao cần `SET LOCAL enable_seqscan = off`?
+> **Trả lời mẫu:**  
+> *"Thưa Thầy Cô, có 2 lý do kỹ nghệ cốt lõi (ADR-002):*  
+> *1. **Triệt tiêu bài toán Dual-Write & Hybrid Query trong 1 ACID Transaction:** Nếu tách Pinecone hoặc Milvus, mỗi lần Admin phê duyệt bác sĩ (`vetDoctor`) hoặc bác sĩ cập nhật chuyên khoa, hệ thống phải đồng bộ 2 CSDL khác nhau, dễ phát sinh dữ liệu ma. Với `pgvector` (trong Docker image `pgvector/pgvector:pg16` ~621MB), một câu SQL duy nhất vừa lọc quan hệ cứng (`WHERE is_verified = true AND status = 'ACTIVE'`) vừa xếp hạng khoảng cách Cosine `<=>` trên cột `bio_embedding` (1536 chiều, `m=24, ef_construction=128`), đạt độ trễ **0.72 ms**.*  
+> *2. **Cơ chế Session Tuning với `enable_seqscan = off`:** Khi số lượng bác sĩ trong phòng khám hoặc giai đoạn khởi đầu chỉ vài trăm đến vài nghìn dòng, Query Planner của PostgreSQL thường ước lượng chi phí đọc tuần tự (Seq Scan) rẻ hơn đọc đồ thị HNSW nên tự bỏ qua index. Thiết lập `SET LOCAL hnsw.ef_search = 120`, `SET LOCAL enable_seqscan = off` và `SET LOCAL work_mem = '64MB'` ngay trong transaction tìm kiếm ép Planner luôn đi theo nhánh HNSW Index Scan với Recall đạt **99.95%**."*
+
+#### Câu hỏi R2-3: Cơ chế chống đặt trùng lịch (Anti-Double Booking) 3 tầng phối hợp với Optimistic Locking `@Version` như thế nào?
+> **Trả lời mẫu:**  
+> *"Thưa Thầy Cô, nhóm bảo vệ slot khám bằng hàng rào 3 tầng đồng tâm kết hợp `@Version`:*  
+> *- **Tầng 1 (Phân tán Redis):** Khóa slot tạm thời theo cặp `(doctor_id, scheduled_start)` bằng Redis Distributed Lock để loại bỏ sớm các request spam cùng mili-giây.*  
+> *- **Tầng 2 (Mức cô lập giao dịch + `@Version`):** `Appointment`, `User` và `PaymentTransaction` đều gắn JPA `@Version` (`version BIGINT NOT NULL DEFAULT 0` — được chuẩn hóa triệt để qua Flyway V24 sau khi xử lý lỗi `NullPointerException` trên dữ liệu seed). Nếu hai giao dịch (ví dụ Webhook thanh toán và Return URL, hoặc Admin cập nhật trạng thái đồng thời) sửa cùng một bản ghi, Hibernate lập tức phát hiện sai lệch phiên bản (`ObjectOptimisticLockingFailureException`) và ngăn ghi đè.*  
+> *- **Tầng 3 (Ràng buộc bất biến trong PostgreSQL):** Partial Unique Index `unique_doctor_active_slot ON appointments(doctor_id, scheduled_start) WHERE status != 'CANCELLED'` đảm bảo ở mức vật lý CSDL không thể tồn tại 2 lịch hẹn active trùng bác sĩ và giờ bắt đầu, bắt `DataIntegrityViolationException` để trả về HTTP `409 Conflict` (`SLOT_CONFLICT`)."*
+
+#### Câu hỏi R2-4: Vì sao `PatientAccessGuard` đặt tại tầng Service thay vì chỉ kiểm tra quyền ở API Gateway / SecurityFilterChain?
+> **Trả lời mẫu:**  
+> *"Thưa Thầy Cô, API Gateway hay `SecurityFilterChain` chỉ làm tốt **RBAC thô (Role-Based)** — tức kiểm tra xem token có mang vai trò `ROLE_DOCTOR` hay không — chứ **không có ngữ cảnh nghiệp vụ (Object-Level Context)** để biết bác sĩ A có đang điều trị cho bệnh nhân B hay không (lỗ hổng BOLA/IDOR — OWASP API1).*  
+> *Do đó trong ADR-004, `PatientAccessGuard` được đặt tại **tầng Service** (điểm chạm duy nhất của mọi luồng đọc bệnh án, kết quả OCR, lịch sử Triage, xuất vé/tệp):*  
+> *- `PATIENT`: chỉ được đọc bản ghi có `patient_id == currentUserId`.*  
+> *- `DOCTOR`: bắt buộc tồn tại **quan hệ điều trị thực tế** (`CARE_RELATIONSHIP`) trên bảng `appointments` với trạng thái `SCHEDULED`, `IN_PROGRESS` hoặc `COMPLETED` (lịch đã hủy hoặc vắng mặt không còn quyền).*  
+> *- `ADMIN`: được phép truy cập để phục vụ giám sát/khiếu nại nhưng bắt buộc ghi bản ghi kiểm toán bất biến `VIEW_PATIENT_RECORD` kèm địa chỉ IP vào `audit_logs`. Mọi vi phạm đều ném `AppException(403, FORBIDDEN_PATIENT_ACCESS)`."*
+
+#### Câu hỏi R2-5: Kiến trúc AI Gateway 3 tầng hoạt động ra sao khi LLM lỗi hoặc mất mạng, và làm sao neo giữ Ontology LOINC / ICD để chống ảo giác (Hallucination)?
+> **Trả lời mẫu:**  
+> *"Thưa Thầy Cô, `AiModelRouter` kết hợp cơ chế định tuyến 3 tầng với lớp kiểm chứng bản thể luận y khoa (Ontology Grounding) để AI không bao giờ vừa 'chết' dịch vụ vừa 'bịa' bệnh:*  
+> *1. **Định tuyến 3 tầng (`AiModelRouter`):** Tầng 1 ưu tiên **Google Gemini 2.5 Flash** (`GeminiAiProvider`) cho Vision OCR và suy luận tiếng Việt; nếu gặp HTTP 429 hoặc timeout, Tầng 2 tự động xoay tua qua **OpenRouter Free Models Pool** (`OpenRouterAiProvider`); nếu mất hoàn toàn kết nối Internet, Tầng 3 chuyển về **`DeterministicFallbackAiProvider`** (cùng **FNV-1a 1536-d** cho vector search) trả lời an toàn theo luật xác định, không suy diễn bệnh giả.*  
+> *2. **Chống ảo giác bằng Ontology LOINC & ICD (`ClinicalOntologyService`):** Trước khi gọi LLM phân tích xét nghiệm, văn bản được `MedicalPiiService` che 6 nhóm PII; các chỉ số trích xuất được đối chiếu 3 tầng với **23 chỉ số LOINC chuẩn QĐ 3280/BYT** để tính lại trạng thái `HIGH/LOW/NORMAL` bằng logic xác định của Java trước khi bơm vào prompt RAG. Với chẩn đoán bác sĩ, hệ thống lưu chuẩn hóa `icd_code` và `icd_version` (Flyway V23) thay vì text tự do, đồng thời định vị hệ thống là **CDSS hỗ trợ quyết định lâm sàng**, bác sĩ là người phê duyệt cuối cùng."*
+
+#### Câu hỏi R2-6: Quy trình đồng bộ SDD với codebase, Private S3 15-min Signed URL và kiến trúc bảo vệ biến môi trường 3 lớp giải quyết rủi ro bảo mật nào?
+> **Trả lời mẫu:**  
+> *"Thưa Thầy Cô, đây là 3 điểm siết kỷ luật kỹ thuật quan trọng nhất của Review 2:*  
+> *1. **Private S3 15-min Signed URL (Flyway V20) vs Public URL:** Lưu URL công khai khiến bất kỳ ai có link đều xem vĩnh viễn ảnh phiếu xét nghiệm chứa bệnh án nhạy cảm. Do đó `medical_documents` chỉ lưu khóa nội bộ `storage_path` trong Private Bucket; khi `PatientAccessGuard` xác thực thành công, `MedicalDocumentFileAccessService` mới xin URL ký số HMAC-SHA256 có hiệu lực đúng **15 phút** (và không giữ fallback sinh PDF giả).*  
+> *2. **Bảo vệ Secret Môi trường 3 lớp (Zero-Leak Persistence):** Để vừa giữ nguyên API keys chạy local qua các lần `git checkout`/`merge` mà tuyệt đối không đẩy key lên Git, nhóm áp dụng: (a) `spring.profiles.group.dev=local` + tham số hóa `${ENV_VAR:default}`, (b) Vault ngoài repo tại `%USERPROFILE%\.mediassist\`, và (c) Git Hooks (`.githooks/pre-push` chặn push nếu phát hiện mẫu key rò rỉ trong file tracked; `post-checkout`/`post-merge`/`post-rewrite` + `scripts/sync-local-env.ps1` tự động đồng bộ lại file env local bị `.gitignore` bảo vệ).*  
+> *3. **Đồng bộ SDD tự động (`compile_docs_bundle.py`):** Mọi chỉnh sửa trên `docs/SDD_MediAssist_AI.md`, `report_4/REPORT_4_EXECUTIVE_SUMMARY.md`, `docs/CAPSTONE_DEFENSE.md` được biên dịch đồng nhất vào `docs-bundle.js` trên cổng Portal + Vector Studio `8088`, bảo đảm tài liệu trình chiếu trước Hội đồng khớp 100% với trạng thái mã nguồn và **322/322 unit tests**."*
+
+---
+
+### 5.5. Hướng dẫn Trình bày Class Diagram & Sequence Diagram Trước Hội Đồng (Trên Vector Studio)
+
+Khi bảo vệ SDD trước Hội đồng trên cổng **Vector Studio** (`http://localhost:8088/docs/diagrams/interactive_viewer.html`), nguyên tắc cốt lõi là **không đọc liệt kê từng dòng code**, mà dẫn dắt từ **Ranh giới Kiến trúc (Structure)** sang **Luồng thực thi & Rào chắn (Behavior & Safety)**.
+
+#### A. Cách trình bày Class Diagram (Bấm mở `?diagram=class_master`, sau đó phóng to từng cụm nếu được hỏi)
+1. **Bước 1 — Đọc từ trên xuống theo 4 tầng Clean Architecture (15 giây):**
+   - Chỉ con trỏ vào tầng trên cùng (`<<Controller>>`: `TriageController`, `AppointmentController`, `MedicalDocumentController`, `AdminController`) $\rightarrow$ giải thích đây là biên tiếp nhận REST API.
+   - Xuống tầng giữa (`<<Service>>` & `<<Security Guard>>`): nhấn mạnh quy tắc **Controller không bao giờ gọi thẳng Repository hay LLM**, mọi nghiệp vụ phải đi qua Service và rào chắn bảo mật (`PatientAccessGuard`, `RedFlagService`, `MedicalPiiService`).
+   - Xuống tầng hạ tầng & miền (`AiModelRouter`, `SupabaseStorageService`, `User`, `DoctorProfile`, `Appointment` V23/V24, `MedicalDocument` V20).
+2. **Bước 2 — Chỉ ra các Design Pattern & Anti-Hallucination ăn điểm (30 giây):**
+   - Bấm sang `6.1 Class Diagram: Phân Luồng AI 5 Tầng` (`?diagram=class_triage_search`) hoặc `6.2 Booking & EMR` (`?diagram=class_booking_emr`): chỉ vào quan hệ **Strategy Pattern** `AiProvider <|..` (`GeminiAiProvider`, `OpenRouterAiProvider`, `DeterministicFallbackAiProvider`) và `PaymentGateway <|..` (`StripePaymentGateway`, `MockPaymentGateway`).
+   - Khẳng định: *"Nhờ Interface + Router Pattern, khi Gemini quá tải 429 hoặc mất mạng, hệ thống tự chuyển tầng dự phòng mà không cần sửa bất kỳ dòng code nào ở `TriageService`."*
+3. **Bước 3 — Nhấn mạnh 3 nâng cấp Review 2 trực tiếp trên Entity (15 giây):**
+   - Chỉ thẳng vào `Appointment` (`icd10Code` ánh xạ cột `icd_code`, `icdVersion` V23, `version: Long` `@Version` V24) và `MedicalDocument` (`storagePath` V20 thay cho public URL).
+
+#### B. Cách trình bày Sequence Diagram (Bấm mở `?diagram=seq_e2e_master`, sau đó zoom từng giai đoạn)
+1. **Bước 1 — Đọc tên các Lifeline (Tác nhân) từ trái sang phải (10 giây):**
+   - Giới thiệu nhanh 7 đường trục: `Bệnh nhân / Bác sĩ` $\rightarrow$ `React 18.3 SPA` $\rightarrow$ `Spring Boot 3.4 (Java 21 Loom)` $\rightarrow$ `Defense & PatientAccessGuard` $\rightarrow$ `AiModelRouter` $\rightarrow$ `Redis Lock / Caffeine` $\rightarrow$ `PostgreSQL 16 + pgvector` $\rightarrow$ `Private S3 + Mail (@Async)`.
+2. **Bước 2 — Dẫn dắt theo 3 Giai đoạn Khép kín (40 giây):**
+   - **Giai đoạn 1 (AI Triage & Vector Search):** Nhấn mạnh bước `RedFlagService.evaluateRedFlag()` `< 2ms` chặn ca cấp cứu trước LLM, qua `NegEx` tách mệnh đề phủ định, rồi `SET LOCAL hnsw.ef_search=120, enable_seqscan=off` truy vấn HNSW `0.72 ms`.
+   - **Giai đoạn 2 (Anti-Double Booking 3 tầng):** Trỏ vào 3 mũi tên liên tiếp: `Redis Semaphore Lock` $\rightarrow$ `REPEATABLE_READ + @Version (V24)` $\rightarrow$ `Partial Unique Index` PostgreSQL và gửi email bất đồng bộ `@Async AFTER_COMMIT`.
+   - **Giai đoạn 3 (EMR Workstation & BOLA/S3):** Chỉ vào bước `PatientAccessGuard.assertCanAccessPatient` kiểm tra `CARE_RELATIONSHIP`, ghi `audit_logs`, xin Presigned URL 15 phút (V20), và lưu chẩn đoán chuẩn WHO `icd_code`/`icd_version` (V23).
+3. **Bước 3 — Xử lý câu hỏi sâu (10 giây):**
+   - Nếu Hội đồng hỏi chi tiết 1 luồng con (ví dụ: chống gian lận BOLA, Webhook VNPay, hoặc Onboarding Bác sĩ 2 bước), chuyển ngay dropdown trên Vector Studio sang `3.20`, `3.22` hoặc `3.24` (`seq_doctor_onboarding`) và cuộn chuột phóng to đúng `alt` / `loop` cần giải trình.
+
+#### C. Lời dẫn mẫu kết nối 2 biểu đồ (60 giây)
+> *"Kính thưa Hội đồng, để chứng minh tài liệu SDD khớp 1-1 với kiến trúc thực thi, mời Thầy Cô theo dõi hai góc nhìn bổ sung cho nhau trên Vector Studio: góc nhìn tĩnh qua **Master Class Diagram** và góc nhìn động qua **End-to-End Sequence Diagram**.*
+> *Trên **Class Diagram**, toàn bộ hệ thống tuân thủ Clean Architecture 4 tầng, trong đó mọi tương tác AI và thanh toán đều được trừu tượng hóa qua Strategy Pattern (`AiProvider` 3 tầng và `PaymentGateway` Router), còn thực thể lõi đã đồng bộ chuẩn Flyway V20, V23 và V24 (`@Version`, `icd_code/icd_version`, `storagePath`).*
+> *Chuyển sang góc nhìn động trên **Sequence Diagram**, mời Thầy Cô nhìn trình tự một ca khám khép kín từ bước 1 đến bước cuối: trước khi chạm vào AI, `RedFlagService` chặn cấp cứu dưới 2ms; tiếp đó tìm kiếm bác sĩ ép HNSW Index chạy 0.72 ms; bước đặt lịch đi qua 3 tầng khóa Redis + `@Version` + Partial Index; và khi bác sĩ mở hồ sơ bệnh nhân, `PatientAccessGuard` luôn chặn kiểm tra quan hệ điều trị trước khi cấp URL S3 sống 15 phút và ghi bệnh án chuẩn ICD V23."*
+
+---
+
+## 6. Bảng Tiêu Chí Đánh Giá Xuất Sắc Của Hội Đồng (Evaluation Rubric)
 
 | Tiêu Chí Đánh Giá | Trọng Số | Yêu Cầu Để Đạt Điểm Tối Đa (Grade A / 9.0 - 10.0) | Hiện Trạng Dự Án MediAssist-AI |
 | :--- | :---: | :--- | :--- |

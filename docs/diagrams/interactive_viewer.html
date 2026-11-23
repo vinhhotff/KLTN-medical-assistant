@@ -372,6 +372,80 @@
             stroke-width: 1.2px !important;
             rx: 4px !important;
         }
+
+        /* High-Contrast Class Diagram Overrides (Light & Dark) */
+        body:not(.theme-dark) svg[aria-roledescription="classDiagram"] g.classGroup rect,
+        body:not(.theme-dark) svg[aria-roledescription="classDiagram"] g.node rect,
+        body:not(.theme-dark) svg[aria-roledescription="classDiagram"] .classLabel .box {
+            fill: #ffffff !important;
+            stroke: #0284c7 !important;
+            stroke-width: 1.8px !important;
+        }
+        body:not(.theme-dark) svg[aria-roledescription="classDiagram"] g.classGroup line,
+        body:not(.theme-dark) svg[aria-roledescription="classDiagram"] g.node .divider line,
+        body:not(.theme-dark) svg[aria-roledescription="classDiagram"] path.divider {
+            stroke: #cbd5e1 !important;
+            stroke-width: 1.2px !important;
+        }
+        body:not(.theme-dark) svg[aria-roledescription="classDiagram"] g.classGroup text,
+        body:not(.theme-dark) svg[aria-roledescription="classDiagram"] .classLabel .label,
+        body:not(.theme-dark) svg[aria-roledescription="classDiagram"] .nodeLabel,
+        body:not(.theme-dark) svg[aria-roledescription="classDiagram"] .cardinality text {
+            fill: #0f172a !important;
+            color: #0f172a !important;
+            font-family: 'JetBrains Mono', 'Inter', monospace !important;
+        }
+        body:not(.theme-dark) svg[aria-roledescription="classDiagram"] g.classGroup text.title,
+        body:not(.theme-dark) svg[aria-roledescription="classDiagram"] .classTitle {
+            fill: #0369a1 !important;
+            color: #0369a1 !important;
+            font-weight: 800 !important;
+        }
+        body:not(.theme-dark) svg[aria-roledescription="classDiagram"] .relation {
+            stroke: #2563eb !important;
+            stroke-width: 1.8px !important;
+        }
+
+        body.theme-dark svg[aria-roledescription="classDiagram"] g.classGroup rect,
+        body.theme-dark svg[aria-roledescription="classDiagram"] g.node rect,
+        body.theme-dark svg[aria-roledescription="classDiagram"] .classLabel .box {
+            fill: #111c38 !important;
+            stroke: #38bdf8 !important;
+            stroke-width: 1.8px !important;
+        }
+        body.theme-dark svg[aria-roledescription="classDiagram"] g.classGroup line,
+        body.theme-dark svg[aria-roledescription="classDiagram"] g.node .divider line,
+        body.theme-dark svg[aria-roledescription="classDiagram"] path.divider {
+            stroke: #334155 !important;
+            stroke-width: 1.2px !important;
+        }
+        body.theme-dark svg[aria-roledescription="classDiagram"] g.classGroup text,
+        body.theme-dark svg[aria-roledescription="classDiagram"] .classLabel .label,
+        body.theme-dark svg[aria-roledescription="classDiagram"] .nodeLabel,
+        body.theme-dark svg[aria-roledescription="classDiagram"] .cardinality text {
+            fill: #f8fafc !important;
+            color: #f8fafc !important;
+            font-family: 'JetBrains Mono', 'Inter', monospace !important;
+        }
+        body.theme-dark svg[aria-roledescription="classDiagram"] g.classGroup text.title,
+        body.theme-dark svg[aria-roledescription="classDiagram"] .classTitle {
+            fill: #38bdf8 !important;
+            color: #38bdf8 !important;
+            font-weight: 800 !important;
+        }
+        body.theme-dark svg[aria-roledescription="classDiagram"] .relation {
+            stroke: #38bdf8 !important;
+            stroke-width: 1.8px !important;
+        }
+
+        /* Prevent text clipping inside Mermaid foreignObject labels */
+        svg foreignObject,
+        svg foreignObject > div,
+        .nodeLabel,
+        .cluster-label,
+        .edgeLabel {
+            overflow: visible !important;
+        }
     </style>
 </head>
 <body>
@@ -387,27 +461,35 @@
         <div class="controls-wrapper">
             <select id="diagram-select" onchange="loadSelectedDiagram()">
                 <optgroup label="Biểu Đồ Cốt Lõi Hệ Thống">
-                    <option value="architecture">1. Kiến Trúc Hệ Thống (7 Tầng Micro-Modular)</option>
+                    <option value="architecture">1. Kiến Trúc Hệ Thống (5 Tầng Micro-Modular)</option>
                     <option value="erd_full" selected>2. Cơ Sở Dữ Liệu Vật Lý (Toàn bộ 17 Bảng ERD Chuẩn 3NF)</option>
                     <option value="usecase_macro">3. Ca Sử Dụng Tổng Thể (Global Macro Use Case)</option>
                     <option value="frontend_pkg">4. Cấu Trúc Gói Front-end (14 Packages)</option>
                     <option value="backend_pkg">5. Cấu Trúc Gói Back-end Clean Architecture</option>
                 </optgroup>
-                <optgroup label="Sơ Đồ Phân Hệ CSDL (Chia Nhỏ Để In Ấn)">
-                    <option value="erd_sub_identity">2.1 ERD Phân Hệ Định Danh & Bảo Mật</option>
-                    <option value="erd_sub_doctor">2.2 ERD Phân Hệ Bác Sĩ & Chuyên Khoa</option>
-                    <option value="erd_sub_appointment">2.3 ERD Phân Hệ Lịch Khám & Bệnh Án EMR (V23)</option>
-                    <option value="erd_sub_diagnostics">2.4 ERD Phân Hệ Xét Nghiệm & Tài Chính</option>
+                <optgroup label="Biểu Đồ Lớp Kiến Trúc &amp; Nghiệp Vụ (Class Diagrams - IEEE 1016)">
+                    <option value="class_master">6. Biểu Đồ Lớp Tổng Thể (Master Clean Architecture Class Diagram - 4 Tầng)</option>
+                    <option value="class_triage_search">6.1 Class Diagram: Phân Luồng AI 5 Tầng &amp; Tìm Kiếm Vector WHRF (Mục 3.9 &amp; 3.10)</option>
+                    <option value="class_booking_emr">6.2 Class Diagram: Đặt Lịch Chống Trùng 3 Tầng, Bàn Khám EMR &amp; Hoàn Tiền (Mục 3.11–3.15)</option>
+                    <option value="class_ocr_security">6.3 Class Diagram: Bóc Tách Xét Nghiệm LOINC, Khử PII &amp; Private S3 15m (Mục 3.18–3.20)</option>
                 </optgroup>
-                <optgroup label="Quy Trình Nghiệp Vụ Lâm Sàng Trọng Điểm">
-                    <option value="seq_login">3.1 Đăng Nhập Dual-Transport & Khóa Brute-Force</option>
-                    <option value="seq_triage">3.9 Phân Luồng Triệu Chứng & NegEx & 115</option>
-                    <option value="seq_search">3.10 Tìm Kiếm Bác Sĩ HNSW & WHRF-SOTA</option>
-                    <option value="seq_booking">3.11 Đặt Lịch & Khóa Phân Tán Slot Lock</option>
-                    <option value="seq_encounter">3.15 Bàn Làm Việc Bác Sĩ & WHO ICD-10 (V23)</option>
-                    <option value="seq_ocr">3.19 Bóc Tách Xét Nghiệm Gemini Flash & LOINC</option>
+                <optgroup label="Sơ Đồ Phân Hệ CSDL (Chia Nhỏ Để In Ấn)">
+                    <option value="erd_sub_identity">2.1 ERD Phân Hệ Định Danh &amp; Bảo Mật</option>
+                    <option value="erd_sub_doctor">2.2 ERD Phân Hệ Bác Sĩ &amp; Chuyên Khoa</option>
+                    <option value="erd_sub_appointment">2.3 ERD Phân Hệ Lịch Khám &amp; Bệnh Án EMR (V23)</option>
+                    <option value="erd_sub_diagnostics">2.4 ERD Phân Hệ Xét Nghiệm &amp; Tài Chính</option>
+                </optgroup>
+                <optgroup label="Biểu Đồ Tuần Tự &amp; Quy Trình Nghiệp Vụ (Sequence Diagrams)">
+                    <option value="seq_e2e_master">3.0 Sequence Tổng Thể Khép Kín: Triage AI -&gt; pgvector WHRF -&gt; Booking 3 Tầng -&gt; EMR (ICD V23)</option>
+                    <option value="seq_login">3.1 Đăng Nhập Dual-Transport &amp; Khóa Brute-Force</option>
+                    <option value="seq_triage">3.9 Phân Luồng Triệu Chứng &amp; NegEx &amp; 115</option>
+                    <option value="seq_search">3.10 Tìm Kiếm Bác Sĩ HNSW &amp; WHRF-SOTA</option>
+                    <option value="seq_booking">3.11 Đặt Lịch &amp; Khóa Phân Tán Slot Lock</option>
+                    <option value="seq_encounter">3.15 Bàn Làm Việc Bác Sĩ &amp; WHO ICD-10 (V23)</option>
+                    <option value="seq_ocr">3.19 Bóc Tách Xét Nghiệm Gemini 2.5 Flash &amp; LOINC</option>
                     <option value="seq_bola">3.20 Rào Chắn BOLA/IDOR PatientAccessGuard</option>
                     <option value="seq_vnpay">3.22 Xử Lý VNPay IPN Webhook Idempotency</option>
+                    <option value="seq_doctor_onboarding">3.24 Onboarding Bác Sĩ 2 Bước &amp; Admin Thẩm Định CCHN + Đồng Bộ pgvector (Review 2)</option>
                 </optgroup>
             </select>
 
@@ -442,7 +524,7 @@
     <script>
 const DIAGRAMS = {
             architecture: `flowchart TB
-    subgraph Tier1["1. Client Presentation Tier (React 18 SPA)"]
+    subgraph Tier1["1. Client Presentation Tier (React 18.3 SPA • Vite 6.2 • TypeScript 5.8)"]
         UI["Patient Portal & Doctor Workstation | Admin Operations Console"]
     end
 
@@ -450,7 +532,7 @@ const DIAGRAMS = {
         Sec["Nginx Reverse Proxy 1.25+ (SSL/TLS 1.3 & Rate Limiting)<br/>Spring Security 6 (Stateless JWT) & PatientAccessGuard (BOLA/IDOR)"]
     end
 
-    subgraph Tier3["3. Core Application Services (Spring Boot 3.4 Loom)"]
+    subgraph Tier3["3. Core Application Services (Spring Boot 3.4 + Java 21 Project Loom)"]
         direction TB
         subgraph SubAI["Clinical AI Engine"]
             Svc_Triage["5-Stage Symptom Triage & NegEx"]
@@ -458,30 +540,55 @@ const DIAGRAMS = {
         end
         subgraph SubClinical["Telehealth & Encounter"]
             Svc_Booking["Slot Booking & Daily Queue STT"]
-            Svc_EMR["Doctor EMR (WHO ICD-10 & LOINC)"]
+            Svc_EMR["Doctor EMR (WHO ICD-10/11 & LOINC)"]
         end
         subgraph SubOps["Diagnostics & Finance"]
-            Svc_OCR["Medical Document OCR (Gemini Flash)"]
-            Svc_Pay["VNPay Gateway & Async Mail Engine"]
+            Svc_OCR["Medical Document OCR (Gemini 2.5 Flash)"]
+            Svc_Pay["Stripe/VNPay Adapter & Async Mail Engine"]
         end
     end
 
     subgraph Tier4["4. Persistence, Cache & Cloud Storage"]
-        DB[("PostgreSQL 16 LTS<br/>+ pgvector HNSW")]
-        Cache[("Redis 7 L2 Cache<br/>+ Caffeine L1")]
+        DB[("PostgreSQL 16 LTS<br/>+ pgvector HNSW (V1-V24)")]
+        Cache[("Redis 7 L2 Cache<br/>+ Caffeine L1 (XFetch)")]
         S3[("Supabase S3<br/>Private 15m HMAC")]
     end
 
     subgraph Tier5["5. External Cloud Integration"]
-        AI_Ext["OpenAI & Gemini 1.5 Flash"]
-        Pay_Ext["VNPay National Gateway"]
-        Mail_Ext["SMTP Transactional Mail"]
+        AI_Ext["OpenAI / OpenRouter & Gemini 2.5 Flash (3-Tier AI Router)"]
+        Pay_Ext["Stripe Sandbox / VNPay National Gateway"]
+        Mail_Ext["Mailpit Dev / Gmail SMTP STARTTLS"]
     end
 
     Tier1 --> Tier2
     Tier2 --> Tier3
     Tier3 --> Tier4
-    Tier3 --> Tier5`,
+    Tier3 --> Tier5
+
+    classDef clientNode fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#0f172a,font-weight:600
+    classDef secNode fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#0f172a,font-weight:600
+    classDef aiNode fill:#cffafe,stroke:#0891b2,stroke-width:2px,color:#0f172a,font-weight:600
+    classDef clinNode fill:#d1fae5,stroke:#059669,stroke-width:2px,color:#0f172a,font-weight:600
+    classDef opsNode fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#0f172a,font-weight:600
+    classDef dataNode fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#0f172a,font-weight:600
+    classDef extNode fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#0f172a,font-weight:600
+
+    class UI clientNode
+    class Sec secNode
+    class Svc_Triage,Svc_Search aiNode
+    class Svc_Booking,Svc_EMR clinNode
+    class Svc_OCR,Svc_Pay opsNode
+    class DB,Cache,S3 dataNode
+    class AI_Ext,Pay_Ext,Mail_Ext extNode
+
+    style Tier1 fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
+    style Tier2 fill:#fef2f2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    style Tier3 fill:#f0fdfa,stroke:#0d9488,stroke-width:2px,color:#134e4a
+    style SubAI fill:#ecfeff,stroke:#06b6d4,stroke-width:1.5px,color:#164e63
+    style SubClinical fill:#ecfdf5,stroke:#10b981,stroke-width:1.5px,color:#064e46
+    style SubOps fill:#eef2ff,stroke:#6366f1,stroke-width:1.5px,color:#312e81
+    style Tier4 fill:#f5f3ff,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    style Tier5 fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#78350f`,
 
             erd_full: `erDiagram
     %% ========================================================
@@ -1037,6 +1144,480 @@ const DIAGRAMS = {
     Application_Tier --> Infrastructure_Tier
     Infrastructure_Tier --> Domain_Tier`,
 
+            class_master: `classDiagram
+    direction TB
+    class TriageController {
+        <<Controller>>
+        -TriageService triageService
+        -DoctorSemanticSearchService searchService
+        +assessSymptoms(TriageRequest req, String email) TriageResponse
+        +searchDoctorsSemantic(String query, int limit) List~DoctorMatchDto~
+    }
+    class AppointmentController {
+        <<Controller>>
+        -AppointmentService appointmentService
+        -PatientAccessGuard patientAccessGuard
+        +bookAppointment(UUID patientId, CreateAppointmentRequest req) AppointmentDto
+        +completeClinical(UUID id, ClinicalEncounterRequest req) AppointmentDto
+    }
+    class MedicalDocumentController {
+        <<Controller>>
+        -MedicalDocumentAnalysisService analysisService
+        -MedicalDocumentFileAccessService fileAccessService
+        +analyzeDocument(List~MultipartFile~ files, String email) DocumentAnalysisResponse
+        +getSignedFileUrl(UUID docId, boolean download) DocumentFileAccessDto
+    }
+    class AdminController {
+        <<Controller>>
+        -AdminVettingService adminVettingService
+        +vetDoctor(UUID profileId, boolean approve, String notes) DoctorDetailDto
+        +updateUserStatus(UUID userId, UserStatus status) UserDto
+    }
+
+    class TriageService {
+        <<Service>>
+        -RedFlagService redFlagService
+        -ClinicalQueryDefenseEngine defenseEngine
+        -AiModelRouter aiModelRouter
+        +assessSymptoms(TriageRequest req, String userEmail) TriageResponse
+    }
+    class RedFlagService {
+        <<Clinical Defense>>
+        +evaluateRedFlag(String text) Optional~String~
+    }
+    class ClinicalQueryDefenseEngine {
+        <<NLP Pipeline>>
+        +analyzeAndDefend(String rawQuery) ClinicalQueryDefenseResult
+        +normalizeSlangAndTypos(String text) String
+    }
+    class DoctorSemanticSearchService {
+        <<AI Vector Search>>
+        -EmbeddingService embeddingService
+        -TwoLayerCacheService cacheService
+        +searchDoctors(String queryText, int limit) List~DoctorMatchDto~
+        +calculateCompositeScore(DoctorMatchDto doc) double
+    }
+    class AppointmentService {
+        <<Service>>
+        -AppointmentRefundService refundService
+        -PatientAccessGuard patientAccessGuard
+        -ClinicalOntologyService ontologyService
+        +bookAppointment(UUID patientId, CreateAppointmentRequest req) AppointmentDto
+        +completeClinicalEncounter(UUID id, UUID docId, ClinicalEncounterRequest req) AppointmentDto
+    }
+    class MedicalDocumentAnalysisService {
+        <<Service>>
+        -MedicalPiiService medicalPiiService
+        -AiModelRouter aiModelRouter
+        -ClinicalOntologyService ontologyService
+        +analyzeDocuments(List~MultipartFile~ files, String email) DocumentAnalysisResponse
+        +getDocumentAnalysis(UUID docId) DocumentAnalysisResponse
+    }
+    class PatientAccessGuard {
+        <<Security Guard>>
+        +assertCanAccessPatient(UUID actorId, Role role, UUID patientId, String resource) void
+    }
+    class AdminVettingService {
+        <<Service>>
+        -DoctorSemanticSearchService searchService
+        -TwoLayerCacheService cacheService
+        +vetDoctor(UUID profileId, boolean approve, String reason, UUID adminId) DoctorDetailDto
+    }
+
+    class AiModelRouter {
+        <<3-Tier AI Router>>
+        +routeTriageAnalysis(String sys, String usr) ClinicalAiResult
+        +extractTextWithVision(byte[] bytes, String mime, String name) String
+    }
+    class TwoLayerCacheService {
+        <<L1 Caffeine + L2 Redis>>
+        +get(String key, Class clazz) Object
+        +set(String key, Object val, long ttlSec) void
+        +evict(String key) void
+    }
+    class SupabaseStorageService {
+        <<Private S3 V20>>
+        +uploadDocument(byte[] bytes, String name, String mime, UUID userId) String
+        +createSignedUrl(String key, boolean download, String name) SignedUrl
+    }
+
+    class User {
+        <<Entity V22/V24>>
+        -UUID id
+        -String email
+        -Role role
+        -UserStatus status
+        -boolean emailVerified
+        -Long version
+    }
+    class DoctorProfile {
+        <<Entity V19>>
+        -UUID id
+        -String licenseNumber
+        -boolean isVerified
+        -Double rating
+        -Integer reviewCount
+    }
+    class Appointment {
+        <<Entity V23/V24>>
+        -UUID id
+        -String appointmentCode
+        -AppointmentStatus status
+        -String icd10Code
+        -String icdVersion
+        -String queueNumber
+        -Long version
+    }
+    class MedicalDocument {
+        <<Entity V20>>
+        -UUID id
+        -String fileName
+        -String storagePath
+    }
+
+    TriageController --> TriageService
+    TriageController --> DoctorSemanticSearchService
+    AppointmentController --> AppointmentService
+    AppointmentController --> PatientAccessGuard
+    MedicalDocumentController --> MedicalDocumentAnalysisService
+    MedicalDocumentController --> PatientAccessGuard
+    AdminController --> AdminVettingService
+
+    TriageService --> RedFlagService
+    TriageService --> ClinicalQueryDefenseEngine
+    TriageService --> AiModelRouter
+    DoctorSemanticSearchService --> TwoLayerCacheService
+    AppointmentService --> PatientAccessGuard
+    MedicalDocumentAnalysisService --> AiModelRouter
+    MedicalDocumentAnalysisService --> SupabaseStorageService
+    AdminVettingService --> DoctorSemanticSearchService
+    AdminVettingService --> TwoLayerCacheService
+
+    TriageService ..> Appointment
+    AppointmentService --> Appointment
+    MedicalDocumentAnalysisService --> MedicalDocument
+    AdminVettingService --> DoctorProfile
+    AdminVettingService --> User
+    User "1" -- "0..1" DoctorProfile : owns
+    User "1" -- "0..*" Appointment : patient_or_doctor`,
+
+            class_triage_search: `classDiagram
+    direction TB
+    class TriageController {
+        <<Controller>>
+        -TriageService triageService
+        -DoctorSemanticSearchService searchService
+        -TriageRateLimiterService rateLimiter
+        +assessSymptoms(TriageRequest req, String email) TriageResponse
+        +searchDoctorsSemantic(String query, int limit) List~DoctorMatchDto~
+    }
+    class TriageService {
+        <<5-Stage Orchestrator>>
+        -RedFlagService redFlagService
+        -ClinicalQueryDefenseEngine defenseEngine
+        -AiModelRouter aiModelRouter
+        -TriageSessionRepository sessionRepo
+        +assessSymptoms(TriageRequest req, String userEmail) TriageResponse
+        -handleEmergency(String symptoms, String msg, User user) TriageResponse
+    }
+    class RedFlagService {
+        <<Stage 1: <2ms Java Regex>>
+        +evaluateRedFlag(String text) Optional~String~
+    }
+    class ClinicalQueryDefenseEngine {
+        <<Stage 2-4: NegEx & OOD>>
+        +analyzeAndDefend(String rawQuery) ClinicalQueryDefenseResult
+        +normalizeSlangAndTypos(String text) String
+        -extractNegationAndAffirmation(String text) NegationExtractionResult
+    }
+    class AiProvider {
+        <<interface>>
+        +getProviderName() String
+        +generateClinicalJson(String systemPrompt, String userPrompt) String
+    }
+    class GeminiAiProvider {
+        <<Tier 1 Primary>>
+        -String model = "gemini-2.5-flash"
+        +generateClinicalJson(String sys, String usr) String
+    }
+    class OpenRouterAiProvider {
+        <<Tier 2 Rotation Pool>>
+        -List~String~ modelPool
+        +generateClinicalJson(String sys, String usr) String
+    }
+    class DeterministicFallbackAiProvider {
+        <<Tier 3 Offline 0đ>>
+        +generateClinicalJson(String sys, String usr) String
+    }
+    class AiModelRouter {
+        <<Fault-Tolerant Router>>
+        +routeTriageAnalysis(String sys, String usr) ClinicalAiResult
+        +routeClinicalAnalysis(String sys, String usr) ClinicalAiResult
+    }
+    class DoctorSemanticSearchService {
+        <<HNSW + WHRF-SOTA>>
+        -EmbeddingService embeddingService
+        -TwoLayerCacheService cacheService
+        -JdbcTemplate jdbcTemplate
+        +searchDoctors(String queryText, int limit) List~DoctorMatchDto~
+        +calculateCompositeScore(DoctorMatchDto doc, String query) double
+    }
+    class EmbeddingService {
+        <<1536-d Neural / FNV-1a>>
+        +generateEmbedding(String text) float[]
+        +generateUnsupervisedHashingEmbedding(String text) float[]
+    }
+    class TriageResponse {
+        <<DTO>>
+        -boolean isEmergency
+        -TriageUrgencyLevel urgencyLevel
+        -String primarySpecialty
+        -String sbarSummary
+        -List~DoctorMatchDto~ recommendedDoctors
+    }
+    class DoctorMatchDto {
+        <<DTO>>
+        -UUID doctorId
+        -double matchPercentage
+        -double whrfScore
+        -Double rating
+        -Integer reviewCount
+    }
+
+    TriageController --> TriageService
+    TriageController --> DoctorSemanticSearchService
+    TriageService --> RedFlagService
+    TriageService --> ClinicalQueryDefenseEngine
+    TriageService --> AiModelRouter
+    TriageService ..> TriageResponse
+    AiModelRouter --> AiProvider : delegates 3 tiers
+    AiProvider <|.. GeminiAiProvider
+    AiProvider <|.. OpenRouterAiProvider
+    AiProvider <|.. DeterministicFallbackAiProvider
+    DoctorSemanticSearchService --> EmbeddingService
+    DoctorSemanticSearchService ..> DoctorMatchDto
+    TriageResponse o-- DoctorMatchDto`,
+
+            class_booking_emr: `classDiagram
+    direction TB
+    class AppointmentController {
+        <<Controller>>
+        -AppointmentService appointmentService
+        -PatientAccessGuard patientAccessGuard
+        +bookAppointment(CreateAppointmentRequest req) AppointmentDto
+        +rescheduleAppointment(UUID id, RescheduleAppointmentRequest req) AppointmentDto
+        +updateStatus(UUID id, AppointmentStatus status) AppointmentDto
+        +completeClinical(UUID id, ClinicalEncounterRequest req) AppointmentDto
+    }
+    class AppointmentService {
+        <<REPEATABLE_READ + Redis Lock>>
+        -AppointmentRepository appointmentRepo
+        -AppointmentRefundService refundService
+        -PatientAccessGuard patientAccessGuard
+        -ClinicalOntologyService ontologyService
+        -RedisTemplate redisTemplate
+        +bookAppointment(UUID patientId, CreateAppointmentRequest req) AppointmentDto
+        +completeClinicalEncounter(UUID id, UUID doctorId, ClinicalEncounterRequest req) AppointmentDto
+        +rescheduleAppointment(UUID id, UUID userId, Role role, RescheduleAppointmentRequest req) AppointmentDto
+    }
+    class AppointmentRefundService {
+        <<Tiered 100/80/0 Refund>>
+        -PaymentTransactionRepository txRepo
+        +refundIfPaid(Appointment appointment) RefundResult
+    }
+    class PaymentGatewayRouter {
+        <<Port & Adapter>>
+        -List~PaymentGateway~ gateways
+        +resolveGateway(String paymentMethod) PaymentGateway
+    }
+    class PaymentGateway {
+        <<interface>>
+        +createPaymentUrl(PaymentTransaction tx, String ip) String
+        +refundPayment(PaymentTransaction tx, BigDecimal amount) boolean
+    }
+    class StripePaymentGateway {
+        <<Sandbox Webhook>>
+        +createPaymentUrl(PaymentTransaction tx, String ip) String
+        +refundPayment(PaymentTransaction tx, BigDecimal amount) boolean
+    }
+    class MockPaymentGateway {
+        <<VIETQR / VNPAY / MOMO / CASH>>
+        +createPaymentUrl(PaymentTransaction tx, String ip) String
+        +refundPayment(PaymentTransaction tx, BigDecimal amount) boolean
+    }
+    class PatientAccessGuard {
+        <<CARE_RELATIONSHIP Guard>>
+        +assertCanAccessPatient(UUID actorId, Role role, UUID patientId, String resource) void
+    }
+    class ClinicalOntologyService {
+        <<WHO ICD-10/11 V23>>
+        +searchIcd10(String query, String slug) List~Icd10DiagnosisDto~
+        +getIcd10ByCode(String code) Optional~Icd10DiagnosisDto~
+    }
+    class Appointment {
+        <<Entity V23 & @Version V24>>
+        -UUID id
+        -String appointmentCode
+        -LocalDateTime scheduledStart
+        -AppointmentStatus status
+        -PaymentStatus paymentStatus
+        -String queueNumber
+        -String icd10Code
+        -String icdVersion
+        -Long version
+    }
+    class PaymentTransaction {
+        <<Entity @Version V24>>
+        -UUID id
+        -String transactionCode
+        -BigDecimal amount
+        -String paymentGateway
+        -PaymentStatus status
+        -Long version
+    }
+
+    AppointmentController --> AppointmentService
+    AppointmentController --> PatientAccessGuard
+    AppointmentService --> AppointmentRefundService
+    AppointmentService --> PatientAccessGuard
+    AppointmentService --> ClinicalOntologyService
+    AppointmentService --> Appointment : manages ACID TX
+    AppointmentRefundService --> PaymentGatewayRouter
+    PaymentGatewayRouter --> PaymentGateway
+    PaymentGateway <|.. StripePaymentGateway
+    PaymentGateway <|.. MockPaymentGateway
+    Appointment "1" -- "0..*" PaymentTransaction : bills`,
+
+            class_ocr_security: `classDiagram
+    direction TB
+    class MedicalDocumentController {
+        <<Controller>>
+        -MedicalDocumentAnalysisService analysisService
+        -MedicalDocumentFileAccessService fileAccessService
+        -SecurityRateLimiterService rateLimiter
+        +analyzeDocument(List~MultipartFile~ files, String email) DocumentAnalysisResponse
+        +getDocumentAnalysis(UUID docId) DocumentAnalysisResponse
+        +getSignedFileUrl(UUID docId, boolean download) DocumentFileAccessDto
+    }
+    class MedicalDocumentAnalysisService {
+        <<Multimodal OCR & SHA-256 Dedupe>>
+        -MedicalPiiService piiService
+        -AiModelRouter aiModelRouter
+        -ClinicalOntologyService ontologyService
+        -SupabaseStorageService storageService
+        -AiUsageAnalyticsService finOpsService
+        +analyzeDocuments(List~MultipartFile~ files, String email) DocumentAnalysisResponse
+        +getDocumentAnalysis(UUID docId) DocumentAnalysisResponse
+        -calculateSha256(byte[] data) String
+    }
+    class MedicalDocumentFileAccessService {
+        <<V20 Signed Access>>
+        -PatientAccessGuard patientAccessGuard
+        -SupabaseStorageService storageService
+        +issueAccess(User actor, UUID docId, boolean download) DocumentFileAccessDto
+    }
+    class PatientAccessGuard {
+        <<BOLA/IDOR Defense>>
+        -AppointmentRepository appointmentRepo
+        -AuditLogRepository auditLogRepo
+        +assertCanAccessPatient(UUID actorId, Role role, UUID patientId, String resource) void
+    }
+    class MedicalPiiService {
+        <<Decree 13 Privacy Shield>>
+        +maskPii(String rawText) DeidentificationResult
+        +unmaskPii(String text, Map tokenMap) String
+    }
+    class ClinicalOntologyService {
+        <<23 LOINC QĐ 3280/BYT>>
+        +fuzzyMatchIndicator(String ocrName) Optional~LabIndicatorDto~
+        +getLabIndicatorByLoinc(String code) Optional~LabIndicatorDto~
+    }
+    class SupabaseStorageService {
+        <<Private S3 15-min HMAC>>
+        +uploadDocument(byte[] bytes, String name, String mime, UUID userId) String
+        +createSignedUrl(String objectKey, boolean download, String name) SignedUrl
+    }
+    class MedicalDocument {
+        <<Entity V20>>
+        -UUID id
+        -UUID userId
+        -String fileName
+        -String storagePath
+        -String contentType
+    }
+    class DocumentAnalysis {
+        <<Entity>>
+        -UUID id
+        -UUID documentId
+        -String clinicalSummary
+        -String abnormalIndicatorsJson
+    }
+    class AuditLog {
+        <<HIPAA Immutable Trail>>
+        -UUID id
+        -String action
+        -String actor
+        -String resource
+        -String ipAddress
+    }
+
+    MedicalDocumentController --> MedicalDocumentAnalysisService
+    MedicalDocumentController --> MedicalDocumentFileAccessService
+    MedicalDocumentAnalysisService --> MedicalPiiService
+    MedicalDocumentAnalysisService --> ClinicalOntologyService
+    MedicalDocumentAnalysisService --> SupabaseStorageService
+    MedicalDocumentFileAccessService --> PatientAccessGuard
+    MedicalDocumentFileAccessService --> SupabaseStorageService
+    PatientAccessGuard --> AuditLog : appends immutable log
+    MedicalDocumentAnalysisService --> MedicalDocument
+    MedicalDocument "1" -- "0..1" DocumentAnalysis : produces`,
+
+            seq_e2e_master: `sequenceDiagram
+    autonumber
+    actor BN as Bệnh nhân
+    actor BS as Bác sĩ Điều trị
+    participant UI as React 18.3 SPA (Port 5173)
+    participant API as Spring Boot 3.4 (Java 21 Loom)
+    participant Guard as Clinical Defense & PatientAccessGuard
+    participant AI as AiModelRouter (Gemini 2.5 -> OpenRouter -> FNV-1a)
+    participant Cache as Redis 7 Lock + L1 Caffeine
+    participant DB as PostgreSQL 16 + pgvector HNSW (V1-V24)
+    participant S3 as Private S3 + Mail (@Async)
+
+    Note over BN,S3: GIAI ĐOẠN 1: PHÂN LUỒNG TRIỆU CHỨNG AI 5 TẦNG & TÌM BÁC SĨ NGỮ NGHĨA (WHRF-SOTA)
+    BN->>UI: Nhập triệu chứng ("Đau tức ngực âm ỉ 3 ngày, không khó thở")
+    UI->>API: POST /api/v1/triage/analyze (Bearer JWT)
+    API->>Guard: RedFlagService.evaluateRedFlag() [<2ms] + NegEx Stage 2-4
+    Guard-->>API: An toàn (Không có cờ 115), tách câu khẳng định sạch
+    API->>AI: AiModelRouter.routeTriageAnalysis() -> Gemini 2.5 Flash
+    AI-->>API: SBAR Report + Chuyên khoa Tim mạch + Mức URGENT
+    API->>DB: INSERT triage_sessions + INSERT ai_token_usage (REQUIRES_NEW)
+    API->>DB: SET LOCAL hnsw.ef_search=120, enable_seqscan=off -> HNSW (<=>) [0.72 ms]
+    DB-->>API: Top Bác sĩ đã duyệt (is_verified=true) -> Re-rank WHRF
+    API-->>UI: 200 OK (SBAR Summary + Danh sách Bác sĩ phù hợp)
+
+    Note over BN,S3: GIAI ĐOẠN 2: ĐẶT LỊCH CHỐNG TRÙNG 3 TẦNG & PHIẾU KHÁM O2O
+    BN->>UI: Chọn Bác sĩ Tim mạch & Slot 09:00 -> Bấm "Xác nhận đặt lịch"
+    UI->>API: POST /api/v1/appointments (CreateAppointmentRequest)
+    API->>Cache: Tầng 1: SET lock:slot:docId:ts NX EX 10 (Redis Semaphore)
+    API->>DB: Tầng 2 & 3: REPEATABLE_READ @Version (V24) + Partial Unique Index
+    DB-->>API: INSERT appointments (status='SCHEDULED', queue_number='STT 04')
+    API->>S3: @Async(AFTER_COMMIT) Gửi Email xác nhận & Vé O2O QR Code
+    API-->>UI: 201 Created (AppointmentDto + STT 04)
+
+    Note over BN,S3: GIAI ĐOẠN 3: BÀN KHÁM BÁC SĨ (50/50 WORKSTATION) & BẢO MẬT BOLA/S3
+    BS->>UI: Mở hồ sơ bệnh nhân & Bấm xem tệp xét nghiệm đính kèm
+    UI->>API: GET /api/v1/documents/{docId}/signed-url
+    API->>Guard: PatientAccessGuard.assertCanAccessPatient(CARE_RELATIONSHIP)
+    Guard->>DB: Xác thực tồn tại ca khám + INSERT audit_logs (VIEW_PATIENT_RECORD)
+    API->>S3: Ký URL tạm thời HMAC-SHA256 (Hết hạn sau 15 phút - V20)
+    S3-->>BS: Hiển thị PDF xét nghiệm bảo mật + Chỉ số 23 LOINC BYT
+    BS->>UI: Chẩn đoán mã WHO icd_code='I10', icd_version='ICD-10' (V23) & Kê đơn
+    UI->>API: POST /api/v1/appointments/{id}/complete-clinical
+    API->>DB: UPDATE appointments SET status='COMPLETED', icd_code='I10', icd_version='ICD-10' (@Version)
+    API->>S3: @Async(AFTER_COMMIT) Gửi đơn thuốc điện tử qua SMTP TLS 587
+    API-->>UI: 200 OK -> Hoàn tất chu trình khám bệnh khép kín!`,
+
             seq_login: `sequenceDiagram
     autonumber
     actor Patient as Bệnh nhân (Client)
@@ -1072,23 +1653,23 @@ const DIAGRAMS = {
             seq_triage: `sequenceDiagram
     autonumber
     actor Patient as Bệnh nhân
-    participant UI as React 18 SPA (SymptomTriagePage)
+    participant UI as React 18.3 SPA (SymptomTriagePage)
     participant Ctrl as TriageController
     participant Svc as TriageService
     participant RedFlag as RedFlagService (Stage 1)
     participant Defense as ClinicalQueryDefenseEngine (Stage 2-4)
-    participant AI as Google Gemini 1.5 Flash (Stage 5)
+    participant AI as AiModelRouter (Gemini 2.5 Flash -> OpenRouter -> FNV-1a)
     participant DB as PostgreSQL (triage_sessions)
 
     Patient->>UI: Nhập: "Tôi bị đau tức ngực âm ỉ 3 ngày, nhưng không khó thở, không sốt"
     UI->>Ctrl: POST /api/v1/triage/analyze (TriageRequest)
-    Ctrl->>Svc: processTriage(request, userId)
-    Svc->>RedFlag: detectEmergency(text)
-    RedFlag-->>Svc: RedFlagResult (isEmergency = false) -> Vượt qua Stage 1 an toàn
-    Svc->>Defense: sanitizeAndFilter(text)
+    Ctrl->>Svc: assessSymptoms(request, userEmail)
+    Svc->>RedFlag: evaluateRedFlag(text) [<2ms Java thuần]
+    RedFlag-->>Svc: Optional.empty() -> Vượt qua Stage 1 an toàn
+    Svc->>Defense: analyzeAndDefend(text)
     Note over Defense: Stage 2: Chuẩn hóa teen-code & phương ngữ<br/>Stage 3 (Vietnamese NegEx): Tách mệnh đề khẳng định C_aff ("đau tức ngực âm ỉ 3 ngày") và cách ly mệnh đề phủ định C_neg ("không khó thở", "không sốt")<br/>Stage 4: Xác nhận câu hỏi hoàn toàn thuộc phạm vi y khoa lâm sàng
-    Defense-->>Svc: ClinicalQueryDefenseResult (cleanSymptoms: "đau tức ngực âm ỉ 3 ngày")
-    Svc->>AI: generateSbarTriage(cleanSymptoms)
+    Defense-->>Svc: ClinicalQueryDefenseResult (cleanQuery: "đau tức ngực âm ỉ 3 ngày")
+    Svc->>AI: routeTriageAnalysis(systemPrompt, cleanSymptoms)
     AI-->>Svc: JSON (primarySpecialty="Tim mạch", urgencyLevel="URGENT", sbarSummary=..., aiAdvice=...)
     Svc->>DB: INSERT INTO triage_sessions (user_id, symptoms_text, is_emergency=false, urgency_level='URGENT', primary_specialty='Tim mạch', sbar_summary=...)
     DB-->>Svc: TriageSession Entity Saved
@@ -1174,9 +1755,9 @@ const DIAGRAMS = {
     Svc->>Guard: assertCanAccessPatient(doctorId, Role.DOCTOR, patientId, "COMPLETE_CLINICAL_ENCOUNTER")
     Guard->>DB: existsCareRelationship(doctorId, patientId) -> true
     Guard-->>Svc: Phân quyền Hợp lệ
-    Svc->>Ontology: validateIcd10Code(request.getIcd10Code())
-    Ontology-->>Svc: true (Mã I10 chuẩn danh mục WHO/BYT)
-    Svc->>DB: UPDATE appointments SET status='COMPLETED', vital_signs_json=request.vitalSignsJson, icd10_code='I10', icd10_name='Tăng huyết áp vô căn', prescription_json=request.prescriptionJson, treatment_plan=request.treatmentPlan, follow_up_date=request.followUpDate, consultation_notes=request.consultationNotes, updated_at=NOW() WHERE id = id
+    Svc->>Ontology: getIcd10ByCode(request.getIcd10Code())
+    Ontology-->>Svc: Optional.of(I10) (Mã I10 chuẩn danh mục WHO/BYT)
+    Svc->>DB: UPDATE appointments SET status='COMPLETED', vital_signs_json=request.vitalSignsJson, icd_code='I10', icd_version='ICD-10', icd10_name='Tăng huyết áp vô căn', prescription_json=..., version=version+1, updated_at=NOW() WHERE id = id AND version = ?
     DB-->>Svc: Lưu bệnh án thành công
     Svc->>Mail: sendPrescriptionAndSummaryEmail(patient, appointment)
     Svc-->>Ctrl: AppointmentDto (status='COMPLETED')
@@ -1186,26 +1767,26 @@ const DIAGRAMS = {
             seq_ocr: `sequenceDiagram
     autonumber
     actor Patient as Bệnh nhân
-    participant UI as React 18 SPA (DocumentSummarizerPage)
+    participant UI as React 18.3 SPA (DocumentSummarizerPage)
     participant Ctrl as MedicalDocumentController
     participant Svc as MedicalDocumentAnalysisService
     participant PII as MedicalPiiService (Decree 13 Shield)
-    participant AI as Google Gemini 1.5 Flash Vision
-    participant Ontology as ClinicalOntologyService (LOINC)
+    participant AI as AiModelRouter (Gemini 2.5 Flash Vision)
+    participant Ontology as ClinicalOntologyService (23 LOINC BYT)
     participant DB as PostgreSQL (document_analyses)
 
     Patient->>UI: Bấm "Xem kết quả giải nghĩa xét nghiệm"
     UI->>Ctrl: GET /api/v1/documents/{id}/analysis
-    Ctrl->>Svc: processDocumentOcr(id)
-    Svc->>PII: maskPii(rawExtractedText) -> Loại bỏ Họ tên, CCCD, BHYT, Địa chỉ
-    PII-->>Svc: SanitizedPayload (Dữ liệu y tế an toàn không chứa PII)
-    Svc->>AI: analyzeLaboratoryDocument(SanitizedPayload)
+    Ctrl->>Svc: getDocumentAnalysis(id)
+    Svc->>PII: maskPii(rawExtractedText) -> Loại bỏ 6 nhóm PII (Tên, CCCD, BHYT...)
+    PII-->>Svc: DeidentificationResult (Dữ liệu y tế an toàn không chứa PII)
+    Svc->>AI: routeClinicalAnalysis(systemPrompt, sanitizedPayload)
     AI-->>Svc: Raw OCR JSON (Chỉ số Glucose: 8.2 mmol/L, Cholesterol: 6.5 mmol/L)
-    loop Chuẩn hóa từng chỉ số với Bản thể luận Bộ Y Tế
-        Svc->>Ontology: matchLoincIndicator("Glucose", "8.2")
+    loop Chuẩn hóa từng chỉ số với Bản thể luận Bộ Y Tế (QĐ 3280)
+        Svc->>Ontology: fuzzyMatchIndicator("Glucose")
         Ontology-->>Svc: LabIndicatorDto(loincCode="1558-6", standardName="Đường huyết lúc đói", status="HIGH", normalRange="3.9 - 6.4 mmol/L")
     end
-    Svc->>DB: INSERT INTO document_analyses (document_id, clinical_summary=..., plain_language_explanation='Chỉ số đường huyết của bạn đang ở mức cao...', abnormal_indicators_json='[...]', recommended_specialty_slug='noi-tiet', recommended_specialty_name='Chuyên khoa Nội tiết')
+    Svc->>DB: INSERT INTO document_analyses (document_id, clinical_summary=..., plain_language_explanation=..., abnormal_indicators_json='[...]', recommended_specialty_slug='noi-tiet')
     DB-->>Svc: Analysis Entity Saved
     Svc-->>Ctrl: DocumentAnalysisResponse
     Ctrl-->>UI: 200 OK + DocumentAnalysisResponse
@@ -1260,7 +1841,46 @@ const DIAGRAMS = {
         Svc->>Mail: sendPaymentSuccessReceipt(patientEmail, appointmentCode, 500000)
         Svc-->>Ctrl: Map: { RspCode: "00", Message: "Confirm Success" }
     end
-    Ctrl-->>VNPayServer: 200 OK + JSON { "RspCode": "00", "Message": "Confirm Success" }`
+    Ctrl-->>VNPayServer: 200 OK + JSON { "RspCode": "00", "Message": "Confirm Success" }`,
+
+            seq_doctor_onboarding: `sequenceDiagram
+    autonumber
+    actor Doc as Bác sĩ Đăng ký
+    actor Admin as Quản trị viên (Admin)
+    participant UI as React 18.3 SPA (Register / Profile / Admin)
+    participant AuthCtrl as AuthController & DoctorController
+    participant Svc as AuthService & DoctorService
+    participant VetSvc as AdminVettingService
+    participant SearchSvc as DoctorSemanticSearchService (pgvector)
+    participant Cache as TwoLayerCacheService (L1 + L2)
+    participant DB as PostgreSQL 16 (users, doctor_profiles, audit_logs)
+    participant Mail as EmailService (@Async AFTER_COMMIT)
+
+    Note over Doc,Mail: BƯỚC 1: ĐĂNG KÝ TỐI GIẢN & KÍCH HOẠT EMAIL GATE (V22)
+    Doc->>UI: Nhập Form 4 trường (Họ tên, Email, SĐT, Mật khẩu)
+    UI->>AuthCtrl: POST /api/v1/auth/register/doctor (DoctorRegisterRequest)
+    AuthCtrl->>Svc: registerDoctor() -> Tạo User(DOCTOR, version=0) + DoctorProfile(is_verified=false)
+    Svc->>DB: INSERT users & doctor_profiles (license_number=null chống đụng UNIQUE)
+    Svc->>Mail: @Async Gửi Email xác thực SHA-256 Token (V22)
+    Doc->>AuthCtrl: GET /api/v1/auth/verify-email?token=... -> email_verified=true
+
+    Note over Doc,Mail: BƯỚC 2: KHAI BÁO CCHN & HỒ SƠ CHUYÊN MÔN (/doctor/profile)
+    Doc->>UI: Nhập số CCHN, Học vị, Nơi công tác, Chuyên khoa, Phí khám, Scan CCHN
+    UI->>AuthCtrl: PUT /api/v1/doctors/me/profile (UpdateDoctorProfileRequest)
+    AuthCtrl->>Svc: updateDoctorProfile(doctorUserId, req)
+    Svc->>DB: Kiểm tra trùng CCHN/SĐT (409 Conflict) & UPDATE doctor_profiles + doctor_specialties
+    Svc-->>UI: 200 OK ("Hồ sơ đang chờ Ban quản trị thẩm định trong 24h")
+
+    Note over Doc,Mail: BƯỚC 3: ADMIN THẨM ĐỊNH CCHN, @VERSION (V24) & ĐỒNG BỘ PGVECTOR HNSW
+    Admin->>UI: Kiểm tra link bản scan CCHN, bấm "Phê duyệt (Verify)"
+    UI->>VetSvc: POST /api/v1/admin/doctors/{id}/vet (approve=true)
+    VetSvc->>DB: UPDATE doctor_profiles SET is_verified=true & users.status='ACTIVE' (@Version V24)
+    VetSvc->>SearchSvc: updateDoctorEmbedding(profileId, bioText) -> Vector float[1536]
+    SearchSvc->>DB: UPDATE doctor_profiles SET bio_embedding = ? (HNSW m=24, ef=128)
+    VetSvc->>Cache: evict("doctors:verified") + invalidateCache()
+    VetSvc->>DB: INSERT audit_logs (DOCTOR_VETTED)
+    VetSvc->>Mail: @Async(AFTER_COMMIT) Gửi Email kích hoạt bàn khám Bác sĩ
+    VetSvc-->>UI: 200 OK -> Bác sĩ xuất hiện ngay trên AI Semantic Search!`
         };
 
         let panZoomInstance = null;
@@ -1294,24 +1914,33 @@ const DIAGRAMS = {
                     tertiaryColor: '#0f172a',
                     mainBkg: '#111c38',
                     nodeBorder: '#38bdf8',
+                    clusterBkg: '#0f172a',
+                    clusterBorder: '#38bdf8',
+                    titleColor: '#f8fafc',
+                    nodeTextColor: '#f8fafc',
                     edgeLabelBackground: '#0f172a',
                     textColor: '#f8fafc'
                 } : {
                     darkMode: false,
                     background: '#f8fafc',
-                    primaryColor: '#0284c7',
-                    primaryTextColor: '#ffffff',
+                    primaryColor: '#e0f2fe',
+                    primaryTextColor: '#0f172a',
                     primaryBorderColor: '#0284c7',
                     lineColor: '#2563eb',
                     secondaryColor: '#ffffff',
                     tertiaryColor: '#f1f5f9',
                     mainBkg: '#ffffff',
                     nodeBorder: '#0284c7',
+                    clusterBkg: '#f1f5f9',
+                    clusterBorder: '#0284c7',
+                    titleColor: '#0f172a',
+                    nodeTextColor: '#0f172a',
                     edgeLabelBackground: '#ffffff',
                     textColor: '#0f172a'
                 },
-                flowchart: { useMaxWidth: false, htmlLabels: true },
+                flowchart: { useMaxWidth: false, htmlLabels: true, padding: 16, nodeSpacing: 45, rankSpacing: 55 },
                 sequence: { useMaxWidth: false, showSequenceNumbers: true },
+                class: { useMaxWidth: false },
                 er: { useMaxWidth: false }
             });
         }
@@ -1337,7 +1966,6 @@ const DIAGRAMS = {
                 viewport.innerHTML = svg;
 
                 const svgElement = viewport.querySelector("svg");
-                svgElement.setAttribute("id", "active-svg");
                 svgElement.style.width = "100%";
                 svgElement.style.height = "100%";
 
@@ -1386,7 +2014,7 @@ const DIAGRAMS = {
         }
 
         function downloadSvg() {
-            const svgElement = document.getElementById("active-svg");
+            const svgElement = document.querySelector("#diagram-viewport svg");
             if (!svgElement) return;
             const serializer = new XMLSerializer();
             let source = serializer.serializeToString(svgElement);

@@ -11,14 +11,21 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
+| :---: | :---: | :--- | :--- | :--- |
 | **#135** | 21/11/2026 | Nâng Cấp Toàn Diện Layout Bảng & Khắc Phục Lỗi Điều Hướng Anchor Trên 5 Trình Xem Báo Cáo Khóa Luận (WordCraft Studio Workbench): (1) Khắc phục triệt để lỗi điều hướng anchor có dấu gạch kép (`--` do dấu `&` sinh ra): Viết lại hàm `normalizeSlug` xử lý gộp dấu gạch nối, bỏ ký tự đặc biệt và hỗ trợ partial match fallback, giúp URL `#41-tầng-1-deterministic-safety--biological-plausibility-filter` mở thẳng tài liệu chính xác thay vì rơi vào trang trắng; (2) Giải quyết triệt để lỗi "Căn lề dòng quá ngu & trống table" (Cột Descriptions bị bóp về 0px, hàng cao 1.828px): Bỏ logic gán nhầm `.table-stakeholders` 4 cột vào bảng 5 cột có từ khóa "actor", thiết lập class `.table-matrix-5col` phân bổ chuẩn 13% - 17% - 14% - 21% - 35% (cột Descriptions nở từ 0px lên 385px, chiều cao dòng co từ 1.828px xuống 66px); (3) Mở rộng viewport đọc `#content-wrapper` từ 880px lên 1.200px (tối đa 96%); (4) Đồng bộ trên 5 báo cáo `report_1` đến `report_5` và xác thực qua Playwright. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
 | **#134** | 21/11/2026 | Giải Mã Cơ Chế Ánh Xạ ICD-10 Sang Chuyên Khoa Bác Sĩ & Làm Rõ Nguồn Gốc Dữ Liệu Lâm Sàng Meddies Phục Vụ Bảo Vệ Luận Văn: (1) Phân tích cơ chế khoa học giải quyết khoảng cách ngữ nghĩa (Semantic Gap): Sử dụng bảng ánh xạ chuẩn WHO ICD-10 (`icd10_specialty_mapper.py`) liên kết các chương mã ICD-10 tới 12 chuyên khoa, gom cụm triệu chứng (top 20) và than phiền (top 6) tiêm vào profile bác sĩ (`train_augment_doctors.py`) trước khi nhúng vector 1536 chiều, (2) Khẳng định tính pháp lý và đạo đức y tế: Dữ liệu huấn luyện & benchmark lấy từ kho dữ liệu mở đã khử định danh trên Hugging Face (`Meddies/meddies-persona-vie` & `Meddies/meddies-pii`) và danh mục chuẩn Bộ Y tế, tuyệt đối KHÔNG xâm phạm bệnh án thật (tuân thủ 100% Nghị định 13/2023/NĐ-CP), (3) Bổ sung 2 câu hỏi phản biện chuyên sâu #26 và #27 vào `docs/CAPSTONE_DEFENSE.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
 | **#133** | 21/11/2026 | Chuẩn Hóa Cột Tên Bệnh Danh ICD (icd_name) Trên Sơ Đồ Vector & Báo Cáo Luận Văn: (1) Chuẩn hóa cột `icd10_name` $\rightarrow$ `icd_name` trong `interactive_viewer.html`, (2) Cập nhật `docs/DATABASE_DESIGN.md` & `docs/SDD_MediAssist_AI.md`, (3) Biên dịch thành công 21 tài liệu `docs-bundle.js`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
-| **#132** | 20/11/2026 | Xây Dựng Kịch Bản Thuyết Trình CSDL 3 Tầng & Hướng Dẫn Sử Dụng Vector Studio Zoom 1000%: Bổ sung chiến thuật thuyết trình 3 tầng (Macro Slide 8, Deep-Dive Slide 9-11, Live Vector Studio Zoom 1000%) vào Section 2.1 của `docs/CAPSTONE_DEFENSE.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
-| **#131** | 20/11/2026 | Cập Nhật Ảnh Master ERD Slide 8 Từ Vector Studio HTML & Làm Rõ Cơ Cấu Slide Thuyết Trình: Thay ảnh nét cao 3840x1397 trên Canva Slide 8 và làm rõ cấu trúc 15 slide. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
-| **#130** | 20/11/2026 | Đồng Bộ Cấu Trúc Khóa Ngoại & Lược Đồ Sub-ERD Cho Slide 9, 10, 11: Làm rõ các nhánh liên kết giữa 17 bảng trong 3 Sub-ERD. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
-| **#129** | 20/11/2026 | Tái Cấu Trúc Toàn Diện Bộ Slide Canva Review 2 (Từ 10 Lên 15 Trang) Qua Canva REST API: (1) Tách ERD 17 bảng thành mô hình "1 Tổng Thể (Master) + 3 Chi Tiết (Deep-Dive)" giải quyết triệt để lỗi chữ bé trên máy chiếu (Trang 8: Master ERD 17 bảng 3NF; Trang 9: ERD Phân hệ Bác sĩ & pgvector HNSW 1536 chiều; Trang 10: ERD Phân hệ Bệnh nhân, Lịch khám O2O & EMR; Trang 11: ERD Phân hệ Lâm sàng AI, OCR & FinOps Telemetry), (2) Hiện thực hóa toàn diện Mục "04 Detail Design" trước đó bị bỏ trống trên Canva (Trang 12: Clean Architecture Class Diagram 4 tầng; Trang 13: Core Clinical Sequence Diagrams với AI Triage Red-Flag 115 ngắt < 2ms và O2O Booking Slot Lock & PatientAccessGuard BOLA), (3) Nạp sẵn 100% Speaker Notes (Lời thoại chuẩn từng giây) cho từng slide, (4) Commit thành công vào Canva Design ID `DAHa9bmQoV0`. | AI Assistant (Antigravity) | 🟢 Đã Commit Thành Công |
-| **#128** | 18/11/2026 | Thẩm Định Toàn Diện Bộ Slide Canva Review 2 (12 Trang), Đối Soát 98% Khớp Codebase & Xuất Bản Cẩm Nang Thuyết Trình Bảo Vệ: (1) Phân tích đối soát toàn diện 12 slide trên Canva với mã nguồn Backend Spring Boot 3.4, Frontend React 18 SPA và CSDL PostgreSQL 16 pgvector, (2) Xác nhận độ chính xác 98%: Khớp đúng 17 bảng ERD 3NF (Flyway V1-V24), rào chắn PatientAccessGuard chống BOLA/IDOR, 5-stage triage NegEx, Two-Layer Cache L1/L2, Vision OCR LOINC và luồng 3 Actor (Patient, Doctor, Admin), (3) Biên soạn cẩm nang thuyết trình chuẩn từng giây cho 12 slide, bộ 10 câu hỏi phản biện chuyên sâu và kịch bản live demo 5 bước không lỗi, (4) Xuất bản cẩm nang ra `/Users/thanvinh/Downloads/HUONG_DAN_THUYET_TRINH_REVIEW_2_MEDIASSIST_AI.md` (.txt) và `docs/HUONG_DAN_THUYET_TRINH_REVIEW_2.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
+| **#132-B** | 20/11/2026 | Xây Dựng Kịch Bản Thuyết Trình CSDL 3 Tầng & Hướng Dẫn Sử Dụng Vector Studio Zoom 1000%: Bổ sung chiến thuật thuyết trình 3 tầng (Macro Slide 8, Deep-Dive Slide 9-11, Live Vector Studio Zoom 1000%) vào Section 2.1 của `docs/CAPSTONE_DEFENSE.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
+| **#132-A** | 20/11/2026 | Bổ Sung Bộ Class Diagrams (4 Biểu Đồ Lớp Clean Architecture & Nghiệp Vụ) Và Sequence Diagrams Chuyên Sâu Vào Vector Studio (`interactive_viewer.html`) & Cổng Review 2 (`review_2/index.html`): (1) Bổ sung CSS High-Contrast tương phản cao (`svg[aria-roledescription="classDiagram"]`) cho cả giao diện Sáng/Tối và cấu hình `class: { useMaxWidth: false }` trong `docs/diagrams/interactive_viewer.html`; (2) Bổ sung **4 Class Diagrams** (`class_master`, `class_triage_search`, `class_booking_emr`, `class_ocr_security`) ánh xạ 1-1 phương thức Java thực tế (`RedFlagService.evaluateRedFlag`, `ClinicalQueryDefenseEngine.analyzeAndDefend`, `AiProvider` 3-Tier Router, `PaymentGateway` Adapter, `PatientAccessGuard`, `Appointment` V23/V24, `MedicalDocument` V20) và **2 Sequence Diagrams mới** (`seq_e2e_master` luồng khép kín Triage -> HNSW -> Booking 3 Tầng -> EMR V23; `seq_doctor_onboarding` Onboarding Bác sĩ 2 Bước & Admin Vet), đồng thời đồng bộ `seq_triage`, `seq_encounter`, `seq_ocr` sang `Gemini 2.5 Flash` & `icd_code`/`icd_version` V23; (3) Tích hợp nút mở nhanh & chuyển sơ đồ `1.4 Class Diagram Tổng Thể`, `1.5 Sequence Khép Kín` cùng liên kết Slide 3/7 trong `review_2/index.html`; (4) Cập nhật `docs/CAPSTONE_DEFENSE.md` (Section `5.5` Hướng dẫn trình bày Class & Sequence Diagram trước Hội đồng) và biên dịch lại `docs-bundle.js`. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#131-B** | 20/11/2026 | Cập Nhật Ảnh Master ERD Slide 8 Từ Vector Studio HTML & Làm Rõ Cơ Cấu Slide Thuyết Trình: Thay ảnh nét cao 3840x1397 trên Canva Slide 8 và làm rõ cấu trúc 15 slide. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
+| **#131-A** | 18/11/2026 | Khắc Phục Lỗi Đen Khối SVG Trong `interactive_viewer.html` & Nâng Cấp Toàn Diện `review_2/index.html` Thành Cổng Trình Chiếu Sơ Đồ Trực Quan (Diagram-First Mode): (1) Sửa triệt để lỗi ghi đè SVG `id` (`svgElement.setAttribute("id", "active-svg")` phá vỡ toàn bộ CSS selector `#mermaid-svg-...` khiến khối biểu đồ bị `fill: #000000` đen kịt) và chống cắt chữ `<foreignObject>` (`overflow: visible`) trong `docs/diagrams/interactive_viewer.html`, đồng thời cập nhật sơ đồ `architecture` khớp chuẩn `React 18.3` & `Gemini 2.5 Flash (3-Tier AI Router)` với bảng màu tương phản cao; (2) Nâng cấp `review_2/index.html` tích hợp Mermaid.js + `svg-pan-zoom` nhúng trực tiếp **25 sơ đồ vector trực quan** phủ kín 4 tab (3 sơ đồ Kiến trúc/ADR/17 Bảng ở Tab 1, 6 sơ đồ Trước/Sau ở Tab 2, 10 sơ đồ riêng cho 10 Slides ở Tab 3, 6 sơ đồ minh họa câu trả lời Hội đồng ở Tab 4) kèm Modal Phóng to/Kéo rê toàn màn hình và tải SVG. Kiểm chứng thực tế bằng Edge Playwright headless: **25/25 sơ đồ** tại `review_2` & **33/33 khối** tại `interactive_viewer.html` render sạch (`0` khối đen, `0` lỗi cú pháp), HTTP 200 OK trên cổng `8088`. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#130-B** | 20/11/2026 | Đồng Bộ Cấu Trúc Khóa Ngoại & Lược Đồ Sub-ERD Cho Slide 9, 10, 11: Làm rõ các nhánh liên kết giữa 17 bảng trong 3 Sub-ERD. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
+| **#130-A** | 18/11/2026 | Xây Dựng Cổng Web Tổng Hợp Review Lần 2 (Tuần 8 – SDD) & Khởi Chạy Máy Chủ Trình Chiếu (`review_2/index.html`): (1) Tạo trang web tương tác hoàn chỉnh `review_2/index.html` tổng hợp trọn vẹn 4 phân hệ trình bày Review 2: Ma trận Đánh giá Chuyên môn SDD (5 trụ cột IEEE 1016 / ISO 42010), 6 Khuyến nghị Điều chỉnh (Trước vs Sau), Trình chiếu 10 Slides kèm Teleprompter Script & đồng hồ đếm ngược luyện tập 15:00, và Top 6 Câu hỏi Phản biện Hội đồng Review 2 (có tìm kiếm, nút Sáng/Tối & chế độ Xem tất cả / In PDF), (2) Cập nhật Portal gốc `index.html` và `docs/index.html`: bổ sung nút truy cập nhanh `🎯 Review 2 (Tuần 8 - SDD)` trên Header, nút liên kết tại thẻ Report 4 & Defense Hub, đồng bộ chỉ số `322/322` tests và `4,537 dòng` SDD, (3) Khởi chạy máy chủ web cục bộ cổng `8088` phục vụ HTTP 200 cho `/review_2/index.html`, `/index.html`, `/docs/index.html`, `/report_4/index.html`, và `/docs/diagrams/interactive_viewer.html`. | AI Assistant | 🟢 Sẵn sàng Review |
+| **#129-B** | 20/11/2026 | Tái Cấu Trúc Toàn Diện Bộ Slide Canva Review 2 (Từ 10 Lên 15 Trang) Qua Canva REST API: (1) Tách ERD 17 bảng thành mô hình "1 Tổng Thể (Master) + 3 Chi Tiết (Deep-Dive)" giải quyết triệt để lỗi chữ bé trên máy chiếu (Trang 8: Master ERD 17 bảng 3NF; Trang 9: ERD Phân hệ Bác sĩ & pgvector HNSW 1536 chiều; Trang 10: ERD Phân hệ Bệnh nhân, Lịch khám O2O & EMR; Trang 11: ERD Phân hệ Lâm sàng AI, OCR & FinOps Telemetry), (2) Hiện thực hóa toàn diện Mục "04 Detail Design" trước đó bị bỏ trống trên Canva (Trang 12: Clean Architecture Class Diagram 4 tầng; Trang 13: Core Clinical Sequence Diagrams với AI Triage Red-Flag 115 ngắt < 2ms và O2O Booking Slot Lock & PatientAccessGuard BOLA), (3) Nạp sẵn 100% Speaker Notes (Lời thoại chuẩn từng giây) cho từng slide, (4) Commit thành công vào Canva Design ID `DAHa9bmQoV0`. | AI Assistant (Antigravity) | 🟢 Đã Commit Thành Công |
+| **#129-A** | 18/11/2026 | Bảo Vệ Biến Môi Trường 3 Lớp Qua Git Hooks & Đồng Bộ Hóa SDD Cho Review Lần 2 (Tuần 8): (A) Kiến trúc Secret Persistence 3 lớp: (1) `spring.profiles.group.dev=local` trong `application.properties`, tham số hóa `${ENV_VAR:default}` trong `application-dev.properties`, bổ sung `frontend/.env*`, `.mediassist/`, `**/application-local.properties` vào `.gitignore`; (2) Secret Vault ngoài repo tại `%USERPROFILE%\.mediassist\` (`local-secrets.properties` 84 keys + backup `.env`, `backend.env`, `application-local.properties`) đồng bộ `backend/src/main/resources/application-local.properties` và `target/classes/`; (3) `.githooks/` (`_env_sync.sh`, `post-checkout`, `post-merge`, `post-rewrite`, `pre-push` chặn rò rỉ secret trước push) + `scripts/sync-local-env.ps1` và `core.hooksPath=.githooks`; (B) Review 2 SDD Alignment: cập nhật `docs/SDD_MediAssist_AI.md` (3 dòng Change Log V23/V24/Review 2, `Gemini 2.5 Flash (3-Tier AI Router)`, giữ đúng stack `React 18.3.1 / TS 5.8 / Vite 6.2`, đồng bộ `users.version` V24 và `appointments.icd_code`/`icd_version` + Partial Indexes V23), `report_4/REPORT_4_EXECUTIVE_SUMMARY.md`, bổ sung Section 5 Cẩm Nang Review 2 vào `docs/CAPSTONE_DEFENSE.md`, tái biên dịch 21 tài liệu `docs-bundle.js` (`1.225,4 KB`). Xác thực `mvn test` **322/322 PASS** & `npm run build` 0 lỗi TS. | AI Assistant (Swarm) | 🟢 Sẵn sàng Review |
+| **#128-B** | 18/11/2026 | Thẩm Định Toàn Diện Bộ Slide Canva Review 2 (12 Trang), Đối Soát 98% Khớp Codebase & Xuất Bản Cẩm Nang Thuyết Trình Bảo Vệ: (1) Phân tích đối soát toàn diện 12 slide trên Canva với mã nguồn Backend Spring Boot 3.4, Frontend React 18 SPA và CSDL PostgreSQL 16 pgvector, (2) Xác nhận độ chính xác 98%: Khớp đúng 17 bảng ERD 3NF (Flyway V1-V24), rào chắn PatientAccessGuard chống BOLA/IDOR, 5-stage triage NegEx, Two-Layer Cache L1/L2, Vision OCR LOINC và luồng 3 Actor (Patient, Doctor, Admin), (3) Biên soạn cẩm nang thuyết trình chuẩn từng giây cho 12 slide, bộ 10 câu hỏi phản biện chuyên sâu và kịch bản live demo 5 bước không lỗi, (4) Xuất bản cẩm nang ra `/Users/thanvinh/Downloads/HUONG_DAN_THUYET_TRINH_REVIEW_2_MEDIASSIST_AI.md` (.txt) và `docs/HUONG_DAN_THUYET_TRINH_REVIEW_2.md`. | AI Assistant (Antigravity) | 🟢 Sẵn sàng Review |
+| **#128-A** | 15/11/2026 | Tích Hợp Đầy Đủ API Keys (Gemini Flash, OpenRouter Embeddings & Supabase Publishable Key) & Xác Thực Triệt Để 2 Báo Cáo Lỗi Admin & Form Bác Sĩ: (1) Chuẩn hóa model Google Gemini sang `gemini-2.5-flash` chính thức trên toàn hệ thống (`GeminiAiProvider`, `MedicalDocumentAnalysisService`, `TriageService`, `AiUsageAnalyticsService`), kết nối trực tiếp Gemini Flash API bóc tách cận lâm sàng & RAG thành công 100%, (2) Kích hoạt OpenRouter neural vector embeddings `openai/text-embedding-3-small` đồng bộ 15 vector bác sĩ vào pgvector, (3) Tinh chỉnh `SupabaseStorageService.java` bỏ tiền tố Bearer cho `sb_publishable_...` và duy trì fallback lưu trữ EMR nội bộ `/uploads/`, (4) Xác thực triệt để 2 ảnh báo cáo: (a) Tính năng Admin tạm khóa tài khoản hoạt động thông suốt (200 OK) sau khi vá `@Version` null (Flyway V24); (b) Gỡ bỏ trường "Ảnh chân dung áo blouse trắng" khỏi Bước 1 (`DoctorRegisterForm.tsx`), tinh gọn biểu mẫu đăng ký. Backend 39/39 tests PASS, Frontend build 0 lỗi TS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#127** | 15/11/2026 | Bổ Sung Liên Kết & Thẻ Nổi Bật Chuyên Đề Biện Luận Y Học Chứng Cứ SOTA Vào Cổng Hồ Sơ Khóa Luận (`docs/index.html`): (1) Bổ sung nút truy cập nhanh "Biện Luận Y Học (SOTA)" trên thanh điều hướng đầu trang của `docs/index.html`, (2) Bổ sung thẻ bài nổi bật "Biện Luận Y Học Chứng Cứ & SOTA" (đối chuẩn Google AMIE Nature 2024, Ada Health BMJ/Lancet, ClinicalRAG ACL 2024) ngay giữa giao diện trang chủ Portal phụ, đồng bộ liên kết trực tiếp với trình đọc WordCraft Studio `../report_1/index.html#clinical_defense`. Xác thực liên kết HTTP 200 thông suốt trên cổng 8088. | AI Assistant (Vinh) | 🟢 Sẵn sàng Review |
 | **#126** | 15/11/2026 | Tích Hợp Xác Thực Email Qua Gmail SMTP Thực Tế & Đăng Nhập Google OAuth2: (1) Cấu hình Gmail SMTP (`hoangkhuong056@gmail.com`) với Google App Password qua biến môi trường an toàn `.env` và `application-local.properties`, chuyển đổi từ Mailpit dev sang gửi email xác thực thực tế (STARTTLS port 587), (2) Xác thực luồng gửi email thật: Kiểm thử gửi email xác thực tài khoản `hoangkhuong056@gmail.com` thành công qua Google SMTP server (`Mail 'verify-email' sent`), (3) Hoàn thiện cấu hình Google OAuth2 (Client ID & Secret), đồng bộ `GoogleLoginButton.tsx` hỗ trợ proxy động, kiểm tra redirect URL `302 accounts.google.com` chính xác. Frontend build 0 lỗi TS, backend 31/31 tests PASS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#125** | 15/11/2026 | Cấu Hình CORS Mạng Nội Bộ Cho Mô Hình 2 Máy Dùng Chung Cục Bộ (Cross-Device LAN / VPN Full CORS Support): (1) Cập nhật `SecurityConfig.java` chuyển đổi từ `configuration.setAllowedOrigins` sang `configuration.setAllowedOriginPatterns`, hỗ trợ toàn bộ dải IP mạng cục bộ LAN (`192.168.*`, `10.*`, `172.*`) và mạng ảo Radmin VPN (`26.*`), giải quyết triệt để lỗi `403 Invalid CORS request` khi Máy B kết nối vào Máy A qua IP mạng nội bộ, (2) Khởi động lại Backend Spring Boot 5001 và xác thực preflight `OPTIONS` trả về `200 OK` với header `Access-Control-Allow-Origin` & `Allow-Credentials: true`, (3) Biên soạn cẩm nang hướng dẫn chi tiết cho Tech Lead kiểm thử 2 máy (cùng Wi-Fi LAN hoặc qua Radmin VPN) kèm giải pháp tường lửa Windows Defender Firewall. Xác thực 25/25 Security tests PASS. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -122,7 +129,7 @@
 * **Bằng Chứng Kiểm Thử:** `compile_docs_bundle.py` exit code 0, 21 tài liệu đồng bộ thành công.
 * **Điểm Nóng Tech Lead Cần Duyệt:** Kiểm tra trực tiếp trên trình xem vector `docs/diagrams/interactive_viewer.html`.
 
-### [WORK-LOG-#132] Xây Dựng Kịch Bản Thuyết Trình CSDL 3 Tầng & Hướng Dẫn Sử Dụng Vector Studio Zoom 1000%
+### [WORK-LOG-#132-B] Xây Dựng Kịch Bản Thuyết Trình CSDL 3 Tầng & Hướng Dẫn Sử Dụng Vector Studio Zoom 1000%
 * **Thời gian:** 2026-11-20 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Antigravity)
 * **Nhánh:** `develop`
@@ -136,7 +143,7 @@
 * **Bằng Chứng Kiểm Thử:** Tài liệu bảo vệ đã được đồng bộ chuẩn xác.
 * **Điểm Nóng Tech Lead Cần Duyệt:** Đọc lời thoại mẫu trong Section 2.1 của `docs/CAPSTONE_DEFENSE.md`.
 
-### [WORK-LOG-#131] Cập Nhật Ảnh Master ERD Slide 8 Từ Vector Studio HTML & Làm Rõ Cơ Cấu Slide Thuyết Trình
+### [WORK-LOG-#131-B] Cập Nhật Ảnh Master ERD Slide 8 Từ Vector Studio HTML & Làm Rõ Cơ Cấu Slide Thuyết Trình
 * **Thời gian:** 2026-11-20 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Antigravity)
 * **Nhánh:** `develop`
@@ -154,7 +161,7 @@
 * **Điểm Nóng Tech Lead Cần Duyệt:**
   - Mở Canva xem Slide 8 đã chuẩn ảnh vector: `https://www.canva.com/design/DAHa9bmQoV0/sPw8pFBw3eN3IvYDKYKMZQ/edit`.
 
-### [WORK-LOG-#130] Khắc Phục Sai Lệch Schema 17 Bảng ERD & Đồng Bộ Chuẩn 1:1 Vector pgvector HNSW Trên Bộ Slide Canva Review 2
+### [WORK-LOG-#130-B] Khắc Phục Sai Lệch Schema 17 Bảng ERD & Đồng Bộ Chuẩn 1:1 Vector pgvector HNSW Trên Bộ Slide Canva Review 2
 * **Thời gian:** 2026-11-20 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Antigravity)
 * **Nhánh:** `develop`
@@ -179,7 +186,7 @@
 * **Điểm Nóng Tech Lead Cần Duyệt (Review Hotspots):**
   - Kiểm tra liên kết Canva cập nhật: `https://www.canva.com/design/DAHa9bmQoV0/sPw8pFBw3eN3IvYDKYKMZQ/edit`.
 
-### [WORK-LOG-#129] Tái Cấu Trúc Toàn Diện Bộ Slide Canva Review 2 (Từ 10 Lên 15 Trang) Qua Canva REST API
+### [WORK-LOG-#129-B] Tái Cấu Trúc Toàn Diện Bộ Slide Canva Review 2 (Từ 10 Lên 15 Trang) Qua Canva REST API
 * **Thời gian:** 2026-11-20 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Antigravity)
 * **Nhánh:** `develop`
@@ -205,7 +212,7 @@
 * **Điểm Nóng Tech Lead Cần Duyệt (Review Hotspots):**
   - Mở liên kết Canva để xem lại toàn bộ 15 trang trực tiếp: `https://www.canva.com/design/DAHa9bmQoV0/sPw8pFBw3eN3IvYDKYKMZQ/edit`.
 
-### [WORK-LOG-#128] Thẩm Định Toàn Diện Bộ Slide Canva Review 2 (12 Trang), Đối Soát 98% Khớp Codebase & Xuất Bản Cẩm Nang Thuyết Trình
+### [WORK-LOG-#128-B] Thẩm Định Toàn Diện Bộ Slide Canva Review 2 (12 Trang), Đối Soát 98% Khớp Codebase & Xuất Bản Cẩm Nang Thuyết Trình
 * **Thời gian:** 2026-11-18 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Antigravity)
 * **Nhánh:** `develop`
@@ -225,6 +232,125 @@
   - Kiểm tra file vật lý tồn tại và đủ dung lượng 29 KB tại `Downloads/HUONG_DAN_THUYET_TRINH_REVIEW_2_MEDIASSIST_AI.md` và `.txt`.
   - Frontend và Backend hiện tại đang hoạt động bình thường trên cổng 5173 và 5001.
 
+---
+
+### [WORK-LOG-#132-A] Bổ Sung Class Diagrams & Sequence Diagrams Vào Vector Studio (`interactive_viewer.html`) & Cổng Review 2 (`review_2/index.html`)
+* **Thời gian:** 2026-11-20 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/fuction`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu thêm Class Diagram và Sequence Diagram lên Vector Studio (`docs/diagrams/interactive_viewer.html`) và hướng dẫn chi tiết cách trình bày hai loại biểu đồ này trước Hội đồng.
+* **Danh Sách Tệp Tin Đã Cập Nhật:**
+  1. `[MOD]` `docs/diagrams/interactive_viewer.html`:
+     - Bổ sung CSS High-Contrast dành riêng cho Mermaid `classDiagram` (`svg[aria-roledescription="classDiagram"]`) cho cả 2 chế độ Sáng/Tối và cấu hình `class: { useMaxWidth: false }` trong `mermaid.initialize(...)`.
+     - Thêm nhóm `<optgroup>` mới cho **4 Class Diagrams** (`class_master` 4 tầng Clean Architecture, `class_triage_search` Mục 3.9–3.10, `class_booking_emr` Mục 3.11–3.15, `class_ocr_security` Mục 3.18–3.20) với tên phương thức/thuộc tính đối soát trực tiếp từ mã nguồn Java (`RedFlagService.evaluateRedFlag`, `ClinicalQueryDefenseEngine.analyzeAndDefend`, `AiProvider` 3 tầng, `PaymentGateway` Adapter, `Appointment.icd10Code/icdVersion/version` V23/V24, `MedicalDocument.storagePath` V20).
+     - Thêm **2 Sequence Diagrams** mới: `seq_e2e_master` (luồng khép kín từ Triage -> HNSW `0.72 ms` -> Booking 3 tầng -> EMR BOLA + S3 15m + ICD V23) và `seq_doctor_onboarding` (Onboarding Bác sĩ 2 bước & Admin thẩm định CCHN + đồng bộ vector `pgvector`), đồng thời chuẩn hóa `seq_triage`, `seq_encounter`, `seq_ocr` theo `Gemini 2.5 Flash` và `icd_code`/`icd_version` (V23).
+  2. `[MOD]` `review_2/index.html`:
+     - Bổ sung 2 nút mở nhanh `🧬 Class Diagram` và `🔄 Sequence Diagram` trên Sticky Header, thêm 2 nút chuyển sơ đồ `1.4 Class Diagram Tổng Thể` & `1.5 Sequence Khép Kín` trong Tab 1, và cập nhật liên kết Vector Studio cho Slide 3 & Slide 7.
+  3. `[MOD]` `docs/CAPSTONE_DEFENSE.md`: Bổ sung Mục `5.5` — Hướng dẫn trình bày Class Diagram & Sequence Diagram trước Hội đồng trên Vector Studio (quy trình 3 bước, điểm nhấn kỹ thuật và lời dẫn mẫu 60s).
+  4. `[MOD]` `docs/WORK_LOG.md`: Bổ sung nhật ký `#132`.
+
+---
+
+### [WORK-LOG-#131-A] Khắc Phục Lỗi Đen Khối SVG Trong `interactive_viewer.html` & Nâng Cấp `review_2/index.html` Thành Cổng Trình Chiếu Sơ Đồ Trực Quan (Diagram-First)
+* **Thời gian:** 2026-11-18 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/fuction` $\rightarrow$ `develop`
+* **Nguyên Nhân Gốc Rễ (Lỗi Khối Đen Trong Vector Studio):**
+  - Trong `docs/diagrams/interactive_viewer.html`, sau khi gọi `mermaid.render(id, code)`, hàm `renderDiagram` ghi đè `svgElement.setAttribute("id", "active-svg")`. Vì mọi rule CSS bên trong SVG của Mermaid đều gắn scope theo `#mermaid-svg-...`, việc đổi `id` làm mất toàn bộ quy tắc màu, khiến mọi hình chữ nhật/cụm của Flowchart rơi về giá trị mặc định SVG `fill: #000000` (đen toàn bộ) và nhãn `<foreignObject>` bị cắt mép.
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[MOD]` `docs/diagrams/interactive_viewer.html`:
+     - Giữ nguyên SVG `id` gốc do `mermaid.render()` sinh ra (chuyển `downloadSvg()` sang `document.querySelector("#diagram-viewport svg")`).
+     - Thêm CSS `overflow: visible !important` cho `svg foreignObject`, `.nodeLabel`, `.cluster-label`, `.edgeLabel` và tham số `clusterBkg`, `clusterBorder`, `padding: 16` trong `mermaid.initialize`.
+     - Cập nhật sơ đồ `architecture` khớp `React 18.3 SPA` & `Gemini 2.5 Flash (3-Tier AI Router)` với bảng màu tương phản rõ ràng cho cả Light/Dark mode.
+  2. `[MOD]` `review_2/index.html`:
+     - Tích hợp Mermaid.js 10 + `svg-pan-zoom@3.6.1` với renderer bảo toàn SVG `id` và Modal Phóng to/Thu nhỏ toàn màn hình.
+     - Nhúng **25 sơ đồ vector trực quan** phủ kín toàn bộ 4 tab (3 sơ đồ Kiến trúc/ADRs/17 Bảng ở Tab 1, 6 sơ đồ Trước/Sau ở Tab 2, 10 sơ đồ riêng cho từng Slide trong Tab 3, và 6 sơ đồ minh họa câu trả lời Hội đồng trong Tab 4).
+  3. `[MOD]` `docs/WORK_LOG.md`: Bổ sung nhật ký `#131`.
+* **Bằng Chứng Kiểm Thử & Xác Thực:**
+  - `node --check` trên inline JS của cả `review_2/index.html` và `docs/diagrams/interactive_viewer.html`: **EXIT 0**.
+  - Kiểm thử trình duyệt thật Edge headless qua Playwright (`http://localhost:8088`): `interactive_viewer.html?diagram=architecture` giữ nguyên `id` (`idPreserved: true`), **33/33 khối có màu đúng (`0` khối đen)**; toàn bộ **25/25 sơ đồ** trong `review_2/index.html` (3 Overview + 6 Adjustments + 10 Slides + 6 Q&As) render thành công 100%.
+
+---
+
+### [WORK-LOG-#130-A] Xây Dựng Cổng Web Tổng Hợp Review Lần 2 (Tuần 8 – SDD) & Khởi Chạy Máy Chủ Trình Chiếu (`review_2/index.html`)
+* **Thời gian:** 2026-11-18 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/fuction` $\rightarrow$ `develop`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu tổng hợp toàn bộ nội dung Đánh giá SDD, 6 Khuyến nghị Điều chỉnh, Bài Thuyết trình & Q&A Review 2 thành một trang `index.html` hoàn chỉnh và chạy lên web để theo dõi, trình chiếu dễ dàng.
+* **Danh Sách Tệp Tin (Files Changed):**
+  - `[NEW]` `review_2/index.html`: Trang web tương tác chuyên biệt cho **Review lần 2 (Tuần thứ 8 – SDD)** gồm 4 tab chính: (1) Tổng quan & Ma trận đánh giá SDD theo chuẩn IEEE 1016-2009 / ISO 42010 kèm link mở nhanh Vector Studio (`architecture`, `erd_full`) & Report 4; (2) 6 Khuyến nghị Điều chỉnh Chuyên môn dạng thẻ so sánh Trước vs Sau; (3) Trình chiếu 10 Slides với Teleprompter Script, điều hướng phím `←`/`→`, nút Xem toàn bộ 10 Slides và đồng hồ đếm ngược 15:00; (4) Top 6 Câu hỏi Phản biện Review 2 có tìm kiếm tức thì và Chốt ý 30 giây, kèm nút chuyển giao diện Sáng/Tối và Xem Tất Cả / In PDF.
+  - `[MOD]` `index.html` & `docs/index.html`: Thêm nút `🎯 Review 2 (Tuần 8 - SDD)` trên thanh header, thêm nút mở nhanh `Portal Review 2` tại thẻ Report 4 & Defense Hub, đồng bộ số liệu `322/322` tests và `4,537 dòng` SDD.
+  - `[MOD]` `docs/WORK_LOG.md`: Bổ sung nhật ký `#130`.
+* **Bằng Chứng Kiểm Thử & Xác Thực:**
+  - Khởi chạy máy chủ web `python -m http.server 8088` phục vụ toàn bộ bộ hồ sơ KLTN.
+  - Xác thực HTTP 200 OK cho `/review_2/index.html`, `/index.html`, `/docs/index.html`, `/report_4/index.html` và `/docs/diagrams/interactive_viewer.html`.
+
+---
+
+### [WORK-LOG-#129-A] Bảo Vệ Biến Môi Trường 3 Lớp Qua Git Hooks & Đồng Bộ Hóa SDD Cho Review Lần 2 (Tuần 8)
+* **Thời gian:** 2026-11-18 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant (Swarm)
+* **Nhánh:** `feature/fuction` $\rightarrow$ `develop`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu thiết lập cơ chế lưu giữ biến môi trường / API keys cục bộ bền vững xuyên suốt các thao tác Git (chống mất cấu hình khi checkout/merge mà tuyệt đối không đẩy secret lên remote), đồng thời rà soát, đồng bộ hóa tài liệu SDD (`Report 4`) và biên soạn cẩm nang Review lần 2 (Tuần thứ 8).
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  * **Phần A — Kiến Trúc Bảo Vệ & Duy Trì Biến Môi Trường 3 Lớp (3-Layer Local Env Persistence):**
+    1. `[MOD]` `backend/src/main/resources/application.properties`, `backend/src/main/resources/application-dev.properties`, `.gitignore`:
+       - Bổ sung `spring.profiles.group.dev=local` ngay sau `spring.profiles.active=dev` để mở rộng profile `dev` thành `dev,local`, đảm bảo `application-local.properties` ghi đè sau `application-dev.properties`.
+       - Chuẩn hóa `spring.config.import=optional:file:.env[.properties],optional:file:../.env[.properties]` (loại bỏ `optional:classpath:application-local.properties` tránh trùng nạp sớm; giữ profile `test` cô lập).
+       - Tham số hóa toàn bộ giá trị môi trường/bí mật trong `application-dev.properties` qua `${ENV_VAR:default}` (OAuth2 Google Client ID/Secret placeholder, Redirect URIs, JWT secret, CORS origins, `gemini-2.5-flash`, `vnd-per-usd`, `supabase.enabled`).
+       - Bổ sung `frontend/.env`, `frontend/.env.*`, `.mediassist/`, `**/application-local.properties` vào `.gitignore` (bảo toàn các tệp `.env.example`).
+    2. `[LOCAL VAULT]` `%USERPROFILE%\.mediassist\` (`local-secrets.properties` 84 keys, `.env`, `backend.env`, `application-local.properties`) & `backend/src/main/resources/application-local.properties` (85 keys, dòng đầu `spring.config.import=optional:file:${user.home}/.mediassist/local-secrets.properties`) + `backend/target/classes/application-local.properties`:
+       - Đồng bộ đầy đủ parity giữa nhóm key chuẩn Spring Boot và nhóm biến môi trường viết hoa `${ENV_VAR}`, tất cả ở định dạng UTF-8 không BOM, hoàn toàn nằm ngoài danh sách theo dõi Git.
+    3. `[NEW]` `.githooks/_env_sync.sh`, `.githooks/post-checkout`, `.githooks/post-merge`, `.githooks/post-rewrite`, `.githooks/pre-push`, `scripts/sync-local-env.ps1`:
+       - Kích hoạt `git config core.hooksPath .githooks` (quyền thực thi `+x` trên git index, chuẩn LF-only POSIX `sh`).
+       - Các hook `post-checkout`, `post-merge`, `post-rewrite` tự động phục hồi các tệp env local và `backend/target/classes/application-local.properties` từ vault khi chuyển nhánh hoặc gộp nhánh.
+       - Hook `pre-push` sao lưu ngược từ workspace về vault trước khi đẩy, đồng thời quét các tệp tracked/staged nhằm chặn triệt để nguy cơ rò rỉ API key, OAuth secret hoặc mật khẩu SMTP (chiếu phạm vi riêng khóa publishable trên các tệp cấu hình thay vì lịch sử nhật ký).
+       - Script PowerShell `scripts/sync-local-env.ps1` (`-Action Sync|Backup|Restore`) hỗ trợ đồng bộ hai chiều trên Windows và thiết lập `core.hooksPath` mà không xuất thông tin bí mật ra terminal.
+  * **Phần B — Review Lần 2 (Tuần 8): Đồng Bộ SDD, Bảng CSDL & Cẩm Nang Bảo Vệ:**
+    1. `[MOD]` `docs/SDD_MediAssist_AI.md`:
+       - Thêm 3 dòng lịch sử thay đổi (`06/11/2026` Flyway V23 `icd_code`/`icd_version`, `15/11/2026` Flyway V24 `@Version` + Onboarding Bác sĩ 2 bước, `18/11/2026` Review 2 SDD alignment).
+       - Cập nhật Figure 1.1, Table 1.1, ADR-005, Package Diagram và Sections 3.9/3.19: đối soát khớp `frontend/package.json` giữ đúng **`React 18.3.1`** (`TypeScript 5.8`, `Vite 6.2`, `Tailwind CSS 3.4`), đồng bộ **`Gemini 2.5 Flash (3-Tier AI Router)`** và Flyway **`V1 - V24`**.
+       - Cập nhật Figure 2.3 và các bảng đặc tả `2.3.1` (`users.version` V24), `2.3.7` (`appointments.icd_code`, `icd_version`, `version` và Partial Indexes `idx_appointments_icd_code`, `idx_appointments_icd_version_code` V23).
+    2. `[MOD]` `report_4/REPORT_4_EXECUTIVE_SUMMARY.md`:
+       - Cập nhật quy mô thực tế `4.537 dòng` (`311.627 ký tự`), stack `React 18.3 SPA (TypeScript 5.8, Vite 6.2)` và chuẩn hóa `icd_code VARCHAR(20)` & `icd_version VARCHAR(10) (Flyway V23)`.
+    3. `[MOD]` `docs/CAPSTONE_DEFENSE.md`:
+       - Bổ sung Section `## 5. Cẩm Nang Review Lần 2 (Tuần Thứ 8): Thẩm Định Chuyên Môn & Khuyến Nghị Điều Chỉnh SDD (IEEE 1016-2009 & ISO/IEC/IEEE 42010)` (5.1 Ma trận đánh giá 5 tiêu chí; 5.2 Danh mục 6 khuyến nghị điều chỉnh; 5.3 Kịch bản thuyết trình 10 slides 12–15 phút kèm hướng dẫn Vector Studio `8088`; 5.4 Bộ 6 câu hỏi phản biện chuyên sâu Review 2) và chuyển Rubric sang `## 6.`.
+    4. `[MOD]` `docs-bundle.js` & `report_1..5/`: Chạy `python scripts/compile_docs_bundle.py` đồng bộ 7 tài liệu nguồn và đóng gói 21 tài liệu (`1.225,4 KB`) ra toàn bộ các thư mục báo cáo.
+* **Bằng Chứng Kiểm Thử & Xác Thực:**
+  - `cd backend; mvn test`: **322/322 tests PASS (0 Failures, 0 Errors, 0 Skipped)**.
+  - `cd frontend; npm run build`: **0 lỗi TypeScript** (`2.313` modules transformed sạch sẽ).
+  - `.githooks/pre-push`: Chạy kiểm tra trên `HEAD` thoát mã `0` (không phát hiện rò rỉ secret).
+  - Kiểm tra `git status` & `%USERPROFILE%\.mediassist\`: `.env`, `backend/.env`, `backend/src/main/resources/application-local.properties` vẫn hoàn toàn untracked/ignored, tồn tại nguyên vẹn và khớp dữ liệu với vault.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Lưu ý `frontend/package.json` hiện cài `react@^18.3.1` (`vite@^6.2.0`, `typescript@^5.8.2`), do đó SDD và Executive Summary đã được chuẩn hóa giữ `React 18.3` (thay vì ghi nhầm `React 19`) để khớp 100% với mã nguồn thực tế khi Hội đồng đối chiếu.
+  - Từ nay về sau, mọi thao tác `git checkout`, `git merge`, `git pull` sẽ tự động đồng bộ lại cấu hình env cục bộ từ `%USERPROFILE%\.mediassist\`.
+
+---
+
+### [WORK-LOG-#128-A] Tích Hợp Đầy Đủ API Keys (Gemini Flash, OpenRouter Embeddings & Supabase Publishable Key) & Xác Thực Triệt Để 2 Báo Cáo Lỗi Admin & Form Bác Sĩ
+* **Thời gian:** 2026-11-15 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/fuction`
+* **Mã Yêu Cầu:** Tech Lead yêu cầu tích hợp Gemini API key, OpenRouter API key, Supabase publishable key và xác thực triệt để 2 lỗi: Admin không thể tạm khóa tài khoản (lỗi 500) và gỡ bỏ ô nhập "Ảnh chân dung áo blouse trắng" ở Bước 1 đăng ký bác sĩ.
+* **Nguyên Nhân Gốc Rễ & Bối Cảnh (Root Cause & Context):**
+  1. **Model Gemini không tồn tại:** Codebase trước đó khai báo chuỗi `gemini-3.6-flash` (không tồn tại trong Google API, dẫn đến mã lỗi HTTP 404 khi gọi Google Gemini Flash). Sau khi cập nhật sang model chính thức `gemini-2.5-flash`, Google Gemini API đã phản hồi trực tiếp và sinh phân tích cận lâm sàng RAG thành công.
+  2. **Định dạng Supabase Publishable Key:** Khóa định dạng `sb_publishable_...` không phải là JWT, do đó nếu gửi kèm header `Authorization: Bearer <key>`, Supabase Storage sẽ trả về lỗi `401 Unauthorized (JWT expired / invalid)`. Cần điều chỉnh để khóa publishable chỉ được truyền qua header `apikey`.
+  3. **Lỗi 500 khi Admin Tạm Khóa Tài Khoản:** Xuất phát từ việc trường `version` trong bảng `users` của các bản ghi seed ban đầu có giá trị `NULL`. Khi Hibernate thực hiện cập nhật thực thể có `@Version`, nó gọi `LongJavaType.next(null)` dẫn đến `NullPointerException`. Vấn đề này đã được khắc phục triệt để bằng Flyway migration `V24__fix_users_version_not_null.sql` và getter/setter null-safe.
+  4. **Form Đăng ký Bác sĩ Bước 1:** Để giảm thiểu mệt mỏi biểu mẫu (Form Fatigue), ô nhập `avatarUrl` ("Ảnh chân dung áo blouse trắng") đã được gỡ bỏ khỏi Bước 1 (`DoctorRegisterForm.tsx`). Bác sĩ có thể tải ảnh đại diện tại Bước 2 (`DoctorProfilePage.tsx`).
+* **Các Hạng Mục Đã Xử Lý (Resolution):**
+  1. `[MOD]` `backend/src/main/java/com/mediassist/ai/GeminiAiProvider.java`, `MedicalDocumentAnalysisService.java`, `TriageService.java`, `AiUsageAnalyticsService.java`: Chuẩn hóa model Gemini sang `gemini-2.5-flash`.
+  2. `[MOD]` `backend/src/main/resources/application.properties`, `application-dev.properties`, `application-supabase.properties`: Đồng bộ `app.ai.gemini.model=gemini-2.5-flash`.
+  3. `[MOD]` `backend/src/main/java/com/mediassist/service/SupabaseStorageService.java`: Bỏ header `Authorization: Bearer` đối với key `sb_publishable_...`.
+  4. `[MOD]` `docs/WORK_LOG.md`: Bổ sung nhật ký `#128`.
+* **Bằng chứng kiểm thử & Xác thực:**
+  - `mvn test -Dtest=SupabaseStorageServiceTest,AiModelRouterTest,AdminVettingServiceTest`: **39/39 tests PASS (100%)**.
+  - `cd frontend; npm run build`: **0 lỗi TypeScript** (2.313 modules transformed trong 7.5s).
+  - Test live `POST /api/v1/documents/analyze-preview` với Gemini Flash thật: **HTTP 200 OK**, trích xuất chỉ số cận lâm sàng, giải thích bình dân và gợi ý bác sĩ chính xác.
+  - Test live `PATCH /api/v1/admin/users/b0000000-0000-0000-0000-000000000010/status`: **HTTP 200 OK**, chuyển trạng thái `SUSPENDED` và `ACTIVE` mượt mà không lỗi.
+  - Kiểm tra `frontend/dist`: Trường `Ảnh chân dung áo blouse trắng` đã biến mất hoàn toàn khỏi bundle đăng ký Bước 1.
+
+---
+
 ### [WORK-LOG-#127] Bổ Sung Liên Kết & Thẻ Nổi Bật Chuyên Đề Biện Luận Y Học Chứng Cứ SOTA Vào Cổng Hồ Sơ Khóa Luận (docs/index.html)
 * **Thời gian:** 2026-11-15 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant (Vinh)
@@ -240,6 +366,8 @@
   2. `[MOD]` `docs/WORK_LOG.md`: Ghi nhận nhật ký phiên làm việc `#127`.
 * **Bằng Chứng Kiểm Thử & Xác Thực:**
   - `curl -s http://localhost:8088/docs/index.html | grep -i "Biện Luận Y Học"`: Trả về đầy đủ nút bấm Header và khối nội dung thẻ bài.
+
+---
 
 ### [WORK-LOG-#126] Tích Hợp Xác Thực Email Qua Gmail SMTP Thực Tế & Đăng Nhập Google OAuth2
 * **Thời gian:** 2026-11-15 (GMT+7)

@@ -94,6 +94,9 @@
 | **17/10/2026** | M | VinhHT | Nâng cấp bảo mật mã hóa SHA-256 cho Password Reset Token (`token_hash` 64 hex) chống lộ lọt dữ liệu (V21). |
 | **17/10/2026** | M | VinhHT | Thiết lập cổng kích hoạt tài khoản Email Verification Gate với bảng `email_verification_tokens` (V22) và cột `email_verified` trên `users`. |
 | **18/10/2026** | M | VinhHT | Hoàn thiện toàn diện tài liệu SDD Report 4 theo chuẩn FPT University Capstone, tích hợp 88 biểu đồ Mermaid Class & Sequence diagrams kèm bảng đặc tả phương thức, bảng luồng sự kiện chi tiết và ma trận mã lỗi xử lý ngoại lệ cho 28 quy trình nghiệp vụ cốt lõi. |
+| **06/11/2026** | M | VinhHT & KhuongH | Chuẩn hóa đa phiên bản chẩn đoán quốc tế Flyway V23: Đổi tên cột `icd10_code` thành `icd_code VARCHAR(20)`, bổ sung `icd_version VARCHAR(10) DEFAULT 'ICD-10'` và Partial Index `idx_appointments_icd_code`. |
+| **15/11/2026** | M | KhuongH & VinhHT | Nâng cấp cơ chế chống xung đột đồng thời Optimistic Locking (`@Version`) Flyway V24 (`version BIGINT NOT NULL DEFAULT 0` trên `users`, `appointments`, `payment_transactions`) và quy trình Onboarding Bác sĩ 2 bước. |
+| **18/11/2026** | M | KhuongH & VinhHT | Review lần 2 (Tuần thứ 8) – Đồng bộ hóa SDD với kiến trúc thực tế: React 18.3 SPA (Vite 6.2, TypeScript 5.8), bộ định tuyến AI 3 tầng (`Gemini 2.5 Flash -> OpenRouter Pool -> Offline Deterministic FNV-1a`), và kiến trúc bảo vệ biến môi trường 3 lớp (`spring.profiles.group.dev=local` + User-Home Secret Vault + Git Hooks). |
 
 *(*) Ghi chú: **A** - Added (Thêm mới), **M** - Modified (Chỉnh sửa/Cập nhật), **D** - Deleted (Xóa).*
 
@@ -132,7 +135,7 @@ Hệ thống **MediAssist-AI** được kiến trúc theo mô hình **Tiered Mic
 
 ```mermaid
 flowchart TB
-    subgraph Tier1["1. Client Presentation Tier (React 18 SPA)"]
+    subgraph Tier1["1. Client Presentation Tier (React 18.3 SPA)"]
         UI["Patient Portal & Doctor Workstation | Admin Operations Console"]
     end
 
@@ -163,7 +166,7 @@ flowchart TB
     end
 
     subgraph Tier5["5. External Cloud Integration"]
-        AI_Ext["OpenAI & Gemini 1.5 Flash"]
+        AI_Ext["OpenAI & Gemini 2.5 Flash (3-Tier AI Router)"]
         Pay_Ext["VNPay National Gateway"]
         Mail_Ext["SMTP Transactional Mail"]
     end
@@ -186,7 +189,7 @@ flowchart TB
 
 | No | Package / Component | Technology Stack & Version | Configuration Parameters & Protocols | Detailed Responsibility & Architectural Role |
 | :---: | :--- | :--- | :--- | :--- |
-| **1** | **React 18 SPA Client** | React 18.3, TypeScript 5.6, Vite 6.0, Tailwind CSS 3.4 | Single Page Application, Code-Splitting qua `React.lazy()` | Giao diện người dùng đĩa đơn phản hồi nhanh, phục vụ 4 vai trò (Guest, Patient, Doctor, Admin). Tải lười các phân hệ nặng (Bàn làm việc bác sĩ, 3D Landing, Bảng điều khiển admin), đạt chỉ số FCP < 0.8s. |
+| **1** | **React 18.3 SPA Client** | React 18.3.1, TypeScript 5.8, Vite 6.2, Tailwind CSS 3.4 | Single Page Application, Code-Splitting qua `React.lazy()` | Giao diện người dùng đơn trang phản hồi nhanh, phục vụ 4 vai trò (Guest, Patient, Doctor, Admin). Tải lười các phân hệ nặng (Bàn làm việc bác sĩ, 3D Landing, Bảng điều khiển admin), đạt chỉ số FCP < 0.8s. |
 | **2** | **Nginx Edge Ingress** | Nginx 1.25+ Alpine Linux | SSL/TLS 1.3, HTTP/2, Gzip, Rate Limiting 100 req/min | Cổng biên bảo mật tiếp nhận lưu lượng mạng: Kết thúc mã hóa SSL, giải nén tài nguyên tĩnh, giới hạn tần suất truy cập theo địa chỉ IP chống DoS, và định tuyến sang cổng nội bộ 8080. |
 | **3** | **Spring Boot 3.4 Core** | Java 21 LTS, Spring Boot 3.4.0, Project Loom | `spring.threads.virtual.enabled=true` | Tầng xử lý nghiệp vụ trung tâm. Khai thác luồng ảo Virtual Threads của Java 21, xử lý hàng ngàn tác vụ I/O đồng thời mà không bị nghẽn luồng hay tốn bộ nhớ hệ điều hành. |
 | **4** | **Dual-Transport Security** | Spring Security 6.x, JJWT 0.12.x | Bearer Header + HttpOnly Secure Cookie | Cơ chế xác thực phi trạng thái kép: Access Token (JWT, hạn 60 phút) truyền qua Header `Authorization: Bearer` cho API Client; Refresh Token (JWT, hạn 7 ngày) bọc trong Cookie `HttpOnly, Secure, SameSite=Lax` chống XSS. |
@@ -194,7 +197,7 @@ flowchart TB
 | **6** | **WHRF SOTA Search Engine** | Vector Retrieval + Priority Queue Min-Heap | HNSW Cosine + Sigmoid Contrastive Sharpening | Động cơ tìm kiếm bác sĩ ngữ nghĩa đa tiêu chí: Kết hợp khoảng cách Cosine trên đồ thị HNSW với hàm làm sắc nét Sigmoid, điểm thưởng chuyên khoa, độ tin cậy đánh giá logarithm và phụ phí khám bệnh. |
 | **7** | **5-Stage Triage Pipeline** | Regex Engine + Vietnamese NegEx | 5 Stages: Hotline 115, Teen-code, NegEx, OOD, SBAR | Động cơ phân luồng triệu chứng 5 tầng: Phát hiện cấp cứu 115 (Stage 1), chuẩn hóa teen-code (Stage 2), bóc tách mệnh đề phủ định NegEx (Stage 3), chặn câu hỏi hành chính OOD (Stage 4), phân rã triệu chứng phức (Stage 5). |
 | **8** | **Clinical EMR Service** | JSONB + WHO ICD-10 & LOINC Standards | QĐ 7603/BYT (ICD-10) & QĐ 3280/BYT (LOINC) | Dịch vụ hồ sơ bệnh án điện tử hỗ trợ gợi ý chẩn đoán tự động theo danh mục ICD-10 quốc tế và chỉ số xét nghiệm LOINC của Bộ Y Tế Việt Nam, lưu trữ cấu trúc JSON trên bảng `appointments`. |
-| **9** | **Document OCR & Vision** | Google Gemini 1.5 Flash Vision + Apache Tika | Multimodal LLM, Max 5 files/batch, 10MB/file | Trích xuất ký tự quang học (OCR) từ ảnh chụp đơn thuốc, phiếu xét nghiệm, giải nghĩa các chỉ số bất thường và tự động loại bỏ thông tin định danh cá nhân (PII De-identification). |
+| **9** | **Document OCR & Vision** | Google Gemini 2.5 Flash (3-Tier AI Router) Vision + Apache Tika | Multimodal LLM, Max 5 files/batch, 10MB/file | Trích xuất ký tự quang học (OCR) từ ảnh chụp đơn thuốc, phiếu xét nghiệm, giải nghĩa các chỉ số bất thường và tự động loại bỏ thông tin định danh cá nhân (PII De-identification). |
 | **10** | **Medical PII Privacy Shield** | Regex Classifier + Meddies-PII Schema | Nghị định 13/2023/NĐ-CP & HIPAA Privacy Rule | Dịch vụ khử định danh dữ liệu y tế nhạy cảm: Tự động phát hiện và che giấu (masking) tên bệnh nhân, số CMND/CCCD, mã BHYT, số điện thoại trước khi đưa vào mô hình AI. |
 | **11** | **Hybrid Caching Tier** | Caffeine Cache 3.x (L1) + Redis 7.x (L2) | TTL 60m (L1), TTL 24h (L2) | Kiến trúc Cache 2 tầng: Tầng L1 cục bộ trong JVM lưu trữ danh mục tra cứu tĩnh (ICD-10, chuyên khoa), tầng L2 Redis phân tán lưu trữ token đen và phân bổ slot lịch khám thời gian thực. |
 | **12** | **PostgreSQL 16 + pgvector** | PostgreSQL 16.x LTS, pgvector 0.7.x | HNSW Index: `m=24`, `ef_construction=128`, Cosine | Hệ quản trị cơ sở dữ liệu quan hệ chuẩn 3NF. Tích hợp chỉ mục HNSW vector 1536 chiều, kết hợp Full-Text Search tiếng Việt (`pg_trgm`) và hỗ trợ tính toán giao dịch ACID. |
@@ -325,7 +328,7 @@ flowchart TB
   - Tình trạng này làm nghẽn luồng xử lý phân luồng cấp cứu, ảnh hưởng trực tiếp đến an toàn tính mạng của người bệnh.
 * **Quyết định kiến trúc (Decision):**
   - Triển khai mô hình **Hedged Requests kết hợp Speculative Failover**:
-    - Khi một yêu cầu phân luồng được gửi đi, nếu sau mốc $P95 = 1.2\text{s}$ mà máy chủ chính (Google Gemini 1.5 Flash) chưa phản hồi, hệ thống lập tức kích hoạt một luồng suy luận thứ hai song song tới cụm dự phòng (OpenRouter Inference Cluster).
+    - Khi một yêu cầu phân luồng được gửi đi, nếu sau mốc $P95 = 1.2\text{s}$ mà máy chủ chính (Google Gemini 2.5 Flash) chưa phản hồi, hệ thống lập tức kích hoạt một luồng suy luận thứ hai song song tới cụm dự phòng (OpenRouter Inference Cluster).
     - Phản hồi từ luồng nào về trước sẽ được nạp ngay cho người dùng; luồng chậm hơn sẽ bị hủy bỏ (cancel) ngay lập tức.
   - Trong tình huống mất hoàn toàn kết nối Internet quốc tế, hệ thống tự động suy thoái êm dịu (Graceful Degradation) sang thuật toán **Unsupervised Feature Hashing (FNV-1a 1536-dim)** chạy offline $100\%$ trên CPU máy chủ cục bộ.
 * **Phân tích đánh đổi & Hệ quả (Consequences & Trade-offs):**
@@ -464,7 +467,7 @@ graph TD
         Storage["SupabaseStorageService (Private S3 Bucket + 15-min HMAC Signed URLs)"]
         Mail["EmailService (@Async mailExecutor + Email Outbox)"]
         RateLimit["SecurityRateLimiterService, TriageRateLimiterService"]
-        FlywayEngine["Flyway Database Migration Engine (V1 - V23)"]
+        FlywayEngine["Flyway Database Migration Engine (V1 - V24)"]
     end
 
     Presentation_Tier --> Application_Tier
@@ -487,7 +490,7 @@ graph TD
 | **6** | `com.mediassist.service.ai` | `DoctorSemanticSearchService`, `EmbeddingService` | Động cơ tìm kiếm bác sĩ ngữ nghĩa: Tích hợp mô hình `openai/text-embedding-3-small`, thuật toán Sigmoid Contrastive Sharpening, bộ giảm chấn đánh giá và tìm kiếm dự phòng cục bộ. |
 | **7** | `com.mediassist.service.triage` | `TriageService`, `RedFlagService`, `ClinicalQueryDefenseEngine`, `NegationEngine` | Động cơ phân luồng triệu chứng 5 tầng: Phát hiện cấp cứu 115, chuẩn hóa teen-code, bóc tách phủ định Vietnamese NegEx, lọc câu hỏi hành chính OOD và tóm tắt SBAR. |
 | **8** | `com.mediassist.service.clinical` | `ClinicalOntologyService`, `MeddiesPdfGeneratorService` | Bản thể luận y khoa: Tra cứu chẩn đoán WHO ICD-10 (QĐ 7603/BYT), chỉ số xét nghiệm LOINC (QĐ 3280/BYT), và bộ tạo tệp PDF phiếu xét nghiệm ngẫu nhiên từ kho 150.000 hồ sơ Meddies. |
-| **9** | `com.mediassist.service.document` | `MedicalDocumentAnalysisService`, `MedicalDocumentFileAccessService` | Dịch vụ hồ sơ xét nghiệm: Bóc tách chỉ số xét nghiệm quang học (OCR) qua Google Gemini 1.5 Flash Vision, và cấp quyền tải tệp qua URL ký số HMAC-SHA256 15 phút. |
+| **9** | `com.mediassist.service.document` | `MedicalDocumentAnalysisService`, `MedicalDocumentFileAccessService` | Dịch vụ hồ sơ xét nghiệm: Bóc tách chỉ số xét nghiệm quang học (OCR) qua Google Gemini 2.5 Flash (3-Tier AI Router) Vision, và cấp quyền tải tệp qua URL ký số HMAC-SHA256 15 phút. |
 | **10** | `com.mediassist.service.pii` | `MedicalPiiService` | Lá chắn bảo vệ dữ liệu y tế nhạy cảm: Tự động phát hiện và khử định danh thông tin cá nhân (Tên, CCCD, BHYT, Điện thoại) theo chuẩn Nghị định 13/2023/NĐ-CP và HIPAA. |
 | **11** | `com.mediassist.service.appointment` | `AppointmentRefundService` | Thuật toán hoàn tiền tự động phân tầng: Tính toán tỷ lệ hoàn phí ($>24\text{h} = 100\%$, $2\text{h}-24\text{h} = 80\%$, $<2\text{h} = 0\%$, Bác sĩ hủy $= 100\%$) và kích hoạt hoàn tiền qua VNPay. |
 | **12** | `com.mediassist.service.review` | `DoctorReviewService` | Dịch vụ đánh giá bác sĩ: Tiếp nhận nhận xét từ bệnh nhân sau ca khám `COMPLETED`, tính toán lại điểm số trung bình và cập nhật số lượng đánh giá tích lũy. |
@@ -694,6 +697,7 @@ erDiagram
         DATE follow_up_date
         NUMERIC refund_amount
         TIMESTAMPTZ checked_in_at
+        BIGINT version "Optimistic Lock @Version"
     }
     patient_profiles {
         UUID id PK
@@ -829,7 +833,7 @@ erDiagram
 ---
 
 ##### 2.3.1 users Table
-Bảng quản lý tài khoản định danh người dùng trong toàn hệ sinh thái MediAssist-AI. Tích hợp cơ chế bảo vệ chống vét cạn (Lockout sau 5 lần sai mật khẩu) và cổng kích hoạt email bắt buộc theo bản di trú Flyway V1, V3, V6, V8, V22.
+Bảng quản lý tài khoản định danh người dùng trong toàn hệ sinh thái MediAssist-AI. Tích hợp cơ chế bảo vệ chống vét cạn (Lockout sau 5 lần sai mật khẩu), cổng kích hoạt email bắt buộc và khóa lạc quan Optimistic Locking (`@Version`) theo bản di trú Flyway V1, V3, V6, V8, V22, V24.
 
 ###### Table 2.3.1.A: users Column Specifications
 | No | Column Name | Data Type | Not Null | Key | Constraints & Default | Detailed Functional Description |
@@ -848,8 +852,9 @@ Bảng quản lý tài khoản định danh người dùng trong toàn hệ sinh
 | 12 | `failed_login_attempts` | `INT` | True | - | `0` | Số lần đăng nhập sai mật khẩu liên tiếp, tự động khóa khi đạt ngưỡng 5 lần (Flyway V3). |
 | 13 | `locked_until` | `TIMESTAMPTZ` | False | - | - | Thời điểm tài khoản hết hạn bị khóa tạm thời do nhập sai quá số lần (15 phút). |
 | 14 | `last_login_at` | `TIMESTAMPTZ` | False | - | - | Dấu thời gian ghi nhận lần đăng nhập thành công gần nhất. |
-| 15 | `created_at` | `TIMESTAMPTZ` | True | - | `CURRENT_TIMESTAMP` | Thời điểm khởi tạo bản ghi người dùng trong cơ sở dữ liệu. |
-| 16 | `updated_at` | `TIMESTAMPTZ` | True | - | `CURRENT_TIMESTAMP` | Thời điểm cập nhật thông tin người dùng gần nhất. |
+| 15 | `version` | `BIGINT` | True | - | `0` | Số hiệu phiên bản phục vụ cơ chế khóa lạc quan JPA (`@Version` — Flyway V24 chống NPE trên bản ghi seed). |
+| 16 | `created_at` | `TIMESTAMPTZ` | True | - | `CURRENT_TIMESTAMP` | Thời điểm khởi tạo bản ghi người dùng trong cơ sở dữ liệu. |
+| 17 | `updated_at` | `TIMESTAMPTZ` | True | - | `CURRENT_TIMESTAMP` | Thời điểm cập nhật thông tin người dùng gần nhất. |
 
 ###### Table 2.3.1.B: users Physical Indexes & Optimization
 | Index Name | Index Type | Columns / Expressions | Performance & Architectural Purpose |
@@ -1017,7 +1022,7 @@ Hồ sơ hành chính y tế và bệnh án điện tử cơ sở của bệnh n
 ---
 
 ##### 2.3.7 appointments Table
-Thực thể trung tâm lưu trữ toàn diện thông tin đặt lịch, viện phí và hồ sơ bệnh án điện tử (EMR) (Flyway V1, V7, V11, V12, V14, V15).
+Thực thể trung tâm lưu trữ toàn diện thông tin đặt lịch, viện phí và hồ sơ bệnh án điện tử (EMR) (Flyway V1, V7, V11, V12, V14, V15, V23, V24).
 
 ###### Table 2.3.7.A: appointments Column Specifications
 | No | Column Name | Data Type | Not Null | Key | Constraints & Default | Detailed Functional Description |
@@ -1035,22 +1040,23 @@ Thực thể trung tâm lưu trữ toàn diện thông tin đặt lịch, viện
 | 11 | `clinic_room` | `VARCHAR(100)`| False | - | - | Tên phòng khám vật lý hoặc phòng khám trực tuyến (ví dụ: `Phòng 302 - Tòa A`). |
 | 12 | `chief_complaint` | `TEXT` | False | - | - | Lý do đến khám chính và mô tả ngắn gọn về tình trạng của người bệnh. |
 | 13 | `vital_signs_json` | `TEXT` | False | - | - | Dữ liệu dấu hiệu sinh tồn dạng JSON: Huyết áp (BP), Mạch (HR), Nhiệt độ, SpO2, BMI. |
-| 14 | `icd10_code` | `VARCHAR(20)` | False | - | - | Mã chẩn đoán bệnh theo danh mục WHO ICD-10 (ví dụ: `I10`, `E11.9`, `J00`). |
-| 15 | `icd10_name` | `VARCHAR(255)`| False | - | - | Tên bệnh lý chuẩn hóa tiếng Việt đi kèm với mã ICD-10 (ví dụ: `Tăng huyết áp vô căn`). |
-| 16 | `prescription_json`| `TEXT` | False | - | - | Chi tiết đơn thuốc điện tử dạng JSON: Tên thuốc, hàm lượng, đường dùng, liều lượng. |
-| 17 | `treatment_plan` | `TEXT` | False | - | - | Phác đồ điều trị, lời khuyên chăm sóc sức khỏe và chế độ dinh dưỡng dặn dò. |
-| 18 | `follow_up_date` | `DATE` | False | - | - | Ngày hẹn tái khám định kỳ được chỉ định bởi bác sĩ khám. |
-| 19 | `cancellation_reason` | `TEXT` | False | - | - | Lý do hủy lịch khám từ phía bệnh nhân, bác sĩ hoặc hệ thống. |
-| 20 | `consultation_notes` | `TEXT` | False | - | - | Ghi chú bệnh sử chuyên sâu và nhận định lâm sàng nội bộ của bác sĩ. |
-| 21 | `telehealth_room_id` | `VARCHAR(100)`| False | - | - | Định danh phòng họp truyền thông trực tuyến an toàn phục vụ Telehealth. |
-| 22 | `checked_in_at` | `TIMESTAMPTZ` | False | - | - | Dấu thời gian khi bệnh nhân thực hiện thủ tục điểm danh vào phòng chờ khám. |
-| 23 | `medical_document_id`| `UUID` | False | FK | REFERENCES `medical_documents(id)` | Khóa ngoại tham chiếu tệp xét nghiệm đính kèm vào ca hẹn khám (Flyway V14). |
-| 24 | `triage_session_id` | `UUID` | False | FK | REFERENCES `triage_sessions(id)` | Khóa ngoại tham chiếu phiên phân luồng nguồn phát sinh lịch hẹn (Flyway V15). |
-| 25 | `refund_amount` | `NUMERIC(12, 2)`| False | - | - | Số tiền viện phí đã hoàn trả tự động cho bệnh nhân khi hủy hẹn (Flyway V15). |
-| 26 | `refunded_at` | `TIMESTAMPTZ` | False | - | - | Thời điểm lệnh hoàn tiền tự động được xác nhận thành công (Flyway V15). |
-| 27 | `version` | `BIGINT` | True | - | `0` | Số hiệu phiên bản phục vụ cơ chế khóa lạc quan (Optimistic Locking). |
-| 28 | `created_at` | `TIMESTAMPTZ` | True | - | `CURRENT_TIMESTAMP` | Thời điểm tạo lịch khám trong cơ sở dữ liệu. |
-| 29 | `updated_at` | `TIMESTAMPTZ` | True | - | `CURRENT_TIMESTAMP` | Thời điểm cập nhật trạng thái lịch khám gần nhất. |
+| 14 | `icd_code` | `VARCHAR(20)` | False | - | - | Mã chẩn đoán bệnh quốc tế chuẩn hóa WHO ICD-10 / ICD-11 (ví dụ: `I10`, `E11.9`, `J00`; đổi tên từ `icd10_code` tại Flyway V23). |
+| 15 | `icd_version` | `VARCHAR(10)` | True | - | `'ICD-10'` | Phiên bản danh mục phân loại bệnh quốc tế (Mặc định `'ICD-10'`, sẵn sàng nâng cấp `'ICD-11'` — Flyway V23). |
+| 16 | `icd10_name` | `VARCHAR(255)`| False | - | - | Tên bệnh lý chuẩn hóa tiếng Việt đi kèm với mã chẩn đoán (ví dụ: `Tăng huyết áp vô căn`). |
+| 17 | `prescription_json`| `TEXT` | False | - | - | Chi tiết đơn thuốc điện tử dạng JSON: Tên thuốc, hàm lượng, đường dùng, liều lượng. |
+| 18 | `treatment_plan` | `TEXT` | False | - | - | Phác đồ điều trị, lời khuyên chăm sóc sức khỏe và chế độ dinh dưỡng dặn dò. |
+| 19 | `follow_up_date` | `DATE` | False | - | - | Ngày hẹn tái khám định kỳ được chỉ định bởi bác sĩ khám. |
+| 20 | `cancellation_reason` | `TEXT` | False | - | - | Lý do hủy lịch khám từ phía bệnh nhân, bác sĩ hoặc hệ thống. |
+| 21 | `consultation_notes` | `TEXT` | False | - | - | Ghi chú bệnh sử chuyên sâu và nhận định lâm sàng nội bộ của bác sĩ. |
+| 22 | `telehealth_room_id` | `VARCHAR(100)`| False | - | - | Định danh phòng họp truyền thông trực tuyến an toàn phục vụ Telehealth. |
+| 23 | `checked_in_at` | `TIMESTAMPTZ` | False | - | - | Dấu thời gian khi bệnh nhân thực hiện thủ tục điểm danh vào phòng chờ khám. |
+| 24 | `medical_document_id`| `UUID` | False | FK | REFERENCES `medical_documents(id)` | Khóa ngoại tham chiếu tệp xét nghiệm đính kèm vào ca hẹn khám (Flyway V14). |
+| 25 | `triage_session_id` | `UUID` | False | FK | REFERENCES `triage_sessions(id)` | Khóa ngoại tham chiếu phiên phân luồng nguồn phát sinh lịch hẹn (Flyway V15). |
+| 26 | `refund_amount` | `NUMERIC(12, 2)`| False | - | - | Số tiền viện phí đã hoàn trả tự động cho bệnh nhân khi hủy hẹn (Flyway V15). |
+| 27 | `refunded_at` | `TIMESTAMPTZ` | False | - | - | Thời điểm lệnh hoàn tiền tự động được xác nhận thành công (Flyway V15). |
+| 28 | `version` | `BIGINT` | True | - | `0` | Số hiệu phiên bản phục vụ cơ chế khóa lạc quan (Optimistic Locking `@Version`, Flyway V24). |
+| 29 | `created_at` | `TIMESTAMPTZ` | True | - | `CURRENT_TIMESTAMP` | Thời điểm tạo lịch khám trong cơ sở dữ liệu. |
+| 30 | `updated_at` | `TIMESTAMPTZ` | True | - | `CURRENT_TIMESTAMP` | Thời điểm cập nhật trạng thái lịch khám gần nhất. |
 
 ###### Table 2.3.7.B: appointments Physical Indexes & Optimization
 | Index Name | Index Type | Columns / Expressions | Performance & Architectural Purpose |
@@ -1063,6 +1069,8 @@ Thực thể trung tâm lưu trữ toàn diện thông tin đặt lịch, viện
 | `idx_appointments_patient_schedule` | B-Tree | (`patient_id`, `scheduled_start DESC`) | Tối ưu hóa phân trang lịch sử khám của bệnh nhân (Flyway V11). |
 | `idx_appointments_doctor_schedule` | B-Tree | (`doctor_id`, `scheduled_start DESC`) | Tối ưu hóa hiển thị hàng đợi khám trong ngày của bác sĩ (Flyway V11). |
 | `idx_appointments_scheduled_start_desc`| B-Tree | `scheduled_start DESC` | Tăng tốc độ truy vấn giám sát toàn bệnh viện trên Admin Dashboard (Flyway V12). |
+| `idx_appointments_icd_code` | B-Tree (Partial) | `icd_code WHERE icd_code IS NOT NULL` | Tăng tốc tra cứu hồ sơ bệnh án theo mã chẩn đoán quốc tế (Flyway V23). |
+| `idx_appointments_icd_version_code` | B-Tree (Partial) | `(icd_version, icd_code) WHERE icd_code IS NOT NULL` | Tối ưu hóa thống kê dịch tễ đa phiên bản ICD-10 / ICD-11 (Flyway V23). |
 
 ###### Table 2.3.7.C: appointments Foreign Key Constraints
 | Constraint Name | Local Column | Referenced Table(Column) | On Delete | On Update | Architectural Impact |
@@ -2345,7 +2353,7 @@ sequenceDiagram
   2. **Stage 2 (Vietnamese Slang & Teen-code Normalization):** Chuẩn hóa phương ngữ và từ lóng tiếng Việt (ví dụ: "chong mat", "xot ruot", "met moi kinh khung").
   3. **Stage 3 (Vietnamese NegEx Negation Clause Splitting):** Phân tách mệnh đề phủ định ("nhưng không sốt", "chưa từng đau tim") để cách ly hoàn toàn triệu chứng bị loại trừ, tránh định tuyến nhầm chuyên khoa.
   4. **Stage 4 (Out-of-Domain Gating):** Chặn các câu hỏi phi lâm sàng (Hỏi giá tiền, thủ tục bảo hiểm, chào hỏi vu vơ).
-  5. **Stage 5 (Compound Multi-Symptom Decomposition & SBAR Summary):** Gọi mô hình Google Gemini 1.5 Flash sinh tóm tắt cấu trúc y khoa chuẩn SBAR (Situation, Background, Assessment, Recommendation).
+  5. **Stage 5 (Compound Multi-Symptom Decomposition & SBAR Summary):** Gọi mô hình Google Gemini 2.5 Flash sinh tóm tắt cấu trúc y khoa chuẩn SBAR (Situation, Background, Assessment, Recommendation).
 
 ##### 3.9.1. Class Diagram
 ```mermaid
@@ -2404,7 +2412,7 @@ sequenceDiagram
     participant Svc as TriageService
     participant RedFlag as RedFlagService (Stage 1)
     participant Defense as ClinicalQueryDefenseEngine (Stage 2-4)
-    participant AI as Google Gemini 1.5 Flash (Stage 5)
+    participant AI as Google Gemini 2.5 Flash (Stage 5)
     participant DB as PostgreSQL (triage_sessions)
 
     Patient->>UI: Nhập: "Tôi bị đau tức ngực âm ỉ 3 ngày, nhưng không khó thở, không sốt"
@@ -3505,7 +3513,7 @@ sequenceDiagram
 * **Quy trình xử lý AI đa phương thức (Multimodal OCR Pipeline):**
   1. Trích xuất hình ảnh hoặc văn bản từ tệp tin qua Apache Tika / PdfExtractionService.
   2. Kích hoạt lớp che mờ thông tin cá nhân (`MedicalPiiService`) theo Nghị định 13/2023/NĐ-CP và HIPAA.
-  3. Gửi payload ảnh đã khử định danh tới mô hình Google Gemini 1.5 Flash Vision.
+  3. Gửi payload ảnh đã khử định danh tới mô hình Google Gemini 2.5 Flash Vision.
   4. Chuẩn hóa chỉ số bất thường theo mã danh mục quốc tế **LOINC** (Logical Observation Identifiers Names and Codes).
   5. Đóng gói kết quả gồm: Bản tóm tắt chuyên môn lâm sàng cho bác sĩ, Bản giải nghĩa bằng ngôn ngữ phổ thông cho bệnh nhân, và Gợi ý câu hỏi khi gặp bác sĩ.
 
@@ -3547,7 +3555,7 @@ classDiagram
 | `MedicalPiiService` | Privacy Domain Service | Che giấu thông tin định danh cá nhân nhạy cảm theo Nghị định 13/2023/NĐ-CP. | `+ maskPii(String): DeidentificationResult` |
 | `DocumentAnalysisResponse` | DTO | Cấu trúc dữ liệu kết quả bóc tách chỉ số cận lâm sàng trả về cho người dùng. | `- clinicalSummary: String`<br/>`- abnormalIndicators: List<AbnormalIndicatorDto>`<br/>`- recommendedSpecialtyName: String` |
 
-##### 3.19.2. Sequence Diagram: Gemini 1.5 Flash Extraction, PII Masking & LOINC Mapping
+##### 3.19.2. Sequence Diagram: Gemini 2.5 Flash Extraction, PII Masking & LOINC Mapping
 ```mermaid
 sequenceDiagram
     autonumber
@@ -3556,7 +3564,7 @@ sequenceDiagram
     participant Ctrl as MedicalDocumentController
     participant Svc as MedicalDocumentAnalysisService
     participant PII as MedicalPiiService (Decree 13 Shield)
-    participant AI as Google Gemini 1.5 Flash Vision
+    participant AI as Google Gemini 2.5 Flash Vision
     participant Ontology as ClinicalOntologyService (LOINC)
     participant DB as PostgreSQL (document_analyses)
 
@@ -3585,7 +3593,7 @@ sequenceDiagram
 | **2** | React SPA | `MedicalDocumentController` | `GET /api/v1/documents/{id}/analysis` | `id` | Gửi yêu cầu qua REST API kèm Bearer Token. |
 | **3** | Controller | `MedicalDocumentAnalysisService` | `processDocumentOcr()` | `id` | Khởi động quy trình phân tích AI. |
 | **4-5** | Service | `MedicalPiiService` | `maskPii()` | `rawText` | Khử định danh PII theo Nghị định 13/2023/NĐ-CP. |
-| **6-7** | Service | Google Gemini 1.5 Flash | `analyzeLaboratoryDocument()` | `SanitizedPayload` | Gọi mô hình thị giác máy tính bóc tách chỉ số y khoa. |
+| **6-7** | Service | Google Gemini 2.5 Flash | `analyzeLaboratoryDocument()` | `SanitizedPayload` | Gọi mô hình thị giác máy tính bóc tách chỉ số y khoa. |
 | **8-9** | Service | `ClinicalOntologyService` | `matchLoincIndicator()` | `name, value` | Đối soát với danh mục LOINC và ngưỡng tham chiếu Bộ Y Tế (QĐ 3280). |
 | **10** | Service | `DocumentAnalysisRepository`| `save(analysis)` | `DocumentAnalysis` | `INSERT INTO document_analyses (...)`. |
 | **11-13**| Controller | Bệnh nhân | `200 OK` | `DocumentAnalysisResponse` | Hiển thị bảng chỉ số trực quan và giải thích dễ hiểu. |
@@ -3598,7 +3606,7 @@ sequenceDiagram
     participant UI as React 18 SPA
     participant Ctrl as MedicalDocumentController
     participant Svc as MedicalDocumentAnalysisService
-    participant AI as Google Gemini 1.5 Flash
+    participant AI as Google Gemini 2.5 Flash
 
     Patient->>UI: Tải lên ảnh chụp quá mờ, lóa đèn flash không đọc được chữ
     UI->>Ctrl: GET /api/v1/documents/{id}/analysis

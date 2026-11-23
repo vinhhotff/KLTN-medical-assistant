@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+HOOK_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ -f "$HOOK_DIR/_env_sync.sh" ]; then
+    . "$HOOK_DIR/_env_sync.sh"
+    restore_all
+fi
+exit 0

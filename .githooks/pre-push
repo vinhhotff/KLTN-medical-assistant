@@ -1,0 +1,91 @@
+#!/usr/bin/env sh
+# MediAssist-AI pre-push hook:
+# 1. Back up local git-ignored secrets to $HOME/.mediassist/
+# 2. Scan tracked config/doc/script files for raw secrets to block GH013 locally
+
+HOOK_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ -f "$HOOK_DIR/_env_sync.sh" ]; then
+    . "$HOOK_DIR/_env_sync.sh"
+    backup_all
+fi
+
+REPO_ROOT=${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}
+
+SECRET_REGEX='sk-or-v1-[A-Za-z0-9]{16,}|GOCSPX-[A-Za-z0-9_-]{16,}|AQ\.Ab8[A-Za-z0-9_-]{16,}|AIzaSy[A-Za-z0-9_-]{16,}|sb_secret_[A-Za-z0-9_-]{16,}'
+PUBLISHABLE_KEY_REGEX='sb_publishable_[A-Za-z0-9_-]{16,}'
+MAIL_PASS_REGEX='^(spring\.mail\.password|SMTP_PASSWORD)=[[:space:]]*([^${[:space:]]|\$[^\{])'
+
+run_git_grep() {
+    ref_flag="$1"
+    pattern="$2"
+    shift 2
+
+    if [ "$ref_flag" = "--cached" ]; then
+        out=$(git -C "$REPO_ROOT" grep --cached -n -E "$pattern" -- "$@")
+    else
+        out=$(git -C "$REPO_ROOT" grep -n -E "$pattern" "$ref_flag" -- "$@")
+    fi
+    rc=$?
+    if [ "$rc" -eq 0 ] && [ -n "$out" ]; then
+        printf '%s\n' "$out" | sed -E 's/^HEAD://; s/^([^:]+:[0-9]+):.*/\1/'
+        return 0
+    fi
+    return 1
+}
+
+collect_leaks() {
+    ref_flag="$1"
+    run_git_grep "$ref_flag" "$SECRET_REGEX" \
+        'backend/src/main/resources/application*.properties' \
+        'docs/*.md' \
+        '*.yml' \
+        '*.yaml' \
+        '*.env.example' \
+        'scripts/*' \
+        ':!*application-local.properties' \
+        ':!.githooks/pre-push' || true
+
+    run_git_grep "$ref_flag" "$PUBLISHABLE_KEY_REGEX" \
+        'backend/src/main/resources/application*.properties' \
+        '*.env.example' \
+        '*.yml' \
+        '*.yaml' \
+        ':!*application-local.properties' \
+        ':!.githooks/pre-push' || true
+
+    run_git_grep "$ref_flag" "$MAIL_PASS_REGEX" \
+        'backend/src/main/resources/application*.properties' \
+        ':!*application-local.properties' \
+        ':!.githooks/pre-push' || true
+}
+
+LEAKS=""
+if git -C "$REPO_ROOT" rev-parse --verify HEAD >/dev/null 2>&1; then
+    LEAKS_HEAD=$(collect_leaks HEAD)
+    if [ -n "$LEAKS_HEAD" ]; then
+        LEAKS="$LEAKS_HEAD"
+    fi
+fi
+
+LEAKS_CACHED=$(collect_leaks --cached)
+if [ -n "$LEAKS_CACHED" ]; then
+    if [ -n "$LEAKS" ]; then
+        LEAKS=$(printf '%s\n%s\n' "$LEAKS" "$LEAKS_CACHED")
+    else
+        LEAKS="$LEAKS_CACHED"
+    fi
+fi
+
+LEAKS=$(printf '%s\n' "$LEAKS" | grep -v '^$' | sort -u || true)
+
+if [ -n "$LEAKS" ]; then
+    printf '\n[BLOCKED - GH013 GUARD] Phát hiện khóa bí mật hoặc mật khẩu SMTP hardcode trong tệp đang được Git theo dõi:\n' >&2
+    printf '%s\n' "$LEAKS" | sed 's/^/  - /' >&2
+    printf '\nHướng dẫn xử lý trước khi git push:\n' >&2
+    printf '  1. Mở các tệp bị liệt kê ở trên, xóa giá trị secret thật và thay bằng biến môi trường ${TEN_BIEN:} (hoặc để trống trong .env.example).\n' >&2
+    printf '  2. Đặt toàn bộ giá trị thật vào tệp bị gitignore: backend/src/main/resources/application-local.properties hoặc ~/.mediassist/local-secrets.properties.\n' >&2
+    printf '  3. Nếu secret đã được commit ở HEAD hoặc lịch sử nhánh cục bộ, hãy sửa commit (git commit --amend hoặc git rebase -i) trước khi đẩy lại lên GitHub.\n\n' >&2
+    exit 1
+fi
+
+exit 0
