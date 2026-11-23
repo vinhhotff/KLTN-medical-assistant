@@ -16,6 +16,10 @@ public class DocumentFileAccessDto {
 
     public DocumentFileAccessDto() {}
 
+    public DocumentFileAccessDto(String url, Instant expiresAt, Integer expiresInSeconds, String fileName) {
+        this(url, expiresAt, expiresInSeconds, fileName, null);
+    }
+
     public DocumentFileAccessDto(String url, Instant expiresAt, Integer expiresInSeconds, String fileName, String contentType) {
         this.url = url;
         this.expiresAt = expiresAt;

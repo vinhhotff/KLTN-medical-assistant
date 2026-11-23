@@ -6,12 +6,18 @@ import com.mediassist.model.entity.*;
 import com.mediassist.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -32,6 +38,31 @@ public class DoctorService {
     private final DoctorSemanticSearchService doctorSemanticSearchService;
     private final DoctorScheduleSlotRepository doctorScheduleSlotRepository;
     private final PatientProfileRepository patientProfileRepository;
+    private final StorageService storageService;
+    private final AuditLogRepository auditLogRepository;
+
+    @Autowired
+    public DoctorService(DoctorProfileRepository doctorProfileRepository,
+                         UserRepository userRepository,
+                         SpecialtyRepository specialtyRepository,
+                         AppointmentRepository appointmentRepository,
+                         TwoLayerCacheService cacheService,
+                         DoctorSemanticSearchService doctorSemanticSearchService,
+                         DoctorScheduleSlotRepository doctorScheduleSlotRepository,
+                         PatientProfileRepository patientProfileRepository,
+                         @Autowired(required = false) StorageService storageService,
+                         @Autowired(required = false) AuditLogRepository auditLogRepository) {
+        this.doctorProfileRepository = doctorProfileRepository;
+        this.userRepository = userRepository;
+        this.specialtyRepository = specialtyRepository;
+        this.appointmentRepository = appointmentRepository;
+        this.cacheService = cacheService;
+        this.doctorSemanticSearchService = doctorSemanticSearchService;
+        this.doctorScheduleSlotRepository = doctorScheduleSlotRepository;
+        this.patientProfileRepository = patientProfileRepository;
+        this.storageService = storageService;
+        this.auditLogRepository = auditLogRepository;
+    }
 
     public DoctorService(DoctorProfileRepository doctorProfileRepository,
                          UserRepository userRepository,
@@ -41,14 +72,9 @@ public class DoctorService {
                          DoctorSemanticSearchService doctorSemanticSearchService,
                          DoctorScheduleSlotRepository doctorScheduleSlotRepository,
                          PatientProfileRepository patientProfileRepository) {
-        this.doctorProfileRepository = doctorProfileRepository;
-        this.userRepository = userRepository;
-        this.specialtyRepository = specialtyRepository;
-        this.appointmentRepository = appointmentRepository;
-        this.cacheService = cacheService;
-        this.doctorSemanticSearchService = doctorSemanticSearchService;
-        this.doctorScheduleSlotRepository = doctorScheduleSlotRepository;
-        this.patientProfileRepository = patientProfileRepository;
+        this(doctorProfileRepository, userRepository, specialtyRepository, appointmentRepository,
+             cacheService, doctorSemanticSearchService, doctorScheduleSlotRepository,
+             patientProfileRepository, null, null);
     }
 
     public List<DoctorDetailDto> getVerifiedDoctors() {
@@ -227,6 +253,20 @@ public class DoctorService {
         if (req.getHospitalAffiliation() != null) profile.setHospitalAffiliation(req.getHospitalAffiliation().trim());
         if (req.getDepartment() != null) profile.setDepartment(req.getDepartment().trim());
         if (req.getLicenseIssuedBy() != null) profile.setLicenseIssuedBy(req.getLicenseIssuedBy().trim());
+        if (req.getLicenseIssuedDate() != null) profile.setLicenseIssuedDate(req.getLicenseIssuedDate());
+        if (req.getScopeOfPractice() != null) profile.setScopeOfPractice(req.getScopeOfPractice().isBlank() ? null : req.getScopeOfPractice().trim());
+
+        if (Boolean.TRUE.equals(req.getSubmitForVerification())) {
+            if (profile.getLicenseNumber() == null || profile.getLicenseNumber().isBlank()) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "MISSING_LICENSE_NUMBER",
+                        "Vui lòng nhập Số chứng chỉ hành nghề (CCHN) hợp lệ trước khi gửi hồ sơ thẩm định.");
+            }
+            if (!profile.isVerified()) {
+                profile.setVerificationStatus(VerificationStatus.PENDING_VERIFICATION);
+                profile.setRejectionReason(null);
+                profile.setRejectionAt(null);
+            }
+        }
 
         if (req.getSpecialtySlugs() != null && !req.getSpecialtySlugs().isEmpty()) {
             Set<Specialty> specialties = new HashSet<>();
@@ -246,6 +286,152 @@ public class DoctorService {
         }
 
         return DoctorDetailDto.fromEntity(saved);
+    }
+
+    public DoctorDetailDto getMyProfile(UUID doctorUserId) {
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
+                .orElseGet(() -> {
+                    var user = userRepository.findById(doctorUserId)
+                            .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Người dùng không tồn tại"));
+                    DoctorProfile newProfile = new DoctorProfile();
+                    newProfile.setUser(user);
+                    return doctorProfileRepository.save(newProfile);
+                });
+        return DoctorDetailDto.fromEntity(profile);
+    }
+
+    @Transactional
+    public DoctorLicenseUploadResponseDto uploadDoctorLicense(UUID doctorUserId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE", "Vui lòng chọn tệp bản scan Chứng chỉ hành nghề (CCHN).");
+        }
+        if (file.getSize() > 10 * 1024 * 1024) { // 10MB
+            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE", "Kích thước tệp không được vượt quá 10MB.");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || (!contentType.equalsIgnoreCase("application/pdf")
+                && !contentType.equalsIgnoreCase("image/jpeg")
+                && !contentType.equalsIgnoreCase("image/png")
+                && !contentType.equalsIgnoreCase("image/webp"))) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "UNSUPPORTED_MEDIA_TYPE",
+                    "Định dạng tệp không được hỗ trợ. Vui lòng tải lên file PDF, JPEG, PNG hoặc WEBP.");
+        }
+
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        if (storageService == null) {
+            throw new AppException(HttpStatus.SERVICE_UNAVAILABLE, "STORAGE_UNAVAILABLE", "Hệ thống lưu trữ chưa sẵn sàng.");
+        }
+
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (Exception e) {
+            throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "FILE_READ_ERROR", "Không thể đọc dữ liệu tệp tải lên.");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        String storagePath = storageService.uploadDoctorLicense(bytes, originalFilename, contentType, profile.getId());
+        if (storagePath == null || storagePath.isBlank()) {
+            throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "STORAGE_ERROR", "Lưu trữ tệp thất bại. Vui lòng thử lại sau.");
+        }
+
+        profile.setLicenseDocumentStoragePath(storagePath);
+        profile.setLicenseDocumentUrl("/api/v1/doctors/me/license-document/file");
+        if (!profile.isVerified() && profile.getLicenseNumber() != null && !profile.getLicenseNumber().isBlank()) {
+            profile.setVerificationStatus(VerificationStatus.PENDING_VERIFICATION);
+            profile.setRejectionReason(null);
+            profile.setRejectionAt(null);
+        }
+        doctorProfileRepository.save(profile);
+
+        String viewUrl;
+        Instant expiresAt = Instant.now().plusSeconds(storageService.getSignedUrlTtlSeconds());
+        if (!storagePath.startsWith("/uploads/")) {
+            try {
+                StorageService.SignedUrl signedUrl = storageService.createSignedUrl(storagePath, false, null);
+                viewUrl = signedUrl.url();
+                expiresAt = signedUrl.expiresAt();
+            } catch (Exception e) {
+                viewUrl = "/api/v1/doctors/me/license-document/file";
+            }
+        } else {
+            viewUrl = "/api/v1/doctors/me/license-document/file";
+        }
+
+        if (auditLogRepository != null) {
+            try {
+                AuditLog audit = new AuditLog();
+                audit.setUserId(doctorUserId);
+                audit.setAction("UPLOAD_DOCTOR_LICENSE_DOCUMENT");
+                audit.setResource("doctor_profiles/" + profile.getId());
+                audit.setMetadata("FileName: " + originalFilename + ", Size: " + file.getSize() + ", Storage: " + (storagePath.startsWith("/uploads/") ? "LOCAL" : "SUPABASE"));
+                auditLogRepository.save(audit);
+            } catch (Exception e) {
+                log.warn("Failed to write audit log for doctor license upload: {}", e.getMessage());
+            }
+        }
+
+        log.info("🩺 Doctor {} uploaded CCHN document: {} -> {}", doctorUserId, originalFilename, storagePath);
+
+        return new DoctorLicenseUploadResponseDto(
+                storagePath,
+                viewUrl,
+                originalFilename,
+                contentType,
+                file.getSize(),
+                expiresAt,
+                storageService.getSignedUrlTtlSeconds(),
+                profile.getVerificationStatus() != null ? profile.getVerificationStatus().name() : "PENDING_VERIFICATION"
+        );
+    }
+
+    public DocumentFileAccessDto getDoctorLicenseAccess(UUID doctorUserId) {
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        String storagePath = profile.getLicenseDocumentStoragePath();
+        if (storagePath == null || storagePath.isBlank()) {
+            if (profile.getLicenseDocumentUrl() != null && !profile.getLicenseDocumentUrl().isBlank()) {
+                return new DocumentFileAccessDto(profile.getLicenseDocumentUrl(), Instant.now().plusSeconds(900), 900, "URL");
+            }
+            throw new AppException(HttpStatus.NOT_FOUND, StorageService.ERROR_FILE_NOT_AVAILABLE, "Bác sĩ chưa tải lên bản scan chứng chỉ hành nghề.");
+        }
+
+        if (storagePath.startsWith("/uploads/")) {
+            return new DocumentFileAccessDto("/api/v1/doctors/me/license-document/file", Instant.now().plusSeconds(900), 900, "LOCAL");
+        }
+
+        if (storageService == null) {
+            throw new AppException(HttpStatus.SERVICE_UNAVAILABLE, "STORAGE_UNAVAILABLE", "Hệ thống lưu trữ chưa sẵn sàng.");
+        }
+
+        StorageService.SignedUrl signed = storageService.createSignedUrl(storagePath, false, null);
+        return new DocumentFileAccessDto(signed.url(), signed.expiresAt(), signed.expiresInSeconds(), "SUPABASE_SIGNED");
+    }
+
+    public byte[] readDoctorLicenseLocalFile(UUID doctorUserId) {
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        String storagePath = profile.getLicenseDocumentStoragePath();
+        if (storagePath == null || !storagePath.startsWith("/uploads/")) {
+            return null;
+        }
+
+        try {
+            Path localPath = Paths.get(storagePath.substring(1)).toAbsolutePath().normalize();
+            Path baseUploadDir = Paths.get("uploads").toAbsolutePath().normalize();
+            if (localPath.startsWith(baseUploadDir) && Files.exists(localPath)) {
+                return Files.readAllBytes(localPath);
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     private void syncDoctorVectorInternal(DoctorProfile profile) {

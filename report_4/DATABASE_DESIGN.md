@@ -384,17 +384,23 @@ CREATE TABLE doctor_profiles (
     user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     bio TEXT,                                    -- Tiểu sử, kinh nghiệm và thế mạnh lâm sàng
     license_number VARCHAR(255) UNIQUE,          -- Số CCHN y tế (Ví dụ: 008921/BYT-CCHN)
-    license_document_url VARCHAR(255),           -- Ảnh/PDF chứng chỉ hành nghề
+    license_document_url VARCHAR(255),           -- URL truy cập tạm thời hoặc endpoint view bản scan CCHN
+    license_document_storage_path TEXT,          -- [V25] Object key nội bộ trong bucket Supabase Storage private (doctor-licenses/{doctorId}/...)
+    license_issued_date DATE,                    -- [V25] Ngày cấp chứng chỉ hành nghề theo quyết định của Bộ Y Tế / Sở Y Tế
+    scope_of_practice TEXT,                      -- [V25] Phạm vi hoạt động chuyên môn theo CCHN được cấp phép
+    verification_status VARCHAR(30) DEFAULT 'UNSUBMITTED', -- [V25] Trạng thái thẩm định: UNSUBMITTED, PENDING_VERIFICATION, APPROVED, REJECTED
+    rejection_reason TEXT,                       -- [V25] Lý do từ chối thẩm định từ Hội đồng y khoa / Admin
+    rejection_at TIMESTAMPTZ,                    -- [V25] Thời điểm từ chối thẩm định
     consultation_fee NUMERIC(10, 2) DEFAULT 0.00,-- Phí khám tư vấn (VND)
     years_of_experience INT DEFAULT 0,           -- Số năm kinh nghiệm
     academic_title VARCHAR(50),                  -- Chức danh học thuật: GS.TS, PGS.TS, TS.BS, BS.CKII, BS.CKI
     hospital_affiliation VARCHAR(150),           -- Bệnh viện công tác: BV Đại Học Y Dược, BV Chợ Rẫy
     department VARCHAR(150),                     -- Khoa chuyên môn trực thuộc: Khoa Tim Mạch Can Thiệp
-    license_issued_by VARCHAR(150),              -- Đơn vị cấp CCHN: Cục Quản lý Khám chữa bệnh - Bộ Y Tế
+    license_issued_by VARCHAR(150),              -- Đơn vị cấp CCHN: Cục Quản lý Khám chữa bệnh - Bộ Y Tế / Sở Y Tế
     rating DOUBLE PRECISION DEFAULT 4.9,         -- Điểm đánh giá hài lòng người bệnh (1.0 - 5.0)
     review_count INT NOT NULL DEFAULT 0,         -- [V17] Tổng số lượt đánh giá thực tế của người bệnh
     total_consultations INT DEFAULT 1250,        -- Tổng số ca khám lâm sàng đã hoàn thành
-    is_verified BOOLEAN NOT NULL DEFAULT FALSE,  -- Trạng thái phê duyệt của Admin
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,  -- Trạng thái phê duyệt của Admin (đồng bộ với verification_status = 'APPROVED')
     verified_at TIMESTAMPTZ,
     bio_embedding vector(1536),                  -- Vector nhúng 1536 chiều từ Bio + Chuyên khoa
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -406,6 +412,7 @@ CREATE INDEX idx_doctor_bio_hnsw ON doctor_profiles
 USING hnsw (bio_embedding vector_cosine_ops);
 
 CREATE INDEX idx_doctor_verified ON doctor_profiles(is_verified);
+CREATE INDEX idx_doctor_verification_status ON doctor_profiles(verification_status);
 
 -- [V10 Migration] Tối ưu hóa truy vấn pgvector với Partial Indexes:
 CREATE INDEX idx_doctor_verified_has_embedding ON doctor_profiles(is_verified) WHERE bio_embedding IS NOT NULL;
@@ -734,6 +741,7 @@ spring.flyway.table=flyway_schema_history
 | **23** | `22` | `V22__email_verification.sql` | SQL | Thiết lập cổng xác thực email bắt buộc (Email Verification Gate): Chuẩn hóa cột `email_verified`, backfill `TRUE` cho tài khoản hiện hữu, và tạo bảng `email_verification_tokens` kích hoạt tài khoản. | **SUCCESS** |
 | **24** | `23` | `V23__refactor_icd_code_and_version.sql` | SQL | Chuẩn hóa lược đồ phân loại bệnh quốc tế đa phiên bản (ICD-10 / ICD-11): Đổi tên cột `icd10_code` (hoặc `"icd-10"` / `icd10`) thành `icd_code VARCHAR(20)`, bổ sung cột `icd_version VARCHAR(10) NOT NULL DEFAULT 'ICD-10'`, và tạo Partial B-Tree Index `idx_appointments_icd_code` phục vụ truy vấn dịch tễ học tốc độ cao. | **SUCCESS** |
 | **25** | `24` | `V24__fix_users_version_not_null.sql` | SQL | Khắc phục triệt để `NullPointerException` ở Hibernate `@Version` khi Admin khóa/cập nhật tài khoản: Backfill `users.version = 0 WHERE version IS NULL` và áp đặt ràng buộc `DEFAULT 0 NOT NULL` cho `users.version`. | **SUCCESS** |
+| **26** | `25` | `V25__enhance_doctor_vetting_and_credentials.sql` | SQL | Chuẩn hóa thẩm định CCHN & Onboarding Bác sĩ theo Luật Khám bệnh, chữa bệnh 2023: Bổ sung các cột trạng thái thẩm định `verification_status` (`UNSUBMITTED`, `PENDING_VERIFICATION`, `APPROVED`, `REJECTED`), `rejection_reason`, `rejection_at`, `license_issued_date`, `scope_of_practice`, `license_document_storage_path` (Supabase Private Storage key) và B-Tree Index `idx_doctor_verification_status`. | **SUCCESS** |
 
 ### 6.3. Chi Tiết Tập Dữ Liệu Bệnh Viện Mẫu (Enterprise Hospital Seed Data)
 1. **12 Chuyên Khoa Toàn Diện:** Tim mạch, Thần kinh, Tiêu hóa - Gan mật, Da liễu, Nhi khoa, Nội tổng quát, Hô hấp & Phổi, Cơ Xương Khớp, Thận & Tiết niệu, Sản Phụ Khoa, Nội tiết & Đái tháo đường, Tai Mũi Họng.

@@ -58,6 +58,12 @@ class DoctorServiceTest {
     @Mock
     private com.mediassist.repository.PatientProfileRepository patientProfileRepository;
 
+    @Mock
+    private com.mediassist.service.StorageService storageService;
+
+    @Mock
+    private com.mediassist.repository.AuditLogRepository auditLogRepository;
+
     private DoctorService doctorService;
 
     private UUID doctorUserId;
@@ -76,7 +82,9 @@ class DoctorServiceTest {
                 cacheService,
                 doctorSemanticSearchService,
                 doctorScheduleSlotRepository,
-                patientProfileRepository
+                patientProfileRepository,
+                storageService,
+                auditLogRepository
         );
 
         doctorUserId = UUID.randomUUID();
@@ -458,5 +466,61 @@ class DoctorServiceTest {
         assertEquals(AppointmentStatus.IN_PROGRESS, result.getStatus());
         assertEquals("Bệnh Nhân Đã Check-in", result.getPatientName());
         assertEquals("AP-CHECKEDIN", result.getAppointmentCode());
+    }
+
+    @Test
+    @DisplayName("uploadDoctorLicense uploads file to Supabase, updates profile and writes audit log")
+    void testUploadDoctorLicense_Success() {
+        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "cchn_scan.pdf", "application/pdf", "%PDF-1.4 test cchn bytes".getBytes()
+        );
+
+        when(doctorProfileRepository.findByUserIdWithDetails(doctorUserId)).thenReturn(Optional.of(doctorProfile));
+        when(storageService.uploadDoctorLicense(any(), eq("cchn_scan.pdf"), eq("application/pdf"), eq(doctorProfileId)))
+                .thenReturn("doctor-licenses/" + doctorProfileId + "/xyz_cchn_scan.pdf");
+        when(storageService.getSignedUrlTtlSeconds()).thenReturn(900);
+        when(storageService.createSignedUrl(anyString(), eq(false), isNull()))
+                .thenReturn(new com.mediassist.service.StorageService.SignedUrl("https://supabase.co/signed/cchn", java.time.Instant.now().plusSeconds(900), 900));
+        when(doctorProfileRepository.save(any(DoctorProfile.class))).thenAnswer(i -> i.getArgument(0));
+
+        com.mediassist.dto.DoctorLicenseUploadResponseDto res = doctorService.uploadDoctorLicense(doctorUserId, file);
+
+        assertNotNull(res);
+        assertEquals("doctor-licenses/" + doctorProfileId + "/xyz_cchn_scan.pdf", res.storagePath());
+        assertEquals("https://supabase.co/signed/cchn", res.viewUrl());
+        assertEquals("cchn_scan.pdf", res.fileName());
+        assertEquals("application/pdf", res.contentType());
+        verify(storageService).uploadDoctorLicense(any(), eq("cchn_scan.pdf"), eq("application/pdf"), eq(doctorProfileId));
+        verify(doctorProfileRepository).save(any(DoctorProfile.class));
+        verify(auditLogRepository).save(any(AuditLog.class));
+    }
+
+    @Test
+    @DisplayName("uploadDoctorLicense rejects unsupported media types")
+    void testUploadDoctorLicense_RejectsUnsupportedType() {
+        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "malicious.exe", "application/x-msdownload", "fake content".getBytes()
+        );
+
+        AppException ex = assertThrows(AppException.class, () -> doctorService.uploadDoctorLicense(doctorUserId, file));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals("UNSUPPORTED_MEDIA_TYPE", ex.getCode());
+        verifyNoInteractions(storageService);
+    }
+
+    @Test
+    @DisplayName("getDoctorLicenseAccess returns signed URL for private Supabase license scan")
+    void testGetDoctorLicenseAccess_Supabase() {
+        doctorProfile.setLicenseDocumentStoragePath("doctor-licenses/" + doctorProfileId + "/cchn.pdf");
+        when(doctorProfileRepository.findByUserIdWithDetails(doctorUserId)).thenReturn(Optional.of(doctorProfile));
+        when(storageService.createSignedUrl(eq("doctor-licenses/" + doctorProfileId + "/cchn.pdf"), eq(false), isNull()))
+                .thenReturn(new com.mediassist.service.StorageService.SignedUrl("https://supabase.co/signed/cchn", java.time.Instant.now().plusSeconds(900), 900));
+
+        com.mediassist.dto.DocumentFileAccessDto access = doctorService.getDoctorLicenseAccess(doctorUserId);
+
+        assertNotNull(access);
+        assertEquals("https://supabase.co/signed/cchn", access.getUrl());
+        assertEquals(900, access.getExpiresInSeconds());
+        assertEquals("SUPABASE_SIGNED", access.getFileName());
     }
 }

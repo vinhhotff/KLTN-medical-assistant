@@ -21,10 +21,17 @@ public class DoctorDetailDto {
     private String bio;
     private String licenseNumber;
     private String licenseDocumentUrl;
+    private String licenseDocumentStoragePath;
+    private boolean hasLicenseDocument;
     private BigDecimal consultationFee;
     private Integer yearsOfExperience;
     @JsonProperty("isVerified")
     private boolean isVerified;
+    private String verificationStatus;
+    private String rejectionReason;
+    private java.time.LocalDateTime rejectionAt;
+    private java.time.LocalDate licenseIssuedDate;
+    private String scopeOfPractice;
     private List<String> specialties;
     private String academicTitle;
     private String hospitalAffiliation;
@@ -54,9 +61,19 @@ public class DoctorDetailDto {
         dto.setBio(profile.getBio());
         dto.setLicenseNumber(profile.getLicenseNumber());
         dto.setLicenseDocumentUrl(profile.getLicenseDocumentUrl());
+        dto.setLicenseDocumentStoragePath(profile.getLicenseDocumentStoragePath());
+        dto.setHasLicenseDocument(
+                (profile.getLicenseDocumentStoragePath() != null && !profile.getLicenseDocumentStoragePath().isBlank()) ||
+                (profile.getLicenseDocumentUrl() != null && !profile.getLicenseDocumentUrl().isBlank())
+        );
         dto.setConsultationFee(profile.getConsultationFee());
         dto.setYearsOfExperience(profile.getYearsOfExperience());
         dto.setVerified(profile.isVerified());
+        dto.setVerificationStatus(profile.getVerificationStatus() != null ? profile.getVerificationStatus().name() : (profile.isVerified() ? "APPROVED" : "UNSUBMITTED"));
+        dto.setRejectionReason(profile.getRejectionReason());
+        dto.setRejectionAt(profile.getRejectionAt());
+        dto.setLicenseIssuedDate(profile.getLicenseIssuedDate());
+        dto.setScopeOfPractice(profile.getScopeOfPractice());
         dto.setAcademicTitle(profile.getAcademicTitle());
         dto.setHospitalAffiliation(profile.getHospitalAffiliation());
         dto.setDepartment(profile.getDepartment());
@@ -136,6 +153,27 @@ public class DoctorDetailDto {
 
     public String getUserStatus() { return userStatus; }
     public void setUserStatus(String userStatus) { this.userStatus = userStatus; }
+
+    public String getLicenseDocumentStoragePath() { return licenseDocumentStoragePath; }
+    public void setLicenseDocumentStoragePath(String licenseDocumentStoragePath) { this.licenseDocumentStoragePath = licenseDocumentStoragePath; }
+
+    public boolean isHasLicenseDocument() { return hasLicenseDocument; }
+    public void setHasLicenseDocument(boolean hasLicenseDocument) { this.hasLicenseDocument = hasLicenseDocument; }
+
+    public String getVerificationStatus() { return verificationStatus; }
+    public void setVerificationStatus(String verificationStatus) { this.verificationStatus = verificationStatus; }
+
+    public String getRejectionReason() { return rejectionReason; }
+    public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+
+    public java.time.LocalDateTime getRejectionAt() { return rejectionAt; }
+    public void setRejectionAt(java.time.LocalDateTime rejectionAt) { this.rejectionAt = rejectionAt; }
+
+    public java.time.LocalDate getLicenseIssuedDate() { return licenseIssuedDate; }
+    public void setLicenseIssuedDate(java.time.LocalDate licenseIssuedDate) { this.licenseIssuedDate = licenseIssuedDate; }
+
+    public String getScopeOfPractice() { return scopeOfPractice; }
+    public void setScopeOfPractice(String scopeOfPractice) { this.scopeOfPractice = scopeOfPractice; }
 
     public java.time.LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(java.time.LocalDateTime createdAt) { this.createdAt = createdAt; }

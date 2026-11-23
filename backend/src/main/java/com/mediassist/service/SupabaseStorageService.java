@@ -186,6 +186,50 @@ public class SupabaseStorageService implements StorageService {
     }
 
     @Override
+    public String uploadDoctorLicense(byte[] fileBytes, String fileName, String contentType, UUID doctorProfileId) {
+        String sanitizedName = fileName != null ? fileName.replaceAll("[^a-zA-Z0-9._-]", "_") : "cchn.pdf";
+        String doctorPrefix = doctorProfileId != null ? doctorProfileId.toString() : "anonymous";
+        String objectKey = "doctor-licenses/" + doctorPrefix + "/" + UUID.randomUUID().toString().substring(0, 8) + "_" + sanitizedName;
+
+        if (isSupabaseConfigured()) {
+            try {
+                HttpResult result = transport.send("POST",
+                        SupabaseStorageUrls.uploadEndpoint(supabaseUrl, supabaseBucket, objectKey),
+                        authHeaders(contentType != null ? contentType : "application/octet-stream"),
+                        fileBytes);
+                if (result.status() == 200 || result.status() == 201) {
+                    log.info("✅ Doctor CCHN stored in private Supabase bucket '{}': {}", supabaseBucket, objectKey);
+                    return objectKey;
+                }
+                log.warn("⚠️ Supabase Storage returned HTTP {}: {}. Falling back to resilient local storage.", result.status(), result.body());
+            } catch (Exception e) {
+                log.warn("⚠️ Supabase upload encountered error ({}). Triggering local storage fallback.", e.getMessage());
+            }
+        }
+
+        return saveDoctorLicenseToLocalStorage(fileBytes, doctorPrefix, sanitizedName);
+    }
+
+    private String saveDoctorLicenseToLocalStorage(byte[] fileBytes, String doctorPrefix, String sanitizedName) {
+        try {
+            Path uploadDir = Paths.get("uploads", "doctor_licenses", doctorPrefix);
+            if (!Files.exists(uploadDir)) {
+                Files.createDirectories(uploadDir);
+            }
+            String uniqueFileName = UUID.randomUUID().toString().substring(0, 8) + "_" + sanitizedName;
+            Path filePath = uploadDir.resolve(uniqueFileName);
+            Files.write(filePath, fileBytes);
+
+            String localPath = "/uploads/doctor_licenses/" + doctorPrefix + "/" + uniqueFileName;
+            log.info("💾 Doctor CCHN securely saved to resilient local storage: {}", localPath);
+            return localPath;
+        } catch (Exception e) {
+            log.error("❌ Failed to save doctor license to local storage: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    @Override
     public SignedUrl createSignedUrl(String objectKey, boolean download, String downloadFileName) {
         if (objectKey == null || objectKey.isBlank() || objectKey.startsWith("/uploads/")) {
             throw fileNotAvailable();

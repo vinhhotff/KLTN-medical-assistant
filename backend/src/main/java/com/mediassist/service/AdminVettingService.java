@@ -70,6 +70,9 @@ public class AdminVettingService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private StorageService storageService;
+
     private final AppointmentRefundService refundService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -99,6 +102,10 @@ public class AdminVettingService {
         this.documentAnalysisRepository = documentAnalysisRepository;
         this.refundService = refundService;
         this.eventPublisher = eventPublisher;
+    }
+
+    public void setStorageService(StorageService storageService) {
+        this.storageService = storageService;
     }
 
     public List<DoctorDetailDto> getAllDoctors() {
@@ -186,7 +193,10 @@ public class AdminVettingService {
 
         profile.setVerified(approve);
         if (approve) {
+            profile.setVerificationStatus(com.mediassist.model.entity.VerificationStatus.APPROVED);
             profile.setVerifiedAt(LocalDateTime.now());
+            profile.setRejectionReason(null);
+            profile.setRejectionAt(null);
             if (profile.getUser() != null && profile.getUser().getStatus() == UserStatus.PENDING_VERIFICATION) {
                 profile.getUser().setStatus(UserStatus.ACTIVE);
                 userRepository.save(profile.getUser());
@@ -204,6 +214,10 @@ public class AdminVettingService {
             } catch (Exception e) {
                 log.warn("Failed to generate embedding for newly vetted doctor: {}", e.getMessage());
             }
+        } else {
+            profile.setVerificationStatus(com.mediassist.model.entity.VerificationStatus.REJECTED);
+            profile.setRejectionReason(reason != null && !reason.isBlank() ? reason.trim() : "Hồ sơ hoặc Chứng chỉ hành nghề chưa đáp ứng tiêu chuẩn thẩm định.");
+            profile.setRejectionAt(LocalDateTime.now());
         }
 
         DoctorProfile updated = doctorProfileRepository.save(profile);
@@ -232,7 +246,7 @@ public class AdminVettingService {
                         profile.getUser().getId(),
                         "VETTING_REJECTED",
                         "Hồ Sơ Cần Bổ Sung Thông Tin ⚠️",
-                        "Hồ sơ bác sĩ của bạn chưa đạt yêu cầu xét duyệt. Lý do: " + (reason != null ? reason : "Cần bổ sung chứng chỉ hợp lệ") + ". Vui lòng liên hệ ban quản trị.",
+                        "Hồ sơ bác sĩ của bạn chưa đạt yêu cầu xét duyệt. Lý do: " + (reason != null ? reason : "Cần bổ sung chứng chỉ hợp lệ") + ". Vui lòng cập nhật hồ sơ và gửi lại.",
                         null
                 );
             }
@@ -240,6 +254,63 @@ public class AdminVettingService {
 
         log.info("🛡️ Admin {} vetted doctor profile {}: {}", adminId, doctorProfileId, approve ? "APPROVED" : "REJECTED");
         return DoctorDetailDto.fromEntity(updated);
+    }
+
+    public com.mediassist.dto.DocumentFileAccessDto getDoctorLicenseForAdmin(UUID doctorProfileId, UUID adminId) {
+        DoctorProfile profile = doctorProfileRepository.findByIdWithDetails(doctorProfileId)
+                .or(() -> doctorProfileRepository.findByUserIdWithDetails(doctorProfileId))
+                .or(() -> doctorProfileRepository.findById(doctorProfileId))
+                .or(() -> doctorProfileRepository.findByUserId(doctorProfileId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        String storagePath = profile.getLicenseDocumentStoragePath();
+        if (storagePath == null || storagePath.isBlank()) {
+            if (profile.getLicenseDocumentUrl() != null && !profile.getLicenseDocumentUrl().isBlank()) {
+                return new com.mediassist.dto.DocumentFileAccessDto(profile.getLicenseDocumentUrl(), java.time.Instant.now().plusSeconds(900), 900, "URL");
+            }
+            throw new AppException(HttpStatus.NOT_FOUND, StorageService.ERROR_FILE_NOT_AVAILABLE, "Bác sĩ này chưa tải lên bản scan chứng chỉ hành nghề.");
+        }
+
+        // Audit Log Admin xem CCHN
+        AuditLog audit = new AuditLog();
+        audit.setUserId(adminId);
+        audit.setAction("ADMIN_VIEW_DOCTOR_LICENSE");
+        audit.setResource("doctor_profiles/" + profile.getId());
+        audit.setMetadata("Admin inspected medical license credentials. StoragePath: " + storagePath);
+        auditLogRepository.save(audit);
+
+        if (storagePath.startsWith("/uploads/")) {
+            return new com.mediassist.dto.DocumentFileAccessDto("/api/v1/admin/doctors/" + profile.getId() + "/license-document/file", java.time.Instant.now().plusSeconds(900), 900, "LOCAL");
+        }
+
+        if (storageService == null) {
+            throw new AppException(HttpStatus.SERVICE_UNAVAILABLE, "STORAGE_UNAVAILABLE", "Hệ thống lưu trữ Supabase chưa sẵn sàng.");
+        }
+
+        StorageService.SignedUrl signed = storageService.createSignedUrl(storagePath, false, null);
+        return new com.mediassist.dto.DocumentFileAccessDto(signed.url(), signed.expiresAt(), signed.expiresInSeconds(), "SUPABASE_SIGNED");
+    }
+
+    public byte[] readDoctorLicenseLocalFileForAdmin(UUID doctorProfileId, UUID adminId) {
+        DoctorProfile profile = doctorProfileRepository.findByIdWithDetails(doctorProfileId)
+                .or(() -> doctorProfileRepository.findByUserIdWithDetails(doctorProfileId))
+                .or(() -> doctorProfileRepository.findById(doctorProfileId))
+                .or(() -> doctorProfileRepository.findByUserId(doctorProfileId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        String storagePath = profile.getLicenseDocumentStoragePath();
+        if (storagePath == null || !storagePath.startsWith("/uploads/")) {
+            return null;
+        }
+
+        try {
+            java.nio.file.Path localPath = java.nio.file.Paths.get(storagePath.substring(1)).toAbsolutePath().normalize();
+            java.nio.file.Path baseUploadDir = java.nio.file.Paths.get("uploads").toAbsolutePath().normalize();
+            if (localPath.startsWith(baseUploadDir) && java.nio.file.Files.exists(localPath)) {
+                return java.nio.file.Files.readAllBytes(localPath);
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     @Transactional

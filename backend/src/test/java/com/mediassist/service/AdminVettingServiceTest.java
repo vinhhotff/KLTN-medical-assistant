@@ -76,6 +76,9 @@ class AdminVettingServiceTest {
     @Mock
     private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private StorageService storageService;
+
     @InjectMocks
     private AdminVettingService adminVettingService;
 
@@ -105,6 +108,8 @@ class AdminVettingServiceTest {
         doctorProfile.setConsultationFee(BigDecimal.valueOf(400000));
         doctorProfile.setYearsOfExperience(15);
         doctorProfile.setVerified(true);
+
+        adminVettingService.setStorageService(storageService);
     }
 
     @Test
@@ -498,5 +503,62 @@ class AdminVettingServiceTest {
         }
         verify(appointmentRepository, never()).save(any());
         verifyNoInteractions(refundService, eventPublisher);
+    }
+
+    @Test
+    @DisplayName("vetDoctor approve activates user, marks APPROVED status, updates vector and writes audit")
+    void testVetDoctor_Approve() {
+        doctorUser.setStatus(UserStatus.PENDING_VERIFICATION);
+        doctorProfile.setVerified(false);
+        doctorProfile.setVerificationStatus(com.mediassist.model.entity.VerificationStatus.PENDING_VERIFICATION);
+
+        when(doctorProfileRepository.findByIdWithDetails(doctorProfile.getId())).thenReturn(Optional.of(doctorProfile));
+        when(doctorProfileRepository.save(any(DoctorProfile.class))).thenAnswer(i -> i.getArgument(0));
+
+        DoctorDetailDto result = adminVettingService.vetDoctor(doctorProfile.getId(), true, null, adminId);
+
+        assertNotNull(result);
+        assertTrue(result.isVerified());
+        assertEquals("APPROVED", result.getVerificationStatus());
+        assertNull(result.getRejectionReason());
+        verify(doctorProfileRepository).save(any(DoctorProfile.class));
+        verify(cacheService).evict("doctors:verified");
+        verify(auditLogRepository).save(argThat(log -> "VET_DOCTOR_APPROVED".equals(log.getAction())));
+    }
+
+    @Test
+    @DisplayName("vetDoctor reject sets REJECTED status and stores rejection reason")
+    void testVetDoctor_Reject() {
+        doctorProfile.setVerified(false);
+        doctorProfile.setVerificationStatus(com.mediassist.model.entity.VerificationStatus.PENDING_VERIFICATION);
+
+        when(doctorProfileRepository.findByIdWithDetails(doctorProfile.getId())).thenReturn(Optional.of(doctorProfile));
+        when(doctorProfileRepository.save(any(DoctorProfile.class))).thenAnswer(i -> i.getArgument(0));
+
+        String rejectReason = "Bản scan CCHN bị mờ, không thấy rõ con dấu Bộ Y Tế";
+        DoctorDetailDto result = adminVettingService.vetDoctor(doctorProfile.getId(), false, rejectReason, adminId);
+
+        assertNotNull(result);
+        assertFalse(result.isVerified());
+        assertEquals("REJECTED", result.getVerificationStatus());
+        assertEquals(rejectReason, result.getRejectionReason());
+        verify(doctorProfileRepository).save(any(DoctorProfile.class));
+        verify(auditLogRepository).save(argThat(log -> "VET_DOCTOR_REJECTED".equals(log.getAction())));
+    }
+
+    @Test
+    @DisplayName("getDoctorLicenseForAdmin returns signed URL from Supabase and logs audit trail")
+    void testGetDoctorLicenseForAdmin_Supabase() {
+        doctorProfile.setLicenseDocumentStoragePath("doctor-licenses/" + doctorProfile.getId() + "/scan.pdf");
+        when(doctorProfileRepository.findByIdWithDetails(doctorProfile.getId())).thenReturn(Optional.of(doctorProfile));
+        when(storageService.createSignedUrl(eq("doctor-licenses/" + doctorProfile.getId() + "/scan.pdf"), eq(false), isNull()))
+                .thenReturn(new StorageService.SignedUrl("https://supabase.co/signed/admin-scan.pdf", java.time.Instant.now().plusSeconds(900), 900));
+
+        var access = adminVettingService.getDoctorLicenseForAdmin(doctorProfile.getId(), adminId);
+
+        assertNotNull(access);
+        assertEquals("https://supabase.co/signed/admin-scan.pdf", access.getUrl());
+        assertEquals(900, access.getExpiresInSeconds());
+        verify(auditLogRepository).save(argThat(log -> "ADMIN_VIEW_DOCTOR_LICENSE".equals(log.getAction())));
     }
 }

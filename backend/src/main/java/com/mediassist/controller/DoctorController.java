@@ -1,12 +1,14 @@
 package com.mediassist.controller;
 
 import com.mediassist.common.ApiResponse;
+import com.mediassist.common.AppException;
 import com.mediassist.dto.*;
 import com.mediassist.security.UserPrincipal;
 import com.mediassist.service.DoctorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -47,6 +49,14 @@ public class DoctorController {
         return ResponseEntity.ok(ApiResponse.success(doctorService.getAvailableSlots(id, date)));
     }
 
+    @GetMapping("/me/profile")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Get current doctor's professional profile", description = "Returns full profile including CCHN vetting status and credentials")
+    public ResponseEntity<ApiResponse<DoctorDetailDto>> getMyProfile(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(doctorService.getMyProfile(principal.getId())));
+    }
+
     @PutMapping("/me/profile")
     @PreAuthorize("hasRole('DOCTOR')")
     @Operation(summary = "Update current doctor's professional profile")
@@ -54,6 +64,43 @@ public class DoctorController {
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody UpdateDoctorProfileRequest request) {
         return ResponseEntity.ok(ApiResponse.success(doctorService.updateDoctorProfile(principal.getId(), request)));
+    }
+
+    @PostMapping(value = "/me/license-document", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Upload medical practice license scan (CCHN) to private Supabase Storage",
+               description = "Accepts PDF or Image (JPEG/PNG/WEBP), stores in private bucket, and prepares for admin vetting.")
+    public ResponseEntity<ApiResponse<DoctorLicenseUploadResponseDto>> uploadLicenseDocument(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        DoctorLicenseUploadResponseDto response = doctorService.uploadDoctorLicense(principal.getId(), file);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/me/license-document/view")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Get short-lived signed URL to view uploaded license scan")
+    public ResponseEntity<ApiResponse<DocumentFileAccessDto>> getMyLicenseDocumentAccess(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        DocumentFileAccessDto access = doctorService.getDoctorLicenseAccess(principal.getId());
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.noStore())
+                .body(ApiResponse.success(access));
+    }
+
+    @GetMapping("/me/license-document/file")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Stream local doctor license scan file (fallback dev mode)")
+    public ResponseEntity<byte[]> viewMyLicenseLocalFile(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        byte[] bytes = doctorService.readDoctorLicenseLocalFile(principal.getId());
+        if (bytes == null || bytes.length == 0) {
+            throw new AppException(HttpStatus.NOT_FOUND, "FILE_NOT_AVAILABLE", "Tệp giấy phép hành nghề không tồn tại.");
+        }
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.noStore())
+                .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                .body(bytes);
     }
 
     @GetMapping("/me/stats")

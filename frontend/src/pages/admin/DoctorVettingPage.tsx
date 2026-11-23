@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ShieldCheck, Clock, Check, X, AlertCircle, FileBadge, Building2, User, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Clock, Check, X, AlertCircle, FileBadge, Building2, User, RefreshCw, Eye, ExternalLink, FileText } from 'lucide-react';
 import { api } from '../../services/api';
 import { formatVnd } from '../../utils/display';
 import { devLog } from '../../utils/logger';
@@ -14,6 +14,13 @@ interface PendingDoctor {
   phone?: string;
   bio: string;
   licenseNumber: string;
+  licenseDocumentUrl?: string;
+  licenseDocumentStoragePath?: string;
+  hasLicenseDocument?: boolean;
+  licenseIssuedDate?: string;
+  scopeOfPractice?: string;
+  verificationStatus?: string;
+  rejectionReason?: string;
   consultationFee: number;
   yearsOfExperience: number;
   specialties: string[];
@@ -39,6 +46,32 @@ export const DoctorVettingPage: React.FC = () => {
   const [rejectingDoctor, setRejectingDoctor] = useState<PendingDoctor | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [submittingRejection, setSubmittingRejection] = useState(false);
+
+  // Xem tệp CCHN trên Supabase
+  const [inspectingDoctor, setInspectingDoctor] = useState<PendingDoctor | null>(null);
+  const [inspectUrl, setInspectUrl] = useState<string | null>(null);
+  const [loadingDocUrl, setLoadingDocUrl] = useState(false);
+
+  const handleInspectLicense = async (doctor: PendingDoctor) => {
+    try {
+      setLoadingDocUrl(true);
+      setInspectingDoctor(doctor);
+      setInspectUrl(null);
+      const res = await api.get(`/admin/doctors/${doctor.profileId}/license-document/view`);
+      const access = res.data?.data;
+      if (access?.url) {
+        setInspectUrl(access.url);
+      } else {
+        toast.error('Bác sĩ này chưa tải lên tệp scan CCHN.');
+        setInspectingDoctor(null);
+      }
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Không thể lấy liên kết xem tệp CCHN từ Supabase.'));
+      setInspectingDoctor(null);
+    } finally {
+      setLoadingDocUrl(false);
+    }
+  };
 
   useEffect(() => {
     fetchPendingDoctors();
@@ -244,33 +277,52 @@ export const DoctorVettingPage: React.FC = () => {
                       </span>
                       <span>SĐT: {doc.phone || 'Chưa cung cấp'}</span>
                       <span className="flex items-center gap-1 font-mono font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                        <FileBadge className="w-3.5 h-3.5 text-slate-400" /> CCHN: {doc.licenseNumber}
+                        <FileBadge className="w-3.5 h-3.5 text-slate-400" /> CCHN: {doc.licenseNumber || 'Chưa khai báo'}
                       </span>
                       {doc.licenseIssuedBy && (
-                        <span className="text-slate-400">Cấp bởi: {doc.licenseIssuedBy}</span>
+                        <span className="text-slate-500">Cơ quan cấp: <strong>{doc.licenseIssuedBy}</strong></span>
+                      )}
+                      {doc.licenseIssuedDate && (
+                        <span className="text-slate-500">Ngày cấp: <strong>{doc.licenseIssuedDate}</strong></span>
                       )}
                       <span>Kinh nghiệm: {doc.yearsOfExperience ? `${doc.yearsOfExperience} năm` : 'chưa khai báo'}</span>
                       <span className="font-bold text-teal-700">
                         Phí: {formatVnd(doc.consultationFee) ?? 'chưa khai báo'}
                       </span>
                     </div>
+
+                    {doc.scopeOfPractice && (
+                      <p className="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+                        <strong>Phạm vi hành nghề CCHN:</strong> {doc.scopeOfPractice}
+                      </p>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => handleInspectLicense(doc)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-teal-800 bg-teal-50 hover:bg-teal-100 rounded-xl transition border border-teal-200 cursor-pointer shadow-xs"
+                      title="Xem bản scan CCHN lưu trên Supabase Storage"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-teal-600" />
+                      <span>Xem Bản Scan CCHN</span>
+                    </button>
+
                     <button
                       disabled={actionLoading === doc.profileId}
                       onClick={() => handleOpenRejectModal(doc)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition border border-rose-200 cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition border border-rose-200 cursor-pointer disabled:opacity-50"
                     >
-                      <X className="w-4 h-4" /> Từ Chối
+                      <X className="w-3.5 h-3.5" /> Từ Chối
                     </button>
                     <button
                       disabled={actionLoading === doc.profileId}
                       onClick={() => handleApprove(doc)}
-                      className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
                     >
-                      <Check className="w-4 h-4" />
-                      {actionLoading === doc.profileId ? 'Đang Xử Lý...' : 'Phê Duyệt Hồ Sơ'}
+                      <Check className="w-3.5 h-3.5" />
+                      {actionLoading === doc.profileId ? 'Đang Xử Lý...' : 'Phê Duyệt & Tính Vector'}
                     </button>
                   </div>
                 </div>
@@ -285,6 +337,124 @@ export const DoctorVettingPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* DOCUMENT INSPECTION MODAL (SUPABASE CLOUD STORAGE) */}
+      {inspectingDoctor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-4xl max-h-[92vh] rounded-3xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col animate-scaleUp">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                <FileText className="w-5 h-5 text-teal-700" />
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">
+                    Thẩm Định Bản Scan CCHN - Bác sĩ {inspectingDoctor.fullName}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Số CCHN: <strong>{inspectingDoctor.licenseNumber}</strong> · Cơ quan cấp: {inspectingDoctor.licenseIssuedBy || 'Bộ Y Tế'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {inspectUrl && (
+                  <a
+                    href={inspectUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Mở tab mới</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInspectingDoctor(null);
+                    setInspectUrl(null);
+                  }}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 bg-amber-50/70 border-b border-amber-200 flex items-start gap-2.5 text-xs text-amber-900">
+              <ShieldCheck className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <strong>Checklist Thẩm Định Của Quản Trị Viên:</strong>
+                <ul className="list-disc list-inside mt-1 space-y-0.5 text-slate-700">
+                  <li>Đối chiếu số hiệu CCHN trên Cổng thông tin Quốc gia về Khám chữa bệnh (Bộ Y Tế).</li>
+                  <li>Kiểm tra con dấu đỏ, chữ ký của Người có thẩm quyền cấp chứng chỉ.</li>
+                  <li>Xác nhận phạm vi chuyên môn phù hợp với các chuyên khoa bác sĩ đăng ký tiếp nhận bệnh nhân.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex-1 p-4 overflow-auto bg-slate-100/70 flex items-center justify-center min-h-[420px]">
+              {loadingDocUrl ? (
+                <div className="flex flex-col items-center gap-2 text-slate-500">
+                  <RefreshCw className="w-6 h-6 animate-spin text-teal-600" />
+                  <p className="text-xs">Đang sinh signed URL bảo mật từ Supabase Storage...</p>
+                </div>
+              ) : inspectUrl ? (
+                inspectUrl.includes('.pdf') || inspectUrl.includes('application%2Fpdf') || inspectUrl.includes('format=pdf') ? (
+                  <iframe
+                    src={inspectUrl}
+                    title="Bản scan CCHN"
+                    className="w-full h-[62vh] rounded-2xl border border-slate-300 bg-white"
+                  />
+                ) : (
+                  <img
+                    src={inspectUrl}
+                    alt="Bản scan CCHN"
+                    className="max-h-[62vh] max-w-full rounded-2xl object-contain shadow-xs border border-slate-200 bg-white"
+                  />
+                )
+              ) : (
+                <div className="text-center text-slate-400">
+                  <AlertCircle className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                  <p className="text-sm">Bác sĩ chưa tải lên bản scan chứng chỉ hành nghề lên hệ thống.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+              <span className="text-xs text-slate-500">
+                Lưu trữ Supabase Private Bucket · Audit log đã ghi nhận lượt đối soát.
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const doc = inspectingDoctor;
+                    setInspectingDoctor(null);
+                    setInspectUrl(null);
+                    if (doc) handleOpenRejectModal(doc);
+                  }}
+                  className="px-4 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition border border-rose-200 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5 inline mr-1" />
+                  Từ Chối
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const doc = inspectingDoctor;
+                    setInspectingDoctor(null);
+                    setInspectUrl(null);
+                    if (doc) handleApprove(doc);
+                  }}
+                  className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-xs cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5 inline mr-1" />
+                  Xác Nhận Đạt Chuẩn &amp; Phê Duyệt
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* REJECTION REASON MODAL */}
       {rejectingDoctor && (

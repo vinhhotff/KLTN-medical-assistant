@@ -74,6 +74,55 @@
 >    - Mở sẵn tab `docs/diagrams/interactive_viewer.html?diagram=erd_full` trên trình duyệt.
 >    - Khi Hội đồng hỏi sâu về mối quan hệ khóa ngoại hoặc tính toàn vẹn: Xin phép Hội đồng bấm `Alt+Tab` chuyển sang tab Vector Studio, vuốt chuột zoom to 500% trực tiếp vào cụm bảng được hỏi. Đây là điểm cộng xuất sắc chứng minh kỹ năng làm tài liệu và đồ án chuyên nghiệp.
 
+### 2.2 Kịch Bản & Lời Thoại Thuyết Trình Sơ Đồ Quản Trị Hệ Thống (Admin Dashboard: Hospital KPIs, Infra Health & Business Modules)
+
+> [!IMPORTANT]
+> **Mục tiêu thuyết trình:** Chứng minh năng lực bao quát của Phân hệ Quản trị (Admin System) trong việc vận hành một bệnh viện số (Digital Hospital Operations). Admin không chỉ là quản lý CRUD đơn thuần, mà là trung tâm kiểm soát rủi ro y tế, tối ưu tài chính AI (AI FinOps), bảo đảm an toàn hạ tầng và tuân thủ pháp lý Bộ Y Tế.
+
+#### Sơ Đồ Phân Rã Chức Năng Admin Dashboard (Functional Architecture)
+```mermaid
+graph LR
+    AD["Admin Dashboard<br/>(hospital KPIs & infra health)"]
+    
+    AD --> F1["AI FinOps<br/>(token usage & cost)"]
+    F1 --> F1_sub["Toggle AI provider & offline fallback"]
+    
+    AD --> F2["Doctor vetting<br/>(verify CCHN license)"]
+    F2 -->|Approve| F2_dir["Doctor directory<br/>(+ reject reason)"]
+    F2 -->|Reject| F2_dir
+    F2_dir --> F2_sync["Batch sync doctor<br/>vector embeddings"]
+    
+    AD --> F3["User management<br/>(RBAC, lock / unlock)"]
+    AD --> F4["Specialty catalog<br/>(create / edit)"]
+    AD --> F5["Appointment supervision<br/>(force cancel)"]
+    AD --> F6["Triage supervision<br/>(red-flag analytics)"]
+    AD --> F7["Security audit logs<br/>(IDOR & login failures)"]
+    
+    style F2 fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    style F2_dir fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+```
+
+#### Lời Thoại Thuyết Trình Chuẩn Từng Giây (Dành cho Sinh viên - Thời lượng: 90 - 120 giây)
+
+> *"Kính thưa Thầy Cô trong Hội đồng,  
+> Trực tiếp trên màn hình là **Sơ đồ Kiến trúc Phân hệ Quản trị & Điều hành Bệnh viện (Admin Dashboard)**. Đối với một hệ thống y tế thực chiến, vai trò của Quản trị viên không dừng lại ở các thao tác CRUD cơ bản, mà đóng vai trò là **Bộ Não Vận Hành Kép (Dual-Operational Engine)**: vừa giám sát Chỉ số Hiệu năng Bệnh viện (Hospital KPIs), vừa bảo đảm Sức khỏe Hạ tầng & Rào chắn Pháp lý (Infra Health & Legal Compliance).
+> 
+> Sơ đồ được chia làm **7 nhánh chức năng huyết mạch**, trong đó nhóm xin nhấn mạnh 3 trụ cột kỹ thuật nổi bật nhất:
+> 
+> 1. **Trụ Cột 1: Thẩm Định Bác Sĩ & Pháp Lý CCHN Khép Kín Với pgvector (Nhánh Doctor Vetting):**  
+>    - Trong y tế, rủi ro lớn nhất là bác sĩ giả mạo hoặc chưa đủ điều kiện hành nghề. Nhóm xây dựng quy trình kiểm định 4 trạng thái nghiêm ngặt (`UNSUBMITTED` $\rightarrow$ `PENDING_VERIFICATION` $\rightarrow$ `APPROVED` / `REJECTED`).
+>    - Bác sĩ bắt buộc phải tải tệp scan Chứng chỉ hành nghề (CCHN) có mộc đỏ lên **Supabase Cloud Storage (Private Bucket)**. Admin mở Modal Document Inspector đối soát tài liệu qua **Signed URL bảo mật 15 phút** cùng bảng checklist 4 tiêu chí chuẩn Bộ Y Tế.
+>    - **Điểm đột phá kỹ thuật:** Khi Admin bấm **Phê duyệt (Approve)**, hệ thống không chỉ đổi trạng thái trong DB mà tự động kích hoạt **Batch / Real-time Sync Vector Embeddings**. Hồ sơ lâm sàng của bác sĩ được mô hình ngôn ngữ nén thành vector 1536 chiều và nạp thẳng vào đồ thị HNSW của `pgvector`. Bác sĩ lập tức xuất hiện trên công cụ Semantic Search của bệnh nhân. Ngược lại, nếu từ chối, lý do từ chối cụ thể được lưu trữ và phản hồi trực tiếp để bác sĩ nộp lại.
+> 
+> 2. **Trụ Cột 2: Quản Trị Chi Phí AI & Khả Năng Tự Phục Hồi (Nhánh AI FinOps & Provider Toggle):**  
+>    - Để bệnh viện không bị thâm hụt ngân sách khi lượng người dùng tăng cao, phân hệ AI FinOps giám sát chính xác từng token input/output, chi phí USD và quy đổi VNĐ theo thời gian thực (ghi nhận phi đồng bộ vào bảng `ai_token_usage`).
+>    - Đặc biệt, Admin nắm quyền chủ động chuyển đổi mô hình (Model Failover): Nếu API Google Gemini gặp sự cố hoặc cạn ngân sách, Admin có thể bật tắt nhà cung cấp hoặc chuyển sang **Offline Deterministic Fallback (Thuật toán FNV-1a Hash)** chỉ bằng một cú nhấp chuột, đảm bảo hệ thống đạt tính sẵn sàng 100% (High Availability).
+> 
+> 3. **Trụ Cột 3: Giám Sát Lâm Sàng & An Toàn Dữ Liệu Y Tế (Nhánh Triage, Appointment & Audit Logs):**  
+>    - **Triage Supervision:** Thu thập và phân tích các ca kích hoạt **Cảnh báo Đỏ (Red-Flag Analytics)** nhằm phát hiện sớm các chùm triệu chứng dịch bệnh hoặc các ca nguy kịch trong cộng đồng.
+>    - **Appointment Supervision:** Cho phép Ban điều hành can thiệp khẩn cấp (Force Cancel) trong tình huống bác sĩ gặp sự cố đột xuất, tự động kích hoạt quy trình hoàn tiền và gửi thông báo cho bệnh nhân.
+>    - **Security Audit Logs:** Ghi vết bất biến 100% mọi hành vi cố tình xâm nhập trái phép hồ sơ người bệnh (chống BOLA/IDOR) và các nỗ lực Brute-Force thất bại, bảo đảm tuân thủ nghiêm ngặt **Nghị định 13/2023/NĐ-CP** và chuẩn **HIPAA**."*
+
 ---
 
 ## 3. Danh Sách Kiểm Tra Live Demo Không Lỗi (Live Demo Checklist)
@@ -513,6 +562,33 @@
        `[HỒ SƠ BÁC SĨ CHUYÊN KHOA LÂM SÀNG] • Bác sĩ: ... • Chuyên khoa: ... • Mã ICD-10 thường gặp: ... • Triệu chứng lâm sàng tiếp nhận & xử trí: ... • Các tình trạng bệnh nhân than phiền thực tế: ...`
      - Văn bản giàu ngữ nghĩa này mới được đưa vào mô hình `text-embedding-3-small` để sinh vector 1536 chiều và lưu vào cột `bio_embedding` trong PostgreSQL `pgvector`.
   $\rightarrow$ Nhờ đó, vector của bác sĩ và vector của bệnh nhân nằm chung trong một không gian ngữ nghĩa thống nhất (Shared Semantic Space), nâng Recall@3 gợi ý bác sĩ từ 62.4% lên tới 98.6%!"*
+
+---
+
+---
+
+### Câu hỏi 28: Quy trình Onboarding, lưu trữ chứng chỉ hành nghề (CCHN) và thẩm định Bác sĩ trên hệ thống được tổ chức ra sao để đảm bảo tính pháp lý y tế và ngăn chặn giả mạo bác sĩ? Tại sao sau khi duyệt bác sĩ lại cần Batch Sync Vector Embeddings?
+* **Trả lời của sinh viên:**  
+  *"Thưa Thầy Cô, đối với một hệ thống Y tế số, việc xác thực danh tính và chứng chỉ của nhân viên y tế là rào chắn pháp lý sống còn theo **Điều 19 và Điều 28 Luật Khám bệnh, chữa bệnh 2023**:
+  1. **Quy Trình Onboarding & Thẩm Định 4 Trạng Thái Khép Kín:**
+     - Thay vì cho phép bác sĩ tự duyệt hoặc chỉ nhập số CCHN text thông thường, hệ thống quản lý qua 4 trạng thái tường minh (`VerificationStatus`):
+       - `UNSUBMITTED`: Bác sĩ mới đăng ký tài khoản, chưa hoàn thiện thông tin pháp lý.
+       - `PENDING_VERIFICATION`: Bác sĩ đã khai báo Số CCHN, Ngày cấp, Phạm vi chuyên môn và tải lên bản scan CCHN hợp lệ.
+       - `APPROVED`: Admin đã đối soát tài liệu, xác nhận thông tin trùng khớp với Cổng thông tin Quản lý hành nghề y tế quốc gia.
+       - `REJECTED`: Hồ sơ bị từ chối kèm lý do cụ thể (`rejection_reason`) và mốc thời gian (`rejection_at`), bác sĩ nhận thông báo in-app để bổ sung/nộp lại.
+  2. **Lưu Trữ Tệp Scan CCHN An Toàn Trên Supabase Storage (Private Bucket):**
+     - Bản scan CCHN (PDF/ảnh chụp mộc đỏ, chữ ký) chứa dữ liệu nhân thân nhạy cảm, tuyệt đối **không được lưu trữ Public**.
+     - Hệ thống lưu trữ trong Private Bucket `medical-documents` dưới tiền tố đường dẫn `doctor-licenses/{doctorProfileId}/{uuid}_{fileName}`.
+     - Cả Bác sĩ (chính chủ) và Admin chỉ được truy xuất tệp thông qua **Signed URL ký số HMAC-SHA256 có thời hạn tự hủy nghiêm ngặt 15 phút (900 giây)**.
+     - Mỗi lượt Admin mở xem bản scan CCHN đều được ghi vết bất biến vào `audit_logs` với hành động `ADMIN_VIEW_DOCTOR_LICENSE` lưu kèm mã Admin, IP và User-Agent để chống rò rỉ nội bộ.
+  3. **Tại Sao Phải Kích Hoạt Batch / Real-time Sync Vector Embeddings Sau Khi Duyệt?**
+     - Để công cụ tìm kiếm ngữ nghĩa (`pgvector`) hoạt động chính xác, mỗi bác sĩ cần có một vector nhúng 1536 chiều đại diện cho chuyên môn, học vị và kinh nghiệm lâm sàng (`bio_embedding`).
+     - **Nguyên tắc an toàn y tế:** Bác sĩ khi chưa được phê duyệt (`is_verified = false`) hoặc đang bị từ chối/tạm khóa **tuyệt đối KHÔNG ĐƯỢC xuất hiện trên kết quả tìm kiếm của bệnh nhân**.
+     - Ngay tại thời điểm Admin bấm **Approve**:
+       - Hệ thống cập nhật `verification_status = 'APPROVED'` và `is_verified = true`.
+       - Kích hoạt dịch vụ `doctorSemanticSearchService.updateDoctorVector(doctor)`: Tổng hợp thông tin chuyên môn, gọi mô hình embedding sinh vector 1536 chiều và ghi thẳng vào cột `bio_embedding` với chỉ mục HNSW.
+       - Đồng thời evict cache `doctors:verified` trên cả L1 (Caffeine) và L2 (Redis) để dữ liệu cập nhật tức thì tới người bệnh mà không cần khởi động lại server.
+       - Trong trường hợp bảo trì hoặc cập nhật lại thuật toán nhúng, Admin có tính năng **Batch Sync Vector Embeddings** để đồng bộ lại toàn bộ danh mục bác sĩ đã duyệt trong một batch job duy nhất."*
 
 ---
 

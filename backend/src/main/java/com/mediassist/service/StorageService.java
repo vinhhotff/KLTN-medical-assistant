@@ -21,6 +21,13 @@ public interface StorageService {
     String uploadDocument(byte[] fileBytes, String fileName, String contentType, UUID userId);
 
     /**
+     * Tải lên bản scan Chứng chỉ hành nghề (CCHN) của Bác sĩ vào Supabase Storage bucket private.
+     *
+     * @return object key trên Supabase (ví dụ doctor-licenses/{doctorId}/...) hoặc đường dẫn local
+     */
+    String uploadDoctorLicense(byte[] fileBytes, String fileName, String contentType, UUID doctorProfileId);
+
+    /**
      * Deletes medical document from storage (used in rollback compensating hooks to eliminate orphan files).
      *
      * @param storagePath object key, đường dẫn local, hoặc URL public kiểu cũ (tương thích ngược)

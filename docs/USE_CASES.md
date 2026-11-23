@@ -1248,36 +1248,36 @@ graph TD
 
 ---
 
-#### UC-DOC-12: Cập Nhật Hồ Sơ Chuyên Môn, Tiểu Sử & Tự Động Tái Tạo Vector AI (Update Doctor Profile & Biography)
+#### UC-DOC-12: Cập Nhật Hồ Sơ Chuyên Môn, Tải Bản Scan CCHN Lên Supabase & Vòng Đời Thẩm Định Y Tế (Update Doctor Profile, Upload CCHN & Vetting Lifecycle)
 
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
-> - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `PUT /api/v1/doctors/me/profile` (Quyền: `hasRole('DOCTOR')`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/profile` $\rightarrow$ Màn hình `DoctorProfilePage.tsx` (bố cục 4 bước Tài khoản → Thông tin hành nghề → Hồ sơ công khai → Xét duyệt theo Stitch, WORK_LOG #134)
-> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V10__optimize_doctor_hnsw_index.sql`
-> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService, EmbeddingService, TwoLayerCacheService` $\rightarrow$ `DoctorProfileRepository`
-> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java, EmbeddingServiceTest.java` (**100% PASS**)
+> - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `GET /api/v1/doctors/me/profile, PUT /api/v1/doctors/me/profile, POST /api/v1/doctors/me/license-document, GET /api/v1/doctors/me/license-document/view` (Quyền: `hasRole('DOCTOR')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/profile` $\rightarrow$ Màn hình `DoctorProfilePage.tsx` (bố cục 4 bước: Tài khoản $\rightarrow$ Thông tin hành nghề & Upload CCHN $\rightarrow$ Hồ sơ công khai $\rightarrow$ Thẩm định, hỗ trợ Upload Zone Supabase và Modal xem bản scan CCHN có chữ ký)
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V10__optimize_doctor_hnsw_index.sql, V25__enhance_doctor_vetting_and_credentials.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService, SupabaseStorageService, DoctorSemanticSearchService, TwoLayerCacheService` $\rightarrow$ `DoctorProfileRepository, AuditLogRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java, SupabaseStorageServiceTest.java` (**100% PASS**)
 
 | Attribute | Specification Details |
 | :--- | :--- |
 | **Use Case ID** | `UC-DOC-12` |
-| **Use Case Name** | Update Doctor Profile & Biography |
+| **Use Case Name** | Update Doctor Profile, Upload CCHN & Vetting Lifecycle |
 | **Created By** | SE-AI Capstone Team |
-| **Created Date** | 15/02/2026 |
+| **Created Date** | 15/02/2026 (Cập nhật chuẩn hóa V25 & Supabase Storage 23/11/2026) |
 | **Primary Actor** | Doctor |
-| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
-| **Description** | MediAssist-AI Doctor Onboarding & Profile Subsystem — Bước 2 trong quy trình 2 bước: Bác sĩ hoàn thiện 4 nhóm thông tin (`users` & `doctor_profiles`) gồm Định danh, Pháp lý CCHN (`licenseNumber`, `licenseIssuedBy`, `licenseDocumentUrl`), Chuyên môn (`academicTitle`, `specialtySlugs`, `hospitalAffiliation`, `department`, `yearsOfExperience`, `bio`) và Phí khám (`consultationFee`). Sau khi lưu, nếu chưa duyệt (`isVerified = false`), hiển thị trạng thái *"Hồ sơ của bạn đang được Ban quản trị thẩm định trong vòng 24h"*; nếu đã duyệt (`isVerified = true`), tự động tái tính vector embedding 1536 chiều. |
+| **Secondary Actor** | Supabase Cloud Storage (Private Bucket), PostgreSQL pgvector, Audit Subsystem |
+| **Description** | MediAssist-AI Doctor Onboarding & Credential Verification Subsystem — Bác sĩ hoàn thiện hồ sơ y tế theo Luật Khám bệnh, chữa bệnh 2023: Tải lên bản scan CCHN (PDF/Ảnh) trực tiếp vào bucket private Supabase Storage, khai báo Số CCHN, Cơ quan cấp, Ngày cấp và Phạm vi hoạt động chuyên môn. Hệ thống quản lý vòng đời thẩm định rõ ràng (`UNSUBMITTED` $\rightarrow$ `PENDING_VERIFICATION` $\rightarrow$ `APPROVED` hoặc `REJECTED`), hiển thị lý do từ chối cụ thể nếu có và cho phép nộp lại hồ sơ. |
 | **Trigger** | Bác sĩ được chuyển tới `/doctor/profile` ngay sau khi đăng ký Bước 1 hoặc chủ động cập nhật hồ sơ cá nhân. |
 | **Pre-conditions** | Bác sĩ đã đăng nhập (`Role = DOCTOR`). |
-| **Post-conditions** | - Bảng `users` (`full_name`, `phone`, `avatar_url`) và `doctor_profiles` (`license_number`, `license_issued_by`, `license_document_url`, `academic_title`, `hospital_affiliation`, `department`, `years_of_experience`, `bio`, `consultation_fee`, `doctor_specialties`) được cập nhật.<br>- Nếu `is_verified = true`, cache bác sĩ xác minh bị xóa và Vector AI được đồng bộ qua `DoctorSemanticSearchService`. |
-| **Normal Flow** | Step 1: Bác sĩ mở `/doctor/profile` (hoặc được điều hướng từ `DoctorRegisterForm`), nạp hồ sơ hiện tại từ `GET /api/v1/doctors/{userId}` và danh mục chuyên khoa từ `GET /api/v1/specialties`.<br>Step 2: Bác sĩ nhập/chỉnh sửa 4 nhóm thông tin: Nhóm 1 (Họ tên, SĐT, URL ảnh chân dung blouse trắng), Nhóm 2 (Số CCHN, Cơ quan cấp, Link file scan/ảnh CCHN), Nhóm 3 (Học hàm/Học vị, Danh sách chuyên khoa, Bệnh viện, Khoa, Kinh nghiệm, Tiểu sử chuyên môn), Nhóm 4 (Phí khám VNĐ).<br>Step 3: Frontend gọi `PUT /api/v1/doctors/me/profile` với `UpdateDoctorProfileRequest`.<br>Step 4: `DoctorService.updateDoctorProfile()` kiểm tra trùng SĐT (`409 PHONE_ALREADY_EXISTS`) và trùng CCHN với hồ sơ khác (`409 LICENSE_ALREADY_EXISTS`), sau đó lưu `User` và `DoctorProfile`.<br>Step 5: Nếu `isVerified = true`, xóa cache `doctors:verified` và cập nhật `bio_embedding`; nếu `isVerified = false`, giữ trạng thái chờ Admin thẩm định.<br>Step 6: Frontend đồng bộ `useAuthStore` và hiển thị thông báo: *"Hồ sơ của bạn đang được Ban quản trị thẩm định trong vòng 24h"* (nếu chờ duyệt) hoặc thông báo cập nhật thành công. |
-| **Alternative Flow** | - Alt Flow 11a: Dùng nút *"Điền nhanh Hồ sơ Chuyên môn mẫu"* (`ENABLE_DEMO_LOGIN`) để nạp dữ liệu CCHN mẫu khi demo. |
-| **Exceptions** | - Exc Flow 12a: Trùng số CCHN hoặc SĐT với bác sĩ khác $\rightarrow$ `409 Conflict` (`LICENSE_ALREADY_EXISTS` / `PHONE_ALREADY_EXISTS`). |
-| **Priority** | High (P0 - Doctor Onboarding) |
-| **Frequency of Use** | High (Every new doctor onboarding & periodic updates) |
-| **Business Rules** | - BR-31: Số CCHN phải là duy nhất trên toàn hệ thống (`UNIQUE license_number`); bác sĩ mới chỉ hiển thị công khai khi `is_verified = true` sau bước Admin vetting (`UC-ADM-05`). |
-| **Data Entities Involved** | `users`, `doctor_profiles`, `doctor_specialties`, `specialties`. |
-| **User Interface Controls** | Banner trạng thái thẩm định 24h, Nhóm 1–4 inputs, multi-select chuyên khoa, live preview phí khám & avatar, button `Gửi hồ sơ chờ thẩm định` / `Cập nhật hồ sơ chuyên môn`. |
+| **Post-conditions** | - Bảng `doctor_profiles` được lưu: `license_number`, `license_issued_by`, `license_issued_date`, `scope_of_practice`, `license_document_storage_path` (Supabase key), `verification_status`.<br>- Tệp scan CCHN được lưu trữ an toàn trong bucket private `medical-documents/doctor-licenses/...`<br>- Ghi `AuditLog` hành động `UPLOAD_DOCTOR_LICENSE_DOCUMENT`. |
+| **Normal Flow** | Step 1: Bác sĩ truy cập `/doctor/profile`. Frontend gọi `GET /api/v1/doctors/me/profile` nạp toàn diện thông tin và trạng thái thẩm định hiện tại.<br>Step 2: Tại vùng Upload CCHN, Bác sĩ kéo-thả hoặc bấm chọn tệp bản scan CCHN (PDF, PNG, JPG $\le$ 10MB).<br>Step 3: Frontend gửi `POST /api/v1/doctors/me/license-document` với `MultipartFile`. `DoctorService` xác thực MIME type y tế, lưu trữ lên Supabase Cloud Storage private bucket, cập nhật `license_document_storage_path` và ghi nhật ký kiểm toán `UPLOAD_DOCTOR_LICENSE_DOCUMENT`.<br>Step 4: Bác sĩ nhập/chỉnh sửa Số CCHN, Cơ quan cấp, Ngày cấp CCHN, Phạm vi chuyên môn, Bệnh viện công tác, Học hàm/Học vị, Chuyên khoa và Phí khám.<br>Step 5: Bác sĩ bấm *"Gửi hồ sơ thẩm định CCHN"* (`submitForVerification: true`). Backend lưu thông tin và chuyển `verification_status = 'PENDING_VERIFICATION'`.<br>Step 6: Frontend hiển thị Banner trạng thái *"Hồ Sơ Đang Trong Hàng Đợi Thẩm Định (Pending Vetting)"* và cho phép bác sĩ xem lại tệp đã tải qua signed URL ngắn hạn (15 phút). |
+| **Alternative Flow** | - Alt Flow 12a: Xem lại bản scan CCHN: Bác sĩ bấm *"Xem bản scan CCHN"*, Frontend gọi `GET /api/v1/doctors/me/license-document/view` lấy signed URL 15 phút và mở modal xem phóng to tệp có dấu đỏ.<br>- Alt Flow 12b: Hồ sơ bị từ chối (`verification_status = 'REJECTED'`): Bác sĩ nhận cảnh báo màu đỏ kèm lý do từ chối chi tiết (`rejection_reason`), thực hiện sửa đổi thông tin / tải lại tệp scan mới và bấm *"Nộp lại hồ sơ thẩm định"`.<br>- Alt Flow 12c: Dùng nút *"Điền mẫu (demo)"* (`ENABLE_DEMO_LOGIN`) để nạp nhanh bộ dữ liệu lâm sàng mẫu khi trình diễn hội đồng. |
+| **Exceptions** | - Exc Flow 12a: Trùng số CCHN hoặc SĐT với bác sĩ khác $\rightarrow$ `409 Conflict` (`LICENSE_ALREADY_EXISTS` / `PHONE_ALREADY_EXISTS`).<br>- Exc Flow 12b: Tệp tải lên vượt quá 10MB hoặc không đúng định dạng PDF/Ảnh $\rightarrow$ `400 Bad Request` (`FILE_TOO_LARGE` / `UNSUPPORTED_MEDIA_TYPE`). |
+| **Priority** | High (P0 - Doctor Onboarding & Clinical Legal Compliance) |
+| **Frequency of Use** | High (Every new doctor onboarding & credential maintenance) |
+| **Business Rules** | - BR-31: Bác sĩ chưa được xác thực (`is_verified = false`) bị loại trừ hoàn toàn khỏi danh sách tìm kiếm công khai và lịch đặt hẹn của bệnh nhân.<br>- BR-32: Bản scan CCHN được bảo vệ theo chuẩn HIPAA / Nghị định 96/2023/NĐ-CP: chỉ lưu trên bucket private, xem qua signed URL 900 giây có kiểm tra định danh JWT. |
+| **Data Entities Involved** | `users`, `doctor_profiles`, `doctor_specialties`, `specialties`, `audit_logs`. |
+| **User Interface Controls** | Verification Status Banner (4 trạng thái), Upload Zone kéo thả Supabase Storage, Document Badge xem tệp, Date Picker ngày cấp, Textarea phạm vi chuyên môn, Modal Document Inspector, Button `Gửi hồ sơ thẩm định CCHN`. |
 
 ---
 
@@ -1486,36 +1486,36 @@ graph TD
 
 ---
 
-#### UC-ADM-05: Thẩm Định Chứng Chỉ Hành Nghề CCHN & Phê Duyệt Bác Sĩ (Vet & Approve Doctor CCHN License)
+#### UC-ADM-05: Thẩm Định Chứng Chỉ Hành Nghề CCHN, Đối Soát Bản Scan Supabase & Phê Duyệt Bác Sĩ (Vet & Approve Doctor CCHN License)
 
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
-> - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/doctors/pending, POST /api/v1/admin/doctors/{id}/vet` (Quyền: `PUBLIC / AUTH_DEFAULT`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/doctors` $\rightarrow$ Màn hình `DoctorManagementPage.tsx, DoctorVettingPage.tsx`
-> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles, audit_logs, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V9__verify_all_specialties_and_seed_pending_doctors.sql`
-> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AdminVettingService, NotificationService, EmailService` $\rightarrow$ `DoctorProfileRepository, AuditLogRepository, NotificationRepository`
-> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AdminVettingServiceTest.java` (**100% PASS**)
+> - **Backend Controller & Endpoint:** `AdminController` $\rightarrow$ `GET /api/v1/admin/doctors/pending, POST /api/v1/admin/doctors/{id}/vet, GET /api/v1/admin/doctors/{id}/license-document/view` (Quyền: `hasRole('ADMIN')`)
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/admin/doctors` (Tab Thẩm định) $\rightarrow$ Màn hình `DoctorManagementPage.tsx, DoctorVettingPage.tsx` (tích hợp Document Inspector Modal xem phóng to bản scan CCHN có mộc đỏ và checklist đối soát y tế)
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles, audit_logs, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V9__verify_all_specialties_and_seed_pending_doctors.sql, V25__enhance_doctor_vetting_and_credentials.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AdminVettingService, SupabaseStorageService, NotificationService` $\rightarrow$ `DoctorProfileRepository, AuditLogRepository, NotificationRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `AdminVettingServiceTest.java` (**100% PASS - 22/22 tests**)
 
 | Attribute | Specification Details |
 | :--- | :--- |
 | **Use Case ID** | `UC-ADM-05` |
-| **Use Case Name** | Vet & Approve Doctor CCHN License |
+| **Use Case Name** | Vet & Approve Doctor CCHN License via Supabase Storage Audit |
 | **Created By** | SE-AI Capstone Team |
-| **Created Date** | 15/02/2026 |
-| **Primary Actor** | Admin |
-| **Secondary Actor** | PostgreSQL Audit Subsystem, Redis Telemetry Aggregator |
-| **Description** | MediAssist-AI Vetting Subsystem — Doctor verified (`is_verified = true`) and activated for public search. |
-| **Trigger** | Admin reviews pending doctor license applications. |
-| **Pre-conditions** | Doctor account exists with `is_verified = false` (created via self-registration `POST /api/v1/auth/register/doctor` or Admin creation). |
-| **Post-conditions** | Doctor verified (`is_verified = true`), user status ensured `ACTIVE` (promoted if `PENDING_VERIFICATION`), and activated for public search. |
-| **Normal Flow** | Step 1: Admin navigates to `/admin/doctors`.<br>Step 2: Frontend calls HTTP GET `/api/v1/admin/doctors` / `/api/v1/admin/doctors/pending`.<br>Step 3: Backend returns doctors (`DoctorDetailDto` kèm `@JsonProperty("isVerified")` và `licenseDocumentUrl`), Tab Chờ duyệt lọc `isVerified = false`.<br>Step 4: Admin inspects CCHN license number, clickable link `Xem bản scan CCHN` (`licenseDocumentUrl`), issuing authority, and specialty credentials against Bộ Y Tế portal.<br>Step 5: Admin clicks "Phê Duyệt & Tính Vector AI" (Approve).<br>Step 6: Frontend calls HTTP POST `/api/v1/admin/doctors/{id}/vet` with `VetDoctorRequest(approved=true)`.<br>Step 7: Backend sets `doctor_profiles.is_verified = true`, `verified_at = now()`, and promotes `UserStatus.PENDING_VERIFICATION` $\rightarrow$ `UserStatus.ACTIVE` if needed.<br>Step 8: Backend triggers vector embedding generation (`pgvector`) if missing.<br>Step 9: Backend sends in-app notification (`VETTING_APPROVED`) to doctor.<br>Step 10: Frontend removes doctor from pending queue and moves them to active verified roster. |
-| **Alternative Flow** | - Alt Flow 11a: Reject Application:<br>1. Admin calls vetting endpoint with `approved = false` and rejection reason.<br>2. Backend sends rejection email prompting re-submission. |
-| **Exceptions** | None. |
-| **Priority** | High (P0 - Legal Compliance) |
-| **Frequency of Use** | Medium (Periodic / Administrative) |
-| **Business Rules** | - BR-13: Unverified doctors are strictly excluded from public search and booking. |
-| **Data Entities Involved** | `doctor_profiles`, `audit_logs`. |
-| **User Interface Controls** | Pending doctors tab, "Phê Duyệt" button, "Từ Chối" button. |
+| **Created Date** | 15/02/2026 (Cập nhật chuẩn hóa V25 & Document Inspector 23/11/2026) |
+| **Primary Actor** | Admin / Medical Credentialing Officer |
+| **Secondary Actor** | Supabase Cloud Storage (Private Bucket), PostgreSQL pgvector, In-App Notification Engine |
+| **Description** | MediAssist-AI Vetting Subsystem — Quản trị viên y tế tiến hành đối soát hồ sơ bác sĩ: Mở xem trực tiếp bản scan CCHN phóng to được bảo vệ trên Supabase Storage qua signed URL tạm thời 15 phút, kiểm tra con dấu đỏ, chữ ký và phạm vi hành nghề chuyên môn theo checklist chuẩn Bộ Y Tế. Nếu phê duyệt (`approved = true`), tài khoản được kích hoạt (`ACTIVE`, `is_verified = true`, `verification_status = 'APPROVED'`), tự động đồng bộ vector ngữ nghĩa `pgvector` HNSW và bắn thông báo chúc mừng. Nếu từ chối (`approved = false`), hệ thống bắt buộc nhập lý do (`rejection_reason`), chuyển trạng thái `REJECTED`, ghi nhật ký kiểm toán và gửi thông báo yêu cầu bổ sung tới bác sĩ. |
+| **Trigger** | Quản trị viên truy cập hàng đợi duyệt tại `/admin/vetting` hoặc tab Chờ thẩm định trên `/admin/doctors`. |
+| **Pre-conditions** | Hồ sơ bác sĩ đang ở trạng thái `verification_status = 'PENDING_VERIFICATION'` hoặc `is_verified = false`. |
+| **Post-conditions** | - Nếu duyệt: `doctor_profiles.is_verified = true`, `verification_status = 'APPROVED'`, `verified_at = now()`, `users.status = ACTIVE`, vector embedding `pgvector` được cập nhật.<br>- Nếu từ chối: `verification_status = 'REJECTED'`, `rejection_reason` và `rejection_at` được lưu.<br>- Ghi nhật ký kiểm toán `VET_DOCTOR_APPROVED` hoặc `VET_DOCTOR_REJECTED` trong `audit_logs`. |
+| **Normal Flow** | Step 1: Admin truy cập `/admin/vetting`. Frontend gọi `GET /api/v1/admin/doctors/pending` lấy danh sách hồ sơ đang chờ xét duyệt.<br>Step 2: Admin bấm *"Xem Bản Scan CCHN"*. Frontend gọi `GET /api/v1/admin/doctors/{id}/license-document/view`. Backend cấp signed URL 15 phút từ Supabase Storage và ghi `AuditLog` hành động `ADMIN_VIEW_DOCTOR_LICENSE`.<br>Step 3: Giao diện mở **Document Inspector Modal**: hiển thị bản scan CCHN độ phân giải cao (PDF hoặc ảnh), hiển thị checklist đối soát (Số hiệu CCHN trên Cổng BYT, Con dấu đỏ, Chữ ký người có thẩm quyền, Phạm vi hành nghề chuyên môn).<br>Step 4: Admin đối soát thông tin khớp 100% và bấm *"Xác Nhận Đạt Chuẩn & Phê Duyệt"*.<br>Step 5: Frontend gửi `POST /api/v1/admin/doctors/{id}/vet` với `VetDoctorRequest(approve=true)`.<br>Step 6: Backend cập nhật `is_verified = true`, `verification_status = 'APPROVED'`, kích hoạt tài khoản `ACTIVE`, kích hoạt đồng bộ `bio_embedding` vào đồ thị HNSW pgvector, xóa cache L1/L2 `doctors:verified`, ghi audit log và phát In-App Notification `VETTING_APPROVED`.<br>Step 7: Bác sĩ ngay lập tức xuất hiện trên danh bạ công khai và bệnh nhân có thể đặt lịch khám. |
+| **Alternative Flow** | - Alt Flow 11a: Từ chối cấp phép do CCHN không hợp lệ / mờ / sai lệch thông tin:<br>1. Admin bấm *"Từ Chối"*, giao diện hiển thị Rejection Modal bắt buộc nhập lý do chi tiết.<br>2. Frontend gọi `POST /api/v1/admin/doctors/{id}/vet` với `approve = false` và `rejectionReason = "..."`.<br>3. Backend lưu `verification_status = 'REJECTED'`, `rejection_reason`, `rejection_at` vào `doctor_profiles` và phát In-App Notification `VETTING_REJECTED` tới bác sĩ.<br>4. Tại giao diện bác sĩ, hiển thị cảnh báo đỏ kèm đúng lý do này và hướng dẫn nộp lại hồ sơ. |
+| **Exceptions** | - Exc Flow 11a: Admin cố tình phê duyệt bác sĩ không tồn tại $\rightarrow$ `404 Not Found`.<br>- Exc Flow 11b: Từ chối mà để trống lý do $\rightarrow$ `400 Bad Request`. |
+| **Priority** | High (P0 - Clinical Credentialing & Legal Compliance) |
+| **Frequency of Use** | Medium (Mỗi khi có bác sĩ mới đăng ký gia nhập hệ thống) |
+| **Business Rules** | - BR-13: Bác sĩ chưa duyệt (`is_verified = false`) bị cấm triệt để khỏi bộ lọc tìm kiếm và tiếp nhận lịch khám.<br>- BR-33: Mọi lượt thanh tra bản scan CCHN của Admin đều bắt buộc ghi nhận vào bảng `audit_logs` để phục vụ thanh tra y tế định kỳ. |
+| **Data Entities Involved** | `doctor_profiles`, `users`, `audit_logs`, `notifications`. |
+| **User Interface Controls** | Nút `Xem Bản Scan CCHN`, Document Inspector Modal (Supabase signed URL iframe/img), Checklist đối soát, Nút `Xác Nhận Đạt Chuẩn & Phê Duyệt`, Modal Từ Chối & Nhập Lý Do. |
 
 ---
 

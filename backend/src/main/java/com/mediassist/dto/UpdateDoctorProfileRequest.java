@@ -19,8 +19,20 @@ public class UpdateDoctorProfileRequest {
     private String hospitalAffiliation;
     private String department;
     private String licenseIssuedBy;
+    private java.time.LocalDate licenseIssuedDate;
+    private String scopeOfPractice;
+    private Boolean submitForVerification;
 
     public UpdateDoctorProfileRequest() {}
+
+    public java.time.LocalDate getLicenseIssuedDate() { return licenseIssuedDate; }
+    public void setLicenseIssuedDate(java.time.LocalDate licenseIssuedDate) { this.licenseIssuedDate = licenseIssuedDate; }
+
+    public String getScopeOfPractice() { return scopeOfPractice; }
+    public void setScopeOfPractice(String scopeOfPractice) { this.scopeOfPractice = scopeOfPractice; }
+
+    public Boolean getSubmitForVerification() { return submitForVerification; }
+    public void setSubmitForVerification(Boolean submitForVerification) { this.submitForVerification = submitForVerification; }
 
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }

@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#143** | 23/11/2026 | Nâng Cấp Toàn Diện Luồng Onboarding & Kiểm Định Bác Sĩ (Doctor Onboarding & Vetting Overhaul) với Supabase Cloud Storage & Thẩm Định CCHN Chuẩn Bộ Y Tế: (1) Flyway V25: thêm `verification_status` (UNSUBMITTED, PENDING_VERIFICATION, APPROVED, REJECTED), `rejection_reason`, `rejection_at`, `license_issued_date`, `scope_of_practice`, `license_document_storage_path` và index `idx_doctor_verification_status`; (2) Tích hợp Supabase Cloud Storage Private Bucket `medical-documents` (`doctor-licenses/...`), cấp Signed URL 15 phút an toàn kèm fallback local an toàn; (3) Cập nhật DoctorService & AdminVettingService: upload scan CCHN, lấy Signed URL, đối soát hồ sơ, từ chối có lý do, phê duyệt đồng bộ pgvector embedding, ghi audit log `UPLOAD_DOCTOR_LICENSE_DOCUMENT` & `ADMIN_VIEW_DOCTOR_LICENSE`; (4) Làm mới giao diện `DoctorProfilePage.tsx` (upload zone kéo thả, xem scan CCHN phóng to, banner 4 trạng thái, nút nộp thẩm định), `DoctorVettingPage.tsx` (xem scan CCHN, modal Document Inspector với checklist BYT), `DoctorManagementPage.tsx`; (5) 331/331 unit tests PASS, frontend build 0 lỗi TS. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#142** | 23/11/2026 | Kiểm Tra & Đồng Bộ Toàn Diện Ma Trận Biến Môi Trường (Environment Audit & Secret Persistence Baseline): (1) Kiểm tra live 100% các cổng AI: Google Gemini 3.5 Flash API (23 flash models, phản hồi test live 200 OK), OpenRouter Free Fallback (phản hồi test live 200 OK); (2) Kiểm tra live Supabase Cloud Private Storage: bucket `medical-documents` phản hồi 200 OK với `service_role` key; (3) Kiểm tra Google OAuth2 Client ID/Secret; (4) Đồng bộ và sinh tệp `.env` (gốc) & `backend/.env` từ `application-local.properties`; (5) Bổ sung `VITE_ENABLE_DEMO_LOGIN=true` vào `frontend/.env`; (6) Rà soát trạng thái Gmail SMTP (`SMTP_PASSWORD` hiện trống, cần App Password 16 ký tự nếu gửi email thật hoặc chuyển Mailpit localhost:1025). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#141** | 23/11/2026 | Làm lại giao diện trang Đăng nhập / Đăng ký theo 2 ảnh thiết kế mới: `/login` mặc định Đăng nhập (`?mode=register` mở Đăng ký), bỏ CCCD/VNeID giả lập và các nhãn HIPAA/e-PHI chưa triển khai, thêm chip đăng nhập nhanh khi bật `ENABLE_DEMO_LOGIN`, đổi sang bảng màu indigo của Stitch. Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#140** | 23/11/2026 | Thiết kế lại giao diện Quản trị theo Google Stitch (Đợt 3/3): `AdminLayout` sidebar navy 2 nhóm + trạng thái hệ thống thật từ `/health/ready`, trang mới `AiStatsPage` (màn 09) và `AiCostPage` (màn 10), viết lại `AuditLogPage` (màn 11). Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -79,6 +80,60 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#143] Nâng Cấp Toàn Diện Luồng Onboarding & Kiểm Định Bác Sĩ (Doctor Onboarding & Vetting Overhaul) Với Supabase Cloud Storage & Thẩm Định CCHN Chuẩn Bộ Y Tế
+* **Thời gian:** 2026-11-23 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `develop`
+* **Mã Yêu Cầu:** Khắc phục luồng đăng ký & thẩm định bác sĩ sơ sài; tích hợp upload tệp scan CCHN (PDF/ảnh) trực tiếp lên Supabase Cloud Storage (Private Bucket), bảo vệ bằng Signed URL 15 phút, quản lý vòng đời thẩm định 4 trạng thái (`UNSUBMITTED`, `PENDING_VERIFICATION`, `APPROVED`, `REJECTED`) và đồng bộ vector pgvector HNSW sau khi duyệt.
+* **Chi Tiết Thực Thi Kỹ Thuật:**
+  1. **Flyway Migration V25 (`V25__enhance_doctor_vetting_and_credentials.sql`):**
+     - Bổ sung 6 cột mới vào bảng `doctor_profiles`: `verification_status VARCHAR(30) DEFAULT 'UNSUBMITTED'`, `rejection_reason TEXT`, `rejection_at TIMESTAMPTZ`, `license_issued_date DATE`, `scope_of_practice TEXT`, `license_document_storage_path TEXT`.
+     - Backfill an toàn cho các bác sĩ hiện hữu: `APPROVED` cho bác sĩ đã duyệt, `PENDING_VERIFICATION` cho bác sĩ có số CCHN nhưng chưa duyệt, `UNSUBMITTED` cho hồ sơ mới.
+     - Tạo B-Tree index `idx_doctor_verification_status` phục vụ lọc nhanh trên Cổng Admin.
+  2. **Supabase Cloud Storage Private Integration (`StorageService` & `SupabaseStorageService`):**
+     - Bổ sung phương thức `uploadDoctorLicense(byte[] fileBytes, String fileName, String contentType, UUID doctorProfileId)`.
+     - Lưu trữ tệp dưới cấu trúc key chuẩn bảo mật: `doctor-licenses/{doctorProfileId}/{uuid}_{fileName}` trong private bucket `medical-documents`.
+     - Cơ chế cấp Signed URL 15 phút (900s) qua `createSignedUrl` và zero-crash fallback lưu trữ local an toàn.
+  3. **Backend Services & Security Guardrails (`DoctorService` & `AdminVettingService`):**
+     - Kiểm soát định dạng tệp (PDF, JPEG, PNG, WEBP) và chặn giới hạn dung lượng $\le$ 10MB.
+     - Endpoint tải lên scan CCHN: `POST /api/v1/doctors/me/license-document`, ghi nhật ký kiểm toán `UPLOAD_DOCTOR_LICENSE_DOCUMENT`.
+     - Cấp Signed URL xem lại CCHN chính chủ: `GET /api/v1/doctors/me/license-document/view`.
+     - Admin thanh tra CCHN với cơ chế chống IDOR: `GET /api/v1/admin/doctors/{id}/license-document/view`, ghi nhật ký kiểm toán `ADMIN_VIEW_DOCTOR_LICENSE` lưu IP và mã quản trị viên.
+     - Luồng duyệt bác sĩ (`vetDoctor`): Khi `APPROVED` $\rightarrow$ xóa lý do từ chối cũ, kích hoạt đồng bộ vector embedding `bio_embedding` 1536 chiều vào pgvector và gửi thông báo in-app `VETTING_APPROVED`; khi `REJECTED` $\rightarrow$ lưu `rejection_reason` và `rejection_at`, gửi thông báo in-app `VETTING_REJECTED` hướng dẫn bác sĩ sửa hồ sơ.
+  4. **Tái Thiết Kế Giao Diện Frontend (React 18 SPA):**
+     - `DoctorProfilePage.tsx`: Upload Zone kéo-thả chuyên nghiệp cho CCHN, thẻ Document Badge hiển thị tên file + nút xem scan CCHN phóng to trong Modal (iframe/img) + nút thay tệp khác; bổ sung input Ngày cấp CCHN và Phạm vi chuyên môn; Verification Status Banner 4 trạng thái kèm phản hồi lý do từ chối từ Admin và nút nộp hồ sơ thẩm định.
+     - `DoctorVettingPage.tsx`: Hiển thị ngày cấp CCHN, phạm vi chuyên môn; nút xem scan CCHN (biểu tượng mắt) mở Modal Document Inspector trực quan kèm Checklist đối soát 4 tiêu chí chuẩn Bộ Y Tế.
+     - `DoctorManagementPage.tsx`: Bổ sung xem CCHN trong tab Vetting và Modal chi tiết bác sĩ.
+* **Danh Sách Tệp Tin Cập Nhật:**
+  1. `[NEW]` `backend/src/main/resources/db/migration/V25__enhance_doctor_vetting_and_credentials.sql`
+  2. `[NEW]` `backend/src/main/java/com/mediassist/model/entity/VerificationStatus.java`
+  3. `[NEW]` `backend/src/main/java/com/mediassist/dto/DoctorLicenseUploadResponseDto.java`
+  4. `[MOD]` `backend/src/main/java/com/mediassist/model/entity/DoctorProfile.java`
+  5. `[MOD]` `backend/src/main/java/com/mediassist/dto/DoctorDetailDto.java`
+  6. `[MOD]` `backend/src/main/java/com/mediassist/dto/DocumentFileAccessDto.java`
+  7. `[MOD]` `backend/src/main/java/com/mediassist/dto/UpdateDoctorProfileRequest.java`
+  8. `[MOD]` `backend/src/main/java/com/mediassist/service/StorageService.java`
+  9. `[MOD]` `backend/src/main/java/com/mediassist/service/SupabaseStorageService.java`
+  10. `[MOD]` `backend/src/main/java/com/mediassist/service/DoctorService.java`
+  11. `[MOD]` `backend/src/main/java/com/mediassist/service/AdminVettingService.java`
+  12. `[MOD]` `backend/src/main/java/com/mediassist/controller/DoctorController.java`
+  13. `[MOD]` `backend/src/main/java/com/mediassist/controller/AdminController.java`
+  14. `[MOD]` `backend/src/test/java/com/mediassist/DoctorServiceTest.java`
+  15. `[MOD]` `backend/src/test/java/com/mediassist/service/AdminVettingServiceTest.java`
+  16. `[MOD]` `frontend/src/pages/doctor/DoctorProfilePage.tsx`
+  17. `[MOD]` `frontend/src/pages/admin/DoctorVettingPage.tsx`
+  18. `[MOD]` `frontend/src/pages/admin/DoctorManagementPage.tsx`
+  19. `[MOD]` `docs/DATABASE_DESIGN.md`
+  20. `[MOD]` `docs/USE_CASES.md`
+* **Bằng Chứng Kiểm Thử:**
+  - `mvn test`: **331/331 tests PASS** (100% SUCCESS, 0 failures, 0 errors).
+  - `npm run build`: **0 lỗi TypeScript** (2.325 modules transformed, built in 2.56s).
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Bản scan CCHN được cô lập trong Supabase Private Bucket `medical-documents/doctor-licenses/...` và chỉ xem qua Signed URL 15 phút, mọi lượt xem của Admin đều ghi nhận audit log để đảm bảo không rò rỉ thông tin cá nhân bác sĩ.
+  - Sau khi Admin bấm Approve, hệ thống tự động gọi `doctorSemanticSearchService.updateDoctorVector(doctor)` đồng bộ vector vào pgvector HNSW để bác sĩ xuất hiện ngay trên công cụ tìm kiếm của bệnh nhân.
+
+---
 
 ### [WORK-LOG-#142] Kiểm Tra & Đồng Bộ Toàn Diện Ma Trận Biến Môi Trường (Environment Audit & Secret Persistence Baseline)
 * **Thời gian:** 2026-11-23 (GMT+7)

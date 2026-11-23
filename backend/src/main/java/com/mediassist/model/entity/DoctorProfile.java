@@ -5,6 +5,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -12,7 +13,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "doctor_profiles", indexes = {
-        @Index(name = "idx_doctor_verified", columnList = "is_verified")
+        @Index(name = "idx_doctor_verified", columnList = "is_verified"),
+        @Index(name = "idx_doctor_verification_status", columnList = "verification_status")
 })
 public class DoctorProfile {
 
@@ -33,6 +35,9 @@ public class DoctorProfile {
     @Column
     private String licenseDocumentUrl;
 
+    @Column(name = "license_document_storage_path", columnDefinition = "TEXT")
+    private String licenseDocumentStoragePath;
+
     @Column(precision = 10, scale = 2)
     private BigDecimal consultationFee = BigDecimal.ZERO;
 
@@ -44,6 +49,22 @@ public class DoctorProfile {
 
     @Column
     private LocalDateTime verifiedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status", length = 30)
+    private VerificationStatus verificationStatus = VerificationStatus.UNSUBMITTED;
+
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
+    @Column(name = "rejection_at")
+    private LocalDateTime rejectionAt;
+
+    @Column(name = "license_issued_date")
+    private LocalDate licenseIssuedDate;
+
+    @Column(name = "scope_of_practice", columnDefinition = "TEXT")
+    private String scopeOfPractice;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -83,6 +104,24 @@ public class DoctorProfile {
     private LocalDateTime updatedAt;
 
     public DoctorProfile() {}
+
+    public VerificationStatus getVerificationStatus() { return verificationStatus != null ? verificationStatus : (isVerified ? VerificationStatus.APPROVED : VerificationStatus.UNSUBMITTED); }
+    public void setVerificationStatus(VerificationStatus verificationStatus) { this.verificationStatus = verificationStatus; }
+
+    public String getRejectionReason() { return rejectionReason; }
+    public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+
+    public LocalDateTime getRejectionAt() { return rejectionAt; }
+    public void setRejectionAt(LocalDateTime rejectionAt) { this.rejectionAt = rejectionAt; }
+
+    public LocalDate getLicenseIssuedDate() { return licenseIssuedDate; }
+    public void setLicenseIssuedDate(LocalDate licenseIssuedDate) { this.licenseIssuedDate = licenseIssuedDate; }
+
+    public String getScopeOfPractice() { return scopeOfPractice; }
+    public void setScopeOfPractice(String scopeOfPractice) { this.scopeOfPractice = scopeOfPractice; }
+
+    public String getLicenseDocumentStoragePath() { return licenseDocumentStoragePath; }
+    public void setLicenseDocumentStoragePath(String licenseDocumentStoragePath) { this.licenseDocumentStoragePath = licenseDocumentStoragePath; }
 
     public String getAcademicTitle() { return academicTitle; }
     public void setAcademicTitle(String academicTitle) { this.academicTitle = academicTitle; }

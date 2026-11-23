@@ -1,12 +1,14 @@
 package com.mediassist.controller;
 
 import com.mediassist.common.ApiResponse;
+import com.mediassist.common.AppException;
 import com.mediassist.dto.*;
 import com.mediassist.security.UserPrincipal;
 import com.mediassist.service.AdminVettingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -115,6 +117,33 @@ public class AdminController {
             @AuthenticationPrincipal UserPrincipal principal) {
         DoctorDetailDto result = adminVettingService.vetDoctor(id, request.getApprove(), request.getRejectionReason(), principal.getId());
         return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @GetMapping("/doctors/{id}/license-document/view")
+    @Operation(summary = "Get short-lived signed URL for admin to inspect doctor CCHN scan",
+               description = "Issues a 15-minute secure signed URL from private Supabase Storage and records an audit log.")
+    public ResponseEntity<ApiResponse<com.mediassist.dto.DocumentFileAccessDto>> getDoctorLicenseDocumentForAdmin(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        com.mediassist.dto.DocumentFileAccessDto access = adminVettingService.getDoctorLicenseForAdmin(id, principal.getId());
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.noStore())
+                .body(ApiResponse.success(access));
+    }
+
+    @GetMapping("/doctors/{id}/license-document/file")
+    @Operation(summary = "Stream local doctor license scan for admin verification (fallback dev mode)")
+    public ResponseEntity<byte[]> viewDoctorLicenseLocalFileForAdmin(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        byte[] bytes = adminVettingService.readDoctorLicenseLocalFileForAdmin(id, principal.getId());
+        if (bytes == null || bytes.length == 0) {
+            throw new AppException(HttpStatus.NOT_FOUND, "FILE_NOT_AVAILABLE", "Tệp giấy phép hành nghề không tồn tại.");
+        }
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.noStore())
+                .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                .body(bytes);
     }
 
     @GetMapping("/users")

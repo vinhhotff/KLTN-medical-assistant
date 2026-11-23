@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Save,
   Check,
@@ -10,6 +10,14 @@ import {
   Image as ImageIcon,
   Mail,
   Lock,
+  UploadCloud,
+  FileText,
+  AlertCircle,
+  FileBadge,
+  Eye,
+  X,
+  RefreshCw,
+  FileCheck,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
@@ -23,6 +31,8 @@ interface SpecialtyOption {
   slug: string;
   description?: string;
 }
+
+type VerificationStatusType = 'UNSUBMITTED' | 'PENDING_VERIFICATION' | 'APPROVED' | 'REJECTED';
 
 const ACADEMIC_TITLES = [
   { value: 'GS.TS', label: 'GS.TS (Giáo sư - Tiến sĩ)' },
@@ -88,12 +98,27 @@ export const DoctorProfilePage: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
 
-  // Nhóm 2: Pháp lý & Bằng cấp (Chuẩn Bộ Y Tế)
+  // Nhóm 2: Pháp lý & Bằng cấp (Chuẩn Bộ Y Tế & Supabase Storage)
   const [licenseNumber, setLicenseNumber] = useState('');
   const [licenseIssuedBy, setLicenseIssuedBy] = useState('');
   const [licenseDocumentUrl, setLicenseDocumentUrl] = useState('');
+  const [licenseDocumentStoragePath, setLicenseDocumentStoragePath] = useState('');
+  const [hasLicenseDocument, setHasLicenseDocument] = useState(false);
+  const [licenseIssuedDate, setLicenseIssuedDate] = useState('');
+  const [scopeOfPractice, setScopeOfPractice] = useState('');
   const [isVerified, setIsVerified] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatusType>('UNSUBMITTED');
+  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+  const [rejectionAt, setRejectionAt] = useState<string | null>(null);
   const [hasSubmittedCchn, setHasSubmittedCchn] = useState(false);
+
+  // Upload tệp CCHN lên Supabase
+  const [uploadingLicense, setUploadingLicense] = useState(false);
+  const [uploadedLicenseName, setUploadedLicenseName] = useState<string | null>(null);
+  const [previewSignedUrl, setPreviewSignedUrl] = useState<string | null>(null);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [loadingPreviewUrl, setLoadingPreviewUrl] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Nhóm 3: Chuyên môn & Nơi công tác
   const [academicTitle, setAcademicTitle] = useState('BS');
@@ -110,6 +135,7 @@ export const DoctorProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [submittingVerification, setSubmittingVerification] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const [savedBannerMsg, setSavedBannerMsg] = useState<string | null>(null);
 
@@ -119,7 +145,7 @@ export const DoctorProfilePage: React.FC = () => {
     setLoadError(null);
     try {
       const [profileRes, specRes] = await Promise.all([
-        api.get(`/doctors/${user.id}`),
+        api.get('/doctors/me/profile').catch(() => api.get(`/doctors/${user.id}`)),
         api.get('/specialties'),
       ]);
       const specsList: SpecialtyOption[] = Array.isArray(specRes.data?.data) ? specRes.data.data : [];
@@ -135,8 +161,17 @@ export const DoctorProfilePage: React.FC = () => {
       setLicenseNumber(d.licenseNumber || '');
       setLicenseIssuedBy(d.licenseIssuedBy || 'Bộ Y Tế');
       setLicenseDocumentUrl(d.licenseDocumentUrl || '');
+      setLicenseDocumentStoragePath(d.licenseDocumentStoragePath || '');
+      setHasLicenseDocument(Boolean(d.hasLicenseDocument || d.licenseDocumentStoragePath || d.licenseDocumentUrl));
+      setLicenseIssuedDate(d.licenseIssuedDate || '');
+      setScopeOfPractice(d.scopeOfPractice || '');
       const verifiedFlag = Boolean(d.isVerified ?? d.verified);
       setIsVerified(verifiedFlag);
+      
+      const status: VerificationStatusType = (d.verificationStatus as VerificationStatusType) || (verifiedFlag ? 'APPROVED' : (d.licenseNumber ? 'PENDING_VERIFICATION' : 'UNSUBMITTED'));
+      setVerificationStatus(status);
+      setRejectionReason(d.rejectionReason || null);
+      setRejectionAt(d.rejectionAt || null);
       setHasSubmittedCchn(Boolean(d.licenseNumber && String(d.licenseNumber).trim().length > 0));
 
       setConsultationFee(
@@ -220,9 +255,12 @@ export const DoctorProfilePage: React.FC = () => {
     if (!phone.trim()) setPhone('0901234567');
     setLicenseNumber(cchn);
     setLicenseIssuedBy(preset.licenseIssuedBy);
+    setLicenseIssuedDate('2020-05-15');
+    setScopeOfPractice('Khám bệnh, chữa bệnh chuyên khoa Nội khoa tổng quát, chỉ định cận lâm sàng và tư vấn đơn thuốc.');
     if (!licenseDocumentUrl.trim()) {
       setLicenseDocumentUrl(`https://res.cloudinary.com/demo/image/upload/v1/sample.jpg`);
     }
+    setHasLicenseDocument(true);
     setAcademicTitle(preset.academicTitle);
     if (pickedSlug) setSpecialtySlugs([pickedSlug]);
     setHospitalAffiliation(preset.hospitalAffiliation);
@@ -234,14 +272,75 @@ export const DoctorProfilePage: React.FC = () => {
     toast.success(`Đã điền mẫu hồ sơ CCHN (${cchn}). Nhấn "Gửi Hồ Sơ Chờ Thẩm Định" để lưu.`);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Kích thước tệp không được vượt quá 10MB.');
+      return;
+    }
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Vui lòng chọn file PDF, JPEG, PNG hoặc WEBP.');
+      return;
+    }
+
+    try {
+      setUploadingLicense(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/doctors/me/license-document', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const data = res.data?.data;
+      if (data) {
+        setLicenseDocumentStoragePath(data.storagePath || '');
+        setLicenseDocumentUrl(data.viewUrl || '');
+        setPreviewSignedUrl(data.viewUrl || null);
+        setHasLicenseDocument(true);
+        setUploadedLicenseName(file.name);
+        if (data.verificationStatus) {
+          setVerificationStatus(data.verificationStatus as VerificationStatusType);
+        }
+        toast.success(`Đã tải lên bản scan CCHN (${file.name}) lên Supabase Storage bảo mật thành công!`);
+      }
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Tải lên bản scan CCHN thất bại. Vui lòng thử lại.'));
+    } finally {
+      setUploadingLicense(false);
+    }
+  };
+
+  const handleViewLicenseDocument = async () => {
+    if (previewSignedUrl) {
+      setPreviewModalOpen(true);
+      return;
+    }
+    try {
+      setLoadingPreviewUrl(true);
+      const res = await api.get('/doctors/me/license-document/view');
+      const access = res.data?.data;
+      if (access?.url) {
+        setPreviewSignedUrl(access.url);
+        setPreviewModalOpen(true);
+      } else {
+        toast.error('Không tìm thấy tệp chứng chỉ hành nghề.');
+      }
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Không thể lấy liên kết xem tài liệu CCHN.'));
+    } finally {
+      setLoadingPreviewUrl(false);
+    }
+  };
+
+  const handleSaveInternal = async (submitForVerification = false) => {
     setAttempted(true);
     setSavedBannerMsg(null);
     if (saving || hasErrors) return;
 
     try {
       setSaving(true);
+      if (submitForVerification) setSubmittingVerification(true);
+
       const res = await api.put('/doctors/me/profile', {
         fullName: fullName.trim(),
         phone: phone.replace(/\s/g, ''),
@@ -249,6 +348,9 @@ export const DoctorProfilePage: React.FC = () => {
         licenseNumber: licenseNumber.trim().toUpperCase(),
         licenseIssuedBy: licenseIssuedBy.trim(),
         licenseDocumentUrl: licenseDocumentUrl.trim(),
+        licenseIssuedDate: licenseIssuedDate.trim() || null,
+        scopeOfPractice: scopeOfPractice.trim() || null,
+        submitForVerification,
         academicTitle: academicTitle || 'BS',
         specialtySlugs,
         hospitalAffiliation: hospitalAffiliation.trim(),
@@ -262,6 +364,11 @@ export const DoctorProfilePage: React.FC = () => {
       const verifiedAfterSave = Boolean(updated?.isVerified ?? updated?.verified ?? isVerified);
       setIsVerified(verifiedAfterSave);
       setHasSubmittedCchn(true);
+      if (updated?.verificationStatus) {
+        setVerificationStatus(updated.verificationStatus as VerificationStatusType);
+      } else if (submitForVerification) {
+        setVerificationStatus('PENDING_VERIFICATION');
+      }
 
       if (user) {
         setUser({
@@ -275,16 +382,26 @@ export const DoctorProfilePage: React.FC = () => {
         const msg = 'Đã cập nhật hồ sơ chuyên môn và đồng bộ AI Vector Search thành công.';
         setSavedBannerMsg(msg);
         toast.success(msg);
-      } else {
-        const msg = 'Hồ sơ của bạn đang được Ban quản trị thẩm định trong vòng 24h.';
+      } else if (submitForVerification) {
+        const msg = 'Hồ sơ CCHN của bạn đã được gửi tới Ban Quản Trị và đang chờ thẩm định.';
         setSavedBannerMsg(msg);
-        toast.success(`Đã lưu thông tin hành nghề! ${msg}`);
+        toast.success(msg);
+      } else {
+        const msg = 'Đã lưu thông tin hồ sơ bác sĩ thành công.';
+        setSavedBannerMsg(msg);
+        toast.success(msg);
       }
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Không thể lưu hồ sơ bác sĩ.'));
     } finally {
       setSaving(false);
+      setSubmittingVerification(false);
     }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleSaveInternal(false);
   };
 
   if (loading) {
@@ -366,6 +483,79 @@ export const DoctorProfilePage: React.FC = () => {
         </p>
       )}
 
+      {/* VERIFICATION LIFECYCLE STATUS BANNER */}
+      {verificationStatus === 'REJECTED' && (
+        <div className="p-5 rounded-2xl border-2 border-rose-300 bg-rose-50/90 text-rose-950 space-y-2 shadow-xs" role="alert">
+          <div className="flex items-center gap-2.5 font-bold text-base text-rose-700">
+            <AlertCircle className="w-5 h-5 shrink-0 text-rose-600" />
+            <span>Hồ Sơ Chứng Chỉ Hành Nghề (CCHN) Cần Bổ Sung / Bị Từ Chối</span>
+          </div>
+          <p className="text-sm text-rose-800 leading-relaxed">
+            <strong>Phản hồi từ Hội đồng thẩm định / Ban Quản Trị:</strong>{' '}
+            <span className="font-semibold underline">{rejectionReason || 'Hồ sơ chưa đạt tiêu chuẩn thẩm định.'}</span>
+            {rejectionAt && <span className="block text-xs text-rose-600 mt-0.5">Thời điểm xét duyệt: {new Date(rejectionAt).toLocaleString('vi-VN')}</span>}
+          </p>
+          <div className="pt-2 flex flex-wrap items-center gap-3">
+            <p className="text-xs text-rose-700">
+              Vui lòng kiểm tra lại số CCHN, tải lên bản scan rõ nét (có mộc đỏ) và nhấn nút bên dưới để gửi lại hồ sơ xét duyệt.
+            </p>
+            <button
+              type="button"
+              disabled={submittingVerification || saving}
+              onClick={() => handleSaveInternal(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+            >
+              <RefreshCw className={cn('w-3.5 h-3.5', submittingVerification && 'animate-spin')} />
+              <span>Nộp lại hồ sơ thẩm định</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {verificationStatus === 'PENDING_VERIFICATION' && (
+        <div className="p-5 rounded-2xl border border-indigo-200 bg-indigo-50/80 text-indigo-950 space-y-1.5 shadow-xs">
+          <div className="flex items-center gap-2.5 font-bold text-base text-indigo-900">
+            <Clock className="w-5 h-5 shrink-0 text-indigo-600 animate-pulse" />
+            <span>Hồ Sơ Đang Trong Hàng Đợi Thẩm Định (Pending Vetting)</span>
+          </div>
+          <p className="text-sm text-indigo-800 leading-relaxed">
+            Chứng chỉ hành nghề và hồ sơ chuyên môn của Bác sĩ đã được lưu trữ an toàn trên <strong>Supabase Cloud Storage</strong>. Quản trị viên y tế đang tiến hành đối chiếu với Cổng thông tin Quốc gia về Khám chữa bệnh (Bộ Y Tế).
+          </p>
+          <p className="text-xs text-indigo-600">
+            ⏱️ Quá trình xác thực thường hoàn tất trong vòng 12 - 24 giờ làm việc. Bác sĩ sẽ nhận được thông báo in-app ngay khi hoàn tất.
+          </p>
+        </div>
+      )}
+
+      {verificationStatus === 'APPROVED' && (
+        <div className="p-5 rounded-2xl border border-emerald-200 bg-emerald-50/80 text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 font-bold text-base text-emerald-900">
+              <ShieldCheck className="w-5 h-5 shrink-0 text-emerald-600" />
+              <span>Chứng Chỉ Hành Nghề Đã Được Thẩm Định Thành Công ✅</span>
+            </div>
+            <p className="text-xs text-emerald-800">
+              Hồ sơ của bạn đã được xác thực đạt chuẩn Bộ Y Tế. Hệ thống đã đồng bộ Vector pgvector và cho phép bệnh nhân tìm kiếm, đặt lịch.
+            </p>
+          </div>
+          <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300 w-fit shrink-0">
+            Đã Kích Hoạt (Verified)
+          </span>
+        </div>
+      )}
+
+      {verificationStatus === 'UNSUBMITTED' && (
+        <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50 text-amber-950 flex items-start gap-3 shadow-xs">
+          <FileBadge className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-1 text-xs text-amber-900">
+            <p className="font-bold text-sm">Bước 2/3: Hoàn tất khai báo thông tin CCHN &amp; Tải lên tệp chứng chỉ</p>
+            <p className="leading-relaxed">
+              Theo Luật Khám bệnh, chữa bệnh 2023, Bác sĩ cần cung cấp Số CCHN, Ngày cấp và tải lên bản scan hợp lệ lên Supabase để Hội đồng y tế đối soát trước khi mở lịch khám.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden min-w-0">
           {/* Account summary */}
@@ -389,28 +579,47 @@ export const DoctorProfilePage: React.FC = () => {
             </p>
           </div>
 
-          {/* License */}
+          {/* License & Credentials Section (Chuẩn Bộ Y Tế & Supabase Storage) */}
           <section id="license" className="px-5 sm:px-6 py-6 border-b border-slate-200">
-            <h2 className="font-display text-lg font-bold text-slate-900">Chứng chỉ hành nghề</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="font-display text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <FileBadge className="w-5 h-5 text-teal-700" />
+                  <span>Chứng chỉ hành nghề &amp; Pháp lý y tế</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Thông tin phục vụ thẩm định cấp phép hành nghề theo Luật Khám bệnh, chữa bệnh 2023.
+                </p>
+              </div>
+              {isVerified && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">
+                  <Check className="w-3.5 h-3.5" /> Đã xác thực Bộ Y Tế
+                </span>
+              )}
+            </div>
+
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="dp-license" className={label}>
-                  Số chứng chỉ hành nghề
+                  Số chứng chỉ hành nghề (CCHN) <span className="text-rose-600">*</span>
                 </label>
                 <input
                   id="dp-license"
                   className={field('licenseNumber')}
                   value={licenseNumber}
-                  onChange={(e) => setLicenseNumber(e.target.value)}
+                  onChange={(e) => setLicenseNumber(e.target.value.toUpperCase())}
                   placeholder="Ví dụ: 015482/BYT-CCHN"
                   disabled={isVerified}
                 />
-                <p className="mt-1 text-xs text-slate-500">{isVerified ? 'Đã xác minh — liên hệ quản trị viên nếu cần đổi.' : 'Ghi đúng như trên chứng chỉ.'}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {isVerified ? 'Đã xác minh pháp lý — vui lòng liên hệ Admin nếu cần điều chỉnh.' : 'Ghi đúng như trên văn bằng chứng chỉ.'}
+                </p>
                 {err('licenseNumber')}
               </div>
+
               <div>
                 <label htmlFor="dp-issuer" className={label}>
-                  Nơi cấp
+                  Cơ quan cấp CCHN <span className="text-rose-600">*</span>
                 </label>
                 <input
                   id="dp-issuer"
@@ -419,6 +628,7 @@ export const DoctorProfilePage: React.FC = () => {
                   value={licenseIssuedBy}
                   onChange={(e) => setLicenseIssuedBy(e.target.value)}
                   disabled={isVerified}
+                  placeholder="Bộ Y Tế / Sở Y Tế..."
                 />
                 <datalist id="dp-issuers">
                   {QUICK_LICENSE_ISSUERS.map((i) => (
@@ -427,32 +637,141 @@ export const DoctorProfilePage: React.FC = () => {
                 </datalist>
                 {err('licenseIssuedBy')}
               </div>
-              <div className="sm:col-span-2">
-                <label htmlFor="dp-licdoc" className={label}>
-                  Đường dẫn ảnh chứng chỉ hành nghề <span className="font-normal text-slate-500">(không bắt buộc)</span>
+
+              <div>
+                <label htmlFor="dp-license-date" className={label}>
+                  Ngày cấp CCHN
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    id="dp-licdoc"
-                    type="url"
-                    className={inputCls}
-                    value={licenseDocumentUrl}
-                    onChange={(e) => setLicenseDocumentUrl(e.target.value)}
-                    placeholder="https://…"
-                  />
-                  {/^https?:\/\//.test(licenseDocumentUrl.trim()) && (
-                    <a
-                      href={licenseDocumentUrl.trim()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-3 rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-slate-50 shrink-0"
-                    >
-                      Mở <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
-                </div>
-                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
-                  <Lock className="w-3.5 h-3.5" /> Chỉ quản trị viên xem để xác minh. Bệnh nhân không thấy ảnh này.
+                <input
+                  id="dp-license-date"
+                  type="date"
+                  className={inputCls}
+                  value={licenseIssuedDate}
+                  onChange={(e) => setLicenseIssuedDate(e.target.value)}
+                  disabled={isVerified}
+                />
+                <p className="mt-1 text-xs text-slate-500">Ngày ký quyết định cấp chứng chỉ hành nghề.</p>
+              </div>
+
+              <div>
+                <label htmlFor="dp-scope" className={label}>
+                  Phạm vi hoạt động chuyên môn theo CCHN
+                </label>
+                <input
+                  id="dp-scope"
+                  className={inputCls}
+                  value={scopeOfPractice}
+                  onChange={(e) => setScopeOfPractice(e.target.value)}
+                  placeholder="Ví dụ: Khám bệnh, chữa bệnh chuyên khoa Nội..."
+                  disabled={isVerified}
+                />
+                <p className="mt-1 text-xs text-slate-500">Phạm vi chuyên môn được phép hành nghề ghi trên chứng chỉ.</p>
+              </div>
+
+              {/* UPLOAD ZONE: TẢI LÊN SUPABASE STORAGE */}
+              <div className="sm:col-span-2">
+                <label className={label}>
+                  Bản scan / Ảnh Chứng chỉ hành nghề (CCHN) <span className="text-rose-600">*</span>
+                </label>
+
+                {/* Ẩn file input để kích hoạt qua nút bấm */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                  disabled={isVerified || uploadingLicense}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+
+                {hasLicenseDocument || licenseDocumentStoragePath || licenseDocumentUrl ? (
+                  <div className="p-4 rounded-xl border border-teal-200 bg-teal-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <FileCheck className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm text-slate-900 truncate">
+                            {uploadedLicenseName || (licenseDocumentStoragePath ? licenseDocumentStoragePath.split('/').pop() : 'Bản scan CCHN')}
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-200 shrink-0">
+                            Supabase Cloud Storage
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                          <Lock className="w-3 h-3 text-slate-400" /> Lưu trữ bucket private an toàn · Truy cập qua signed URL
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleViewLicenseDocument}
+                        disabled={loadingPreviewUrl}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-teal-600 bg-white text-teal-700 text-xs font-semibold hover:bg-teal-50 transition shadow-xs cursor-pointer disabled:opacity-50"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>{loadingPreviewUrl ? 'Đang tải...' : 'Xem bản scan CCHN'}</span>
+                      </button>
+
+                      {!isVerified && (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadingLicense}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-medium hover:bg-slate-100 transition cursor-pointer disabled:opacity-50"
+                        >
+                          <RefreshCw className={cn('w-3 h-3', uploadingLicense && 'animate-spin')} />
+                          <span>{uploadingLicense ? 'Đang tải...' : 'Thay tệp khác'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (isVerified || uploadingLicense) return;
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) handleFileUpload(file);
+                    }}
+                    onClick={() => {
+                      if (!isVerified && !uploadingLicense) fileInputRef.current?.click();
+                    }}
+                    className={cn(
+                      'p-6 rounded-2xl border-2 border-dashed border-slate-300 hover:border-teal-500 bg-slate-50/70 hover:bg-teal-50/30 transition text-center cursor-pointer space-y-2',
+                      uploadingLicense && 'opacity-60 cursor-wait'
+                    )}
+                  >
+                    <div className="w-12 h-12 rounded-full bg-teal-100 text-teal-700 mx-auto flex items-center justify-center">
+                      <UploadCloud className={cn('w-6 h-6', uploadingLicense && 'animate-bounce')} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {uploadingLicense ? 'Đang tải tệp lên Supabase Storage bảo mật...' : 'Kéo thả hoặc bấm để tải lên bản scan CCHN'}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Hỗ trợ định dạng PDF, JPEG, PNG, WEBP (Dung lượng tối đa 10MB)
+                      </p>
+                    </div>
+                    <div className="pt-2">
+                      <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-teal-700 text-white text-xs font-semibold shadow-xs">
+                        <UploadCloud className="w-3.5 h-3.5" /> Chọn tệp từ máy
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                  <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span>Tệp lưu trữ tại Supabase Private Bucket. Bệnh nhân không nhìn thấy tệp này; chỉ Quản trị viên y tế xem khi đối soát cấp phép.</span>
                 </p>
               </div>
             </div>
@@ -577,27 +896,49 @@ export const DoctorProfilePage: React.FC = () => {
 
           <div className="px-5 sm:px-6 py-4 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-slate-600">
-              {attempted && hasErrors ? <span className="text-rose-700">Còn {Object.keys(errors).length} mục cần sửa.</span> : isVerified ? 'Thay đổi được cập nhật ngay vào hồ sơ công khai.' : 'Lưu xong, hồ sơ được gửi cho quản trị viên xét duyệt.'}
+              {attempted && hasErrors ? (
+                <span className="text-rose-700">Còn {Object.keys(errors).length} mục cần sửa.</span>
+              ) : isVerified ? (
+                'Thay đổi được cập nhật ngay vào hồ sơ công khai.'
+              ) : verificationStatus === 'PENDING_VERIFICATION' ? (
+                'Hồ sơ đang chờ Quản trị viên thẩm định. Bạn vẫn có thể cập nhật thông tin bổ sung.'
+              ) : (
+                'Điền đầy đủ Số CCHN, tải lên bản scan và nhấn "Gửi hồ sơ thẩm định" để hoàn tất.'
+              )}
             </p>
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-teal-700 hover:bg-teal-800 disabled:opacity-60 text-white text-sm font-semibold transition cursor-pointer"
-            >
-              {saving ? <Clock className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {hasSubmittedCchn ? 'Lưu thay đổi' : 'Gửi hồ sơ xét duyệt'}
-            </button>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="submit"
+                disabled={saving || submittingVerification}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer disabled:opacity-50"
+              >
+                {saving && !submittingVerification ? <Clock className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                <span>Lưu thông tin</span>
+              </button>
+
+              {!isVerified && (
+                <button
+                  type="button"
+                  disabled={saving || submittingVerification || !licenseNumber.trim()}
+                  onClick={() => handleSaveInternal(true)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-teal-700 hover:bg-teal-800 disabled:opacity-60 text-white text-sm font-semibold transition cursor-pointer shadow-xs"
+                >
+                  {submittingVerification ? <Clock className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                  <span>{verificationStatus === 'REJECTED' ? 'Nộp lại hồ sơ thẩm định' : 'Gửi hồ sơ thẩm định CCHN'}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
         <aside className="space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200 p-5">
-            <h2 className="font-semibold text-slate-900">Sau khi gửi hồ sơ</h2>
+            <h2 className="font-semibold text-slate-900">Quy trình thẩm định CCHN</h2>
             <ol className="mt-3 space-y-3 text-sm text-slate-700">
               {[
-                ['Quản trị viên đối chiếu', 'số chứng chỉ, nơi cấp và phạm vi chuyên môn.'],
-                ['Nhận thông báo kết quả.', 'Nếu chưa được duyệt, bác sĩ có thể sửa rồi gửi lại.'],
-                ['Hồ sơ hiển thị cho bệnh nhân.', 'Bác sĩ mở lịch làm việc và bắt đầu nhận lịch hẹn.'],
+                ['1. Tải lên CCHN:', 'Ảnh chụp rõ nét 2 mặt hoặc file scan PDF có dấu đỏ.'],
+                ['2. Ban Quản Trị đối soát:', 'Kiểm tra số chứng chỉ, nơi cấp và phạm vi hoạt động.'],
+                ['3. Tự động kích hoạt:', 'Khi được duyệt, bác sĩ có thể mở lịch khám và tiếp nhận bệnh nhân.'],
               ].map(([b, t], i) => (
                 <li key={b} className="flex gap-3">
                   <span className="w-6 h-6 rounded-full bg-teal-50 text-teal-800 text-xs font-semibold flex items-center justify-center shrink-0">{i + 1}</span>
@@ -618,6 +959,69 @@ export const DoctorProfilePage: React.FC = () => {
           </div>
         </aside>
       </div>
+
+      {/* MODAL XEM BẢN SCAN CCHN (SUPABASE SIGNED URL) */}
+      {previewModalOpen && previewSignedUrl && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-scaleUp">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                <FileText className="w-5 h-5 text-teal-700" />
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base">Bản Scan Chứng Chỉ Hành Nghề (CCHN)</h3>
+                  <p className="text-xs text-slate-500">Lưu trữ an toàn trên Supabase Private Bucket · Signed URL có hiệu lực 15 phút</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewSignedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Mở tab mới</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewModalOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+                  title="Đóng xem trước"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 p-4 overflow-auto bg-slate-100/60 flex items-center justify-center min-h-[400px]">
+              {previewSignedUrl.includes('.pdf') || previewSignedUrl.includes('application%2Fpdf') || previewSignedUrl.includes('format=pdf') ? (
+                <iframe
+                  src={previewSignedUrl}
+                  title="CCHN Document"
+                  className="w-full h-[65vh] rounded-xl border border-slate-300 bg-white"
+                />
+              ) : (
+                <img
+                  src={previewSignedUrl}
+                  alt="Bản scan CCHN"
+                  className="max-h-[65vh] max-w-full rounded-xl object-contain shadow-xs border border-slate-200 bg-white"
+                />
+              )}
+            </div>
+
+            <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
+              <span>Bác sĩ: <strong>{fullName || user?.fullName}</strong> ({licenseNumber || 'Chưa có số CCHN'})</span>
+              <button
+                type="button"
+                onClick={() => setPreviewModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold transition cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 };
