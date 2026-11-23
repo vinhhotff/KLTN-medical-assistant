@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#141** | 23/11/2026 | Làm lại giao diện trang Đăng nhập / Đăng ký theo 2 ảnh thiết kế mới: `/login` mặc định Đăng nhập (`?mode=register` mở Đăng ký), bỏ CCCD/VNeID giả lập và các nhãn HIPAA/e-PHI chưa triển khai, thêm chip đăng nhập nhanh khi bật `ENABLE_DEMO_LOGIN`, đổi sang bảng màu indigo của Stitch. Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#140** | 23/11/2026 | Thiết kế lại giao diện Quản trị theo Google Stitch (Đợt 3/3): `AdminLayout` sidebar navy 2 nhóm + trạng thái hệ thống thật từ `/health/ready`, trang mới `AiStatsPage` (màn 09) và `AiCostPage` (màn 10), viết lại `AuditLogPage` (màn 11). Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#139** | 22/11/2026 | Thiết kế lại giao diện Bác sĩ theo Google Stitch (Đợt 2/3): `DoctorLayout` điều hướng ngang teal, trang mới `DoctorSchedulePage` (màn 08, lịch theo khoảng giờ + thời lượng ca) và `DoctorAppointmentDetailPage` (màn 06), dàn lại `DoctorProfilePage` (màn 15). Gỡ modal lịch trực cũ khỏi `DoctorDashboard`. Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#138** | 22/11/2026 | Thiết kế lại giao diện Bệnh nhân theo Google Stitch (Đợt 1/3): bảng màu toàn cục xám lạnh + indigo/teal, `PatientLayout` điều hướng ngang, banner cảnh báo y tế mới, viết lại `SymptomTriagePage` (màn 01 chat + màn 03 cấp cứu) và `DocumentSummarizerPage` (màn 04 tải lên + màn 05 kết quả), 3 trang mới `PatientProfilePage`, `HealthHistoryPage`, `AppointmentDetailPage`. Chỉ đổi giao diện, không đổi API/DB. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -78,6 +79,25 @@
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
 
+### [WORK-LOG-#141] Làm Lại Giao Diện Trang Đăng Nhập / Đăng Ký (Đồng Bộ Trang Chủ)
+* **Thời gian:** 2026-11-23 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/auth-page-redesign` (tách từ `develop`; đánh số #136 để không trùng #133–#135 trên `feature/stitch-ui-redesign` chưa merge)
+* **Mã Yêu Cầu:** Làm lại `/login` theo 2 ảnh thiết kế (đăng nhập, đăng ký bệnh nhân), giữ nguyên logic.
+* **Danh Sách Tệp Tin:**
+  1. `[MOD]` `frontend/src/pages/LoginPage.tsx` — header giống trang chủ (không nhãn HIPAA), thanh chuyển "Đăng nhập | Đăng ký", `/login` mặc định mở Đăng nhập (`?mode=register` mở Đăng ký; `?expired`, `?reset`, `?role` giữ nguyên), thẻ chọn vai trò Bệnh nhân / Bác sĩ, nút Google, tài khoản demo dạng chip khi `ENABLE_DEMO_LOGIN`, cột phải 3 tính năng + Nghị định 13/2023, thẻ cấp cứu 115 (hiện cả trên mobile). Bỏ nút "Liên kết CCCD / VNeID" kèm hộp thoại, ảnh avatar, số liệu 1.200+ bác sĩ / 4.98 / 18.400+ đánh giá, chữ HIPAA, e-PHI, TLS/AES. Hộp thoại chính sách viết lại chỉ nêu điều hệ thống thật sự làm (BCrypt, JWT + cookie HttpOnly, khóa đăng nhập khi sai nhiều lần, liên kết tệp 15 phút có ghi nhật ký, ẩn định danh trước khi gửi AI).
+  2. `[MOD]` `frontend/src/components/auth/PatientRegisterForm.tsx`, `DoctorRegisterForm.tsx` — nhãn viết thường không `font-mono`, ô nhập nền trắng `text-sm`, chip điền dữ liệu mẫu, bỏ "e-PHI / HIPAA" và "Tối ưu Y Tế 256-Bit". Logic kiểm tra và gọi API không đổi.
+  3. `[NEW]` `frontend/src/components/auth/authUi.tsx` — `AuthLabel`, `IconInput`, `AuthAlert`, `PasswordStrengthMeter`, `SubmitButton` dùng chung.
+  4. `[MOD]` `frontend/e2e/auth.spec.ts` — bỏ bước bấm sang tab đăng nhập, nút gửi tìm trong `form` (tab chuyển trùng tên "Đăng nhập"), chip "Bệnh nhân Bình", đăng ký qua `/login?mode=register`, nút "Tạo tài khoản".
+  5. `[MOD]` (sau khi rebase lên `feature/stitch-ui-redesign`) `LoginPage.tsx`, `authUi.tsx`, 2 form đăng ký — đổi màu chính sang indigo như phía bệnh nhân, nền xám lạnh; thẻ vai trò Bác sĩ và khối "Quy trình 3 bước" giữ teal. `frontend/src/pages/LandingPage.tsx`: nút "Khám Ngay →" trỏ `/login?mode=register`, nút "Đăng Nhập" giữ `/login`.
+* **Tài Liệu Đã Đồng Bộ:** `[x]` `docs/WORK_LOG.md` · `[ ]` `docs/USE_CASES.md` (không đổi luồng/API).
+* **Bằng Chứng Kiểm Thử:**
+  - `npx tsc --noEmit -p .`: 0 lỗi.
+  - `npx playwright test e2e/auth.spec.ts`: 10 đạt, 2 hỏng = test "forgot password" đã hỏng từ trước (trang dùng route `/forgot-password`, test chờ hộp thoại).
+  - Chụp màn hình desktop 1440px và mobile 390px cho Đăng nhập / Đăng ký bệnh nhân / Đăng ký bác sĩ: tràn ngang 0px, không phần tử chữ nào bị cắt.
+* **Điểm Nóng Tech Lead Cần Review:**
+  - Mặc định của `/login` đổi từ Đăng ký sang Đăng nhập — các link trên trang chủ muốn mở form đăng ký cần `?mode=register`.
+  - Thẻ vai trò Bác sĩ ghi "Khám bệnh và quản lý lịch hẹn" thay cho "Khám và tư vấn trực tuyến" trong ảnh, vì hệ thống là khám trực tiếp (O2O).
 ### [WORK-LOG-#140] Thiết Kế Lại Giao Diện Quản Trị Theo Google Stitch (Đợt 3/3 — Phân Hệ Quản Trị)
 * **Thời gian:** 2026-11-23 (GMT+7)
 * **Tác nhân thực hiện:** AI Assistant

@@ -11,7 +11,7 @@ test.describe('UC-SEC-01: Authentication', () => {
     await expect(email).toHaveValue('');
     await expect(password).toHaveValue('');
 
-    const submit = page.getByRole('button', { name: /Đăng Nhập Vào Hệ Thống/ });
+    const submit = page.locator('form').getByRole('button', { name: 'Đăng nhập', exact: true });
     await expect(submit).toBeDisabled();
     await email.fill('patient@mediassist.local');
     await expect(submit).toBeDisabled();
@@ -23,8 +23,8 @@ test.describe('UC-SEC-01: Authentication', () => {
     await installMockApi(page);
     await page.goto('/login');
     await expect(page.getByTestId('demo-presets')).toBeVisible();
-    await page.getByTestId('demo-presets').getByRole('button', { name: /Bệnh Nhân/ }).click();
-    await page.getByRole('button', { name: /Đăng Nhập Vào Hệ Thống/ }).click();
+    await page.getByTestId('demo-presets').getByRole('button', { name: 'Bệnh nhân Bình' }).click();
+    await page.locator('form').getByRole('button', { name: 'Đăng nhập', exact: true }).click();
     await expect(page).toHaveURL(/\/patient$/);
   });
 
@@ -33,7 +33,7 @@ test.describe('UC-SEC-01: Authentication', () => {
     await page.goto('/login');
     await page.locator('form input[type="email"]').fill('nobody@mediassist.local');
     await page.locator('form input[type="password"]').fill('WrongPassword1!');
-    await page.getByRole('button', { name: /Đăng Nhập Vào Hệ Thống/ }).click();
+    await page.locator('form').getByRole('button', { name: 'Đăng nhập', exact: true }).click();
     await expect(page.getByText('Email hoặc mật khẩu không đúng')).toBeVisible();
   });
 
@@ -41,7 +41,7 @@ test.describe('UC-SEC-01: Authentication', () => {
     await installMockApi(page);
     await page.goto('/login?expired=true');
     await expect(page.getByText('Phiên đăng nhập đã hết hạn')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Đăng Nhập Vào Hệ Thống/ })).toBeVisible();
+    await expect(page.locator('form').getByRole('button', { name: 'Đăng nhập', exact: true })).toBeVisible();
   });
 
   test('forgot password calls the API, disables while sending and shows the neutral message', async ({ page }) => {
@@ -86,7 +86,7 @@ test.describe('UC-SEC-01: Authentication', () => {
     await page.getByPlaceholder('Tối thiểu 8 ký tự').fill('password1');
     await page.getByPlaceholder('Nhập lại mật khẩu').fill('password1');
 
-    const submit = page.getByRole('button', { name: /Tạo Tài Khoản/ });
+    const submit = page.getByRole('button', { name: /Tạo tài khoản/ });
     await expect(submit).toBeDisabled(); // terms not accepted by default
     await page.locator('#terms').check();
     await submit.click();

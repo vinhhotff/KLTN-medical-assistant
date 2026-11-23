@@ -1,11 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertCircle,
   ArrowRight,
-  CheckCircle2,
-  Eye,
-  EyeOff,
+  Dices,
   Lock,
   Mail,
   Phone,
@@ -17,6 +14,7 @@ import {
 import { api, getApiErrorMessage } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { ENABLE_DEMO_LOGIN } from '../../config/app';
+import { AuthAlert, AuthLabel, IconInput, PasswordStrengthMeter, SubmitButton } from './authUi';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VN_PHONE_RE = /^(\+?84|0)(3|5|7|8|9)\d{8}$/;
@@ -111,13 +109,13 @@ export const DoctorRegisterForm: React.FC = () => {
       return {
         label: 'Khá mạnh (Gần đạt chuẩn tối ưu)',
         level: 85,
-        color: 'bg-teal-500',
-        textColor: 'text-teal-600',
+        color: 'bg-indigo-500',
+        textColor: 'text-indigo-600',
       };
     }
 
     return {
-      label: 'Rất mạnh (Tối ưu Y Tế 256-Bit)',
+      label: 'Rất mạnh',
       level: 100,
       color: 'bg-emerald-500',
       textColor: 'text-emerald-600',
@@ -155,7 +153,7 @@ export const DoctorRegisterForm: React.FC = () => {
     if (!passCriteria.special) errs.push('Mật khẩu cần ít nhất 1 ký tự đặc biệt (!@#...).');
     if (password !== confirmPassword) errs.push('Mật khẩu xác nhận không khớp.');
     if (!agreeTerms) {
-      errs.push('Vui lòng đồng ý với điều khoản bảo mật e-PHI và quy trình thẩm định CCHN.');
+      errs.push('Vui lòng đồng ý với quy chế bảo mật dữ liệu bệnh nhân và quy trình thẩm định CCHN.');
     }
     return errs;
   }, [fullName, email, phone, passCriteria, password, confirmPassword, agreeTerms]);
@@ -206,277 +204,147 @@ export const DoctorRegisterForm: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Lộ trình 3 bước Onboarding Bác Sĩ */}
-      <div className="p-3.5 rounded-2xl bg-teal-50/70 border border-teal-200/80 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-teal-800">
-            <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
-            <span>Quy trình 3 bước gia nhập MediAssist Bác sĩ</span>
-          </div>
-          <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white font-mono text-[10px] font-bold">
-            BƯỚC 1 / 3
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      {/* 3-step doctor onboarding */}
+      <div className="p-4 rounded-2xl bg-teal-50/70 border border-teal-200/80 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-teal-800">
+            <Stethoscope className="w-4 h-4 text-teal-600" /> Quy trình 3 bước gia nhập MediAssist
           </span>
+          <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white text-xs font-semibold">Bước 1/3</span>
         </div>
-        <div className="grid grid-cols-3 gap-1.5 text-[11px]">
-          <div className="p-2 rounded-xl bg-white border-2 border-teal-500 text-slate-900 shadow-2xs">
-            <span className="font-mono font-bold text-teal-700 block text-[10px]">1. Tạo tài khoản</span>
-            <span className="text-[10px] text-slate-600 leading-tight block mt-0.5">Định danh cơ bản</span>
-          </div>
-          <div className="p-2 rounded-xl bg-white/60 border border-slate-200 text-slate-500">
-            <span className="font-mono font-bold block text-[10px]">2. Khai báo CCHN</span>
-            <span className="text-[10px] leading-tight block mt-0.5">Chuyên môn &amp; phí</span>
-          </div>
-          <div className="p-2 rounded-xl bg-white/60 border border-slate-200 text-slate-500">
-            <span className="font-mono font-bold block text-[10px]">3. Admin duyệt</span>
-            <span className="text-[10px] leading-tight block mt-0.5">Kích hoạt 24h</span>
-          </div>
-        </div>
+        <ol className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+          {[
+            ['1. Tạo tài khoản', 'Thông tin đăng nhập', true],
+            ['2. Khai báo CCHN', 'Chuyên môn và phí khám', false],
+            ['3. Quản trị viên duyệt', 'Đối chiếu chứng chỉ', false],
+          ].map(([title, sub, current]) => (
+            <li
+              key={title as string}
+              className={`p-2.5 rounded-xl border bg-white ${current ? 'border-2 border-teal-500 text-slate-900' : 'border-slate-200 text-slate-500'}`}
+            >
+              <span className={`block font-semibold ${current ? 'text-teal-700' : ''}`}>{title}</span>
+              <span className="block mt-0.5">{sub}</span>
+            </li>
+          ))}
+        </ol>
       </div>
 
       {error && (
-        <div className="p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl flex items-start gap-2.5 text-xs text-rose-900 animate-fadeIn">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <div className="font-mono font-bold">LỖI ĐĂNG KÝ BÁC SĨ:</div>
-            <div className="text-[12px] text-rose-800 mt-0.5 leading-snug">{error}</div>
-          </div>
-        </div>
+        <AuthAlert tone="error" title="Chưa đăng ký được">
+          {error}
+        </AuthAlert>
       )}
-
-      {successMsg && (
-        <div className="p-3.5 bg-emerald-50 border-2 border-emerald-300 rounded-2xl flex items-start gap-2.5 text-xs text-emerald-900 animate-fadeIn">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-          <div className="flex-1 font-bold leading-snug">{successMsg}</div>
-        </div>
-      )}
+      {successMsg && <AuthAlert tone="success">{successMsg}</AuthAlert>}
 
       {ENABLE_DEMO_LOGIN && (
-        <div className="p-3 bg-[#F8FAFC] rounded-2xl border border-slate-300 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-900">
-            <Sparkles className="w-4 h-4 text-teal-600 animate-pulse" />
-            <span>Tài khoản bác sĩ mẫu (Bước 1):</span>
-          </div>
+        <div className="p-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+            <Sparkles className="w-4 h-4 text-indigo-600" /> Điền nhanh dữ liệu mẫu
+          </span>
           <button
             type="button"
             onClick={handleQuickDemoDoctor}
-            className="px-3 py-1.5 rounded-xl font-display text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm shadow-teal-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-indigo-200 bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[15px]">casino</span>
-            <span>Điền nhanh BS mẫu</span>
+            <Dices className="w-3.5 h-3.5" /> Bác sĩ mẫu
           </button>
         </div>
       )}
 
-      {/* Nhóm 1: Định danh & Tài khoản */}
-      <div className="space-y-3.5 p-4 rounded-2xl bg-[#FFFFFF] border border-slate-200">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider font-bold text-teal-700">
-            <UserIcon className="w-3.5 h-3.5" />
-            <span>Nhóm 1: Định Danh &amp; Tài Khoản (Bước 1)</span>
-          </div>
-          <span className="text-[11px] text-slate-500 font-medium">Nhanh gọn trong 30 giây</span>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
+        <div className="sm:col-span-2 min-w-0">
+          <AuthLabel htmlFor="doc-name" required>
+            Họ và tên đầy đủ
+          </AuthLabel>
+          <IconInput id="doc-name" icon={UserIcon} type="text" required autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nguyễn Văn A" />
         </div>
 
-        {/* Họ và tên */}
-        <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wider font-bold text-slate-800 mb-1">
-            Họ và tên đầy đủ <span className="text-rose-500">*</span>
-          </label>
-          <div className="relative">
-            <UserIcon className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-            <input
-              type="text"
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Nguyễn Văn A"
-              className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
-            />
-          </div>
+        <div className="min-w-0">
+          <AuthLabel htmlFor="doc-email" required>
+            Email đăng nhập &amp; nhận thông báo
+          </AuthLabel>
+          <IconInput id="doc-email" icon={Mail} type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="bacsi.nguyenvana@gmail.com" />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          {/* Email */}
-          <div>
-            <label className="block font-mono text-[11px] uppercase tracking-wider font-bold text-slate-800 mb-1">
-              Email đăng nhập &amp; nhận thông báo <span className="text-rose-500">*</span>
-            </label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="bacsi.nguyenvana@gmail.com"
-                className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
-              />
-            </div>
-          </div>
-
-          {/* Số điện thoại */}
-          <div>
-            <label className="block font-mono text-[11px] uppercase tracking-wider font-bold text-slate-800 mb-1">
-              Số điện thoại liên hệ khẩn cấp <span className="text-rose-500">*</span>
-            </label>
-            <div className="relative">
-              <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="tel"
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="0901234567"
-                className="w-full pl-9 pr-3 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Password */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wider font-bold text-slate-800 mb-1">
-            Mật khẩu <span className="text-rose-500">*</span>
-          </label>
-          <div className="relative">
-            <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-            <input
-              type={showPassword ? 'text' : 'password'}
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Tối thiểu 8 ký tự"
-              className="w-full pl-9 pr-9 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-              className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-800 cursor-pointer"
-            >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
+        <div className="min-w-0">
+          <AuthLabel htmlFor="doc-phone" required>
+            Số điện thoại liên hệ
+          </AuthLabel>
+          <IconInput id="doc-phone" icon={Phone} type="tel" required autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0901234567" />
         </div>
 
-        <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wider font-bold text-slate-800 mb-1">
-            Xác nhận mật khẩu <span className="text-rose-500">*</span>
-          </label>
-          <div className="relative">
-            <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-            <input
-              type={showConfirmPassword ? 'text' : 'password'}
-              required
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Nhập lại mật khẩu"
-              className="w-full pl-9 pr-9 py-2.5 bg-[#F8FAFC] border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-slate-900 transition"
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              aria-label={showConfirmPassword ? 'Ẩn mật khẩu xác nhận' : 'Hiện mật khẩu xác nhận'}
-              className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-800 cursor-pointer"
-            >
-              {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Password Strength Meter */}
-      <div className="p-3.5 bg-[#F8FAFC] rounded-2xl border border-slate-300">
-        <div className="flex items-center justify-between text-[11px] mb-1.5">
-          <span className="font-mono font-bold text-slate-700">Độ mạnh mật khẩu bác sĩ:</span>
-          <span className={`font-mono font-bold ${passwordStrength.textColor}`}>
-            {passwordStrength.label}
-          </span>
-        </div>
-        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mb-2.5">
-          <div
-            className={`h-full transition-all duration-300 ${passwordStrength.color}`}
-            style={{ width: `${passwordStrength.level}%` }}
+        <div className="min-w-0">
+          <AuthLabel htmlFor="doc-password" required>
+            Mật khẩu
+          </AuthLabel>
+          <IconInput
+            id="doc-password"
+            icon={Lock}
+            type={showPassword ? 'text' : 'password'}
+            required
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Tối thiểu 8 ký tự"
+            reveal={{ shown: showPassword, onToggle: () => setShowPassword(!showPassword), label: showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu' }}
           />
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 font-mono text-[10px]">
-          <span
-            className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors ${
-              passCriteria.length
-                ? 'bg-emerald-100 text-emerald-800 font-bold border border-emerald-300'
-                : 'bg-slate-200/70 text-slate-500'
-            }`}
-          >
-            <span>{passCriteria.length ? '✓' : '○'}</span>
-            <span>8+ ký tự</span>
-          </span>
-          <span
-            className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors ${
-              passCriteria.uppercase
-                ? 'bg-emerald-100 text-emerald-800 font-bold border border-emerald-300'
-                : 'bg-slate-200/70 text-slate-500'
-            }`}
-          >
-            <span>{passCriteria.uppercase ? '✓' : '○'}</span>
-            <span>Chữ hoa (A-Z)</span>
-          </span>
-          <span
-            className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors ${
-              passCriteria.special
-                ? 'bg-emerald-100 text-emerald-800 font-bold border border-emerald-300'
-                : 'bg-slate-200/70 text-slate-500'
-            }`}
-          >
-            <span>{passCriteria.special ? '✓' : '○'}</span>
-            <span>Ký tự đặc biệt (!@#)</span>
-          </span>
+
+        <div className="min-w-0">
+          <AuthLabel htmlFor="doc-password2" required>
+            Xác nhận mật khẩu
+          </AuthLabel>
+          <IconInput
+            id="doc-password2"
+            icon={Lock}
+            type={showConfirmPassword ? 'text' : 'password'}
+            required
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Nhập lại mật khẩu"
+            reveal={{
+              shown: showConfirmPassword,
+              onToggle: () => setShowConfirmPassword(!showConfirmPassword),
+              label: showConfirmPassword ? 'Ẩn mật khẩu xác nhận' : 'Hiện mật khẩu xác nhận',
+            }}
+          />
         </div>
       </div>
 
-      {/* Ghi chú pháp lý + Terms */}
-      <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 flex items-start gap-2 text-[11px] text-amber-900">
-        <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-        <span>
-          Sau khi tạo tài khoản, hệ thống sẽ chuyển bạn đến màn hình <strong>Khai báo thông tin hành nghề (CCHN)</strong> để Ban quản trị thẩm định trong vòng 24h trước khi tiếp nhận bệnh nhân.
-        </span>
-      </div>
+      <PasswordStrengthMeter strength={passwordStrength} criteria={passCriteria} />
 
-      <div className="flex items-start gap-2 pt-0.5">
+      <p className="flex items-start gap-2 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 leading-relaxed">
+        <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+        <span>
+          Sau khi tạo tài khoản, bạn sẽ được chuyển đến màn hình <strong>Khai báo thông tin hành nghề (CCHN)</strong> để quản trị viên thẩm định trước khi tiếp nhận bệnh nhân.
+        </span>
+      </p>
+
+      <div className="flex items-start gap-2.5">
         <input
           type="checkbox"
           id="doctor-terms"
           checked={agreeTerms}
           onChange={(e) => setAgreeTerms(e.target.checked)}
-          className="mt-0.5 rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
+          className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
         />
-        <label htmlFor="doctor-terms" className="text-[11px] text-slate-600 leading-snug cursor-pointer">
-          Tôi đồng ý với{' '}
-          <span className="text-slate-900 font-bold underline">Quy chế bảo mật dữ liệu bệnh nhân e-PHI</span>{' '}
-          và sẽ cung cấp <span className="text-slate-900 font-bold underline">Chứng chỉ hành nghề (CCHN)</span> hợp lệ ở bước tiếp theo.
+        <label htmlFor="doctor-terms" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
+          Tôi đồng ý với <span className="font-semibold text-slate-900 underline">Quy chế bảo mật dữ liệu bệnh nhân</span> và sẽ cung cấp{' '}
+          <span className="font-semibold text-slate-900 underline">Chứng chỉ hành nghề (CCHN)</span> hợp lệ ở bước tiếp theo.
         </label>
       </div>
 
-      <button
-        type="submit"
+      <SubmitButton
         disabled={loading || !agreeTerms}
+        loading={loading}
+        loadingText="Đang tạo tài khoản và gửi email xác thực…"
         title={!agreeTerms ? 'Vui lòng đồng ý điều khoản trước khi tạo tài khoản' : undefined}
-        className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-display text-xs font-bold transition-all shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
       >
-        {loading ? (
-          <>
-            <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
-            <span>Đang tạo tài khoản &amp; gửi email xác thực...</span>
-          </>
-        ) : (
-          <>
-            <span>Tạo Tài Khoản &amp; Tiếp Tục Khai Báo Hồ Sơ</span>
-            <ArrowRight className="w-4 h-4" />
-          </>
-        )}
-      </button>
+        <span>Tạo tài khoản &amp; khai báo hồ sơ</span>
+        <ArrowRight className="w-4 h-4" />
+      </SubmitButton>
     </form>
   );
 };
