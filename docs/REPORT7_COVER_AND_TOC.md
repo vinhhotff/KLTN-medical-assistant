@@ -1,63 +1,45 @@
-# CẨM NANG THIẾT KẾ TRANG BÌA CHUẨN FPT & MỤC LỤC CHI TIẾT (REPORT 7 - MEDIASSIST-AI)
-> **Tài liệu tham chiếu chuẩn:** [Doc 2: Report 7 AITA Benchmark](https://docs.google.com/document/d/1adairvvajjyoyG7dzOewFjdKvs7D2WwR9J8BfD3fQvg/edit?usp=drivesdk)  
-> **Tài liệu mục tiêu cập nhật:** [Doc 1: Report 7 MediAssist-AI](https://docs.google.com/document/d/1sZxs1r7XFnhywWyzqbxglDNRL6ir-MVx4Ic3n225qRI/edit?usp=drivesdk)  
-> **Dự án:** `MediAssist-AI: Intelligent Clinical Triage, Multimodal Lab Explanation & Semantic Doctor Matching Telehealth Platform`
+# BẢN ĐẶC TẢ CHI TIẾT 4 TRANG ĐẦU REPORT 7 (CHUẨN 100% BENCHMARK DOC 2)
+> **Mục tiêu:** Sao chép nguyên văn ("từng chữ"), hình ảnh Logo FPT và định dạng của 4 trang đầu từ [Doc 2: Report 7 Benchmark](https://docs.google.com/document/d/1adairvvajjyoyG7dzOewFjdKvs7D2WwR9J8BfD3fQvg/edit?usp=drivesdk) áp dụng chính xác cho dự án MediAssist-AI trên [Doc 1: Report 7 MediAssist-AI](https://docs.google.com/document/d/1sZxs1r7XFnhywWyzqbxglDNRL6ir-MVx4Ic3n225qRI/edit?usp=drivesdk).  
+> **Tệp ảnh Logo FPT trích xuất:** `docs/images/fpt_university_logo.png`
 
 ---
 
-## PHẦN 1: MẪU TRANG BÌA CHUẨN ĐỒ ÁN TỐT NGHIỆP FPT UNIVERSITY (COVER PAGE - PAGE 1)
+## TRANG 1: TRANG BÌA CHUẨN ĐỒ ÁN TỐT NGHIỆP FPT UNIVERSITY (COVER PAGE)
 
-> [!TIP]
-> **Hướng dẫn thao tác trên Google Docs (Doc 1):**
-> 1. Xóa bỏ bảng Metadata 2 cột ("Field / Details") hiện tại ở đầu trang 1.
-> 2. Sao chép nội dung văn bản bên dưới và dán vào đầu trang 1.
-> 3. Căn giữa toàn bộ trang bìa (`Ctrl + Shift + E` hoặc `Cmd + Shift + E`).
-> 4. Bảng thông tin thành viên (Members & Supervisors) định dạng bảng 2 cột không viền (Border width = 0 pt), căn giữa trang.
-> 5. Chèn ngắt trang (`Insert` -> `Break` -> `Page break` hoặc phím tắt `Ctrl + Enter` / `Cmd + Enter`) sau dòng ngày tháng để chuyển sang Trang 2.
+*(Định dạng: Toàn trang căn giữa, phông chữ Times New Roman)*
 
 ```text
 MINISTRY OF EDUCATION AND TRAINING
+```
 
+*(Chèn hình ảnh Logo FPT University: `docs/images/fpt_university_logo.png` — Căn giữa, kích thước chiều rộng khoảng 5.5 cm)*
+
+```text
 FPT UNIVERSITY
 
 
 
 Capstone Project Document
 
-[MediAssist-AI]
-Intelligent Clinical Triage, Multimodal Lab Explanation &
+[MediAssist-AI] - Intelligent Clinical Triage, Multimodal Lab Explanation &
 Semantic Doctor Matching Telehealth Platform
+```
 
+*(Bảng thông tin 2 cột căn giữa trang, viền ẩn 0pt)*
 
+| Cột 1 (Trái) | Cột 2 (Phải) |
+| :--- | :--- |
+| **SEP490.11** | **Group Members**<br>Nguyễn Thành Vinh - QE180174 (Leader & Solution Architect)<br>Phan Cao Hoàng Khương (Core Backend & Cloud Developer)<br>Phan Nhật Bảo (Frontend & Quality Assurance Specialist)<br><br>**Supervisor**<br>[Họ và tên Giảng viên Hướng dẫn 1]<br>[Họ và tên Giảng viên Hướng dẫn 2]<br><br>**Ext Supervisor**<br>Hội đồng Cố vấn Y khoa & Lâm sàng Telehealth<br><br>**Capstone Project code**<br>FPTU-KLTN-2026-MEDIASSIST |
 
-Course Code: SEP490.11
-
-Group Members:
-Nguyễn Thành Vinh - QE180174 (Leader & Solution Architect)
-Phan Cao Hoàng Khương (Core Backend & Cloud Developer)
-Phan Nhật Bảo (Frontend & Quality Assurance Specialist)
-
-Supervisors:
-[Họ và tên Giảng viên Hướng dẫn 1]
-[Họ và tên Giảng viên Hướng dẫn 2]
-(Hội đồng Cố vấn Lâm sàng & Giảng viên Bộ môn Kỹ thuật Phần mềm — FPT University)
-
-Ext Supervisor:
-Hội đồng Chuyên gia Cố vấn Y khoa & Lâm sàng Telehealth
-
-Capstone Project Code:
-FPTU-KLTN-2026-MEDIASSIST
-
-
+```text
 - Quy Nhon, November 2026 -
 ```
 
+*(Ngắt trang: Cmd + Enter / Ctrl + Enter sang Trang 2)*
+
 ---
 
-## PHẦN 2: MỤC LỤC TOÀN DIỆN & PHÂN CẤP 1-TO-1 (TABLE OF CONTENTS)
-
-> [!NOTE]
-> Khi sử dụng tính năng **Insert -> Table of Contents** trên Google Docs, toàn bộ các đề mục dưới đây sẽ tự động hiển thị số trang và tạo link liên kết có thể nhấp trực tiếp đến từng phần của tài liệu.
+## TRANG 2: MỤC LỤC TOÀN DIỆN (TABLE OF CONTENTS)
 
 ```text
 Table of Contents
@@ -72,18 +54,9 @@ I. Project Introduction ........................................................
 2. Product Background ....................................................................................................................... 9
 3. Existing Systems ............................................................................................................................ 11
    3.1 Existing Vietnamese Telehealth & Booking Platforms (BookingCare, Medpro, eDoctor) ......... 11
-       3.1.1 Main System Actors ......................................................................................................... 11
-             A. Patient (Care Seeker) ...................................................................................................... 11
-             B. Doctor (Healthcare Provider) .......................................................................................... 12
-             C. Admin (Hospital System Administrator) ......................................................................... 12
+       3.1.1 Main System Actors (Patient, Doctor, Admin) ................................................................. 11
        3.1.2 Existing Systems' Key Features ........................................................................................ 12
-             A. Basic Specialty-Based Booking ...................................................................................... 12
-             B. Manual Medical Records Archival .................................................................................. 13
-             C. Synchronous Video Call Consultations .......................................................................... 13
        3.1.3 Specific Benefits for Each User Group ............................................................................. 13
-             A. For Patient ...................................................................................................................... 13
-             B. For Doctor ....................................................................................................................... 13
-             C. For Admin ....................................................................................................................... 14
        3.1.4 Disadvantages & Gaps of Existing Systems ...................................................................... 14
 4. Business Opportunity .................................................................................................................... 15
    4.1 Business Opportunity in Vietnamese Outpatient Landscape ................................................... 15
@@ -123,61 +96,12 @@ III. Software Requirement Specification ........................................
              B. Patient Use Case Diagram (Triage, Lab OCR, Discovery, Appointments) ...................... 40
              C. Doctor Clinical Workstation Use Case Diagram ............................................................. 41
              D. Admin Enterprise Governance & FinOps Use Case Diagram ......................................... 42
-       2.2.2 Descriptions ..................................................................................................................... 43
+       2.2.2 Descriptions (Summary of 49 Use Cases) ......................................................................... 43
    2.3 Use Case Specification(s) ........................................................................................................ 47
        2.3.1 Common Use Case Specifications (UC-COMM-01 to UC-COMM-06) ............................. 47
-             2.3.1.1 Sign In (UC-COMM-01) ........................................................................................... 47
-             2.3.1.2 Sign Out (UC-COMM-02) ......................................................................................... 48
-             2.3.1.3 Change Password (UC-COMM-03) ........................................................................... 49
-             2.3.1.4 View & Update Patient Profile (UC-COMM-04) ....................................................... 50
-             2.3.1.5 Forgot Password & Token Hash Reset (UC-COMM-05) ........................................... 51
-             2.3.1.6 Email Verification Gate (UC-COMM-06) ................................................................. 52
-       2.3.2 Patient (UC-PAT-01 to UC-PAT-18) ................................................................................. 53
-             2.3.2.1 Conversational AI Symptom Triage (UC-PAT-01) .................................................... 53
-             2.3.2.2 Red-Flag Emergency Interception & Immediate Hotline Prompt (UC-PAT-02) ....... 55
-             2.3.2.3 Semantic Doctor Search via pgvector HNSW (UC-PAT-03) ..................................... 56
-             2.3.2.4 View Doctor Details & Available Slots (UC-PAT-04) ................................................ 57
-             2.3.2.5 Upload Medical Document & Vision OCR (UC-PAT-05) .......................................... 58
-             2.3.2.6 Inspect Extracted Biomarkers & LOINC Codes (UC-PAT-06) ................................... 59
-             2.3.2.7 Download Document File via 15-Minute Signed URL (UC-PAT-07) ........................ 60
-             2.3.2.8 Purchase AI Analysis Quota (UC-PAT-08) ............................................................... 61
-             2.3.2.9 Book In-Clinic Appointment & Slot Reservation (UC-PAT-09) ................................ 62
-             2.3.2.10 Process Payment via Stripe Sandbox / Mock VietQR (UC-PAT-10) ....................... 63
-             2.3.2.11 View Electronic Encounter Slip & Admission STT (UC-PAT-11) ........................... 64
-             2.3.2.12 View Patient Appointment History (UC-PAT-12) .................................................... 65
-             2.3.2.13 Patient Check-In for In-Clinic Appointment (UC-PAT-13) ..................................... 66
-             2.3.2.14 Reschedule Active Appointment (UC-PAT-14) ....................................................... 67
-             2.3.2.15 Cancel Appointment with Automated Policy Refund (UC-PAT-15) ....................... 68
-             2.3.2.16 Submit Doctor Review and Rating (UC-PAT-16) ................................................... 69
-             2.3.2.17 View Patient Triage History (UC-PAT-17) .............................................................. 70
-             2.3.2.18 De-identify Medical PII in Text (UC-PAT-18) ........................................................ 71
-       2.3.3 Doctor (UC-DOC-01 to UC-DOC-14) ................................................................................ 72
-             2.3.3.1 View Doctor Workstation Dashboard & Stats (UC-DOC-01) .................................... 72
-             2.3.3.2 Configure Doctor Schedule Slots (UC-DOC-02) ....................................................... 73
-             2.3.3.3 View Daily Patient Queue & Call Next Patient (UC-DOC-03) .................................. 74
-             2.3.3.4 Pre-Encounter Split-Screen Clinical Inspection (UC-DOC-04) ................................. 75
-             2.3.3.5 Access Patient Records via PatientAccessGuard (UC-DOC-05) ................................. 76
-             2.3.3.6 Autocomplete Diagnosis with WHO ICD-10 (UC-DOC-06) ...................................... 77
-             2.3.3.7 Autocomplete Lab Indicators with LOINC (UC-DOC-07) .......................................... 78
-             2.3.3.8 Complete Clinical Encounter & Record EMR (UC-DOC-08) ..................................... 79
-             2.3.3.9 Schedule In-Clinic Follow-up Visit (UC-DOC-09) .................................................... 80
-             2.3.3.10 Doctor Cancel Appointment with 100% Refund (UC-DOC-10) ............................... 81
-             2.3.3.11 View Patient Reviews & Ratings (UC-DOC-11) ...................................................... 82
-             2.3.3.12 Update Doctor Profile & Biography (UC-DOC-12) ................................................. 83
-             2.3.3.13 Export Medical Record & Prescription PDF (UC-DOC-13) .................................... 84
-             2.3.3.14 Manage Assigned Clinical Specialties (UC-DOC-14) .............................................. 85
-       2.3.4 Admin (UC-ADM-01 to UC-ADM-11) ............................................................................... 86
-             2.3.4.1 View Executive Statistics & Overview (UC-ADM-01) ............................................... 86
-             2.3.4.2 Monitor AI Token Usage & FinOps (UC-ADM-02) .................................................... 87
-             2.3.4.3 Toggle System-wide AI Provider & Fallback Mode (UC-ADM-03) ............................ 88
-             2.3.4.4 Sync Doctor Vector Embeddings (UC-ADM-04) ....................................................... 89
-             2.3.4.5 Vet & Approve Doctor CCHN License (UC-ADM-05) ............................................... 90
-             2.3.4.6 Manage Doctor Directory (UC-ADM-06) ................................................................. 91
-             2.3.4.7 User Access Control & Account Locking (UC-ADM-07) ........................................... 92
-             2.3.4.8 Manage Clinical Specialties & Taxonomy (UC-ADM-08) .......................................... 93
-             2.3.4.9 Supervise Appointments & Force Cancel (UC-ADM-09) .......................................... 94
-             2.3.4.10 Supervise AI Triage Sessions (UC-ADM-10) .......................................................... 95
-             2.3.4.11 View Security Audit Logs & IDOR Records (UC-ADM-11) .................................... 96
+       2.3.2 Patient Use Case Specifications (UC-PAT-01 to UC-PAT-18) ........................................... 53
+       2.3.3 Doctor Use Case Specifications (UC-DOC-01 to UC-DOC-14) .......................................... 72
+       2.3.4 Admin Use Case Specifications (UC-ADM-01 to UC-ADM-11) ......................................... 86
 3. Functional Requirements .............................................................................................................. 97
    3.1 System Functional Overview ................................................................................................... 97
        3.1.1 Screens Flow .................................................................................................................... 97
@@ -191,16 +115,8 @@ III. Software Requirement Specification ........................................
        3.2.3 Doctor Clinical Workstation Screens (SCR-12 to SCR-14) .............................................. 125
        3.2.4 Admin Enterprise Console Screens (SCR-15 to SCR-22) ................................................. 128
 4. Non-Functional Requirements ..................................................................................................... 132
-   4.1 External Interfaces ................................................................................................................. 132
-       4.1.1 User Interfaces ................................................................................................................ 132
-       4.1.2 Hardware Interfaces ........................................................................................................ 132
-       4.1.3 Software Interfaces .......................................................................................................... 133
-   4.2 Quality Attributes ................................................................................................................... 133
-       4.2.1 Usability .......................................................................................................................... 133
-       4.2.2 Reliability ........................................................................................................................ 134
-       4.2.3 Performance .................................................................................................................... 134
-       4.2.4 Security (BOLA/IDOR Defense, HIPAA, Decree 13/2023/ND-CP) .................................... 135
-       4.2.5 Maintainability ................................................................................................................ 136
+   4.1 External Interfaces (UI, Hardware, Software) ........................................................................ 132
+   4.2 Quality Attributes (Usability, Reliability, Performance, Security BOLA/IDOR, Maintainability) 133
 5. Requirement Appendix ................................................................................................................. 137
    5.1 Business Rules (BR-01 to BR-20) ............................................................................................ 137
    5.2 Acronyms and Abbreviations ................................................................................................. 142
@@ -209,156 +125,77 @@ III. Software Requirement Specification ........................................
 
 IV. Software Design Description ..................................................................................................... 158
 1. System Design ............................................................................................................................. 158
-   1.1 System Architecture (Spring Boot Modular Monolith, PostgreSQL 16, Two-Layer Cache) ..... 158
-   1.2 Package Diagram .................................................................................................................... 160
-       1.2.1 Front-end (React 19, Vite, Tailwind CSS, Zustand, Lucide) ........................................... 160
-       1.2.2 Back-end (15 Controllers, 31 Services, 16 Repositories, 17 Tables) ................................. 162
+   1.1 System Architecture (Modular Monolith, PostgreSQL 16 pgvector, Two-Layer Cache) .......... 158
+   1.2 Package Diagram (Front-end & Back-end 15 Controllers, 31 Services, 16 Repositories) ........ 160
 2. Database Design (17 Tables Normalized 3NF & pgvector HNSW Index) ..................................... 167
-   2.1 Users Table (users) ................................................................................................................. 170
-   2.2 Roles Table (roles & user_roles) ............................................................................................. 171
-   2.3 Patient Profiles Table (patient_profiles) ................................................................................. 172
-   2.4 Doctor Profiles Table (doctor_profiles) ................................................................................... 173
-   2.5 Specialties Table (specialties) ................................................................................................. 174
-   2.6 Doctor Specialties Table (doctor_specialties) ......................................................................... 175
-   2.7 Doctor Schedule Slots Table (doctor_schedule_slots) ............................................................ 176
-   2.8 Appointments Table (appointments) ....................................................................................... 177
-   2.9 Triage Sessions Table (triage_sessions) ................................................................................. 178
-   2.10 Triage Messages Table (triage_messages) ............................................................................ 179
-   2.11 Medical Documents Table (medical_documents) ................................................................. 180
-   2.12 Document Analyses Table (document_analyses) ................................................................. 181
-   2.13 Payment Transactions Table (payment_transactions) ........................................................... 182
-   2.14 Doctor Reviews Table (doctor_reviews) ................................................................................ 183
-   2.15 AI Token Usage Table (ai_token_usage) ............................................................................... 184
-   2.16 Audit Logs Table (audit_logs) ................................................................................................ 185
-   2.17 Notifications Table (notifications) ......................................................................................... 186
+   2.1 Users Table to 2.17 Notifications Table ......................................................................... 170 - 186
 3. Detailed Design (Class & Sequence Diagrams for 28 Clinical Workflows) ................................. 187
-   3.1 Dual-Transport JWT Authentication & Login (Sign In) .......................................................... 187
-   3.2 Patient Registration & Identity Validation ............................................................................. 189
-   3.3 Google OAuth2 / OIDC Social Sign-In .................................................................................... 191
-   3.4 Password Reset via SHA-256 Token Hash .............................................................................. 193
-   3.5 Change Password & Session Invalidation .............................................................................. 195
-   3.6 Refresh Token Rotation & Session Revocation ....................................................................... 197
-   3.7 Safe Logout & Cookie Purge .................................................................................................. 199
-   3.8 Update Patient Medical Passport ............................................................................................ 201
-   3.9 Conversational AI Symptom Triage Flow ............................................................................... 203
-   3.10 Red-Flag Emergency Keyword Interception ......................................................................... 205
-   3.11 Semantic Doctor Matching via pgvector Cosine Similarity ................................................... 207
-   3.12 Doctor Schedule Slot Reservation & Redis Lock ................................................................. 209
-   3.13 Medical Document Upload & Supabase S3 Storage ............................................................. 211
-   3.14 Vision OCR & Biomarker Parsing Pipeline ........................................................................... 213
-   3.15 15-Minute Signed URL Secure Document Access ................................................................ 215
-   3.16 AI Analysis Quota Top-Up & Payment ................................................................................. 217
-   3.17 In-Clinic Appointment Booking & Confirmation ................................................................. 219
-   3.18 Stripe Sandbox & Mock VietQR Payment Processing .......................................................... 221
-   3.19 Appointment Check-In & Queue STT Allocation .................................................................. 223
-   3.20 Appointment Reschedule with Slot Re-allocation ................................................................ 225
-   3.21 Automated Refund on Patient Cancellation .......................................................................... 227
-   3.22 Doctor Daily Queue & Next-Patient Call ............................................................................. 229
-   3.23 Pre-Encounter Clinical Split-Screen Inspection .................................................................... 231
-   3.24 WHO ICD-10 & LOINC Autocomplete Engine ..................................................................... 233
-   3.25 EMR Finalization & Electronic Prescription Signing ........................................................... 235
-   3.26 Doctor CCHN License Vetting by Admin ............................................................................. 237
-   3.27 System-Wide AI Model Switch & Circuit Breaker ................................................................ 239
-   3.28 HIPAA & Decree 13 Immutable Audit Logging .................................................................... 241
+   3.1 Dual-Transport JWT Authentication to 3.28 HIPAA & Decree 13 Audit Logging ........... 187 - 242
 
 V. Software Testing Documentation ............................................................................................... 243
 1. Scope of Testing ........................................................................................................................... 243
-2. Test Strategy ................................................................................................................................ 245
-   2.1 Testing Types ......................................................................................................................... 245
-   2.2 Test Levels ............................................................................................................................. 246
-   2.3 Supporting Tools .................................................................................................................... 247
-3. Test Plan ...................................................................................................................................... 248
-   3.1 Human Resources .................................................................................................................. 248
-   3.2 Test Environment .................................................................................................................. 249
-   3.3 Test Milestones ...................................................................................................................... 250
+2. Test Strategy (Testing Types, Levels, Supporting Tools) ............................................................. 245
+3. Test Plan (Human Resources, Environment, Milestones) ............................................................ 248
 4. Test Cases & Verification Results ................................................................................................ 251
-   4.1 Complete Backend Unit & Slice Integration Execution Results (38 Test Classes / 338 Tests) . 251
+   4.1 Complete Backend Unit & Integration Execution Results (38 Test Classes / 338 Tests PASS) 251
    4.2 Frontend Strict TypeScript Build, Playwright E2E & k6 Performance Benchmarks .............. 258
    4.3 Complete 49-Use-Case Requirements Traceability Matrix (RTM 1-to-1) ................................ 262
-   4.4 Empirical Test Execution Playbook & Captured Evidence Mapped to Test Case IDs ............. 275
+   4.4 Empirical Test Execution Playbook & Captured Evidence (EV-01 to EV-12b) ........................ 275
    4.5 Live Testing & Tracking Repository (Google Drive Embedded Reference) ............................ 289
 
 VI. Release Package & User Guides ............................................................................................... 291
 1. Deliverable Package Structure .................................................................................................... 291
-2. Installation Guides ....................................................................................................................... 292
-   2.1 System Requirements ............................................................................................................. 292
-       2.1.1 Hardware Requirements .................................................................................................. 292
-       2.1.2 Software Requirements ................................................................................................... 293
-   2.2 Installation Instructions ......................................................................................................... 294
-       2.2.1 Infrastructure & Database (Docker Compose) ................................................................. 294
-       2.2.2 Backend Application Deployment ................................................................................... 296
-       2.2.3 Frontend Application Deployment ................................................................................. 297
-3. User Manual ................................................................................................................................. 298
-   3.1 Overview ................................................................................................................................ 298
-   3.2 Workflow 1: Patient AI Symptom Triage, Red-Flag Defense & Semantic Doctor Discovery ... 299
-   3.3 Workflow 2: Multimodal Medical Document OCR, LOINC Interpretation & Quota Top-Up ..... 305
-   3.4 Workflow 3: Doctor Clinical Workstation, Split-Screen Inspection & EMR ICD-10 Prescription 311
-   3.5 Workflow 4: Admin Enterprise Governance, CCHN Vetting, AI FinOps & Security Audit ........ 318
+2. Installation Guides (Hardware/Software Requirements, Docker Compose, Deployment) ........ 292
+3. User Manual (Workflows 1 to 4: Patient Triage, Lab OCR, Doctor Workstation, Admin FinOps) 298
 ```
+
+*(Ngắt trang sang Trang 3)*
 
 ---
 
-## PHẦN 3: DANH MỤC HÌNH VẼ & BẢNG BIỂU (LIST OF FIGURES & TABLES)
+## TRANG 3: ACKNOWLEDGEMENT & DEFINITION AND ACRONYMS
 
-```text
-List of Figures
-Figure 1.1: High-Level Clinical Telehealth Workflow of MediAssist-AI ............................................ 10
-Figure 2.1: Scrum Sprint Cadence & Two-Week Milestone Release Cycle .......................................... 28
-Figure 3.1: Package Architecture of MediAssist-AI Subsystems ........................................................ 39
-Figure 3.2: Common Authentication & Identity Security Use Case Diagram .................................... 40
-Figure 3.3: Patient Telehealth & AI Clinical Services Use Case Diagram .......................................... 41
-Figure 3.4: Doctor Clinical Workstation & EMR Encounter Use Case Diagram ................................. 42
-Figure 3.5: Admin Enterprise Governance & FinOps Use Case Diagram ............................................ 43
-Figure 3.6: End-to-End User Screens Flow Diagram (SCR-01 to SCR-22) .......................................... 98
-Figure 3.7: Relational Database Schema ERD (17 Tables Normalized 3NF & pgvector) ................... 116
-Figure 4.1: Spring Boot Modular Monolith & Client Architecture Diagram ..................................... 159
-Figure 4.2: Frontend Package Architecture (React, Vite, Zustand) ................................................... 161
-Figure 4.3: Backend Modular Package Architecture (Domain, Service, Repository, Web) ............... 163
-Figure 4.4 to 4.31: Detailed Design Sequence Diagrams for 28 Core Workflows ..................... 188 - 242
+### Acknowledgement
+We would like to express our deepest gratitude to our faculty supervisors and clinical advisors at FPT University for their insightful advice, architectural rigor, and steadfast guidance throughout the engineering and verification of our capstone project, **MediAssist-AI (Intelligent Clinical Triage, Multimodal Lab Explanation & Semantic Doctor Matching Telehealth Platform)**. Their clear explanations, practical clinical feedback, and patient mentoring helped us navigate the immense complexities of building an enterprise medical assistant system with defensive Red-Flag triage, dense pgvector cosine matching, and isolated Supabase S3 clinical document vaults. Their continuous support encouraged us to think critically and optimize our application to meet real-world Vietnamese healthcare standards, Ministry of Health regulations, and empirical production requirements.
 
-List of Tables
-Table 1.1: Project Identity & Engineering Team Matrix ..................................................................... 8
-Table 1.2: Comparative Analysis: Existing Vietnamese Systems vs. MediAssist-AI ........................... 14
-Table 2.1: Work Breakdown Structure (WBS) & Engineering Effort Estimation ................................ 23
-Table 2.2: Risk Analysis, Clinical Impact & Mitigation Matrix ......................................................... 26
-Table 2.3: RACI Responsibility Assignment Matrix ........................................................................... 32
-Table 3.1: Actor Specification & Authorization Privileges ................................................................ 38
-Table 3.2: High-Level Summary of 49 Functional Use Cases ............................................................. 44
-Table 3.3: Complete Screen Authorization Matrix (RBAC & Guard Rules) ...................................... 109
-Table 3.4: System Business Rules Catalog (BR-01 to BR-20) ............................................................ 138
-Table 3.5: Standardized Application Messages & Error Code Catalog (80+ Messages) .................... 145
-Table 4.1: Detailed Database Tables Schema & Constraints (17 Tables) ................................. 170 - 186
-Table 5.1: Automated Backend Test Results Across 38 Test Classes (338 Tests PASS) .................. 252
-Table 5.2: Requirements Traceability Matrix (RTM: 49 Use Cases to Code & Tests) ....................... 263
-Table 5.3: Empirical Test Execution Playbook & Evidence Artifacts (EV-01 to EV-12b) .................. 276
-Table 6.1: Deployment Artifacts & Container Port Allocation ......................................................... 294
-```
+Finally, we extend our heartfelt appreciation to our core team members—**Nguyễn Thành Vinh, Phan Cao Hoàng Khương, and Phan Nhật Bảo**—for their collaborative spirit, engineering discipline, and countless late-night coding sessions across 113 documented development iterations. The successful completion of this project stands as a testament to the team's unwavering commitment to creating an innovative, patient-centered, and clinically resilient telehealth solution.
+
+### Definition and Acronyms
+
+| Acronym | Definition |
+| :--- | :--- |
+| **AI** | Artificial Intelligence — Large Language Models (Gemini, OpenRouter) and Dense Vector Embeddings (`text-embedding-3-small`). |
+| **AST** | Abstract Syntax Tree — Syntax analysis tree used for automated static code and document verification. |
+| **BHYT** | Bảo Hiểm Y Tế — Vietnamese National Health Insurance identifier stored in Patient EMR Passports. |
+| **BOLA / IDOR** | Broken Object Level Authorization / Insecure Direct Object Reference (defended by `PatientAccessGuard`). |
+| **CCCD** | Căn Cước Công Dân — 12-digit Vietnamese Citizen National Identification masked by `MedicalPiiService`. |
+| **CCHN** | Chứng Chỉ Hành Nghề — Official Ministry of Health Medical Practice License verified by Admins. |
+| **CI/CD** | Continuous Integration and Continuous Deployment (GitHub Actions pipeline running tests and builds). |
+| **DTO** | Data Transfer Object — Strongly typed API payload contract between Spring Boot backend and React frontend. |
+| **EMR** | Electronic Medical Record — Outpatient encounter record containing vital signs, ICD-10 diagnosis, and prescriptions. |
+| **FINOPS** | Financial Operations for Cloud AI — Real-time tracking of token usage and inference costs (`ai_token_usage`). |
+| **HNSW** | Hierarchical Navigable Small World — Sub-linear vector index ($m=24, ef=128$) powering semantic doctor search. |
+| **ICD-10** | International Classification of Diseases, 10th Revision (WHO standard for clinical diagnosis). |
+| **JWT** | JSON Web Token — Stateless cryptographic token delivered via Dual-Transport (Bearer Header + HttpOnly Cookie). |
+| **LLM** | Large Language Model (Google Gemini 1.5/2.0 Flash, DeepSeek-V3 via OpenRouter). |
+| **LOINC** | Logical Observation Identifiers Names and Codes — Global laboratory test and observation terminology. |
+| **NEWS-2** | National Early Warning Score 2 — Standardized clinical physiological scoring system for acute illness severity. |
+| **OCR** | Optical Character Recognition — Vision-based extraction of text and laboratory metrics from scanned medical reports. |
+| **PII** | Personally Identifiable Information — Sensitive patient data automatically masked under Decree 13/2023/NĐ-CP. |
+| **RBAC** | Role-Based Access Control — Multi-role authorization gate (`PATIENT`, `DOCTOR`, `ADMIN`). |
+| **RTM** | Requirements Traceability Matrix — 1-to-1 mapping verifying 49 Use Cases across code, tests, and database. |
+| **SSO** | Single Sign-On — Google OAuth2 / OIDC authentication flow. |
+
+*(Ngắt trang sang Trang 4)*
 
 ---
 
-## PHẦN 4: HƯỚNG DẪN 3 BƯỚC ĐỒNG BỘ TRỰC TIẾP LÊN GOOGLE DOC 1 (REPORT 7)
+## TRANG 4: DOCUMENT RECORD OF CHANGES
 
-### Bước 1: Chuẩn Hóa Trang Bìa (Page 1)
-1. Mở tài liệu [Doc 1: Report 7 MediAssist-AI](https://docs.google.com/document/d/1sZxs1r7XFnhywWyzqbxglDNRL6ir-MVx4Ic3n225qRI/edit?usp=drivesdk).
-2. Xóa bảng dữ liệu tóm tắt kỹ thuật ("Field / Details") ở trang đầu tiên.
-3. Dán nội dung **PHẦN 1: MẪU TRANG BÌA CHUẨN FPT UNIVERSITY** ở trên.
-4. Đặt phông chữ **Times New Roman**:
-   - `MINISTRY OF EDUCATION AND TRAINING` & `FPT UNIVERSITY`: Size **14**, **In hoa Đậm (Bold)**, Căn giữa.
-   - `Capstone Project Document`: Size **16**, **In hoa Đậm (Bold)**, Căn giữa.
-   - `[MediAssist-AI]...`: Size **18**, **In hoa Đậm (Bold)**, Màu xanh đậm y tế `#003366` hoặc `#1A365D`, Căn giữa.
-   - Khung thông tin thành viên (Group Members / Supervisors / Capstone Code): Size **12**, Căn lề rõ ràng hoặc dùng bảng 2 cột viền ẩn.
-   - Dòng cuối `- Quy Nhon, November 2026 -`: Size **12**, **Nghiêng (Italic)**, Căn giữa.
-5. Nhấn tổ hợp phím **Ctrl + Enter** (Windows) hoặc **Cmd + Enter** (macOS) ngay sau dòng địa điểm ngày tháng để tạo trang mới cho Mục lục.
-
-### Bước 2: Chèn Mục Lục Tự Động (Table of Contents) Ở Trang 2
-1. Đặt con trỏ soạn thảo tại dòng đầu tiên của Trang 2.
-2. Trên thanh menu Google Docs, chọn:
-   **Chèn (Insert) $\rightarrow$ Mục lục (Table of Contents) $\rightarrow$ Chọn kiểu có số trang (With page numbers)**.
-3. Google Docs sẽ tự động quét tất cả các tiêu đề Heading 1, 2, 3 đã được định dạng chuẩn trong tài liệu và sinh ra mục lục tương tác 100% chuyên nghiệp.
-4. *(Tùy chọn)* Nếu muốn hiển thị mục lục tĩnh dạng text có sẵn định dạng chấm nối chuẩn đồ án, Tech Lead có thể copy trực tiếp nội dung **PHẦN 2** ở trên vào trang 2.
-
-### Bước 3: Cập Nhật & Kiểm Tra Phân Cấp Heading
-- Mọi tiêu đề Chương (I, II, III, IV, V, VI): Được gắn kiểu **Heading 1**.
-- Mọi tiêu đề Mục lớn (1, 2, 3...): Được gắn kiểu **Heading 2**.
-- Mọi tiêu đề Tiểu mục (1.1, 2.1, 2.3.1, 3.1.1...): Được gắn kiểu **Heading 3**.
-- Khi có bất kỳ thay đổi nào về số trang, Tech Lead chỉ cần rê chuột vào Mục lục và nhấn nút **Cập nhật mục lục (Update table of contents)** hình mũi tên xoay tròn ở góc trái mục lục.
+| Version | Date | Author | Description of Baseline Synchronization |
+| :---: | :---: | :---: | :--- |
+| **v1.0** | 2026-06-15 | Capstone Team | Initial Charter, Problem Statement, and Domain Modeling baseline (Reports 1 & 2). |
+| **v2.0** | 2026-09-20 | Tech Lead (VinhHT) | Full SRS (49 Use Cases) and SDD (17 Tables 3NF, 28 Detailed Design Sequences) synchronization. |
+| **v3.0** | 2026-10-24 | QA & Dev Team | Verified M1–M7 completion: 308/308 Unit Tests PASS, Playwright E2E, k6 500-VU stress test, Flyway V23 (ICD-10). |
+| **v3.1** | 2026-11-19 | Coordinator & Tech Lead | Exhaustive 1-to-1 Final Project Report (Report 7) mirror mapped directly to verified source code (15 Controllers / 87 Endpoints, 31 Services, V1-V23). |
+| **v3.2** | 2026-11-24 | Solution Architect | Standardize FPT Cover Page with University Logo, Full 1-to-1 Hierarchical Table of Contents, List of Figures/Tables, and 338 Unit Tests baseline. |

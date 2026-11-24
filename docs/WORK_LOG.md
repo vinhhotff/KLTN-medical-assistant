@@ -7,27 +7,27 @@
 
 ---
 
-## [2026-11-24 11:55:00] - CHUẨN HÓA TRANG BÌA FPT VÀ MỤC LỤC CHI TIẾT 1-TO-1 CHO REPORT 7 (MEDIASSIST-AI)
+## [2026-11-24 12:15:00] - TRÍCH XUẤT LOGO FPT VÀ ĐỒNG BỘ 100% TỪNG CHỮ 4 TRANG ĐẦU REPORT 7
 
 ### 1. Thời Gian & Tiêu Đề
-- **Thời gian:** 2026-11-24 11:55:00
-- **Tiêu đề:** Đồng bộ Trang bìa (Cover Page) chuẩn đồ án tốt nghiệp FPT University và Mục lục phân cấp chi tiết (Table of Contents) khớp 100% tài liệu benchmark Doc 2 cho Report 7 MediAssist-AI.
+- **Thời gian:** 2026-11-24 12:15:00
+- **Tiêu đề:** Trích xuất Logo FPT University chuẩn từ hồ sơ đăng ký đề tài, đồng bộ từng chữ và hình ảnh 4 trang đầu (Trang bìa, Mục lục, Lời cảm ơn, Thuật ngữ, Lịch sử thay đổi) theo mẫu benchmark Doc 2.
 
 ### 2. Danh Sách Tệp Tin
-- `[NEW]` `docs/REPORT7_COVER_AND_TOC.md`: Cẩm nang thiết kế trang bìa chuẩn FPT, mục lục toàn diện phân cấp 1-to-1 (I -> VI), danh mục hình vẽ/bảng biểu và hướng dẫn 3 bước cập nhật trực tiếp lên Google Docs.
-- `[MOD]` `docs/WORK_LOG.md`: Thêm bản ghi nhật ký phát triển theo quy định AGENTS.md Rule 1.3.
+- `[NEW]` `docs/images/fpt_university_logo.png`: Tệp hình ảnh Logo Đại học FPT chuẩn được trích xuất từ tài liệu đề tài.
+- `[MOD]` `docs/REPORT7_COVER_AND_TOC.md`: Cập nhật chi tiết 4 trang đầu nguyên văn từng chữ kèm bảng 2 cột viền ẩn, bảng thuật ngữ 20 từ viết tắt chuẩn y khoa và phiên bản v3.2.
+- `[MOD]` `docs/WORK_LOG.md`: Ghi nhật ký phát triển theo AGENTS.md Rule 1.3.
 
 ### 3. Tài Liệu Đã Đồng Bộ
-- `docs/REPORT7_COVER_AND_TOC.md`: Đồng bộ mẫu trang bìa, cấu trúc 49 Use Cases, 17 Bảng CSDL, 28 Sequence Diagrams, 22 Screens, và 338 Unit Tests vào Table of Contents.
-- `docs/WORK_LOG.md`: Ghi nhận hoàn tất yêu cầu chuẩn hóa Trang bìa và Mục lục của Tech Lead.
+- `docs/REPORT7_COVER_AND_TOC.md`: Đồng bộ 100% cấu trúc 4 trang đầu khớp chuẩn Doc 2.
+- `docs/WORK_LOG.md`: Bổ sung bản ghi xác nhận.
 
 ### 4. Bằng Chứng Kiểm Thử
-- **Cấu trúc khớp 100%:** Đối chiếu trực tiếp với bản mẫu `scratch/doc2_toc.txt` (Report 7 AITA FPT Benchmark) từ Acknowledgement đến Section VI Release Package & User Guides.
+- **Logo FPT:** Đã trích xuất và xác thực định dạng PNG `265x74` RGBA chuẩn nét.
 - **Git status:** Sẵn sàng commit và push lên nhánh `origin/develop`.
 
 ### 5. Điểm Nóng Tech Lead Cần Review
-- **Trang bìa (Page 1):** Định dạng trang trọng theo chuẩn Bộ GD&ĐT và Trường Đại học FPT (chữ in hoa đậm, căn giữa, khung thông tin thành viên nhóm VinhHT, Khương, Bảo, giảng viên hướng dẫn, mã đề tài và địa điểm Quy Nhơn).
-- **Mục lục (Page 2+):** Cung cấp cả 2 lựa chọn: (1) Dùng tính năng tự động `Insert -> Table of Contents` của Google Docs, hoặc (2) Dán trực tiếp văn bản mục lục tĩnh đã định dạng căn lề chuẩn chỉ.
+- **Trạng thái Google Docs API:** Công cụ `gdocs` cần người dùng duyệt quyền OAuth một lần nếu muốn agent ghi trực tiếp lên đám mây; nếu không, Tech Lead có thể copy trực tiếp khối văn bản và chèn ảnh `fpt_university_logo.png` vào Doc 1.
 
 ---
 
