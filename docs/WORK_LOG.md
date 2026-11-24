@@ -7,6 +7,28 @@
 
 ---
 
+## [2026-11-24 19:45:00] - THIẾT KẾ MỚI HOÀN TOÀN SƠ ĐỒ KIẾN TRÚC HỆ THỐNG PHÂN TẦNG DOANH NGHIỆP (ENTERPRISE SYSTEM ARCHITECTURE)
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 19:45:00
+- **Tiêu đề:** Thiết kế mới hoàn toàn sơ đồ System Architecture theo phong cách **Enterprise Software Architecture (C4 Container / Modern Layered Model)**, phân tách 4 tầng công nghệ nội bộ chuẩn mực cùng Sidebar hệ sinh thái dịch vụ ngoài, loại bỏ hoàn toàn sự gò ép theo khung AWS cũ.
+
+### 2. Danh Sách Tệp Tin & Thay Đổi Chi Tiết
+- `[MOD]` `docs/images/system_architecture.png` (327 KB):
+  - **Tầng 1: Client Presentation Tier:** React 18, Vite 6, Tailwind CSS, Zustand gồm Patient Portal, Doctor Clinical Workstation, Admin Console và CloudFront Edge CDN.
+  - **Tầng 2: Gateway & Zero-Trust Security Tier:** Ingress Reverse Proxy (Rate Limiting, WAF, CORS), Stateless Dual-Transport Auth (Bearer + HttpOnly Cookie), PatientAccessGuard (RLS) và CLS Data Masking.
+  - **Tầng 3: Core Modular Application Services Tier:** 6 động cơ lâm sàng Spring Boot 3.4.x / Java 21 LTS (AI Triage 5-Stage Red-Flag, Semantic Doctor Search HNSW 1536 chiều, Multimodal Vision OCR, Telehealth Booking Redlock, Payment Router & 100% Refund, WHO ICD-10 EMR Encounter).
+  - **Tầng 4: Polyglot Data & Persistence Tier:** PostgreSQL 16 + pgvector (17 bảng ACID), Redis 6379 Cache & Redlock, AWS S3 Presigned URL 15 phút.
+  - **Sidebar: External Ecosystem:** OpenAI API (1536-dim & GPT-4o), Google Gemini Flash Vision OCR, Stripe Payment & 100% Refund, Docker / Amazon ECR CI/CD.
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.docx`: Biên dịch lại bản Word nhúng sơ đồ kiến trúc mới.
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.pdf`: Kết xuất lại bản PDF in ấn chuẩn A4 sắc nét.
+- `[MOD]` `REVIEW2_DIAGRAMS_CATALOG.md`: Cập nhật hình ảnh trực quan trong Artifact.
+
+### 3. Bằng Chứng Kiểm Thử
+- Sơ đồ được kết xuất bằng Playwright ở độ phân giải Retina 4K (2x deviceScaleFactor), kích thước 1540x920px, đồ họa phẳng sắc nét, màu sắc phân tầng trang nhã, không còn hiện tượng lệch icon hay đè nhãn chữ.
+
+---
+
 ## [2026-11-24 15:00:00] - CHUẨN HÓA KIẾN TRÚC AWS CLOUD BLUEPRINT VÀ LOẠI BỎ TOÀN BỘ NHÃN HÀNH ĐỘNG TRÊN DÂY NỐI ERD HẬU REVIEW 2
 
 ### 1. Thời Gian & Tiêu Đề
