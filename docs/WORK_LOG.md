@@ -7,6 +7,23 @@
 
 ---
 
+## [2026-11-24 12:45:00] - HOÀN TẤT BỔ SUNG MỤC LỤC (TABLE OF CONTENTS) TRỰC TIẾP VÀO GOOGLE DOC 1 (MAPPING 1-1)
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 12:45:00
+- **Tiêu đề:** Đẩy trực tiếp Mục lục (Table of Contents) phân cấp 1-1 toàn diện (313 đề mục) vào tài liệu đám mây Google Docs [Doc 1: Report 7 MediAssist-AI] qua REST API batchUpdate.
+
+### 2. Danh Sách Tệp Tin
+- `[CLOUD]` Google Doc `1sZxs1r7XFnhywWyzqbxglDNRL6ir-MVx4Ic3n225qRI`: Chèn 313 đề mục Table of Contents (16.460 ký tự), ngắt trang trước/sau, định dạng HEADING_1 căn giữa, màu `#003366`.
+- `[MOD]` `docs/WORK_LOG.md`: Ghi nhật ký phát triển theo AGENTS.md Rule 1.3.
+
+### 3. Bằng Chứng Thực Thi
+- **API Response:** `batchUpdate` trả về HTTP 200 `writeControl.requiredRevisionId` hợp lệ.
+- **Xác thực cấu trúc:** Lệnh `gdocs readonly toc` trên Doc 1 xác nhận `Table of Contents` đã xuất hiện chính thức tại vị trí chuẩn ngay trước `Acknowledgement` và sau `Document Record of Changes`.
+- **Căn chỉnh định dạng:** Căn lề tab chuẩn đồ án FPT với số trang đối chiếu 1-to-1 từ Section I đến Section VI.
+
+---
+
 ## [2026-11-24 12:15:00] - TRÍCH XUẤT LOGO FPT VÀ ĐỒNG BỘ 100% TỪNG CHỮ 4 TRANG ĐẦU REPORT 7
 
 ### 1. Thời Gian & Tiêu Đề
