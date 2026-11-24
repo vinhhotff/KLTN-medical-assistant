@@ -731,14 +731,24 @@ public class AppointmentService {
         }
         dto.setSttNumber(stt);
 
-        // 2. Room & Clinic Info
+        // 2. Room & Clinic Info (prefer real doctor clinicAddress / hospitalAffiliation when available)
+        DoctorProfile doctorProfile = (a.getDoctor() != null && doctorProfileRepository != null)
+                ? doctorProfileRepository.findByUserId(a.getDoctor().getId()).orElse(null)
+                : null;
         String room = (a.getClinicRoom() != null && !a.getClinicRoom().isBlank())
                 ? a.getClinicRoom()
-                : "Phòng Khám 205 - Chuyên Khoa Nội";
+                : (doctorProfile != null && doctorProfile.getDepartment() != null && !doctorProfile.getDepartment().isBlank())
+                        ? "Phòng Khám - " + doctorProfile.getDepartment().trim()
+                        : "Phòng Khám 205 - Chuyên Khoa Nội";
         dto.setClinicRoom(room);
         dto.setClinicFloor("Tầng 2");
-        dto.setClinicBuilding("Tòa A - Bệnh viện Đa Khoa MediAssist FPT");
-        String address = "Lô E2a-7, Đường D1, Khu Công Nghệ Cao, TP. Thủ Đức, TP. Hồ Chí Minh";
+        String building = (doctorProfile != null && doctorProfile.getHospitalAffiliation() != null && !doctorProfile.getHospitalAffiliation().isBlank())
+                ? doctorProfile.getHospitalAffiliation().trim()
+                : "Tòa A - Bệnh viện Đa Khoa MediAssist FPT";
+        dto.setClinicBuilding(building);
+        String address = (doctorProfile != null && doctorProfile.getClinicAddress() != null && !doctorProfile.getClinicAddress().isBlank())
+                ? doctorProfile.getClinicAddress().trim()
+                : "Lô E2a-7, Đường D1, Khu Công Nghệ Cao, TP. Thủ Đức, TP. Hồ Chí Minh";
         dto.setClinicAddress(address);
         try {
             dto.setClinicMapUrl("https://maps.google.com/?q=" + URLEncoder.encode(address, StandardCharsets.UTF_8));

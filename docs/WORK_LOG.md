@@ -7,6 +7,39 @@
 
 ---
 
+## [2026-11-24 13:51:10] - BỔ SUNG ĐỊA CHỈ PHÒNG KHÁM BÁC SĨ (V27) & SCRIPT DỌN DẸP / SEED DỮ LIỆU CHUẨN PRODUCTION (`scripts/reset-and-seed.mjs`)
+
+- **Tác giả / AI Assistant:** Senior Database & Fullstack AI Pair Programmer
+- **Phân nhánh Git:** `feature/fuction`
+
+### 1. Danh sách tệp tin thay đổi
+- `[NEW]` [`V27__add_clinic_address_to_doctor_profiles.sql`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/backend/src/main/resources/db/migration/V27__add_clinic_address_to_doctor_profiles.sql) — Thêm cột `clinic_address VARCHAR(300)` vào bảng `doctor_profiles`.
+- `[MOD]` [`DoctorProfile.java`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/backend/src/main/java/com/mediassist/model/entity/DoctorProfile.java) — Ánh xạ field `clinicAddress` cùng getter/setter.
+- `[MOD]` [`DoctorDetailDto.java`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/backend/src/main/java/com/mediassist/dto/DoctorDetailDto.java), [`UpdateDoctorProfileRequest.java`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/backend/src/main/java/com/mediassist/dto/UpdateDoctorProfileRequest.java) — Expose và nhận `clinicAddress` trong API hồ sơ & tìm kiếm bác sĩ.
+- `[MOD]` [`DoctorService.java`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/backend/src/main/java/com/mediassist/service/DoctorService.java), [`AppointmentService.java`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/backend/src/main/java/com/mediassist/service/AppointmentService.java) — Lưu/đồng bộ `clinicAddress` vào vector embedding HNSW và trả địa chỉ phòng khám thực tế trên phiếu khám điện tử (`ticket`).
+- `[MOD]` [`DataInitializer.java`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/backend/src/main/java/com/mediassist/config/DataInitializer.java) — Bổ sung cờ `@Value("${app.seed.demo.enabled:false}")` ngăn tự động tái tạo tài khoản demo `@mediassist.local` cũ khi reboot backend, chỉ giữ seed `specialties`, `admin@mediassist.local` và đồng bộ `bio_embedding`.
+- `[MOD]` [`DoctorProfilePage.tsx`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/pages/doctor/DoctorProfilePage.tsx), [`DoctorSearchPage.tsx`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/pages/patient/DoctorSearchPage.tsx), [`BookingModal.tsx`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/components/booking/BookingModal.tsx), [`mockHandlers.ts`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/mocks/mockHandlers.ts), [`mockApi.ts`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/e2e/fixtures/mockApi.ts) — Hiển thị & chỉnh sửa địa chỉ phòng khám, gắn nút *"Chỉ đường"* Google Maps trực tiếp trên thẻ bác sĩ & modal đặt lịch.
+- `[NEW]` [`reset-and-seed.mjs`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/scripts/reset-and-seed.mjs) — Script reset transaction-safe dọn sạch dữ liệu test cũ (giữ nguyên `flyway_schema_history`, `specialties`, `system_configs`, `admin@mediassist.local`) và seed 12 Bác sĩ (`@gmail.com`) phủ 12 chuyên khoa + 132 ca lịch mẫu + 2 ngày ngoại lệ + 5 Bệnh nhân (`@gmail.com`) + 15 Lịch hẹn tương đối theo `NOW()` (6 đã hoàn thành kèm sinh hiệu/ICD-10/đơn thuốc, 4 hôm nay, 3 sắp tới, 2 đã hủy) + thanh toán & đánh giá, mật khẩu chung `Demo@123456`.
+
+### 2. Tài liệu đã đồng bộ
+- [`docs/DATABASE_DESIGN.md`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/docs/DATABASE_DESIGN.md) — Bổ sung `clinic_address` [V27] trong ERD và SQL `doctor_profiles`.
+- [`docs/USE_CASES.md`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/docs/USE_CASES.md) — Cập nhật `UC-PAT-03`, `UC-PAT-09`, `UC-PAT-11`, `UC-DOC-12` phản ánh luồng hiển thị/chỉnh sửa địa chỉ phòng khám và V27.
+
+### 3. Bằng chứng kiểm thử & vận hành thực tế
+- **Backend Unit & Integration Tests (`mvn test`):** `Tests run: 345, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS`.
+- **Frontend Production Build (`npm run build`):** `0 TypeScript errors`, `✓ 2332 modules transformed`, built in `5.55s`.
+- **Playwright E2E (`doctor-search.spec.ts`, `patient-dashboard.spec.ts`, `doctor-schedule.spec.ts`):** `20 passed (9.7s)`.
+- **Database Reset & Seed (`node scripts/reset-and-seed.mjs`) + Live Stack Verification:**
+  - Flyway áp dụng `V27` sạch sẽ; `DataInitializer` đồng bộ thành công 1536-d `bio_embedding` cho cả **12/12** bác sĩ mới.
+  - Xác nhận DB chỉ còn duy nhất `admin@mediassist.local` mang hậu tố `.local`; `appointments` khớp 15 bản ghi (`COMPLETED: 6, IN_PROGRESS: 1, SCHEDULED: 6, CANCELLED: 2`).
+  - Live API `http://localhost:5001`: `/api/v1/doctors` (12 bác sĩ đủ `clinicAddress`), `/api/v1/auth/login`, `/api/v1/doctors/me/profile`, `/api/v1/doctors/me/stats`, `/api/v1/doctors/{id}/slots`, `/api/v1/appointments/my`, `/api/v1/appointments/{id}/ticket` trả HTTP 200 kèm `clinicAddress`.
+
+### 4. Điểm nóng Tech Lead cần Review
+1. **Bảo vệ dữ liệu mẫu sạch qua restarts:** `DataInitializer` tắt seed tài khoản `@mediassist.local` theo mặc định (`app.seed.demo.enabled:false`), nhờ đó restart server chỉ tái đồng bộ vector `pgvector` HNSW cho tập bác sĩ thực trong DB mà không tạo lại dữ liệu rác.
+2. **Bảo toàn giao dịch khi Reset & Seed:** `scripts/reset-and-seed.mjs` chạy trong một khối `BEGIN ... COMMIT` PostgreSQL duy nhất và xóa cache Redis (`FLUSHDB`) để đồng bộ L1/L2 cache ngay tức thì.
+
+---
+
 ## [2026-11-24 13:06:39] - TÁI CẤU TRÚC QUẢN LÝ LỊCH LÀM VIỆC BÁC SĨ CHUẨN CAL.COM (WEEKLY + EXCEPTIONS + BUFFER TIME)
 
 ### 1. Thời Gian & Tiêu Đề

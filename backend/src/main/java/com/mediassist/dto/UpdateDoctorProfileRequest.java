@@ -17,6 +17,7 @@ public class UpdateDoctorProfileRequest {
 
     private String academicTitle;
     private String hospitalAffiliation;
+    private String clinicAddress;
     private String department;
     private String licenseIssuedBy;
     private java.time.LocalDate licenseIssuedDate;
@@ -66,6 +67,9 @@ public class UpdateDoctorProfileRequest {
 
     public String getHospitalAffiliation() { return hospitalAffiliation; }
     public void setHospitalAffiliation(String hospitalAffiliation) { this.hospitalAffiliation = hospitalAffiliation; }
+
+    public String getClinicAddress() { return clinicAddress; }
+    public void setClinicAddress(String clinicAddress) { this.clinicAddress = clinicAddress; }
 
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }

@@ -80,6 +80,9 @@ public class DoctorProfile {
     @Column(length = 150)
     private String hospitalAffiliation; // BV Đại Học Y Dược TP.HCM, BV Chợ Rẫy, BV Bạch Mai
 
+    @Column(name = "clinic_address", length = 300)
+    private String clinicAddress; // Địa chỉ phòng khám / nơi tiếp nhận bệnh nhân trực tiếp
+
     @Column(length = 150)
     private String department; // Khoa Tim Mạch Can Thiệp, Khoa Tiêu Hóa Gan Mật...
 
@@ -134,6 +137,9 @@ public class DoctorProfile {
 
     public String getHospitalAffiliation() { return hospitalAffiliation; }
     public void setHospitalAffiliation(String hospitalAffiliation) { this.hospitalAffiliation = hospitalAffiliation; }
+
+    public String getClinicAddress() { return clinicAddress; }
+    public void setClinicAddress(String clinicAddress) { this.clinicAddress = clinicAddress; }
 
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }

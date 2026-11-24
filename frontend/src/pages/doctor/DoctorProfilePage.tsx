@@ -55,6 +55,7 @@ const DEMO_CLINICAL_PRESETS = [
   {
     academicTitle: 'ThS.BS',
     hospitalAffiliation: 'Bệnh viện Đại Học Y Dược TP.HCM',
+    clinicAddress: '215 Hồng Bàng, Phường 11, Quận 5, TP. Hồ Chí Minh',
     department: 'Khoa Nội Tổng Quát',
     licenseIssuedBy: 'Bộ Y Tế',
     yearsOfExperience: 10,
@@ -65,6 +66,7 @@ const DEMO_CLINICAL_PRESETS = [
   {
     academicTitle: 'TS.BS',
     hospitalAffiliation: 'Bệnh viện Bạch Mai Hà Nội',
+    clinicAddress: '78 Giải Phóng, Phường Phương Mai, Quận Đống Đa, Hà Nội',
     department: 'Viện Tim Mạch Quốc Gia',
     licenseIssuedBy: 'Bộ Y Tế',
     yearsOfExperience: 14,
@@ -75,6 +77,7 @@ const DEMO_CLINICAL_PRESETS = [
   {
     academicTitle: 'BS.CKII',
     hospitalAffiliation: 'Bệnh viện Chợ Rẫy TP.HCM',
+    clinicAddress: '201B Nguyễn Chí Thanh, Phường 12, Quận 5, TP. Hồ Chí Minh',
     department: 'Khoa Thần Kinh Lâm Sàng',
     licenseIssuedBy: 'Sở Y Tế TP.HCM',
     yearsOfExperience: 12,
@@ -123,6 +126,7 @@ export const DoctorProfilePage: React.FC = () => {
   // Nhóm 3: Chuyên môn & Nơi công tác
   const [academicTitle, setAcademicTitle] = useState('BS');
   const [hospitalAffiliation, setHospitalAffiliation] = useState('');
+  const [clinicAddress, setClinicAddress] = useState('');
   const [department, setDepartment] = useState('');
   const [yearsOfExperience, setYearsOfExperience] = useState('');
   const [specialtySlugs, setSpecialtySlugs] = useState<string[]>([]);
@@ -186,6 +190,7 @@ export const DoctorProfilePage: React.FC = () => {
       );
       setAcademicTitle(d.academicTitle || 'BS');
       setHospitalAffiliation(d.hospitalAffiliation || '');
+      setClinicAddress(d.clinicAddress || '');
       setDepartment(d.department || '');
 
       const current: string[] = Array.isArray(d.specialties)
@@ -264,6 +269,7 @@ export const DoctorProfilePage: React.FC = () => {
     setAcademicTitle(preset.academicTitle);
     if (pickedSlug) setSpecialtySlugs([pickedSlug]);
     setHospitalAffiliation(preset.hospitalAffiliation);
+    setClinicAddress(preset.clinicAddress);
     setDepartment(preset.department);
     setYearsOfExperience(String(preset.yearsOfExperience));
     setConsultationFee(String(preset.consultationFee));
@@ -354,6 +360,7 @@ export const DoctorProfilePage: React.FC = () => {
         academicTitle: academicTitle || 'BS',
         specialtySlugs,
         hospitalAffiliation: hospitalAffiliation.trim(),
+        clinicAddress: clinicAddress.trim(),
         department: department.trim(),
         yearsOfExperience: years,
         bio: bio.trim(),
@@ -845,6 +852,18 @@ export const DoctorProfilePage: React.FC = () => {
                   Khoa / phòng <span className="font-normal text-slate-500">(không bắt buộc)</span>
                 </label>
                 <input id="dp-dept" className={inputCls} value={department} onChange={(e) => setDepartment(e.target.value)} />
+              </div>
+              <div className="sm:col-span-2">
+                <label htmlFor="dp-clinic-address" className={label}>
+                  Địa chỉ phòng khám <span className="font-normal text-slate-500">(hiển thị để bệnh nhân tìm đường đến khám)</span>
+                </label>
+                <input
+                  id="dp-clinic-address"
+                  className={inputCls}
+                  value={clinicAddress}
+                  onChange={(e) => setClinicAddress(e.target.value)}
+                  placeholder="Ví dụ: 215 Hồng Bàng, Phường 11, Quận 5, TP. Hồ Chí Minh"
+                />
               </div>
             </div>
           </section>

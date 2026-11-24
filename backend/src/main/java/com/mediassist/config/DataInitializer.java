@@ -40,6 +40,9 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${app.seed.admin.name:System Administrator}")
     private String adminName;
 
+    @Value("${app.seed.demo.enabled:false}")
+    private boolean seedDemoEnabled;
+
     public DataInitializer(UserRepository userRepository,
                            SpecialtyRepository specialtyRepository,
                            DoctorProfileRepository doctorProfileRepository,
@@ -67,11 +70,11 @@ public class DataInitializer implements CommandLineRunner {
         // 2. Seed Admin User
         seedAdmin();
 
-        // 3. Seed Demo Doctors
-        seedDoctor();
-
-        // 4. Seed Demo Patient
-        seedPatient();
+        // 3. Optional legacy demo doctors & patient (disabled once production reset-and-seed runs)
+        if (seedDemoEnabled) {
+            seedDoctor();
+            seedPatient();
+        }
 
         // 5. Sync pgvector Embeddings for Doctors
         try {

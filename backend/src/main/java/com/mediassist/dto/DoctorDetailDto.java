@@ -35,6 +35,7 @@ public class DoctorDetailDto {
     private List<String> specialties;
     private String academicTitle;
     private String hospitalAffiliation;
+    private String clinicAddress;
     private String department;
     private String licenseIssuedBy;
     private Double rating;
@@ -78,6 +79,7 @@ public class DoctorDetailDto {
         dto.setScopeOfPractice(profile.getScopeOfPractice());
         dto.setAcademicTitle(profile.getAcademicTitle());
         dto.setHospitalAffiliation(profile.getHospitalAffiliation());
+        dto.setClinicAddress(profile.getClinicAddress());
         dto.setDepartment(profile.getDepartment());
         dto.setLicenseIssuedBy(profile.getLicenseIssuedBy());
         dto.setReviewCount(profile.getReviewCount() != null ? profile.getReviewCount() : 0);
@@ -139,6 +141,9 @@ public class DoctorDetailDto {
 
     public String getHospitalAffiliation() { return hospitalAffiliation; }
     public void setHospitalAffiliation(String hospitalAffiliation) { this.hospitalAffiliation = hospitalAffiliation; }
+
+    public String getClinicAddress() { return clinicAddress; }
+    public void setClinicAddress(String clinicAddress) { this.clinicAddress = clinicAddress; }
 
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }

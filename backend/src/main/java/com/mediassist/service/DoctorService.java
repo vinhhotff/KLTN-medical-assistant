@@ -381,6 +381,7 @@ public class DoctorService {
         if (req.getYearsOfExperience() != null) profile.setYearsOfExperience(req.getYearsOfExperience());
         if (req.getAcademicTitle() != null) profile.setAcademicTitle(req.getAcademicTitle().trim());
         if (req.getHospitalAffiliation() != null) profile.setHospitalAffiliation(req.getHospitalAffiliation().trim());
+        if (req.getClinicAddress() != null) profile.setClinicAddress(req.getClinicAddress().isBlank() ? null : req.getClinicAddress().trim());
         if (req.getDepartment() != null) profile.setDepartment(req.getDepartment().trim());
         if (req.getLicenseIssuedBy() != null) profile.setLicenseIssuedBy(req.getLicenseIssuedBy().trim());
         if (req.getLicenseIssuedDate() != null) profile.setLicenseIssuedDate(req.getLicenseIssuedDate());
@@ -571,11 +572,12 @@ public class DoctorService {
                             .map(Specialty::getName)
                             .collect(Collectors.joining(", "))
                     : "";
-            String docText = String.format("%s %s. %s - %s. %s. Chuyên khoa: %s. Kinh nghiệm: %d năm.",
+            String docText = String.format("%s %s. %s - %s. %s %s. Chuyên khoa: %s. Kinh nghiệm: %d năm.",
                     profile.getAcademicTitle() != null ? profile.getAcademicTitle() : "",
                     profile.getUser() != null ? profile.getUser().getFullName() : "",
                     profile.getHospitalAffiliation() != null ? profile.getHospitalAffiliation() : "",
                     profile.getDepartment() != null ? profile.getDepartment() : "",
+                    profile.getClinicAddress() != null ? "Địa chỉ: " + profile.getClinicAddress() + "." : "",
                     profile.getBio() != null ? profile.getBio() : "",
                     specNames,
                     profile.getYearsOfExperience());

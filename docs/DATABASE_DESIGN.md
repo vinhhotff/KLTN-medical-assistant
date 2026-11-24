@@ -133,6 +133,7 @@ erDiagram
         INT years_of_experience
         VARCHAR academic_title "GS, PGS, TS, BSCKII"
         VARCHAR hospital_affiliation
+        VARCHAR clinic_address "V27"
         DOUBLE_PRECISION rating
         INT review_count
         INT slot_duration_minutes "V26"
@@ -408,6 +409,7 @@ CREATE TABLE doctor_profiles (
     academic_title VARCHAR(50),                  -- Chức danh học thuật: GS.TS, PGS.TS, TS.BS, BS.CKII, BS.CKI
     hospital_affiliation VARCHAR(150),           -- Bệnh viện công tác: BV Đại Học Y Dược, BV Chợ Rẫy
     department VARCHAR(150),                     -- Khoa chuyên môn trực thuộc: Khoa Tim Mạch Can Thiệp
+    clinic_address VARCHAR(300),                 -- [V27] Địa chỉ phòng khám / cơ sở tiếp đón bệnh nhân trực tiếp
     license_issued_by VARCHAR(150),              -- Đơn vị cấp CCHN: Cục Quản lý Khám chữa bệnh - Bộ Y Tế / Sở Y Tế
     rating DOUBLE PRECISION DEFAULT 4.9,         -- Điểm đánh giá hài lòng người bệnh (1.0 - 5.0)
     review_count INT NOT NULL DEFAULT 0,         -- [V17] Tổng số lượt đánh giá thực tế của người bệnh

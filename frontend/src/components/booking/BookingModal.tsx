@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, MapPin } from 'lucide-react';
 import { api, EMAIL_NOT_VERIFIED_TOOLTIP } from '../../services/api';
 import { useEmailVerification } from '../../hooks/useEmailVerification';
 import { EmailNotVerifiedHint } from '../common/EmailNotVerifiedHint';
@@ -16,6 +16,7 @@ export interface BookableDoctor {
   specialties?: string[] | null;
   consultationFee?: number | null;
   hospitalAffiliation?: string | null;
+  clinicAddress?: string | null;
 }
 
 interface BookedAppointment {
@@ -168,12 +169,37 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <dt className="text-slate-500">Phí khám</dt>
               <dd className="font-semibold text-right">{formatVnd(booked.feeAmount) ?? fee ?? 'Thông báo tại quầy tiếp đón'}</dd>
             </div>
+            {(doctor.clinicAddress || doctor.hospitalAffiliation) && (
+              <div className="flex justify-between gap-3 pt-1.5 border-t border-slate-200/80">
+                <dt className="text-slate-500 shrink-0">Địa điểm khám</dt>
+                <dd className="font-medium text-right text-slate-800">
+                  {doctor.clinicAddress || doctor.hospitalAffiliation}
+                </dd>
+              </div>
+            )}
           </dl>
           <p className="text-xs text-slate-500">Vui lòng có mặt trước giờ hẹn 15 phút để làm thủ tục.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {isUnverified && <EmailNotVerifiedHint className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2" />}
+          {doctor.clinicAddress && (
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-teal-50/70 border border-teal-200/80 text-xs text-slate-700">
+              <MapPin className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-slate-900">Địa chỉ phòng khám</p>
+                <p className="mt-0.5 leading-relaxed">{doctor.clinicAddress}</p>
+              </div>
+              <a
+                href={`https://maps.google.com/?q=${encodeURIComponent(doctor.clinicAddress)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-teal-700 font-semibold hover:underline shrink-0"
+              >
+                Bản đồ
+              </a>
+            </div>
+          )}
           {context}
           <SlotPicker
             doctorId={doctor.id}

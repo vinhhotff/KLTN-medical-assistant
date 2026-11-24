@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Calendar, BadgeCheck, CheckCircle2, Building2, Star, Filter, Sparkles, Loader2, Zap, PowerOff, Wrench } from 'lucide-react';
+import { Search, Calendar, BadgeCheck, CheckCircle2, Building2, MapPin, Star, Filter, Sparkles, Loader2, Zap, PowerOff, Wrench } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { api } from '../../services/api';
@@ -44,6 +44,7 @@ interface DoctorDetail extends ClinicalDefenseMeta {
   verified?: boolean;
   academicTitle?: string | null;
   hospitalAffiliation?: string | null;
+  clinicAddress?: string | null;
   department?: string | null;
   licenseIssuedBy?: string | null;
   rating?: number | null;
@@ -233,6 +234,7 @@ export const DoctorSearchPage: React.FC = () => {
         d.fullName?.toLowerCase().includes(term) ||
         d.bio?.toLowerCase().includes(term) ||
         d.hospitalAffiliation?.toLowerCase().includes(term) ||
+        d.clinicAddress?.toLowerCase().includes(term) ||
         d.department?.toLowerCase().includes(term) ||
         d.specialties?.some((s) => s.toLowerCase().includes(term));
       return matchesSearch && matchesSpecialty;
@@ -395,17 +397,35 @@ export const DoctorSearchPage: React.FC = () => {
                       </span>
                     </div>
 
-                    {doc.hospitalAffiliation && (
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700 font-medium">
-                        <span className="inline-flex items-center gap-1 text-teal-800 font-semibold">
-                          <Building2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
-                          {doc.hospitalAffiliation}
-                        </span>
-                        {doc.department && (
-                          <>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-slate-600">{doc.department}</span>
-                          </>
+                    {(doc.hospitalAffiliation || doc.clinicAddress) && (
+                      <div className="space-y-1 text-xs text-slate-700 font-medium">
+                        {doc.hospitalAffiliation && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-1 text-teal-800 font-semibold">
+                              <Building2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
+                              {doc.hospitalAffiliation}
+                            </span>
+                            {doc.department && (
+                              <>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-slate-600">{doc.department}</span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                        {doc.clinicAddress && (
+                          <div className="flex flex-wrap items-center gap-1.5 text-slate-600 font-normal">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden />
+                            <span>{doc.clinicAddress}</span>
+                            <a
+                              href={`https://maps.google.com/?q=${encodeURIComponent(doc.clinicAddress)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-teal-700 font-semibold hover:underline ml-1"
+                            >
+                              Chỉ đường
+                            </a>
+                          </div>
                         )}
                       </div>
                     )}

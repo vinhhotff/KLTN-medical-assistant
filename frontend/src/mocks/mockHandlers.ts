@@ -160,6 +160,7 @@ export async function handleMockRequest(
       specialties: resolvedSpecialties,
       academicTitle: body?.academicTitle || 'BS',
       hospitalAffiliation: body?.hospitalAffiliation || null,
+      clinicAddress: body?.clinicAddress || null,
       department: body?.department || null,
       licenseIssuedBy: body?.licenseIssuedBy || 'Bộ Y Tế',
       rating: 5.0,
