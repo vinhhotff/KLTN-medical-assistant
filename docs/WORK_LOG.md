@@ -7,6 +7,73 @@
 
 ---
 
+## [2026-11-24 21:18:00] - ĐỒNG BỘ TOÀN DIỆN CHUẨN KIỂM THỬ: 38 TEST CLASSES VÀ 338 UNIT TESTS 100% PASS
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 21:18:00
+- **Tiêu đề:** Đồng bộ hóa toàn diện hệ thống tài liệu kỹ thuật trong `docs/`, `report_5/` và các scripts phát triển (`scripts/build_test_report.py`, `scripts/compile_docs_bundle.py`) theo chuẩn kiểm thử chính thức: **38 Test Classes** và **338 Unit Tests PASS 100%**.
+
+### 2. Danh Sách Tệp Tin & Thay Đổi Chi Tiết
+- `[MOD]` `docs/CAPSTONE_DEFENSE.md`:
+  - Cập nhật mục 5.5 và bảng tham chiếu Artifacts: thay thế các số liệu cũ (337/322) thành chuẩn 38 Test Classes và 338 Unit Tests (JUnit 5 + Mockito + AssertJ) 100% PASS.
+  - Cập nhật Mục 5.3 kịch bản thuyết trình Review 2 (Slide 9) và Lời dẫn 28 Luồng SDD/Bảo mật: neo chuẩn 338/338 Backend Unit Tests (38 Test Classes) và 0 lỗi TypeScript.
+  - Cập nhật Câu hỏi R2-6 về đồng bộ hóa SDD đạt chuẩn 338/338 unit tests (38 test classes).
+- `[MOD]` `docs/MASTER_TRACEABILITY_INDEX.md`:
+  - Cập nhật mục tổng quan và mục lục: chuẩn hóa 38 Lớp kiểm thử tự động, 338 Tests 100% PASS.
+  - Cập nhật Bảng điều hướng tài liệu chuẩn Report 5: 338 Tests, k6, HNSW.
+  - Cập nhật Mục 8: Bảng ánh xạ chi tiết 38 Test Classes và số lượng tests thực tế từng lớp (tổng cộng 338 tests) khớp 100% với backend test suite (`AppointmentServiceTest`: 32 tests, `MedicalDocumentAnalysisServiceTest`: 30 tests, `AdminVettingServiceTest`: 22 tests, `AuthServiceEmailVerificationTest`: 19 tests, `DoctorServiceTest`: 15 tests, `SupabaseStorageServiceTest`: 15 tests, `PaymentServiceTest`: 14 tests, `ClinicalOntologyServiceTest`: 12 tests, ...).
+  - Cập nhật Cheatsheet vận hành nhanh: `mvn test` (338 tests).
+- `[MOD]` `docs/TEST_REPORT_MediAssist_AI.md`:
+  - Cập nhật phần thông tin chung: 338 / 338 Tests PASS 100% (38 Test Classes, 0 Failure, 0 Error, 10.62s).
+  - Cập nhật Mục 1.1 Mục tiêu chất lượng: 100% Pass Rate (338/338 Backend Tests, 0 lỗi TypeScript).
+  - Cập nhật Mục 2.1 & 2.2 Table 2.2: Phân bổ 38 Test Classes trên 8 miền nghiệp vụ (tổng 338 tests: Group I: 59, Group II: 19, Group III: 46, Group IV: 48, Group V: 71, Group VI: 23, Group VII: 17, Group VIII: 55).
+  - Cập nhật Mục 7 Quality Gate & Kết luận: 100% (338/338 Tests PASS trong 10.62s).
+- `[MOD]` `report_5/REPORT_5_TEST_REPORT_AND_VERIFICATION.md`:
+  - Đồng bộ nội dung 1-1 với `docs/TEST_REPORT_MediAssist_AI.md` (338 Tests / 38 Test Classes).
+- `[MOD]` `report_5/REPORT_5_EXECUTIVE_SUMMARY.md`:
+  - Cập nhật Bảng 1.1: 338 / 338 Tests PASS (100%) qua 38 Test Classes trong 10.62s.
+  - Cập nhật Hình 1.2, Hình 1.3, Sơ đồ miền lâm sàng: [338 TESTS AUTOMATED TEST SUITE].
+  - Cập nhật Kịch bản phản biện Q&A Câu 1 và Câu 5: 338 bài test trong thư mục surefire-reports.
+- `[MOD]` `docs/REPORT7_SECTION_III_ENHANCEMENT.md`:
+  - Cập nhật Bảng thống kê hồ sơ kiểm thử trực tuyến (STT 02 `Report5_Unit_Test.xlsx`): 38 Test Classes, 338 Unit Tests, 338/338 PASS.
+- `[MOD]` `docs/README.md`:
+  - Cập nhật danh mục Report 5 trong sơ đồ 4 phân tầng học thuật: 338 Tests / k6 500 VUs.
+  - Cập nhật liên kết ma trận truy vết: 338 Test Cases liên kết 1-1.
+- `[MOD]` `docs/index.html`:
+  - Cập nhật banner trạng thái: 100% PRODUCTION-READY • 338/338 TESTS PASSING.
+  - Cập nhật thẻ chỉ số đo đạc: 338 / 338 Backend Tests Pass, 100% Surefire (10.62s), 2,326 Modules (2.79s).
+  - Cập nhật thẻ Report 5: IEEE 829 (338 Tests), 338/338 bài test Backend qua 38 test classes.
+- `[MOD]` `scripts/build_test_report.py`:
+  - Đồng bộ template sinh tài liệu Report 5 với chuẩn 38 Test Classes, 338 Unit Tests.
+- `[MOD]` `scripts/compile_docs_bundle.py`:
+  - Cập nhật tiêu đề và huy hiệu của Report 5 trong bundle: "Report 5: Test Report & Verification (338 Tests & k6)", badge "338 Tests PASS".
+- `[MOD]` `docs-bundle.js` và các file bundle tương ứng (`report_1/` đến `report_5/`):
+  - Biên dịch lại toàn bộ 21 tài liệu (1,271 KB) cập nhật mới nhất.
+
+### 3. Tài Liệu Đã Đồng Bộ
+- `docs/CAPSTONE_DEFENSE.md`
+- `docs/MASTER_TRACEABILITY_INDEX.md`
+- `docs/TEST_REPORT_MediAssist_AI.md`
+- `docs/REPORT7_SECTION_III_ENHANCEMENT.md`
+- `docs/README.md`
+- `docs/index.html`
+- `report_5/REPORT_5_TEST_REPORT_AND_VERIFICATION.md`
+- `report_5/REPORT_5_EXECUTIVE_SUMMARY.md`
+- `scripts/build_test_report.py`
+- `scripts/compile_docs_bundle.py`
+- `docs/WORK_LOG.md`
+
+### 4. Bằng Chứng Kiểm Thử
+- **Backend Test Suite:** 38 Test Classes, 338 Unit Tests PASS 100% (`mvn test -f backend/pom.xml`).
+- **Frontend Strict Build:** `npm run build --prefix frontend` (2,326 modules transformed, 0 lỗi TypeScript Strict trong 2.79s).
+- **Bundle Compilation:** `python3 scripts/compile_docs_bundle.py` thành công 100% (21 documents, 1,271 KB đồng bộ vào 6 targets).
+
+### 5. Điểm Nóng Tech Lead Cần Review
+- Đã quy chuẩn toàn bộ hệ thống số liệu kiểm thử sang con số thực tế duy nhất của repository: **38 Test Classes** và **338 Unit Tests PASS 100%** (xóa bỏ triệt để các số liệu cũ 308, 322, 331, 337).
+- Bảng ánh xạ chi tiết từng test class trong `docs/MASTER_TRACEABILITY_INDEX.md` và `docs/TEST_REPORT_MediAssist_AI.md` đã được đối chiếu 1-1 với code thực tế trong `backend/src/test/java/`.
+
+---
+
 ## [2026-11-24 20:30:00] - THIẾT KẾ LẠI TOÀN DIỆN SYSTEM ARCHITECTURE THEO CHUẨN MODULAR MONOLITH VÀ SỬA 5 ĐIỂM CỐT LÕI
 
 ### 1. Thời Gian & Tiêu Đề

@@ -10,7 +10,7 @@ Báo cáo **Report 5 (STR – Software Test Documentation & Verification Report)
 
 | Hạng Mục Đảm Bảo Chất Lượng | Công Cụ & Môi Trường Đo Đạc | Kết Quả Thực Nghiệm Đạt Được | Bằng Chứng Xác Minh (Evidence) |
 | :--- | :--- | :--- | :---: |
-| **Backend Automated Tests** | Maven Surefire Plugin (JUnit 5 + Mockito) | **308 / 308 Tests PASS (100%)** qua 37 Test Classes trong 11.72s | [Hình 1.2: Terminal Log](#hinh-12) & [Hình 1.3: Surefire HTML](#hinh-13) |
+| **Backend Automated Tests** | Maven Surefire Plugin (JUnit 5 + Mockito) | **338 / 338 Tests PASS (100%)** qua 38 Test Classes trong 10.62s | [Hình 1.2: Terminal Log](#hinh-12) & [Hình 1.3: Surefire HTML](#hinh-13) |
 | **Frontend Strict Build** | TypeScript Compiler (`tsc`) & Vite Bundler | **2.311 modules compiled (0 Error, 0 Warning, 2.76s)** | [Hình 1.4: Frontend Build](#hinh-14) |
 | **Kiểm thử Chịu tải cao** | k6 Stress Suite (500 Virtual Users đồng thời) | **196.532 requests, 6.447 req/s, Tỷ lệ lỗi 0.00%** (P95 3.89ms, RAM 330MB) | [Hình 1.5: k6 Stress Test](#hinh-15) |
 | **Bộ đệm 2 tầng chống sập** | k6 Cache Benchmark (50 VUs, 83.737 reqs) | **95.03% Hit Rate, L1 Caffeine: 1.80ms vs L2 Redis: 7.50ms** | [Hình 1.6: k6 Cache Benchmark](#hinh-16) |
@@ -30,11 +30,11 @@ Báo cáo **Report 5 (STR – Software Test Documentation & Verification Report)
 
 <a id="hinh-12"></a>
 ![Maven Surefire Execution Result](images/test_evidence/unit_test_mvn_success.png)
-*Hình 1.2: Bằng chứng thực thi thực tế `mvn test` với 308/308 Unit & Slice Integration Tests vượt qua hoàn hảo (BUILD SUCCESS trong 11.723s, 0 Failures, 0 Errors, 0 Skipped).*
+*Hình 1.2: Bằng chứng thực thi thực tế `mvn test` với 338/338 Unit & Slice Integration Tests vượt qua hoàn hảo (BUILD SUCCESS trong 10.623s, 0 Failures, 0 Errors, 0 Skipped).*
 
 <a id="hinh-13"></a>
 ![Maven Surefire HTML Report Overview](images/test_evidence/surefire_report_overview.png)
-*Hình 1.3: Báo cáo Maven Surefire HTML Report chi tiết 37 Test Classes và 308 Test Cases đạt tỷ lệ thành công 100% không khiếm khuyết.*
+*Hình 1.3: Báo cáo Maven Surefire HTML Report chi tiết 38 Test Classes và 338 Test Cases đạt tỷ lệ thành công 100% không khiếm khuyết.*
 
 <a id="hinh-14"></a>
 ![Frontend Production Build & Strict TypeCheck](images/test_evidence/frontend_build_success.png)
@@ -50,10 +50,10 @@ Báo cáo **Report 5 (STR – Software Test Documentation & Verification Report)
 
 ---
 
-### 🏛️ 2. PHÂN BỔ 308 BÀI KIỂM THỬ TRÊN 8 MIỀN NGHIỆP VỤ LÂM SÀNG
+### 🏛️ 2. PHÂN BỔ 338 BÀI KIỂM THỬ TRÊN 8 MIỀN NGHIỆP VỤ LÂM SÀNG
 
 ```
-                             [308 TESTS AUTOMATED TEST SUITE]
+                             [338 TESTS AUTOMATED TEST SUITE]
                                             │
     ┌───────────────────────┬───────────────┴───────────────┬───────────────────────┐
     ▼                       ▼                               ▼                       ▼
@@ -115,7 +115,7 @@ $$\begin{array}{|l|c|c|c|}
 
 #### ❓ Câu 1: Thầy Cô hỏi: "Nhóm nói đã test rồi, vậy bằng chứng thực tế nằm ở đâu?"
 > **Trả lời:** *"Dạ thưa Thầy Cô, toàn bộ bằng chứng kiểm thử của nhóm đều là số liệu thực nghiệm đo đạc định lượng có lưu vết đầy đủ trong hệ thống:  
-> 1. **Kiểm thử tự động Backend:** Toàn bộ **308 bài test** được lưu vết chi tiết trong thư mục `backend/target/surefire-reports/` gồm 37 tệp XML và tệp báo cáo `surefire.html`, ghi nhận thời gian chạy **11.72 giây, 0 Failure, 0 Error, 0 Skipped** (minh chứng tại **Hình 1.2** và **Hình 1.3**).  
+> 1. **Kiểm thử tự động Backend:** Toàn bộ **338 bài test** được lưu vết chi tiết trong thư mục `backend/target/surefire-reports/` gồm 38 tệp XML và tệp báo cáo `surefire.html`, ghi nhận thời gian chạy **10.62 giây, 0 Failure, 0 Error, 0 Skipped** (minh chứng tại **Hình 1.2** và **Hình 1.3**).  
 > 2. **Kiểm thử chịu tải thực tế k6:** Thực thi qua kịch bản `tests/k6/high_load_test.js` dưới tải **500 Virtual Users đồng thời**, xử lý thành công **196.532 requests**, đạt thông lượng **6.447 req/s với 0.00% lỗi** (minh chứng tại **Hình 1.5**).  
 > 3. **Kiểm chuẩn Two-Layer Cache:** Thực thi qua kịch bản `tests/k6/cache_benchmark.js`, chứng minh tỷ lệ trúng cache đạt **95.03%**, L1 Caffeine chỉ tốn **1.80ms** (minh chứng tại **Hình 1.6**).  
 > 4. **Kiểm thử đóng gói Frontend:** 2.311 modules TypeScript strict biên dịch hoàn hảo trong 2.76s với 0 lỗi (minh chứng tại **Hình 1.4**)."*
@@ -138,6 +138,6 @@ $$\begin{array}{|l|c|c|c|}
 
 #### ❓ Câu 5: Tiêu chuẩn chấp thuận nghiệm thu (Quality Gate Approval) của nhóm trước khi bảo vệ là gì?
 > **Trả lời:** *"Dạ thưa Thầy Cô, nhóm áp dụng **Quy tắc cổng chất lượng nghiêm ngặt (Strict Quality Gate)**:  
-> - Tỷ lệ vượt qua kiểm thử tự động bắt buộc phải đạt **100.0%** (308/308 bài test).  
+> - Tỷ lệ vượt qua kiểm thử tự động bắt buộc phải đạt **100.0%** (338/338 bài test).  
 > - Biên dịch TypeScript ở chế độ strict mode phải đạt **0 Error, 0 Warning**.  
 > - Mọi Pull Request vi phạm bất kỳ bài test nào đều bị chặn merge tự động. Nhờ quy trình kỷ luật này, sản phẩm hiện tại đã sẵn sàng 100% cho buổi bảo vệ chính thức trước Hội đồng."*

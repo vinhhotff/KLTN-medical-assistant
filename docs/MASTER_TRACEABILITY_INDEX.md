@@ -13,7 +13,7 @@
 > - **17 Bảng CSDL Chuẩn 3NF + 6 Enums** (23 tệp Entity & Enum)
 > - **23 Bản di trú Flyway** (`V1__initial_schema.sql` đến `V23__refactor_icd_code_and_version.sql`)
 > - **22 Trang Frontend React + 10 Modals/Drawers** với Zero-Flicker Zustand & Code-Splitting Lazy Loading
-> - **37 Lớp Kiểm Thử Tự Động (Unit & Integration Tests)** với **308 Tests 100% PASS**
+> - **38 Lớp Kiểm Thử Tự Động (Unit & Integration Tests)** với **338 Tests 100% PASS**
 > - **113 Phiên làm việc** ghi nhận chi tiết tại `docs/WORK_LOG.md`
 
 ---
@@ -27,7 +27,7 @@
 - [5. Danh Mục Toàn Diện 15 Controllers & 87 REST Endpoints](#5-danh-mục-toàn-diện-15-controllers--87-rest-endpoints)
 - [6. Danh Mục Toàn Diện 31 Backend Services & 16 Repositories](#6-danh-mục-toàn-diện-31-backend-services--16-repositories)
 - [7. Danh Mục Toàn Diện 22 Trang Giao Diện Frontend React & Điều Hướng Tuyến](#7-danh-mục-toàn-diện-22-trang-giao-diện-frontend-react--điều-hướng-tuyến)
-- [8. Bản Đồ Bộ Kiểm Thử Chất Lượng (37 Lớp Test, 308 Unit Tests 100% PASS)](#8-bản-đồ-bộ-kiểm-thử-chất-lượng-37-lớp-test-308-unit-tests-100-pass)
+- [8. Bản Đồ Bộ Kiểm Thử Chất Lượng (38 Lớp Test, 338 Unit Tests 100% PASS)](#8-bản-đồ-bộ-kiểm-thử-chất-lượng-38-lớp-test-338-unit-tests-100-pass)
 - [9. Cẩm Nang Lệnh Vận Hành Nhanh (Fast Operations Cheatsheet)](#9-cẩm-nang-lệnh-vận-hành-nhanh-fast-operations-cheatsheet)
 
 ---
@@ -43,7 +43,7 @@ Khi cần tìm kiếm tài liệu phục vụ viết báo cáo luận văn, slid
 | **`REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`** | Phân tích Nghiệp vụ & Mô hình hóa Miền (Capstone Report 2) chuẩn ISO 29148, Mô hình O2O, 3 Personas, DDD | Business Analyst & Hội đồng | [`docs/REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md`](./REQUIREMENTS_ANALYSIS_AND_DOMAIN_MODEL.md) |
 | **`SRS_MediAssist_AI.md`** | Hồ sơ Đặc tả Yêu cầu Phần mềm (Capstone Report 3) chuẩn IEEE 830 / ISO 29148, 49 Use Cases, 22 Màn hình, RTM | Hội đồng chấm đồ án & Nhóm | [`docs/SRS_MediAssist_AI.md`](./SRS_MediAssist_AI.md) |
 | **`SDD_MediAssist_AI.md`** | Hồ sơ Thiết kế Phần mềm (Capstone Report 4) chuẩn FPT Capstone, 88 Biểu đồ Mermaid Class & Sequence, 17 Bảng CSDL | Giảng viên phản biện & Dev | [`docs/SDD_MediAssist_AI.md`](./SDD_MediAssist_AI.md) |
-| **`TEST_REPORT_MediAssist_AI.md`** | Báo cáo Kiểm thử Phần mềm & Đảm bảo Chất lượng (Capstone Report 5) chuẩn IEEE 829 / ISO 29119, 308 Tests, k6, HNSW | Ban Đảm bảo Chất lượng & Hội đồng | [`docs/TEST_REPORT_MediAssist_AI.md`](./TEST_REPORT_MediAssist_AI.md) |
+| **`TEST_REPORT_MediAssist_AI.md`** | Báo cáo Kiểm thử Phần mềm & Đảm bảo Chất lượng (Capstone Report 5) chuẩn IEEE 829 / ISO 29119, 338 Tests, k6, HNSW | Ban Đảm bảo Chất lượng & Hội đồng | [`docs/TEST_REPORT_MediAssist_AI.md`](./TEST_REPORT_MediAssist_AI.md) |
 | **`ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`** | Đặc tả chi tiết 5 thuật toán doanh nghiệp độc quyền (Hedged Requests, Progressive Sieve, XFetch, v.v.) | Tech Lead & Giám khảo chấm điểm | [`docs/ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md`](./ENTERPRISE_ALGORITHMS_AND_RESILIENCE.md) |
 | **`CAPSTONE_DEFENSE.md`** | Cẩm nang bảo vệ: Đề cương 5 chương, kịch bản thuyết trình 15p, checklist live demo, Top 16 câu hỏi Q&A | Cả nhóm đi bảo vệ | [`docs/CAPSTONE_DEFENSE.md`](./CAPSTONE_DEFENSE.md) |
 | **`USE_CASES.md`** | Đặc tả 49 Use Cases chi tiết chuẩn RUP/IEEE 830, luồng sự kiện, ngoại lệ, API endpoints 1-1 | Toàn bộ nhóm | [`docs/USE_CASES.md`](./USE_CASES.md) |
@@ -370,49 +370,49 @@ Toàn bộ 22 trang giao diện được tổ chức theo kiến trúc phân vù
 
 ---
 
-## 8. Bản Đồ Bộ Kiểm Thử Chất Lượng (38 Lớp Test, 331 Unit Tests 100% PASS)
+## 8. Bản Đồ Bộ Kiểm Thử Chất Lượng (38 Lớp Test, 338 Unit Tests 100% PASS)
 
-Hệ thống duy trì bộ kiểm thử tự động toàn diện đạt tỷ lệ vượt qua **100% (331/331 tests pass)**:
+Hệ thống duy trì bộ kiểm thử tự động toàn diện đạt tỷ lệ vượt qua **100% (338/338 tests pass)**:
 
 | STT | Lớp Kiểm Thử (Test Class) | Gói Java (Package) | Số Lượng Tests | Phân Vùng Chức Năng & Thuật Toán Được Kiểm Thử |
 | :---: | :--- | :--- | :---: | :--- |
 | 1 | `AdminVettingServiceTest.java` | `com.mediassist.service` | **22 tests** | Thẩm định CCHN bác sĩ (Flyway V25), phê duyệt, từ chối kèm lý do, cấp Signed URL Supabase Storage và ghi audit `ADMIN_VIEW_DOCTOR_LICENSE` |
-| 2 | `AiModelRouterTest.java` | `com.mediassist.ai` | **6 tests** | Hedged Requests, xoay tua mô hình Gemini / OpenRouter / Fallback |
-| 3 | `AiUsageAnalyticsServiceTest.java` | `com.mediassist.service` | **8 tests** | Tính toán FinOps tiêu thụ token AI, doanh thu và chi phí USD/VND |
-| 4 | `AppointmentMailPrivacyTest.java` | `com.mediassist.mail` | **7 tests** | Quyền riêng tư dữ liệu y tế trong nội dung email gửi bệnh nhân |
-| 5 | `AppointmentServiceTest.java` | `com.mediassist.service` | **26 tests** | Vòng đời lịch khám, chống race condition, cấp STT, check-in, hoàn tất khám |
-| 6 | `AuthControllerPasswordResetTest.java` | `com.mediassist.controller` | **9 tests** | Các kịch bản controller đặt lại mật khẩu với token hợp lệ / hết hạn |
-| 7 | `AuthServiceEmailVerificationTest.java` | `com.mediassist.service` | **11 tests** | Xác minh token email, gửi lại token và kích hoạt tài khoản |
-| 8 | `AuthServicePasswordResetTest.java` | `com.mediassist.service` | **14 tests** | Quy trình quên mật khẩu, sinh token hash SHA-256 và cập nhật Bcrypt |
-| 9 | `ClinicalOntologyServiceTest.java` | `com.mediassist.service` | **10 tests** | Tra cứu nhanh ICD-10 (QĐ 7603) và chỉ số xét nghiệm LOINC (QĐ 3280) |
-| 10 | `ClinicalQueryDefenseEngineTest.java` | `com.mediassist.service` | **18 tests** | Phòng thủ 5 cấp: teen-code slang, NegEx phủ định, 115 cờ đỏ cấp cứu |
-| 11 | `ClinicalRagServiceTest.java` | `com.mediassist.service` | **9 tests** | Điều phối RAG lâm sàng, tạo prompt chuẩn cấu trúc và xuất SBAR JSON |
-| 12 | `DoctorReviewServiceTest.java` | `com.mediassist.service` | **11 tests** | Gửi đánh giá sao, tính trung bình xếp hạng và ngăn chặn đánh giá giả mạo |
-| 13 | `DoctorSemanticSearchServiceTest.java` | `com.mediassist.service` | **15 tests** | Tìm kiếm pgvector HNSW 1536-d, xếp hạng đa mục tiêu WHRF SOTA |
-| 14 | `DoctorServiceTest.java` | `com.mediassist.service` | **19 tests** | Cấu hình lịch khám, điều phối hàng đợi, gọi khám kế tiếp theo STT |
-| 15 | `EmailServiceTest.java` | `com.mediassist.mail` | **8 tests** | Gửi email xác thực, email thông báo lịch khám và biên nhận thanh toán |
+| 2 | `AiModelRouterTest.java` | `com.mediassist.ai` | **5 tests** | Hedged Requests, xoay tua mô hình Gemini / OpenRouter / Fallback |
+| 3 | `AiUsageAnalyticsServiceTest.java` | `com.mediassist.service` | **3 tests** | Tính toán FinOps tiêu thụ token AI, doanh thu và chi phí USD/VND |
+| 4 | `AppointmentMailPrivacyTest.java` | `com.mediassist.mail` | **4 tests** | Quyền riêng tư dữ liệu y tế trong nội dung email gửi bệnh nhân |
+| 5 | `AppointmentServiceTest.java` | `com.mediassist.service` | **32 tests** | Vòng đời lịch khám, chống race condition, cấp STT, check-in, hoàn tất khám |
+| 6 | `AuthControllerPasswordResetTest.java` | `com.mediassist.controller` | **5 tests** | Các kịch bản controller đặt lại mật khẩu với token hợp lệ / hết hạn |
+| 7 | `AuthServiceEmailVerificationTest.java` | `com.mediassist.service` | **19 tests** | Xác minh token email, gửi lại token và kích hoạt tài khoản |
+| 8 | `AuthServicePasswordResetTest.java` | `com.mediassist.service` | **10 tests** | Quy trình quên mật khẩu, sinh token hash SHA-256 và cập nhật Bcrypt |
+| 9 | `ClinicalOntologyServiceTest.java` | `com.mediassist.service` | **12 tests** | Tra cứu nhanh ICD-10 (QĐ 7603) và chỉ số xét nghiệm LOINC (QĐ 3280), tính điểm NEWS-2, cảnh báo DDI và dị ứng |
+| 10 | `ClinicalQueryDefenseEngineTest.java` | `com.mediassist.service` | **5 tests** | Phòng thủ 5 cấp: teen-code slang, NegEx phủ định, 115 cờ đỏ cấp cứu |
+| 11 | `ClinicalRagServiceTest.java` | `com.mediassist.service` | **3 tests** | Điều phối RAG lâm sàng, tạo prompt chuẩn cấu trúc và xuất SBAR JSON |
+| 12 | `DoctorReviewServiceTest.java` | `com.mediassist.service` | **7 tests** | Gửi đánh giá sao, tính trung bình xếp hạng và ngăn chặn đánh giá giả mạo |
+| 13 | `DoctorSemanticSearchServiceTest.java` | `com.mediassist.service` | **9 tests** | Tìm kiếm pgvector HNSW 1536-d, xếp hạng đa mục tiêu WHRF SOTA |
+| 14 | `DoctorServiceTest.java` | `com.mediassist.service` | **15 tests** | Cấu hình lịch khám, điều phối hàng đợi, gọi khám kế tiếp theo STT |
+| 15 | `EmailServiceTest.java` | `com.mediassist.mail` | **6 tests** | Gửi email xác thực, email thông báo lịch khám và biên nhận thanh toán |
 | 16 | `EmbeddingServiceTest.java` | `com.mediassist.service` | **7 tests** | Sinh vector nhúng 1536 chiều và xử lý fallback khi mất kết nối mạng |
-| 17 | `MailNotificationListenerTest.java` | `com.mediassist.mail` | **6 tests** | Bắt sự kiện bất đồng bộ qua Spring Event để gửi mail không làm nghẽn luồng |
-| 18 | `MailTransactionPhaseTest.java` | `com.mediassist.mail` | **5 tests** | Đảm bảo email chỉ được gửi sau khi giao dịch CSDL đã commit thành công |
-| 19 | `MeddiesPdfGeneratorServiceTest.java` | `com.mediassist.service` | **6 tests** | Tạo tệp PDF phiếu khám và đơn thuốc điện tử đúng định dạng mẫu |
-| 20 | `MedicalDocumentAnalysisServiceTest.java` | `com.mediassist.service` | **16 tests** | Pipeline bóc tách OCR đa phương thức, trích xuất biomarkers và tóm tắt AI |
-| 21 | `MedicalDocumentFileAccessServiceTest.java` | `com.mediassist.service` | **8 tests** | Kiểm tra quyền sở hữu tệp và cấp Signed URL ngắn hạn 15 phút |
+| 17 | `MailNotificationListenerTest.java` | `com.mediassist.mail` | **10 tests** | Bắt sự kiện bất đồng bộ qua Spring Event để gửi mail không làm nghẽn luồng |
+| 18 | `MailTransactionPhaseTest.java` | `com.mediassist.mail` | **3 tests** | Đảm bảo email chỉ được gửi sau khi giao dịch CSDL đã commit thành công |
+| 19 | `MeddiesPdfGeneratorServiceTest.java` | `com.mediassist.service` | **3 tests** | Tạo tệp PDF phiếu khám và đơn thuốc điện tử đúng định dạng mẫu |
+| 20 | `MedicalDocumentAnalysisServiceTest.java` | `com.mediassist.service` | **30 tests** | Pipeline bóc tách OCR đa phương thức, trích xuất biomarkers, phát hiện Panic Values đe dọa tính mạng và tóm tắt AI |
+| 21 | `MedicalDocumentFileAccessServiceTest.java` | `com.mediassist.service` | **11 tests** | Kiểm tra quyền sở hữu tệp và cấp Signed URL ngắn hạn 15 phút |
 | 22 | `MedicalDocumentFileEndpointTest.java` | `com.mediassist.controller` | **7 tests** | Kiểm thử controller tải tệp y tế và stream nhị phân an toàn |
-| 23 | `MedicalDocumentValidatorTest.java` | `com.mediassist.service` | **8 tests** | Kiểm tra định dạng PDF/ảnh, giới hạn dung lượng <= 10MB và tính toàn vẹn |
-| 24 | `MedicalPiiServiceTest.java` | `com.mediassist.service` | **9 tests** | Khử định danh CCCD, số điện thoại, họ tên bệnh nhân theo NĐ 13/2023 |
-| 25 | `NotificationServiceTest.java` | `com.mediassist.service` | **10 tests** | Tạo thông báo trong ứng dụng, đếm số chưa đọc và đánh dấu đã đọc |
-| 26 | `OAuth2SecurityTest.java` | `com.mediassist.security` | **7 tests** | Xác thực Google OAuth2, xử lý liên kết tài khoản và cấp phát JWT |
-| 27 | `PatientAccessGuardTest.java` | `com.mediassist.security` | **11 tests** | Rào chắn kiểm soát quyền xem hồ sơ bệnh án theo quan hệ điều trị & IDOR |
-| 28 | `PatientProfileServiceTest.java` | `com.mediassist.service` | **9 tests** | Cập nhật hồ sơ bệnh nhân, nhóm máu, dị ứng và kiểm tra ràng buộc CCCD |
-| 29 | `PatientRecordAccessControllerTest.java` | `com.mediassist.controller` | **6 tests** | Kiểm thử các endpoint truy cập hồ sơ bệnh án của bác sĩ và quản trị viên |
-| 30 | `PaymentServiceTest.java` | `com.mediassist.service` | **12 tests** | Tạo URL thanh toán VietQR / Stripe Sandbox, xử lý IPN webhook bất đồng bộ |
-| 31 | `RedFlagServiceTest.java` | `com.mediassist.service` | **12 tests** | Nhận diện từ khóa khẩn cấp y tế và sinh chỉ thị cấp cứu 115 lập tức |
-| 32 | `SecurityHardeningTest.java` | `com.mediassist.security` | **8 tests** | Bảo mật tài khoản, chống brute-force và kiểm tra phân quyền RBAC |
-| 33 | `SecurityRateLimiterEmailFlowTest.java` | `com.mediassist.security` | **6 tests** | Giới hạn tần suất yêu cầu gửi email đặt lại mật khẩu và xác thực |
-| 34 | `SupabaseStorageServiceTest.java` | `com.mediassist.service` | **7 tests** | Tương tác Supabase S3 bucket, upload tệp riêng tư và sinh signed URL |
-| 35 | `SystemConfigControllerTest.java` | `com.mediassist.controller` | **6 tests** | Bật tắt chế độ AI Engine, kích hoạt đồng bộ vector toàn hệ thống |
-| 36 | `TriageServiceTest.java` | `com.mediassist.service` | **14 tests** | Quy trình phân luồng triệu chứng AI, lưu trữ phiên hội thoại và tạo SBAR |
-| 37 | `TwoLayerCacheServiceTest.java` | `com.mediassist.service` | **11 tests** | Bộ đệm Caffeine L1 + Redis L2 và thuật toán chống bão tuyết XFetch |
+| 23 | `MedicalDocumentValidatorTest.java` | `com.mediassist.service` | **5 tests** | Kiểm tra định dạng PDF/ảnh, giới hạn dung lượng <= 10MB và tính toàn vẹn |
+| 24 | `MedicalPiiServiceTest.java` | `com.mediassist.service` | **4 tests** | Khử định danh CCCD, số điện thoại, họ tên bệnh nhân theo NĐ 13/2023 |
+| 25 | `NotificationServiceTest.java` | `com.mediassist.service` | **4 tests** | Tạo thông báo trong ứng dụng, đếm số chưa đọc và đánh dấu đã đọc |
+| 26 | `OAuth2SecurityTest.java` | `com.mediassist.security` | **15 tests** | Xác thực Google OAuth2, xử lý liên kết tài khoản và cấp phát JWT |
+| 27 | `PatientAccessGuardTest.java` | `com.mediassist.security` | **7 tests** | Rào chắn kiểm soát quyền xem hồ sơ bệnh án theo quan hệ điều trị & IDOR |
+| 28 | `PatientProfileServiceTest.java` | `com.mediassist.service` | **4 tests** | Cập nhật hồ sơ bệnh nhân, nhóm máu, dị ứng và kiểm tra ràng buộc CCCD |
+| 29 | `PatientRecordAccessControllerTest.java` | `com.mediassist.controller` | **8 tests** | Kiểm thử các endpoint truy cập hồ sơ bệnh án của bác sĩ và quản trị viên |
+| 30 | `PaymentServiceTest.java` | `com.mediassist.service` | **14 tests** | Tạo URL thanh toán VietQR / Stripe Sandbox, xử lý IPN webhook bất đồng bộ |
+| 31 | `RedFlagServiceTest.java` | `com.mediassist.service` | **5 tests** | Nhận diện từ khóa khẩn cấp y tế và sinh chỉ thị cấp cứu 115 lập tức |
+| 32 | `SecurityHardeningTest.java` | `com.mediassist.security` | **10 tests** | Bảo mật tài khoản, chống brute-force và kiểm tra phân quyền RBAC |
+| 33 | `SecurityRateLimiterEmailFlowTest.java` | `com.mediassist.security` | **3 tests** | Giới hạn tần suất yêu cầu gửi email đặt lại mật khẩu và xác thực |
+| 34 | `SupabaseStorageServiceTest.java` | `com.mediassist.service` | **15 tests** | Tương tác Supabase S3 bucket, upload tệp riêng tư và sinh signed URL |
+| 35 | `SystemConfigControllerTest.java` | `com.mediassist.controller` | **3 tests** | Bật tắt chế độ AI Engine, kích hoạt đồng bộ vector toàn hệ thống |
+| 36 | `TriageServiceTest.java` | `com.mediassist.service` | **6 tests** | Quy trình phân luồng triệu chứng AI, lưu trữ phiên hội thoại và tạo SBAR |
+| 37 | `TwoLayerCacheServiceTest.java` | `com.mediassist.service` | **4 tests** | Bộ đệm Caffeine L1 + Redis L2 và thuật toán chống bão tuyết XFetch |
 | 38 | `DoctorServiceScheduleTest.java` | `com.mediassist.service` | **3 tests** | Khởi tạo lịch trực mặc định và bảo toàn cấu hình lịch khám khi bác sĩ lưu thiết lập |
 
 ---
@@ -420,7 +420,7 @@ Hệ thống duy trì bộ kiểm thử tự động toàn diện đạt tỷ l�
 ## 9. Cẩm Nang Lệnh Vận Hành Nhanh (Fast Operations Cheatsheet)
 
 ```bash
-# 1. Kiểm tra toàn bộ Unit Tests phía Backend (308 tests)
+# 1. Kiểm tra toàn bộ Unit Tests phía Backend (338 tests)
 mvn test
 
 # 2. Kiểm tra biên dịch & 0 lỗi TypeScript phía Frontend

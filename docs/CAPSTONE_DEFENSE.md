@@ -44,7 +44,7 @@
 * **5.2. Đánh giá chất lượng phân luồng AI:** Độ chính xác gợi ý chuyên khoa dựa trên tập dữ liệu thử nghiệm 100 ca lâm sàng mẫu.
 * **5.3. Hạn chế của đề tài:** Phụ thuộc vào API bên thứ ba, chi phí token, bài toán kết nối thiết bị IoT y tế gia đình.
 * **5.4. Hướng phát triển:** Triển khai mô hình cục bộ (Local SLM như BioMistral 7B) phục vụ Edge Computing, tích hợp thanh toán cổng quốc gia VNPay/MoMo.
-* **5.5. Hồ sơ kiểm thử thực tế & Bảng tính trực tuyến (Live Testing Artifacts):** Tích hợp liên kết Drive trực tiếp cho Hội đồng truy cập trọn bộ `Report5_Test_Report.xlsx` (49 Use Cases) và `Report5_Unit_Test.xlsx` (337/337 Unit Tests).
+* **5.5. Hồ sơ kiểm thử thực tế & Bảng tính trực tuyến (Live Testing Artifacts):** Tích hợp liên kết Drive trực tiếp cho Hội đồng truy cập trọn bộ `Report5_Test_Report.xlsx` (49 Use Cases) và `Report5_Unit_Test.xlsx` (338/338 Unit Tests, 38 Test Classes).
 
 ---
 
@@ -56,7 +56,7 @@
 > | STT | Tên Tệp Bảng Tính | Định Dạng | Phạm Vi Kiểm Thử (Scope) | Kết Quả Thực Thi |
 > | :---: | :--- | :---: | :--- | :---: |
 > | 01 | **`Report5_Test_Report.xlsx`** | Excel / Google Sheets | Báo cáo kiểm thử tổng thể: Functional Testing (49 UCs), Integration Testing, Performance Testing, Security IDOR, E2E Browser Testing. | **100% PASS** |
-> | 02 | **`Report5_Unit_Test.xlsx`** | Excel / Google Sheets | Danh mục kịch bản kiểm thử đơn vị: 37 Test Classes, 337 Unit Tests (JUnit 5 + Mockito + AssertJ), 0 lỗi. | **337/337 PASS** |
+> | 02 | **`Report5_Unit_Test.xlsx`** | Excel / Google Sheets | Danh mục kịch bản kiểm thử đơn vị: 38 Test Classes, 338 Unit Tests (JUnit 5 + Mockito + AssertJ), 0 lỗi. | **338/338 PASS** |
 
 ---
 
@@ -642,7 +642,7 @@ Nhằm triệt tiêu hoàn toàn độ lệch giữa tài liệu thiết kế ba
    - Trong `PaymentGatewayRouter`, hệ thống triển khai chiến lược đa cổng qua interface `PaymentGateway`: `StripePaymentGateway` (`STRIPE` / `CARD` / `STRIPE_SANDBOX` với webhook signature verification) và `MockPaymentGateway` (`VIETQR`, `VNPAY`, `MOMO`, `CASH` cho sandbox nội bộ), đảm bảo tính nguyên tử nhờ `@Version` và kiểm tra trạng thái kép chống xử lý trùng IPN/Webhook.
    - Tầng gửi thư (`EmailService` + `MailNotificationListener` chạy `@Async("mailExecutor")` với `@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)`) chuyển đổi linh hoạt bằng biến môi trường giữa **Mailpit** (`localhost:1025`, UI `8025` khi dev cục bộ) và **Gmail SMTP STARTTLS** (`smtp.gmail.com:587` khi demo thực tế), tuyệt đối không chứa dữ liệu lâm sàng trong nội dung email.
 6. **Gắn tham chiếu định lượng SLA/FinOps trực tiếp vào ADR & Component Description:**
-   - Mọi quyết định kiến trúc trong SDD được gắn neo chỉ số đo đạc thực nghiệm: image DB gọn nhẹ **`pgvector/pgvector:pg16` (~621MB)**, độ trễ tìm kiếm vector HNSW **`0.72 ms`** (P95 **`0.88 ms`**), tập kiểm thử tự động **`308+` unit tests** (đạt **`322/322 PASS`** sau các bản vá Onboarding, `@Version` V24 và Two-Layer Cache), chịu tải **`k6` 500 VUs (`6.447 req/s`, `0.00%` lỗi, `330 MB` RAM)**, cơ chế **XFetch** chống Cache Stampede (`95.03%` cache hit) và **SHA-256 Deduplication** tiết kiệm `85%` chi phí token ghi nhận trên `ai_token_usage`.
+   - Mọi quyết định kiến trúc trong SDD được gắn neo chỉ số đo đạc thực nghiệm: image DB gọn nhẹ **`pgvector/pgvector:pg16` (~621MB)**, độ trễ tìm kiếm vector HNSW **`0.72 ms`** (P95 **`0.88 ms`**), tập kiểm thử tự động **`338` unit tests** (đạt **`338/338 PASS`** trên **`38` test classes** sau các bản vá Onboarding, `@Version` V24, NEWS-2 và Two-Layer Cache), chịu tải **`k6` 500 VUs (`6.447 req/s`, `0.00%` lỗi, `330 MB` RAM)**, cơ chế **XFetch** chống Cache Stampede (`95.03%` cache hit) và **SHA-256 Deduplication** tiết kiệm `85%` chi phí token ghi nhận trên `ai_token_usage`.
 
 ---
 
@@ -660,7 +660,7 @@ Nhằm triệt tiêu hoàn toàn độ lệch giữa tài liệu thiết kế ba
 | **6** | `07:00 – 08:30` | **Khả năng Chịu tải & Bộ định tuyến AI 3 Tầng:** Two-Layer Cache (Caffeine L1 + Redis L2 + XFetch) & `Gemini 2.5 Flash -> OpenRouter -> FNV-1a`. | Slide FinOps & sơ đồ 3-Tier AI Routing |
 | **7** | `08:30 – 10:00` | **Đặc tả 28 Luồng SDD & Onboarding Bác sĩ 2 bước:** Cấu trúc 4 phần IEEE 1016 (Class, Sequence, Step Table, AppException Matrix). | `report_4/index.html` (Lazy Mermaid Viewer) |
 | **8** | `10:00 – 11:30` | **An toàn Y tế & Bảo mật Đa lớp:** `PatientAccessGuard` (BOLA/IDOR), `MedicalPiiService` (NĐ 13), Private S3 15m HMAC, 3-Layer Secret Vault. | Sequence Diagram BOLA 403 & `V20`/`V21`/`V22` |
-| **9** | `11:30 – 12:45` | **Tổng hợp 6 Điều chỉnh Review 2 & Bằng chứng Kiểm thử:** `322/322` Maven Tests PASS, `0` lỗi TS, `k6` 500 VUs `0.00%` lỗi. | `report_4/index.html#report_4_exec` & `report_5/index.html` |
+| **9** | `11:30 – 12:45` | **Tổng hợp 6 Điều chỉnh Review 2 & Bằng chứng Kiểm thử:** `338/338` Maven Tests PASS (38 Test Classes), `0` lỗi TS, `k6` 500 VUs `0.00%` lỗi. | `report_4/index.html#report_4_exec` & `report_5/index.html` |
 | **10** | `12:45 – 14:00` | **Kết luận & Sẵn sàng Phản biện Hội đồng:** Tóm tắt giá trị kỹ nghệ phần mềm và mời Hội đồng đặt câu hỏi. | Portal tổng hợp & cửa sổ terminal / Vector Studio sẵn sàng |
 
 #### Script Lời Dẫn Mẫu Chi Tiết & Thao Tác Trực Quan
@@ -676,7 +676,7 @@ Nhằm triệt tiêu hoàn toàn độ lệch giữa tài liệu thiết kế ba
   *"Ở tầng dữ liệu, nhóm chuẩn hóa 17 bảng đạt chuẩn 3NF trên PostgreSQL 16 tích hợp `pgvector` (container image gọn nhẹ ~621MB) cùng lộ trình 24 bản di trú Flyway. Cụ thể trong đợt rà soát Review 2, nhóm đã đồng bộ Flyway V23 đổi `icd10_code` thành `icd_code` + `icd_version` để sẵn sàng mở rộng ICD-11, và Flyway V24 chuẩn hóa `@Version` chống ghi đè đồng thời. Trên bảng `doctor_profiles`, chỉ mục đồ thị HNSW (`m=24, ef_construction=128`) kết hợp kỹ thuật ép Index Scan ở cấp phiên (`enable_seqscan=off`) giúp truy vấn tương đồng vector 1536 chiều đạt trung bình **0.72 mili-giây**."*
 * **Lời dẫn 28 Luồng SDD, AI 3 Tầng & Bảo mật (Slide 6–9):**
   *(Chuyển sang `http://localhost:8088/report_4/index.html`)*  
-  *"Tại Report 4, toàn bộ **28 quy trình nghiệp vụ cốt lõi** đều được đặc tả theo chuẩn 4 phần khép kín: Phạm vi DTO, Biểu đồ Lớp, Biểu đồ Tuần tự Luồng chính và Biểu đồ Xử lý Lỗi kèm Ma trận `AppException`. Để bảo đảm tính sẵn sàng y tế, `AiModelRouter` vận hành theo cơ chế 3 tầng (`Gemini 2.5 Flash` $\rightarrow$ `OpenRouter Pool` $\rightarrow$ `Offline Deterministic FNV-1a`). Về bảo mật, `PatientAccessGuard` chặn đứng truy cập chéo BOLA/IDOR ở tầng Service, `MedicalPiiService` khử 6 nhóm PII theo Nghị định 13, tệp xét nghiệm nằm trong Private Bucket chỉ mở qua URL ký số 15 phút, và bí mật triển khai được bảo vệ bởi kiến trúc 3 lớp (`spring.profiles.group.dev=local` + Secret Vault ngoài Git + `.githooks`). Tất cả thay đổi đều đã vượt qua **322/322 Backend Unit Tests** và **0 lỗi TypeScript**."*
+  *"Tại Report 4, toàn bộ **28 quy trình nghiệp vụ cốt lõi** đều được đặc tả theo chuẩn 4 phần khép kín: Phạm vi DTO, Biểu đồ Lớp, Biểu đồ Tuần tự Luồng chính và Biểu đồ Xử lý Lỗi kèm Ma trận `AppException`. Để bảo đảm tính sẵn sàng y tế, `AiModelRouter` vận hành theo cơ chế 3 tầng (`Gemini 2.5 Flash` $\rightarrow$ `OpenRouter Pool` $\rightarrow$ `Offline Deterministic FNV-1a`). Về bảo mật, `PatientAccessGuard` chặn đứng truy cập chéo BOLA/IDOR ở tầng Service, `MedicalPiiService` khử 6 nhóm PII theo Nghị định 13, tệp xét nghiệm nằm trong Private Bucket chỉ mở qua URL ký số 15 phút, và bí mật triển khai được bảo vệ bởi kiến trúc 3 lớp (`spring.profiles.group.dev=local` + Secret Vault ngoài Git + `.githooks`). Tất cả thay đổi đều đã vượt qua **338/338 Backend Unit Tests** (38 Test Classes) và **0 lỗi TypeScript**."*
 
 ---
 
@@ -720,7 +720,7 @@ Nhằm triệt tiêu hoàn toàn độ lệch giữa tài liệu thiết kế ba
 > *"Thưa Thầy Cô, đây là 3 điểm siết kỷ luật kỹ thuật quan trọng nhất của Review 2:*  
 > *1. **Private S3 15-min Signed URL (Flyway V20) vs Public URL:** Lưu URL công khai khiến bất kỳ ai có link đều xem vĩnh viễn ảnh phiếu xét nghiệm chứa bệnh án nhạy cảm. Do đó `medical_documents` chỉ lưu khóa nội bộ `storage_path` trong Private Bucket; khi `PatientAccessGuard` xác thực thành công, `MedicalDocumentFileAccessService` mới xin URL ký số HMAC-SHA256 có hiệu lực đúng **15 phút** (và không giữ fallback sinh PDF giả).*  
 > *2. **Bảo vệ Secret Môi trường 3 lớp (Zero-Leak Persistence):** Để vừa giữ nguyên API keys chạy local qua các lần `git checkout`/`merge` mà tuyệt đối không đẩy key lên Git, nhóm áp dụng: (a) `spring.profiles.group.dev=local` + tham số hóa `${ENV_VAR:default}`, (b) Vault ngoài repo tại `%USERPROFILE%\.mediassist\`, và (c) Git Hooks (`.githooks/pre-push` chặn push nếu phát hiện mẫu key rò rỉ trong file tracked; `post-checkout`/`post-merge`/`post-rewrite` + `scripts/sync-local-env.ps1` tự động đồng bộ lại file env local bị `.gitignore` bảo vệ).*  
-> *3. **Đồng bộ SDD tự động (`compile_docs_bundle.py`):** Mọi chỉnh sửa trên `docs/SDD_MediAssist_AI.md`, `report_4/REPORT_4_EXECUTIVE_SUMMARY.md`, `docs/CAPSTONE_DEFENSE.md` được biên dịch đồng nhất vào `docs-bundle.js` trên cổng Portal + Vector Studio `8088`, bảo đảm tài liệu trình chiếu trước Hội đồng khớp 100% với trạng thái mã nguồn và **322/322 unit tests**."*
+> *3. **Đồng bộ SDD tự động (`compile_docs_bundle.py`):** Mọi chỉnh sửa trên `docs/SDD_MediAssist_AI.md`, `report_4/REPORT_4_EXECUTIVE_SUMMARY.md`, `docs/CAPSTONE_DEFENSE.md` được biên dịch đồng nhất vào `docs-bundle.js` trên cổng Portal + Vector Studio `8088`, bảo đảm tài liệu trình chiếu trước Hội đồng khớp 100% với trạng thái mã nguồn và **338/338 unit tests** (38 test classes)."*
 
 ---
 

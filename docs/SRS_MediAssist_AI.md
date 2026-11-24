@@ -2345,7 +2345,7 @@ public void assertCanAccessPatient(UUID actorUserId, Role role, UUID patientId, 
 
 ### 5.5 Requirements Traceability Matrix (RTM)
 
-The Requirements Traceability Matrix maps every Functional Requirement (FR) to its corresponding Use Case, Flyway Database Migration, and Automated Test Case within the **308/308 passing test baseline**:
+The Requirements Traceability Matrix maps every Functional Requirement (FR) to its corresponding Use Case, Flyway Database Migration, and Automated Test Case within the **338/338 passing test baseline (38 Test Classes)**:
 
 | Functional Req ID | Core Feature / Capability | Use Case Specification | Flyway DB Migration | Automated Verification Test Case | Pass Rate |
 | :--- | :--- | :--- | :--- | :--- | :---: |
