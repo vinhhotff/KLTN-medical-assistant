@@ -7,6 +7,41 @@
 
 ---
 
+## [2026-11-24 23:45:00] - TÁI THIẾT KẾ BẢN VẼ KIẾN TRÚC PHIÊN BẢN EXECUTIVE MINIMALIST: RÕ RÀNG, CHỮ TO RÕ, 100% ĐỌC ĐƯỢC TRÊN MÁY CHIẾU
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 23:45:00
+- **Tiêu đề:** Tái thiết kế toàn bộ sơ đồ 5 tầng Kiến Trúc Kỹ Thuật (Technical System Architecture) sang phong cách Executive Minimalist tối giản: loại bỏ 100% câu văn dài, đoạn văn và gạch đầu dòng nhỏ; áp dụng kiểu chữ to đậm sắc nét (Bold Crisp Typography), các khối thẻ thẻ tag từ khóa ngắn gọn, khoảng trắng rộng thoáng và đường nối trực giao không chạm lấn; cập nhật và commit trực tiếp lên Canva Slide 7 (`DAHa9bmQoV0`).
+
+### 2. Danh Sách Tệp Tin & Thay Đổi Chi Tiết
+- `[MOD]` `docs/images/system_architecture_technical.png` & `docs/images/system_architecture.png`:
+  - Thiết kế mới kích thước 2400x1350 px (16:9, tối ưu màn hình chiếu và slide Canva), 257 KB.
+  - **Tầng 1 (Client Layer):** Card `Web SPA` (`React 18`, `Vite`, `TypeScript`). Mũi tên: `HTTPS / TLS 1.3`. Đường bypass đứt nét xanh dương: `Direct Upload/Download (Presigned URL)`.
+  - **Tầng 2 (Edge & Gateway - Trong Docker Host / VPC):** Card `Reverse Proxy` (`Nginx`, `Rate Limit`, `SSL / TLS 1.3`). Mũi tên: `HTTP / 8080`.
+  - **Tầng 3 (Application Server - Spring Boot 3.4 • Java 21):** 4 khối ngang xếp chồng thanh thoát với nhãn tag từ khóa:
+    * 1. *Security Filter* (`Spring Security 6`, `JWT`, `RBAC`)
+    * 2. *Web / API Layer* (`REST Controllers`, `Validation`)
+    * 3. *Service Layer* (`Caffeine L1`, `Redisson`, `DTO Masking`)
+    * 4. *Data & Client Layer* (`Spring Data JPA`, `HikariCP`, `WebClient`)
+  - **Tầng 4 (Data & Storage):**
+    * *PostgreSQL 16 + pgvector* (`ACID`, `RLS / CLS`, `1536-dim HNSW`) — Mũi tên: `JDBC / 5432`.
+    * *Redis 7* (`L2 Cache`, `Redlock`, `Blacklist`) — Mũi tên: `TCP / 6379`.
+    * *Amazon S3* (`Private Bucket`, `SSE-S3`) — Mũi tên từ App: `AWS SDK (Presigned URL)`.
+  - **Tầng 5 (External APIs - Ngoài Server):**
+    * *OpenAI API* (`GPT-4o`, `text-embedding-3-small`) — Mũi tên: `HTTPS / REST`.
+    * *Payment Gateway* (`Stripe`, `VNPay Webhooks`) — Mũi tên: `HTTPS / HMAC`.
+    * *Google Identity* (`OAuth 2.0 / OIDC`) — Mũi tên: `HTTPS`.
+- `[CANVA COMMIT]` Canva Presentation (`DAHa9bmQoV0`):
+  - Slide 7 (Page 7): Cập nhật hình ảnh phiên bản Executive Minimalist (Asset: `MAHb2KYCTJE`).
+  - Giao dịch Canva Transaction `1259279295251494826` đã được **COMMITTED** thành công.
+
+### 3. Bằng Chứng Kiểm Thử & Trạng Thái
+- Kiểm tra render hình ảnh: Tất cả các chữ, nhãn giao thức đều to rõ, sắc nét, không có hiện tượng chèn lấn văn bản, sẵn sàng trình chiếu trước Hội đồng bảo vệ.
+- Trạng thái Canva: Đã commit thành công với trạng thái `status: committed`.
+- Trạng thái Git: Nhánh `develop` sẵn sàng commit và push.
+
+---
+
 ## [2026-11-24 23:30:00] - THIẾT KẾ BẢN VẼ KIẾN TRÚC HỆ THỐNG THUẦN KỸ THUẬT (PURE TECHNICAL SYSTEM ARCHITECTURE & TECH STACK)
 
 ### 1. Thời Gian & Tiêu Đề
