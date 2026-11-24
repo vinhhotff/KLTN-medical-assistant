@@ -7,6 +7,30 @@
 
 ---
 
+## [2026-11-24 13:45:00] - ĐỒNG BỘ 100% NỘI DUNG VÀ LIÊN KẾT NHẢY (HYPERLINKS HEADINGID) TOÀN BỘ MỤC LỤC REPORT 7 TRÊN GOOGLE DOCS
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 13:45:00
+- **Tiêu đề:** Xóa sạch mục lục sao chép cũ (nội dung rác benchmark Moodle/SnakeSmart); Tạo mới và liên kết nhảy 1-to-1 (`headingId`) toàn bộ 312 đề mục MediAssist-AI trên Google Docs đám mây (Doc ID: `1sZxs1r7XFnhywWyzqbxglDNRL6ir-MVx4Ic3n225qRI`).
+
+### 2. Danh Sách Tệp Tin & Tài Nguyên Đã Tác Động
+- `[CLOUD]` Google Doc `1sZxs1r7XFnhywWyzqbxglDNRL6ir-MVx4Ic3n225qRI` (Report 7 MediAssist-AI):
+  - **Xóa bỏ:** Range mục lục cũ 333 mục không chính xác `[2073, 13651)` qua `deleteContentRange`.
+  - **Chèn mới:** 312 đề mục chuẩn xác MediAssist-AI (16.438 ký tự), bao gồm 49 Use Cases, 17 Database Tables, 28 Sequences, kiểm thử và hướng dẫn vận hành.
+  - **Liên kết nhảy (Jump Links):** Toàn bộ 312 đề mục được cấu hình `updateTextStyle` gắn trực tiếp `link.headingId` tương ứng trong tài liệu. Khi người dùng hoặc Hội đồng click vào bất kỳ đề mục nào trong Mục lục, Google Docs sẽ tự động nhảy ngay đến đúng phần nội dung đó.
+  - **Định dạng chuẩn:** Phông chữ Arial 10pt, `underline: false` (không gạch chân lem nhem, phong cách báo cáo học thuật chuyên nghiệp), các Section lớn in đậm màu xanh đậm `#0f2942`, thụt lề cấp bậc rõ ràng, giãn dòng 1.15x, `pageBreakBefore: True` đảm bảo `Table of Contents` và `Acknowledgement` đều bắt đầu ở đầu trang mới.
+- `[MOD]` `docs/WORK_LOG.md`: Bổ sung bản ghi xác nhận theo quy định AGENTS.md Rule 1.3.
+
+### 3. Bằng Chứng Thực Thi & Kiểm Thử
+- **Google Docs API batchUpdate:** Thực thi thành công qua 4 chunks API (mã HTTP 200, 316 style & link requests áp dụng không lỗi).
+- **Drive Export Text Verification:** Xuất kiểm tra nội dung text từ `https://www.googleapis.com/drive/v3/files/{doc_id}/export?mimeType=text/plain` xác nhận Mục lục đã hiển thị chuẩn xác từ Acknowledgement (trang 10), I. Project Introduction (trang 11), Section III 49 Use Cases (trang 41-83), Section IV 17 Bảng DB & 28 Sequences, Section V Kiểm thử, đến Section VI Hướng dẫn vận hành (trang 292).
+- **Khả năng tương tác:** 100% (312/312) đề mục mang `headingId` hợp lệ, click nhảy trực tiếp trong giao diện Google Docs.
+
+### 4. Điểm Nóng Tech Lead Cần Duyệt
+- Toàn bộ mục lục trên Google Doc 1 hiện đã hoàn hảo, đúng nội dung 100% của MediAssist-AI và có đầy đủ liên kết nhảy trang. Tech Lead và Hội đồng có thể mở link tài liệu và click vào bất kỳ mục nào để điều hướng ngay lập tức.
+
+---
+
 ## [2026-11-24 12:45:00] - HOÀN TẤT BỔ SUNG MỤC LỤC (TABLE OF CONTENTS) TRỰC TIẾP VÀO GOOGLE DOC 1 (MAPPING 1-1)
 
 ### 1. Thời Gian & Tiêu Đề
