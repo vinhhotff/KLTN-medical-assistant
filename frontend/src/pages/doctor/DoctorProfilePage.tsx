@@ -567,6 +567,32 @@ export const DoctorProfilePage: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden min-w-0">
           {/* Account summary */}
           <div className="px-5 sm:px-6 py-4 border-b border-slate-200 bg-slate-50 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2 flex items-center gap-4 pb-2 border-b border-slate-200/70">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={fullName || 'Ảnh đại diện bác sĩ'}
+                  className="w-16 h-16 rounded-2xl object-cover border border-teal-200 bg-white shadow-xs shrink-0"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 font-display font-bold text-xl flex items-center justify-center shrink-0">
+                  {(fullName || 'BS').trim().split(' ').pop()?.charAt(0)}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <label htmlFor="dp-avatar-url" className={label}>
+                  Ảnh đại diện hồ sơ (Avatar URL)
+                </label>
+                <input
+                  id="dp-avatar-url"
+                  className={inputCls}
+                  value={avatarUrl}
+                  onChange={(e) => setAvatarUrl(e.target.value)}
+                  placeholder="/avatars/doctors/doc-01.svg hoặc https://..."
+                />
+                <p className="mt-1 text-xs text-slate-500">Hiển thị công khai trên thẻ bác sĩ khi bệnh nhân tìm kiếm và đặt lịch.</p>
+              </div>
+            </div>
             <div>
               <label htmlFor="dp-name" className={label}>
                 Họ và tên

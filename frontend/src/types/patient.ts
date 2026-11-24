@@ -57,7 +57,46 @@ export interface AppointmentItem {
   preVisitInstructions?: string[];
   checkedInAt?: string;
   createdAt?: string;
+  refundAmount?: number | null;
+  refundPercentage?: number | null;
+  refundedAt?: string | null;
+  refundPolicyNote?: string | null;
 }
+
+export interface RefundPreview {
+  eligible: boolean;
+  percentage: number;
+  refundAmount: number;
+  tierLabel: string;
+  hoursRemainingLabel: string;
+}
+
+export const computeRefundPreview = (
+  scheduledStart?: string,
+  feeAmount?: number | null,
+  paymentStatus?: string
+): RefundPreview | null => {
+  if (paymentStatus !== 'PAID' || !scheduledStart) return null;
+  const diffMs = new Date(scheduledStart).getTime() - Date.now();
+  const hours = diffMs / 3600000;
+  const percentage = hours >= 24 ? 100 : hours >= 2 ? 80 : 0;
+  const refundAmount = Math.round(((feeAmount ?? 0) * percentage) / 100);
+  const tierLabel =
+    percentage === 100
+      ? 'Hủy trước giờ khám trên 24 giờ — Hoàn tiền 100%'
+      : percentage === 80
+        ? 'Hủy trước giờ khám 2–24 giờ — Hoàn tiền 80% (khấu trừ 20% phí hành chính)'
+        : 'Hủy sát giờ khám dưới 2 giờ — Không hoàn tiền (0%)';
+  const hoursRemainingLabel =
+    hours >= 24
+      ? `Còn khoảng ${Math.floor(hours / 24)} ngày ${Math.floor(hours % 24)} giờ trước giờ khám`
+      : hours >= 1
+        ? `Còn khoảng ${Math.floor(hours)} giờ ${Math.max(0, Math.round((hours % 1) * 60))} phút trước giờ khám`
+        : hours > 0
+          ? `Còn ${Math.max(1, Math.round(hours * 60))} phút trước giờ khám`
+          : 'Đã tới hoặc quá giờ hẹn khám';
+  return { eligible: percentage > 0, percentage, refundAmount, tierLabel, hoursRemainingLabel };
+};
 
 export type UrgencyLevel = 'EMERGENCY' | 'URGENT' | 'ROUTINE' | 'SELF_CARE';
 

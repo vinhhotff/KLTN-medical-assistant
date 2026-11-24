@@ -306,17 +306,19 @@ public class AppointmentService {
             }
         }
 
-        // Auto-refund when cancelled and paid (logic dung chung voi quan tri vien huy lich)
+        // Auto-refund theo chinh sach khi huy lich da thanh toan
         AppointmentRefundService.RefundResult refund = AppointmentRefundService.RefundResult.NONE;
         if (newStatus == AppointmentStatus.CANCELLED && appointment.getPaymentStatus() == PaymentStatus.PAID) {
-            try {
-                if (paymentService != null) {
+            Role cancelledByRole = isAdmin ? Role.ADMIN : (isDoctor ? Role.DOCTOR : Role.PATIENT);
+            AppointmentRefundService.RefundPolicy policy = refundService.evaluatePolicy(appointment, cancelledByRole);
+            if (policy.percentage() > 0 && paymentService != null) {
+                try {
                     paymentService.refundPayment(appointment.getId());
+                } catch (Exception e) {
+                    log.warn("Stripe refund trigger warning for appointment {}: {}", appointment.getAppointmentCode(), e.getMessage());
                 }
-            } catch (Exception e) {
-                log.warn("Stripe refund trigger warning for appointment {}: {}", appointment.getAppointmentCode(), e.getMessage());
             }
-            refund = refundService.refundIfPaid(appointment);
+            refund = refundService.refundIfPaid(appointment, cancelledByRole);
         }
 
         if (newStatus == AppointmentStatus.CHECKED_IN && appointment.getCheckedInAt() == null) {
@@ -342,6 +344,13 @@ public class AppointmentService {
             String timeStr = updated.getScheduledStart().format(dtf);
 
             if (newStatus == AppointmentStatus.CANCELLED) {
+                String refundSummary = "";
+                if (refund.refunded() && refund.amount() != null) {
+                    refundSummary = " Hệ thống đã hoàn " + refund.amount().toPlainString() + " VND ("
+                            + (updated.getRefundPercentage() != null ? updated.getRefundPercentage() : 100) + "%).";
+                } else if (updated.getRefundPolicyNote() != null && !updated.getRefundPolicyNote().isBlank()) {
+                    refundSummary = " (" + updated.getRefundPolicyNote() + ").";
+                }
                 if (isPatient) {
                     notificationService.sendNotification(
                             updated.getDoctor().getId(),
@@ -350,12 +359,21 @@ public class AppointmentService {
                             "Bệnh nhân " + updated.getPatient().getFullName() + " đã hủy lịch khám lúc " + timeStr + ". Lý do: " + (notes != null ? notes : "Không nêu"),
                             meta
                     );
+                    if (!refundSummary.isEmpty()) {
+                        notificationService.sendNotification(
+                                updated.getPatient().getId(),
+                                "APPOINTMENT_REFUNDED",
+                                "Thông Tin Hoàn Tiền: " + updated.getAppointmentCode(),
+                                "Lịch khám " + updated.getAppointmentCode() + " đã hủy." + refundSummary,
+                                meta
+                        );
+                    }
                 } else {
                     notificationService.sendNotification(
                             updated.getPatient().getId(),
                             "APPOINTMENT_CANCELLED",
                             "Lịch Khám Đã Bị Hủy: " + updated.getAppointmentCode(),
-                            "Bác sĩ " + updated.getDoctor().getFullName() + " đã hủy lịch khám lúc " + timeStr + ". Lý do: " + (notes != null ? notes : "Bận lịch đột xuất"),
+                            "Bác sĩ " + updated.getDoctor().getFullName() + " đã hủy lịch khám lúc " + timeStr + ". Lý do: " + (notes != null ? notes : "Bận lịch đột xuất") + refundSummary,
                             meta
                     );
                 }

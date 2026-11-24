@@ -7,6 +7,42 @@
 
 ---
 
+## [2026-11-24 14:28:00] - TÍNH NĂNG HOÀN TIỀN TỰ ĐỘNG KHI HỦY LỊCH (V28), 24 BÁC SĨ MỚI TẠI QUY NHƠN VỚI 36 VECTOR SVG AVATARS, VÀ TỐI ƯU GIAO DIỆN HEADER NAVIGATION
+
+- **Tác giả / AI Assistant:** Senior Fullstack & Database AI Pair Programmer
+- **Phân nhánh Git:** `feature/fuction`
+
+### 1. Danh sách tệp tin thay đổi
+- `[NEW]` [`V28__add_refund_tracking_to_appointments.sql`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/backend/src/main/resources/db/migration/V28__add_refund_tracking_to_appointments.sql) — Thêm 4 trường `refund_amount NUMERIC(12, 2)`, `refund_percentage INT`, `refunded_at TIMESTAMP`, `refund_policy_note VARCHAR(300)` vào bảng `appointments`.
+- `[MOD]` [`Appointment.java`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/backend/src/main/java/com/mediassist/model/entity/Appointment.java), [`AppointmentDto.java`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/backend/src/main/java/com/mediassist/dto/AppointmentDto.java) — Ánh xạ 4 trường refund trong Entity & DTO.
+- `[MOD]` [`AppointmentRefundService.java`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/backend/src/main/java/com/mediassist/service/AppointmentRefundService.java) — Engine chính sách hoàn tiền 3 bậc: >24h hoàn 100%, 2-24h hoàn 80% (khấu trừ 20% phí giữ chỗ), <2h giữ nguyên 0%; Bác sĩ hoặc Admin hủy luôn hoàn 100% vô điều kiện.
+- `[MOD]` [`AppointmentService.java`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/backend/src/main/java/com/mediassist/service/AppointmentService.java) — Tích hợp engine hoàn tiền vào luồng hủy lịch, kích hoạt payment refund, và phát sinh thông báo `APPOINTMENT_REFUNDED`.
+- `[NEW]` [`AppointmentRefundServiceTest.java`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/backend/src/test/java/com/mediassist/service/AppointmentRefundServiceTest.java) — Bộ 4 unit tests kiểm thử độc lập 4 kịch bản hoàn tiền.
+- `[MOD]` [`PatientLayout.tsx`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/layouts/PatientLayout.tsx), [`DoctorLayout.tsx`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/layouts/DoctorLayout.tsx) — Tối ưu layout Header: cô lập hoàn toàn khối nav với `overflow-hidden` và `relative z-20` cho khối thông báo, ngăn chặn triệt để hiện tượng chữ trong menu ("Lịch sử sức khỏe") bị đè lên chuông thông báo (Notification Bell) trên mọi breakpoint.
+- `[MOD]` [`patient.ts`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/types/patient.ts), [`PatientDashboard.tsx`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/pages/patient/PatientDashboard.tsx), [`AppointmentDetailPage.tsx`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/pages/patient/AppointmentDetailPage.tsx) — Thêm modal xem trước hoàn tiền theo chính sách khi hủy lịch, badge trạng thái hoàn tiền `↺ Đã Hoàn Tiền (% refund)` và hiển thị chi tiết số tiền hoàn.
+- `[MOD]` [`DoctorSearchPage.tsx`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/pages/patient/DoctorSearchPage.tsx), [`BookingModal.tsx`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/components/booking/BookingModal.tsx), [`LandingPage.tsx`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/pages/LandingPage.tsx), [`DoctorProfilePage.tsx`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/pages/doctor/DoctorProfilePage.tsx) — Hiển thị ảnh đại diện bác sĩ nội bộ `/avatars/doctors/doc-*.svg`.
+- `[NEW]` [`frontend/public/avatars/doctors/doc-01.svg` .. `doc-36.svg`] — 36 file vector SVG chân dung lâm sàng chuyên nghiệp phân biệt theo chuyên khoa, học vị và giới tính.
+- `[MOD]` [`scripts/reset-and-seed.mjs`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/scripts/reset-and-seed.mjs) — Mở rộng seed từ 12 lên 36 bác sĩ (bổ sung 24 bác sĩ tại các bệnh viện lớn ở TP. Quy Nhơn, Bình Định) + sinh 36 ảnh SVG + 396 slot lịch + 15 lịch hẹn (kèm ca hoàn tiền mẫu `AP-DEMO-X001`).
+
+### 2. Tài liệu đã đồng bộ
+- [`docs/DATABASE_DESIGN.md`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/docs/DATABASE_DESIGN.md) — Cập nhật 4 cột mới của Migration V28 trong bảng `appointments`.
+- [`docs/USE_CASES.md`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/docs/USE_CASES.md) — Cập nhật use case `UC-PAT-15` phản ánh chính sách hoàn tiền 3 bậc và truy vết Flyway V28.
+
+### 3. Bằng chứng kiểm thử & vận hành thực tế
+- **Backend Tests:** `mvn test` $\rightarrow$ `Tests run: 58, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS` (Bao gồm `AppointmentRefundServiceTest` 4/4 pass, `AppointmentServiceTest` 32/32 pass, `AdminVettingServiceTest` 22/22 pass).
+- **Frontend Production Build:** `npm run build` $\rightarrow$ `✓ built in 5.69s`, `0 TypeScript errors`.
+- **Database & Vector Embeddings:** Flyway V28 áp dụng thành công; `DataInitializer` sinh và lưu trữ đủ **36/36 vector bio_embedding (1536 chiều)** cho toàn bộ 36 bác sĩ vào PostgreSQL `pgvector`.
+- **Live API Smoke Check:**
+  - `GET /api/v1/doctors?size=50` trả về đủ 36 bác sĩ kèm `clinicAddress` và `avatarUrl` trỏ về file SVG nội bộ.
+  - Các ca hủy có hoàn tiền trả đầy đủ `refundAmount`, `refundPercentage`, `refundPolicyNote`.
+
+### 4. Điểm nóng Tech Lead cần Review
+1. **Chính sách hoàn tiền tự động (Refund Matrix):** Khi bệnh nhân hủy trước giờ khám $>24$h $\rightarrow$ hoàn $100\%$; từ $2-24$h $\rightarrow$ hoàn $80\%$ (khấu trừ $20\%$ chi phí giữ slot); sát giờ $<2$h $\rightarrow$ giữ nguyên $0\%$ hoàn tiền (trạng thái thanh toán duy trì `PAID`). Bác sĩ/Admin hủy ca $\rightarrow$ luôn hoàn $100\%$.
+2. **Avatar nội bộ Vector SVG:** Toàn bộ 36 bác sĩ sử dụng ảnh vector SVG nhẹ, độc lập hạ tầng, không bị lỗi CORS/403/mất mạng như các URL ngoài.
+3. **Cấu hình Gateway thực tế (Production):** Để cổng thanh toán thực tế (Stripe/VietQR/VNPay) hoàn tiền thật, Tech Lead cần cấu hình Webhook URL, Secret Key và tài khoản hoàn tiền đối soát theo hướng dẫn.
+
+---
+
 ## [2026-11-24 13:51:10] - BỔ SUNG ĐỊA CHỈ PHÒNG KHÁM BÁC SĨ (V27) & SCRIPT DỌN DẸP / SEED DỮ LIỆU CHUẨN PRODUCTION (`scripts/reset-and-seed.mjs`)
 
 - **Tác giả / AI Assistant:** Senior Database & Fullstack AI Pair Programmer

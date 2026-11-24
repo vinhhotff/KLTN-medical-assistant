@@ -370,9 +370,18 @@ export const DoctorSearchPage: React.FC = () => {
                 className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-5"
               >
                 <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-teal-50 text-teal-700 border border-teal-200/80 shadow-2xs flex items-center justify-center font-display font-bold text-xl flex-shrink-0" aria-hidden>
-                    {doc.fullName.trim().split(' ').pop()?.charAt(0)}
-                  </div>
+                  {doc.avatarUrl ? (
+                    <img
+                      src={doc.avatarUrl}
+                      alt={doc.fullName}
+                      loading="lazy"
+                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-teal-200/80 shadow-2xs bg-teal-50 flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-teal-50 text-teal-700 border border-teal-200/80 shadow-2xs flex items-center justify-center font-display font-bold text-xl flex-shrink-0" aria-hidden>
+                      {doc.fullName.trim().split(' ').pop()?.charAt(0)}
+                    </div>
+                  )}
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       {doc.academicTitle && (

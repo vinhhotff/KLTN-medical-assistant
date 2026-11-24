@@ -44,7 +44,7 @@ export const PatientLayout: React.FC = () => {
 
       <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-clinical-sm sticky top-0 z-30">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 h-16 flex items-center justify-between gap-3 lg:gap-4">
-          <div className="flex items-center gap-3 xl:gap-5 min-w-0 flex-1">
+          <div className="flex items-center gap-3 xl:gap-5 min-w-0 flex-1 overflow-hidden">
             <Link to="/patient" className="flex items-center gap-2 shrink-0">
               <span className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-clinical-sm">
                 <HeartPulse className="w-5 h-5" aria-hidden />
@@ -68,14 +68,14 @@ export const PatientLayout: React.FC = () => {
                   }
                 >
                   <Icon className={cn('w-4 h-4 shrink-0', ICON[accent])} aria-hidden />
-                  <span className="hidden lg:inline 2xl:hidden">{compact}</span>
+                  <span className="hidden xl:inline 2xl:hidden">{compact}</span>
                   <span className="hidden 2xl:inline">{label}</span>
                 </NavLink>
               ))}
             </nav>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 md:pl-3 md:border-l md:border-slate-200/80">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 relative z-20 md:pl-3 md:border-l md:border-slate-200/80">
             {isAuthenticated && user ? (
               <>
                 <NotificationBell />

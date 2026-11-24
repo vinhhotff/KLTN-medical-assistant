@@ -52,6 +52,10 @@ public class AppointmentDto {
     private String triageSbarSummary;
     private String triageUrgencyLevel;
     private LocalDateTime checkedInAt;
+    private BigDecimal refundAmount;
+    private Integer refundPercentage;
+    private LocalDateTime refundedAt;
+    private String refundPolicyNote;
 
     public AppointmentDto() {}
 
@@ -92,6 +96,10 @@ public class AppointmentDto {
         dto.setMedicalDocumentId(a.getMedicalDocumentId());
         dto.setTriageSessionId(a.getTriageSessionId());
         dto.setCheckedInAt(a.getCheckedInAt());
+        dto.setRefundAmount(a.getRefundAmount());
+        dto.setRefundPercentage(a.getRefundPercentage());
+        dto.setRefundedAt(a.getRefundedAt());
+        dto.setRefundPolicyNote(a.getRefundPolicyNote());
         return dto;
     }
 
@@ -225,4 +233,16 @@ public class AppointmentDto {
 
     public LocalDateTime getCheckedInAt() { return checkedInAt; }
     public void setCheckedInAt(LocalDateTime checkedInAt) { this.checkedInAt = checkedInAt; }
+
+    public BigDecimal getRefundAmount() { return refundAmount; }
+    public void setRefundAmount(BigDecimal refundAmount) { this.refundAmount = refundAmount; }
+
+    public Integer getRefundPercentage() { return refundPercentage; }
+    public void setRefundPercentage(Integer refundPercentage) { this.refundPercentage = refundPercentage; }
+
+    public LocalDateTime getRefundedAt() { return refundedAt; }
+    public void setRefundedAt(LocalDateTime refundedAt) { this.refundedAt = refundedAt; }
+
+    public String getRefundPolicyNote() { return refundPolicyNote; }
+    public void setRefundPolicyNote(String refundPolicyNote) { this.refundPolicyNote = refundPolicyNote; }
 }

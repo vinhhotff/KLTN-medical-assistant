@@ -753,7 +753,7 @@ graph TD
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
 > - **Backend Controller & Endpoint:** `AppointmentController` $\rightarrow$ `PATCH /api/v1/appointments/{id}/status` (Quyền: `isAuthenticated()`)
 > - **Frontend Tuyến & Giao Diện:** Tuyến `/patient, /patient/appointments/:id` $\rightarrow$ Màn hình `PatientDashboard.tsx (Action Hủy lịch), AppointmentDetailPage.tsx (nút Hủy lịch — cùng API PATCH /status)`
-> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, payment_transactions, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V13__create_payment_transactions.sql, V15__add_triage_session_and_refund_to_appointments.sql`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `appointments, payment_transactions, notifications` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V13__create_payment_transactions.sql, V15__add_triage_session_and_refund_to_appointments.sql, V28__add_refund_tracking_to_appointments.sql`
 > - **Tầng Dịch Vụ & Kho Dữ Liệu:** `AppointmentService, AppointmentRefundService, NotificationService, EmailService` $\rightarrow$ `AppointmentRepository, PaymentTransactionRepository, NotificationRepository`
 > - **Kiểm Thử Tự Động (Unit / Integration Test):** `AppointmentServiceTest.java, AppointmentRefundServiceTest.java, MailTransactionPhaseTest.java` (**100% PASS**)
 
@@ -765,7 +765,7 @@ graph TD
 | **Created Date** | 15/02/2026 |
 | **Primary Actor** | Patient |
 | **Secondary Actor** | External Gateway |
-| **Description** | MediAssist-AI Refund Subsystem — - `appointments.status` updated to `CANCELLED`.<br>- Automated refund calculated via `AppointmentRefundService`.<br>- Slot freed for other patients. |
+| **Description** | MediAssist-AI Refund Subsystem — - `appointments.status` updated to `CANCELLED`.<br>- Tự động kích hoạt hoàn tiền đa tầng qua `AppointmentRefundService` và ghi nhận 4 trường kiểm toán `refund_amount`, `refund_percentage`, `refunded_at`, `refund_policy_note` (Migration V28).<br>- Giải phóng slot khám và phát sinh thông báo/email chi tiết tỉ lệ hoàn tiền. |
 | **Trigger** | Patient clicks "Hủy Lịch Hẹn" and confirms cancellation reason. |
 | **Pre-conditions** | Appointment status is `SCHEDULED`. |
 | **Post-conditions** | - `appointments.status` updated to `CANCELLED`.<br>- Automated refund calculated via `AppointmentRefundService`.<br>- Slot freed for other patients. |

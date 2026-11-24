@@ -76,7 +76,7 @@ export const DoctorLayout: React.FC = () => {
 
       <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-clinical-sm sticky top-0 z-30">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 h-16 flex items-center justify-between gap-3 lg:gap-4">
-          <div className="flex items-center gap-3 xl:gap-5 min-w-0 flex-1">
+          <div className="flex items-center gap-3 xl:gap-5 min-w-0 flex-1 overflow-hidden">
             <button
               type="button"
               className="md:hidden p-2 -ml-2 rounded-lg border border-slate-200 bg-white text-slate-800 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 cursor-pointer shrink-0"

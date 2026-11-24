@@ -546,6 +546,10 @@ CREATE TABLE appointments (
     fee_amount NUMERIC(12, 2) NOT NULL,
     payment_status VARCHAR(30) NOT NULL DEFAULT 'UNPAID'
         CHECK (payment_status IN ('UNPAID', 'PAID', 'REFUNDED')),
+    refund_amount NUMERIC(12, 2),                -- [V28] Số tiền thực tế hoàn lại cho bệnh nhân khi hủy lịch
+    refund_percentage INT,                       -- [V28] Tỉ lệ phần trăm hoàn tiền (100, 80 hoặc 0) theo chính sách
+    refunded_at TIMESTAMP,                       -- [V28] Thời điểm kích hoạt hoàn tiền tự động qua cổng thanh toán
+    refund_policy_note VARCHAR(300),             -- [V28] Ghi chú lý do / điều kiện áp dụng hoàn tiền
     version BIGINT NOT NULL DEFAULT 0,           -- Optimistic Locking chống đặt trùng slot
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -61,8 +61,9 @@ const DOCTOR_PORTRAITS = [
 ];
 
 const getDoctorAvatar = (doc: DoctorDetail, index: number): string => {
-  if (doc.avatarUrl && doc.avatarUrl.trim().startsWith('http')) {
-    return doc.avatarUrl;
+  const url = doc.avatarUrl?.trim();
+  if (url && (url.startsWith('http') || url.startsWith('/'))) {
+    return url;
   }
   return DOCTOR_PORTRAITS[index % DOCTOR_PORTRAITS.length];
 };

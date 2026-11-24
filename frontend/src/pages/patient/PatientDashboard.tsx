@@ -17,12 +17,14 @@ import {
   Sparkles,
   CreditCard,
   Star,
-  QrCode
+  QrCode,
+  RotateCcw
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { api, DoctorReviewDto, EMAIL_NOT_VERIFIED_MESSAGE, EMAIL_NOT_VERIFIED_TOOLTIP, isEmailNotVerified } from '../../services/api';
+import { computeRefundPreview } from '../../types/patient';
 
 gsap.registerPlugin(useGSAP);
 import { useAuthStore } from '../../store/useAuthStore';
@@ -92,6 +94,10 @@ interface AppointmentItem {
   qrCodeData?: string;
   sttNumber?: string;
   preVisitInstructions?: string[];
+  refundAmount?: number | null;
+  refundPercentage?: number | null;
+  refundedAt?: string | null;
+  refundPolicyNote?: string | null;
 }
 
 interface PrescriptionItem {
@@ -355,13 +361,21 @@ export const PatientDashboard: React.FC = () => {
     try {
       setSubmittingCancel(true);
       setActionError(null);
-      await api.patch(`/appointments/${cancellingAppointmentId}/status`, {
+      const res = await api.patch(`/appointments/${cancellingAppointmentId}/status`, {
         status: 'CANCELLED',
         notes: cancelReason.trim(),
       });
+      const updated = res.data?.data as AppointmentItem | undefined;
       setCancellingAppointmentId(null);
       setCancelReason('');
-      toast.success('Đã hủy lịch khám.');
+      if (updated?.paymentStatus === 'REFUNDED') {
+        const amtText = formatVnd(updated.refundAmount) ?? '';
+        toast.success(`Đã hủy lịch khám & hoàn tiền ${amtText} (${updated.refundPercentage ?? 100}%) về tài khoản thanh toán.`);
+      } else if (updated?.refundPolicyNote) {
+        toast.success(`Đã hủy lịch khám. ${updated.refundPolicyNote}.`);
+      } else {
+        toast.success('Đã hủy lịch khám.');
+      }
       loadData();
     } catch (err: unknown) {
       setActionError(getApiErrorMessage(err, 'Không thể hủy lịch hẹn. Vui lòng kiểm tra lại trạng thái ca khám.'));
@@ -369,6 +383,18 @@ export const PatientDashboard: React.FC = () => {
       setSubmittingCancel(false);
     }
   };
+
+  const cancellingAppointment = useMemo(
+    () => appointments.find((a) => a.id === cancellingAppointmentId) || null,
+    [appointments, cancellingAppointmentId]
+  );
+  const cancellingRefundPreview = useMemo(
+    () =>
+      cancellingAppointment
+        ? computeRefundPreview(cancellingAppointment.scheduledStart, cancellingAppointment.feeAmount, cancellingAppointment.paymentStatus)
+        : null,
+    [cancellingAppointment]
+  );
 
   const profileErrors = useMemo(() => {
     const errs: Record<string, string> = {};
@@ -801,16 +827,32 @@ export const PatientDashboard: React.FC = () => {
                               <span className="text-slate-500 italic">Chưa có phí</span>
                             )}
                             <span
-                              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              className={`text-xs font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
                                 apt.paymentStatus === 'PAID'
                                   ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
-                                  : 'text-amber-800 bg-amber-50 border border-amber-200'
+                                  : apt.paymentStatus === 'REFUNDED'
+                                    ? 'text-indigo-700 bg-indigo-50 border border-indigo-200'
+                                    : 'text-amber-800 bg-amber-50 border border-amber-200'
                               }`}
                             >
-                              {apt.paymentStatus === 'PAID' ? '✓ Đã Thanh Toán' : '● Chưa Thanh Toán'}
+                              {apt.paymentStatus === 'REFUNDED' && <RotateCcw className="w-3 h-3" />}
+                              {apt.paymentStatus === 'PAID'
+                                ? '✓ Đã Thanh Toán'
+                                : apt.paymentStatus === 'REFUNDED'
+                                  ? `↺ Đã Hoàn Tiền${apt.refundPercentage != null ? ` (${apt.refundPercentage}%)` : ''}`
+                                  : '● Chưa Thanh Toán'}
                             </span>
                           </div>
-                          {apt.paymentStatus !== 'PAID' && apt.status !== 'CANCELLED' && apt.status !== 'NO_SHOW' && fee && (
+                          {apt.paymentStatus === 'REFUNDED' && (
+                            <p className="text-[11px] text-indigo-700 font-medium mt-1">
+                              {apt.refundAmount != null ? `Số tiền hoàn: ${formatVnd(apt.refundAmount) ?? apt.refundAmount}. ` : ''}
+                              {apt.refundPolicyNote || ''}
+                            </p>
+                          )}
+                          {apt.paymentStatus === 'PAID' && apt.status === 'CANCELLED' && apt.refundPolicyNote && (
+                            <p className="text-[11px] text-slate-600 mt-1">{apt.refundPolicyNote}</p>
+                          )}
+                          {apt.paymentStatus === 'UNPAID' && apt.status !== 'CANCELLED' && apt.status !== 'NO_SHOW' && fee && (
                             <button
                               type="button"
                               onClick={() => handlePayAppointment(apt)}
@@ -1614,6 +1656,38 @@ export const PatientDashboard: React.FC = () => {
             <p className="text-xs text-slate-600 leading-relaxed">
               Vui lòng cho biết lý do bạn muốn hủy lịch hẹn khám này để hệ thống cập nhật và giải phóng khung giờ cho các bệnh nhân khác:
             </p>
+            {cancellingRefundPreview ? (
+              <div
+                className={`p-3.5 rounded-2xl border text-xs space-y-1.5 ${
+                  cancellingRefundPreview.percentage === 100
+                    ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+                    : cancellingRefundPreview.percentage === 80
+                      ? 'bg-amber-50/80 border-amber-200 text-amber-900'
+                      : 'bg-rose-50/80 border-rose-200 text-rose-900'
+                }`}
+              >
+                <div className="flex items-center justify-between font-bold">
+                  <span className="inline-flex items-center gap-1.5">
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Chính sách hoàn tiền tự động
+                  </span>
+                  <span>{cancellingRefundPreview.percentage}%</span>
+                </div>
+                <p className="text-[11px] opacity-90">{cancellingRefundPreview.hoursRemainingLabel}</p>
+                <p className="font-medium">{cancellingRefundPreview.tierLabel}</p>
+                <div className="pt-1.5 border-t border-current/15 flex items-center justify-between">
+                  <span>Số tiền dự kiến hoàn trả:</span>
+                  <strong className="text-sm tabular-nums">{formatVnd(cancellingRefundPreview.refundAmount) ?? '0 đ'}</strong>
+                </div>
+                <p className="text-[11px] opacity-80">
+                  Khoản hoàn sẽ tự động cập nhật trạng thái về tài khoản / cổng thanh toán gốc (Stripe / VietQR).
+                </p>
+              </div>
+            ) : cancellingAppointment ? (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                Lịch hẹn này chưa thanh toán trực tuyến — bạn có thể hủy lịch hoàn toàn miễn phí.
+              </div>
+            ) : null}
             {actionError && (
               <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />

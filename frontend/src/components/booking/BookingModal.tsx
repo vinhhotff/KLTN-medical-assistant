@@ -13,6 +13,7 @@ import { getApiErrorCode, getApiErrorMessage } from '../../utils/apiError';
 export interface BookableDoctor {
   id: string;
   fullName: string;
+  avatarUrl?: string | null;
   specialties?: string[] | null;
   consultationFee?: number | null;
   hospitalAffiliation?: string | null;
@@ -183,6 +184,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       ) : (
         <div className="space-y-4">
           {isUnverified && <EmailNotVerifiedHint className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2" />}
+          {doctor.avatarUrl && (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+              <img
+                src={doctor.avatarUrl}
+                alt={doctor.fullName}
+                className="w-12 h-12 rounded-xl object-cover border border-teal-200 bg-teal-50 shrink-0"
+              />
+              <div className="min-w-0">
+                <p className="font-semibold text-sm text-slate-900 truncate">{doctor.fullName}</p>
+                {subtitle && <p className="text-xs text-slate-500 truncate">{subtitle}</p>}
+              </div>
+            </div>
+          )}
           {doctor.clinicAddress && (
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-teal-50/70 border border-teal-200/80 text-xs text-slate-700">
               <MapPin className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" aria-hidden />

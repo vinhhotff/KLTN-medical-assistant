@@ -97,6 +97,18 @@ public class Appointment {
     @Column
     private LocalDateTime checkedInAt;
 
+    @Column(name = "refund_amount", precision = 12, scale = 2)
+    private BigDecimal refundAmount;
+
+    @Column(name = "refund_percentage")
+    private Integer refundPercentage;
+
+    @Column(name = "refunded_at")
+    private LocalDateTime refundedAt;
+
+    @Column(name = "refund_policy_note", length = 300)
+    private String refundPolicyNote;
+
     @Version
     @Column(name = "version", nullable = false)
     private Long version = 0L;
@@ -206,6 +218,18 @@ public class Appointment {
 
     public LocalDateTime getCheckedInAt() { return checkedInAt; }
     public void setCheckedInAt(LocalDateTime checkedInAt) { this.checkedInAt = checkedInAt; }
+
+    public BigDecimal getRefundAmount() { return refundAmount; }
+    public void setRefundAmount(BigDecimal refundAmount) { this.refundAmount = refundAmount; }
+
+    public Integer getRefundPercentage() { return refundPercentage; }
+    public void setRefundPercentage(Integer refundPercentage) { this.refundPercentage = refundPercentage; }
+
+    public LocalDateTime getRefundedAt() { return refundedAt; }
+    public void setRefundedAt(LocalDateTime refundedAt) { this.refundedAt = refundedAt; }
+
+    public String getRefundPolicyNote() { return refundPolicyNote; }
+    public void setRefundPolicyNote(String refundPolicyNote) { this.refundPolicyNote = refundPolicyNote; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

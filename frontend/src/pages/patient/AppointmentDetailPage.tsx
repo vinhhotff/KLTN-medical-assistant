@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronLeft, CalendarPlus, MapPin, QrCode, Hospital, Check, Stethoscope, FileText, MessageSquare, ExternalLink } from 'lucide-react';
+import { ChevronLeft, CalendarPlus, MapPin, QrCode, Hospital, Check, Stethoscope, FileText, MessageSquare, ExternalLink, RotateCcw } from 'lucide-react';
 import { api, EMAIL_NOT_VERIFIED_MESSAGE, isEmailNotVerified } from '../../services/api';
 import { Button, ErrorState, Modal, Skeleton, useToast, cn } from '../../components/ui';
 import { SlotPicker, slotStart, type DoctorSlot } from '../../components/booking/SlotPicker';
@@ -8,7 +8,7 @@ import { AdmissionTicketModal } from '../../components/patient/AdmissionTicketMo
 import { getApiErrorMessage } from '../../utils/apiError';
 import { datePart, todayLocal } from '../../utils/date';
 import { formatVnd } from '../../utils/display';
-import { APPOINTMENT_STATUS_LABEL, URGENCY_LABEL, initialsOf, type AppointmentItem, type UrgencyLevel } from '../../types/patient';
+import { APPOINTMENT_STATUS_LABEL, URGENCY_LABEL, computeRefundPreview, initialsOf, type AppointmentItem, type UrgencyLevel } from '../../types/patient';
 
 const fmtDate = (iso: string) => {
   const s = new Date(iso).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -125,6 +125,7 @@ export const AppointmentDetailPage: React.FC = () => {
   const done = apt.status === 'COMPLETED';
   const location = [apt.clinicRoom && `Phòng ${apt.clinicRoom}`, apt.clinicFloor, apt.clinicBuilding].filter(Boolean).join(' · ');
   const urgency = apt.triageUrgencyLevel as UrgencyLevel | undefined;
+  const refundPreview = computeRefundPreview(apt.scheduledStart, apt.feeAmount, apt.paymentStatus);
 
   const handlePay = async () => {
     if (paying) return;
@@ -148,8 +149,16 @@ export const AppointmentDetailPage: React.FC = () => {
     if (!cancelReason.trim() || cancelling) return;
     try {
       setCancelling(true);
-      await api.patch(`/appointments/${apt.id}/status`, { status: 'CANCELLED', notes: cancelReason.trim() });
-      toast.success('Đã hủy lịch khám.');
+      const res = await api.patch(`/appointments/${apt.id}/status`, { status: 'CANCELLED', notes: cancelReason.trim() });
+      const updated = res.data?.data as AppointmentItem | undefined;
+      if (updated?.paymentStatus === 'REFUNDED') {
+        const amtText = formatVnd(updated.refundAmount) ?? '';
+        toast.success(`Đã hủy lịch khám & hoàn tiền ${amtText} (${updated.refundPercentage ?? 100}%) về tài khoản thanh toán.`);
+      } else if (updated?.refundPolicyNote) {
+        toast.success(`Đã hủy lịch khám. ${updated.refundPolicyNote}.`);
+      } else {
+        toast.success('Đã hủy lịch khám.');
+      }
       setCancelOpen(false);
       setCancelReason('');
       await load();
@@ -190,7 +199,12 @@ export const AppointmentDetailPage: React.FC = () => {
     apt.createdAt && { label: 'Đặt lịch khám', at: apt.createdAt, note: apt.triageSessionId ? 'từ kết quả trợ lý AI' : undefined },
     apt.checkedInAt && { label: 'Đã check-in tại bệnh viện', at: apt.checkedInAt },
     done && { label: 'Khám xong', at: apt.scheduledEnd || apt.scheduledStart },
-    apt.status === 'CANCELLED' && { label: 'Đã hủy', at: undefined, note: apt.cancellationReason },
+    apt.status === 'CANCELLED' && { label: 'Đã hủy', at: undefined, note: apt.cancellationReason || undefined },
+    apt.paymentStatus === 'REFUNDED' && {
+      label: `Đã hoàn tiền${apt.refundAmount != null ? ` ${formatVnd(apt.refundAmount) ?? ''}` : ''} (${apt.refundPercentage ?? 100}%)`,
+      at: apt.refundedAt || undefined,
+      note: apt.refundPolicyNote || undefined,
+    },
   ].filter(Boolean) as { label: string; at?: string; note?: string }[];
 
   return (
@@ -292,19 +306,34 @@ export const AppointmentDetailPage: React.FC = () => {
               <MapPin className="w-4 h-4" /> Chỉ đường <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-2 text-sm">
-            <span className="text-slate-500">Phí khám</span>
-            <span className="text-right">
-              <strong className="text-slate-900">{formatVnd(apt.feeAmount) ?? 'Liên hệ'}</strong>
-              {' · '}
-              {apt.paymentStatus === 'PAID' ? (
-                <span className="text-emerald-700">Đã thanh toán</span>
-              ) : apt.paymentStatus === 'REFUNDED' ? (
-                <span className="text-slate-600">Đã hoàn tiền</span>
-              ) : (
-                <span className="text-orange-700">Chưa thanh toán</span>
-              )}
-            </span>
+          <div className="pt-3 border-t border-slate-200 space-y-1.5 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-slate-500">Phí khám</span>
+              <span className="text-right">
+                <strong className="text-slate-900">{formatVnd(apt.feeAmount) ?? 'Liên hệ'}</strong>
+                {' · '}
+                {apt.paymentStatus === 'PAID' ? (
+                  <span className="text-emerald-700">Đã thanh toán</span>
+                ) : apt.paymentStatus === 'REFUNDED' ? (
+                  <span className="text-indigo-700 font-medium">
+                    Đã hoàn tiền{apt.refundPercentage != null ? ` (${apt.refundPercentage}%)` : ''}
+                  </span>
+                ) : (
+                  <span className="text-orange-700">Chưa thanh toán</span>
+                )}
+              </span>
+            </div>
+            {apt.paymentStatus === 'REFUNDED' && (apt.refundAmount != null || apt.refundPolicyNote) && (
+              <p className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1.5">
+                {apt.refundAmount != null ? `Số tiền hoàn: ${formatVnd(apt.refundAmount) ?? apt.refundAmount}. ` : ''}
+                {apt.refundPolicyNote || ''}
+              </p>
+            )}
+            {apt.paymentStatus === 'PAID' && apt.status === 'CANCELLED' && apt.refundPolicyNote && (
+              <p className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+                {apt.refundPolicyNote}
+              </p>
+            )}
           </div>
           {active && apt.paymentStatus === 'UNPAID' && apt.feeAmount ? (
             <Button onClick={handlePay} loading={paying} variant="secondary" className="w-full !rounded-lg">
@@ -443,6 +472,35 @@ export const AppointmentDetailPage: React.FC = () => {
           </>
         }
       >
+        {refundPreview ? (
+          <div
+            className={`mb-4 p-3.5 rounded-xl border text-xs space-y-1.5 ${
+              refundPreview.percentage === 100
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                : refundPreview.percentage === 80
+                  ? 'bg-amber-50 border-amber-200 text-amber-900'
+                  : 'bg-rose-50 border-rose-200 text-rose-900'
+            }`}
+          >
+            <div className="flex items-center justify-between font-bold">
+              <span className="inline-flex items-center gap-1.5">
+                <RotateCcw className="w-3.5 h-3.5" />
+                Chính sách hoàn tiền tự động
+              </span>
+              <span>{refundPreview.percentage}%</span>
+            </div>
+            <p className="text-[11px] opacity-90">{refundPreview.hoursRemainingLabel}</p>
+            <p className="font-medium">{refundPreview.tierLabel}</p>
+            <div className="pt-1.5 border-t border-current/15 flex items-center justify-between">
+              <span>Số tiền dự kiến hoàn trả:</span>
+              <strong className="text-sm tabular-nums">{formatVnd(refundPreview.refundAmount) ?? '0 đ'}</strong>
+            </div>
+          </div>
+        ) : (
+          <div className="mb-4 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+            Lịch hẹn này chưa thanh toán trực tuyến — bạn có thể hủy lịch hoàn toàn miễn phí.
+          </div>
+        )}
         <label htmlFor="cancel-reason" className="block text-sm font-medium text-slate-800 mb-1.5">
           Lý do hủy
         </label>
