@@ -134,7 +134,7 @@ export const DoctorReviewModal: React.FC<DoctorReviewModalProps> = ({
             </div>
             <div>
               <h3 className="text-xl font-bold">
-                {isReadOnly ? 'Đánh Giá Ca Khám' : 'Đánh Giá Bác Sĩ & Dịch Vụ'}
+                {isReadOnly ? 'Xem Đánh Giá Ca Khám (View Review & Rating)' : 'Đánh Giá Bác Sĩ (Reviews & Ratings)'}
               </h3>
               <p className="text-xs text-emerald-100">
                 Mã ca khám: <span className="font-mono font-semibold">{appointment.appointmentCode}</span>

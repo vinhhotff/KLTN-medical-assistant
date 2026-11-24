@@ -82,7 +82,7 @@ export const DoctorReviewsListModal: React.FC<DoctorReviewsListModalProps> = ({
               <div className="flex items-center space-x-2 mb-1">
                 <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[11px] font-bold border border-amber-400/30 flex items-center space-x-1">
                   <Award className="w-3 h-3 mr-1 inline" />
-                  Đánh Giá Từ Người Bệnh Thực Tế
+                  Đánh Giá & Điểm Uy Tín (Reviews & Ratings)
                 </span>
               </div>
               <h3 className="text-xl font-bold text-white">{doctorName}</h3>

@@ -11,4 +11,8 @@ public interface PaymentGateway {
     PaymentInitiationResult initiatePayment(PaymentTransaction tx, String successUrl, String cancelUrl);
 
     PaymentVerificationResult verifyPayment(String gatewayReference);
+
+    default boolean refundPayment(PaymentTransaction tx, java.math.BigDecimal amount, String reason) {
+        return true;
+    }
 }

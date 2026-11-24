@@ -14,7 +14,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  Lock,
   User,
   CalendarDays,
 } from 'lucide-react';
@@ -194,7 +193,7 @@ export const SymptomTriagePage: React.FC = () => {
 
   const handleSend = async (textToSend?: string) => {
     const text = (textToSend !== undefined ? textToSend : inputText).trim();
-    if (!text || isTyping || isEmergencyLocked) return;
+    if (!text || isTyping) return;
 
     setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', content: text, timestamp: new Date() }]);
     setInputText('');
@@ -297,97 +296,86 @@ export const SymptomTriagePage: React.FC = () => {
     />
   );
 
-  /* ───────────────────────── 03 · Emergency screen ───────────────────────── */
-  if (isEmergencyLocked) {
-    const code = shortSessionCode(lockout?.sessionId || sessionId);
-    return (
-      <div className="max-w-[1120px] mx-auto space-y-5">
-        <section className="bg-white rounded-2xl border-2 border-rose-700 overflow-hidden" role="alert">
-          <div className="bg-rose-700 text-white px-6 sm:px-8 py-6 flex items-center gap-5">
-            <span className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white flex items-center justify-center shrink-0">
-              <TriangleAlert className="w-7 h-7 sm:w-8 sm:h-8 text-rose-700" aria-hidden />
+  /* ───────────────────────── 03 · Emergency Notification Component ───────────────────────── */
+  const emergencyBanner = lockout?.locked ? (
+    <div className="mx-4 sm:mx-5 mt-4 p-4 rounded-xl border-2 border-rose-500 bg-rose-50 text-rose-900 shadow-sm" role="alert">
+      <div className="flex items-start gap-3.5">
+        <span className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0 text-rose-600 mt-0.5">
+          <TriangleAlert className="w-6 h-6 text-rose-600" aria-hidden />
+        </span>
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="font-bold text-rose-900 text-sm sm:text-base flex items-center gap-2">
+              ⚠️ CẢNH BÁO ĐỎ: DẤU HIỆU CẦN XỬ TRÍ Y TẾ KHẨN CẤP
+            </h4>
+            <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-900 border border-rose-300">
+              Red-Flag Urgency
             </span>
-            <div>
-              <h1 className="font-display text-2xl sm:text-3xl font-bold">Có dấu hiệu cần cấp cứu ngay</h1>
-              <p className="mt-1 text-rose-50 text-sm sm:text-base">
-                Những triệu chứng bạn vừa mô tả cần được nhân viên y tế đánh giá ngay lập tức. Đừng chờ đặt lịch khám.
-              </p>
-            </div>
           </div>
-
-          <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
-            <div className="space-y-5">
+          <p className="text-xs sm:text-sm text-rose-800 leading-relaxed">
+            {lockout.alert || 'Các triệu chứng bạn vừa mô tả có thể là dấu hiệu cấp tính nguy hiểm (Red-Flag). AI khuyến cáo bạn không nên trì hoãn hoặc tự điều trị tại nhà.'}
+          </p>
+          {lockout?.symptom && (
+            <div className="rounded-lg bg-rose-100/70 p-2.5 border border-rose-200 text-xs text-rose-900">
+              <span className="font-semibold text-rose-950">Triệu chứng ghi nhận: </span>
+              “{lockout.symptom}”
+            </div>
+          )}
+          <div className="rounded-lg bg-white/80 p-3 border border-rose-200 text-xs text-slate-700">
+            <span className="font-bold text-rose-900 block mb-1">Khuyến cáo hành động an toàn:</span>
+            <ul className="list-disc list-inside space-y-0.5 text-slate-600">
+              {WAITING_FOR_AMBULANCE.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="pt-2 flex flex-wrap items-center gap-3">
+            <a
+              href={`tel:${EMERGENCY_NUMBER}`}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-700 hover:bg-rose-800 text-white text-xs sm:text-sm font-bold shadow transition"
+            >
+              <Phone className="w-4 h-4" aria-hidden />
+              Gọi Cấp Cứu {EMERGENCY_NUMBER} Ngay
+            </a>
+            {emergencyContact && (
               <a
-                href={`tel:${EMERGENCY_NUMBER}`}
-                className="flex items-center justify-center gap-3 w-full py-4 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-display text-xl sm:text-2xl font-bold transition"
+                href={`tel:${emergencyContact.phone.replace(/\s/g, '')}`}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-rose-100 hover:bg-rose-200 border border-rose-300 text-rose-900 text-xs sm:text-sm font-semibold transition"
               >
-                <Phone className="w-6 h-6" aria-hidden />
-                Gọi cấp cứu {EMERGENCY_NUMBER}
+                <User className="w-4 h-4" aria-hidden />
+                Gọi Người Thân ({emergencyContact.name})
               </a>
-
-              {emergencyContact && (
-                <a
-                  href={`tel:${emergencyContact.phone.replace(/\s/g, '')}`}
-                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-800 font-semibold transition"
-                >
-                  <User className="w-4 h-4" aria-hidden />
-                  Gọi người thân: {emergencyContact.name}
-                </a>
-              )}
-
-              {lockout?.symptom && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Bạn vừa mô tả</p>
-                  <p className="mt-2 text-slate-900">“{lockout.symptom}”</p>
-                  {lockout.alert && <p className="mt-3 text-sm text-rose-800">{lockout.alert}</p>}
-                </div>
-              )}
-
-              <div>
-                <h2 className="font-display text-lg font-bold text-slate-900">Trong lúc chờ xe cấp cứu</h2>
-                <ol className="mt-3 space-y-3">
-                  {WAITING_FOR_AMBULANCE.map((step, i) => (
-                    <li key={step} className="flex items-center gap-3 text-slate-800">
-                      <span className="w-7 h-7 rounded-full bg-slate-900 text-white text-sm font-semibold flex items-center justify-center shrink-0">
-                        {i + 1}
-                      </span>
-                      {step}
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            </div>
-
-            <aside className="space-y-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                <p className="flex items-center gap-2 font-semibold text-slate-900">
-                  <Lock className="w-4 h-4" aria-hidden />
-                  Cuộc trò chuyện đã tạm dừng
-                </p>
-                <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-                  Trợ lý AI không tư vấn thêm cho tình huống này.
-                  {code && <> Phiên {code} đã được lưu để bác sĩ xem lại.</>}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleResetChat}
-                className="px-1 text-sm font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900 cursor-pointer"
-              >
-                Tôi đã mô tả nhầm triệu chứng
-              </button>
-            </aside>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                const docSection = document.getElementById('recommended-doctors-section');
+                if (docSection) {
+                  docSection.scrollIntoView({ behavior: 'smooth' });
+                } else if (latestResult?.matchedDoctors && latestResult.matchedDoctors.length > 0) {
+                  handleOpenBooking(latestResult.matchedDoctors[0], latestResult);
+                }
+              }}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-rose-300 text-rose-800 hover:bg-rose-50 text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer"
+            >
+              <Stethoscope className="w-4 h-4" aria-hidden />
+              Đặt Khám Chuyên Khoa Khẩn Cấp
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLockout(null);
+                sessionStorage.removeItem(LOCKOUT_KEY);
+              }}
+              className="text-xs font-medium text-rose-700 hover:text-rose-900 underline underline-offset-4 ml-auto cursor-pointer"
+            >
+              Tôi hiểu rủi ro & muốn tiếp tục trao đổi với AI
+            </button>
           </div>
-        </section>
-
-        <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-100/70 px-5 py-4 text-sm text-slate-600">
-          <Lock className="w-4 h-4 shrink-0" aria-hidden />
-          Khung chat đã khóa vì phát hiện dấu hiệu cấp cứu.
         </div>
-        {bookingModal}
       </div>
-    );
-  }
+    </div>
+  ) : null;
 
   /* ───────────────────────── 01 · Chat screen ───────────────────────── */
   const code = shortSessionCode(sessionId);
@@ -437,6 +425,8 @@ export const SymptomTriagePage: React.FC = () => {
             </div>
             {code && <span className="text-xs text-slate-500">Mã phiên {code}</span>}
           </header>
+
+          {emergencyBanner}
 
           <div className="flex-1 px-4 sm:px-5 py-5 space-y-5">
             <div className="flex items-center gap-3 text-xs text-slate-400" aria-hidden>
@@ -711,7 +701,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ msg, expanded, onToggleSbar, on
         )}
 
         {doctors.length > 0 && (
-          <div>
+          <div id="recommended-doctors-section" className="scroll-mt-4">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Bác sĩ phù hợp nhất</p>
               {specialtyQuery && (

@@ -4,11 +4,8 @@ import {
   Search, 
   Filter, 
   AlertTriangle, 
-  FileText, 
-  X, 
-  User, 
   Clock, 
-  ShieldAlert, 
+  ShieldCheck, 
   Stethoscope, 
   CheckCircle2,
   RefreshCw
@@ -18,24 +15,17 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { Pagination } from '../../components/common/Pagination';
 import { devLog } from '../../utils/logger';
 import { EmptyState, ErrorState, SkeletonTable, useToast } from '../../components/ui';
-import { getApiErrorMessage } from '../../utils/apiError';
 
-interface AdminTriageSession {
+interface AdminTriageMetric {
   id: string;
-  userId?: string;
-  patientName: string;
-  patientEmail?: string;
-  symptomsText: string;
   emergency: boolean;
   urgencyLevel: 'EMERGENCY' | 'URGENT' | 'ROUTINE';
   primarySpecialty?: string;
-  sbarSummary?: string;
-  aiAdvice?: string;
   createdAt: string;
 }
 
 export const TriageSupervisionPage: React.FC = () => {
-  const [sessions, setSessions] = useState<AdminTriageSession[]>([]);
+  const [sessions, setSessions] = useState<AdminTriageMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const toast = useToast();
@@ -43,12 +33,9 @@ export const TriageSupervisionPage: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('ALL');
-  const [selectedSession, setSelectedSession] = useState<AdminTriageSession | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Background (silent) refreshes never replace a loaded table with an error
-  // — a manual "Làm mới" (notify) reports the failure in a toast instead
   const fetchTriageSessions = useCallback(async (silent = false, notify = false) => {
     try {
       if (!silent) setLoading(true);
@@ -57,11 +44,16 @@ export const TriageSupervisionPage: React.FC = () => {
       setSessions(Array.isArray(res.data?.data) ? res.data.data : []);
       setLastUpdated(new Date());
       setLoadError(null);
+      if (notify) {
+        toast.success('Đã làm mới số liệu vận hành phân luồng');
+      }
     } catch (err) {
-      devLog.error('Failed to load triage sessions:', err);
-      const message = getApiErrorMessage(err, 'Không tải được danh sách phiên phân luồng.');
-      if (!silent) setLoadError(message);
-      else if (notify) toast.error(message);
+      devLog.error('Failed to load triage metrics:', err);
+      if (!silent) {
+        setLoadError('Không thể kết nối đến máy chủ quản trị.');
+      } else if (notify) {
+        toast.error('Làm mới thất bại.');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -72,38 +64,43 @@ export const TriageSupervisionPage: React.FC = () => {
     fetchTriageSessions();
     const interval = setInterval(() => {
       fetchTriageSessions(true);
-    }, 15000);
+    }, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchTriageSessions]);
 
-  const debouncedSearch = useDebounce(searchTerm, 250);
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  const filteredSessions = useMemo(() => {
+    return sessions.filter((s) => {
+      const matchesSearch = 
+        !debouncedSearchTerm ||
+        s.id.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        (s.primarySpecialty && s.primarySpecialty.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
+      
+      const matchesUrgency = 
+        urgencyFilter === 'ALL' ||
+        (urgencyFilter === 'EMERGENCY' && (s.emergency || s.urgencyLevel === 'EMERGENCY')) ||
+        (urgencyFilter === 'URGENT' && s.urgencyLevel === 'URGENT' && !s.emergency) ||
+        (urgencyFilter === 'ROUTINE' && s.urgencyLevel === 'ROUTINE' && !s.emergency);
+
+      return matchesSearch && matchesUrgency;
+    });
+  }, [sessions, debouncedSearchTerm, urgencyFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, urgencyFilter]);
-
-  const filteredSessions = useMemo(() => {
-    const tokens = debouncedSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    return sessions.filter((s) => {
-      if (urgencyFilter !== 'ALL' && s.urgencyLevel !== urgencyFilter) {
-        return false;
-      }
-      if (tokens.length === 0) return true;
-      const searchableContent = `${s.symptomsText || ''} ${s.patientName || ''} ${s.patientEmail || ''} ${s.primarySpecialty || ''} ${s.sbarSummary || ''} ${s.aiAdvice || ''}`.toLowerCase();
-      return tokens.every((token) => searchableContent.includes(token));
-    });
-  }, [sessions, urgencyFilter, debouncedSearch]);
+  }, [debouncedSearchTerm, urgencyFilter]);
 
   const paginatedSessions = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredSessions.slice(start, start + pageSize);
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredSessions.slice(startIndex, startIndex + pageSize);
   }, [filteredSessions, currentPage, pageSize]);
 
   const getUrgencyBadge = (level: string, isEmergency: boolean) => {
     if (isEmergency || level === 'EMERGENCY') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-300 animate-pulse">
-          <AlertTriangle className="w-3.5 h-3.5" /> CẤP CỨU (EMERGENCY)
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-300">
+          <AlertTriangle className="w-3.5 h-3.5 text-rose-600" /> CẤP CỨU (EMERGENCY)
         </span>
       );
     }
@@ -127,30 +124,39 @@ export const TriageSupervisionPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-            <HeartPulse className="w-6 h-6 text-rose-600" />
-            Giám Sát Phân Luồng Lâm Sàng AI & Rào Chắn Khẩn Cấp
+            <HeartPulse className="w-6 h-6 text-indigo-600" />
+            Giám Sát Vận Hành Phân Luồng (Operational Triage Metrics)
           </h2>
           <p className="text-slate-500 text-sm mt-1">
-            Thanh tra chất lượng gợi ý lâm sàng, phân cấp khẩn cấp và rào chắn Red-flag đối với mọi triệu chứng bệnh nhân nhập vào.
+            Theo dõi lưu lượng phiên khám, phân cấp khẩn cấp hạ tầng và điều hướng chuyên khoa kỹ thuật.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Đồng bộ: {lastUpdated.toLocaleTimeString('vi-VN')}</span>
           </div>
           <button
             onClick={() => fetchTriageSessions(true, true)}
             disabled={refreshing}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50 cursor-pointer"
             title="Làm mới danh sách phân luồng"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-rose-600' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-600' : ''}`} />
             <span>Làm mới</span>
           </button>
           <span className="text-xs font-bold text-slate-600 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-xs">
-            Tổng phiên Triage: <strong className="text-rose-600">{sessions.length}</strong>
+            Tổng phiên: <strong className="text-indigo-600">{sessions.length}</strong>
           </span>
+        </div>
+      </div>
+
+      {/* CLS Security Notice Banner */}
+      <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 flex items-start gap-3 text-indigo-900 text-xs leading-relaxed">
+        <ShieldCheck className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+        <div>
+          <span className="font-bold uppercase tracking-wider block mb-0.5">Rào Chắn Bảo Mật Dữ Liệu Y Tế (Column-Level Security - CLS):</span>
+          Quản trị viên chỉ giám sát tải hạ tầng, số lượng phiên và chuyên khoa phân bổ kỹ thuật. Toàn bộ nội dung bệnh sử, tóm tắt lâm sàng (SBAR) và dữ liệu chẩn đoán của người bệnh được bảo mật tuyệt đối, không hiển thị tại giao diện Admin.
         </div>
       </div>
 
@@ -160,56 +166,82 @@ export const TriageSupervisionPage: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Tìm theo triệu chứng, tên bệnh nhân, chuyên khoa..."
+            placeholder="Tìm theo mã phiên hoặc chuyên khoa…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
           />
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mr-1">
-            <Filter className="w-3.5 h-3.5" /> Mức độ khẩn cấp:
-          </div>
-          {['ALL', 'EMERGENCY', 'URGENT', 'ROUTINE'].map((lvl) => (
-            <button
-              key={lvl}
-              onClick={() => setUrgencyFilter(lvl)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
-                urgencyFilter === lvl
-                  ? 'bg-rose-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {lvl === 'ALL' ? 'Tất cả' : lvl}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+          <Filter className="w-4 h-4 text-slate-400 mr-1 shrink-0" />
+          <button
+            onClick={() => setUrgencyFilter('ALL')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 cursor-pointer ${
+              urgencyFilter === 'ALL'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Tất cả ({sessions.length})
+          </button>
+          <button
+            onClick={() => setUrgencyFilter('EMERGENCY')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 cursor-pointer ${
+              urgencyFilter === 'EMERGENCY'
+                ? 'bg-rose-600 text-white shadow-xs'
+                : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+            }`}
+          >
+            Cấp cứu ({sessions.filter((s) => s.emergency || s.urgencyLevel === 'EMERGENCY').length})
+          </button>
+          <button
+            onClick={() => setUrgencyFilter('URGENT')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 cursor-pointer ${
+              urgencyFilter === 'URGENT'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+            }`}
+          >
+            Khám sớm ({sessions.filter((s) => s.urgencyLevel === 'URGENT' && !s.emergency).length})
+          </button>
+          <button
+            onClick={() => setUrgencyFilter('ROUTINE')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 cursor-pointer ${
+              urgencyFilter === 'ROUTINE'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+            }`}
+          >
+            Định kỳ ({sessions.filter((s) => s.urgencyLevel === 'ROUTINE' && !s.emergency).length})
+          </button>
         </div>
       </div>
 
-      {/* Triage Sessions Table */}
+      {/* Triage Metrics Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {loading ? (
-          <SkeletonTable rows={6} cols={5} />
+          <div className="p-6">
+            <SkeletonTable rows={6} />
+          </div>
         ) : loadError ? (
           <ErrorState message={loadError} onRetry={() => fetchTriageSessions()} className="m-4" />
-        ) : sessions.length === 0 ? (
-          <EmptyState title="Chưa có phiên phân luồng nào" description="Phiên mới sẽ xuất hiện khi bệnh nhân dùng trợ lý triệu chứng." className="m-4" />
         ) : filteredSessions.length === 0 ? (
-          <div className="py-20 text-center text-slate-400 text-sm">
-            Không tìm thấy phiên phân luồng nào phù hợp với bộ lọc tìm kiếm.
-          </div>
+          <EmptyState
+            title="Không tìm thấy phiên phân luồng"
+            description="Chưa có phiên phân luồng nào phù hợp với bộ lọc hiện tại."
+            className="my-8"
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3.5 px-4">Bệnh Nhân</th>
-                  <th className="py-3.5 px-4">Mô Tả Triệu Chứng</th>
-                  <th className="py-3.5 px-4">Mức Độ Phân Luồng</th>
-                  <th className="py-3.5 px-4">Chuyên Khoa Đề Xuất</th>
-                  <th className="py-3.5 px-4">Thời Gian</th>
-                  <th className="py-3.5 px-4 text-right">Chi Tiết SBAR</th>
+                <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="py-3.5 px-4">Mã Phiên (CLS Masked)</th>
+                  <th className="py-3.5 px-4">Mức Độ Khẩn Hạ Tầng</th>
+                  <th className="py-3.5 px-4">Chuyên Khoa Đích</th>
+                  <th className="py-3.5 px-4">Thời Gian Khởi Tạo</th>
+                  <th className="py-3.5 px-4 text-right">Trạng Thái Vận Hành</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
@@ -217,22 +249,13 @@ export const TriageSupervisionPage: React.FC = () => {
                   <tr 
                     key={session.id} 
                     className={`hover:bg-slate-50/70 transition ${
-                      session.emergency ? 'bg-rose-50/30' : ''
+                      session.emergency ? 'bg-rose-50/20' : ''
                     }`}
                   >
                     <td className="py-3.5 px-4">
-                      <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-slate-400" />
-                        {session.patientName}
-                      </div>
-                      {session.patientEmail && (
-                        <div className="text-[11px] text-slate-500">{session.patientEmail}</div>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4 max-w-xs">
-                      <p className="text-xs text-slate-800 font-medium line-clamp-2" title={session.symptomsText}>
-                        {session.symptomsText}
-                      </p>
+                      <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md">
+                        TR-{session.id.substring(0, 8).toUpperCase()}
+                      </span>
                     </td>
                     <td className="py-3.5 px-4">
                       {getUrgencyBadge(session.urgencyLevel, session.emergency)}
@@ -247,12 +270,15 @@ export const TriageSupervisionPage: React.FC = () => {
                       {new Date(session.createdAt).toLocaleDateString('vi-VN')} {new Date(session.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => setSelectedSession(session)}
-                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1"
-                      >
-                        <FileText className="w-3.5 h-3.5 text-slate-500" /> Xem SBAR
-                      </button>
+                      {session.emergency ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                          Đã điều hướng 115 / Cấp cứu
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-50 text-slate-600 border border-slate-200">
+                          Đã phân luồng thành công
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -268,87 +294,10 @@ export const TriageSupervisionPage: React.FC = () => {
             onPageChange={setCurrentPage}
             onPageSizeChange={setPageSize}
             itemLabel="phiên phân luồng"
+            pageSizeOptions={[10, 20, 50]}
           />
         )}
       </div>
-
-      {/* SBAR Details Modal */}
-      {selectedSession && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-rose-50 text-rose-600 rounded-xl">
-                  <ShieldAlert className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">
-                    Báo Cáo Phân Luồng Lâm Sàng Chuẩn SBAR
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Bệnh nhân: <strong>{selectedSession.patientName}</strong> | {new Date(selectedSession.createdAt).toLocaleString('vi-VN')}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedSession(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Urgency Alert */}
-            <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-xs font-bold text-slate-600 uppercase">Mức độ khẩn cấp</span>
-              <div>{getUrgencyBadge(selectedSession.urgencyLevel, selectedSession.emergency)}</div>
-            </div>
-
-            {/* Symptoms */}
-            <div>
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Triệu Chứng Người Bệnh Mô Tả
-              </h4>
-              <p className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-800 leading-relaxed">
-                {selectedSession.symptomsText}
-              </p>
-            </div>
-
-            {/* SBAR Breakdown */}
-            {selectedSession.sbarSummary && (
-              <div>
-                <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5" /> Báo Cáo Lâm Sàng SBAR
-                </h4>
-                <div className="p-4 bg-indigo-50/60 rounded-xl border border-indigo-100 text-xs text-slate-800 whitespace-pre-line leading-relaxed font-sans">
-                  {selectedSession.sbarSummary}
-                </div>
-              </div>
-            )}
-
-            {/* AI Advice */}
-            {selectedSession.aiAdvice && (
-              <div>
-                <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-1">
-                  Lời Khuyên & Hướng Dẫn Của AI
-                </h4>
-                <div className="p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-100 text-xs text-emerald-900 leading-relaxed">
-                  {selectedSession.aiAdvice}
-                </div>
-              </div>
-            )}
-
-            <div className="pt-4 border-t border-slate-100 flex justify-end">
-              <button
-                onClick={() => setSelectedSession(null)}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition"
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

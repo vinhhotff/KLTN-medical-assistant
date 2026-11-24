@@ -206,6 +206,44 @@ public class StripePaymentGateway implements PaymentGateway {
         }
     }
 
+    @Override
+    public boolean refundPayment(PaymentTransaction tx, BigDecimal amount, String reason) {
+        boolean isRealKey = secretKey != null && !secretKey.isBlank()
+                && !secretKey.contains("mock")
+                && (secretKey.startsWith("sk_test_") || secretKey.startsWith("sk_live_"));
+
+        if (!isRealKey) {
+            log.info("💸 [STRIPE SANDBOX 100% REFUND] Successfully simulated 100% refund for tx: {}, amount: {} VND, reason: {}",
+                    tx.getTransactionCode(), amount, reason);
+            return true;
+        }
+
+        try {
+            Stripe.apiKey = secretKey;
+            long unitAmount = amount != null ? amount.longValue() : 0L;
+            if (!"vnd".equalsIgnoreCase(tx.getCurrency()) && amount != null) {
+                unitAmount = amount.multiply(new BigDecimal(100)).longValue();
+            }
+
+            com.stripe.param.RefundCreateParams.Builder paramsBuilder = com.stripe.param.RefundCreateParams.builder()
+                    .setAmount(unitAmount)
+                    .putMetadata("transaction_code", tx.getTransactionCode())
+                    .putMetadata("reason", reason != null ? reason : "Doctor cancelled appointment");
+
+            if (tx.getGatewayReference() != null && !tx.getGatewayReference().isBlank()) {
+                paramsBuilder.setPaymentIntent(tx.getGatewayReference());
+            }
+
+            com.stripe.model.Refund refund = com.stripe.model.Refund.create(paramsBuilder.build());
+            log.info("💸 [STRIPE REAL REFUND] Created Stripe Refund ID: {} for tx: {}, status: {}",
+                    refund.getId(), tx.getTransactionCode(), refund.getStatus());
+            return true;
+        } catch (Exception e) {
+            log.error("🚨 [STRIPE REFUND ERROR] Failed to process Stripe refund for tx {}: {}", tx.getTransactionCode(), e.getMessage());
+            return false;
+        }
+    }
+
     private String buildProductName(PaymentTransaction tx) {
         if (tx.getOrderType() == OrderType.QUOTA_PURCHASE) {
             String pkg = tx.getReferenceId() != null ? tx.getReferenceId() : "BASIC_5";
