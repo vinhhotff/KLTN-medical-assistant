@@ -17,18 +17,29 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class DoctorService {
 
     private static final Logger log = LoggerFactory.getLogger(DoctorService.class);
     private static final String CACHE_VERIFIED_DOCTORS = "doctors:verified";
+    private static final String CACHE_SCHEDULE_META_PREFIX = "doctor:schedule:meta:";
+    private static final long SCHEDULE_META_TTL_SECONDS = 300;
+    private static final Set<Integer> ALLOWED_SLOT_DURATIONS = Set.of(15, 20, 30, 45, 60);
+    private static final Set<Integer> ALLOWED_BUFFER_MINUTES = Set.of(0, 5, 10, 15, 20, 30);
+    private static final List<AppointmentStatus> ACTIVE_BOOKING_STATUSES = List.of(
+            AppointmentStatus.SCHEDULED, AppointmentStatus.CHECKED_IN, AppointmentStatus.IN_PROGRESS
+    );
 
     private final DoctorProfileRepository doctorProfileRepository;
     private final UserRepository userRepository;
@@ -40,6 +51,8 @@ public class DoctorService {
     private final PatientProfileRepository patientProfileRepository;
     private final StorageService storageService;
     private final AuditLogRepository auditLogRepository;
+    private final DoctorScheduleExceptionRepository doctorScheduleExceptionRepository;
+    private final ObjectMapper jsonMapper;
 
     @Autowired
     public DoctorService(DoctorProfileRepository doctorProfileRepository,
@@ -51,7 +64,9 @@ public class DoctorService {
                          DoctorScheduleSlotRepository doctorScheduleSlotRepository,
                          PatientProfileRepository patientProfileRepository,
                          @Autowired(required = false) StorageService storageService,
-                         @Autowired(required = false) AuditLogRepository auditLogRepository) {
+                         @Autowired(required = false) AuditLogRepository auditLogRepository,
+                         @Autowired(required = false) DoctorScheduleExceptionRepository doctorScheduleExceptionRepository,
+                         @Autowired(required = false) ObjectMapper objectMapper) {
         this.doctorProfileRepository = doctorProfileRepository;
         this.userRepository = userRepository;
         this.specialtyRepository = specialtyRepository;
@@ -62,6 +77,23 @@ public class DoctorService {
         this.patientProfileRepository = patientProfileRepository;
         this.storageService = storageService;
         this.auditLogRepository = auditLogRepository;
+        this.doctorScheduleExceptionRepository = doctorScheduleExceptionRepository;
+        this.jsonMapper = objectMapper != null ? objectMapper : new ObjectMapper();
+    }
+
+    public DoctorService(DoctorProfileRepository doctorProfileRepository,
+                         UserRepository userRepository,
+                         SpecialtyRepository specialtyRepository,
+                         AppointmentRepository appointmentRepository,
+                         TwoLayerCacheService cacheService,
+                         DoctorSemanticSearchService doctorSemanticSearchService,
+                         DoctorScheduleSlotRepository doctorScheduleSlotRepository,
+                         PatientProfileRepository patientProfileRepository,
+                         StorageService storageService,
+                         AuditLogRepository auditLogRepository) {
+        this(doctorProfileRepository, userRepository, specialtyRepository, appointmentRepository,
+             cacheService, doctorSemanticSearchService, doctorScheduleSlotRepository,
+             patientProfileRepository, storageService, auditLogRepository, null, null);
     }
 
     public DoctorService(DoctorProfileRepository doctorProfileRepository,
@@ -74,7 +106,7 @@ public class DoctorService {
                          PatientProfileRepository patientProfileRepository) {
         this(doctorProfileRepository, userRepository, specialtyRepository, appointmentRepository,
              cacheService, doctorSemanticSearchService, doctorScheduleSlotRepository,
-             patientProfileRepository, null, null);
+             patientProfileRepository, null, null, null, null);
     }
 
     public List<DoctorDetailDto> getVerifiedDoctors() {
@@ -111,7 +143,7 @@ public class DoctorService {
     }
 
     public List<DoctorSlotDto> getAvailableSlots(UUID doctorIdentifier, LocalDate date) {
-        if (date.isBefore(LocalDate.now())) {
+        if (date == null || date.isBefore(LocalDate.now())) {
             return Collections.emptyList();
         }
 
@@ -123,34 +155,72 @@ public class DoctorService {
 
         UUID doctorUserId = profile.getUser() != null ? profile.getUser().getId() : doctorIdentifier;
 
-        // Query active appointments on this day
+        // Query active appointments fresh so booked slots are always up to date
         LocalDateTime dayStart = date.atStartOfDay();
         LocalDateTime dayEnd = date.atTime(23, 59, 59);
         List<Appointment> bookedAppointments = appointmentRepository.findActiveAppointmentsByDoctorAndRange(doctorUserId, dayStart, dayEnd);
 
-        DayOfWeek targetDow = date.getDayOfWeek();
-        List<DoctorScheduleSlot> slotConfigs = doctorScheduleSlotRepository
-                .findByDoctorProfileIdAndDayOfWeekAndIsActiveTrue(profile.getId(), targetDow);
+        int duration = profile.getSlotDurationMinutes();
+        int buffer = profile.getBufferTimeMinutes();
+        List<ShiftWindow> dayShifts;
 
-        // An empty day means "closed" once the doctor has saved a schedule. Default hours are only for a
-        // doctor who never configured one — seeding them for any empty day re-opened days the doctor turned off.
-        if ((slotConfigs == null || slotConfigs.isEmpty()) && !doctorScheduleSlotRepository.existsByDoctorProfileId(profile.getId())) {
-            slotConfigs = initializeDefaultDoctorSchedules(profile).stream()
-                    .filter(s -> s.getDayOfWeek() == targetDow && s.isActive())
+        if (doctorScheduleExceptionRepository != null) {
+            CachedScheduleMeta meta = getOrLoadScheduleMeta(profile);
+            final int effectiveDuration = meta.getSlotDurationMinutes() > 0 ? meta.getSlotDurationMinutes() : duration;
+            duration = effectiveDuration;
+            buffer = Math.max(0, meta.getBufferTimeMinutes());
+
+            String dateStr = date.toString();
+            CachedException matchedException = meta.getExceptions().stream()
+                    .filter(ex -> dateStr.equals(ex.getExceptionDate()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (matchedException != null) {
+                if (matchedException.isDayOff()) {
+                    return Collections.emptyList();
+                }
+                dayShifts = matchedException.getShifts().stream()
+                        .map(s -> new ShiftWindow(LocalTime.parse(s.getStartTime()), LocalTime.parse(s.getEndTime()), effectiveDuration))
+                        .collect(Collectors.toList());
+            } else {
+                DayOfWeek targetDow = date.getDayOfWeek();
+                dayShifts = meta.getWeeklySlots().stream()
+                        .filter(w -> targetDow.name().equals(w.getDayOfWeek()))
+                        .map(w -> new ShiftWindow(
+                                LocalTime.parse(w.getStartTime()),
+                                LocalTime.parse(w.getEndTime()),
+                                w.getSlotDurationMinutes() > 0 ? w.getSlotDurationMinutes() : effectiveDuration))
+                        .collect(Collectors.toList());
+            }
+        } else {
+            DayOfWeek targetDow = date.getDayOfWeek();
+            List<DoctorScheduleSlot> slotConfigs = doctorScheduleSlotRepository
+                    .findByDoctorProfileIdAndDayOfWeekAndIsActiveTrue(profile.getId(), targetDow);
+
+            // An empty day means "closed" once the doctor has saved a schedule.
+            if ((slotConfigs == null || slotConfigs.isEmpty()) && !doctorScheduleSlotRepository.existsByDoctorProfileId(profile.getId())) {
+                slotConfigs = initializeDefaultDoctorSchedules(profile).stream()
+                        .filter(s -> s.getDayOfWeek() == targetDow && s.isActive())
+                        .collect(Collectors.toList());
+            }
+            dayShifts = (slotConfigs == null ? Collections.<DoctorScheduleSlot>emptyList() : slotConfigs).stream()
+                    .map(s -> new ShiftWindow(s.getStartTime(), s.getEndTime(), s.getSlotDurationMinutes() > 0 ? s.getSlotDurationMinutes() : 30))
                     .collect(Collectors.toList());
         }
-        if (slotConfigs == null) {
-            slotConfigs = Collections.emptyList();
+
+        if (dayShifts.isEmpty()) {
+            return Collections.emptyList();
         }
 
         Map<LocalTime, DoctorSlotDto> uniqueSlotsMap = new TreeMap<>();
         LocalTime nowTime = LocalTime.now();
         boolean isToday = date.isEqual(LocalDate.now());
 
-        for (DoctorScheduleSlot slotConfig : slotConfigs) {
-            int duration = slotConfig.getSlotDurationMinutes() > 0 ? slotConfig.getSlotDurationMinutes() : 30;
+        for (ShiftWindow shift : dayShifts) {
+            int shiftDuration = shift.slotDurationMinutes > 0 ? shift.slotDurationMinutes : 30;
             List<DoctorSlotDto> generated = new ArrayList<>();
-            addTimeSlots(date, slotConfig.getStartTime(), slotConfig.getEndTime(), duration, bookedAppointments, generated, isToday, nowTime);
+            addTimeSlots(date, shift.startTime, shift.endTime, shiftDuration, buffer, bookedAppointments, generated, isToday, nowTime);
             for (DoctorSlotDto s : generated) {
                 uniqueSlotsMap.merge(s.getStartTime(), s, (existing, incoming) -> {
                     boolean isAvail = existing.isAvailable() && incoming.isAvailable();
@@ -168,29 +238,89 @@ public class DoctorService {
         return new ArrayList<>(uniqueSlotsMap.values());
     }
 
-    private void addTimeSlots(LocalDate date, LocalTime start, LocalTime end, int durationMinutes, List<Appointment> bookedAppointments, List<DoctorSlotDto> slots, boolean isToday, LocalTime nowTime) {
-        LocalTime current = start;
-        while (current.plusMinutes(durationMinutes).isBefore(end) || current.plusMinutes(durationMinutes).equals(end)) {
-            LocalTime slotEnd = current.plusMinutes(durationMinutes);
-            LocalDateTime slotStartDt = date.atTime(current);
+    public boolean isSlotWithinWorkingHours(UUID doctorIdentifier, LocalDateTime scheduledStart, int fallbackDurationMinutes) {
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorIdentifier)
+                .or(() -> doctorProfileRepository.findByIdWithDetails(doctorIdentifier))
+                .or(() -> doctorProfileRepository.findByUserId(doctorIdentifier))
+                .or(() -> doctorProfileRepository.findById(doctorIdentifier))
+                .orElse(null);
+        if (profile == null || scheduledStart == null) {
+            return false;
+        }
+        LocalDate date = scheduledStart.toLocalDate();
+        LocalTime startTime = scheduledStart.toLocalTime();
+        int duration = profile.getSlotDurationMinutes() > 0 ? profile.getSlotDurationMinutes() : fallbackDurationMinutes;
+        LocalTime endTime = startTime.plusMinutes(duration);
+
+        List<ShiftWindow> dayShifts;
+        if (doctorScheduleExceptionRepository != null) {
+            CachedScheduleMeta meta = getOrLoadScheduleMeta(profile);
+            String dateStr = date.toString();
+            CachedException matchedException = meta.getExceptions().stream()
+                    .filter(ex -> dateStr.equals(ex.getExceptionDate()))
+                    .findFirst()
+                    .orElse(null);
+            if (matchedException != null) {
+                if (matchedException.isDayOff()) return false;
+                dayShifts = matchedException.getShifts().stream()
+                        .map(s -> new ShiftWindow(LocalTime.parse(s.getStartTime()), LocalTime.parse(s.getEndTime()), meta.getSlotDurationMinutes()))
+                        .collect(Collectors.toList());
+            } else {
+                DayOfWeek dow = date.getDayOfWeek();
+                dayShifts = meta.getWeeklySlots().stream()
+                        .filter(w -> dow.name().equals(w.getDayOfWeek()))
+                        .map(w -> new ShiftWindow(LocalTime.parse(w.getStartTime()), LocalTime.parse(w.getEndTime()), w.getSlotDurationMinutes()))
+                        .collect(Collectors.toList());
+            }
+        } else {
+            DayOfWeek dow = date.getDayOfWeek();
+            List<DoctorScheduleSlot> slotConfigs = doctorScheduleSlotRepository
+                    .findByDoctorProfileIdAndDayOfWeekAndIsActiveTrue(profile.getId(), dow);
+            if ((slotConfigs == null || slotConfigs.isEmpty()) && !doctorScheduleSlotRepository.existsByDoctorProfileId(profile.getId())) {
+                slotConfigs = initializeDefaultDoctorSchedules(profile).stream()
+                        .filter(s -> s.getDayOfWeek() == dow && s.isActive())
+                        .collect(Collectors.toList());
+            }
+            dayShifts = (slotConfigs == null ? Collections.<DoctorScheduleSlot>emptyList() : slotConfigs).stream()
+                    .map(s -> new ShiftWindow(s.getStartTime(), s.getEndTime(), s.getSlotDurationMinutes()))
+                    .collect(Collectors.toList());
+        }
+        return dayShifts.stream().anyMatch(shift ->
+                !startTime.isBefore(shift.startTime) && !endTime.isAfter(shift.endTime)
+        );
+    }
+
+    private void addTimeSlots(LocalDate date, LocalTime start, LocalTime end, int durationMinutes, int bufferMinutes,
+                              List<Appointment> bookedAppointments, List<DoctorSlotDto> slots, boolean isToday, LocalTime nowTime) {
+        int currentMin = start.getHour() * 60 + start.getMinute();
+        int endMin = end.getHour() * 60 + end.getMinute();
+        int safeDuration = Math.max(5, durationMinutes);
+        int safeBuffer = Math.max(0, bufferMinutes);
+
+        while (currentMin + safeDuration <= endMin) {
+            LocalTime slotStart = LocalTime.of(currentMin / 60, currentMin % 60);
+            int slotEndTotalMin = currentMin + safeDuration;
+            LocalTime slotEnd = LocalTime.of(slotEndTotalMin / 60, slotEndTotalMin % 60);
+            LocalDateTime slotStartDt = date.atTime(slotStart);
             LocalDateTime slotEndDt = date.atTime(slotEnd);
 
             boolean isBooked = bookedAppointments != null && bookedAppointments.stream().anyMatch(a -> {
                 LocalDateTime apptStart = a.getScheduledStart();
-                LocalDateTime apptEnd = a.getScheduledEnd() != null ? a.getScheduledEnd() : apptStart.plusMinutes(30);
-                return slotStartDt.isBefore(apptEnd) && slotEndDt.isAfter(apptStart);
+                LocalDateTime apptEnd = a.getScheduledEnd() != null ? a.getScheduledEnd() : apptStart.plusMinutes(safeDuration);
+                return slotStartDt.isBefore(apptEnd.plusMinutes(safeBuffer))
+                        && slotEndDt.plusMinutes(safeBuffer).isAfter(apptStart);
             });
-            boolean isPastToday = isToday && current.isBefore(nowTime);
+            boolean isPastToday = isToday && slotStart.isBefore(nowTime);
             boolean available = !isBooked && !isPastToday;
 
             slots.add(new DoctorSlotDto(
-                    current,
+                    slotStart,
                     slotEnd,
                     slotStartDt,
                     slotEndDt,
                     available
             ));
-            current = slotEnd;
+            currentMin += safeDuration + safeBuffer;
         }
     }
 
@@ -517,11 +647,28 @@ public class DoctorService {
             slots = Collections.emptyList();
         }
 
+        int bufferMinutes = profile.getBufferTimeMinutes();
         return slots.stream()
                 .sorted(Comparator.comparing(DoctorScheduleSlot::getDayOfWeek)
                         .thenComparing(DoctorScheduleSlot::getStartTime))
-                .map(DoctorScheduleConfigDto::fromEntity)
+                .map(slot -> DoctorScheduleConfigDto.fromEntity(slot, bufferMinutes))
                 .collect(Collectors.toList());
+    }
+
+    public DoctorScheduleBundleDto getDoctorScheduleBundle(UUID doctorUserId) {
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        List<DoctorScheduleConfigDto> weeklySlots = getDoctorSchedules(doctorUserId);
+        List<ScheduleExceptionDto> exceptions = getDoctorScheduleExceptions(doctorUserId, false);
+        return new DoctorScheduleBundleDto(
+                profile.getSlotDurationMinutes(),
+                profile.getBufferTimeMinutes(),
+                weeklySlots,
+                exceptions,
+                Collections.emptyList()
+        );
     }
 
     @Transactional
@@ -531,15 +678,16 @@ public class DoctorService {
             return existing;
         }
 
+        int duration = profile.getSlotDurationMinutes();
         List<DoctorScheduleSlot> defaultSlots = new ArrayList<>();
         DayOfWeek[] weekdays = {
                 DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
                 DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY
         };
         for (DayOfWeek day : weekdays) {
-            defaultSlots.add(new DoctorScheduleSlot(profile, day, LocalTime.of(8, 0), LocalTime.of(12, 0), 30, true));
+            defaultSlots.add(new DoctorScheduleSlot(profile, day, LocalTime.of(8, 0), LocalTime.of(12, 0), duration, true));
             if (day != DayOfWeek.SATURDAY) {
-                defaultSlots.add(new DoctorScheduleSlot(profile, day, LocalTime.of(13, 30), LocalTime.of(17, 0), 30, true));
+                defaultSlots.add(new DoctorScheduleSlot(profile, day, LocalTime.of(13, 30), LocalTime.of(17, 0), duration, true));
             }
         }
         List<DoctorScheduleSlot> saved = doctorScheduleSlotRepository.saveAll(defaultSlots);
@@ -551,13 +699,56 @@ public class DoctorService {
      */
     @Transactional
     public List<DoctorScheduleConfigDto> updateDoctorSchedules(UUID doctorUserId, UpdateDoctorScheduleRequest req) {
-        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
-                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
-                .orElseThrow(() -> new com.mediassist.common.AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
-
         if (req == null || req.getSlots() == null) {
             return getDoctorSchedules(doctorUserId);
         }
+        return updateDoctorScheduleBundle(doctorUserId, req).getWeeklySlots();
+    }
+
+    @Transactional
+    public DoctorScheduleBundleDto updateDoctorScheduleBundle(UUID doctorUserId, UpdateDoctorScheduleRequest req) {
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        if (req == null) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", "Dữ liệu cập nhật lịch không được để trống.");
+        }
+
+        List<UpdateDoctorScheduleRequest.SlotItem> rawItems = req.getSlots() != null ? req.getSlots() : Collections.emptyList();
+
+        int resolvedDuration = resolveAndValidateDuration(req.getSlotDurationMinutes(), rawItems, profile.getSlotDurationMinutes());
+        int resolvedBuffer = resolveAndValidateBuffer(req.getBufferTimeMinutes(), profile.getBufferTimeMinutes());
+
+        Map<DayOfWeek, List<ShiftWindow>> activeByDay = new EnumMap<>(DayOfWeek.class);
+        for (UpdateDoctorScheduleRequest.SlotItem item : rawItems) {
+            if (item == null || !item.isActive()) {
+                continue;
+            }
+            if (item.getDayOfWeek() == null || item.getStartTime() == null || item.getEndTime() == null) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SCHEDULE_TIME", "Vui lòng nhập đầy đủ thứ và thời gian bắt đầu/kết thúc cho mọi ca làm việc.");
+            }
+            activeByDay.computeIfAbsent(item.getDayOfWeek(), k -> new ArrayList<>())
+                    .add(new ShiftWindow(item.getStartTime(), item.getEndTime(), resolvedDuration));
+        }
+
+        for (Map.Entry<DayOfWeek, List<ShiftWindow>> entry : activeByDay.entrySet()) {
+            validateDayShifts(formatDayLabel(entry.getKey()), entry.getValue(), resolvedDuration);
+        }
+
+        List<ScheduleConflictDto> conflicts = findWeeklyConflicts(doctorUserId, profile.getId(), activeByDay, resolvedDuration);
+        if (!conflicts.isEmpty() && !req.isForce()) {
+            throw new AppException(
+                    HttpStatus.CONFLICT,
+                    "SCHEDULE_CONFLICT_WARNING",
+                    "Thay đổi lịch làm việc này ảnh hưởng đến " + conflicts.size() + " lịch hẹn đã được bệnh nhân đặt trước.",
+                    buildConflictDetails(conflicts)
+            );
+        }
+
+        profile.setSlotDurationMinutes(resolvedDuration);
+        profile.setBufferTimeMinutes(resolvedBuffer);
+        doctorProfileRepository.save(profile);
 
         List<DoctorScheduleSlot> existing = doctorScheduleSlotRepository.findByDoctorProfileIdAndIsActiveTrue(profile.getId());
         if (existing != null && !existing.isEmpty()) {
@@ -568,25 +759,470 @@ public class DoctorService {
         }
 
         List<DoctorScheduleSlot> newSlots = new ArrayList<>();
-        for (UpdateDoctorScheduleRequest.SlotItem item : req.getSlots()) {
-            if (item.getDayOfWeek() != null && item.getStartTime() != null && item.getEndTime() != null) {
+        for (Map.Entry<DayOfWeek, List<ShiftWindow>> entry : activeByDay.entrySet()) {
+            for (ShiftWindow win : entry.getValue()) {
                 newSlots.add(new DoctorScheduleSlot(
                         profile,
-                        item.getDayOfWeek(),
-                        item.getStartTime(),
-                        item.getEndTime(),
-                        item.getSlotDurationMinutes() > 0 ? item.getSlotDurationMinutes() : 30,
-                        item.isActive()
+                        entry.getKey(),
+                        win.startTime,
+                        win.endTime,
+                        resolvedDuration,
+                        true
                 ));
             }
         }
 
-        List<DoctorScheduleSlot> saved = doctorScheduleSlotRepository.saveAll(newSlots);
-        return saved.stream()
+        List<DoctorScheduleSlot> saved = newSlots.isEmpty()
+                ? Collections.emptyList()
+                : doctorScheduleSlotRepository.saveAll(newSlots);
+        evictScheduleCache(profile.getId());
+
+        List<DoctorScheduleConfigDto> weeklyDtos = saved.stream()
                 .sorted(Comparator.comparing(DoctorScheduleSlot::getDayOfWeek)
                         .thenComparing(DoctorScheduleSlot::getStartTime))
-                .map(DoctorScheduleConfigDto::fromEntity)
+                .map(slot -> DoctorScheduleConfigDto.fromEntity(slot, resolvedBuffer))
                 .collect(Collectors.toList());
+
+        List<ScheduleExceptionDto> exceptions = getDoctorScheduleExceptions(doctorUserId, false);
+        return new DoctorScheduleBundleDto(resolvedDuration, resolvedBuffer, weeklyDtos, exceptions, conflicts);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ScheduleExceptionDto> getDoctorScheduleExceptions(UUID doctorUserId, boolean includePast) {
+        if (doctorScheduleExceptionRepository == null) {
+            return Collections.emptyList();
+        }
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        List<DoctorScheduleException> rows = includePast
+                ? doctorScheduleExceptionRepository.findByDoctorProfileIdOrderByExceptionDateAsc(profile.getId())
+                : doctorScheduleExceptionRepository.findByDoctorProfileIdAndExceptionDateGreaterThanEqualOrderByExceptionDateAsc(profile.getId(), LocalDate.now());
+
+        if (rows == null || rows.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return rows.stream().map(this::toExceptionDto).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public ScheduleExceptionDto upsertScheduleException(UUID doctorUserId, UpsertScheduleExceptionRequest req) {
+        if (doctorScheduleExceptionRepository == null) {
+            throw new AppException(HttpStatus.SERVICE_UNAVAILABLE, "SCHEDULE_EXCEPTION_UNAVAILABLE", "Chức năng ngoại lệ lịch chưa sẵn sàng.");
+        }
+        if (req == null || req.getExceptionDate() == null) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", "Vui lòng chọn ngày ngoại lệ hợp lệ.");
+        }
+        LocalDate date = req.getExceptionDate();
+        if (date.isBefore(LocalDate.now())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "PAST_DATE", "Không thể thiết lập ngoại lệ cho ngày trong quá khứ.");
+        }
+
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        int duration = profile.getSlotDurationMinutes();
+        List<ShiftWindow> parsedShifts = new ArrayList<>();
+        if (!req.isDayOff()) {
+            List<ScheduleShiftDto> rawShifts = req.getCustomShifts() != null ? req.getCustomShifts() : Collections.emptyList();
+            if (rawShifts.isEmpty()) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SCHEDULE_TIME", "Vui lòng thêm ít nhất một khung giờ làm việc cho ngày chỉnh giờ riêng.");
+            }
+            for (ScheduleShiftDto item : rawShifts) {
+                LocalTime start = parseShiftTime(item != null ? item.getStartTime() : null);
+                LocalTime end = parseShiftTime(item != null ? item.getEndTime() : null);
+                parsedShifts.add(new ShiftWindow(start, end, duration));
+            }
+            validateDayShifts("ngày " + date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), parsedShifts, duration);
+        }
+
+        List<ScheduleConflictDto> conflicts = findExceptionConflicts(doctorUserId, date, req.isDayOff(), parsedShifts, duration);
+        if (!conflicts.isEmpty() && !req.isForce()) {
+            throw new AppException(
+                    HttpStatus.CONFLICT,
+                    "SCHEDULE_CONFLICT_WARNING",
+                    "Thay đổi ngày " + date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " ảnh hưởng đến " + conflicts.size() + " lịch hẹn đã được bệnh nhân đặt trước.",
+                    buildConflictDetails(conflicts)
+            );
+        }
+
+        List<ScheduleShiftDto> normalizedShiftDtos = parsedShifts.stream()
+                .map(w -> new ScheduleShiftDto(formatHm(w.startTime), formatHm(w.endTime)))
+                .collect(Collectors.toList());
+
+        DoctorScheduleException entity = doctorScheduleExceptionRepository
+                .findByDoctorProfileIdAndExceptionDate(profile.getId(), date)
+                .orElseGet(() -> {
+                    DoctorScheduleException created = new DoctorScheduleException();
+                    created.setDoctorProfile(profile);
+                    created.setExceptionDate(date);
+                    return created;
+                });
+
+        entity.setDayOff(req.isDayOff());
+        entity.setCustomShiftsJson(serializeShifts(normalizedShiftDtos));
+        entity.setReason(req.getReason() != null && !req.getReason().isBlank() ? req.getReason().trim() : null);
+
+        DoctorScheduleException saved = doctorScheduleExceptionRepository.save(entity);
+        evictScheduleCache(profile.getId());
+        return toExceptionDto(saved);
+    }
+
+    @Transactional
+    public void deleteScheduleException(UUID doctorUserId, UUID exceptionId) {
+        if (doctorScheduleExceptionRepository == null) {
+            return;
+        }
+        DoctorProfile profile = doctorProfileRepository.findByUserIdWithDetails(doctorUserId)
+                .or(() -> doctorProfileRepository.findByUserId(doctorUserId))
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy hồ sơ bác sĩ"));
+
+        DoctorScheduleException ex = doctorScheduleExceptionRepository
+                .findByIdAndDoctorProfileId(exceptionId, profile.getId())
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy ngày ngoại lệ cần xóa."));
+        doctorScheduleExceptionRepository.delete(ex);
+        evictScheduleCache(profile.getId());
+    }
+
+    private int resolveAndValidateDuration(Integer requested, List<UpdateDoctorScheduleRequest.SlotItem> items, int currentDefault) {
+        Integer candidate = requested;
+        if (candidate == null && items != null) {
+            candidate = items.stream()
+                    .filter(i -> i != null && i.isActive() && i.getSlotDurationMinutes() > 0)
+                    .map(UpdateDoctorScheduleRequest.SlotItem::getSlotDurationMinutes)
+                    .findFirst()
+                    .orElse(null);
+        }
+        int resolved = candidate != null ? candidate : (currentDefault > 0 ? currentDefault : 30);
+        if (!ALLOWED_SLOT_DURATIONS.contains(resolved)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SCHEDULE_CONFIG",
+                    "Thời lượng mỗi ca chỉ hỗ trợ 15, 20, 30, 45 hoặc 60 phút.");
+        }
+        return resolved;
+    }
+
+    private int resolveAndValidateBuffer(Integer requested, int currentDefault) {
+        int resolved = requested != null ? requested : Math.max(0, currentDefault);
+        if (!ALLOWED_BUFFER_MINUTES.contains(resolved)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SCHEDULE_CONFIG",
+                    "Thời gian nghỉ giữa ca chỉ hỗ trợ 0, 5, 10, 15, 20 hoặc 30 phút.");
+        }
+        return resolved;
+    }
+
+    private void validateDayShifts(String dayLabel, List<ShiftWindow> shifts, int durationMinutes) {
+        if (shifts == null || shifts.isEmpty()) return;
+        shifts.sort(Comparator.comparing(s -> s.startTime));
+        for (int i = 0; i < shifts.size(); i++) {
+            ShiftWindow curr = shifts.get(i);
+            if (curr.startTime == null || curr.endTime == null || !curr.endTime.isAfter(curr.startTime)) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SCHEDULE_TIME",
+                        "Giờ kết thúc phải lớn hơn giờ bắt đầu tại " + dayLabel + ".");
+            }
+            if (Duration.between(curr.startTime, curr.endTime).toMinutes() < durationMinutes) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "SHIFT_TOO_SHORT",
+                        "Khung giờ " + formatHm(curr.startTime) + "–" + formatHm(curr.endTime)
+                                + " tại " + dayLabel + " ngắn hơn thời lượng một ca (" + durationMinutes + " phút).");
+            }
+            if (i > 0) {
+                ShiftWindow prev = shifts.get(i - 1);
+                if (curr.startTime.isBefore(prev.endTime)) {
+                    throw new AppException(HttpStatus.BAD_REQUEST, "SHIFT_OVERLAP",
+                            "Các khung giờ tại " + dayLabel + " đang bị chồng chéo ("
+                                    + formatHm(prev.startTime) + "–" + formatHm(prev.endTime)
+                                    + " và " + formatHm(curr.startTime) + "–" + formatHm(curr.endTime) + ").");
+                }
+            }
+        }
+    }
+
+    private List<ScheduleConflictDto> findWeeklyConflicts(UUID doctorUserId, UUID profileId,
+                                                            Map<DayOfWeek, List<ShiftWindow>> activeByDay, int fallbackDuration) {
+        List<Appointment> upcoming = appointmentRepository.findUpcomingActiveAppointmentsByDoctor(doctorUserId, LocalDateTime.now());
+        if (upcoming == null || upcoming.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Map<LocalDate, DoctorScheduleException> exceptionByDate = new HashMap<>();
+        if (doctorScheduleExceptionRepository != null) {
+            List<DoctorScheduleException> exList = doctorScheduleExceptionRepository
+                    .findByDoctorProfileIdAndExceptionDateGreaterThanEqualOrderByExceptionDateAsc(profileId, LocalDate.now());
+            if (exList != null) {
+                for (DoctorScheduleException ex : exList) {
+                    exceptionByDate.put(ex.getExceptionDate(), ex);
+                }
+            }
+        }
+
+        List<ScheduleConflictDto> conflicts = new ArrayList<>();
+        for (Appointment appt : upcoming) {
+            if (appt.getStatus() != null && !ACTIVE_BOOKING_STATUSES.contains(appt.getStatus())) continue;
+            LocalDateTime start = appt.getScheduledStart();
+            if (start == null) continue;
+            LocalDate apptDate = start.toLocalDate();
+            if (exceptionByDate.containsKey(apptDate)) {
+                continue; // governed by Date Override exception rather than weekly template
+            }
+            List<ShiftWindow> dayShifts = activeByDay.getOrDefault(apptDate.getDayOfWeek(), Collections.emptyList());
+            LocalDateTime end = appt.getScheduledEnd() != null ? appt.getScheduledEnd() : start.plusMinutes(fallbackDuration);
+            boolean covered = isCoveredByShifts(start, end, dayShifts);
+            if (!covered) {
+                conflicts.add(new ScheduleConflictDto(
+                        appt.getId(),
+                        appt.getAppointmentCode(),
+                        appt.getPatient() != null ? appt.getPatient().getFullName() : "Bệnh nhân",
+                        start,
+                        end,
+                        appt.getStatus() != null ? appt.getStatus().name() : "SCHEDULED",
+                        dayShifts.isEmpty()
+                                ? "Ngày " + formatDayLabel(apptDate.getDayOfWeek()) + " được chuyển sang Nghỉ"
+                                : "Nằm ngoài khung giờ mới của " + formatDayLabel(apptDate.getDayOfWeek())
+                ));
+            }
+        }
+        return conflicts;
+    }
+
+    private List<ScheduleConflictDto> findExceptionConflicts(UUID doctorUserId, LocalDate date, boolean dayOff,
+                                                               List<ShiftWindow> customShifts, int fallbackDuration) {
+        List<Appointment> dayAppts = appointmentRepository.findActiveAppointmentsByDoctorWithPatientInRange(
+                doctorUserId, date.atStartOfDay(), date.atTime(23, 59, 59));
+        if (dayAppts == null || dayAppts.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<ScheduleConflictDto> conflicts = new ArrayList<>();
+        String formattedDate = date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        for (Appointment appt : dayAppts) {
+            if (appt.getStatus() != null && !ACTIVE_BOOKING_STATUSES.contains(appt.getStatus())) continue;
+            LocalDateTime start = appt.getScheduledStart();
+            if (start == null) continue;
+            LocalDateTime end = appt.getScheduledEnd() != null ? appt.getScheduledEnd() : start.plusMinutes(fallbackDuration);
+            boolean covered = !dayOff && isCoveredByShifts(start, end, customShifts);
+            if (!covered) {
+                conflicts.add(new ScheduleConflictDto(
+                        appt.getId(),
+                        appt.getAppointmentCode(),
+                        appt.getPatient() != null ? appt.getPatient().getFullName() : "Bệnh nhân",
+                        start,
+                        end,
+                        appt.getStatus() != null ? appt.getStatus().name() : "SCHEDULED",
+                        dayOff ? "Bác sĩ đánh dấu nghỉ ngày " + formattedDate : "Nằm ngoài giờ làm việc riêng ngày " + formattedDate
+                ));
+            }
+        }
+        return conflicts;
+    }
+
+    private boolean isCoveredByShifts(LocalDateTime start, LocalDateTime end, List<ShiftWindow> shifts) {
+        if (shifts == null || shifts.isEmpty() || start == null || end == null) {
+            return false;
+        }
+        if (!end.toLocalDate().equals(start.toLocalDate())) {
+            return false;
+        }
+        LocalTime startTime = start.toLocalTime();
+        LocalTime endTime = end.toLocalTime();
+        return shifts.stream().anyMatch(shift ->
+                !startTime.isBefore(shift.startTime) && !endTime.isAfter(shift.endTime)
+        );
+    }
+
+    private Map<String, Object> buildConflictDetails(List<ScheduleConflictDto> conflicts) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("conflictCount", conflicts.size());
+        details.put("conflicts", conflicts);
+        return details;
+    }
+
+    private CachedScheduleMeta getOrLoadScheduleMeta(DoctorProfile profile) {
+        String key = CACHE_SCHEDULE_META_PREFIX + profile.getId();
+        if (cacheService != null) {
+            CachedScheduleMeta cached = cacheService.get(key, CachedScheduleMeta.class);
+            if (cached != null) {
+                return cached;
+            }
+        }
+
+        List<DoctorScheduleSlot> weekly = doctorScheduleSlotRepository.findByDoctorProfileIdAndIsActiveTrue(profile.getId());
+        if ((weekly == null || weekly.isEmpty()) && !doctorScheduleSlotRepository.existsByDoctorProfileId(profile.getId())) {
+            weekly = initializeDefaultDoctorSchedules(profile);
+        }
+        if (weekly == null) weekly = Collections.emptyList();
+
+        List<DoctorScheduleException> exceptions = doctorScheduleExceptionRepository != null
+                ? doctorScheduleExceptionRepository.findByDoctorProfileIdAndExceptionDateGreaterThanEqualOrderByExceptionDateAsc(profile.getId(), LocalDate.now())
+                : Collections.emptyList();
+        if (exceptions == null) exceptions = Collections.emptyList();
+
+        CachedScheduleMeta meta = new CachedScheduleMeta();
+        meta.setSlotDurationMinutes(profile.getSlotDurationMinutes());
+        meta.setBufferTimeMinutes(profile.getBufferTimeMinutes());
+        meta.setWeeklySlots(weekly.stream().map(slot -> new CachedWeeklySlot(
+                slot.getDayOfWeek().name(),
+                formatHm(slot.getStartTime()),
+                formatHm(slot.getEndTime()),
+                slot.getSlotDurationMinutes()
+        )).collect(Collectors.toList()));
+        meta.setExceptions(exceptions.stream().map(ex -> new CachedException(
+                ex.getExceptionDate().toString(),
+                ex.isDayOff(),
+                parseShiftsJson(ex.getCustomShiftsJson())
+        )).collect(Collectors.toList()));
+
+        if (cacheService != null) {
+            cacheService.set(key, meta, SCHEDULE_META_TTL_SECONDS);
+        }
+        return meta;
+    }
+
+    private void evictScheduleCache(UUID profileId) {
+        if (cacheService != null && profileId != null) {
+            cacheService.evict(CACHE_SCHEDULE_META_PREFIX + profileId);
+        }
+    }
+
+    private ScheduleExceptionDto toExceptionDto(DoctorScheduleException ex) {
+        return new ScheduleExceptionDto(
+                ex.getId(),
+                ex.getExceptionDate(),
+                ex.isDayOff(),
+                ex.isDayOff() ? Collections.emptyList() : parseShiftsJson(ex.getCustomShiftsJson()),
+                ex.getReason(),
+                ex.getCreatedAt()
+        );
+    }
+
+    private List<ScheduleShiftDto> parseShiftsJson(String json) {
+        if (json == null || json.isBlank()) return Collections.emptyList();
+        try {
+            List<ScheduleShiftDto> list = jsonMapper.readValue(json, new TypeReference<List<ScheduleShiftDto>>() {});
+            return list != null ? list : Collections.emptyList();
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
+    }
+
+    private String serializeShifts(List<ScheduleShiftDto> shifts) {
+        if (shifts == null || shifts.isEmpty()) return "[]";
+        try {
+            return jsonMapper.writeValueAsString(shifts);
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    private LocalTime parseShiftTime(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SCHEDULE_TIME", "Khung giờ làm việc không được để trống.");
+        }
+        try {
+            String trimmed = raw.trim();
+            return LocalTime.parse(trimmed.length() == 5 ? trimmed : trimmed.substring(0, Math.min(8, trimmed.length())));
+        } catch (Exception e) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SCHEDULE_TIME", "Định dạng giờ không hợp lệ: " + raw);
+        }
+    }
+
+    private static String formatHm(LocalTime t) {
+        return String.format("%02d:%02d", t.getHour(), t.getMinute());
+    }
+
+    private static String formatDayLabel(DayOfWeek day) {
+        if (day == null) return "";
+        return switch (day) {
+            case MONDAY -> "Thứ Hai";
+            case TUESDAY -> "Thứ Ba";
+            case WEDNESDAY -> "Thứ Tư";
+            case THURSDAY -> "Thứ Năm";
+            case FRIDAY -> "Thứ Sáu";
+            case SATURDAY -> "Thứ Bảy";
+            case SUNDAY -> "Chủ Nhật";
+        };
+    }
+
+    private static class ShiftWindow {
+        final LocalTime startTime;
+        final LocalTime endTime;
+        final int slotDurationMinutes;
+
+        ShiftWindow(LocalTime startTime, LocalTime endTime, int slotDurationMinutes) {
+            this.startTime = startTime;
+            this.endTime = endTime;
+            this.slotDurationMinutes = slotDurationMinutes;
+        }
+    }
+
+    public static class CachedScheduleMeta {
+        private int slotDurationMinutes = 30;
+        private int bufferTimeMinutes = 0;
+        private List<CachedWeeklySlot> weeklySlots = new ArrayList<>();
+        private List<CachedException> exceptions = new ArrayList<>();
+
+        public CachedScheduleMeta() {}
+
+        public int getSlotDurationMinutes() { return slotDurationMinutes; }
+        public void setSlotDurationMinutes(int slotDurationMinutes) { this.slotDurationMinutes = slotDurationMinutes; }
+
+        public int getBufferTimeMinutes() { return bufferTimeMinutes; }
+        public void setBufferTimeMinutes(int bufferTimeMinutes) { this.bufferTimeMinutes = bufferTimeMinutes; }
+
+        public List<CachedWeeklySlot> getWeeklySlots() { return weeklySlots; }
+        public void setWeeklySlots(List<CachedWeeklySlot> weeklySlots) { this.weeklySlots = weeklySlots != null ? weeklySlots : new ArrayList<>(); }
+
+        public List<CachedException> getExceptions() { return exceptions; }
+        public void setExceptions(List<CachedException> exceptions) { this.exceptions = exceptions != null ? exceptions : new ArrayList<>(); }
+    }
+
+    public static class CachedWeeklySlot {
+        private String dayOfWeek;
+        private String startTime;
+        private String endTime;
+        private int slotDurationMinutes;
+
+        public CachedWeeklySlot() {}
+
+        public CachedWeeklySlot(String dayOfWeek, String startTime, String endTime, int slotDurationMinutes) {
+            this.dayOfWeek = dayOfWeek;
+            this.startTime = startTime;
+            this.endTime = endTime;
+            this.slotDurationMinutes = slotDurationMinutes;
+        }
+
+        public String getDayOfWeek() { return dayOfWeek; }
+        public void setDayOfWeek(String dayOfWeek) { this.dayOfWeek = dayOfWeek; }
+
+        public String getStartTime() { return startTime; }
+        public void setStartTime(String startTime) { this.startTime = startTime; }
+
+        public String getEndTime() { return endTime; }
+        public void setEndTime(String endTime) { this.endTime = endTime; }
+
+        public int getSlotDurationMinutes() { return slotDurationMinutes; }
+        public void setSlotDurationMinutes(int slotDurationMinutes) { this.slotDurationMinutes = slotDurationMinutes; }
+    }
+
+    public static class CachedException {
+        private String exceptionDate;
+        private boolean dayOff;
+        private List<ScheduleShiftDto> shifts = new ArrayList<>();
+
+        public CachedException() {}
+
+        public CachedException(String exceptionDate, boolean dayOff, List<ScheduleShiftDto> shifts) {
+            this.exceptionDate = exceptionDate;
+            this.dayOff = dayOff;
+            this.shifts = shifts != null ? shifts : new ArrayList<>();
+        }
+
+        public String getExceptionDate() { return exceptionDate; }
+        public void setExceptionDate(String exceptionDate) { this.exceptionDate = exceptionDate; }
+
+        public boolean isDayOff() { return dayOff; }
+        public void setDayOff(boolean dayOff) { this.dayOff = dayOff; }
+
+        public List<ScheduleShiftDto> getShifts() { return shifts; }
+        public void setShifts(List<ScheduleShiftDto> shifts) { this.shifts = shifts != null ? shifts : new ArrayList<>(); }
     }
 
     /**

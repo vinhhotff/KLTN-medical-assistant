@@ -95,6 +95,12 @@ public class DoctorProfile {
     @Column(name = "review_count")
     private Integer reviewCount = 0;
 
+    @Column(name = "slot_duration_minutes", nullable = false)
+    private Integer slotDurationMinutes = 30;
+
+    @Column(name = "buffer_time_minutes", nullable = false)
+    private Integer bufferTimeMinutes = 0;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -143,6 +149,22 @@ public class DoctorProfile {
 
     public Integer getReviewCount() { return reviewCount != null ? reviewCount : 0; }
     public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
+
+    public int getSlotDurationMinutes() {
+        return slotDurationMinutes != null && slotDurationMinutes > 0 ? slotDurationMinutes : 30;
+    }
+
+    public void setSlotDurationMinutes(Integer slotDurationMinutes) {
+        this.slotDurationMinutes = (slotDurationMinutes != null && slotDurationMinutes > 0) ? slotDurationMinutes : 30;
+    }
+
+    public int getBufferTimeMinutes() {
+        return bufferTimeMinutes != null && bufferTimeMinutes >= 0 ? bufferTimeMinutes : 0;
+    }
+
+    public void setBufferTimeMinutes(Integer bufferTimeMinutes) {
+        this.bufferTimeMinutes = (bufferTimeMinutes != null && bufferTimeMinutes >= 0) ? bufferTimeMinutes : 0;
+    }
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }

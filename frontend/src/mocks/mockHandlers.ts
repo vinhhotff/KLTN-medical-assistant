@@ -214,18 +214,65 @@ export async function handleMockRequest(
 
   if (method === 'GET' && path === '/doctors/me/schedules') {
     return ok([
-      { dayOfWeek: 1, startTime: '08:00', endTime: '12:00', isAvailable: true },
-      { dayOfWeek: 2, startTime: '08:00', endTime: '17:00', isAvailable: true },
-      { dayOfWeek: 3, startTime: '08:00', endTime: '17:00', isAvailable: true },
-      { dayOfWeek: 4, startTime: '08:00', endTime: '17:00', isAvailable: true },
-      { dayOfWeek: 5, startTime: '08:00', endTime: '17:00', isAvailable: true },
-      { dayOfWeek: 6, startTime: '08:00', endTime: '12:00', isAvailable: true },
-      { dayOfWeek: 0, startTime: '08:00', endTime: '12:00', isAvailable: false },
+      { dayOfWeek: 'MONDAY', dayOfWeekIndex: 1, startTime: '08:00', endTime: '12:00', slotDurationMinutes: 30, bufferTimeMinutes: 0, active: true },
+      { dayOfWeek: 'MONDAY', dayOfWeekIndex: 1, startTime: '13:30', endTime: '17:00', slotDurationMinutes: 30, bufferTimeMinutes: 0, active: true },
+      { dayOfWeek: 'TUESDAY', dayOfWeekIndex: 2, startTime: '08:00', endTime: '12:00', slotDurationMinutes: 30, bufferTimeMinutes: 0, active: true },
+      { dayOfWeek: 'WEDNESDAY', dayOfWeekIndex: 3, startTime: '08:00', endTime: '17:00', slotDurationMinutes: 30, bufferTimeMinutes: 0, active: true },
+      { dayOfWeek: 'THURSDAY', dayOfWeekIndex: 4, startTime: '08:00', endTime: '17:00', slotDurationMinutes: 30, bufferTimeMinutes: 0, active: true },
+      { dayOfWeek: 'FRIDAY', dayOfWeekIndex: 5, startTime: '08:00', endTime: '17:00', slotDurationMinutes: 30, bufferTimeMinutes: 0, active: true },
+      { dayOfWeek: 'SATURDAY', dayOfWeekIndex: 6, startTime: '08:00', endTime: '12:00', slotDurationMinutes: 30, bufferTimeMinutes: 0, active: true },
     ]);
   }
 
   if (method === 'PUT' && path === '/doctors/me/schedules') {
     return ok(body, 'Cập nhật lịch trực thành công');
+  }
+
+  if (method === 'GET' && path === '/doctors/me/schedule-config') {
+    return ok({
+      slotDurationMinutes: 30,
+      bufferTimeMinutes: 5,
+      weeklySlots: [
+        { dayOfWeek: 'MONDAY', dayOfWeekIndex: 1, startTime: '08:00:00', endTime: '12:00:00', slotDurationMinutes: 30, bufferTimeMinutes: 5, active: true },
+        { dayOfWeek: 'MONDAY', dayOfWeekIndex: 1, startTime: '13:30:00', endTime: '17:00:00', slotDurationMinutes: 30, bufferTimeMinutes: 5, active: true },
+        { dayOfWeek: 'TUESDAY', dayOfWeekIndex: 2, startTime: '08:00:00', endTime: '12:00:00', slotDurationMinutes: 30, bufferTimeMinutes: 5, active: true },
+        { dayOfWeek: 'WEDNESDAY', dayOfWeekIndex: 3, startTime: '08:00:00', endTime: '17:00:00', slotDurationMinutes: 30, bufferTimeMinutes: 5, active: true },
+        { dayOfWeek: 'THURSDAY', dayOfWeekIndex: 4, startTime: '08:00:00', endTime: '17:00:00', slotDurationMinutes: 30, bufferTimeMinutes: 5, active: true },
+        { dayOfWeek: 'FRIDAY', dayOfWeekIndex: 5, startTime: '08:00:00', endTime: '17:00:00', slotDurationMinutes: 30, bufferTimeMinutes: 5, active: true },
+      ],
+      exceptions: [],
+      warnings: [],
+    });
+  }
+
+  if (method === 'PUT' && path === '/doctors/me/schedule-config') {
+    const req = (body as { slots?: unknown[]; slotDurationMinutes?: number; bufferTimeMinutes?: number }) || {};
+    return ok({
+      slotDurationMinutes: req.slotDurationMinutes ?? 30,
+      bufferTimeMinutes: req.bufferTimeMinutes ?? 0,
+      weeklySlots: req.slots ?? [],
+      exceptions: [],
+      warnings: [],
+    }, 'Cập nhật lịch trực thành công');
+  }
+
+  if (method === 'GET' && path === '/doctors/me/schedules/exceptions') {
+    return ok([]);
+  }
+
+  if (method === 'POST' && path === '/doctors/me/schedules/exceptions') {
+    const req = (body as Record<string, unknown>) || {};
+    return ok({
+      id: `ex-${Date.now()}`,
+      exceptionDate: req.exceptionDate,
+      dayOff: Boolean(req.dayOff),
+      customShifts: Array.isArray(req.customShifts) ? req.customShifts : [],
+      reason: req.reason ?? null,
+    });
+  }
+
+  if (method === 'DELETE' && path.startsWith('/doctors/me/schedules/exceptions/')) {
+    return ok(null, 'Đã xóa ngày ngoại lệ');
   }
 
   if (method === 'GET' && path === '/doctors/me/patients') {

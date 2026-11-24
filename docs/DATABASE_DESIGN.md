@@ -121,6 +121,7 @@ erDiagram
     doctor_profiles ||--o{ doctor_specialties : "has specialties"
     specialties ||--o{ doctor_specialties : "categorizes"
     doctor_profiles ||--o{ doctor_schedule_slots : "schedules slots"
+    doctor_profiles ||--o{ doctor_schedule_exceptions : "has date overrides"
     doctor_profiles ||--o{ doctor_reviews : "evaluated by"
 
     doctor_profiles {
@@ -134,6 +135,8 @@ erDiagram
         VARCHAR hospital_affiliation
         DOUBLE_PRECISION rating
         INT review_count
+        INT slot_duration_minutes "V26"
+        INT buffer_time_minutes "V26"
         BOOLEAN is_verified
         vector bio_embedding "HNSW (1536-dim)"
     }
@@ -155,6 +158,15 @@ erDiagram
         TIME end_time
         INT slot_duration_minutes
         BOOLEAN is_active
+        TIMESTAMPTZ updated_at
+    }
+    doctor_schedule_exceptions {
+        UUID id PK
+        UUID doctor_profile_id FK
+        DATE exception_date UK
+        BOOLEAN is_day_off
+        TEXT custom_shifts_json
+        VARCHAR reason
     }
     doctor_reviews {
         UUID id PK
@@ -399,6 +411,8 @@ CREATE TABLE doctor_profiles (
     license_issued_by VARCHAR(150),              -- Đơn vị cấp CCHN: Cục Quản lý Khám chữa bệnh - Bộ Y Tế / Sở Y Tế
     rating DOUBLE PRECISION DEFAULT 4.9,         -- Điểm đánh giá hài lòng người bệnh (1.0 - 5.0)
     review_count INT NOT NULL DEFAULT 0,         -- [V17] Tổng số lượt đánh giá thực tế của người bệnh
+    slot_duration_minutes INT NOT NULL DEFAULT 30, -- [V26] Thời lượng mỗi ca khám mặc định của bác sĩ (15/20/30/45/60 phút)
+    buffer_time_minutes INT NOT NULL DEFAULT 0,    -- [V26] Thời gian nghỉ chuyển tiếp giữa 2 ca khám (0/5/10/15/20/30 phút)
     total_consultations INT DEFAULT 1250,        -- Tổng số ca khám lâm sàng đã hoàn thành
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,  -- Trạng thái phê duyệt của Admin (đồng bộ với verification_status = 'APPROVED')
     verified_at TIMESTAMPTZ,
@@ -550,7 +564,7 @@ CREATE INDEX idx_appointments_icd_version_code ON appointments(icd_version, icd_
 ```
 
 #### Bảng `doctor_schedule_slots`
-Lưu trữ cấu hình khung giờ làm việc và tiếp nhận bệnh nhân định kỳ của bác sĩ theo các thứ trong tuần.
+Lưu trữ cấu hình khung giờ làm việc và tiếp nhận bệnh nhân định kỳ của bác sĩ theo các thứ trong tuần (`WeeklySchedule`, hỗ trợ nhiều ca sáng/chiều/tối trong cùng một ngày).
 
 ```sql
 CREATE TABLE doctor_schedule_slots (
@@ -561,11 +575,35 @@ CREATE TABLE doctor_schedule_slots (
     end_time TIME NOT NULL,
     slot_duration_minutes INT NOT NULL DEFAULT 30,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP -- [V26]
 );
 
 CREATE INDEX idx_doctor_schedule_lookup 
 ON doctor_schedule_slots(doctor_profile_id, day_of_week, is_active);
+
+CREATE INDEX idx_doctor_schedule_profile_active
+ON doctor_schedule_slots(doctor_profile_id, is_active, day_of_week, start_time); -- [V26]
+```
+
+#### Bảng `doctor_schedule_exceptions` [V26]
+Lưu trữ ngày nghỉ đột xuất hoặc cấu hình khung giờ làm việc riêng theo từng ngày cụ thể (`ScheduleException`). Bản ghi trong bảng này luôn được ưu tiên ghi đè lịch tuần `doctor_schedule_slots` khi thuật toán `getAvailableSlots(doctorId, date)` sinh khung giờ trống.
+
+```sql
+CREATE TABLE doctor_schedule_exceptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    doctor_profile_id UUID NOT NULL REFERENCES doctor_profiles(id) ON DELETE CASCADE,
+    exception_date DATE NOT NULL,
+    is_day_off BOOLEAN NOT NULL DEFAULT TRUE,
+    custom_shifts_json TEXT NOT NULL DEFAULT '[]', -- Mảng JSON [{"startTime":"08:00","endTime":"12:00"}] khi is_day_off = FALSE
+    reason VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_doctor_schedule_exception_date UNIQUE (doctor_profile_id, exception_date)
+);
+
+CREATE INDEX idx_doctor_schedule_exceptions_lookup
+ON doctor_schedule_exceptions(doctor_profile_id, exception_date);
 ```
 
 #### Bảng `doctor_reviews` [V17]

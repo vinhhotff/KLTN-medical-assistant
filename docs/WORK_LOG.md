@@ -7,6 +7,63 @@
 
 ---
 
+## [2026-11-24 13:06:39] - TÁI CẤU TRÚC QUẢN LÝ LỊCH LÀM VIỆC BÁC SĨ CHUẨN CAL.COM (WEEKLY + EXCEPTIONS + BUFFER TIME)
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 13:06:39
+- **Tiêu đề:** Thiết kế & triển khai toàn diện hệ thống Cài đặt Lịch làm việc cho Bác sĩ chuẩn Cal.com (`WeeklySchedule` + `ScheduleException` + `slot_duration_minutes` / `buffer_time_minutes`, kiểm tra chồng chéo, Two-Layer Cache & Modal cảnh báo xung đột lịch hẹn).
+
+### 2. Danh Sách Tệp Tin
+- `[NEW]` `backend/src/main/resources/db/migration/V26__doctor_schedule_v2_exceptions_and_buffer.sql`
+- `[NEW]` `backend/src/main/java/com/mediassist/model/entity/DoctorScheduleException.java`
+- `[NEW]` `backend/src/main/java/com/mediassist/repository/DoctorScheduleExceptionRepository.java`
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/ScheduleShiftDto.java`
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/ScheduleConflictDto.java`
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/ScheduleExceptionDto.java`
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/UpsertScheduleExceptionRequest.java`
+- `[NEW]` `backend/src/main/java/com/mediassist/dto/DoctorScheduleBundleDto.java`
+- `[NEW]` `backend/src/test/java/com/mediassist/service/DoctorScheduleManagementTest.java`
+- `[NEW]` `frontend/src/types/schedule.ts`
+- `[NEW]` `frontend/src/services/doctorScheduleService.ts`
+- `[NEW]` `frontend/src/components/doctor/schedule/TimeSelect.tsx`
+- `[NEW]` `frontend/src/components/doctor/schedule/CopyToDaysPopover.tsx`
+- `[NEW]` `frontend/src/components/doctor/schedule/ConflictWarningModal.tsx`
+- `[NEW]` `frontend/src/components/doctor/schedule/ScheduleExceptionsTab.tsx`
+- `[NEW]` `frontend/e2e/doctor-schedule.spec.ts`
+- `[MOD]` `backend/src/main/java/com/mediassist/model/entity/DoctorProfile.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/repository/AppointmentRepository.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/dto/DoctorScheduleConfigDto.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/dto/UpdateDoctorScheduleRequest.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/dto/DoctorDetailDto.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/service/DoctorService.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/controller/DoctorController.java`
+- `[MOD]` `backend/src/main/java/com/mediassist/service/AppointmentService.java`
+- `[MOD]` `frontend/src/pages/doctor/DoctorSchedulePage.tsx`
+- `[MOD]` `frontend/src/mocks/mockHandlers.ts`
+- `[MOD]` `frontend/e2e/fixtures/mockApi.ts`
+- `[MOD]` `docs/DATABASE_DESIGN.md`
+- `[MOD]` `docs/USE_CASES.md`
+- `[MOD]` `docs/WORK_LOG.md`
+
+### 3. Tài Liệu Đã Đồng Bộ
+- `[MOD]` `docs/DATABASE_DESIGN.md` (Bổ sung `slot_duration_minutes`, `buffer_time_minutes` vào `doctor_profiles`, thêm bảng `doctor_schedule_exceptions` [V26], chỉ mục `idx_doctor_schedule_profile_active`, cập nhật ERD).
+- `[MOD]` `docs/USE_CASES.md` (Cập nhật đặc tả `UC-DOC-02` với endpoint mới, Buffer Time, kiểm tra chồng chéo, Date Exceptions tab & luồng Modal 409 conflict).
+- `[MOD]` `docs/WORK_LOG.md`.
+
+### 4. Bằng Chứng Kiểm Thử
+- **Backend Maven Test (`cd backend; mvn test`):** `Tests run: 345, Failures: 0, Errors: 0, Skipped: 0` (**BUILD SUCCESS** — gồm 7 unit test mới trong `DoctorScheduleManagementTest`, toàn bộ `DoctorServiceScheduleTest`, `DoctorServiceTest`, `AppointmentServiceTest`).
+- **Live Backend & Flyway Migration (`http://localhost:5001/api/v1/doctors`):** PostgreSQL 16.15 áp dụng thành công `V26__doctor_schedule_v2_exceptions_and_buffer.sql` trong `00:00.051s`; Tomcat khởi động cổng `5001` trả HTTP **`200`**.
+- **Frontend Build (`cd frontend; npm run build`):** Exit `0`, **0 lỗi TypeScript**, Vite build **2.332 modules** trong `5.44s`.
+- **Live Frontend Preview (`http://localhost:5173/`):** Phản hồi HTTP **`200`**.
+- **Playwright E2E Suite (`doctor-schedule.spec.ts`, `mobile-nav.spec.ts`, `doctor-workstation.spec.ts`, `patient-dashboard.spec.ts` trên `http://localhost:5173`):** **17/17 PASS** (`10.2s`).
+
+### 5. Điểm Nóng Tech Lead Cần Review
+- **Động cơ tính Slot 2 tầng + Two-Layer Cache (`DoctorService`):** Quy tắc lịch (`WeeklySchedule` + `ScheduleException` + `slotDurationMinutes` + `bufferTimeMinutes`) được cache theo bác sĩ tại key `doctor:schedule:meta:{profileId}` (L1 Caffeine + L2 Redis TTL 300s) và vô hiệu hóa ngay khi cập nhật; danh sách lịch hẹn active luôn truy vấn trực tiếp DB theo ngày với clearance `[apptStart - buffer, apptEnd + buffer]` để chống double-booking.
+- **Bảo vệ toàn vẹn & Cảnh báo xung đột chủ động:** Reject ngay ca chồng chéo (`400 SHIFT_OVERLAP`) hoặc ca ngắn hơn slot (`400 SHIFT_TOO_SHORT`); trả HTTP `409 SCHEDULE_CONFLICT_WARNING` kèm chi tiết từng ca hẹn bị ảnh hưởng nếu chưa xác nhận (`force=false`), cho phép bác sĩ xem rõ danh sách bệnh nhân trên `ConflictWarningModal` trước khi xác nhận ghi đè (`force=true`).
+- **Trải nghiệm Cal.com (`DoctorSchedulePage.tsx`):** Thay input AM/PM trình duyệt bằng `TimeSelect` 24h sạch sẽ; thêm Popover *Áp dụng nhiều ngày*, preset hành chính `T2–T6`, nút *Lưu thay đổi* khóa chặt theo dirty-state, Calendar chọn *Nghỉ cả ngày / Chỉnh giờ riêng* và Optimistic UI khi xóa ngoại lệ.
+
+---
+
 ## [2026-11-24 12:45:28] - KHẮC PHỤC LỖI ĐÈ THANH ĐIỀU HƯỚNG LÊN CHUÔNG THÔNG BÁO & TỐI ƯU HEADER
 
 ### 1. Thời Gian & Tiêu Đề

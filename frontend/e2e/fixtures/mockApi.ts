@@ -169,7 +169,7 @@ export interface MockOptions {
   calls?: Array<{ method: string; path: string; body: unknown }>;
 }
 
-function resolveDefault(method: string, path: string, role: Role | null, query: URLSearchParams): unknown {
+function resolveDefault(method: string, path: string, role: Role | null, query: URLSearchParams, body?: unknown): unknown {
   const key = `${method} ${path}`;
   if (key in DEFAULT_DATA) return DEFAULT_DATA[key];
 
@@ -192,10 +192,50 @@ function resolveDefault(method: string, path: string, role: Role | null, query: 
     if (path === '/admin/appointments') return APPOINTMENTS;
     if (path === '/admin/users') return Object.values(USERS).map((u) => ({ ...u, phone: null, avatarUrl: null, createdAt: atToday(8, 0, -20) }));
     if (path === '/admin/triage-sessions') return TRIAGE_HISTORY.map((t) => ({ ...t, userId: USERS.PATIENT.id, patientEmail: USERS.PATIENT.email }));
-    if (path === '/doctors/me/schedules') return [];
+    if (path === '/doctors/me/schedules') {
+      return [
+        { dayOfWeek: 'MONDAY', dayOfWeekIndex: 1, startTime: '08:00:00', endTime: '12:00:00', slotDurationMinutes: 30, bufferTimeMinutes: 0, active: true },
+        { dayOfWeek: 'TUESDAY', dayOfWeekIndex: 2, startTime: '08:00:00', endTime: '12:00:00', slotDurationMinutes: 30, bufferTimeMinutes: 0, active: true },
+      ];
+    }
+    if (path === '/doctors/me/schedule-config') {
+      return {
+        slotDurationMinutes: 30,
+        bufferTimeMinutes: 0,
+        weeklySlots: [
+          { dayOfWeek: 'MONDAY', dayOfWeekIndex: 1, startTime: '08:00:00', endTime: '12:00:00', slotDurationMinutes: 30, bufferTimeMinutes: 0, active: true },
+          { dayOfWeek: 'TUESDAY', dayOfWeekIndex: 2, startTime: '08:00:00', endTime: '12:00:00', slotDurationMinutes: 30, bufferTimeMinutes: 0, active: true },
+        ],
+        exceptions: [],
+        warnings: [],
+      };
+    }
+    if (path === '/doctors/me/schedules/exceptions') return [];
     if (path === '/doctors/me/patients') return [];
     return [];
   }
+
+  if (method === 'PUT' && path === '/doctors/me/schedule-config') {
+    const req = (body as { slots?: unknown[]; slotDurationMinutes?: number; bufferTimeMinutes?: number } | null) || {};
+    return {
+      slotDurationMinutes: req.slotDurationMinutes ?? 30,
+      bufferTimeMinutes: req.bufferTimeMinutes ?? 0,
+      weeklySlots: req.slots ?? [],
+      exceptions: [],
+      warnings: [],
+    };
+  }
+  if (method === 'POST' && path === '/doctors/me/schedules/exceptions') {
+    const req = (body as Record<string, unknown> | null) || {};
+    return {
+      id: `ex-${Date.now()}`,
+      exceptionDate: req.exceptionDate,
+      dayOff: Boolean(req.dayOff),
+      customShifts: Array.isArray(req.customShifts) ? req.customShifts : [],
+      reason: req.reason ?? null,
+    };
+  }
+  if (method === 'DELETE' && path.startsWith('/doctors/me/schedules/exceptions/')) return null;
 
   if (method === 'POST' && path === '/auth/login') return null; // handled in route (needs body)
   if (method === 'POST' && path === '/auth/forgot-password') return null;
@@ -254,7 +294,7 @@ export async function installMockApi(page: Page, opts: MockOptions = {}) {
       });
     }
 
-    const data = resolveDefault(method, path, role, url.searchParams);
+    const data = resolveDefault(method, path, role, url.searchParams, body);
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ok(data)) });
   });
 }

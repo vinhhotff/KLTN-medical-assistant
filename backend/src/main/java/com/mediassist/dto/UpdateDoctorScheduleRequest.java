@@ -7,6 +7,9 @@ import java.util.List;
 public class UpdateDoctorScheduleRequest {
 
     private List<SlotItem> slots;
+    private Integer slotDurationMinutes;
+    private Integer bufferTimeMinutes;
+    private boolean force = false;
 
     public UpdateDoctorScheduleRequest() {}
 
@@ -14,8 +17,24 @@ public class UpdateDoctorScheduleRequest {
         this.slots = slots;
     }
 
+    public UpdateDoctorScheduleRequest(List<SlotItem> slots, Integer slotDurationMinutes, Integer bufferTimeMinutes, boolean force) {
+        this.slots = slots;
+        this.slotDurationMinutes = slotDurationMinutes;
+        this.bufferTimeMinutes = bufferTimeMinutes;
+        this.force = force;
+    }
+
     public List<SlotItem> getSlots() { return slots; }
     public void setSlots(List<SlotItem> slots) { this.slots = slots; }
+
+    public Integer getSlotDurationMinutes() { return slotDurationMinutes; }
+    public void setSlotDurationMinutes(Integer slotDurationMinutes) { this.slotDurationMinutes = slotDurationMinutes; }
+
+    public Integer getBufferTimeMinutes() { return bufferTimeMinutes; }
+    public void setBufferTimeMinutes(Integer bufferTimeMinutes) { this.bufferTimeMinutes = bufferTimeMinutes; }
+
+    public boolean isForce() { return force; }
+    public void setForce(boolean force) { this.force = force; }
 
     public static class SlotItem {
         private DayOfWeek dayOfWeek;

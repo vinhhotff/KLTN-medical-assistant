@@ -1,224 +1,368 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Clock, Plus, TriangleAlert, X } from 'lucide-react';
+import {
+  CalendarDays,
+  CalendarOff,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Plus,
+  Sparkles,
+  TriangleAlert,
+  X,
+} from 'lucide-react';
 import { api } from '../../services/api';
+import {
+  doctorScheduleService,
+  extractScheduleConflicts,
+} from '../../services/doctorScheduleService';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Button, ErrorState, Skeleton, useToast, cn } from '../../components/ui';
+import { Badge, Button, ErrorState, Skeleton, useToast, cn } from '../../components/ui';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { formatLocalDate } from '../../utils/date';
+import {
+  BUFFER_OPTIONS,
+  DAYS,
+  DURATIONS,
+  DayKey,
+  DayPlan,
+  DoctorAppointmentSummary,
+  ScheduleConflictItem,
+  ScheduleExceptionItem,
+  ScheduleShiftItem,
+  SlotItem,
+  WeeklyPlan,
+  emptyWeeklyPlan,
+  generatePreviewTimeSlots,
+  hm,
+  mergeWeeklyConfigRows,
+  slotsInRange,
+  toMinutes,
+  validateRanges,
+} from '../../types/schedule';
+import { TimeSelect } from '../../components/doctor/schedule/TimeSelect';
+import { CopyToDaysPopover } from '../../components/doctor/schedule/CopyToDaysPopover';
+import { ScheduleExceptionsTab } from '../../components/doctor/schedule/ScheduleExceptionsTab';
+import { ConflictWarningModal } from '../../components/doctor/schedule/ConflictWarningModal';
 
-const DAYS = [
-  { key: 'MONDAY', label: 'Thứ Hai', js: 1 },
-  { key: 'TUESDAY', label: 'Thứ Ba', js: 2 },
-  { key: 'WEDNESDAY', label: 'Thứ Tư', js: 3 },
-  { key: 'THURSDAY', label: 'Thứ Năm', js: 4 },
-  { key: 'FRIDAY', label: 'Thứ Sáu', js: 5 },
-  { key: 'SATURDAY', label: 'Thứ Bảy', js: 6 },
-  { key: 'SUNDAY', label: 'Chủ Nhật', js: 0 },
-] as const;
-type DayKey = (typeof DAYS)[number]['key'];
-const DURATIONS = [15, 20, 30, 45, 60];
-
-interface Range {
-  start: string; // HH:mm
-  end: string;
-}
-interface DayPlan {
-  enabled: boolean;
-  ranges: Range[];
-}
-type Plan = Record<DayKey, DayPlan>;
-
-interface ScheduleConfig {
-  dayOfWeek: DayKey;
-  startTime: string;
-  endTime: string;
-  slotDurationMinutes: number;
-  active: boolean;
-}
-interface DoctorAppointment {
-  id: string;
-  patientName: string;
-  scheduledStart: string;
-  status: string;
-}
-interface Slot {
-  startTime: string;
-  available?: boolean;
-  isAvailable?: boolean;
-}
-
-const hm = (t: string) => t.slice(0, 5);
-const toMin = (t: string) => {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
-};
-const emptyPlan = (): Plan => Object.fromEntries(DAYS.map((d) => [d.key, { enabled: false, ranges: [] }])) as unknown as Plan;
 const ACTIVE_STATUSES = ['SCHEDULED', 'CHECKED_IN', 'IN_PROGRESS'];
 
-/** Backend stores ranges; the old editor saved one row per 30-min slot — merge contiguous rows back into ranges. */
-const toPlan = (configs: ScheduleConfig[]): { plan: Plan; duration: number } => {
-  const plan = emptyPlan();
-  const durCount = new Map<number, number>();
-  DAYS.forEach(({ key }) => {
-    const rows = configs
-      .filter((c) => c.dayOfWeek === key && c.active)
-      .sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
-    const ranges: Range[] = [];
-    rows.forEach((r) => {
-      durCount.set(r.slotDurationMinutes || 30, (durCount.get(r.slotDurationMinutes || 30) || 0) + 1);
-      const last = ranges[ranges.length - 1];
-      if (last && toMin(last.end) === toMin(r.startTime)) last.end = hm(r.endTime);
-      else ranges.push({ start: hm(r.startTime), end: hm(r.endTime) });
-    });
-    plan[key] = { enabled: ranges.length > 0, ranges };
-  });
-  const duration = [...durCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 30;
-  return { plan, duration: DURATIONS.includes(duration) ? duration : 30 };
-};
-
-const slotsIn = (r: Range, duration: number) => Math.max(0, Math.floor((toMin(r.end) - toMin(r.start)) / duration));
+interface PendingForceAction {
+  kind: 'weekly' | 'exception';
+  label: string;
+  conflicts: ScheduleConflictItem[];
+  exceptionPayload?: {
+    exceptionDate: string;
+    dayOff: boolean;
+    customShifts: ScheduleShiftItem[];
+    reason?: string;
+  };
+}
 
 export const DoctorSchedulePage: React.FC = () => {
   const { user } = useAuthStore();
   const toast = useToast();
-  const [plan, setPlan] = useState<Plan>(emptyPlan);
-  const [saved, setSaved] = useState<{ plan: Plan; duration: number } | null>(null);
-  const [duration, setDuration] = useState(30);
-  const [appointments, setAppointments] = useState<DoctorAppointment[]>([]);
+
+  const [activeTab, setActiveTab] = useState<'weekly' | 'exceptions'>('weekly');
+
+  const [plan, setPlan] = useState<WeeklyPlan>(emptyWeeklyPlan);
+  const [duration, setDuration] = useState<number>(30);
+  const [buffer, setBuffer] = useState<number>(0);
+  const [saved, setSaved] = useState<{ plan: WeeklyPlan; duration: number; buffer: number } | null>(null);
+
+  const [exceptions, setExceptions] = useState<ScheduleExceptionItem[]>([]);
+  const [appointments, setAppointments] = useState<DoctorAppointmentSummary[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [savingWeekly, setSavingWeekly] = useState(false);
+  const [savingException, setSavingException] = useState(false);
+
+  const [pendingConflict, setPendingConflict] = useState<PendingForceAction | null>(null);
 
   const [viewDate, setViewDate] = useState(() => new Date());
-  const [daySlots, setDaySlots] = useState<Slot[] | null>(null);
+  const [daySlots, setDaySlots] = useState<SlotItem[] | null>(null);
   const [daySlotsLoading, setDaySlotsLoading] = useState(false);
+  const [slotsRefreshTick, setSlotsRefreshTick] = useState(0);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       setLoadError(null);
-      const [sRes, aRes] = await Promise.all([api.get('/doctors/me/schedules'), api.get('/appointments/my').catch(() => null)]);
-      const parsed = toPlan(Array.isArray(sRes.data?.data) ? sRes.data.data : []);
+      const [bundle, aRes] = await Promise.all([
+        doctorScheduleService.getScheduleBundle(),
+        api.get('/appointments/my').catch(() => null),
+      ]);
+
+      const parsed = mergeWeeklyConfigRows(bundle.weeklySlots);
+      const resolvedDuration = (DURATIONS as readonly number[]).includes(bundle.slotDurationMinutes)
+        ? bundle.slotDurationMinutes
+        : parsed.duration;
+      const resolvedBuffer = (BUFFER_OPTIONS as readonly number[]).includes(bundle.bufferTimeMinutes)
+        ? bundle.bufferTimeMinutes
+        : parsed.buffer;
+
       setPlan(parsed.plan);
-      setDuration(parsed.duration);
-      setSaved(parsed);
-      if (Array.isArray(aRes?.data?.data)) setAppointments(aRes!.data.data);
+      setDuration(resolvedDuration);
+      setBuffer(resolvedBuffer);
+      setSaved({ plan: parsed.plan, duration: resolvedDuration, buffer: resolvedBuffer });
+      setExceptions(bundle.exceptions || []);
+
+      if (Array.isArray(aRes?.data?.data)) {
+        setAppointments(aRes!.data.data);
+      }
     } catch (err) {
       setLoadError(getApiErrorMessage(err, 'Không tải được lịch làm việc.'));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
-  const dirty = !!saved && (saved.duration !== duration || JSON.stringify(saved.plan) !== JSON.stringify(plan));
+  const dirty =
+    !!saved &&
+    (saved.duration !== duration ||
+      saved.buffer !== buffer ||
+      JSON.stringify(saved.plan) !== JSON.stringify(plan));
 
   const errors = useMemo(() => {
     const out: Partial<Record<DayKey, string>> = {};
     DAYS.forEach(({ key }) => {
       const p = plan[key];
       if (!p.enabled) return;
-      if (p.ranges.length === 0) out[key] = 'Thêm ít nhất một khung giờ hoặc tắt ngày này.';
-      const sorted = [...p.ranges].sort((a, b) => toMin(a.start) - toMin(b.start));
-      for (let i = 0; i < sorted.length; i++) {
-        const r = sorted[i];
-        if (!r.start || !r.end || toMin(r.end) <= toMin(r.start)) {
-          out[key] = 'Giờ kết thúc phải sau giờ bắt đầu.';
-          break;
-        }
-        if (slotsIn(r, duration) === 0) {
-          out[key] = `Khung ${r.start}–${r.end} ngắn hơn một ca (${duration} phút).`;
-          break;
-        }
-        if (i > 0 && toMin(r.start) < toMin(sorted[i - 1].end)) {
-          out[key] = 'Các khung giờ trong ngày đang chồng lên nhau.';
-          break;
-        }
-      }
+      const errMsg = validateRanges(p.ranges, duration);
+      if (errMsg) out[key] = errMsg;
     });
     return out;
   }, [plan, duration]);
 
-  // Upcoming appointments that would fall outside the edited hours (they stay booked, but the doctor should know)
+  const exceptionByDate = useMemo(() => {
+    const map = new Map<string, ScheduleExceptionItem>();
+    exceptions.forEach((ex) => map.set(ex.exceptionDate.slice(0, 10), ex));
+    return map;
+  }, [exceptions]);
+
+  // Warn inline when upcoming non-overridden active appointments fall outside edited weekly hours
   const outsideWarnings = useMemo(() => {
-    const out: Partial<Record<DayKey, DoctorAppointment[]>> = {};
+    const out: Partial<Record<DayKey, DoctorAppointmentSummary[]>> = {};
     const now = Date.now();
     appointments
       .filter((a) => ACTIVE_STATUSES.includes(a.status) && new Date(a.scheduledStart).getTime() >= now)
       .forEach((a) => {
+        const dateStr = a.scheduledStart.slice(0, 10);
+        if (exceptionByDate.has(dateStr)) return;
         const d = new Date(a.scheduledStart);
         const day = DAYS.find((x) => x.js === d.getDay())!;
         const p = plan[day.key];
         const m = d.getHours() * 60 + d.getMinutes();
-        const inside = p.enabled && p.ranges.some((r) => m >= toMin(r.start) && m < toMin(r.end));
+        const inside = p.enabled && p.ranges.some((r) => m >= toMinutes(r.start) && m < toMinutes(r.end));
         if (!inside) out[day.key] = [...(out[day.key] || []), a];
       });
     return out;
-  }, [appointments, plan]);
+  }, [appointments, plan, exceptionByDate]);
 
-  const perDay = (key: DayKey) => (plan[key].enabled ? plan[key].ranges.reduce((s, r) => s + slotsIn(r, duration), 0) : 0);
-  const weekly = DAYS.reduce((s, d) => s + perDay(d.key), 0);
+  const activeDaysCount = useMemo(
+    () => DAYS.filter(({ key }) => plan[key].enabled && plan[key].ranges.length > 0).length,
+    [plan],
+  );
 
-  const update = (key: DayKey, fn: (p: DayPlan) => DayPlan) => setPlan((prev) => ({ ...prev, [key]: fn(prev[key]) }));
+  const perDayCount = useCallback(
+    (key: DayKey) =>
+      plan[key].enabled ? plan[key].ranges.reduce((s, r) => s + slotsInRange(r, duration, buffer), 0) : 0,
+    [plan, duration, buffer],
+  );
 
-  const handleSave = async () => {
-    if (saving || Object.keys(errors).length > 0) return;
+  const weeklyTotalSlots = useMemo(
+    () => DAYS.reduce((s, d) => s + perDayCount(d.key), 0),
+    [perDayCount],
+  );
+
+  const updateDay = (key: DayKey, fn: (p: DayPlan) => DayPlan) =>
+    setPlan((prev) => ({ ...prev, [key]: fn(prev[key]) }));
+
+  const applyCopyToDays = (sourceKey: DayKey, targetKeys: DayKey[]) => {
+    const sourcePlan = plan[sourceKey];
+    const clonedRanges = sourcePlan.ranges.map((r) => ({ ...r }));
+    setPlan((prev) => {
+      const next = { ...prev };
+      targetKeys.forEach((target) => {
+        next[target] = {
+          enabled: clonedRanges.length > 0 && sourcePlan.enabled,
+          ranges: clonedRanges.map((r) => ({ ...r })),
+        };
+      });
+      return next;
+    });
+    toast.success(`Đã sao chép khung giờ sang ${targetKeys.length} ngày.`);
+  };
+
+  const applyStandardPreset = () => {
+    setPlan((prev) => {
+      const next = { ...prev };
+      DAYS.forEach(({ key }) => {
+        if (key === 'SATURDAY' || key === 'SUNDAY') {
+          next[key] = { enabled: false, ranges: [] };
+        } else {
+          next[key] = {
+            enabled: true,
+            ranges: [
+              { start: '08:00', end: '12:00' },
+              { start: '13:30', end: '17:00' },
+            ],
+          };
+        }
+      });
+      return next;
+    });
+    toast.success('Đã nạp mẫu giờ hành chính T2–T6 (bấm Lưu thay đổi để áp dụng).');
+  };
+
+  const executeSaveWeekly = async (force: boolean) => {
+    if (savingWeekly || Object.keys(errors).length > 0) return;
     try {
-      setSaving(true);
-      const slots = DAYS.flatMap(({ key }) =>
-        plan[key].enabled
-          ? plan[key].ranges.map((r) => ({ dayOfWeek: key, startTime: `${r.start}:00`, endTime: `${r.end}:00`, slotDurationMinutes: duration, active: true }))
-          : [],
-      );
-      const res = await api.put('/doctors/me/schedules', { slots });
-      const parsed = toPlan(Array.isArray(res.data?.data) ? res.data.data : []);
+      setSavingWeekly(true);
+      const bundle = await doctorScheduleService.saveWeeklySchedule({
+        plan,
+        slotDurationMinutes: duration,
+        bufferTimeMinutes: buffer,
+        force,
+      });
+
+      const parsed = mergeWeeklyConfigRows(bundle.weeklySlots);
+      const nextDur = bundle.slotDurationMinutes || duration;
+      const nextBuf = bundle.bufferTimeMinutes ?? buffer;
+
       setPlan(parsed.plan);
-      setDuration(parsed.duration);
-      setSaved(parsed);
-      toast.success('Đã lưu lịch làm việc.');
+      setDuration(nextDur);
+      setBuffer(nextBuf);
+      setSaved({ plan: parsed.plan, duration: nextDur, buffer: nextBuf });
+      if (Array.isArray(bundle.exceptions)) {
+        setExceptions(bundle.exceptions);
+      }
+      setPendingConflict(null);
+      setSlotsRefreshTick((t) => t + 1);
+      toast.success(
+        force
+          ? 'Đã lưu lịch làm việc mới (giữ nguyên các lịch hẹn cũ bị ảnh hưởng).'
+          : 'Đã lưu cấu hình lịch làm việc.',
+      );
     } catch (err) {
+      const conflicts = extractScheduleConflicts(err);
+      if (conflicts !== null) {
+        setPendingConflict({
+          kind: 'weekly',
+          label: 'Cập nhật lịch làm việc hằng tuần',
+          conflicts,
+        });
+        return;
+      }
       toast.error(getApiErrorMessage(err, 'Không thể lưu lịch làm việc.'));
     } finally {
-      setSaving(false);
+      setSavingWeekly(false);
     }
   };
 
-  // Day view: real bookable slots for the selected date + who booked them
+  const executeSaveException = async (
+    payload: { exceptionDate: string; dayOff: boolean; customShifts: ScheduleShiftItem[]; reason?: string },
+    force: boolean,
+  ): Promise<boolean> => {
+    const prevExceptions = exceptions;
+    try {
+      setSavingException(true);
+      const savedEx = await doctorScheduleService.upsertException({ ...payload, force });
+      setExceptions((curr) => {
+        const filtered = curr.filter((item) => item.exceptionDate.slice(0, 10) !== savedEx.exceptionDate.slice(0, 10));
+        return [...filtered, savedEx].sort((a, b) => a.exceptionDate.localeCompare(b.exceptionDate));
+      });
+      setPendingConflict(null);
+      setSlotsRefreshTick((t) => t + 1);
+      toast.success(payload.dayOff ? 'Đã đánh dấu ngày nghỉ.' : 'Đã lưu khung giờ riêng cho ngày đã chọn.');
+      return true;
+    } catch (err) {
+      const conflicts = extractScheduleConflicts(err);
+      if (conflicts !== null) {
+        setPendingConflict({
+          kind: 'exception',
+          label: payload.dayOff
+            ? `Đánh dấu nghỉ ngày ${payload.exceptionDate}`
+            : `Đổi khung giờ ngày ${payload.exceptionDate}`,
+          conflicts,
+          exceptionPayload: payload,
+        });
+        return false;
+      }
+      setExceptions(prevExceptions);
+      toast.error(getApiErrorMessage(err, 'Không thể lưu ngày ngoại lệ.'));
+      return false;
+    } finally {
+      setSavingException(false);
+    }
+  };
+
+  const handleDeleteException = async (exceptionId: string) => {
+    const prev = exceptions;
+    setExceptions((curr) => curr.filter((e) => e.id !== exceptionId));
+    try {
+      await doctorScheduleService.deleteException(exceptionId);
+      setSlotsRefreshTick((t) => t + 1);
+      toast.success('Đã khôi phục ngày này về lịch hằng tuần.');
+    } catch (err) {
+      setExceptions(prev);
+      toast.error(getApiErrorMessage(err, 'Không thể xóa ngày ngoại lệ.'));
+    }
+  };
+
+  // Preview sidebar calculation
   const viewKey = DAYS.find((d) => d.js === viewDate.getDay())!.key;
   const viewDateStr = formatLocalDate(viewDate);
-  const savedDayEnabled = !!saved?.plan[viewKey].enabled;
+  const viewException = exceptionByDate.get(viewDateStr) ?? null;
+  const savedDayEnabled = viewException
+    ? !viewException.dayOff
+    : Boolean(saved?.plan[viewKey].enabled);
+
   useEffect(() => {
     if (!user?.id || !savedDayEnabled) {
-      // Never query a day without configured hours: the backend would seed default hours for it.
       setDaySlots(null);
       return;
     }
     let cancelled = false;
     setDaySlotsLoading(true);
-    api
-      .get(`/doctors/${user.id}/slots`, { params: { date: viewDateStr } })
-      .then((res) => !cancelled && setDaySlots(Array.isArray(res.data?.data) ? res.data.data : []))
+    doctorScheduleService
+      .getDoctorDaySlots(user.id, viewDateStr)
+      .then((list) => !cancelled && setDaySlots(list))
       .catch(() => !cancelled && setDaySlots([]))
       .finally(() => !cancelled && setDaySlotsLoading(false));
     return () => {
       cancelled = true;
     };
-  }, [user?.id, viewDateStr, savedDayEnabled]);
+  }, [user?.id, viewDateStr, savedDayEnabled, slotsRefreshTick]);
 
-  const dayAppointments = appointments.filter((a) => a.scheduledStart.slice(0, 10) === viewDateStr && a.status !== 'CANCELLED');
+  const dayAppointments = useMemo(
+    () => appointments.filter((a) => a.scheduledStart.slice(0, 10) === viewDateStr && a.status !== 'CANCELLED'),
+    [appointments, viewDateStr],
+  );
+
   const dayRows = useMemo(() => {
-    const rows = new Map<string, { time: string; apt?: DoctorAppointment }>();
-    (daySlots || []).forEach((s) => rows.set(hm(s.startTime), { time: hm(s.startTime) }));
+    const rows = new Map<string, { time: string; apt?: DoctorAppointmentSummary }>();
+    if (dirty && !viewException && activeTab === 'weekly') {
+      // Live preview from unsaved draft ranges
+      if (plan[viewKey].enabled && !errors[viewKey]) {
+        generatePreviewTimeSlots(plan[viewKey].ranges, duration, buffer).forEach((t) =>
+          rows.set(t, { time: t }),
+        );
+      }
+    } else {
+      (daySlots || []).forEach((s) => rows.set(hm(s.startTime), { time: hm(s.startTime) }));
+    }
     dayAppointments.forEach((a) => {
       const t = new Date(a.scheduledStart).toTimeString().slice(0, 5);
       rows.set(t, { time: t, apt: a });
     });
-    return [...rows.values()].sort((a, b) => toMin(a.time) - toMin(b.time));
-  }, [daySlots, dayAppointments]);
+    return [...rows.values()].sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
+  }, [daySlots, dayAppointments, dirty, viewException, activeTab, plan, viewKey, errors, duration, buffer]);
 
   const weekStart = new Date();
   weekStart.setHours(0, 0, 0, 0);
@@ -228,6 +372,18 @@ export const DoctorSchedulePage: React.FC = () => {
     const t = new Date(a.scheduledStart).getTime();
     return t >= weekStart.getTime() && t < weekEnd.getTime() && a.status !== 'CANCELLED' && a.status !== 'NO_SHOW';
   }).length;
+
+  const savedWeeklyCount = useMemo(() => {
+    if (!saved) return 0;
+    return DAYS.reduce(
+      (s, d) =>
+        s +
+        (saved.plan[d.key].enabled
+          ? saved.plan[d.key].ranges.reduce((x, r) => x + slotsInRange(r, saved.duration, saved.buffer), 0)
+          : 0),
+      0,
+    );
+  }, [saved]);
 
   if (loading) {
     return (
@@ -241,230 +397,432 @@ export const DoctorSchedulePage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Page Header & Dirty-State Actions */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900">Lịch làm việc</h1>
-          <p className="mt-1.5 text-slate-600">Lịch lặp lại hằng tuần. Bệnh nhân chỉ đặt được các ca nằm trong khung giờ bạn mở.</p>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900">Cài đặt lịch làm việc</h1>
+          <p className="mt-1.5 text-slate-600 text-sm sm:text-base">
+            Thiết lập khung giờ khám hằng tuần, thời gian nghỉ giữa ca và ngày nghỉ ngoại lệ.
+          </p>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           {dirty && (
-            <span className="inline-flex items-center gap-1.5 text-sm text-amber-700">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-800">
               <span className="w-2 h-2 rounded-full bg-amber-500" /> Có thay đổi chưa lưu
             </span>
           )}
-          <Button variant="secondary" className="!rounded-lg" disabled={!dirty || saving} onClick={() => saved && (setPlan(saved.plan), setDuration(saved.duration))}>
+          <Button
+            variant="secondary"
+            disabled={!dirty || savingWeekly}
+            onClick={() => saved && (setPlan(saved.plan), setDuration(saved.duration), setBuffer(saved.buffer))}
+          >
             Hủy thay đổi
           </Button>
-          <Button className="!rounded-lg !bg-teal-700 !border-teal-700 hover:!bg-teal-800" loading={saving} disabled={!dirty || Object.keys(errors).length > 0} onClick={handleSave}>
-            Lưu lịch
+          <Button
+            loading={savingWeekly}
+            disabled={!dirty || Object.keys(errors).length > 0 || savingWeekly}
+            onClick={() => executeSaveWeekly(false)}
+          >
+            Lưu thay đổi
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-5 items-start">
-        <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-slate-200">
-            <div>
-              <h2 className="font-display text-lg font-bold text-slate-900">Lịch hằng tuần</h2>
-              <p className="text-sm text-slate-500">{weekly} ca mỗi tuần</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-slate-800">Thời lượng mỗi ca</span>
-              <div className="inline-flex p-1 rounded-lg bg-slate-100" role="radiogroup" aria-label="Thời lượng mỗi ca">
-                {DURATIONS.map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    role="radio"
-                    aria-checked={duration === d}
-                    onClick={() => setDuration(d)}
-                    className={cn('px-3 py-1.5 rounded-md text-sm transition cursor-pointer', duration === d ? 'bg-white text-slate-900 font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900')}
-                  >
-                    {d}′
-                  </button>
-                ))}
+      {/* Cal.com Style Segmented Navigation Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/70" role="tablist" aria-label="Phân mục lịch làm việc">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'weekly'}
+            onClick={() => setActiveTab('weekly')}
+            className={cn(
+              'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer',
+              activeTab === 'weekly'
+                ? 'bg-white text-teal-800 shadow-clinical-sm'
+                : 'text-slate-600 hover:text-slate-900',
+            )}
+          >
+            <CalendarDays className="w-4 h-4" aria-hidden />
+            <span>Lịch hàng tuần</span>
+            <Badge tone={activeTab === 'weekly' ? 'teal' : 'neutral'}>{activeDaysCount}/7</Badge>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'exceptions'}
+            onClick={() => setActiveTab('exceptions')}
+            className={cn(
+              'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer',
+              activeTab === 'exceptions'
+                ? 'bg-white text-teal-800 shadow-clinical-sm'
+                : 'text-slate-600 hover:text-slate-900',
+            )}
+          >
+            <CalendarOff className="w-4 h-4" aria-hidden />
+            <span>Ngày nghỉ & Ngoại lệ</span>
+            <Badge tone={exceptions.length > 0 ? 'danger' : 'neutral'}>{exceptions.length}</Badge>
+          </button>
+        </div>
+
+        {activeTab === 'weekly' && (
+          <button
+            type="button"
+            onClick={applyStandardPreset}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:text-teal-700 hover:border-teal-300 hover:bg-teal-50/40 cursor-pointer transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-teal-600" aria-hidden />
+            Mẫu hành chính (T2–T6)
+          </button>
+        )}
+      </div>
+
+      {activeTab === 'exceptions' ? (
+        <ScheduleExceptionsTab
+          exceptions={exceptions}
+          slotDurationMinutes={duration}
+          bufferTimeMinutes={buffer}
+          savingException={savingException}
+          onSaveException={(payload) => executeSaveException(payload, false)}
+          onDeleteException={handleDeleteException}
+          onInspectDate={(dateStr) => {
+            const d = new Date(`${dateStr}T00:00:00`);
+            if (!Number.isNaN(d.getTime())) setViewDate(d);
+          }}
+        />
+      ) : (
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_348px] gap-5 items-start">
+          {/* Weekly Schedule Editor */}
+          <section className="bg-white rounded-2xl border border-slate-200 shadow-clinical-sm">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-5 sm:px-6 py-4 border-b border-slate-200">
+              <div>
+                <h2 className="font-display text-lg font-bold text-slate-900">Lịch hằng tuần</h2>
+                <p className="text-sm text-slate-500 tabular-nums">
+                  {weeklyTotalSlots} ca mở mỗi tuần · {duration}′ khám / {buffer}′ nghỉ chuyển ca
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-600">Thời lượng ca</span>
+                  <div className="inline-flex p-1 rounded-xl bg-slate-100" role="radiogroup" aria-label="Thời lượng mỗi ca">
+                    {DURATIONS.map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        role="radio"
+                        aria-checked={duration === d}
+                        onClick={() => setDuration(d)}
+                        className={cn(
+                          'px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer tabular-nums',
+                          duration === d ? 'bg-white text-teal-800 font-semibold shadow-clinical-sm' : 'text-slate-600 hover:text-slate-900',
+                        )}
+                      >
+                        {d}′
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-600">Nghỉ giữa ca</span>
+                  <div className="inline-flex p-1 rounded-xl bg-slate-100" role="radiogroup" aria-label="Thời gian nghỉ giữa ca">
+                    {BUFFER_OPTIONS.map((b) => (
+                      <button
+                        key={b}
+                        type="button"
+                        role="radio"
+                        aria-checked={buffer === b}
+                        onClick={() => setBuffer(b)}
+                        className={cn(
+                          'px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer tabular-nums',
+                          buffer === b ? 'bg-white text-teal-800 font-semibold shadow-clinical-sm' : 'text-slate-600 hover:text-slate-900',
+                        )}
+                      >
+                        {b}′
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <ul className="divide-y divide-slate-100">
-            {DAYS.map(({ key, label }) => {
-              const p = plan[key];
-              const warn = outsideWarnings[key];
-              return (
-                <li key={key} className={cn('px-5 sm:px-6 py-4', warn && 'bg-amber-50/60')}>
-                  <div className="grid grid-cols-1 md:grid-cols-[150px_1fr_56px] gap-3 md:items-start">
-                    <label className="flex items-center gap-3 cursor-pointer pt-1.5">
-                      <span className="relative inline-flex">
-                        <input
-                          type="checkbox"
-                          className="peer sr-only"
-                          checked={p.enabled}
-                          onChange={(e) =>
-                            update(key, (d) => ({ enabled: e.target.checked, ranges: e.target.checked && d.ranges.length === 0 ? [{ start: '08:00', end: '11:30' }] : d.ranges }))
-                          }
-                        />
-                        <span className="w-11 h-6 rounded-full bg-slate-300 peer-checked:bg-teal-700 transition" />
-                        <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
-                      </span>
-                      <span className={cn('font-semibold', p.enabled ? 'text-slate-900' : 'text-slate-400')}>{label}</span>
-                    </label>
+            <ul className="divide-y divide-slate-100">
+              {DAYS.map(({ key, label }) => {
+                const p = plan[key];
+                const dayError = errors[key];
+                const warn = outsideWarnings[key];
 
-                    <div className="flex flex-wrap items-center gap-2">
-                      {!p.enabled ? (
-                        <span className="pt-1.5 text-sm text-slate-500">Nghỉ</span>
-                      ) : (
-                        <>
-                          {p.ranges.map((r, i) => (
-                            <div key={i} className="inline-flex items-center gap-1.5 pl-3 pr-1 py-1 rounded-lg border border-slate-300 bg-white">
-                              <Clock className="w-4 h-4 text-slate-400" aria-hidden />
-                              <input
-                                type="time"
-                                value={r.start}
-                                step={300}
-                                aria-label={`${label} bắt đầu`}
-                                onChange={(e) => update(key, (d) => ({ ...d, ranges: d.ranges.map((x, j) => (j === i ? { ...x, start: e.target.value } : x)) }))}
-                                className="text-sm font-semibold text-slate-900 bg-transparent focus:outline-none"
-                              />
-                              <span className="text-slate-400">–</span>
-                              <input
-                                type="time"
-                                value={r.end}
-                                step={300}
-                                aria-label={`${label} kết thúc`}
-                                onChange={(e) => update(key, (d) => ({ ...d, ranges: d.ranges.map((x, j) => (j === i ? { ...x, end: e.target.value } : x)) }))}
-                                className="text-sm font-semibold text-slate-900 bg-transparent focus:outline-none"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => update(key, (d) => ({ ...d, ranges: d.ranges.filter((_, j) => j !== i) }))}
-                                className="p-1.5 rounded-md text-slate-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
-                                aria-label={`Xóa khung ${r.start}–${r.end}`}
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              update(key, (d) => {
-                                const last = d.ranges[d.ranges.length - 1];
-                                const next = last && toMin(last.end) < toMin('13:30') ? { start: '13:30', end: '17:00' } : { start: '18:00', end: '20:00' };
-                                return { ...d, ranges: [...d.ranges, next] };
-                              })
+                return (
+                  <li
+                    key={key}
+                    data-testid={`schedule-day-${key}`}
+                    className={cn('px-5 sm:px-6 py-4 transition-colors', warn && 'bg-amber-50/45', dayError && 'bg-rose-50/35')}
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-[140px_1fr_auto] gap-3 md:items-start">
+                      <label className="flex items-center gap-3 cursor-pointer pt-1.5 select-none">
+                        <span className="relative inline-flex shrink-0">
+                          <input
+                            type="checkbox"
+                            className="peer sr-only"
+                            checked={p.enabled}
+                            aria-label={`Bật lịch ${label}`}
+                            onChange={(e) =>
+                              updateDay(key, (d) => ({
+                                enabled: e.target.checked,
+                                ranges: e.target.checked && d.ranges.length === 0 ? [{ start: '08:00', end: '12:00' }] : d.ranges,
+                              }))
                             }
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
-                          >
-                            <Plus className="w-4 h-4" /> Thêm khung giờ
-                          </button>
-                        </>
-                      )}
+                          />
+                          <span className="w-10 h-6 rounded-full bg-slate-300 peer-checked:bg-teal-600 transition-colors" />
+                          <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+                        </span>
+                        <span className={cn('text-sm font-semibold', p.enabled ? 'text-slate-900' : 'text-slate-400')}>{label}</span>
+                      </label>
+
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
+                        {!p.enabled ? (
+                          <span className="pt-1.5 text-sm text-slate-500">Nghỉ định kỳ</span>
+                        ) : (
+                          <>
+                            {p.ranges.map((r, i) => (
+                              <div
+                                key={i}
+                                className={cn(
+                                  'inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-xl border bg-white transition-colors',
+                                  dayError ? 'border-rose-300' : 'border-slate-300 focus-within:border-teal-500',
+                                )}
+                              >
+                                <Clock className="w-3.5 h-3.5 text-slate-400 mr-0.5 shrink-0" aria-hidden />
+                                <TimeSelect
+                                  value={r.start}
+                                  ariaLabel={`${label} ca ${i + 1} bắt đầu`}
+                                  invalid={Boolean(dayError)}
+                                  onChange={(val) =>
+                                    updateDay(key, (d) => ({
+                                      ...d,
+                                      ranges: d.ranges.map((x, j) => (j === i ? { ...x, start: val } : x)),
+                                    }))
+                                  }
+                                />
+                                <span className="text-slate-400 text-xs">–</span>
+                                <TimeSelect
+                                  value={r.end}
+                                  ariaLabel={`${label} ca ${i + 1} kết thúc`}
+                                  invalid={Boolean(dayError)}
+                                  onChange={(val) =>
+                                    updateDay(key, (d) => ({
+                                      ...d,
+                                      ranges: d.ranges.map((x, j) => (j === i ? { ...x, end: val } : x)),
+                                    }))
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateDay(key, (d) => ({
+                                      ...d,
+                                      ranges: d.ranges.filter((_, j) => j !== i),
+                                    }))
+                                  }
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer transition-colors"
+                                  aria-label={`Xóa khung ${r.start}–${r.end} của ${label}`}
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              aria-label={`Thêm khung giờ ${label}`}
+                              onClick={() =>
+                                updateDay(key, (d) => {
+                                  const last = d.ranges[d.ranges.length - 1];
+                                  const next =
+                                    last && toMinutes(last.end) < toMinutes('13:30')
+                                      ? { start: '13:30', end: '17:00' }
+                                      : { start: '18:00', end: '20:00' };
+                                  return { ...d, ranges: [...d.ranges, next] };
+                                })
+                              }
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-dashed border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-teal-400 cursor-pointer transition-colors"
+                            >
+                              <Plus className="w-3.5 h-3.5" aria-hidden /> Thêm ca
+                            </button>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between md:justify-end gap-3 pt-1 shrink-0">
+                        {p.enabled && (
+                          <CopyToDaysPopover
+                            sourceDay={key}
+                            sourceLabel={label}
+                            disabled={p.ranges.length === 0 || Boolean(dayError)}
+                            onApply={(targets) => applyCopyToDays(key, targets)}
+                          />
+                        )}
+                        <span className="text-xs font-semibold text-slate-500 w-12 text-right tabular-nums">
+                          {p.enabled ? `${perDayCount(key)} ca` : '—'}
+                        </span>
+                      </div>
                     </div>
 
-                    <span className="text-sm text-slate-500 md:text-right md:pt-1.5">{p.enabled ? `${perDay(key)} ca` : '—'}</span>
-                  </div>
-                  {errors[key] && <p className="mt-2 md:ml-[162px] text-sm text-rose-700">{errors[key]}</p>}
-                  {warn && (
-                    <p className="mt-3 md:ml-[162px] flex items-start gap-2 p-3 rounded-lg border border-amber-200 bg-amber-50 text-sm text-amber-900">
-                      <TriangleAlert className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
-                      {warn.length} lịch hẹn sắp tới vào {label.toLowerCase()} nằm ngoài khung giờ này (
-                      {warn
-                        .slice(0, 3)
-                        .map((a) => `${new Date(a.scheduledStart).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })} ${new Date(a.scheduledStart).toTimeString().slice(0, 5)}`)
-                        .join(', ')}
-                      ). Các lịch này vẫn giữ nguyên; hãy nhắn bệnh nhân nếu muốn đổi giờ.
-                    </p>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          <p className="px-5 sm:px-6 py-3 border-t border-slate-200 bg-slate-50 text-sm text-slate-500">
-            Thay đổi chỉ áp dụng cho lượt đặt mới. Lịch hẹn đã đặt được giữ nguyên.
-          </p>
-        </section>
+                    {dayError && (
+                      <p role="alert" className="mt-2 md:ml-[152px] text-xs font-semibold text-rose-700">
+                        {dayError}
+                      </p>
+                    )}
 
-        <aside className="space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
-            <h2 className="font-semibold text-slate-900">Xem theo ngày</h2>
-            <div className="mt-3 flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => setViewDate((d) => new Date(d.getTime() - 86400000))}
-                className="w-10 h-10 inline-flex items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer"
-                aria-label="Ngày trước"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <div className="text-center">
-                <p className="font-semibold text-slate-900">
-                  {viewDate.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {savedDayEnabled ? `${dayAppointments.length} lịch hẹn` : 'Ngày nghỉ theo lịch đã lưu'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setViewDate((d) => new Date(d.getTime() + 86400000))}
-                className="w-10 h-10 inline-flex items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer"
-                aria-label="Ngày sau"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
-            <ul className="mt-4 space-y-2 max-h-[420px] overflow-y-auto">
-              {daySlotsLoading ? (
-                <Skeleton className="h-24 w-full" />
-              ) : dayRows.length === 0 ? (
-                <li className="text-sm text-slate-500">Không có ca nào trong ngày này.</li>
-              ) : (
-                dayRows.map((r) => (
-                  <li
-                    key={r.time}
-                    className={cn('flex items-center gap-4 px-4 py-3 rounded-lg border', r.apt ? 'border-teal-300 bg-teal-50' : 'border-slate-200')}
-                  >
-                    <span className="font-semibold text-slate-900 w-12">{r.time}</span>
-                    {r.apt ? (
-                      <>
-                        <span className="flex-1 min-w-0 truncate font-medium text-teal-900">{r.apt.patientName}</span>
-                        <Link to={`/doctor/appointments/${r.apt.id}`} className="text-sm font-medium text-teal-700 underline underline-offset-2">
-                          Mở
-                        </Link>
-                      </>
-                    ) : (
-                      <span className="flex-1 text-sm text-slate-500">Còn trống</span>
+                    {warn && !dayError && (
+                      <p className="mt-3 md:ml-[152px] flex items-start gap-2 p-3 rounded-xl border border-amber-200 bg-amber-50 text-xs sm:text-sm text-amber-900">
+                        <TriangleAlert className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" aria-hidden />
+                        <span>
+                          {warn.length} lịch hẹn sắp tới vào {label.toLowerCase()} nằm ngoài khung giờ này (
+                          {warn
+                            .slice(0, 3)
+                            .map(
+                              (a) =>
+                                `${new Date(a.scheduledStart).toLocaleDateString('vi-VN', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                })} ${new Date(a.scheduledStart).toTimeString().slice(0, 5)}`,
+                            )
+                            .join(', ')}
+                          ). Hệ thống sẽ hiện hộp thoại xác nhận khi bạn bấm Lưu thay đổi.
+                        </span>
+                      </p>
                     )}
                   </li>
-                ))
-              )}
+                );
+              })}
             </ul>
-          </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
-            <h2 className="font-semibold text-slate-900">Tuần này</h2>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="p-3 rounded-xl bg-slate-50">
-                <p className="text-2xl font-bold text-slate-900">{bookedThisWeek}</p>
-                <p className="text-xs text-slate-500">ca đã đặt</p>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50">
-                <p className="text-2xl font-bold text-slate-900">{saved ? DAYS.reduce((s, d) => s + (saved.plan[d.key].enabled ? saved.plan[d.key].ranges.reduce((x, r) => x + slotsIn(r, saved.duration), 0) : 0), 0) : 0}</p>
-                <p className="text-xs text-slate-500">ca mở mỗi tuần</p>
-              </div>
-            </div>
-            <p className="mt-3 text-sm text-slate-600">
-              Phí khám chỉnh trong{' '}
-              <Link to="/doctor/profile" className="font-medium text-teal-700 underline underline-offset-2">
-                Hồ sơ bác sĩ
-              </Link>
-              .
+            <p className="px-5 sm:px-6 py-3 border-t border-slate-200 bg-slate-50 rounded-b-2xl text-xs sm:text-sm text-slate-600">
+              Thay đổi khung giờ áp dụng ngay cho lượt đặt mới và tự động trừ {buffer} phút nghỉ chuyển ca khi sinh lịch trống.
             </p>
-          </div>
-        </aside>
-      </div>
+          </section>
+
+          {/* Sticky Live Day Preview & Weekly KPI */}
+          <aside className="space-y-4 xl:sticky xl:top-20">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-clinical-sm p-5">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-display font-bold text-slate-900 text-base">Xem thử khung giờ</h2>
+                {dirty ? (
+                  <Badge tone="warning">Xem trước bản nháp</Badge>
+                ) : viewException ? (
+                  <Badge tone={viewException.dayOff ? 'danger' : 'teal'}>
+                    {viewException.dayOff ? 'Ngoại lệ: Nghỉ' : 'Ngoại lệ: Giờ riêng'}
+                  </Badge>
+                ) : (
+                  <Badge tone="neutral">Lịch tuần</Badge>
+                )}
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setViewDate((d) => new Date(d.getTime() - 86400000))}
+                  className="w-9 h-9 inline-flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  aria-label="Ngày trước"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <div className="text-center min-w-0">
+                  <p className="font-semibold text-sm text-slate-900 capitalize truncate">
+                    {viewDate.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {savedDayEnabled || (dirty && plan[viewKey].enabled)
+                      ? `${dayAppointments.length} lịch hẹn · ${dayRows.length} khung giờ`
+                      : 'Ngày nghỉ'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewDate((d) => new Date(d.getTime() + 86400000))}
+                  className="w-9 h-9 inline-flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  aria-label="Ngày sau"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              <ul className="mt-4 space-y-2 max-h-[380px] overflow-y-auto scrollbar-clinical pr-1">
+                {daySlotsLoading ? (
+                  <Skeleton className="h-24 w-full" />
+                ) : dayRows.length === 0 ? (
+                  <li className="py-6 text-center text-sm text-slate-500 rounded-xl border border-dashed border-slate-200">
+                    Không có ca khám nào mở trong ngày này.
+                  </li>
+                ) : (
+                  dayRows.map((r) => (
+                    <li
+                      key={r.time}
+                      className={cn(
+                        'flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-sm transition-colors',
+                        r.apt ? 'border-teal-300 bg-teal-50/70' : 'border-slate-200 bg-white',
+                      )}
+                    >
+                      <span className="font-semibold text-slate-900 w-12 tabular-nums">{r.time}</span>
+                      {r.apt ? (
+                        <>
+                          <span className="flex-1 min-w-0 truncate font-medium text-teal-900">{r.apt.patientName}</span>
+                          <Link
+                            to={`/doctor/appointments/${r.apt.id}`}
+                            className="text-xs font-semibold text-teal-700 hover:text-teal-800 underline underline-offset-2 shrink-0"
+                          >
+                            Mở
+                          </Link>
+                        </>
+                      ) : (
+                        <span className="flex-1 text-xs text-slate-500">Còn trống ({duration}′)</span>
+                      )}
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-clinical-sm p-5">
+              <h2 className="font-display font-bold text-slate-900 text-base">Tổng quan tuần</h2>
+              <div className="mt-3 grid grid-cols-2 gap-2.5">
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <p className="text-2xl font-bold text-slate-900 tabular-nums">{bookedThisWeek}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">ca đã đặt tuần này</p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-teal-50/60 border border-teal-100">
+                  <p className="text-2xl font-bold text-teal-800 tabular-nums">{savedWeeklyCount}</p>
+                  <p className="text-xs text-teal-700 mt-0.5">ca mở mỗi tuần</p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs sm:text-sm text-slate-600">
+                Thiết lập phí khám & bằng cấp trong{' '}
+                <Link to="/doctor/profile" className="font-semibold text-teal-700 underline underline-offset-2">
+                  Hồ sơ bác sĩ
+                </Link>
+                .
+              </p>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      <ConflictWarningModal
+        open={Boolean(pendingConflict)}
+        busy={savingWeekly || savingException}
+        conflicts={pendingConflict?.conflicts || []}
+        contextLabel={pendingConflict?.label || ''}
+        onCancel={() => setPendingConflict(null)}
+        onConfirmForce={() => {
+          if (!pendingConflict) return;
+          if (pendingConflict.kind === 'weekly') {
+            void executeSaveWeekly(true);
+          } else if (pendingConflict.kind === 'exception' && pendingConflict.exceptionPayload) {
+            void executeSaveException(pendingConflict.exceptionPayload, true);
+          }
+        }}
+      />
     </div>
   );
 };

@@ -65,6 +65,10 @@ public class AppointmentService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private NotificationService notificationService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private DoctorService doctorService;
+
     public AppointmentService(AppointmentRepository appointmentRepository,
                               UserRepository userRepository,
                               DoctorProfileRepository doctorProfileRepository,
@@ -112,15 +116,32 @@ public class AppointmentService {
             throw new AppException(HttpStatus.BAD_REQUEST, "PAST_DATE", "Thời gian hẹn khám phải lớn hơn thời điểm hiện tại");
         }
 
-        // Validate Working Hours: 08:00 - 12:00, 13:30 - 17:00, not Sunday
-        if (scheduledStart.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_DAY", "Bệnh viện không tiếp nhận lịch hẹn vào Chủ Nhật.");
-        }
-        java.time.LocalTime slotTime = scheduledStart.toLocalTime();
-        boolean isMorning = !slotTime.isBefore(java.time.LocalTime.of(8, 0)) && slotTime.isBefore(java.time.LocalTime.of(12, 0));
-        boolean isAfternoon = !slotTime.isBefore(java.time.LocalTime.of(13, 30)) && slotTime.isBefore(java.time.LocalTime.of(17, 0));
-        if (!isMorning && !isAfternoon) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME", "Khung giờ khám hợp lệ là 08:00-12:00 và 13:30-17:00.");
+        int slotDuration = doctorProfile.getSlotDurationMinutes();
+        if (doctorService != null) {
+            List<com.mediassist.dto.DoctorSlotDto> slots = doctorService.getAvailableSlots(doctor.getId(), scheduledStart.toLocalDate());
+            com.mediassist.dto.DoctorSlotDto matchedSlot = slots.stream()
+                    .filter(s -> s.getStartTime() != null && s.getStartTime().equals(scheduledStart.toLocalTime()))
+                    .findFirst()
+                    .orElse(null);
+            if (matchedSlot == null) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME",
+                        "Khung giờ này không nằm trong lịch làm việc hoặc bác sĩ nghỉ trong ngày đã chọn.");
+            }
+            if (!matchedSlot.isAvailable()) {
+                throw new AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT",
+                        "Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước hoặc chưa đủ thời gian nghỉ giữa ca.");
+            }
+        } else {
+            // Fallback when DoctorService is absent in isolated unit tests
+            if (scheduledStart.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_DAY", "Bệnh viện không tiếp nhận lịch hẹn vào Chủ Nhật.");
+            }
+            java.time.LocalTime slotTime = scheduledStart.toLocalTime();
+            boolean isMorning = !slotTime.isBefore(java.time.LocalTime.of(8, 0)) && slotTime.isBefore(java.time.LocalTime.of(12, 0));
+            boolean isAfternoon = !slotTime.isBefore(java.time.LocalTime.of(13, 30)) && slotTime.isBefore(java.time.LocalTime.of(17, 0));
+            if (!isMorning && !isAfternoon) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME", "Khung giờ khám hợp lệ là 08:00-12:00 và 13:30-17:00.");
+            }
         }
 
         // Concurrency Guard: Check if slot is already booked
@@ -129,7 +150,7 @@ public class AppointmentService {
             throw new AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", "Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác.");
         }
 
-        LocalDateTime scheduledEnd = scheduledStart.plusMinutes(30);
+        LocalDateTime scheduledEnd = scheduledStart.plusMinutes(slotDuration);
 
         // Fetch doctor consultation fee
         BigDecimal fee = doctorProfile.getConsultationFee() != null
@@ -578,14 +599,24 @@ public class AppointmentService {
             throw new AppException(HttpStatus.BAD_REQUEST, "PAST_DATE", "Thời gian hẹn mới phải cách thời điểm hiện tại ít nhất 2 giờ");
         }
 
-        if (newStart.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_DAY", "Bệnh viện không tiếp nhận lịch hẹn vào Chủ Nhật.");
-        }
-        java.time.LocalTime slotTime = newStart.toLocalTime();
-        boolean isMorning = !slotTime.isBefore(java.time.LocalTime.of(8, 0)) && slotTime.isBefore(java.time.LocalTime.of(12, 0));
-        boolean isAfternoon = !slotTime.isBefore(java.time.LocalTime.of(13, 30)) && slotTime.isBefore(java.time.LocalTime.of(17, 0));
-        if (!isMorning && !isAfternoon) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME", "Khung giờ khám hợp lệ là 08:00-12:00 và 13:30-17:00.");
+        int slotDuration = doctorProfileRepository.findByUserId(appointment.getDoctor().getId())
+                .map(DoctorProfile::getSlotDurationMinutes)
+                .orElse(30);
+        if (doctorService != null) {
+            if (!doctorService.isSlotWithinWorkingHours(appointment.getDoctor().getId(), newStart, slotDuration)) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME",
+                        "Khung giờ mới không nằm trong lịch làm việc của bác sĩ.");
+            }
+        } else {
+            if (newStart.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_DAY", "Bệnh viện không tiếp nhận lịch hẹn vào Chủ Nhật.");
+            }
+            java.time.LocalTime slotTime = newStart.toLocalTime();
+            boolean isMorning = !slotTime.isBefore(java.time.LocalTime.of(8, 0)) && slotTime.isBefore(java.time.LocalTime.of(12, 0));
+            boolean isAfternoon = !slotTime.isBefore(java.time.LocalTime.of(13, 30)) && slotTime.isBefore(java.time.LocalTime.of(17, 0));
+            if (!isMorning && !isAfternoon) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME", "Khung giờ khám hợp lệ là 08:00-12:00 và 13:30-17:00.");
+            }
         }
 
         if (appointmentRepository.existsConflictExcluding(appointment.getDoctor().getId(), newStart, appointment.getId())) {
@@ -593,7 +624,7 @@ public class AppointmentService {
         }
 
         appointment.setScheduledStart(newStart);
-        appointment.setScheduledEnd(newStart.plusMinutes(30));
+        appointment.setScheduledEnd(newStart.plusMinutes(slotDuration));
 
         LocalDate apptDate = newStart.toLocalDate();
         long activeCountToday = appointmentRepository.countActiveAppointmentsByDoctorAndDateRange(

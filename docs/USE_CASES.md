@@ -918,36 +918,36 @@ graph TD
 
 ---
 
-#### UC-DOC-02: Cấu Hình & Khóa Khung Giờ Khám Tuần Hoàn (Configure Doctor Schedule Slots)
+#### UC-DOC-02: Cấu Hình Lịch Làm Việc, Thời Gian Nghỉ Giữa Ca & Ngày Ngoại Lệ (Cal.com-Style Schedule Management)
 
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
-> - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `GET /api/v1/doctors/me/schedules, PUT /api/v1/doctors/me/schedules` (Quyền: `hasRole('DOCTOR')`)
-> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/schedule` $\rightarrow$ Màn hình `DoctorSchedulePage.tsx` (lịch hằng tuần theo khoảng giờ + thời lượng ca 15/20/30/45/60′, cảnh báo lịch hẹn nằm ngoài giờ mới, xem ca theo ngày — giao diện Stitch, WORK_LOG #134; thay modal cấu hình lịch trực cũ trong `DoctorDashboard.tsx`)
-> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_schedule_slots, doctor_profiles` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V7__slot_collision_guard_and_dedup_constraints.sql`
-> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService` $\rightarrow$ `DoctorScheduleSlotRepository, DoctorProfileRepository`
-> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java` (**100% PASS**)
+> - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `GET/PUT /api/v1/doctors/me/schedule-config`, `GET/PUT /api/v1/doctors/me/schedules`, `GET/POST /api/v1/doctors/me/schedules/exceptions`, `DELETE /api/v1/doctors/me/schedules/exceptions/{exceptionId}` (Quyền: `hasRole('DOCTOR')`), và `GET /api/v1/doctors/{id}/slots?date=`
+> - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/schedule` $\rightarrow$ `DoctorSchedulePage.tsx`, `TimeSelect.tsx`, `CopyToDaysPopover.tsx`, `ScheduleExceptionsTab.tsx`, `ConflictWarningModal.tsx` (2 tab: *Lịch hàng tuần* + *Ngày nghỉ & Ngoại lệ*, dirty state button gating, sao chép nhanh nhiều ngày, modal cảnh báo xung đột lịch hẹn)
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_schedule_slots`, `doctor_schedule_exceptions`, `doctor_profiles` (`slot_duration_minutes`, `buffer_time_minutes`) $\rightarrow$ Bản di trú `V1__initial_schema.sql, V7__slot_collision_guard_and_dedup_constraints.sql, V26__doctor_schedule_v2_exceptions_and_buffer.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService` $\rightarrow$ `DoctorScheduleSlotRepository, DoctorScheduleExceptionRepository, DoctorProfileRepository, AppointmentRepository, TwoLayerCacheService` (`doctor:schedule:meta:{profileId}`)
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorScheduleManagementTest.java, DoctorServiceScheduleTest.java, DoctorServiceTest.java, doctor-schedule.spec.ts` (**100% PASS**)
 
 | Attribute | Specification Details |
 | :--- | :--- |
 | **Use Case ID** | `UC-DOC-02` |
-| **Use Case Name** | Configure Doctor Schedule Slots |
+| **Use Case Name** | Configure Weekly Schedule, Buffer Time & Date Exceptions |
 | **Created By** | SE-AI Capstone Team |
-| **Created Date** | 15/02/2026 |
+| **Created Date** | 15/02/2026 (Refactored 24/11/2026) |
 | **Primary Actor** | Doctor |
-| **Secondary Actor** | Clinical Ontology Registry (WHO ICD-10 & LOINC), PDF Scribe |
-| **Description** | MediAssist-AI Scheduling Subsystem — `doctor_schedule_slots` records persisted for days of the week. |
-| **Trigger** | Doctor updates weekly shifts on `/doctor/profile`. |
-| **Pre-conditions** | Doctor is authenticated. |
-| **Post-conditions** | `doctor_schedule_slots` records persisted for days of the week. |
-| **Normal Flow** | Step 1: Doctor navigates to Schedule tab on `/doctor/profile`.<br>Step 2: Frontend calls HTTP GET `/api/v1/doctors/me/schedules`.<br>Step 3: Backend returns existing `doctor_schedule_slots` records.<br>Step 4: Doctor configures operational time windows (Monday through Saturday, 08:00–12:00 and 13:30–17:00).<br>Step 5: Frontend sends HTTP PUT `/api/v1/doctors/me/schedules` with `UpdateDoctorScheduleRequest`.<br>Step 6: Backend validates shifts fall within hospital working hours (Sunday blocked).<br>Step 7: Backend updates `doctor_schedule_slots` table within a transaction.<br>Step 8: Backend invalidates doctor slot cache in Redis.<br>Step 9: Frontend displays toast: "Lịch khám đã được cập nhật thành công." |
-| **Alternative Flow** | None. |
-| **Exceptions** | - Exc Flow 12a: Invalid Slot Window:<br>1. Doctor attempts to configure Sunday or hours outside 08:00–17:00.<br>2. Backend throws `AppException(HttpStatus.BAD_REQUEST, "INVALID_SLOT_TIME", ...)`. |
+| **Secondary Actor** | Appointment Scheduling Engine |
+| **Description** | Hệ thống quản lý lịch làm việc 2 tầng chuẩn Cal.com gồm `WeeklySchedule` (`doctor_schedule_slots`) + `ScheduleException` (`doctor_schedule_exceptions`), hỗ trợ `slot_duration_minutes` & `buffer_time_minutes`, kiểm tra chồng chéo ca và cảnh báo xung đột lịch hẹn đã đặt trước. |
+| **Trigger** | Doctor opens `/doctor/schedule` to manage recurring weekly hours or date exceptions. |
+| **Pre-conditions** | Doctor is authenticated (`ROLE_DOCTOR`). |
+| **Post-conditions** | Weekly slots, per-doctor duration/buffer settings, or date exception records persisted; Two-Layer Cache key `doctor:schedule:meta:{profileId}` evicted immediately. |
+| **Normal Flow** | Step 1: Doctor navigates to `/doctor/schedule`.<br>Step 2: Frontend calls `GET /api/v1/doctors/me/schedule-config` to load weekly slots, duration, buffer time, and upcoming exceptions.<br>Step 3: On Tab **Lịch hàng tuần**, doctor toggles workdays (`MONDAY`–`SUNDAY`), edits multiple shifts per day with 24h `TimeSelect`, copies schedules across days via `CopyToDaysPopover`, or sets `Thời lượng ca` (15/20/30/45/60′) & `Nghỉ giữa ca` (0/5/10/15/20/30′).<br>Step 4: Only when dirty & valid (zero overlapping shifts), "Lưu thay đổi" becomes active and calls `PUT /api/v1/doctors/me/schedule-config`.<br>Step 5: On Tab **Ngày nghỉ & Ngoại lệ**, doctor picks a date on the calendar to set *Nghỉ cả ngày* or *Chỉnh giờ riêng* (`POST /api/v1/doctors/me/schedules/exceptions`) or restores a date (`DELETE /api/v1/doctors/me/schedules/exceptions/{id}`).<br>Step 6: `getAvailableSlots(doctorId, date)` dynamically merges: Exceptions > Weekly Schedule - Active Appointments (respecting buffer clearance). |
+| **Alternative Flow** | - **Alt Flow 12a (Patient Appointment Conflict Warning):**<br>1. When `force=false` and the new hours/day-off leave upcoming active appointments outside open shifts, Backend returns HTTP `409 SCHEDULE_CONFLICT_WARNING` with the impacted `conflicts` list.<br>2. Frontend displays `ConflictWarningModal` listing each patient/code/time.<br>3. If doctor clicks "Vẫn lưu thay đổi", Frontend retries with `force: true` while preserving booked appointments for doctor follow-up. |
+| **Exceptions** | - Exc Flow 12a (Overlapping / Invalid Shifts): Overlapping shifts on the same day or duration shorter than one slot throw `400 SHIFT_OVERLAP` / `400 SHIFT_TOO_SHORT`.<br>- Exc Flow 12b (Past Exception Date): Setting an exception before `LocalDate.now()` throws `400 PAST_DATE`. |
 | **Priority** | High (P0) |
 | **Frequency of Use** | Medium (Periodic / Administrative) |
-| **Business Rules** | - BR-17: Clinic operating hours: Monday–Saturday, 08:00–12:00 and 13:30–17:00. |
-| **Data Entities Involved** | `doctor_schedule_slots`, `doctor_profiles`. |
-| **User Interface Controls** | Weekly schedule matrix, time pickers, save button. |
+| **Business Rules** | - BR-17a: Same-day shifts cannot overlap (`curr.start >= prev.end`).<br>- BR-17b: Date Exceptions (`doctor_schedule_exceptions`) strictly override `WeeklySchedule` on matching dates.<br>- BR-17c: `buffer_time_minutes` enforces both slot step spacing and buffer clearance around active appointments. |
+| **Data Entities Involved** | `doctor_schedule_slots`, `doctor_schedule_exceptions`, `doctor_profiles`, `appointments`. |
+| **User Interface Controls** | Segmented tabs, weekday toggles, 24h `TimeSelect`, `CopyToDaysPopover`, `ScheduleExceptionsTab` calendar, dirty-gated Save button, `ConflictWarningModal`. |
 
 ---
 

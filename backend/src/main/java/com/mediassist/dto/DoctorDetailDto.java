@@ -40,6 +40,8 @@ public class DoctorDetailDto {
     private Double rating;
     private Integer totalConsultations;
     private Integer reviewCount;
+    private Integer slotDurationMinutes;
+    private Integer bufferTimeMinutes;
     private String userStatus;
     private java.time.LocalDateTime createdAt;
 
@@ -81,6 +83,8 @@ public class DoctorDetailDto {
         dto.setReviewCount(profile.getReviewCount() != null ? profile.getReviewCount() : 0);
         dto.setRating(profile.getReviewCount() != null && profile.getReviewCount() > 0 ? profile.getRating() : null);
         dto.setTotalConsultations(profile.getTotalConsultations() != null ? profile.getTotalConsultations() : 0);
+        dto.setSlotDurationMinutes(profile.getSlotDurationMinutes());
+        dto.setBufferTimeMinutes(profile.getBufferTimeMinutes());
         if (profile.getSpecialties() != null) {
             dto.setSpecialties(profile.getSpecialties().stream()
                     .map(Specialty::getName)
@@ -177,4 +181,10 @@ public class DoctorDetailDto {
 
     public java.time.LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(java.time.LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public Integer getSlotDurationMinutes() { return slotDurationMinutes; }
+    public void setSlotDurationMinutes(Integer slotDurationMinutes) { this.slotDurationMinutes = slotDurationMinutes; }
+
+    public Integer getBufferTimeMinutes() { return bufferTimeMinutes; }
+    public void setBufferTimeMinutes(Integer bufferTimeMinutes) { this.bufferTimeMinutes = bufferTimeMinutes; }
 }

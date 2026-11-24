@@ -128,6 +128,51 @@ public class DoctorController {
         return ResponseEntity.ok(ApiResponse.success(doctorService.updateDoctorSchedules(principal.getId(), request)));
     }
 
+    @GetMapping("/me/schedule-config")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Get full doctor schedule bundle (slot duration, buffer time, weekly shifts, and date exceptions)")
+    public ResponseEntity<ApiResponse<DoctorScheduleBundleDto>> getMyScheduleConfig(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(doctorService.getDoctorScheduleBundle(principal.getId())));
+    }
+
+    @PutMapping("/me/schedule-config")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Update doctor schedule configuration with overlap validation and conflict detection")
+    public ResponseEntity<ApiResponse<DoctorScheduleBundleDto>> updateMyScheduleConfig(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody UpdateDoctorScheduleRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(doctorService.updateDoctorScheduleBundle(principal.getId(), request)));
+    }
+
+    @GetMapping("/me/schedules/exceptions")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "List doctor schedule exceptions (day-off or custom hours overrides)")
+    public ResponseEntity<ApiResponse<List<ScheduleExceptionDto>>> getMyScheduleExceptions(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(value = "includePast", defaultValue = "false") boolean includePast) {
+        return ResponseEntity.ok(ApiResponse.success(doctorService.getDoctorScheduleExceptions(principal.getId(), includePast)));
+    }
+
+    @PostMapping("/me/schedules/exceptions")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Create or update a schedule exception for a specific date")
+    public ResponseEntity<ApiResponse<ScheduleExceptionDto>> upsertScheduleException(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody UpsertScheduleExceptionRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(doctorService.upsertScheduleException(principal.getId(), request)));
+    }
+
+    @DeleteMapping("/me/schedules/exceptions/{exceptionId}")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Remove a schedule exception and revert that date to the weekly schedule")
+    public ResponseEntity<ApiResponse<Void>> deleteScheduleException(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable("exceptionId") UUID exceptionId) {
+        doctorService.deleteScheduleException(principal.getId(), exceptionId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Đã xóa ngày ngoại lệ và khôi phục lịch hằng tuần."));
+    }
+
     @GetMapping("/me/patients")
     @PreAuthorize("hasRole('DOCTOR')")
     @Operation(summary = "Get list of all patients who have visited or booked with the doctor")
