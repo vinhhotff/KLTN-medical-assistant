@@ -14,10 +14,9 @@
 - **Tiêu đề:** Tái hiện hoàn chỉnh sơ đồ System Architecture theo chuẩn **AWS Cloud Architecture Blueprint** (khớp 100% bố cục và luồng đánh số 1-8 theo ảnh tham chiếu của Hội đồng) và loại bỏ hoàn toàn các nhãn hành động (action verbs) trên toàn bộ các sợi dây nối ERD.
 
 ### 2. Danh Sách Tệp Tin & Thay Đổi Chi Tiết
-- `[MOD]` `docs/images/system_architecture.png` (144 KB):
-  - Tái cấu trúc theo đúng chuẩn AWS Architecture Diagram: Khung ngoài AWS Cloud, phân vùng Customer's AWS Account (Production VPC) và AWS Managed Account / External AI & Fintech.
-  - Tách bạch ranh giới xác thực OpenID Connect / Cognito, Ingress API Gateway, chuỗi xử lý nghiệp vụ lâm sàng AWS Step Functions Workflow, cụm container AWS Fargate, cụm lưu trữ PostgreSQL 16 pgvector & Redis ElastiCache, và cụm tài sản tĩnh CloudFront + S3.
-  - Đánh số tuần tự luồng dữ liệu end-to-end từ `1` đến `8` bằng huy hiệu số đen tròn chuẩn AWS.
+- `[MOD]` `docs/images/system_architecture.png` (221 KB):
+  - Chuẩn hóa kiến trúc theo đúng bố cục Enterprise Cloud Blueprint: Phân vùng Production VPC và External AI/Fintech, đánh số luồng 1-8.
+  - Sử dụng 100% các thành phần công nghệ thực tế của MediAssist-AI: Web Client (React 18 SPA), Stateless JWT & Google OAuth2, Ingress Gateway, RLS/CLS Security Guards, 6 Clinical Engines của Spring Boot Modular Monolith (Triage, Search HNSW 1536 chiều, OCR LOINC, Booking Redlock, Refund 100%, EMR ICD-10), Polyglot Data Tier (PostgreSQL 16 pgvector, Redis 6379, AWS S3), và cụm dịch vụ ngoài (OpenAI API, Google Gemini Vision, Stripe Sandbox & Webhooks, ECR Docker Hub).
 - `[MOD]` `docs/images/erd_conceptual_highlevel.png` (127 KB):
   - Loại bỏ hoàn toàn 100% các nhãn hành động (action text) trên toàn bộ các sợi dây liên kết.
   - Dây nối chỉ thuần túy thể hiện quan hệ cấu trúc thực thể và bản số (cardinalities: `1-1`, `1-n`, `0..1`).
