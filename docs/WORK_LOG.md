@@ -7,6 +7,43 @@
 
 ---
 
+## [2026-11-24 23:30:00] - THIẾT KẾ BẢN VẼ KIẾN TRÚC HỆ THỐNG THUẦN KỸ THUẬT (PURE TECHNICAL SYSTEM ARCHITECTURE & TECH STACK)
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 23:30:00
+- **Tiêu đề:** Xây dựng và kết xuất sơ đồ Kiến Trúc Hệ Thống & Tech Stack thuần kỹ thuật (Purely Technical Enterprise Architecture Diagram) chuẩn 5 tầng kỹ thuật, 100% không chứa các luồng nghiệp vụ kinh doanh hay tên tính năng người dùng; đồng bộ hóa và commit trực tiếp lên Slide 7 của Canva Presentation (`DAHa9bmQoV0`).
+
+### 2. Danh Sách Tệp Tin & Thay Đổi Chi Tiết
+- `[NEW]` `docs/images/system_architecture_technical.png`:
+  - Bản vẽ độ phân giải siêu nét (2400x1400, 2x Retina, 585 KB) theo phong cách thiết kế phẳng doanh nghiệp (Enterprise Architecture Blueprint: nền trắng, xanh navy đậm `#0f172a`, viền xám đá `#cbd5e1`, điểm nhấn xanh ngọc `#0f766e` và xanh dương `#0284c7`).
+  - **Tầng 1 (Client Layer):** React 18 SPA, Vite 5, TypeScript 5.4, TanStack Query v5, Zustand, Tailwind CSS, Radix UI. Giao thức: `HTTPS / 443 (TLS 1.3 JSON)`.
+  - **Tầng 2 (Edge & Gateway Layer):** Nginx Reverse Proxy (TLS 1.3 Termination, Token Bucket Rate Limiting 60 req/min, Gzip L6, Caching, CORS/CSP). Chuyển tiếp Docker internal bridge: `proxy_pass http://backend:8080`.
+  - **Tầng 3 (Application Server Layer - Spring Boot 3.4.x / Java 21 LTS):** Chia 4 phân tầng kỹ thuật ngang từ trên xuống dưới:
+    1. *Security Filter Chain:* Spring Security 6, Stateless JWT Dual-Transport (Bearer + HttpOnly), OAuth2 Resource Server, RBAC Guard.
+    2. *Web / API Layer:* Spring Web MVC, REST Controllers, Jakarta Bean Validation, Global Exception Handler (RFC 7807 Problem Details), Jackson Serializer.
+    3. *Core Processing Layer:* Spring Service Beans, Caffeine L1 Cache (<1ms read), Redisson Distributed Lock (RLock), DTO Field Masking (CLS).
+    4. *Data Access & Client Layer:* Spring Data JPA (Hibernate 6), HikariCP Connection Pool (Max 20 conns), RestClient / WebClient, AWS SDK for Java v2.
+  - **Tầng 4 (Data & Storage Layer):**
+    * *PostgreSQL 16 + pgvector:* Relational ACID DB, Flyway (V1–V23), RLS & CLS, HNSW Vector Index (1536-dim Cosine). Kết nối `JDBC / TCP 5432` qua HikariCP.
+    * *Redis 7 In-Memory:* L2 Distributed Cache (1–3ms), Redlock Concurrency Engine, JWT Blacklist. Kết nối `RESP / TCP 6379`.
+    * *Amazon S3:* Private Bucket (SSE-S3 AES-256), Presigned S3 URLs (15-min TTL), Client Direct Upload/Download bypass server memory.
+  - **Tầng 5 (External 3rd-Party Infrastructure):**
+    * *OpenAI API Platform:* `gpt-4o` (Structured JSON Schema), `text-embedding-3-small` (1536-dim). `HTTPS / REST JSON`.
+    * *Payment Providers:* Stripe API & VNPay Gateway (HMAC SHA-512 Signed Webhooks).
+    * *Google Identity:* OAuth 2.0 / OpenID Connect (OIDC, JWKS Key verification).
+- `[MOD]` `docs/images/system_architecture.png`:
+  - Đồng bộ ghi đè bằng phiên bản thuần kỹ thuật mới nhất.
+- `[CANVA COMMIT]` Canva Presentation (`DAHa9bmQoV0`):
+  - Slide 7 (Page 7): Cập nhật ảnh `system_architecture_technical.png` (Asset: `MAHb2F1Wfr0`).
+  - Giao dịch Canva Transaction `749246635826096650` đã được **COMMITTED** vĩnh viễn.
+
+### 3. Bằng Chứng Kiểm Thử & Trạng Thái
+- Kiểm tra render hình ảnh bằng Playwright Chromium: Dây nối SVG trực giao (Orthogonal routing), zero line overlapping, nhãn giao thức định vị chính xác giữa các khoảng trống cột.
+- Trạng thái Canva: Đã commit thành công với trạng thái `status: committed`.
+- Trạng thái Git: Nhánh `develop` sẵn sàng commit và push.
+
+---
+
 ## [2026-11-24 22:56:00] - CHUẨN HÓA & LÀM GỌN BẢNG SƠ ĐỒ ERD: LOẠI BỎ CỘT PK/UK VÀ CÁC TRƯỜNG DỮ LIỆU THỪA TRÊN CANVA SLIDE
 
 ### 1. Thời Gian & Tiêu Đề
