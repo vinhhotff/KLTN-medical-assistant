@@ -7,6 +7,41 @@
 
 ---
 
+## [2026-11-24 22:56:00] - CHUẨN HÓA & LÀM GỌN BẢNG SƠ ĐỒ ERD: LOẠI BỎ CỘT PK/UK VÀ CÁC TRƯỜNG DỮ LIỆU THỪA TRÊN CANVA SLIDE
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 22:56:00
+- **Tiêu đề:** Tinh giản và chuẩn hóa toàn bộ các sơ đồ ERD (Sơ đồ ERD quan niệm tổng quan 17 thực thể và các Sub-ERD phân hệ), loại bỏ cột hiển thị cờ `PK`/`UK`/`FK` bên phải bảng và các trường kỹ thuật dư thừa (hash mật khẩu, timestamp kỹ thuật, token, metadata không cần thiết); cập nhật và commit trực tiếp lên Canva Presentation (`DAHa9bmQoV0`).
+
+### 2. Danh Sách Tệp Tin & Thay Đổi Chi Tiết
+- `[MOD]` `docs/images/erd_conceptual_highlevel.png`:
+  - Loại bỏ hoàn toàn cột cờ bên phải (`PK`, `UK`, `FK`, comment tags) trong 17 thực thể.
+  - Tinh giản chỉ giữ lại 2-3 trường kinh doanh cốt lõi (UUID id, VARCHAR name/code/status/level) cho mỗi thực thể.
+  - Tỷ lệ bảng trở nên thanh thoát, gọn gàng, người xem dễ dàng nắm bắt quan hệ và bản số (cardinality).
+- `[MOD]` `docs/images/sub_erd_1_identity_doctor.png`:
+  - Loại bỏ cờ PK/UK và các trường kỹ thuật thừa (`password_hash`, `email_verified`, `token_hash`).
+- `[MOD]` `docs/images/sub_erd_2_triage_vector.png`:
+  - Tinh giản phân hệ Triage & Vector Search: loại bỏ PK/UK, chỉ giữ lại các trường quan trọng phục vụ AI triage và `bio_vector`.
+- `[MOD]` `docs/images/sub_erd_3_booking_payments.png`:
+  - Tinh giản phân hệ Booking & Payments: loại bỏ các cờ PK/UK và trường metadata chi tiết thừa.
+- `[MOD]` `docs/images/sub_erd_4_emr_documents.png`:
+  - Tinh giản các trường log và metadata file nhị phân.
+- `[MOD]` `docs/images/system_architecture.png`:
+  - Tái tạo bản vẽ kiến trúc AWS Blueprint độ nét cao 2200x1400.
+- `[CANVA COMMIT]` Canva Presentation (`DAHa9bmQoV0`):
+  - Slide 8 (Page 8): Cập nhật ảnh `erd_conceptual_highlevel.png` (Asset: `MAHb1zDqees`).
+  - Slide 9 (Page 9): Cập nhật ảnh `sub_erd_1_identity_doctor.png` (Asset: `MAHb1zLi2Uo`).
+  - Slide 10 (Page 10): Cập nhật ảnh `sub_erd_3_booking_payments.png` (Asset: `MAHb17ofWyY`).
+  - Slide 11 (Page 11): Cập nhật ảnh `sub_erd_2_triage_vector.png` (Asset: `MAHb1yH7zkE`).
+  - Giao dịch Canva Transaction `287627667877220813` đã được **COMMITTED** vĩnh viễn vào Canva database.
+
+### 3. Bằng Chứng Kiểm Thử & Trạng Thái
+- Kiểm tra render hình ảnh bằng Playwright Chromium: Tất cả các bảng chỉ hiển thị 2 cột chuẩn: Kiểu dữ liệu (Datatype) và Tên thuộc tính (Attribute Name). Không còn cột thứ 3 chứa nhãn PK/UK hoặc comment rườm rà.
+- Trạng thái Canva: Đã commit thành công với trạng thái `status: committed`.
+- Trạng thái Git: Đang chuẩn bị commit và đẩy lên nhánh `develop`.
+
+---
+
 ## [2026-11-24 21:38:00] - ĐỒNG BỘ TOÀN DIỆN CẢ 2 TỆP EXCEL REPORT 5 LÊN CHUẨN v2.1 KHỚP 100%
 
 ### 1. Thời Gian & Tiêu Đề
