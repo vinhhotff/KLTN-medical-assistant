@@ -170,48 +170,12 @@ Ngay sau buổi bảo vệ, nhóm đã họp khẩn dưới sự chủ trì củ
      - **Tầng Cổng & Bảo Mật (Gateway & Security Tier):** Spring Security 6, Stateless Dual-Transport JWT (Bearer Header + HttpOnly Cookie), Rate Limiting.
      - **Tầng Ứng Dụng (Application Service Tier):** Modular Monolith Spring Boot 3.4.x, Spring Data JPA, Java 21 LTS, Triage Engine, Semantic Search Engine, Document OCR Engine, Payment Router.
      - **Tầng Dữ Liệu & Hạ Tầng Phân Tán (Data & Infrastructure Tier):** PostgreSQL 16 (Relational & pgvector HNSW), Redis 6379 (Distributed Cache & Redlock), AWS S3 / Supabase Storage (Object Storage với 15-Minute Presigned URLs), External AI APIs (OpenAI, Gemini).
+
+![Sơ đồ Kiến Trúc Hệ Thống Thuần Kỹ Thuật 4 Tầng (System Architecture)](images/system_architecture.png)
+
   2. **Sơ đồ Quy Trình Nghiệp Vụ Khám Bệnh (End-to-End Business Workflow):** Được đưa sang slide riêng để giải thích hành trình trải nghiệm người dùng từ Triage $\rightarrow$ Search $\rightarrow$ Booking $\rightarrow$ Encounter $\rightarrow$ Review.
 
-```mermaid
-flowchart TD
-    subgraph ClientTier ["1. TẦNG KHÁCH HÀNG (CLIENT PRESENTATION TIER)"]
-        SPA["Single Page App: React 18 + Vite 6 + Tailwind CSS"]
-        PatientPortal["Patient Portal (Web/Mobile Responsive)"]
-        DoctorStation["Doctor Clinical Workstation (Split-Screen)"]
-        AdminConsole["Admin Enterprise Console (Metrics & Audits)"]
-        SPA --- PatientPortal & DoctorStation & AdminConsole
-    end
-
-    subgraph SecurityTier ["2. TẦNG BẢO MẬT & ĐIỀU HƯỚNG (SECURITY & GATEWAY TIER)"]
-        AuthFilter["Stateless Dual-Transport JWT Filter (Bearer Token + HttpOnly Cookie)"]
-        SecGuard["Security Guards: PatientAccessGuard (RLS) + RateLimiter + DTO Sanitizer (CLS)"]
-        AuthFilter --> SecGuard
-    end
-
-    subgraph AppTier ["3. TẦNG DỊCH VỤ ỨNG DỤNG (MODULAR APPLICATION SERVICES TIER)"]
-        subgraph CoreModules ["Spring Boot 3.4.x / Java 21 LTS Modular Monolith"]
-            AuthService["Auth & User Service"]
-            TriageService["Clinical Triage & Red-Flag Engine"]
-            SearchService["Semantic Vector Search Engine (HNSW)"]
-            DocService["Multimodal OCR & LOINC Engine"]
-            BookingService["Telehealth Booking & Concurrency Slot Service"]
-            PaymentRouter["Payment Router (Stripe & Mock VietQR)"]
-            EMRService["EMR & ICD-10 Clinical Service"]
-        end
-    end
-
-    subgraph DataTier ["4. TẦNG DỮ LIỆU & LƯU TRỮ CHUYÊN BIỆT (SPECIALIZED STORAGE TIER)"]
-        PostgresDB[("Primary Database: PostgreSQL 16\n- ACID Relational Entities (17 Tables)\n- pgvector HNSW Vector Embeddings\n- Flyway Database Migrations (V1-V24)")]
-        RedisCache[("Distributed Cache & Lock: Redis 6379\n- L2 Distributed Cache (TTL 10-60m)\n- Distributed Locking (Redlock) chống trùng slot\n- Token Revocation Blacklist")]
-        S3Storage[("Secure Object Storage: AWS S3 / Supabase S3\n- Private Medical Documents & X-rays\n- 15-Minute Direct Presigned Upload/Download")]
-    end
-
-    ClientTier -->|"HTTPS REST API / JSON"| SecurityTier
-    SecurityTier --> AppTier
-    AppTier -->|"Read/Write ACID & Vectors"| PostgresDB
-    AppTier -->|"Cache & Redlock <1ms"| RedisCache
-    AppTier -->|"Direct S3 Signed URL"| S3Storage
-```
+![Sơ đồ Luồng Quy Trình Nghiệp Vụ Lâm Sàng Tổng Thể (End-to-End Business Flow)](images/business_flow.png)
 
 ### 2.3.2. Chuẩn hóa thông số Vector Embedding 1536 chiều
 - **Vấn đề được góp ý:** Nhóm trình bày model OpenAI `text-embedding-3-small` nhưng lúc nói 1536 chiều, lúc lại nói nhầm thành 1036.
@@ -233,12 +197,26 @@ flowchart TD
   - **Trên Slide trình bày chính:** Chỉ đưa **Sơ đồ ERD Quan niệm (High-Level Conceptual ERD)**. Sơ đồ này chỉ hiển thị: Tên thực thể, Khóa chính (PK), Khóa ngoại (FK) và Mối quan hệ liên kết (1-1, 1-N, N-N). Lược bỏ toàn bộ các cột mô tả (`description`), thời gian audit (`created_at`, `updated_at`, `version`) và các logic hành động.
   - **Tài liệu đặc tả (Database Design Document):** Duy trì bảng Physical Model chi tiết phục vụ lập trình viên và triển khai hạ tầng.
 
+![Sơ đồ ERD Quan Niệm Tổng Quan 17 Thực Thể (Conceptual High-Level ERD)](images/erd_conceptual_highlevel.png)
+
 ### 2.4.2. Trình bày ERD tổng quan và 4 Sub-ERDs theo Module nghiệp vụ
 Nhóm đã phân rã 17 bảng thành 4 Sub-ERDs chuyên biệt để Hội đồng dễ dàng theo dõi theo từng luồng:
+
 1. **Sub-ERD 1 (Authentication & User Identity):** `users`, `patient_profiles`, `doctor_profiles`, `specialties`, `doctor_specialties`, `password_reset_tokens`, `email_verification_tokens`.
+
+![Sub-ERD 1: Phân hệ Định Danh, Bác Sĩ & Chuyên Khoa](images/sub_erd_1_identity_doctor.png)
+
 2. **Sub-ERD 2 (AI Triage & Semantic Search):** `triage_sessions`, `doctor_profiles` (bio_vector), `specialties`.
+
+![Sub-ERD 2: Phân hệ AI Triage & Tìm Kiếm Ngữ Nghĩa Vector](images/sub_erd_2_triage_vector.png)
+
 3. **Sub-ERD 3 (Appointments, Slots & Payments):** `appointments`, `doctor_schedule_slots`, `payment_transactions`, `doctor_reviews`.
+
+![Sub-ERD 3: Phân hệ Lịch Khám, Ca Trực & Thanh Toán](images/sub_erd_3_booking_payments.png)
+
 4. **Sub-ERD 4 (EMR & Medical Records):** `medical_documents`, `document_analyses`, `audit_logs`, `ai_token_usage`, `notifications`.
+
+![Sub-ERD 4: Phân hệ Bệnh Án Điện Tử (EMR), Xét Nghiệm & Quản Trị](images/sub_erd_4_emr_documents.png)
 
 ### 2.4.3. Hiệu chỉnh bản số (Cardinality) giữa Triage và Booking thành 0..1
 - **Vấn đề được góp ý:** Quan hệ giữa phiên chat phân luồng (Triage) và lịch hẹn khám (Appointment) có bản số là gì? Người dùng chat xong chưa chắc đã đặt khám ngay.

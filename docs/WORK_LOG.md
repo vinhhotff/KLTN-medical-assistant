@@ -7,6 +7,32 @@
 
 ---
 
+## [2026-11-24 14:35:00] - XUẤT BẢN TRỌN BỘ 7 SƠ ĐỒ HÌNH ẢNH 4K VÀ NHÚNG TRỰC TIẾP VÀO BÁO CÁO REVIEW 2 (WORD, PDF, GOOGLE DOC)
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 14:35:00
+- **Tiêu đề:** Kết xuất trọn bộ 7 sơ đồ kỹ thuật & cơ sở dữ liệu thành tệp hình ảnh độ phân giải cao (Retina 4K / 2x scale) qua Playwright & Mermaid, nhúng trực tiếp vào tài liệu báo cáo Word, PDF và Google Docs.
+
+### 2. Danh Sách Tệp Tin Hình Ảnh Đã Xuất Bản
+- `[NEW]` `docs/images/system_architecture.png` (242 KB): Sơ đồ Kiến trúc Hệ thống Thuần Kỹ thuật 4 Tầng.
+- `[NEW]` `docs/images/business_flow.png` (67 KB): Sơ đồ Luồng Quy trình Nghiệp vụ Lâm sàng Tổng thể (End-to-End).
+- `[NEW]` `docs/images/erd_conceptual_highlevel.png` (145 KB): Sơ đồ ERD Quan niệm Tổng quan 17 thực thể sạch đẹp cho Slide.
+- `[NEW]` `docs/images/sub_erd_1_identity_doctor.png` (167 KB): Sub-ERD 1 - Phân hệ Định danh, Bác sĩ & Chuyên khoa (7 bảng).
+- `[NEW]` `docs/images/sub_erd_2_triage_vector.png` (112 KB): Sub-ERD 2 - Phân hệ AI Triage & Tìm kiếm Ngữ nghĩa Vector 1536 chiều (3 bảng).
+- `[NEW]` `docs/images/sub_erd_3_booking_payments.png` (166 KB): Sub-ERD 3 - Phân hệ Lịch khám, Ca trực & Thanh toán hoàn tiền (4 bảng).
+- `[NEW]` `docs/images/sub_erd_4_emr_documents.png` (150 KB): Sub-ERD 4 - Phân hệ Bệnh án Điện tử EMR, Xét nghiệm LOINC & Quản trị (5 bảng).
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.md`: Nhúng trực tiếp 7 hình ảnh sơ đồ vào các mục tương ứng.
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.docx`: Biên dịch lại tệp Word chứa đầy đủ hình ảnh (Dung lượng: 1.0 MB).
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.pdf`: Xuất bản lại tệp PDF in ấn chất lượng cao từ Google Drive API (Dung lượng: 1.34 MB).
+- `[CLOUD]` Google Doc ID `1R_6_-EM2CUxqDsUfMgVHOSHXgB0iBkIQaDUt1BBnsrE`: Tài liệu Google Docs trực tuyến chứa đầy đủ 7 hình ảnh sơ đồ.
+- `[MOD]` `docs/WORK_LOG.md`: Ghi nhận nhật ký theo AGENTS.md Rule 1.3.
+
+### 3. Bằng Chứng Thực Thi
+- Toàn bộ 7 sơ đồ được render thành công 100% bằng headless browser Playwright với độ phân giải siêu nét (2x deviceScaleFactor).
+- Báo cáo Word và PDF đã tích hợp đầy đủ hình ảnh trực quan, không còn hiển thị mã code thô, sẵn sàng nộp cho Hội đồng và GVHD.
+
+---
+
 ## [2026-11-24 14:15:00] - TRIỂN KHAI TOÀN DIỆN HÀNH ĐỘNG HẬU REVIEW 2 VÀ XUẤT BẢN BÁO CÁO GIẢI TRÌNH CHO HỘI ĐỒNG (DOCX, PDF, GOOGLE DOC)
 
 ### 1. Thời Gian & Tiêu Đề
