@@ -7,6 +7,37 @@
 
 ---
 
+## [2026-11-24 15:00:00] - CHUẨN HÓA KIẾN TRÚC AWS CLOUD BLUEPRINT VÀ LOẠI BỎ TOÀN BỘ NHÃN HÀNH ĐỘNG TRÊN DÂY NỐI ERD HẬU REVIEW 2
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 15:00:00
+- **Tiêu đề:** Tái hiện hoàn chỉnh sơ đồ System Architecture theo chuẩn **AWS Cloud Architecture Blueprint** (khớp 100% bố cục và luồng đánh số 1-8 theo ảnh tham chiếu của Hội đồng) và loại bỏ hoàn toàn các nhãn hành động (action verbs) trên toàn bộ các sợi dây nối ERD.
+
+### 2. Danh Sách Tệp Tin & Thay Đổi Chi Tiết
+- `[MOD]` `docs/images/system_architecture.png` (144 KB):
+  - Tái cấu trúc theo đúng chuẩn AWS Architecture Diagram: Khung ngoài AWS Cloud, phân vùng Customer's AWS Account (Production VPC) và AWS Managed Account / External AI & Fintech.
+  - Tách bạch ranh giới xác thực OpenID Connect / Cognito, Ingress API Gateway, chuỗi xử lý nghiệp vụ lâm sàng AWS Step Functions Workflow, cụm container AWS Fargate, cụm lưu trữ PostgreSQL 16 pgvector & Redis ElastiCache, và cụm tài sản tĩnh CloudFront + S3.
+  - Đánh số tuần tự luồng dữ liệu end-to-end từ `1` đến `8` bằng huy hiệu số đen tròn chuẩn AWS.
+- `[MOD]` `docs/images/erd_conceptual_highlevel.png` (127 KB):
+  - Loại bỏ hoàn toàn 100% các nhãn hành động (action text) trên toàn bộ các sợi dây liên kết.
+  - Dây nối chỉ thuần túy thể hiện quan hệ cấu trúc thực thể và bản số (cardinalities: `1-1`, `1-n`, `0..1`).
+  - Chuẩn hóa kế thừa Table-per-Type (TPT): `doctor_profiles.id PK,FK` tham chiếu trực tiếp `users(id)`, loại bỏ sự dư thừa khóa.
+- `[MOD]` `docs/images/sub_erd_1_identity_doctor.png` (150 KB): Sub-ERD 1 làm sạch toàn bộ dây nối.
+- `[MOD]` `docs/images/sub_erd_2_triage_vector.png` (100 KB): Sub-ERD 2 làm sạch toàn bộ dây nối.
+- `[MOD]` `docs/images/sub_erd_3_booking_payments.png` (146 KB): Sub-ERD 3 làm sạch toàn bộ dây nối, thể hiện bản số `0..1` giữa Triage và Booking.
+- `[MOD]` `docs/images/sub_erd_4_emr_documents.png` (137 KB): Sub-ERD 4 làm sạch toàn bộ dây nối, bảo mật CLS Data Masking.
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.md`: Cập nhật mục 2.3.1 (Kiến trúc AWS Blueprint) và mục 2.4.1 (Loại bỏ nhãn hành động ERD & chuẩn hóa TPT).
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.docx`: Biên dịch lại tệp Word cập nhật hình ảnh và nội dung mới nhất.
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.pdf`: Kết xuất lại tệp PDF in ấn chuẩn A4 sắc nét.
+- `[MOD]` `REVIEW2_DIAGRAMS_CATALOG.md`: Cập nhật Catalog hình ảnh trực quan trong Artifact UI.
+
+### 3. Bằng Chứng Kiểm Thử & Biên Dịch
+- Frontend: `npm run build` PASS (0 lỗi TypeScript, 2326 modules transformed in 3.78s).
+- Backend: `mvn test-compile` BUILD SUCCESS (Java 21 LTS clean).
+- Toàn bộ 7 hình ảnh được render với độ phân giải siêu nét (2x deviceScaleFactor) qua Playwright.
+
+---
+
 ## [2026-11-24 14:35:00] - XUẤT BẢN TRỌN BỘ 7 SƠ ĐỒ HÌNH ẢNH 4K VÀ NHÚNG TRỰC TIẾP VÀO BÁO CÁO REVIEW 2 (WORD, PDF, GOOGLE DOC)
 
 ### 1. Thời Gian & Tiêu Đề

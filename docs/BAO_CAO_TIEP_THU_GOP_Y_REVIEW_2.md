@@ -161,19 +161,27 @@ Ngay sau buổi bảo vệ, nhóm đã họp khẩn dưới sự chủ trì củ
 
 ## 2.3. Nhóm Kiến trúc hệ thống (System Architecture)
 
-### 2.3.1. Phân tách rành mạch Kiến trúc Kỹ thuật và Luồng Nghiệp vụ
-- **Vấn đề được góp ý:** Sơ đồ Kiến trúc hệ thống trong slide cũ vẽ lẫn lộn các nhánh rẽ nghiệp vụ (như rẽ nhánh Red-Flag, các bước tư vấn bệnh...) vào sơ đồ công nghệ, khiến người xem không thấy được cấu trúc phân tầng kỹ thuật.
+### 2.3.1. Phân tách rành mạch Kiến trúc Kỹ thuật và Luồng Nghiệp vụ (Chuẩn Hóa AWS Cloud Blueprint)
+- **Vấn đề được góp ý:** Sơ đồ Kiến trúc hệ thống trong slide cũ vẽ lẫn lộn các nhánh rẽ nghiệp vụ (như rẽ nhánh Red-Flag, các bước tư vấn bệnh...) vào sơ đồ công nghệ, khiến người xem không thấy được cấu trúc phân tầng kỹ thuật và ranh giới hạ tầng.
 - **Giải pháp đã thực hiện:**
-  Nhóm đã tách thành 2 sơ đồ hoàn toàn độc lập:
-  1. **Sơ đồ Kiến Trúc Phân Tầng Thuần Kỹ Thuật (System Architecture Diagram):** Thể hiện rõ 4 tầng công nghệ:
-     - **Tầng Trình Diễn (Client Tier):** React 18, Vite 6, Tailwind CSS, Zustand, Lucide Icons.
-     - **Tầng Cổng & Bảo Mật (Gateway & Security Tier):** Spring Security 6, Stateless Dual-Transport JWT (Bearer Header + HttpOnly Cookie), Rate Limiting.
-     - **Tầng Ứng Dụng (Application Service Tier):** Modular Monolith Spring Boot 3.4.x, Spring Data JPA, Java 21 LTS, Triage Engine, Semantic Search Engine, Document OCR Engine, Payment Router.
-     - **Tầng Dữ Liệu & Hạ Tầng Phân Tán (Data & Infrastructure Tier):** PostgreSQL 16 (Relational & pgvector HNSW), Redis 6379 (Distributed Cache & Redlock), AWS S3 / Supabase Storage (Object Storage với 15-Minute Presigned URLs), External AI APIs (OpenAI, Gemini).
+  Nhóm đã tách thành 2 sơ đồ hoàn toàn độc lập và chuẩn hóa theo mô hình **AWS Cloud Architecture Blueprint** (khớp chuẩn 100% với cấu trúc kiến trúc đám mây chuẩn):
+  1. **Sơ đồ Kiến Trúc Đám Mây Thuần Kỹ Thuật (AWS Cloud System Architecture):**
+     - **Phân vùng Tài khoản Khách hàng (Customer's AWS Account - Production VPC):**
+       - **Tầng Trình diễn (Presentation & Static CDN):** Người dùng (Patient, Doctor, Admin) tương tác qua Web Client (React 18 SPA + Vite) được lưu trữ tại `Amazon S3` và phân phối tốc độ cao qua `Amazon CloudFront` (Luồng 1).
+       - **Ranh giới Định danh & Bảo mật (Authentication Boundary):** Xác thực định danh tập trung qua `Amazon Cognito / Google OAuth2` và bộ lọc stateless JWT `OpenID Connect` (Luồng 3).
+       - **Cổng Điều phối API (API Gateway / Ingress Controller):** Tiếp nhận yêu cầu HTTPS REST/JSON, quản lý Rate Limiting, CORS và WAF (Luồng 2).
+       - **Bộ Lọc An Ninh & RLS (Security Interceptor / AWS Lambda):** Kiểm tra quyền truy cập theo ngữ cảnh `PatientAccessGuard (RLS)` và che giấu dữ liệu `CLS Masking` (Luồng 4).
+       - **Chuỗi Xử lý Nghiệp vụ Lâm Sàng (AWS Step Functions Workflow):** Điều phối động cơ phân luồng 5 tầng Red-Flag và bộ bóc tách hồ sơ xét nghiệm y tế OCR / LOINC (Luồng 5).
+       - **Cụm Dịch vụ Ứng dụng (AWS Fargate):** Triển khai Spring Boot 3.4.x / Java 21 LTS Modular Monolith dưới dạng Docker container.
+       - **Tầng Lưu trữ & Cơ sở dữ liệu (Database Tier):** Truy vấn và lưu trữ ACID tại `PostgreSQL 16 + pgvector` (HNSW 1536 chiều), bộ nhớ đệm `Redis 6379 (ElastiCache)` và lưu trữ hồ sơ tài liệu bảo mật tại `Amazon S3` (Luồng 8).
+     - **Phân vùng Dịch vụ Quản lý & Đối tác Ngoài (AWS Managed Account & External AI / Fintech):**
+       - Tích hợp mô hình AI: `OpenAI API (text-embedding-3-small, GPT-4o)` và `Google Gemini Vision OCR` (Luồng 6).
+       - Đăng ký và nạp container image tự động từ `Amazon ECR` vào AWS Fargate (Luồng 7).
+       - Cổng thanh toán tài chính: `Stripe Payment Gateway & Webhook` (hỗ trợ hoàn tiền tự động 100%).
 
-![Sơ đồ Kiến Trúc Hệ Thống Thuần Kỹ Thuật 4 Tầng (System Architecture)](images/system_architecture.png)
+![Sơ đồ Kiến Trúc Hệ Thống Chuẩn AWS Cloud Architecture (System Architecture)](images/system_architecture.png)
 
-  2. **Sơ đồ Quy Trình Nghiệp Vụ Khám Bệnh (End-to-End Business Workflow):** Được đưa sang slide riêng để giải thích hành trình trải nghiệm người dùng từ Triage $\rightarrow$ Search $\rightarrow$ Booking $\rightarrow$ Encounter $\rightarrow$ Review.
+  2. **Sơ đồ Quy Trình Nghiệp Vụ Khám Bệnh Lâm Sàng (End-to-End Business Workflow):** Được tách sang slide riêng để giải thích hành trình trải nghiệm người dùng từ Triage Red-Flag $\rightarrow$ Semantic Search $\rightarrow$ Booking giữ chỗ Redlock $\rightarrow$ Khám lâm sàng Split-Screen EMR ICD-10 $\rightarrow$ Đánh giá bác sĩ (Reviews & Ratings).
 
 ![Sơ đồ Luồng Quy Trình Nghiệp Vụ Lâm Sàng Tổng Thể (End-to-End Business Flow)](images/business_flow.png)
 
@@ -191,10 +199,15 @@ Ngay sau buổi bảo vệ, nhóm đã họp khẩn dưới sự chủ trì củ
 
 ## 2.4. Nhóm Thiết kế Cơ sở dữ liệu (ERD & Database Modeling)
 
-### 2.4.1. Phân tách rõ ràng: Conceptual ERD vs Physical Schema
-- **Vấn đề được góp ý:** Sơ đồ 17 bảng hiện tại quá nhiều chi tiết vật lý (các kiểu dữ liệu dài dòng, cột description, action nghiệp vụ, UUID sinh nội bộ), gây rối mắt và không phân biệt được mức quan niệm (Conceptual) với mức vật lý (Physical).
+### 2.4.1. Phân tách rõ ràng: Conceptual ERD vs Physical Schema & Loại Bỏ Nhãn Hành Động Trên Dây
+- **Vấn đề được góp ý:** 
+  1. Sơ đồ 17 bảng hiện tại quá nhiều chi tiết vật lý (các kiểu dữ liệu dài dòng, cột description, UUID sinh nội bộ), gây rối mắt và không phân biệt được mức quan niệm (Conceptual) với mức vật lý (Physical).
+  2. Các sợi dây nối trong sơ đồ ERD trước đây có gắn nhãn hành động nghiệp vụ (như "thực hiện triage", "tạo lịch", "thanh toán", "tải lên") — điều này vi phạm nguyên tắc thiết kế ERD chuẩn vì dây nối trong ERD chỉ thể hiện quan hệ cấu trúc và bản số (cardinality), không phải là sơ đồ luồng dữ liệu (Data Flow / Activity Diagram).
+  3. Bảng `doctor_profiles` tại sao vừa có `id` vừa có `user_id` gây cảm giác dư thừa khóa.
 - **Giải pháp đã thực hiện:**
-  - **Trên Slide trình bày chính:** Chỉ đưa **Sơ đồ ERD Quan niệm (High-Level Conceptual ERD)**. Sơ đồ này chỉ hiển thị: Tên thực thể, Khóa chính (PK), Khóa ngoại (FK) và Mối quan hệ liên kết (1-1, 1-N, N-N). Lược bỏ toàn bộ các cột mô tả (`description`), thời gian audit (`created_at`, `updated_at`, `version`) và các logic hành động.
+  - **Loại bỏ 100% nhãn hành động trên các sợi dây nối:** Tất cả các sợi dây liên kết trong ERD tổng quan và 4 Sub-ERDs được làm sạch hoàn toàn; chỉ giữ lại ký hiệu bản số chuẩn (`||--o|`, `||--o{`, `||--|{`).
+  - **Trên Slide trình bày chính:** Chỉ đưa **Sơ đồ ERD Quan niệm (High-Level Conceptual ERD)**. Sơ đồ này chỉ hiển thị: Tên thực thể, Khóa chính (PK), Khóa ngoại (FK) và Mối quan hệ liên kết (1-1, 1-N, N-N). Lược bỏ toàn bộ các cột mô tả (`description`), thời gian audit (`created_at`, `updated_at`, `version`) và các UUID sinh ngẫu nhiên ở tầng vật lý.
+  - **Chuẩn hóa Kế thừa Table-Per-Type (TPT) cho Bác sĩ:** Thiết kế chuẩn hóa `doctor_profiles` có `id PK, FK` tham chiếu trực tiếp đến `users(id)`. Người dùng có vai trò DOCTOR sẽ mở rộng thuộc tính chuyên môn qua `doctor_profiles` mà không cần sinh thêm ID độc lập, loại bỏ hoàn toàn sự dư thừa khóa.
   - **Tài liệu đặc tả (Database Design Document):** Duy trì bảng Physical Model chi tiết phục vụ lập trình viên và triển khai hạ tầng.
 
 ![Sơ đồ ERD Quan Niệm Tổng Quan 17 Thực Thể (Conceptual High-Level ERD)](images/erd_conceptual_highlevel.png)
