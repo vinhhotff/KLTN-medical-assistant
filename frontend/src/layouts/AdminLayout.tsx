@@ -69,19 +69,19 @@ export const AdminLayout: React.FC = () => {
     <div className="h-full bg-slate-900 text-slate-300 flex flex-col justify-between select-none">
       <div className="overflow-y-auto">
         <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-          <span className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
+          <span className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-clinical-sm">
             <Shield className="w-5 h-5" aria-hidden />
           </span>
           <span className="leading-tight">
             <span className="block font-display font-bold text-white">MediAssist Admin</span>
-            <span className="block text-xs text-indigo-300">Bảng quản trị hệ thống</span>
+            <span className="block text-xs text-teal-300">Bảng quản trị hệ thống</span>
           </span>
         </div>
 
         <nav className="px-3 py-4 space-y-6" aria-label="Điều hướng quản trị">
           {NAV_GROUPS.map((g) => (
             <div key={g.title}>
-              <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{g.title}</p>
+              <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{g.title}</p>
               <div className="space-y-1">
                 {g.items.map(({ to, label, icon: Icon, end }) => (
                   <NavLink
@@ -135,7 +135,7 @@ export const AdminLayout: React.FC = () => {
       )}
 
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between gap-3 px-4 lg:px-8 sticky top-0 z-30">
+        <header className="h-14 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-clinical-sm flex items-center justify-between gap-3 px-4 lg:px-8 sticky top-0 z-30">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"

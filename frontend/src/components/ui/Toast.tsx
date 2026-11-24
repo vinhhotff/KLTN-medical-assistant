@@ -69,7 +69,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               role={t.tone === 'error' ? 'alert' : 'status'}
               data-testid={`toast-${t.tone}`}
               className={cn(
-                'pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl border shadow-[0_10px_25px_rgba(0,0,0,0.08)] text-sm animate-scaleUp',
+                'pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl border shadow-clinical-md text-sm animate-scaleUp',
                 STYLES[t.tone]
               )}
             >

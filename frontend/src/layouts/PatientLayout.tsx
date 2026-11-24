@@ -10,14 +10,6 @@ import { cn } from '../components/ui';
 
 type Accent = 'indigo' | 'teal';
 
-const NAV_ITEMS: { to: string; label: string; short: string; icon: typeof CalendarDays; accent: Accent; end?: boolean }[] = [
-  { to: '/patient', label: 'Lịch hẹn', short: 'Lịch hẹn', icon: CalendarDays, accent: 'indigo', end: true },
-  { to: '/patient/triage', label: 'Trợ lý triệu chứng AI', short: 'Trợ lý AI', icon: MessageSquare, accent: 'indigo' },
-  { to: '/patient/documents', label: 'Tóm tắt bệnh án', short: 'Bệnh án', icon: UploadCloud, accent: 'teal' },
-  { to: '/patient/doctors', label: 'Tìm & đặt bác sĩ', short: 'Bác sĩ', icon: Search, accent: 'indigo' },
-  { to: '/patient/history', label: 'Lịch sử sức khỏe', short: 'Lịch sử', icon: History, accent: 'indigo' },
-];
-
 const ACTIVE: Record<Accent, string> = {
   indigo: 'bg-indigo-50 text-indigo-700',
   teal: 'bg-teal-50 text-teal-800',
@@ -26,6 +18,14 @@ const ICON: Record<Accent, string> = {
   indigo: 'text-indigo-600',
   teal: 'text-teal-600',
 };
+
+const PATIENT_NAV_ITEMS: { to: string; label: string; short: string; icon: typeof CalendarDays; accent: Accent; end?: boolean }[] = [
+  { to: '/patient', label: 'Lịch hẹn', short: 'Lịch hẹn', icon: CalendarDays, accent: 'teal', end: true },
+  { to: '/patient/triage', label: 'Trợ lý triệu chứng AI', short: 'Trợ lý AI', icon: MessageSquare, accent: 'indigo' },
+  { to: '/patient/documents', label: 'Tóm tắt bệnh án', short: 'Bệnh án', icon: UploadCloud, accent: 'teal' },
+  { to: '/patient/doctors', label: 'Tìm & đặt bác sĩ', short: 'Bác sĩ', icon: Search, accent: 'teal' },
+  { to: '/patient/history', label: 'Lịch sử sức khỏe', short: 'Lịch sử', icon: History, accent: 'teal' },
+];
 
 export const PatientLayout: React.FC = () => {
   const { user, logout, isAuthenticated, refreshCurrentUser } = useAuthStore();
@@ -42,18 +42,18 @@ export const PatientLayout: React.FC = () => {
       <MedicalDisclaimerBanner dismissible={false} />
       <EmailVerificationBanner />
 
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+      <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-clinical-sm sticky top-0 z-30">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-20 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6 min-w-0">
             <Link to="/patient" className="flex items-center gap-2.5 shrink-0">
-              <span className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
+              <span className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-clinical-sm">
                 <HeartPulse className="w-5 h-5" aria-hidden />
               </span>
               <span className="font-display font-bold text-lg tracking-tight text-slate-900">MediAssist-AI</span>
             </Link>
 
             <nav className="hidden md:flex items-center gap-1 min-w-0" aria-label="Điều hướng chính">
-              {NAV_ITEMS.map(({ to, label, icon: Icon, accent, end }) => (
+              {PATIENT_NAV_ITEMS.map(({ to, label, icon: Icon, accent, end }) => (
                 <NavLink
                   key={to}
                   to={to}
@@ -79,10 +79,10 @@ export const PatientLayout: React.FC = () => {
                 <NotificationBell />
                 <Link
                   to="/patient/profile"
-                  className="flex items-center gap-2.5 rounded-lg px-2 py-1 hover:bg-slate-100 transition"
+                  className="flex items-center gap-2.5 rounded-xl px-2 py-1 hover:bg-slate-100 transition"
                   title="Hồ sơ của tôi"
                 >
-                  <span className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
+                  <span className="w-8 h-8 rounded-full bg-teal-50 text-teal-800 border border-teal-200/80 text-xs font-bold flex items-center justify-center">
                     {initialsOf(user.fullName || user.email)}
                   </span>
                   <span className="hidden xl:block text-right leading-tight">
@@ -103,7 +103,7 @@ export const PatientLayout: React.FC = () => {
             ) : (
               <Link
                 to="/login"
-                className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition"
+                className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-clinical-sm transition"
               >
                 Đăng nhập
               </Link>
@@ -122,7 +122,7 @@ export const PatientLayout: React.FC = () => {
         aria-label="Điều hướng chính (di động)"
         data-testid="mobile-bottom-nav"
       >
-        {NAV_ITEMS.map(({ to, short, icon: Icon, accent, end }) => (
+        {PATIENT_NAV_ITEMS.map(({ to, short, icon: Icon, accent, end }) => (
           <NavLink
             key={to}
             to={to}

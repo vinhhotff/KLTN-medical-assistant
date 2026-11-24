@@ -8,6 +8,7 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: React.ReactNode;
+  kicker?: React.ReactNode;
   description?: React.ReactNode;
   children?: React.ReactNode;
   footer?: React.ReactNode;
@@ -22,7 +23,7 @@ const FOCUSABLE =
   'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 /** Accessible dialog: Esc to close, focus trap, focus restore, body scroll lock, GSAP entrance. */
-export const Modal: React.FC<ModalProps> = ({ open, onClose, title, description, children, footer, size = 'md', busy, className }) => {
+export const Modal: React.FC<ModalProps> = ({ open, onClose, title, kicker, description, children, footer, size = 'md', busy, className }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const titleId = React.useId();
@@ -98,16 +99,18 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, description,
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          'bg-white w-full rounded-t-3xl sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-200/90 max-h-[92vh] flex flex-col focus:outline-none overflow-hidden',
+          'bg-white w-full rounded-t-3xl sm:rounded-3xl shadow-clinical-lg border border-slate-200 max-h-[92vh] flex flex-col focus:outline-none overflow-hidden',
           SIZES[size],
           className,
         )}
       >
-        <div className="flex items-start justify-between gap-3 px-6 py-4 bg-[#FFFFFF] border-b border-slate-200/90 shrink-0">
+        <div className="flex items-start justify-between gap-3 px-6 py-4 bg-white border-b border-slate-200/80 shrink-0">
           <div className="min-w-0">
-            <span className="block font-mono text-[10px] uppercase tracking-widest text-teal-600 font-bold mb-0.5">
-              AETHER // DIALOG TERMINAL
-            </span>
+            {kicker && (
+              <span className="block text-[11px] uppercase tracking-wider text-teal-700 font-semibold mb-0.5">
+                {kicker}
+              </span>
+            )}
             <h2 id={titleId} className="text-base sm:text-lg font-display font-bold text-slate-900 tracking-tight">
               {title}
             </h2>
@@ -118,14 +121,14 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, description,
             onClick={onClose}
             disabled={busy}
             aria-label="Đóng"
-            className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-900 hover:border-slate-300 disabled:opacity-40 cursor-pointer transition"
+            className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 disabled:opacity-40 cursor-pointer transition"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="px-6 py-5 overflow-y-auto flex-1">{children}</div>
+        <div className="px-6 py-5 overflow-y-auto flex-1 scrollbar-clinical">{children}</div>
         {footer && (
-          <div className="px-6 py-3.5 border-t border-slate-200/90 bg-[#FFFFFF] flex flex-wrap justify-end gap-2.5 shrink-0">
+          <div className="px-6 py-3.5 border-t border-slate-200/80 bg-white flex flex-wrap justify-end gap-2.5 shrink-0">
             {footer}
           </div>
         )}

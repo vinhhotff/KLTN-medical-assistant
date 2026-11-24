@@ -3,7 +3,7 @@ import { AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 /** Shared look for the login + register forms (white inputs, text-sm, sentence-case labels). */
 export const authInput =
-  'w-full py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-600 transition';
+  'w-full py-3 bg-white border border-slate-300 hover:border-slate-400 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition';
 
 export const AuthLabel: React.FC<{ htmlFor?: string; required?: boolean; children: React.ReactNode }> = ({ htmlFor, required, children }) => (
   <label htmlFor={htmlFor} className="block text-sm font-semibold text-slate-800 mb-1.5">
@@ -104,7 +104,7 @@ export const SubmitButton: React.FC<{ disabled: boolean; loading: boolean; loadi
     type="submit"
     disabled={disabled}
     title={title}
-    className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-display text-sm font-bold transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+    className="w-full py-3 bg-teal-600 hover:bg-teal-700 active:scale-[0.98] text-white rounded-xl font-display text-sm font-semibold transition-all shadow-clinical-sm hover:shadow-clinical-md flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2 disabled:bg-slate-100 disabled:text-slate-400 disabled:border disabled:border-slate-200 disabled:shadow-none disabled:scale-100 disabled:cursor-not-allowed"
   >
     {loading ? (
       <>

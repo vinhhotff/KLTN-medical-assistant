@@ -67,19 +67,19 @@ export const DoctorLayout: React.FC = () => {
         Chờ thẩm định CCHN
       </Link>
     ) : (
-      <span className="text-xs text-slate-400">Đang kiểm tra…</span>
+      <span className="text-xs text-slate-500">Đang kiểm tra…</span>
     );
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
       <EmailVerificationBanner />
 
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+      <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-clinical-sm sticky top-0 z-30">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-20 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6 min-w-0">
             <button
               type="button"
-              className="md:hidden p-2 -ml-2 rounded-lg border border-slate-200 bg-white text-slate-800 hover:bg-slate-100 cursor-pointer"
+              className="md:hidden p-2 -ml-2 rounded-lg border border-slate-200 bg-white text-slate-800 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 cursor-pointer"
               aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'}
               aria-expanded={menuOpen}
               aria-controls="doctor-mobile-menu"
@@ -89,7 +89,7 @@ export const DoctorLayout: React.FC = () => {
             </button>
 
             <Link to="/doctor" className="flex items-center gap-2.5 shrink-0">
-              <span className="w-9 h-9 rounded-lg bg-teal-700 text-white flex items-center justify-center">
+              <span className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-clinical-sm">
                 <Stethoscope className="w-5 h-5" aria-hidden />
               </span>
               <span className="leading-tight">

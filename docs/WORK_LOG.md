@@ -7,6 +7,57 @@
 
 ---
 
+## [2026-11-24 12:35:07] - CHUẨN HÓA DESIGN SYSTEM "AETHER CLINICAL PRECISION" TOÀN HỆ THỐNG FRONTEND
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 12:35:07
+- **Tiêu đề:** Chuẩn hóa toàn bộ hệ thống Design System **"Aether Clinical Precision"** (Design Tokens, UI Primitives, Auth/Landing, Portals, Patient & Doctor Workstation).
+
+### 2. Danh Sách Tệp Tin
+- `[NEW]` `frontend/src/components/ui/SkeletonLoader.tsx`
+- `[MOD]` `frontend/tailwind.config.js`
+- `[MOD]` `frontend/src/index.css`
+- `[MOD]` `frontend/index.html`
+- `[MOD]` `frontend/src/components/ui/Button.tsx`
+- `[MOD]` `frontend/src/components/ui/Field.tsx`
+- `[MOD]` `frontend/src/components/ui/Modal.tsx`
+- `[MOD]` `frontend/src/components/ui/States.tsx`
+- `[MOD]` `frontend/src/components/ui/Toast.tsx`
+- `[MOD]` `frontend/src/components/ui/index.ts`
+- `[MOD]` `frontend/src/components/auth/authUi.tsx`
+- `[MOD]` `frontend/src/components/auth/AuthCard.tsx`
+- `[MOD]` `frontend/src/components/common/NotificationBell.tsx`
+- `[MOD]` `frontend/src/layouts/PatientLayout.tsx`
+- `[MOD]` `frontend/src/layouts/DoctorLayout.tsx`
+- `[MOD]` `frontend/src/layouts/AdminLayout.tsx`
+- `[MOD]` `frontend/src/pages/LoginPage.tsx`
+- `[MOD]` `frontend/src/pages/LandingPage.tsx`
+- `[MOD]` `frontend/src/pages/patient/PatientDashboard.tsx`
+- `[MOD]` `frontend/src/pages/doctor/DoctorDashboard.tsx`
+- `[MOD]` `docs/WORK_LOG.md`
+
+### 3. Tài Liệu Đã Đồng Bộ
+- `[MOD]` `docs/WORK_LOG.md` (Bản ghi kiểm duyệt chuẩn hóa Frontend Design System; không phát sinh thay đổi DB schema hoặc backend API endpoint).
+
+### 4. Bằng Chứng Kiểm Thử
+- **Frontend Production Build (`npm run build` trong `frontend/`):** Exit `0`, **0 lỗi TypeScript**, Vite build 2.326 modules thành công (5.85s).
+- **Live Frontend Preview (`http://localhost:5173/`):** Phản hồi HTTP `200`.
+- **Playwright E2E Suite (10 specs / 59 tests trên production preview `http://localhost:5173`):**
+  - Chạy tổng thể 8 workers: **54/59 PASS**.
+  - `e2e/doctor-encounter.spec.ts` chạy tuần tự (`--workers=1`): **3/3 PASS** (confirm 1 case race timing trong lần chạy song song 8 workers không phải lỗi UI).
+  - Các case E2E còn lại fail do **điều kiện môi trường preview hoặc mismatch có sẵn từ upstream trước bản sửa UI** (không phải regression):
+    1. `auth.spec.ts:22` (`demo presets are available in dev`): Preview dùng bản production build nên `import.meta.env.DEV === false` (`[data-testid="demo-presets"]` vẫn nguyên vẹn trong `LoginPage.tsx`); chạy Vite dev server trên worktree bị giới hạn bởi symlink junction `node_modules` (`esbuildOutputFromId`).
+    2. `auth.spec.ts:47` (`forgot password calls the API`): `LoginPage.tsx` trên `HEAD` vốn link `<Link to="/forgot-password">` thay vì mở modal như kỳ vọng cũ của spec.
+    3. `admin-actions.spec.ts:62,70` (`Doctor profile`): `DoctorProfilePage.tsx` (không sửa trong phiên này) gọi `GET /doctors/me/profile` trước fallback `/doctors/${user.id}`, không khớp override cũ trong spec.
+- **Env Safety Check:** `powershell -ExecutionPolicy Bypass -File scripts/sync-local-env.ps1 -Action Sync` thành công; giữ nguyên `.env*` và cấu hình cục bộ.
+
+### 5. Điểm Nóng Tech Lead Cần Review
+- **Phân tách Thương hiệu & AI Accent (Clinical Teal + AI Indigo):** Hợp nhất `brand` sang Clinical Teal (`#0D9488`) trên toàn bộ CTA, focus ring, navigation và logo; tách riêng `ai` Indigo (`#4F46E5`) làm điểm nhấn ngữ nghĩa cho tính năng Trợ lý Triệu chứng AI & Phân tích AI.
+- **Chuẩn hóa Spacing, Elevation & WCAG AA+ Contrast:** Bổ sung `shadow-clinical-sm/md/lg`, `SkeletonLoader` (`skeleton-shimmer` tôn trọng `prefers-reduced-motion`), `.scrollbar-clinical`, nâng độ tương phản chữ/badge trên `LandingPage.tsx`, `AdminLayout.tsx` (nền tối) và `PatientDashboard.tsx` / `States.tsx` (`text-slate-500`/`600`).
+- **Tối ưu Ergonomics Bàn Khám Bác Sĩ & Thanh Lọc Copy Kỹ Thuật:** Loại bỏ toàn bộ chuỗi dev-template (`AETHER // DIALOG TERMINAL`, `BIO-CARE OBSERVATORY`, `BIO-SECURITY VAULT`, `01 //..05 //`), tắt `animate-bounce`/`animate-pulse` gây mỏi mắt trên cảnh báo Allergy/DDI trong Split-Screen Workstation mà vẫn bảo toàn nguyên vẹn `<MedicalDisclaimerBanner dismissible={false} />` và mọi E2E selector.
+
+---
+
 ## [2026-11-24 11:33:01] - XỬ LÝ TOÀN DIỆN CÁC ĐIỂM NÓNG ISSUES TỪ REPORT 3 (PROJECT TRACKING)
 
 ### 1. Thời Gian & Tiêu Đề

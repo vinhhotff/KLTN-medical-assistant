@@ -65,24 +65,24 @@ export const NotificationBell: React.FC = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+        className="relative p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 transition-colors cursor-pointer"
         title="Thông báo hệ thống"
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white animate-pulse">
+          <span className="absolute top-1 right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-white animate-pulse">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white shadow-2xl border border-slate-100 py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-          <div className="flex items-center justify-between px-4 pb-2 border-b border-slate-100">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white shadow-clinical-lg border border-slate-200 py-3 z-50 animate-scaleUp">
+          <div className="flex items-center justify-between px-4 pb-2.5 border-b border-slate-200/80">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-800 text-sm">Thông Báo</span>
+              <span className="font-semibold text-slate-900 text-sm">Thông Báo</span>
               {unreadCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-600">
+                <span className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200/80">
                   {unreadCount} mới
                 </span>
               )}
@@ -90,7 +90,7 @@ export const NotificationBell: React.FC = () => {
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 transition-colors"
+                className="text-xs text-teal-700 hover:text-teal-800 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 Đã đọc tất cả
@@ -98,9 +98,9 @@ export const NotificationBell: React.FC = () => {
             )}
           </div>
 
-          <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
+          <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 scrollbar-clinical">
             {notifications.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-xs">
+              <div className="py-8 text-center text-slate-500 text-xs">
                 Không có thông báo nào
               </div>
             ) : (
@@ -109,17 +109,17 @@ export const NotificationBell: React.FC = () => {
                   key={n.id}
                   onClick={() => !n.isRead && handleMarkAsRead(n.id, { stopPropagation: () => {} } as any)}
                   className={`p-3.5 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 ${
-                    !n.isRead ? 'bg-blue-50/40' : ''
+                    !n.isRead ? 'bg-teal-50/50' : ''
                   }`}
                 >
                   <div className="mt-0.5 shrink-0">
                     <span
                       className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-semibold ${
                         n.type.includes('APPROVED')
-                          ? 'bg-emerald-100 text-emerald-700'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
                           : n.type.includes('REJECTED') || n.type.includes('ALERT')
-                          ? 'bg-rose-100 text-rose-700'
-                          : 'bg-blue-100 text-blue-700'
+                          ? 'bg-rose-50 text-rose-700 border border-rose-200/80'
+                          : 'bg-teal-50 text-teal-700 border border-teal-200/80'
                       }`}
                     >
                       <AlertCircle className="w-4 h-4" />
@@ -134,7 +134,7 @@ export const NotificationBell: React.FC = () => {
                         <button
                           onClick={(e) => handleMarkAsRead(n.id, e)}
                           title="Đánh dấu đã đọc"
-                          className="text-slate-400 hover:text-slate-600 p-0.5"
+                          className="text-slate-500 hover:text-slate-800 p-0.5 cursor-pointer"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -143,7 +143,7 @@ export const NotificationBell: React.FC = () => {
                     <p className="text-[11px] text-slate-600 line-clamp-2 mt-0.5 leading-relaxed">
                       {n.message}
                     </p>
-                    <p className="text-[10px] text-slate-400 mt-1">
+                    <p className="text-[11px] text-slate-500 mt-1">
                       {new Date(n.createdAt).toLocaleString('vi-VN')}
                     </p>
                   </div>

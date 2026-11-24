@@ -1,11 +1,11 @@
 import colors from 'tailwindcss/colors.js';
 
 /**
- * MEDIASSIST CLINICAL PALETTE (Stitch redesign, 2026-11)
- * - Cool neutral canvas: Tailwind `slate` (no remap) — page bg slate-50, cards white, hairlines slate-200
- * - Patient accent: `indigo` (`brand`) — triage, booking, profile, history
- * - Doctor / document accent: real Tailwind `teal`
- * - Admin chrome: slate-900 sidebar + indigo accent
+ * MEDIASSIST CLINICAL PALETTE ("Aether Clinical Precision", 2026-11)
+ * - Cool neutral canvas: Tailwind `slate` — page bg #F8FAFC, cards #FFFFFF, subtle #F1F5F9
+ * - Core hospital brand accent: Clinical `teal` (#0D9488)
+ * - AI Triage / Vision OCR sub-accent: `ai` (`indigo`)
+ * - Admin chrome: slate-900 sidebar + teal accent
  * - Safety: `rose` for red-flag / emergency, `amber` for the medical disclaimer and warnings
  */
 
@@ -19,12 +19,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: colors.indigo,
+        brand: colors.teal,
+        ai: colors.indigo,
         neutral: colors.slate,
         success: colors.emerald,
         warning: colors.amber,
         danger: colors.rose,
-        info: colors.violet,
+        info: colors.indigo,
         vermilion: {
           50: '#FFF2EE',
           100: '#FFE1D6',
@@ -36,18 +37,20 @@ export default {
         primary: colors.slate[900],
         "on-primary": '#FFFFFF',
         "primary-container": colors.slate[800],
-        "primary-fixed": colors.indigo[100],
+        "primary-fixed": colors.teal[100],
         "on-primary-fixed": colors.slate[900],
 
-        secondary: colors.indigo[600],
+        secondary: colors.teal[600],
         "on-secondary": '#FFFFFF',
-        "secondary-container": colors.indigo[100],
-        "on-secondary-container": colors.indigo[800],
-        "secondary-fixed": colors.indigo[200],
-        "secondary-fixed-dim": colors.indigo[300],
-        "on-secondary-fixed": colors.indigo[950],
+        "secondary-container": colors.teal[100],
+        "on-secondary-container": colors.teal[800],
+        "secondary-fixed": colors.teal[200],
+        "secondary-fixed-dim": colors.teal[300],
+        "on-secondary-fixed": colors.teal[950],
 
         surface: colors.slate[50],
+        "surface-card": '#FFFFFF',
+        "surface-subtle": colors.slate[100],
         "surface-variant": colors.slate[200],
         "surface-container-lowest": '#FFFFFF',
         "surface-container-low": colors.slate[100],
@@ -55,6 +58,7 @@ export default {
         "surface-container-high": colors.slate[200],
         "on-surface": colors.slate[900],
         "on-surface-variant": colors.slate[600],
+        "on-surface-muted": colors.slate[500],
         outline: colors.slate[500],
         "outline-variant": colors.slate[300],
 
@@ -83,6 +87,12 @@ export default {
         code: ["'JetBrains Mono'", "monospace"],
       },
       fontSize: {
+        "display": ["36px", { lineHeight: "44px", letterSpacing: "-0.025em", fontWeight: "700" }],
+        "h1": ["28px", { lineHeight: "36px", letterSpacing: "-0.02em", fontWeight: "700" }],
+        "h2": ["22px", { lineHeight: "28px", letterSpacing: "-0.015em", fontWeight: "600" }],
+        "h3": ["18px", { lineHeight: "24px", letterSpacing: "-0.01em", fontWeight: "600" }],
+        "body": ["15px", { lineHeight: "24px", fontWeight: "400" }],
+        "caption": ["11px", { lineHeight: "16px", letterSpacing: "0.02em", fontWeight: "600" }],
         "display-lg": ["42px", { lineHeight: "52px", letterSpacing: "-0.02em", fontWeight: "700" }],
         "headline-lg": ["30px", { lineHeight: "38px", letterSpacing: "-0.018em", fontWeight: "700" }],
         "headline-md": ["24px", { lineHeight: "32px", letterSpacing: "-0.015em", fontWeight: "700" }],
@@ -109,6 +119,9 @@ export default {
         "md": "0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.05)",
         "lg": "0 10px 15px -3px rgba(15, 23, 42, 0.07), 0 4px 6px -4px rgba(15, 23, 42, 0.05)",
         "xl": "0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.05)",
+        "clinical-sm": "0 2px 8px -2px rgba(15, 23, 42, 0.04), 0 1px 4px -1px rgba(15, 23, 42, 0.02)",
+        "clinical-md": "0 12px 24px -4px rgba(15, 23, 42, 0.06), 0 4px 8px -2px rgba(15, 23, 42, 0.03)",
+        "clinical-lg": "0 24px 48px -12px rgba(15, 23, 42, 0.12)",
       },
       backdropBlur: {
         xs: "2px",

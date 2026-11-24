@@ -4,14 +4,49 @@ import { cn } from './cn';
 import { Button } from './Button';
 
 export const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
-  <div className={cn('animate-pulse rounded-lg bg-slate-200/90', className)} aria-hidden />
+  <div className={cn('skeleton-shimmer rounded-lg', className)} aria-hidden />
+);
+
+/** Skeleton card matching standard clinical surface cards. */
+export const SkeletonCard: React.FC<{ className?: string }> = ({ className }) => (
+  <div className={cn('bg-white rounded-2xl p-6 border border-slate-200/80 shadow-clinical-sm space-y-4', className)} aria-hidden>
+    <div className="flex items-center gap-4">
+      <Skeleton className="w-14 h-14 rounded-xl shrink-0" />
+      <div className="flex-1 space-y-2 min-w-0">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-3 w-1/2" />
+      </div>
+    </div>
+    <Skeleton className="h-3 w-full" />
+    <Skeleton className="h-10 w-full rounded-xl" />
+  </div>
+);
+
+const GRID_COLS: Record<2 | 3 | 4, string> = {
+  2: 'grid-cols-1 md:grid-cols-2',
+  3: 'grid-cols-1 md:grid-cols-3',
+  4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+};
+
+/** Responsive grid of SkeletonCards for directory and listing loaders. */
+export const SkeletonCardGrid: React.FC<{ count?: number; columns?: 2 | 3 | 4; className?: string }> = ({
+  count = 6,
+  columns = 3,
+  className,
+}) => (
+  <div className={cn('grid gap-6', GRID_COLS[columns], className)} role="status" aria-label="Đang tải">
+    {Array.from({ length: count }, (_, i) => (
+      <SkeletonCard key={i} />
+    ))}
+  </div>
 );
 
 /** Stacked skeleton rows for list loading states. */
 export const SkeletonList: React.FC<{ rows?: number; className?: string }> = ({ rows = 3, className }) => (
   <div className={cn('space-y-3', className)} role="status" aria-label="Đang tải">
     {Array.from({ length: rows }, (_, i) => (
-      <div key={i} className="p-5 rounded-2xl border border-slate-300 bg-[#FFFFFF] shadow-xs space-y-2.5">
+      <div key={i} className="p-5 rounded-2xl border border-slate-200/80 bg-white shadow-clinical-sm space-y-2.5">
         <Skeleton className="h-4 w-1/3" />
         <Skeleton className="h-3 w-2/3" />
         <Skeleton className="h-3 w-1/2" />
@@ -25,7 +60,7 @@ export const SkeletonTable: React.FC<{ rows?: number; cols?: number; className?:
   <div className={cn('p-5 space-y-3', className)} role="status" aria-label="Đang tải" data-testid="skeleton-table">
     <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
       {Array.from({ length: cols }, (_, c) => (
-        <Skeleton key={c} className="h-3 w-2/3 bg-slate-300/80" />
+        <Skeleton key={c} className="h-3 w-2/3" />
       ))}
     </div>
     {Array.from({ length: rows }, (_, r) => (
@@ -47,8 +82,8 @@ interface EmptyStateProps {
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ title, description, icon, action, className }) => (
-  <div className={cn('py-12 px-6 text-center border-2 border-dashed border-slate-300 rounded-3xl bg-[#FFFFFF]/90 bg-atelier-dots', className)}>
-    <div className="mx-auto w-14 h-14 rounded-2xl bg-slate-900 text-[#F8FAFC] flex items-center justify-center mb-3.5 shadow-sm">
+  <div className={cn('py-12 px-6 text-center border border-dashed border-slate-300 rounded-2xl bg-white', className)}>
+    <div className="mx-auto w-12 h-12 rounded-xl bg-teal-50 text-teal-700 border border-teal-100 flex items-center justify-center mb-3.5">
       {icon ?? <Inbox className="w-6 h-6" aria-hidden />}
     </div>
     <p className="font-display font-bold text-slate-900 text-base tracking-tight">{title}</p>
@@ -67,7 +102,7 @@ interface ErrorStateProps {
 export const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry, retrying, className }) => (
   <div
     role="alert"
-    className={cn('p-4 rounded-2xl border-2 border-rose-300 bg-rose-50/90 flex flex-col sm:flex-row sm:items-center gap-3 shadow-xs', className)}
+    className={cn('p-4 rounded-2xl border border-rose-200 bg-rose-50/90 flex flex-col sm:flex-row sm:items-center gap-3 shadow-clinical-sm', className)}
   >
     <div className="flex items-start gap-2.5 flex-1 text-sm font-medium text-rose-900">
       <AlertTriangle className="w-5 h-5 shrink-0 text-rose-600" aria-hidden />
@@ -83,12 +118,12 @@ export const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry, retryi
 
 type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'teal';
 const BADGE: Record<BadgeTone, string> = {
-  neutral: 'bg-slate-200/80 text-slate-800 border-slate-300',
-  success: 'bg-emerald-100/80 text-emerald-900 border-emerald-300',
-  warning: 'bg-amber-100/80 text-amber-900 border-amber-300',
-  danger: 'bg-rose-100/80 text-rose-900 border-rose-300',
-  info: 'bg-violet-100/80 text-violet-900 border-violet-300',
-  teal: 'bg-teal-100/80 text-teal-900 border-teal-300',
+  neutral: 'bg-slate-100 text-slate-700 border-slate-200',
+  success: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  warning: 'bg-amber-50 text-amber-800 border-amber-200',
+  danger: 'bg-rose-50 text-rose-800 border-rose-200',
+  info: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+  teal: 'bg-teal-50 text-teal-800 border-teal-200',
 };
 
 export const Badge: React.FC<{ tone?: BadgeTone; className?: string; children: React.ReactNode }> = ({
@@ -96,14 +131,14 @@ export const Badge: React.FC<{ tone?: BadgeTone; className?: string; children: R
   className,
   children,
 }) => (
-  <span className={cn('inline-flex items-center gap-1 px-2.5 py-0.5 font-mono text-[11px] font-bold tracking-tight rounded-md border', BADGE[tone], className)}>
+  <span className={cn('inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold tracking-tight rounded-lg border', BADGE[tone], className)}>
     {children}
   </span>
 );
 
 /** Inline "missing data" marker: "—" plus a muted label (e.g. "Chưa đo", "Chưa cập nhật"). */
 export const Missing: React.FC<{ label?: string; className?: string }> = ({ label = 'Chưa cập nhật', className }) => (
-  <span className={cn('text-slate-400 font-normal font-mono', className)} data-missing>
+  <span className={cn('text-slate-500 font-normal font-mono', className)} data-missing>
     — <span className="text-[11px] italic font-sans">{label}</span>
   </span>
 );

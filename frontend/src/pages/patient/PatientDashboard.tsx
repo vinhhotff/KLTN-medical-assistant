@@ -31,7 +31,7 @@ import { Pagination } from '../../components/common/Pagination';
 import { DoctorReviewModal } from '../../components/common/DoctorReviewModal';
 import { AdmissionTicketModal } from '../../components/patient/AdmissionTicketModal';
 import { SlotPicker, slotStart, type DoctorSlot } from '../../components/booking/SlotPicker';
-import { Button, ErrorState, Missing, Modal, useToast } from '../../components/ui';
+import { Button, ErrorState, Missing, Modal, SkeletonList, useToast } from '../../components/ui';
 import { VitalValue } from '../../components/clinical/VitalValue';
 import { hasVital, parseStoredVitals } from '../../utils/vitals';
 import { datePart, todayLocal } from '../../utils/date';
@@ -425,38 +425,38 @@ export const PatientDashboard: React.FC = () => {
     <div ref={rootRef} className="space-y-8">
       {loadError && <ErrorState message={loadError} onRetry={loadData} retrying={loading} />}
 
-      {/* Aether Bio-Atelier Hero Observatory — Light Clinical Palette */}
-      <div className="gsap-patient-block bg-white rounded-3xl p-6 sm:p-8 text-slate-900 border border-slate-200/90 shadow-[0_10px_35px_rgba(0,0,0,0.03)] relative overflow-hidden">
+      {/* Clinical Hero Observatory */}
+      <div className="gsap-patient-block bg-white rounded-2xl p-6 sm:p-8 text-slate-900 border border-slate-200/80 shadow-clinical-sm relative overflow-hidden">
         <div className="max-w-3xl relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 border border-teal-200 font-mono text-[11px] uppercase tracking-widest text-teal-800 font-bold mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 border border-teal-200 text-xs text-teal-800 font-semibold mb-3">
             <Activity className="w-3.5 h-3.5 text-teal-600" />
-            <span>BIO-CARE OBSERVATORY // HOSPITAL PATIENT PORTAL</span>
+            <span>Hồ Sơ Sức Khỏe Điện Tử (EMR)</span>
           </div>
-          <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-slate-900">
+          <h1 className="font-display text-h1 sm:text-display font-bold tracking-tight text-slate-900">
             Quản Lý Hồ Sơ Bệnh Án &amp;{' '}
             <span className="font-bold text-teal-600">Chăm Sóc Sức Khỏe Toàn Diện</span>
           </h1>
-          <p className="mt-2.5 text-slate-600 text-sm md:text-base leading-relaxed">
+          <p className="mt-2.5 text-slate-600 text-sm sm:text-body leading-relaxed">
             Hệ thống Bệnh án Điện tử (EMR) chuẩn hóa Bộ Y Tế. Theo dõi kết quả xét nghiệm, lịch sử thăm khám, dấu hiệu sinh tồn và đơn thuốc ngoại trú minh bạch.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               to="/patient/triage"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-teal-600 text-white font-display font-bold text-xs sm:text-sm shadow-md shadow-teal-600/20 hover:bg-teal-700 transition"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 text-white font-display font-semibold text-xs sm:text-sm shadow-clinical-sm hover:shadow-clinical-md hover:bg-teal-700 active:scale-[0.98] transition"
             >
               <MessageSquare className="w-4 h-4 text-teal-100" />
               Khám Sàng Lọc AI
             </Link>
             <Link
               to="/patient/doctors"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#FFFFFF] border border-slate-200/90 text-slate-800 font-display font-bold text-xs sm:text-sm hover:bg-slate-100/80 transition shadow-2xs"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-800 font-display font-semibold text-xs sm:text-sm hover:border-teal-300 hover:bg-slate-50 transition shadow-clinical-sm active:scale-[0.98]"
             >
               <Calendar className="w-4 h-4 text-teal-600" />
               Đặt Lịch Bác Sĩ
             </Link>
             <Link
               to="/patient/documents"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#FFFFFF] border border-slate-200/90 text-slate-800 font-display font-bold text-xs sm:text-sm hover:bg-slate-100/80 transition shadow-2xs"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-800 font-display font-semibold text-xs sm:text-sm hover:border-teal-300 hover:bg-slate-50 transition shadow-clinical-sm active:scale-[0.98]"
             >
               <UploadCloud className="w-4 h-4 text-teal-600" />
               Quét Phiếu Xét Nghiệm
@@ -487,18 +487,18 @@ export const PatientDashboard: React.FC = () => {
       )}
 
       {/* PATIENT MEDICAL PASSPORT & EMR IDENTITY CARD */}
-      <div className="gsap-patient-block bg-[#FFFFFF] rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
-        <div className="bg-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-900 border-b border-slate-200/90">
+      <div className="gsap-patient-block bg-white rounded-2xl border border-slate-200/80 shadow-clinical-sm overflow-hidden">
+        <div className="bg-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-900 border-b border-slate-200/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-teal-600 flex items-center justify-center font-bold text-white shadow-md shadow-teal-600/20">
+            <div className="w-10 h-10 rounded-xl bg-teal-600 flex items-center justify-center font-bold text-white shadow-clinical-sm">
               <Heart className="w-5 h-5 text-white" />
             </div>
             <div>
-              <div className="font-mono text-[10px] uppercase tracking-widest text-teal-700 font-bold">
+              <div className="text-[11px] uppercase tracking-wide text-teal-700 font-semibold">
                 Thẻ Bệnh Án Điện Tử &amp; Căn Cước Y Tế (EMR Medical Passport)
               </div>
               <div className="font-display text-lg font-bold">
-                Mã Bệnh Nhân: {profile?.patientCode ? <span className="font-mono text-emerald-700 font-bold">{profile.patientCode}</span> : <span className="text-sm font-normal text-slate-400 italic">Chưa được cấp</span>}
+                Mã Bệnh Nhân: {profile?.patientCode ? <span className="font-mono text-emerald-700 font-bold">{profile.patientCode}</span> : <span className="text-sm font-normal text-slate-500 italic">Chưa được cấp</span>}
               </div>
             </div>
           </div>
@@ -507,7 +507,7 @@ export const PatientDashboard: React.FC = () => {
               setEditForm({ fullName: user?.fullName || '', phone: user?.phone || '', ...(profile || {}) });
               setIsEditProfileOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100/80 font-display text-xs font-bold text-teal-800 border border-teal-200/80 transition cursor-pointer self-start sm:self-auto shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100/80 font-display text-xs font-semibold text-teal-800 border border-teal-200/80 transition cursor-pointer self-start sm:self-auto shadow-2xs"
           >
             <Edit3 className="w-3.5 h-3.5 text-teal-600" />
             Cập Nhật Hồ Sơ Y Tế
@@ -517,36 +517,36 @@ export const PatientDashboard: React.FC = () => {
         <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Col 1: Identity */}
           <div className="space-y-3 border-b md:border-b-0 md:border-r border-slate-100 pb-4 md:pb-0 md:pr-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Thông Tin Định Danh Y Tế</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">Thông Tin Định Danh Y Tế</h4>
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-500">Họ và Tên:</span>
+                <span className="text-slate-600">Họ và Tên:</span>
                 <span className="font-bold text-slate-900">{profile?.fullName || user?.fullName || 'Chưa cập nhật'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Số Điện Thoại:</span>
+                <span className="text-slate-600">Số Điện Thoại:</span>
                 {profile?.phone || user?.phone ? (
                   <span className="font-mono font-medium text-slate-800">{profile?.phone || user?.phone}</span>
                 ) : (
-                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                     Chưa bổ sung
                   </span>
                 )}
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-500">Số CCCD (12 số):</span>
+                <span className="text-slate-600">Số CCCD (12 số):</span>
                 {profile?.citizenId ? (
                   <span className="font-mono font-medium text-slate-800">{profile.citizenId}</span>
                 ) : (
-                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                     Chưa bổ sung
                   </span>
                 )}
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Số Thẻ BHYT:</span>
+                <span className="text-slate-600">Số Thẻ BHYT:</span>
                 {profile?.healthInsuranceNumber ? (
-                  <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                  <span className="font-mono font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
                     {profile.healthInsuranceNumber}
                   </span>
                 ) : (
@@ -554,7 +554,7 @@ export const PatientDashboard: React.FC = () => {
                 )}
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Ngày sinh / Giới tính:</span>
+                <span className="text-slate-600">Ngày sinh / Giới tính:</span>
                 <span className="font-medium text-slate-800">
                   {profile?.dateOfBirth ? new Date(`${profile.dateOfBirth}T00:00:00`).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
                   {' · '}
@@ -562,13 +562,13 @@ export const PatientDashboard: React.FC = () => {
                 </span>
               </div>
               <div className="flex justify-between items-center pt-1">
-                <span className="text-slate-500">Nhóm Máu:</span>
+                <span className="text-slate-600">Nhóm Máu:</span>
                 {profile?.bloodGroup ? (
                   <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
                     {profile.bloodGroup}
                   </span>
                 ) : (
-                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                     Chưa bổ sung
                   </span>
                 )}
@@ -578,19 +578,19 @@ export const PatientDashboard: React.FC = () => {
 
           {/* Col 2: Allergies & History */}
           <div className="space-y-3 border-b md:border-b-0 md:border-r border-slate-100 pb-4 md:pb-0 md:pr-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Cảnh Báo Lâm Sàng & Tiền Sử</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">Cảnh Báo Lâm Sàng & Tiền Sử</h4>
             {/* Red Alert Allergies Guard */}
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
               <div className="flex items-center gap-1.5 text-rose-800 text-xs font-bold uppercase">
                 <ShieldAlert className="w-4 h-4 text-rose-600" /> Cảnh Báo Dị Ứng Thuốc & Thức Ăn
               </div>
               <p className="text-xs text-rose-700 font-semibold leading-relaxed">
-                {profile?.allergies || <span className="font-normal italic text-slate-500">Chưa khai báo dị ứng. Hãy cập nhật nếu bạn từng dị ứng thuốc hoặc thực phẩm.</span>}
+                {profile?.allergies || <span className="font-normal italic text-slate-600">Chưa khai báo dị ứng. Hãy cập nhật nếu bạn từng dị ứng thuốc hoặc thực phẩm.</span>}
               </p>
             </div>
             <div className="text-xs text-slate-600 space-y-1">
-              <span className="text-slate-400 font-semibold">Tiền Sử Bệnh Lý:</span>
-              <p className="font-medium text-slate-800 bg-slate-50 p-2 rounded-lg border border-slate-100">
+              <span className="text-slate-600 font-semibold">Tiền Sử Bệnh Lý:</span>
+              <p className="font-medium text-slate-800 bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
                 {profile?.medicalHistory || <span className="font-normal italic text-slate-500">Chưa cập nhật</span>}
               </p>
             </div>
@@ -598,17 +598,17 @@ export const PatientDashboard: React.FC = () => {
 
           {/* Col 3: Address & Emergency Contact */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Địa Chỉ & Liên Hệ Khẩn Cấp</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">Địa Chỉ & Liên Hệ Khẩn Cấp</h4>
             <div className="space-y-2 text-xs">
               <div>
-                <span className="text-slate-400 font-semibold">Địa Chỉ Thường Trú:</span>
+                <span className="text-slate-600 font-semibold">Địa Chỉ Thường Trú:</span>
                 <p className="text-slate-800 font-medium mt-0.5">
                   {profile?.address || <Missing />}
                 </p>
               </div>
-              <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-1">
-                <div className="flex items-center gap-1.5 text-indigo-900 font-bold">
-                  <Phone className="w-3.5 h-3.5 text-indigo-600" />
+              <div className="p-3 bg-teal-50/50 border border-teal-200/70 rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 text-teal-900 font-bold">
+                  <Phone className="w-3.5 h-3.5 text-teal-600" />
                   Người Thân Cấp Cứu 24/7:
                 </div>
                 {profile?.emergencyContactName || profile?.emergencyContactPhone ? (
@@ -618,7 +618,7 @@ export const PatientDashboard: React.FC = () => {
                       {profile.emergencyContactRelationship && ` (${profile.emergencyContactRelationship})`}
                     </div>
                     {profile.emergencyContactPhone ? (
-                      <a href={`tel:${profile.emergencyContactPhone.replace(/\s/g, '')}`} className="font-mono text-indigo-700 font-bold hover:underline">
+                      <a href={`tel:${profile.emergencyContactPhone.replace(/\s/g, '')}`} className="font-mono text-teal-700 font-bold hover:underline">
                         {profile.emergencyContactPhone}
                       </a>
                     ) : (
@@ -627,7 +627,7 @@ export const PatientDashboard: React.FC = () => {
                   </>
                 ) : (
                   <div className="space-y-1.5">
-                    <p className="text-slate-500 italic">Chưa cập nhật người liên hệ khẩn cấp.</p>
+                    <p className="text-slate-600 italic">Chưa cập nhật người liên hệ khẩn cấp.</p>
                     <button
                       type="button"
                       onClick={() => {
@@ -647,22 +647,22 @@ export const PatientDashboard: React.FC = () => {
       </div>
 
       {/* SECTION TABS: APPOINTMENTS, AI TRIAGE HISTORY, LAB DOCUMENTS */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-clinical-sm p-6">
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200 mb-6 gap-2 sm:gap-6 overflow-x-auto">
+        <div className="flex border-b border-slate-200 mb-6 gap-2 sm:gap-6 overflow-x-auto scrollbar-clinical">
           <button
             type="button"
             onClick={() => setActiveTab('appointments')}
-            className={`pb-3 text-xs sm:text-sm font-bold flex items-center gap-2 border-b-2 transition whitespace-nowrap cursor-pointer ${
+            className={`pb-3 text-xs sm:text-sm font-semibold flex items-center gap-2 border-b-2 transition whitespace-nowrap cursor-pointer ${
               activeTab === 'appointments'
-                ? 'border-indigo-600 text-indigo-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                ? 'border-teal-600 text-teal-800'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
             <Calendar className="w-4 h-4" />
             Lịch Khám & EMR Ngoại Trú
-            <span className={`px-2 py-0.5 rounded-full text-[11px] ${
-              activeTab === 'appointments' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-600'
+            <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+              activeTab === 'appointments' ? 'bg-teal-50 text-teal-800 border border-teal-200' : 'bg-slate-100 text-slate-600'
             }`}>
               {appointments.length}
             </span>
@@ -671,16 +671,16 @@ export const PatientDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('triage')}
-            className={`pb-3 text-xs sm:text-sm font-bold flex items-center gap-2 border-b-2 transition whitespace-nowrap cursor-pointer ${
+            className={`pb-3 text-xs sm:text-sm font-semibold flex items-center gap-2 border-b-2 transition whitespace-nowrap cursor-pointer ${
               activeTab === 'triage'
-                ? 'border-indigo-600 text-indigo-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                ? 'border-teal-600 text-teal-800'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
             <MessageSquare className="w-4 h-4" />
             Lịch Sử Phân Luồng AI
-            <span className={`px-2 py-0.5 rounded-full text-[11px] ${
-              activeTab === 'triage' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-600'
+            <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+              activeTab === 'triage' ? 'bg-teal-50 text-teal-800 border border-teal-200' : 'bg-slate-100 text-slate-600'
             }`}>
               {triageHistory.length}
             </span>
@@ -689,16 +689,16 @@ export const PatientDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('documents')}
-            className={`pb-3 text-xs sm:text-sm font-bold flex items-center gap-2 border-b-2 transition whitespace-nowrap cursor-pointer ${
+            className={`pb-3 text-xs sm:text-sm font-semibold flex items-center gap-2 border-b-2 transition whitespace-nowrap cursor-pointer ${
               activeTab === 'documents'
-                ? 'border-teal-600 text-teal-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                ? 'border-teal-600 text-teal-800'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
             <FileText className="w-4 h-4" />
             Hồ Sơ Xét Nghiệm Đã Quét
-            <span className={`px-2 py-0.5 rounded-full text-[11px] ${
-              activeTab === 'documents' ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-600'
+            <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+              activeTab === 'documents' ? 'bg-teal-50 text-teal-800 border border-teal-200' : 'bg-slate-100 text-slate-600'
             }`}>
               {documents.length}
             </span>
@@ -710,21 +710,21 @@ export const PatientDashboard: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-indigo-600" />
+                <Calendar className="w-5 h-5 text-teal-600" />
                 <h2 className="text-xl font-bold text-slate-900">Lịch Khám & Bệnh Án Ngoại Trú (HIS/EMR)</h2>
               </div>
               <Link
                 to="/patient/doctors"
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline"
+                className="text-xs font-semibold text-teal-700 hover:text-teal-800 hover:underline"
               >
                 + Đặt Lịch Mới
               </Link>
             </div>
 
             {loading ? (
-              <div className="py-12 text-center text-slate-400 text-sm">Đang tải lịch sử khám bệnh...</div>
+              <SkeletonList rows={3} />
             ) : appointments.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">
+              <div className="py-12 text-center text-slate-500 text-sm border border-dashed border-slate-200 rounded-2xl">
                 Bạn chưa có lịch hẹn khám nào. Hãy nhấn <strong>"Đặt Lịch Mới"</strong> để tìm bác sĩ chuyên khoa.
               </div>
             ) : (
@@ -739,15 +739,15 @@ export const PatientDashboard: React.FC = () => {
                   return (
                     <div
                       key={apt.id}
-                      className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-indigo-300 transition shadow-xs flex flex-col gap-4"
+                      className="p-5 rounded-2xl border border-slate-200/90 bg-white hover:border-teal-300/80 transition-all shadow-clinical-sm hover:shadow-clinical-md flex flex-col gap-4"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+                          <span className="font-mono text-xs font-bold text-teal-800 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200">
                             {apt.appointmentCode}
                           </span>
                           {apt.queueNumber && (
-                            <span className="font-mono text-xs font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                            <span className="font-mono text-xs font-extrabold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
                               {apt.queueNumber}
                             </span>
                           )}
@@ -756,7 +756,7 @@ export const PatientDashboard: React.FC = () => {
                           </span>
                         </div>
 
-                        <div className="text-xs text-slate-500 font-medium">
+                        <div className="text-xs text-slate-600 font-medium">
                           {new Date(apt.scheduledStart).toLocaleString('vi-VN', {
                             weekday: 'short',
                             year: 'numeric',
@@ -767,7 +767,7 @@ export const PatientDashboard: React.FC = () => {
                           })}
                           <Link
                             to={`/patient/appointments/${apt.id}`}
-                            className="ml-3 font-semibold text-indigo-700 underline underline-offset-2 hover:text-indigo-900"
+                            className="ml-3 font-semibold text-teal-700 underline underline-offset-2 hover:text-teal-900"
                           >
                             Xem chi tiết
                           </Link>
@@ -777,15 +777,15 @@ export const PatientDashboard: React.FC = () => {
                       {/* Doctor & Clinic Info */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
                         <div>
-                          <span className="text-slate-400 block font-semibold">Bác sĩ phụ trách:</span>
-                          <span className="font-bold text-slate-800 text-sm">{apt.doctorName}</span>
-                          <span className="text-slate-400 block text-[11px]">{apt.doctorEmail}</span>
+                          <span className="text-slate-500 block font-semibold">Bác sĩ phụ trách:</span>
+                          <span className="font-bold text-slate-900 text-sm">{apt.doctorName}</span>
+                          <span className="text-slate-500 block text-[11px]">{apt.doctorEmail}</span>
                         </div>
 
                         <div>
-                          <span className="text-slate-400 block font-semibold">Phòng khám / Cơ sở:</span>
+                          <span className="text-slate-500 block font-semibold">Phòng khám / Cơ sở:</span>
                           {apt.clinicRoom ? (
-                            <span className="font-semibold text-slate-700">{apt.clinicRoom}</span>
+                            <span className="font-semibold text-slate-800">{apt.clinicRoom}</span>
                           ) : (
                             <span className="text-slate-500 italic">Chưa xếp phòng — sẽ thông báo khi check-in</span>
                           )}
@@ -793,10 +793,10 @@ export const PatientDashboard: React.FC = () => {
                         </div>
 
                         <div>
-                          <span className="text-slate-400 block font-semibold">Phí dịch vụ & Trạng thái:</span>
+                          <span className="text-slate-500 block font-semibold">Phí dịch vụ & Trạng thái:</span>
                           <div className="flex items-center gap-2 mt-0.5">
                             {fee ? (
-                              <span className="font-bold text-indigo-600 text-sm">{fee}</span>
+                              <span className="font-bold text-teal-700 text-sm tabular-nums">{fee}</span>
                             ) : (
                               <span className="text-slate-500 italic">Chưa có phí</span>
                             )}
@@ -804,7 +804,7 @@ export const PatientDashboard: React.FC = () => {
                               className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                                 apt.paymentStatus === 'PAID'
                                   ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
-                                  : 'text-amber-700 bg-amber-50 border border-amber-200'
+                                  : 'text-amber-800 bg-amber-50 border border-amber-200'
                               }`}
                             >
                               {apt.paymentStatus === 'PAID' ? '✓ Đã Thanh Toán' : '● Chưa Thanh Toán'}
@@ -816,7 +816,7 @@ export const PatientDashboard: React.FC = () => {
                               onClick={() => handlePayAppointment(apt)}
                               disabled={payingApptId !== null || isUnverified}
                               title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
-                              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+                              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold transition shadow-clinical-sm cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:cursor-not-allowed"
                             >
                               <CreditCard className="w-3.5 h-3.5" />
                               <span>{payingApptId === apt.id ? 'Đang kết nối...' : 'Thanh Toán Online (Stripe)'}</span>
@@ -827,22 +827,22 @@ export const PatientDashboard: React.FC = () => {
 
                       {/* Chief Complaint if any */}
                       {apt.chiefComplaint && (
-                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-                          <span className="font-bold text-slate-600 block mb-0.5">Lý do khám bệnh:</span>
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-xs">
+                          <span className="font-bold text-slate-700 block mb-0.5">Lý do khám bệnh:</span>
                           <p className="text-slate-800 font-medium">{apt.chiefComplaint}</p>
                         </div>
                       )}
 
                       {/* EMR Highlights if completed */}
                       {isCompleted && (
-                        <div className="p-4 rounded-xl bg-indigo-50/60 border border-indigo-100/80 text-xs space-y-2">
-                          <div className="flex items-center justify-between text-indigo-900 font-bold">
+                        <div className="p-4 rounded-xl bg-teal-50/50 border border-teal-200/70 text-xs space-y-2">
+                          <div className="flex items-center justify-between text-teal-900 font-bold">
                             <span className="flex items-center gap-1">
-                              <Activity className="w-3.5 h-3.5 text-indigo-600" />
+                              <Activity className="w-3.5 h-3.5 text-teal-600" />
                               Chẩn Đoán Lâm Sàng & Đơn Thuốc Đã Kê
                             </span>
                             {apt.icd10Code && (
-                              <span className="font-mono bg-white px-2 py-0.5 rounded-md border border-indigo-200 text-indigo-700">
+                              <span className="font-mono bg-white px-2 py-0.5 rounded-md border border-teal-200 text-teal-800">
                                 ICD-10: {apt.icd10Code}
                               </span>
                             )}
@@ -850,7 +850,7 @@ export const PatientDashboard: React.FC = () => {
 
                           {apt.icd10Name && (
                             <p className="font-semibold text-slate-800">
-                              Bệnh lý: <span className="text-indigo-900">{apt.icd10Name}</span>
+                              Bệnh lý: <span className="text-teal-900">{apt.icd10Name}</span>
                             </p>
                           )}
 
@@ -862,19 +862,19 @@ export const PatientDashboard: React.FC = () => {
 
                           {/* Mini Vitals */}
                           {vitals && (
-                            <div className="flex flex-wrap gap-2 pt-1 border-t border-indigo-100/60 text-[11px]">
+                            <div className="flex flex-wrap gap-2 pt-1 border-t border-teal-200/50 text-[11px]">
                               {hasVital(vitals.bloodPressure) && (
-                                <span className="bg-white px-2 py-0.5 rounded border border-indigo-100">
+                                <span className="bg-white px-2 py-0.5 rounded-md border border-teal-100">
                                   Huyết áp: <strong>{vitals.bloodPressure}</strong> mmHg
                                 </span>
                               )}
                               {hasVital(vitals.heartRate) && (
-                                <span className="bg-white px-2 py-0.5 rounded border border-indigo-100">
+                                <span className="bg-white px-2 py-0.5 rounded-md border border-teal-100">
                                   Mạch: <strong>{vitals.heartRate}</strong> bpm
                                 </span>
                               )}
                               {hasVital(vitals.spO2) && (
-                                <span className="bg-white px-2 py-0.5 rounded border border-indigo-100">
+                                <span className="bg-white px-2 py-0.5 rounded-md border border-teal-100">
                                   SpO2: <strong>{vitals.spO2}%</strong>
                                 </span>
                               )}
@@ -890,7 +890,7 @@ export const PatientDashboard: React.FC = () => {
                                   setReviewingAppointment(apt);
                                   setReviewModalOpen(true);
                                 }}
-                                className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                                className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
                               >
                                 <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                                 <span>Đã Đánh Giá ({reviewsMap[apt.id].rating}★)</span>
@@ -902,7 +902,7 @@ export const PatientDashboard: React.FC = () => {
                                   setReviewingAppointment(apt);
                                   setReviewModalOpen(true);
                                 }}
-                                className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-clinical-sm cursor-pointer"
                               >
                                 <Star className="w-3.5 h-3.5 fill-white text-white" />
                                 <span>⭐ Đánh Giá Bác Sĩ</span>
@@ -912,7 +912,7 @@ export const PatientDashboard: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setSelectedEmrAppointment(apt)}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-clinical-sm cursor-pointer"
                             >
                               <FileText className="w-3.5 h-3.5" /> Xem Chi Tiết Bệnh Án EMR
                             </button>
@@ -922,7 +922,7 @@ export const PatientDashboard: React.FC = () => {
 
                       {/* Action Bar */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 text-xs">
-                        <span className="text-slate-400">
+                        <span className="text-slate-500">
                           {isScheduled ? 'Vui lòng có mặt trước 15 phút để làm thủ tục' : ''}
                         </span>
 
@@ -931,10 +931,10 @@ export const PatientDashboard: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setSelectedTicketAppointment(apt)}
-                              className="px-3 py-1.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                              className="px-3 py-1.5 text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
                               title="Xem phiếu khám điện tử có mã QR và số thứ tự"
                             >
-                              <QrCode className="w-3.5 h-3.5 text-indigo-600" />
+                              <QrCode className="w-3.5 h-3.5 text-teal-600" />
                               <span>📋 Xem Phiếu Khám</span>
                             </button>
                           )}
@@ -946,14 +946,14 @@ export const PatientDashboard: React.FC = () => {
                                 onClick={() => openReschedule(apt)}
                                 disabled={isUnverified}
                                 title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
-                                className="px-3 py-1.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-3 py-1.5 text-teal-700 hover:bg-teal-50 border border-teal-200 rounded-xl font-semibold transition flex items-center gap-1 cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-200 disabled:cursor-not-allowed"
                               >
                                 <Calendar className="w-3.5 h-3.5" /> Dời Lịch Hẹn
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleCancelAppointment(apt.id)}
-                                className="px-3 py-1.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer"
+                                className="px-3 py-1.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl font-semibold transition flex items-center gap-1 cursor-pointer"
                               >
                                 <Ban className="w-3.5 h-3.5" /> Hủy Lịch Khám
                               </button>
@@ -965,7 +965,7 @@ export const PatientDashboard: React.FC = () => {
                   );
                 })}
 
-                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-clinical-sm">
                   <Pagination
                     currentPage={appointmentsPage}
                     totalItems={appointments.length}
@@ -990,38 +990,38 @@ export const PatientDashboard: React.FC = () => {
                   <MessageSquare className="w-5 h-5 text-indigo-600" />
                   <h2 className="text-xl font-bold text-slate-900">Lịch Sử Khám Sàng Lọc & Phân Luồng AI</h2>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-600 mt-1">
                   Nhật ký các lần trợ lý AI phân tích triệu chứng lâm sàng và định hướng chuyên khoa tiếp nhận.
                 </p>
               </div>
               <Link
                 to="/patient/triage"
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline inline-flex items-center gap-1"
+                className="text-xs font-semibold text-teal-700 hover:text-teal-800 hover:underline inline-flex items-center gap-1"
               >
                 <Sparkles className="w-3.5 h-3.5" /> + Khám Mới
               </Link>
             </div>
 
             {loading ? (
-              <div className="py-12 text-center text-slate-400 text-sm">Đang tải lịch sử phân luồng...</div>
+              <SkeletonList rows={3} />
             ) : triageHistory.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">
+              <div className="py-12 text-center text-slate-500 text-sm border border-dashed border-slate-200 rounded-2xl">
                 Chưa có phiên phân luồng AI nào. Hãy trải nghiệm <strong>"Khám Sàng Lọc AI"</strong> để được phân tầng mức độ khẩn cấp và định hướng chuyên khoa.
               </div>
             ) : (
               <div className="space-y-4">
                 {paginatedTriage.map((t) => (
-                  <div key={t.id} className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-indigo-300 transition shadow-xs flex flex-col gap-3">
+                  <div key={t.id} className="p-5 rounded-2xl border border-slate-200/90 bg-white hover:border-teal-300/80 transition-all shadow-clinical-sm hover:shadow-clinical-md flex flex-col gap-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
                           t.isEmergency || t.urgencyLevel === 'EMERGENCY'
                             ? 'bg-rose-50 text-rose-700 border border-rose-200'
                             : t.urgencyLevel === 'URGENT'
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
                             : t.urgencyLevel === 'ROUTINE'
-                            ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            ? 'bg-teal-50 text-teal-800 border border-teal-200'
+                            : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                         }`}>
                           {t.isEmergency || t.urgencyLevel === 'EMERGENCY'
                             ? '🚨 CẤP CỨU KHẨN CẤP'
@@ -1032,19 +1032,19 @@ export const PatientDashboard: React.FC = () => {
                             : '🌱 TỰ CHĂM SÓC TẠI NHÀ'}
                         </span>
                         {t.primarySpecialty && (
-                          <span className="text-xs px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">
+                          <span className="text-xs px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-800 font-semibold border border-indigo-200">
                             Chuyên khoa: {t.primarySpecialty}
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-slate-500 font-medium">
+                      <div className="text-xs text-slate-600 font-medium">
                         {new Date(t.createdAt).toLocaleString('vi-VN')}
                       </div>
                     </div>
 
                     <div>
-                      <div className="text-xs font-bold text-slate-500 mb-1">Mô tả triệu chứng ban đầu:</div>
-                      <p className="text-xs text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed">
+                      <div className="text-xs font-bold text-slate-600 mb-1">Mô tả triệu chứng ban đầu:</div>
+                      <p className="text-xs text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-200/70 leading-relaxed">
                         {t.symptomsText}
                       </p>
                     </div>
@@ -1061,7 +1061,7 @@ export const PatientDashboard: React.FC = () => {
                     {t.aiAdvice && (
                       <div>
                         <div className="text-xs font-bold text-slate-700 mb-1">Khuyến nghị xử trí y tế từ AI:</div>
-                        <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed">
+                        <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200/70 leading-relaxed">
                           {t.aiAdvice}
                         </p>
                       </div>
@@ -1074,7 +1074,7 @@ export const PatientDashboard: React.FC = () => {
                             ? `/patient/doctors?specialty=${encodeURIComponent(t.primarySpecialty)}`
                             : '/patient/doctors'
                         }
-                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold shadow-clinical-sm transition cursor-pointer"
                       >
                         <Calendar className="w-3.5 h-3.5" /> Đặt Lịch Khám Bác Sĩ
                       </Link>
@@ -1082,7 +1082,7 @@ export const PatientDashboard: React.FC = () => {
                   </div>
                 ))}
 
-                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-clinical-sm">
                   <Pagination
                     currentPage={triagePage}
                     totalItems={triageHistory.length}
@@ -1107,40 +1107,40 @@ export const PatientDashboard: React.FC = () => {
                   <FileText className="w-5 h-5 text-teal-600" />
                   <h2 className="text-xl font-bold text-slate-900">Hồ Sơ Xét Nghiệm & Chẩn Đoán Đã Quét</h2>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-600 mt-1">
                   Danh mục tài liệu xét nghiệm máu, điện tim, siêu âm... đã được AI bóc tách và đối soát khoảng tham chiếu.
                 </p>
               </div>
               <Link
                 to="/patient/documents"
-                className="text-xs font-bold text-teal-700 hover:text-teal-800 hover:underline inline-flex items-center gap-1"
+                className="text-xs font-semibold text-teal-700 hover:text-teal-800 hover:underline inline-flex items-center gap-1"
               >
                 <UploadCloud className="w-3.5 h-3.5" /> + Quét Phiếu Mới
               </Link>
             </div>
 
             {loading ? (
-              <div className="py-12 text-center text-slate-400 text-sm">Đang tải danh sách tài liệu...</div>
+              <SkeletonList rows={3} />
             ) : documents.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">
+              <div className="py-12 text-center text-slate-500 text-sm border border-dashed border-slate-200 rounded-2xl">
                 Bạn chưa tải lên phiếu xét nghiệm nào. Nhấn <strong>"Quét Phiếu Mới"</strong> để AI bóc tách chỉ số sinh hóa tự động.
               </div>
             ) : (
               <div className="space-y-3">
                 {paginatedDocuments.map((doc) => (
-                  <div key={doc.id} className="p-4 rounded-2xl border border-slate-200 bg-white hover:border-teal-300 transition shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div key={doc.id} className="p-4 rounded-2xl border border-slate-200/90 bg-white hover:border-teal-300/80 transition-all shadow-clinical-sm hover:shadow-clinical-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center font-bold flex-shrink-0">
                         <FileText className="w-5 h-5" />
                       </div>
                       <div>
                         <h4 className="font-bold text-sm text-slate-900">{doc.fileName}</h4>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-0.5">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 mt-0.5">
                           <span>{(doc.fileSizeBytes / 1024).toFixed(1)} KB</span>
                           <span>•</span>
                           <span>{new Date(doc.createdAt).toLocaleString('vi-VN')}</span>
                           <span>•</span>
-                          <span className="font-mono text-slate-400 text-[11px]">{doc.contentType}</span>
+                          <span className="font-mono text-slate-500 text-[11px]">{doc.contentType}</span>
                         </div>
                       </div>
                     </div>
@@ -1151,13 +1151,13 @@ export const PatientDashboard: React.FC = () => {
                           <CheckCircle2 className="w-3 h-3" /> Đã xác thực y tế
                         </span>
                       ) : (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
                           Chờ xác thực
                         </span>
                       )}
                       <Link
                         to={`/patient/documents?focusId=${doc.id}`}
-                        className="px-3.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl text-xs font-bold border border-teal-200 transition"
+                        className="px-3.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl text-xs font-semibold border border-teal-200 transition"
                       >
                         Mở Phân Tích
                       </Link>
@@ -1165,7 +1165,7 @@ export const PatientDashboard: React.FC = () => {
                   </div>
                 ))}
 
-                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-clinical-sm">
                   <Pagination
                     currentPage={documentsPage}
                     totalItems={documents.length}
@@ -1184,22 +1184,22 @@ export const PatientDashboard: React.FC = () => {
 
       {/* MODAL: EDIT PATIENT PROFILE / MEDICAL PASSPORT */}
       {isEditProfileOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-2xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-scaleUp">
-            <div className="bg-indigo-900 text-white px-6 py-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-2xl rounded-3xl border border-slate-200 shadow-clinical-lg overflow-hidden max-h-[90vh] flex flex-col animate-scaleUp">
+            <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
               <div className="flex items-center gap-2">
-                <Heart className="w-5 h-5 text-rose-400" />
+                <Heart className="w-5 h-5 text-teal-400" />
                 <h3 className="font-bold text-lg">Cập Nhật Hồ Sơ Y Tế & Thẻ Căn Cước EMR</h3>
               </div>
               <button
                 onClick={() => setIsEditProfileOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg"
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveProfile} className="p-6 overflow-y-auto space-y-4 flex-1">
+            <form onSubmit={handleSaveProfile} className="p-6 overflow-y-auto space-y-4 flex-1 scrollbar-clinical">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">
@@ -1211,7 +1211,7 @@ export const PatientDashboard: React.FC = () => {
                     value={editForm.fullName || ''}
                     onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
                     aria-invalid={Boolean(profileErrors.fullName) || undefined}
-                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 ${profileErrors.fullName ? 'border-rose-400' : 'border-slate-200'}`}
+                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-teal-600 focus:ring-teal-500/20 ${profileErrors.fullName ? 'border-rose-400' : 'border-slate-300'}`}
                     placeholder="Nguyễn Văn A"
                   />
                   {profileErrors.fullName && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.fullName}</p>}
@@ -1223,7 +1223,7 @@ export const PatientDashboard: React.FC = () => {
                     value={editForm.phone || ''}
                     onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                     aria-invalid={Boolean(profileErrors.phone) || undefined}
-                    className={`w-full px-3 py-2 border rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 ${profileErrors.phone ? 'border-rose-400' : 'border-slate-200'}`}
+                    className={`w-full px-3 py-2 border rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:border-teal-600 focus:ring-teal-500/20 ${profileErrors.phone ? 'border-rose-400' : 'border-slate-300'}`}
                     placeholder="0901234567"
                   />
                   {profileErrors.phone && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.phone}</p>}
@@ -1233,7 +1233,7 @@ export const PatientDashboard: React.FC = () => {
                   <select
                     value={editForm.gender || ''}
                     onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-teal-600 focus:ring-teal-500/20"
                   >
                     <option value="">Chưa xác định</option>
                     <option value="MALE">Nam</option>
@@ -1249,7 +1249,7 @@ export const PatientDashboard: React.FC = () => {
                     value={editForm.dateOfBirth ? String(editForm.dateOfBirth) : ''}
                     onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
                     aria-invalid={Boolean(profileErrors.dateOfBirth) || undefined}
-                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 ${profileErrors.dateOfBirth ? 'border-rose-400' : 'border-slate-200'}`}
+                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-teal-600 focus:ring-teal-500/20 ${profileErrors.dateOfBirth ? 'border-rose-400' : 'border-slate-300'}`}
                   />
                   {profileErrors.dateOfBirth && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.dateOfBirth}</p>}
                 </div>
@@ -1262,7 +1262,7 @@ export const PatientDashboard: React.FC = () => {
                     value={editForm.citizenId || ''}
                     onChange={(e) => setEditForm({ ...editForm, citizenId: e.target.value.replace(/\D/g, '') })}
                     aria-invalid={Boolean(profileErrors.citizenId) || undefined}
-                    className={`w-full px-3 py-2 border rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 ${profileErrors.citizenId ? 'border-rose-400' : 'border-slate-200'}`}
+                    className={`w-full px-3 py-2 border rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:border-teal-600 focus:ring-teal-500/20 ${profileErrors.citizenId ? 'border-rose-400' : 'border-slate-300'}`}
                     placeholder="12 chữ số"
                   />
                   {profileErrors.citizenId && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.citizenId}</p>}
@@ -1274,7 +1274,7 @@ export const PatientDashboard: React.FC = () => {
                     value={editForm.healthInsuranceNumber || ''}
                     onChange={(e) => setEditForm({ ...editForm, healthInsuranceNumber: e.target.value.toUpperCase() })}
                     aria-invalid={Boolean(profileErrors.healthInsuranceNumber) || undefined}
-                    className={`w-full px-3 py-2 border rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 uppercase ${profileErrors.healthInsuranceNumber ? 'border-rose-400' : 'border-slate-200'}`}
+                    className={`w-full px-3 py-2 border rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:border-teal-600 focus:ring-teal-500/20 uppercase ${profileErrors.healthInsuranceNumber ? 'border-rose-400' : 'border-slate-300'}`}
                     placeholder="VD: GD4791234567890"
                   />
                   {profileErrors.healthInsuranceNumber && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.healthInsuranceNumber}</p>}
@@ -1284,7 +1284,7 @@ export const PatientDashboard: React.FC = () => {
                   <select
                     value={editForm.bloodGroup || ''}
                     onChange={(e) => setEditForm({ ...editForm, bloodGroup: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-teal-600 focus:ring-teal-500/20"
                   >
                     <option value="">Chưa xác định</option>
                     <option value="O+">O+ (Rh Dương)</option>
@@ -1320,7 +1320,7 @@ export const PatientDashboard: React.FC = () => {
                   rows={2}
                   value={editForm.medicalHistory || ''}
                   onChange={(e) => setEditForm({ ...editForm, medicalHistory: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:border-teal-600 focus:ring-teal-500/20"
                   placeholder="Bệnh mạn tính: Huyết áp, tiểu đường, hen phế quản, tiền sử đột quỵ..."
                 />
               </div>
@@ -1331,44 +1331,44 @@ export const PatientDashboard: React.FC = () => {
                   type="text"
                   value={editForm.address || ''}
                   onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:border-teal-600 focus:ring-teal-500/20"
                   placeholder="Số nhà, Phường/Xã, Quận/Huyện, Tỉnh/Thành phố..."
                 />
               </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                 <div className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-indigo-600" /> Người Thân Liên Hệ Cấp Cứu 24/7
+                  <Phone className="w-3.5 h-3.5 text-teal-600" /> Người Thân Liên Hệ Cấp Cứu 24/7
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                   <div>
-                    <label className="text-slate-500 block mb-1">Họ và Tên</label>
+                    <label className="text-slate-600 block mb-1">Họ và Tên</label>
                     <input
                       type="text"
                       value={editForm.emergencyContactName || ''}
                       onChange={(e) => setEditForm({ ...editForm, emergencyContactName: e.target.value })}
-                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white"
+                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:border-teal-600 focus:ring-teal-500/20"
                       placeholder="Người thân..."
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Quan Hệ</label>
+                    <label className="text-slate-600 block mb-1">Quan Hệ</label>
                     <input
                       type="text"
                       value={editForm.emergencyContactRelationship || ''}
                       onChange={(e) => setEditForm({ ...editForm, emergencyContactRelationship: e.target.value })}
-                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white"
+                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:border-teal-600 focus:ring-teal-500/20"
                       placeholder="Vợ, Chồng, Bố, Mẹ..."
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Số Điện Thoại</label>
+                    <label className="text-slate-600 block mb-1">Số Điện Thoại</label>
                     <input
                       type="tel"
                       value={editForm.emergencyContactPhone || ''}
                       onChange={(e) => setEditForm({ ...editForm, emergencyContactPhone: e.target.value })}
                       aria-invalid={Boolean(profileErrors.emergencyContactPhone) || undefined}
-                      className={`w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white font-mono ${profileErrors.emergencyContactPhone ? 'border-rose-400' : 'border-slate-200'}`}
+                      className={`w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:border-teal-600 focus:ring-teal-500/20 ${profileErrors.emergencyContactPhone ? 'border-rose-400' : 'border-slate-300'}`}
                       placeholder="0909..."
                     />
                     {profileErrors.emergencyContactPhone && <p role="alert" className="text-[11px] text-rose-600 mt-1">{profileErrors.emergencyContactPhone}</p>}
@@ -1387,7 +1387,7 @@ export const PatientDashboard: React.FC = () => {
                 <button
                   type="submit"
                   disabled={savingProfile || Object.keys(profileErrors).length > 0}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold shadow-clinical-sm transition cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:cursor-not-allowed"
                 >
                   {savingProfile ? 'Đang lưu...' : 'Lưu Thay Đổi Hồ Sơ'}
                 </button>
@@ -1399,12 +1399,12 @@ export const PatientDashboard: React.FC = () => {
 
       {/* MODAL: VIEW COMPREHENSIVE EMR MEDICAL RECORD & PRESCRIPTION */}
       {selectedEmrAppointment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-3xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-scaleUp">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-3xl rounded-3xl border border-slate-200 shadow-clinical-lg overflow-hidden max-h-[90vh] flex flex-col animate-scaleUp">
             {/* Header with Hospital Banner */}
             <div className="bg-slate-900 text-white p-6 border-b border-slate-800 flex items-center justify-between">
               <div>
-                <div className="text-xs uppercase font-bold text-indigo-400 tracking-widest">
+                <div className="text-xs uppercase font-bold text-teal-400 tracking-wider">
                   MEDIASSIST · BỆNH ÁN ĐIỆN TỬ
                 </div>
                 <h3 className="text-xl font-black mt-1">
@@ -1418,25 +1418,25 @@ export const PatientDashboard: React.FC = () => {
               </div>
               <button
                 onClick={() => setSelectedEmrAppointment(null)}
-                className="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800"
+                className="text-slate-400 hover:text-white p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Scrollable EMR Details */}
-            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-800 text-sm">
+            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-800 text-sm scrollbar-clinical">
               {/* Patient & Doctor Info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                 <div className="space-y-1">
-                  <div className="text-xs font-bold text-slate-400 uppercase">Thông Tin Người Bệnh</div>
+                  <div className="text-xs font-bold text-slate-500 uppercase">Thông Tin Người Bệnh</div>
                   <div className="font-bold text-base text-slate-900">{profile?.fullName || selectedEmrAppointment.patientName}</div>
-                  <div className="text-xs text-slate-600">Mã BN: {profile?.patientCode ? <span className="font-mono font-bold text-indigo-700">{profile.patientCode}</span> : <Missing label="Chưa được cấp" />}</div>
+                  <div className="text-xs text-slate-600">Mã BN: {profile?.patientCode ? <span className="font-mono font-bold text-teal-700">{profile.patientCode}</span> : <Missing label="Chưa được cấp" />}</div>
                   <div className="text-xs text-slate-600">BHYT: {profile?.healthInsuranceNumber ? <span className="font-mono">{profile.healthInsuranceNumber}</span> : <Missing />}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs font-bold text-slate-400 uppercase">Bác Sĩ Phụ Trách</div>
-                  <div className="font-bold text-base text-indigo-900">{selectedEmrAppointment.doctorName}</div>
+                  <div className="text-xs font-bold text-slate-500 uppercase">Bác Sĩ Phụ Trách</div>
+                  <div className="font-bold text-base text-teal-900">{selectedEmrAppointment.doctorName}</div>
                   <div className="text-xs text-slate-600">Thời gian khám: {new Date(selectedEmrAppointment.scheduledStart).toLocaleString('vi-VN')}</div>
                   <div className="text-xs text-emerald-700 font-semibold">Trạng thái: Đã khám xong</div>
                 </div>
@@ -1479,7 +1479,7 @@ export const PatientDashboard: React.FC = () => {
               {/* Chief Complaint */}
               {selectedEmrAppointment.chiefComplaint && (
                 <div className="space-y-1">
-                  <div className="text-xs font-bold uppercase text-slate-400">Lý Do Vào Viện & Triệu Chứng Cơ Năng</div>
+                  <div className="text-xs font-bold uppercase text-slate-500">Lý Do Vào Viện & Triệu Chứng Cơ Năng</div>
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-800 text-xs">
                     {selectedEmrAppointment.chiefComplaint}
                   </div>
@@ -1487,11 +1487,11 @@ export const PatientDashboard: React.FC = () => {
               )}
 
               {/* ICD-10 Diagnosis */}
-              <div className="p-4 bg-indigo-50/60 border border-indigo-200 rounded-2xl space-y-1">
-                <div className="text-xs font-bold text-indigo-900 uppercase">Chẩn Đoán Lâm Sàng Chuẩn Quốc Tế (ICD-10)</div>
-                <div className="text-base font-extrabold text-indigo-950 flex items-center gap-2">
+              <div className="p-4 bg-teal-50/60 border border-teal-200 rounded-2xl space-y-1">
+                <div className="text-xs font-bold text-teal-900 uppercase">Chẩn Đoán Lâm Sàng Chuẩn Quốc Tế (ICD-10)</div>
+                <div className="text-base font-extrabold text-teal-950 flex items-center gap-2">
                   {selectedEmrAppointment.icd10Code && (
-                    <span className="font-mono bg-indigo-700 text-white px-2 py-0.5 rounded text-xs">{selectedEmrAppointment.icd10Code}</span>
+                    <span className="font-mono bg-teal-700 text-white px-2 py-0.5 rounded-md text-xs">{selectedEmrAppointment.icd10Code}</span>
                   )}
                   {selectedEmrAppointment.icd10Name ? (
                     <span>{selectedEmrAppointment.icd10Name}</span>
@@ -1529,7 +1529,7 @@ export const PatientDashboard: React.FC = () => {
                         <tbody className="divide-y divide-slate-100">
                           {drugs.map((d, i) => (
                             <tr key={i} className="hover:bg-slate-50">
-                              <td className="p-2.5 font-mono text-slate-400">{i + 1}</td>
+                              <td className="p-2.5 font-mono text-slate-500">{i + 1}</td>
                               <td className="p-2.5 font-bold text-slate-900">
                                 {d.drugName}
                                 {d.activeIngredient && (
@@ -1537,7 +1537,7 @@ export const PatientDashboard: React.FC = () => {
                                 )}
                               </td>
                               <td className="p-2.5 text-slate-700 font-medium">{d.dosage}</td>
-                              <td className="p-2.5 text-center font-bold text-indigo-700">{d.quantity} {d.unit}</td>
+                              <td className="p-2.5 text-center font-bold text-teal-700">{d.quantity} {d.unit}</td>
                               <td className="p-2.5 text-center font-mono text-slate-600">{d.days} ngày</td>
                             </tr>
                           ))}
@@ -1570,13 +1570,13 @@ export const PatientDashboard: React.FC = () => {
 
             {/* Footer with Print Action */}
             <div className="bg-slate-50 p-4 border-t border-slate-200 flex items-center justify-between">
-              <div className="text-xs text-slate-400 italic">
+              <div className="text-xs text-slate-500 italic">
                 * Phiếu khám bệnh & đơn thuốc điện tử được bảo chứng bởi hệ thống y tế MediAssist.
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-xs cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold shadow-clinical-sm cursor-pointer"
                 >
                   <Printer className="w-4 h-4" /> In Toa Thuốc
                 </button>
@@ -1594,8 +1594,8 @@ export const PatientDashboard: React.FC = () => {
 
       {/* MODAL: CANCEL APPOINTMENT CONFIRMATION */}
       {cancellingAppointmentId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl overflow-hidden p-6 space-y-4 animate-scaleUp">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-clinical-lg overflow-hidden p-6 space-y-4 animate-scaleUp">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-rose-600">
                 <Ban className="w-5 h-5" />
