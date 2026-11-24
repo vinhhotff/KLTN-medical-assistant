@@ -7,6 +7,27 @@
 
 ---
 
+## [2026-11-24 14:59:00] - SỬA LỖI DROPZONE TẢI LÊN BẢN SCAN CCHN BỊ KHÓA KHÔNG BẤM ĐƯỢC (`DoctorProfilePage.tsx`)
+
+- **Tác giả / AI Assistant:** Senior Fullstack AI Pair Programmer
+- **Phân nhánh Git:** `feature/fuction`
+
+### 1. Danh sách tệp tin thay đổi
+- `[MOD]` [`DoctorProfilePage.tsx`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/pages/doctor/DoctorProfilePage.tsx):
+  1. Loại bỏ điều kiện chặn `isVerified` tại dropzone tải tệp và input ẩn (`ref={fileInputRef}`).
+  2. Chuyển thẻ `<span>Chọn tệp từ máy</span>` thành `<button type="button">` có sự kiện `onClick` kích hoạt `fileInputRef.current?.click()` trực tiếp và chuẩn Accessibility.
+  3. Cho phép bác sĩ (kể cả khi đã xác thực) luôn có thể tải lên hoặc thay thế bản scan CCHN của mình nếu chưa có tệp hoặc cần cập nhật tài liệu mới.
+
+### 2. Nguyên nhân và giải pháp kỹ thuật
+- **Nguyên nhân:** Các tài khoản bác sĩ mẫu được seed với trạng thái `verification_status = 'APPROVED'` và `is_verified = TRUE`, nhưng chưa có file scan đính kèm (`license_document_storage_path = NULL`). Khi hiển thị màn hình hồ sơ, giao diện render dropzone "Kéo thả hoặc bấm để tải lên bản scan CCHN" kèm nút xanh "Chọn tệp từ máy", tuy nhiên mã nguồn lại gán `disabled={isVerified || uploadingLicense}` trên `input[type="file"]` và kiểm tra `if (!isVerified && !uploadingLicense)` khi click. Hậu quả là người dùng bấm vào vùng dropzone hay nút bấm thì trình duyệt hoàn toàn không bật hộp thoại chọn file (bị coi như hardcode không bấm được).
+- **Giải pháp:** Chỉ vô hiệu hóa khi đang trong tiến trình upload (`uploadingLicense`). Bấm vào dropzone hoặc nút "Chọn tệp từ máy" luôn mở file picker chọn tệp (PDF/JPEG/PNG/WEBP $\le 10$MB).
+
+### 3. Bằng chứng kiểm thử & Vận hành
+- `npm run build` $\rightarrow$ 0 lỗi TypeScript, bundle biên dịch thành công trong 7.07s.
+- `vite preview` phục vụ ổn định trên cổng 5173.
+
+---
+
 ## [2026-11-24 14:44:00] - CHUYỂN LIÊN KẾT QUÊN MẬT KHẨU XUỐNG DƯỚI NÚT ĐĂNG NHẬP & SỬA LỖI MÔI TRƯỜNG DEV TRUY CẬP VITE PROXY
 
 - **Tác giả / AI Assistant:** Senior Fullstack & DevOps AI Pair Programmer

@@ -713,7 +713,7 @@ export const DoctorProfilePage: React.FC = () => {
                   ref={fileInputRef}
                   className="hidden"
                   accept="application/pdf,image/jpeg,image/png,image/webp"
-                  disabled={isVerified || uploadingLicense}
+                  disabled={uploadingLicense}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) handleFileUpload(file);
@@ -753,17 +753,15 @@ export const DoctorProfilePage: React.FC = () => {
                         <span>{loadingPreviewUrl ? 'Đang tải...' : 'Xem bản scan CCHN'}</span>
                       </button>
 
-                      {!isVerified && (
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={uploadingLicense}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-medium hover:bg-slate-100 transition cursor-pointer disabled:opacity-50"
-                        >
-                          <RefreshCw className={cn('w-3 h-3', uploadingLicense && 'animate-spin')} />
-                          <span>{uploadingLicense ? 'Đang tải...' : 'Thay tệp khác'}</span>
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingLicense}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-medium hover:bg-slate-100 transition cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={cn('w-3 h-3', uploadingLicense && 'animate-spin')} />
+                        <span>{uploadingLicense ? 'Đang tải...' : 'Thay tệp khác'}</span>
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -771,12 +769,12 @@ export const DoctorProfilePage: React.FC = () => {
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => {
                       e.preventDefault();
-                      if (isVerified || uploadingLicense) return;
+                      if (uploadingLicense) return;
                       const file = e.dataTransfer.files?.[0];
                       if (file) handleFileUpload(file);
                     }}
                     onClick={() => {
-                      if (!isVerified && !uploadingLicense) fileInputRef.current?.click();
+                      if (!uploadingLicense) fileInputRef.current?.click();
                     }}
                     className={cn(
                       'p-6 rounded-2xl border-2 border-dashed border-slate-300 hover:border-teal-500 bg-slate-50/70 hover:bg-teal-50/30 transition text-center cursor-pointer space-y-2',
@@ -795,9 +793,17 @@ export const DoctorProfilePage: React.FC = () => {
                       </p>
                     </div>
                     <div className="pt-2">
-                      <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-teal-700 text-white text-xs font-semibold shadow-xs">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!uploadingLicense) fileInputRef.current?.click();
+                        }}
+                        disabled={uploadingLicense}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold shadow-xs transition cursor-pointer disabled:opacity-50"
+                      >
                         <UploadCloud className="w-3.5 h-3.5" /> Chọn tệp từ máy
-                      </span>
+                      </button>
                     </div>
                   </div>
                 )}
