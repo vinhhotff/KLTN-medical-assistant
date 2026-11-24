@@ -7,6 +7,30 @@
 
 ---
 
+## [2026-11-24 11:55:00] - CHUẨN HÓA TRANG BÌA FPT VÀ MỤC LỤC CHI TIẾT 1-TO-1 CHO REPORT 7 (MEDIASSIST-AI)
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 11:55:00
+- **Tiêu đề:** Đồng bộ Trang bìa (Cover Page) chuẩn đồ án tốt nghiệp FPT University và Mục lục phân cấp chi tiết (Table of Contents) khớp 100% tài liệu benchmark Doc 2 cho Report 7 MediAssist-AI.
+
+### 2. Danh Sách Tệp Tin
+- `[NEW]` `docs/REPORT7_COVER_AND_TOC.md`: Cẩm nang thiết kế trang bìa chuẩn FPT, mục lục toàn diện phân cấp 1-to-1 (I -> VI), danh mục hình vẽ/bảng biểu và hướng dẫn 3 bước cập nhật trực tiếp lên Google Docs.
+- `[MOD]` `docs/WORK_LOG.md`: Thêm bản ghi nhật ký phát triển theo quy định AGENTS.md Rule 1.3.
+
+### 3. Tài Liệu Đã Đồng Bộ
+- `docs/REPORT7_COVER_AND_TOC.md`: Đồng bộ mẫu trang bìa, cấu trúc 49 Use Cases, 17 Bảng CSDL, 28 Sequence Diagrams, 22 Screens, và 338 Unit Tests vào Table of Contents.
+- `docs/WORK_LOG.md`: Ghi nhận hoàn tất yêu cầu chuẩn hóa Trang bìa và Mục lục của Tech Lead.
+
+### 4. Bằng Chứng Kiểm Thử
+- **Cấu trúc khớp 100%:** Đối chiếu trực tiếp với bản mẫu `scratch/doc2_toc.txt` (Report 7 AITA FPT Benchmark) từ Acknowledgement đến Section VI Release Package & User Guides.
+- **Git status:** Sẵn sàng commit và push lên nhánh `origin/develop`.
+
+### 5. Điểm Nóng Tech Lead Cần Review
+- **Trang bìa (Page 1):** Định dạng trang trọng theo chuẩn Bộ GD&ĐT và Trường Đại học FPT (chữ in hoa đậm, căn giữa, khung thông tin thành viên nhóm VinhHT, Khương, Bảo, giảng viên hướng dẫn, mã đề tài và địa điểm Quy Nhơn).
+- **Mục lục (Page 2+):** Cung cấp cả 2 lựa chọn: (1) Dùng tính năng tự động `Insert -> Table of Contents` của Google Docs, hoặc (2) Dán trực tiếp văn bản mục lục tĩnh đã định dạng căn lề chuẩn chỉ.
+
+---
+
 ## [2026-11-24 11:33:01] - XỬ LÝ TOÀN DIỆN CÁC ĐIỂM NÓNG ISSUES TỪ REPORT 3 (PROJECT TRACKING)
 
 ### 1. Thời Gian & Tiêu Đề
