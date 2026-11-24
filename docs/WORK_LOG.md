@@ -7,6 +7,32 @@
 
 ---
 
+## [2026-11-24 20:10:00] - CHUYỂN HÓA 100% THÀNH PHẦN SYSTEM ARCHITECTURE SANG HỆ SINH THÁI MEDIASSIST-AI
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 20:10:00
+- **Tiêu đề:** Chuyển hóa 100% các thành phần và nhãn dịch vụ trong `system_architecture.png` sang hệ sinh thái MediAssist-AI thực tế (`Web SPA React 18`, `AI Triage`, `Doctor Search`, `Booking & Slot`, `Clinical EMR`, `pgvector 1536-dim`, `PostgreSQL 16`, `Redis 6379`, `Amazon S3`) theo đúng yêu cầu "tạo cái i chang phong cách nhưng làm mới hoàn toàn cho hệ thống của mình".
+
+### 2. Danh Sách Tệp Tin & Thay Đổi Chi Tiết
+- `[MOD]` `docs/images/system_architecture.png` (116 KB):
+  - Kế thừa 100% ngôn ngữ thiết kế, tỷ lệ khung viền `#205493`, huy hiệu vàng `#d4a017`, capsule đỏ `#b8252a`, biểu tượng stacked replicas 3 lớp và bus định tuyến Kube DNS.
+  - Thay thế toàn bộ nhãn e-commerce mẫu bằng các dịch vụ thực tế của MediAssist-AI:
+    - External Actors: `BROWSER (Patient Web)` & `MOBILE (Doctor App)`.
+    - Frontend: `Web SPA (React 18 + Vite)`.
+    - Common Channel: `Auth & RLS (JWT + Spring Security)`.
+    - Backend: `AI Triage (Red-Flag & SBAR)`, `Doctor Search (Semantic Match)`, `Booking & Slot (Redlock Schedule)`, `Clinical EMR (ICD-10 & Rx Flow)`.
+    - Database: `pgvector (1536-dim HNSW)`, `PostgreSQL 16 (17 Tables ACID)`, `Redis 6379 (L2 Cache & Redlock)`, `Amazon S3 (Encrypted Medical Docs)` và 2 CSDL xác thực (`PostgreSQL Users/RBAC`, `Redis Token Blacklist`).
+    - Khắc phục triệt để lỗi va chạm dòng kẻ: Đường nối Kube DNS xuống CSDL chạy ở tọa độ `y = 550px` hoàn toàn nằm giữa DB 5 và DB 6, 0 lỗi đè chữ.
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.docx`: Biên dịch lại file Word qua Pandoc.
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.pdf`: Kết xuất lại file PDF in ấn qua Playwright.
+- `[MOD]` `REVIEW2_DIAGRAMS_CATALOG.md`: Cập nhật hình ảnh kiến trúc mới.
+
+### 3. Bằng Chứng Kiểm Thử & Biên Dịch
+- Kết xuất Playwright ở độ phân giải Retina 2x scale, hình ảnh 116 KB sắc nét, hoàn hảo mọi góc cạnh.
+- Biên dịch Word và PDF thành công 100%.
+
+---
+
 ## [2026-11-24 20:00:00] - TÁI HIỆN HOÀN CHỈNH SƠ ĐỒ SYSTEM ARCHITECTURE CHUẨN CLOUD NETWORK OPENSHIFT/KUBERNETES CLUSTER
 
 ### 1. Thời Gian & Tiêu Đề
