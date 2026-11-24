@@ -19,12 +19,12 @@ const ICON: Record<Accent, string> = {
   teal: 'text-teal-600',
 };
 
-const PATIENT_NAV_ITEMS: { to: string; label: string; short: string; icon: typeof CalendarDays; accent: Accent; end?: boolean }[] = [
-  { to: '/patient', label: 'Lịch hẹn', short: 'Lịch hẹn', icon: CalendarDays, accent: 'teal', end: true },
-  { to: '/patient/triage', label: 'Trợ lý triệu chứng AI', short: 'Trợ lý AI', icon: MessageSquare, accent: 'indigo' },
-  { to: '/patient/documents', label: 'Tóm tắt bệnh án', short: 'Bệnh án', icon: UploadCloud, accent: 'teal' },
-  { to: '/patient/doctors', label: 'Tìm & đặt bác sĩ', short: 'Bác sĩ', icon: Search, accent: 'teal' },
-  { to: '/patient/history', label: 'Lịch sử sức khỏe', short: 'Lịch sử', icon: History, accent: 'teal' },
+const PATIENT_NAV_ITEMS: { to: string; label: string; compact: string; short: string; icon: typeof CalendarDays; accent: Accent; end?: boolean }[] = [
+  { to: '/patient', label: 'Lịch hẹn', compact: 'Lịch hẹn', short: 'Lịch hẹn', icon: CalendarDays, accent: 'teal', end: true },
+  { to: '/patient/triage', label: 'Trợ lý triệu chứng AI', compact: 'Trợ lý AI', short: 'Trợ lý AI', icon: MessageSquare, accent: 'indigo' },
+  { to: '/patient/documents', label: 'Tóm tắt bệnh án', compact: 'Bệnh án', short: 'Bệnh án', icon: UploadCloud, accent: 'teal' },
+  { to: '/patient/doctors', label: 'Tìm & đặt bác sĩ', compact: 'Tìm bác sĩ', short: 'Bác sĩ', icon: Search, accent: 'teal' },
+  { to: '/patient/history', label: 'Lịch sử sức khỏe', compact: 'Lịch sử', short: 'Lịch sử', icon: History, accent: 'teal' },
 ];
 
 export const PatientLayout: React.FC = () => {
@@ -43,57 +43,59 @@ export const PatientLayout: React.FC = () => {
       <EmailVerificationBanner />
 
       <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-clinical-sm sticky top-0 z-30">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-20 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-6 min-w-0">
-            <Link to="/patient" className="flex items-center gap-2.5 shrink-0">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 h-16 flex items-center justify-between gap-3 lg:gap-4">
+          <div className="flex items-center gap-3 xl:gap-5 min-w-0 flex-1">
+            <Link to="/patient" className="flex items-center gap-2 shrink-0">
               <span className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-clinical-sm">
                 <HeartPulse className="w-5 h-5" aria-hidden />
               </span>
-              <span className="font-display font-bold text-lg tracking-tight text-slate-900">MediAssist-AI</span>
+              <span className="font-display font-bold text-base xl:text-lg tracking-tight text-slate-900 whitespace-nowrap">MediAssist-AI</span>
             </Link>
 
-            <nav className="hidden md:flex items-center gap-1 min-w-0" aria-label="Điều hướng chính">
-              {PATIENT_NAV_ITEMS.map(({ to, label, icon: Icon, accent, end }) => (
+            <nav className="hidden md:flex items-center gap-1 min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Điều hướng chính">
+              {PATIENT_NAV_ITEMS.map(({ to, label, compact, icon: Icon, accent, end }) => (
                 <NavLink
                   key={to}
                   to={to}
                   end={end}
                   title={label}
+                  aria-label={label}
                   className={({ isActive }) =>
                     cn(
-                      'inline-flex items-center gap-2 px-3 lg:px-3.5 py-2 rounded-lg text-sm whitespace-nowrap transition-colors',
+                      'inline-flex items-center gap-2 px-2.5 xl:px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-colors shrink-0',
                       isActive ? cn(ACTIVE[accent], 'font-semibold') : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
                     )
                   }
                 >
-                  <Icon className={cn('w-4 h-4', ICON[accent])} aria-hidden />
-                  <span className="hidden lg:inline">{label}</span>
+                  <Icon className={cn('w-4 h-4 shrink-0', ICON[accent])} aria-hidden />
+                  <span className="hidden lg:inline 2xl:hidden">{compact}</span>
+                  <span className="hidden 2xl:inline">{label}</span>
                 </NavLink>
               ))}
             </nav>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 md:pl-3 md:border-l md:border-slate-200/80">
             {isAuthenticated && user ? (
               <>
                 <NotificationBell />
                 <Link
                   to="/patient/profile"
-                  className="flex items-center gap-2.5 rounded-xl px-2 py-1 hover:bg-slate-100 transition"
-                  title="Hồ sơ của tôi"
+                  className="flex items-center gap-2 rounded-xl px-1.5 py-1 hover:bg-slate-100 transition shrink-0"
+                  title={user.fullName || 'Hồ sơ của tôi'}
                 >
-                  <span className="w-8 h-8 rounded-full bg-teal-50 text-teal-800 border border-teal-200/80 text-xs font-bold flex items-center justify-center">
+                  <span className="w-8 h-8 rounded-full bg-teal-50 text-teal-800 border border-teal-200/80 text-xs font-bold flex items-center justify-center shrink-0">
                     {initialsOf(user.fullName || user.email)}
                   </span>
                   <span className="hidden xl:block text-right leading-tight">
-                    <span className="block text-sm font-semibold text-slate-900 truncate max-w-[160px]">{user.fullName}</span>
+                    <span className="block text-sm font-semibold text-slate-900 truncate max-w-[144px]">{user.fullName}</span>
                     <span className="block text-xs text-slate-500">Hồ sơ của tôi</span>
                   </span>
                 </Link>
                 <button
                   type="button"
                   onClick={() => logout()}
-                  className="w-10 h-10 inline-flex items-center justify-center text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 transition cursor-pointer"
+                  className="w-9 h-9 inline-flex items-center justify-center shrink-0 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 transition cursor-pointer"
                   aria-label="Đăng xuất"
                   title="Đăng xuất"
                 >
@@ -112,7 +114,7 @@ export const PatientLayout: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-20 py-6 sm:py-8 pb-28 md:pb-12">
+      <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-8 pb-28 md:pb-12">
         <Outlet />
       </main>
 

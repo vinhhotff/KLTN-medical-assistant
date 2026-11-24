@@ -104,7 +104,13 @@ export const APPOINTMENT_STATUS_LABEL: Record<AppointmentStatus, { text: string;
 };
 
 export const initialsOf = (name?: string | null): string => {
-  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  const cleaned = (name || '')
+    .replace(/\s*\([^)]*\)/g, ' ')
+    .trim();
+  const parts = cleaned
+    .split(/\s+/)
+    .map((p) => p.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+    .filter(Boolean);
   if (parts.length === 0) return 'BN';
   if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
   return (parts[parts.length - 2].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();

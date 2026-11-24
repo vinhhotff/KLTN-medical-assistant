@@ -8,10 +8,10 @@ import { api } from '../services/api';
 import { cn } from '../components/ui';
 
 const NAV_ITEMS = [
-  { to: '/doctor', label: 'Lịch hẹn & khám bệnh', icon: CalendarCheck, end: true },
-  { to: '/doctor/schedule', label: 'Lịch làm việc', icon: CalendarClock },
-  { to: '/doctor/patients', label: 'Danh bạ bệnh nhân', icon: Users },
-  { to: '/doctor/profile', label: 'Hồ sơ bác sĩ', icon: UserCog },
+  { to: '/doctor', label: 'Lịch hẹn & khám bệnh', compact: 'Lịch khám', icon: CalendarCheck, end: true },
+  { to: '/doctor/schedule', label: 'Lịch làm việc', compact: 'Lịch làm việc', icon: CalendarClock },
+  { to: '/doctor/patients', label: 'Danh bạ bệnh nhân', compact: 'Bệnh nhân', icon: Users },
+  { to: '/doctor/profile', label: 'Hồ sơ bác sĩ', compact: 'Hồ sơ', icon: UserCog },
 ];
 
 export const DoctorLayout: React.FC = () => {
@@ -75,11 +75,11 @@ export const DoctorLayout: React.FC = () => {
       <EmailVerificationBanner />
 
       <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-clinical-sm sticky top-0 z-30">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-20 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-6 min-w-0">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 h-16 flex items-center justify-between gap-3 lg:gap-4">
+          <div className="flex items-center gap-3 xl:gap-5 min-w-0 flex-1">
             <button
               type="button"
-              className="md:hidden p-2 -ml-2 rounded-lg border border-slate-200 bg-white text-slate-800 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 cursor-pointer"
+              className="md:hidden p-2 -ml-2 rounded-lg border border-slate-200 bg-white text-slate-800 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 cursor-pointer shrink-0"
               aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'}
               aria-expanded={menuOpen}
               aria-controls="doctor-mobile-menu"
@@ -93,42 +93,44 @@ export const DoctorLayout: React.FC = () => {
                 <Stethoscope className="w-5 h-5" aria-hidden />
               </span>
               <span className="leading-tight">
-                <span className="block font-display font-bold text-slate-900">MediAssist Doctor</span>
-                <span className="hidden sm:block text-xs font-medium text-teal-700">Khu vực chuyên môn</span>
+                <span className="block font-display font-bold text-slate-900 whitespace-nowrap">MediAssist Doctor</span>
+                <span className="hidden sm:block text-xs font-medium text-teal-700 whitespace-nowrap">Khu vực chuyên môn</span>
               </span>
             </Link>
 
-            <nav className="hidden md:flex items-center gap-1 min-w-0" aria-label="Điều hướng bác sĩ">
-              {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+            <nav className="hidden md:flex items-center gap-1 min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Điều hướng bác sĩ">
+              {NAV_ITEMS.map(({ to, label, compact, icon: Icon, end }) => (
                 <NavLink
                   key={to}
                   to={to}
                   end={end}
                   title={label}
+                  aria-label={label}
                   className={({ isActive }) =>
                     cn(
-                      'inline-flex items-center gap-2 px-3 lg:px-3.5 py-2 rounded-lg text-sm whitespace-nowrap transition-colors',
+                      'inline-flex items-center gap-2 px-2.5 xl:px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-colors shrink-0',
                       isActive ? 'bg-teal-50 text-teal-800 font-semibold' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
                     )
                   }
                 >
-                  <Icon className="w-4 h-4 lg:hidden" aria-hidden />
-                  <span className="hidden lg:inline">{label}</span>
+                  <Icon className="w-4 h-4 shrink-0 xl:hidden" aria-hidden />
+                  <span className="hidden lg:inline xl:hidden">{compact}</span>
+                  <span className="hidden xl:inline">{label}</span>
                 </NavLink>
               ))}
             </nav>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 md:pl-3 md:border-l md:border-slate-200/80">
             <NotificationBell />
             <div className="hidden xl:block text-right leading-tight">
-              <p className="text-sm font-semibold text-slate-900 truncate max-w-[200px]">{user?.fullName}</p>
+              <p className="text-sm font-semibold text-slate-900 truncate max-w-[168px]">{user?.fullName}</p>
               {cchnStatus}
             </div>
             <button
               type="button"
               onClick={() => logout()}
-              className="w-10 h-10 inline-flex items-center justify-center text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 transition cursor-pointer"
+              className="w-9 h-9 inline-flex items-center justify-center shrink-0 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 transition cursor-pointer"
               aria-label="Đăng xuất"
               title="Đăng xuất"
             >
@@ -162,7 +164,7 @@ export const DoctorLayout: React.FC = () => {
         )}
       </header>
 
-      <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-20 py-6 sm:py-8">
+      <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-8">
         <Outlet />
       </main>
     </div>

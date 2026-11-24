@@ -7,6 +7,36 @@
 
 ---
 
+## [2026-11-24 12:45:28] - KHẮC PHỤC LỖI ĐÈ THANH ĐIỀU HƯỚNG LÊN CHUÔNG THÔNG BÁO & TỐI ƯU HEADER
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 12:45:28
+- **Tiêu đề:** Khắc phục xung đột tràn thanh điều hướng (`Lịch sử sức khỏe`) đè lên `<NotificationBell />`, chuẩn hóa cụm tiện ích Header và sửa `initialsOf` cho tên có ngoặc đơn `(K18 QN)`.
+
+### 2. Danh Sách Tệp Tin
+- `[MOD]` `frontend/src/types/patient.ts`
+- `[MOD]` `frontend/src/components/common/NotificationBell.tsx`
+- `[MOD]` `frontend/src/layouts/PatientLayout.tsx`
+- `[MOD]` `frontend/src/layouts/DoctorLayout.tsx`
+- `[MOD]` `docs/WORK_LOG.md`
+
+### 3. Tài Liệu Đã Đồng Bộ
+- `[MOD]` `docs/WORK_LOG.md` (Ghi nhận bản vá bố cục Header & Avatar Initials; không thay đổi DB schema hoặc backend API).
+
+### 4. Bằng Chứng Kiểm Thử
+- **Frontend Build (`cd frontend; npm run build`):** Exit `0`, **0 lỗi TypeScript**, đóng gói Vite 2.326 modules (8.65s).
+- **Live Frontend Preview (`http://localhost:5173/`):** Phản hồi HTTP `200`.
+- **Kiểm chứng hình học Bounding-Box qua Chromium (5 breakpoint: `1024px`, `1280px`, `1366px`, `1440px`, `1600px` cho cả `/patient` và `/doctor`):**
+  - Khoảng cách tối thiểu từ link nav cuối đến `<NotificationBell />`: `>= 104.0px` trên `/patient` (từ `104.0px`–`346.2px`) và `>= 188.2px` trên `/doctor` (từ `188.2px`–`348.2px`), `scrollWidth === innerWidth`, `navScrollWidth === navClientWidth`.
+  - Avatar initials của `"Pham Cao Hoang Khuong (K18 QN)"` hiển thị chính xác `HK` thay vì `(Q`.
+- **Playwright E2E Suite (3 specs / 12 tests trên `http://localhost:5173`: `mobile-nav.spec.ts`, `patient-dashboard.spec.ts`, `doctor-workstation.spec.ts`):** **12/12 PASS** (7.3s).
+
+### 5. Điểm Nóng Tech Lead Cần Review
+- **Nhãn điều hướng đáp ứng theo mật độ màn hình:** Rút gọn `lg` horizontal padding từ `lg:px-20` xuống `lg:px-8 xl:px-10`, tách nhãn nav súc tích (`Lịch hẹn`, `Trợ lý AI`, `Bệnh án`, `Tìm bác sĩ`, `Lịch sử`) cho dải `1024px–1535px` (`lg:`–`xl:`) và chỉ bung nhãn đầy đủ ở `2xl:` (`>= 1536px`); đồng thời tách cụm bên phải bằng vách ngăn dọc mảnh `md:border-l` với nút chuông `w-9 h-9` khớp chiều cao nút đăng xuất và tắt `animate-pulse` trên badge chưa đọc.
+- **Phòng ngừa đồng bộ trên `DoctorLayout`:** Áp dụng cơ chế `compact` label tương ứng cho màn `1024px–1279px` và cô lập vùng cuộn `<nav>` (`flex-1 min-w-0`) không bao giờ tràn sang vùng tiện ích bên phải.
+
+---
+
 ## [2026-11-24 12:35:07] - CHUẨN HÓA DESIGN SYSTEM "AETHER CLINICAL PRECISION" TOÀN HỆ THỐNG FRONTEND
 
 ### 1. Thời Gian & Tiêu Đề

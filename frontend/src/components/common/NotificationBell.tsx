@@ -62,22 +62,24 @@ export const NotificationBell: React.FC = () => {
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative shrink-0" ref={dropdownRef}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 transition-colors cursor-pointer"
+        className="relative w-9 h-9 inline-flex items-center justify-center shrink-0 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-200/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 transition-colors cursor-pointer"
+        aria-label="Thông báo hệ thống"
         title="Thông báo hệ thống"
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-white animate-pulse">
+          <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white shadow-clinical-lg border border-slate-200 py-3 z-50 animate-scaleUp">
+        <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-sm rounded-2xl bg-white shadow-clinical-lg border border-slate-200 py-3 z-50 animate-scaleUp">
           <div className="flex items-center justify-between px-4 pb-2.5 border-b border-slate-200/80">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-900 text-sm">Thông Báo</span>
