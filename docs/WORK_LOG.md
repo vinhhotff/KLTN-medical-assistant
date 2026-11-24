@@ -7,6 +7,33 @@
 
 ---
 
+## [2026-11-24 11:33:01] - XỬ LÝ TOÀN DIỆN CÁC ĐIỂM NÓNG ISSUES TỪ REPORT 3 (PROJECT TRACKING)
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 11:33:01
+- **Tiêu đề:** Vá 4 lỗi kỹ thuật cốt lõi (Maven Wrapper, SMTP Prod, Upload Multipart 30MB, PatientAccessGuard CHECKED_IN) từ bảng theo dõi tiến độ Report 3.
+
+### 2. Danh Sách Tệp Tin
+- `[NEW]` `backend/mvnw`: Script Maven Wrapper Linux/macOS.
+- `[NEW]` `backend/mvnw.cmd`: Script Maven Wrapper Windows.
+- `[NEW]` `backend/.mvn/wrapper/maven-wrapper.properties`: Cấu hình Maven 3.9.15 wrapper distribution.
+- `[MOD]` `backend/src/main/java/com/mediassist/service/PatientAccessGuard.java`: Bổ sung `AppointmentStatus.CHECKED_IN` vào tập hợp quan hệ điều trị `CARE_RELATIONSHIP_STATUSES`, cho phép bác sĩ xem bệnh án và xét nghiệm tiền khám khi bệnh nhân đã check-in tại phòng chờ.
+- `[MOD]` `backend/src/test/java/com/mediassist/service/PatientAccessGuardTest.java`: Cập nhật mock matcher và bổ sung test case `doctorWithCheckedInPatient_IsAllowedAndAudited` kiểm chứng luồng xem bệnh án lúc CHECKED_IN.
+- `[MOD]` `docker-compose.prod.yml`: Bổ sung các biến môi trường SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `APP_MAIL_FROM`, `APP_CLIENT_BASE_URL`, `CLIENT_URL`) vào container `backend`.
+- `[MOD]` `backend/src/main/resources/application-prod.properties`: Cung cấp giá trị mặc định an toàn cho biến SMTP (`${SMTP_HOST:smtp.gmail.com}`, `${SMTP_USERNAME:}`, `${SMTP_PASSWORD:}`) chống crash container khi chưa truyền credentials.
+- `[MOD]` `backend/src/main/resources/application.properties`: Tăng `spring.servlet.multipart.max-request-size` từ 10MB lên 30MB, cho phép tải lên đồng thời nhiều tệp xét nghiệm mà không bị Spring chặn lỗi 500.
+- `[MOD]` `backend/src/main/resources/application-dev.properties`: Đồng bộ `spring.servlet.multipart.max-request-size=30MB`.
+- `[MOD]` `backend/src/main/resources/application-supabase.properties`: Đồng bộ `spring.servlet.multipart.max-request-size=30MB`.
+
+### 3. Bằng Chứng Kiểm Thử
+- **Backend Tests:** `338/338 PASS` (100% tests thành công, bao gồm test case mới cho `CHECKED_IN`).
+- **Frontend Build:** `0 TypeScript errors` (2.326 modules transformed, dist build thành công trong 2.75s).
+- **Maven Wrapper:** Chạy kiểm thử thành công bằng `./mvnw -v` và `mvn wrapper:wrapper`.
+
+### 4. Điểm Nóng Tech Lead Cần Review
+- **Trạng thái CHECKED_IN:** Bác sĩ giờ đây có thể xem hồ sơ bệnh án 360° và các tệp xét nghiệm đã tải lên ngay khi bệnh nhân vừa quét mã/check-in nhận STT tại quầy tiếp đón, giúp bác sĩ chủ động chuẩn bị ca khám trước khi ấn "Gọi bệnh nhân tiếp theo".
+- **Đóng gói Docker Production:** `backend/Dockerfile` hiện đã có thể build độc lập 100% bằng `./mvnw clean package` mà không phụ thuộc vào việc máy host có cài sẵn Maven hay không.
+
 ## [2026-11-23 15:36:37] - TÍCH HỢP LIÊN KẾT TESTING DRIVE SHEETS VÀO MỤC TESTING REPORT 7 VÀ CAPSTONE DEFENSE
 
 ### 1. Chi Tiết Thực Hiện

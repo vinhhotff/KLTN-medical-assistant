@@ -31,7 +31,7 @@ public class PatientAccessGuard {
     public static final String ERROR_CODE = "FORBIDDEN_PATIENT_ACCESS";
 
     static final Set<AppointmentStatus> CARE_RELATIONSHIP_STATUSES =
-            EnumSet.of(AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS, AppointmentStatus.COMPLETED);
+            EnumSet.of(AppointmentStatus.SCHEDULED, AppointmentStatus.CHECKED_IN, AppointmentStatus.IN_PROGRESS, AppointmentStatus.COMPLETED);
 
     private static final Logger log = LoggerFactory.getLogger(PatientAccessGuard.class);
 

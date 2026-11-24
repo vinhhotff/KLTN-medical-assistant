@@ -58,7 +58,7 @@ class PatientAccessGuardTest {
     @DisplayName("Bác sĩ có lịch hẹn điều trị với bệnh nhân được phép xem và ghi audit VIEW_PATIENT_RECORD")
     void doctorWithCareRelationship_IsAllowedAndAudited() {
         when(appointmentRepository.existsByDoctorIdAndPatientIdAndStatusIn(doctorId, patientId,
-                EnumSet.of(AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS, AppointmentStatus.COMPLETED)))
+                PatientAccessGuard.CARE_RELATIONSHIP_STATUSES))
                 .thenReturn(true);
 
         assertDoesNotThrow(() -> guard.assertCanAccessPatient(doctorId, Role.DOCTOR, patientId, "triage_sessions/patient/" + patientId));
@@ -71,6 +71,18 @@ class PatientAccessGuardTest {
         assertEquals("triage_sessions/patient/" + patientId, audit.getResource());
         assertEquals("203.113.5.9", audit.getIpAddress());
         assertTrue(audit.getMetadata().contains(patientId.toString()));
+    }
+
+    @Test
+    @DisplayName("Bác sĩ được phép xem bệnh án tiền khám khi bệnh nhân đã check-in (CHECKED_IN) tại phòng chờ")
+    void doctorWithCheckedInPatient_IsAllowedAndAudited() {
+        when(appointmentRepository.existsByDoctorIdAndPatientIdAndStatusIn(doctorId, patientId,
+                PatientAccessGuard.CARE_RELATIONSHIP_STATUSES))
+                .thenReturn(true);
+
+        assertDoesNotThrow(() -> guard.assertCanAccessPatient(doctorId, Role.DOCTOR, patientId, "patient_profiles/" + patientId));
+
+        verify(auditLogRepository).save(any(AuditLog.class));
     }
 
     @Test

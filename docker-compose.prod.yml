@@ -59,6 +59,13 @@ services:
       JWT_SECRET: ${JWT_SECRET:-MediAssistEnterpriseSuperSecretKey2026WithSufficientBitsForHMACSHA512Security}
       AI_GATEWAY_PROVIDER: ${AI_GATEWAY_PROVIDER:-gemini}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      APP_MAIL_FROM: ${APP_MAIL_FROM:-MediAssist AI <no-reply@mediassist.fpt.edu.vn>}
+      APP_CLIENT_BASE_URL: ${APP_CLIENT_BASE_URL:-https://mediassist.fpt.edu.vn}
+      CLIENT_URL: ${CLIENT_URL:-https://mediassist.fpt.edu.vn}
     depends_on:
       postgres:
         condition: service_healthy
