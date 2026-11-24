@@ -161,25 +161,23 @@ Ngay sau buổi bảo vệ, nhóm đã họp khẩn dưới sự chủ trì củ
 
 ## 2.3. Nhóm Kiến trúc hệ thống (System Architecture)
 
-### 2.3.1. Phân tách rành mạch Kiến trúc Kỹ thuật và Luồng Nghiệp vụ (Chuẩn Hóa AWS Cloud Blueprint)
+### 2.3.1. Phân tách rành mạch Kiến trúc Kỹ thuật và Luồng Nghiệp vụ (Chuẩn Hóa Cloud Network Kubernetes Architecture)
 - **Vấn đề được góp ý:** Sơ đồ Kiến trúc hệ thống trong slide cũ vẽ lẫn lộn các nhánh rẽ nghiệp vụ (như rẽ nhánh Red-Flag, các bước tư vấn bệnh...) vào sơ đồ công nghệ, khiến người xem không thấy được cấu trúc phân tầng kỹ thuật và ranh giới hạ tầng.
 - **Giải pháp đã thực hiện:**
-  Nhóm đã tách thành 2 sơ đồ hoàn toàn độc lập và chuẩn hóa theo mô hình **AWS Cloud Architecture Blueprint** (khớp chuẩn 100% với cấu trúc kiến trúc đám mây chuẩn):
-  1. **Sơ đồ Kiến Trúc Đám Mây Thuần Kỹ Thuật (AWS Cloud System Architecture):**
-     - **Phân vùng Tài khoản Khách hàng (Customer's AWS Account - Production VPC):**
-       - **Tầng Trình diễn (Presentation & Static CDN):** Người dùng (Patient, Doctor, Admin) tương tác qua Web Client (React 18 SPA + Vite) được lưu trữ tại `Amazon S3` và phân phối tốc độ cao qua `Amazon CloudFront` (Luồng 1).
-       - **Ranh giới Định danh & Bảo mật (Authentication Boundary):** Xác thực định danh tập trung qua `Amazon Cognito / Google OAuth2` và bộ lọc stateless JWT `OpenID Connect` (Luồng 3).
-       - **Cổng Điều phối API (API Gateway / Ingress Controller):** Tiếp nhận yêu cầu HTTPS REST/JSON, quản lý Rate Limiting, CORS và WAF (Luồng 2).
-       - **Bộ Lọc An Ninh & RLS (Security Interceptor / AWS Lambda):** Kiểm tra quyền truy cập theo ngữ cảnh `PatientAccessGuard (RLS)` và che giấu dữ liệu `CLS Masking` (Luồng 4).
-       - **Chuỗi Xử lý Nghiệp vụ Lâm Sàng (AWS Step Functions Workflow):** Điều phối động cơ phân luồng 5 tầng Red-Flag và bộ bóc tách hồ sơ xét nghiệm y tế OCR / LOINC (Luồng 5).
-       - **Cụm Dịch vụ Ứng dụng (AWS Fargate):** Triển khai Spring Boot 3.4.x / Java 21 LTS Modular Monolith dưới dạng Docker container.
-       - **Tầng Lưu trữ & Cơ sở dữ liệu (Database Tier):** Truy vấn và lưu trữ ACID tại `PostgreSQL 16 + pgvector` (HNSW 1536 chiều), bộ nhớ đệm `Redis 6379 (ElastiCache)` và lưu trữ hồ sơ tài liệu bảo mật tại `Amazon S3` (Luồng 8).
-     - **Phân vùng Dịch vụ Quản lý & Đối tác Ngoài (AWS Managed Account & External AI / Fintech):**
-       - Tích hợp mô hình AI: `OpenAI API (text-embedding-3-small, GPT-4o)` và `Google Gemini Vision OCR` (Luồng 6).
-       - Đăng ký và nạp container image tự động từ `Amazon ECR` vào AWS Fargate (Luồng 7).
-       - Cổng thanh toán tài chính: `Stripe Payment Gateway & Webhook` (hỗ trợ hoàn tiền tự động 100%).
+  Nhóm đã tách thành 2 sơ đồ hoàn toàn độc lập và chuẩn hóa theo mô hình kiến trúc hạ tầng doanh nghiệp **Cloud Network Kubernetes Cluster Blueprint**:
+  1. **Sơ đồ Kiến Trúc Thuần Kỹ Thuật (Enterprise Cloud Network Architecture Blueprint):**
+     - **Tầng Thiết bị Khách (External Actors):** `BROWSER` (Patient / Doctor Web SPA) và `MOBILE` (Mobile Client) giao tiếp qua kênh mã hóa HTTPS/WSS.
+     - **Cụm Hạ Tầng Cốt Lõi (Openshift / Kubernetes Cluster Boundary):**
+       - **Cổng Định Tuyến Công Khai (Public route):** Bộ đảo chiều và cân bằng tải Ingress Reverse Proxy kết hợp Kubernetes Ingress Controller (Rate Limiter, SSL Termination, CORS Guard).
+       - **Tầng Giao Diện Người Dùng (Frontend Services):** Dịch vụ `Web` (React 18 SPA + Vite + Tailwind) phân phối giao diện tương tác tốc độ cao.
+       - **Tầng Nền Tảng Di Động & Tiện Ích Kênh (Mobile Foundation / Channel Services):** Quản lý cấu hình động (`App Config`), thông báo thời gian thực (`Push Notifications`), giám sát thiết bị (`Device Analytics`) và vòng đời ứng dụng (`App Cycle`).
+       - **Dịch Vụ Kênh Chung (Common Channel Services):** Module xác thực tập trung `Auth` quản lý định danh người dùng, kiểm soát phân quyền Stateless JWT, bộ lọc bảo mật Spring Security và cơ chế phân quyền bảo mật cấp hàng/cột (`RLS/CLS Security Guard`).
+       - **Trung Tâm Điều Phối & Phân Giải Dịch Vụ (Kube DNS / Internal Service Router):** Trạm điều hướng trung tâm kết nối kênh người dùng đến các dịch vụ xử lý nghiệp vụ backend và phân hệ cơ sở dữ liệu.
+       - **Tầng Dịch Vụ Nghiệp Vụ Cốt Lõi (Backend Services):** Triển khai dưới dạng các pod dịch vụ với cơ chế nhân bản đa tầng (Stacked Replicas): `Catalog / Triage Engine`, `Customer / Identity Service`, `Inventory / Semantic Search`, `Orders / Telehealth Booking & Payment Engine`.
+       - **Tầng Dữ Liệu Đa Hệ (Database Services Tier):** Kiến trúc lưu trữ phân vùng đa hệ (Polyglot Persistence): `Elasticsearch / pgvector` (truy vấn vector 1536 chiều), `PostgreSQL / CouchDB` (CSDL quan hệ lưu trữ dữ liệu lâm sàng ACID), `Redis / MySQL` (L2 Cache và khóa phân tán Redlock), và `Amazon S3 / MariaDB` (lưu trữ đối tượng hồ sơ bệnh án mã hóa).
+     - **Bộ điều hướng hai chiều (Bidirectional Bus):** Kube DNS điều phối độc lập xuống phân hệ Auth và phân hệ Database, đồng thời các dịch vụ Backend giao tiếp trực tiếp 1-1 với phân vùng CSDL tương ứng.
 
-![Sơ đồ Kiến Trúc Hệ Thống Chuẩn AWS Cloud Architecture (System Architecture)](images/system_architecture.png)
+![Sơ đồ Kiến Trúc Hệ Thống Thuần Kỹ Thuật (Cloud Network Kubernetes Cluster Architecture)](images/system_architecture.png)
 
   2. **Sơ đồ Quy Trình Nghiệp Vụ Khám Bệnh Lâm Sàng (End-to-End Business Workflow):** Được tách sang slide riêng để giải thích hành trình trải nghiệm người dùng từ Triage Red-Flag $\rightarrow$ Semantic Search $\rightarrow$ Booking giữ chỗ Redlock $\rightarrow$ Khám lâm sàng Split-Screen EMR ICD-10 $\rightarrow$ Đánh giá bác sĩ (Reviews & Ratings).
 

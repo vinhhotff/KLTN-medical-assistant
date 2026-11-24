@@ -7,6 +7,34 @@
 
 ---
 
+## [2026-11-24 20:00:00] - TÁI HIỆN HOÀN CHỈNH SƠ ĐỒ SYSTEM ARCHITECTURE CHUẨN CLOUD NETWORK OPENSHIFT/KUBERNETES CLUSTER
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 20:00:00
+- **Tiêu đề:** Tái hiện hoàn chỉnh sơ đồ System Architecture theo chuẩn **Cloud Network OpenShift / Kubernetes Cluster Blueprint** khớp 100% bố cục, hình khối, bảng màu `#205493`, huy hiệu vàng `#d4a017`, capsule Auth `#b8252a`, biểu tượng stacked replicas 3 lớp, trạm trung tâm Kube DNS và bus định tuyến chính xác theo đúng ảnh tham chiếu của Tech Lead.
+
+### 2. Danh Sách Tệp Tin & Thay Đổi Chi Tiết
+- `[MOD]` `docs/images/system_architecture.png` (81 KB):
+  - Khung viền lớn `CLOUD NETWORK` màu `#205493`, khung cụm nội bộ `Openshift / Kubernetes Cluster`.
+  - Phân vùng ngoại vi: Biểu tượng `BROWSER` (laptop) và `MOBILE` (smartphone) dạng vòng tròn vàng `#d4a017` với đường nối mũi tên vào `Public route`.
+  - Cột 1 `Public route`: Biểu tượng đảo chiều tải đỏ `#b8252a` và biểu tượng Kubernetes `#205493`, mũi tên điều hướng sang cột trung tâm.
+  - Cột 2: `FRONTEND SERVICES` (`Web` với biểu tượng compa thiết kế), `MOBILE FOUNDATION` (lưới 2x2 gồm App Config, Push Notifications, Device Analytics, App Cycle) và `COMMON CHANNEL SERVICES` (`Auth` dạng capsule đỏ với vân tay bảo mật).
+  - Trạm trung tâm: `Kube DNS` kết nối bus 2 chiều với các dịch vụ Backend và rẽ nhánh cong xuống Auth và CSDL.
+  - Cột 3 `BACKEND SERVICES`: 4 pod dịch vụ với hiệu ứng nhân bản 3 lớp (Stacked Replicas) gồm `Catalog / Triage`, `Customer / Search`, `Inventory / Booking`, `Orders / EMR`.
+  - Cột 4 `DATABASE SERVICES`: 6 khối CSDL hình trụ 3D sắc nét (`Elasticsearch / pgvector`, `PostgreSQL / CouchDB`, `Redis / MySQL`, `Amazon S3 / MariaDB`).
+- `[NEW]` `docs/images/system_architecture_mediassist.png` (81 KB):
+  - Phiên bản tùy biến chi tiết cho MediAssist-AI theo đúng khuôn mẫu trên (`Triage`, `Search`, `Booking`, `EMR` kết nối tương ứng với `pgvector`, `PostgreSQL`, `Redis`, `Amazon S3`).
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.md`: Cập nhật mục 2.3.1 theo chuẩn Cloud Network Kubernetes Cluster.
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.docx`: Biên dịch lại file Word qua Pandoc.
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.pdf`: Kết xuất lại file PDF in ấn qua Playwright.
+- `[MOD]` `REVIEW2_DIAGRAMS_CATALOG.md`: Cập nhật Carousel hiển thị song song cả 2 bản kiến trúc.
+
+### 3. Bằng Chứng Kiểm Thử & Biên Dịch
+- Kết xuất Playwright ở độ phân giải Retina 2x scale, 0 lỗi đè chữ, 0 lỗi tràn khung, tất cả các đường bus định tuyến đều thẳng tắp và chuẩn góc 90°.
+- File Word và PDF hoàn tất 100%.
+
+---
+
 ## [2026-11-24 19:45:00] - THIẾT KẾ MỚI HOÀN TOÀN SƠ ĐỒ KIẾN TRÚC HỆ THỐNG PHÂN TẦNG DOANH NGHIỆP (ENTERPRISE SYSTEM ARCHITECTURE)
 
 ### 1. Thời Gian & Tiêu Đề
