@@ -161,23 +161,30 @@ Ngay sau buổi bảo vệ, nhóm đã họp khẩn dưới sự chủ trì củ
 
 ## 2.3. Nhóm Kiến trúc hệ thống (System Architecture)
 
-### 2.3.1. Phân tách rành mạch Kiến trúc Kỹ thuật và Luồng Nghiệp vụ (Chuẩn Hóa Cloud Network Kubernetes Architecture)
+### 2.3.1. Phân tách rành mạch Kiến trúc Kỹ thuật và Luồng Nghiệp vụ (Chuẩn Hóa Enterprise Modular Monolith Architecture)
 - **Vấn đề được góp ý:** Sơ đồ Kiến trúc hệ thống trong slide cũ vẽ lẫn lộn các nhánh rẽ nghiệp vụ (như rẽ nhánh Red-Flag, các bước tư vấn bệnh...) vào sơ đồ công nghệ, khiến người xem không thấy được cấu trúc phân tầng kỹ thuật và ranh giới hạ tầng.
 - **Giải pháp đã thực hiện:**
-  Nhóm đã tách thành 2 sơ đồ hoàn toàn độc lập và chuẩn hóa theo mô hình kiến trúc hạ tầng doanh nghiệp **Cloud Network Kubernetes Cluster Blueprint**:
-  1. **Sơ đồ Kiến Trúc Thuần Kỹ Thuật (Enterprise Cloud Network Architecture Blueprint):**
-     - **Tầng Thiết bị Khách (External Actors):** `BROWSER` (Patient / Doctor Web SPA) và `MOBILE` (Mobile Client) giao tiếp qua kênh mã hóa HTTPS/WSS.
-     - **Cụm Hạ Tầng Cốt Lõi (Openshift / Kubernetes Cluster Boundary):**
-       - **Cổng Định Tuyến Công Khai (Public route):** Bộ đảo chiều và cân bằng tải Ingress Reverse Proxy kết hợp Kubernetes Ingress Controller (Rate Limiter, SSL Termination, CORS Guard).
-       - **Tầng Giao Diện Người Dùng (Frontend Services):** Dịch vụ `Web` (React 18 SPA + Vite + Tailwind) phân phối giao diện tương tác tốc độ cao.
-       - **Tầng Nền Tảng Di Động & Tiện Ích Kênh (Mobile Foundation / Channel Services):** Quản lý cấu hình động (`App Config`), thông báo thời gian thực (`Push Notifications`), giám sát thiết bị (`Device Analytics`) và vòng đời ứng dụng (`App Cycle`).
-       - **Dịch Vụ Kênh Chung (Common Channel Services):** Module xác thực tập trung `Auth` quản lý định danh người dùng, kiểm soát phân quyền Stateless JWT, bộ lọc bảo mật Spring Security và cơ chế phân quyền bảo mật cấp hàng/cột (`RLS/CLS Security Guard`).
-       - **Trung Tâm Điều Phối & Phân Giải Dịch Vụ (Kube DNS / Internal Service Router):** Trạm điều hướng trung tâm kết nối kênh người dùng đến các dịch vụ xử lý nghiệp vụ backend và phân hệ cơ sở dữ liệu.
-       - **Tầng Dịch Vụ Nghiệp Vụ Cốt Lõi (Backend Services):** Triển khai dưới dạng các pod dịch vụ với cơ chế nhân bản đa tầng (Stacked Replicas): `Catalog / Triage Engine`, `Customer / Identity Service`, `Inventory / Semantic Search`, `Orders / Telehealth Booking & Payment Engine`.
-       - **Tầng Dữ Liệu Đa Hệ (Database Services Tier):** Kiến trúc lưu trữ phân vùng đa hệ (Polyglot Persistence): `Elasticsearch / pgvector` (truy vấn vector 1536 chiều), `PostgreSQL / CouchDB` (CSDL quan hệ lưu trữ dữ liệu lâm sàng ACID), `Redis / MySQL` (L2 Cache và khóa phân tán Redlock), và `Amazon S3 / MariaDB` (lưu trữ đối tượng hồ sơ bệnh án mã hóa).
-     - **Bộ điều hướng hai chiều (Bidirectional Bus):** Kube DNS điều phối độc lập xuống phân hệ Auth và phân hệ Database, đồng thời các dịch vụ Backend giao tiếp trực tiếp 1-1 với phân vùng CSDL tương ứng.
+  Nhóm đã tách thành 2 sơ đồ hoàn toàn độc lập và chuẩn hóa theo mô hình kiến trúc chuẩn doanh nghiệp **Telehealth Web Platform Modular Monolith Blueprint**:
+  1. **Sơ đồ Kiến Trúc Thuần Kỹ Thuật (Enterprise Modular Monolith System Architecture):**
+     - **Tầng Client Ngoại Vi (Client Layer):** Duy nhất một ứng dụng web thống nhất **Web Browser (React 18 + Vite SPA)** phục vụ toàn bộ 3 vai trò người dùng: Bệnh nhân (*Patient Portal*), Bác sĩ (*Doctor Workstation*), Quản trị viên (*Admin Dashboard*).
+     - **Tầng Cổng Biên & Bảo Mật (Edge & Security Gateway Layer):** Đặt trực tiếp phía trước Backend:
+       - **Reverse Proxy / API Gateway (Nginx / TLS 1.3):** Xử lý mã hóa TLS 1.3, Rate Limiting (Token Bucket), tường lửa WAF, CORS và Edge Cache.
+       - **Security & Auth Filter Layer (Spring Security 6):** Nhận luồng điều hướng trực tiếp từ Nginx để xác thực Stateless JWT, xử lý Google OAuth2, bảo vệ phân quyền cấp dòng `PatientAccessGuard (RLS)` và che giấu dữ liệu cấp cột `CLS Data Masking`.
+     - **Tầng Ứng Dụng Backend (Single Spring Boot Modular Monolith Container):** Một khối tiến trình duy nhất (Spring Boot 3.4.x / Java 21 LTS) chứa 4 module nghiệp vụ nội bộ phân định rành mạch:
+       - **AI Triage & RAG Module:** Bộ lọc an toàn triệu chứng 5 tầng Red-Flag, tóm tắt bệnh án SBAR và duy trì ngữ cảnh y tế hội thoại.
+       - **Doctor Search Module:** Khớp nối tương đồng vector ngữ nghĩa 1536 chiều, phân loại chuyên khoa và lọc đánh giá/địa điểm bác sĩ.
+       - **Booking & Schedule Module:** Quản lý ca trực, khóa phân tán chống trùng lịch Redlock (`Zero-Double-Booking`) và cỗ máy trạng thái cuộc hẹn.
+       - **Clinical EMR & Billing Module:** Bàn khám lâm sàng Split-Screen EMR, mã hóa chẩn đoán WHO ICD-10, đơn thuốc số và router xử lý hoàn tiền 100% khi bác sĩ hủy lịch.
+     - **Tầng Lưu Trữ Dữ Liệu Đa Hệ (Data Storage Layer - Many-to-Many Shared Access):** Kết nối tổng thể từ toàn bộ khối Monolith (không nối 1-1 cứng nhắc) tới 3 kho lưu trữ:
+       - **PostgreSQL 16:** CSDL quan hệ chính (17 bảng ACID, RLS/CLS Security) tích hợp phần mở rộng **pgvector Extension (1536-dim HNSW)** ngay bên trong CSDL.
+       - **Redis 6379:** Bộ đệm hai tầng L2, khóa phân tán Redlock giữ chỗ, và danh sách đen JWT Blacklist / Active Sessions.
+       - **Amazon S3:** Lưu trữ đối tượng hồ sơ y tế mã hóa (kết quả xét nghiệm PDF, ảnh chụp cận lâm sàng) qua Presigned URLs giới hạn 15 phút.
+     - **Tầng Dịch Vụ Ngoài (External 3rd-Party Services):** Cột dịch vụ đám mây ngoại vi kết nối với Monolith qua hành lang API 2 chiều:
+       - **OpenAI API:** Mô hình LLM GPT-4o (suy luận lâm sàng) và `text-embedding-3-small` (vector 1536 chiều).
+       - **Payment Gateway:** Cổng thanh toán VNPay / Stripe Sandbox (3D-Secure 2.0 và webhook hoàn tiền 100%).
+       - **Google OAuth 2.0:** Nhà cung cấp định danh liên kết (IdP / OIDC) xác thực đăng nhập một lần (SSO).
 
-![Sơ đồ Kiến Trúc Hệ Thống Thuần Kỹ Thuật (Cloud Network Kubernetes Cluster Architecture)](images/system_architecture.png)
+![Sơ đồ Kiến Trúc Hệ Thống Thuần Kỹ Thuật (Enterprise Modular Monolith Architecture)](images/system_architecture.png)
 
   2. **Sơ đồ Quy Trình Nghiệp Vụ Khám Bệnh Lâm Sàng (End-to-End Business Workflow):** Được tách sang slide riêng để giải thích hành trình trải nghiệm người dùng từ Triage Red-Flag $\rightarrow$ Semantic Search $\rightarrow$ Booking giữ chỗ Redlock $\rightarrow$ Khám lâm sàng Split-Screen EMR ICD-10 $\rightarrow$ Đánh giá bác sĩ (Reviews & Ratings).
 

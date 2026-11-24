@@ -7,6 +7,41 @@
 
 ---
 
+## [2026-11-24 20:30:00] - THIẾT KẾ LẠI TOÀN DIỆN SYSTEM ARCHITECTURE THEO CHUẨN MODULAR MONOLITH VÀ SỬA 5 ĐIỂM CỐT LÕI
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-24 20:30:00
+- **Tiêu đề:** Tái hiện và khắc phục triệt để sơ đồ System Architecture cho nền tảng Telehealth Web Platform theo kiến trúc **Modular Monolith** (loại bỏ hoàn toàn Microservices và Kubernetes/Kube DNS), đáp ứng 5 chỉ thị kỹ thuật nghiêm ngặt của Tech Lead.
+
+### 2. Danh Sách Tệp Tin & Thay Đổi Chi Tiết
+- `[MOD]` `docs/images/system_architecture.png` (181 KB):
+  - **1. Client Layer (Ngoại vi bên trái):** Đã thay thế hai biểu tượng cũ bằng duy nhất một **Web Browser (React 18 + Vite SPA)** phục vụ toàn bộ 3 vai trò: `Patient Portal`, `Doctor Workstation`, `Admin Dashboard`. Loại bỏ hoàn toàn ứng dụng di động riêng biệt.
+  - **2. Edge & Security Gateway Layer:** Luồng HTTPS đi thẳng từ Web Browser vào **Reverse Proxy / API Gateway (Nginx / TLS 1.3 + Rate Limiting)**, sau đó chuyển tiếp trực tiếp xuống **Security & Auth Filter Layer (Spring Security 6 + JWT + Google OAuth2)** nằm ngay phía trước Backend (loại bỏ hoàn toàn vòng lặp phụ Auth).
+  - **3. Backend Application Layer (Single Modular Monolith Container):** Hợp nhất thành **MỘT khối tiến trình duy nhất (Spring Boot 3.4.x / Java 21 LTS Modular Monolith)** (xóa bỏ Kubernetes Cluster và Kube DNS). Bên trong khối chứa 4 module nội bộ phân định rành mạch:
+    - `AI Triage & RAG Module`: 5-Stage Red-Flag Rule Filter, tóm tắt bệnh án lâm sàng SBAR.
+    - `Doctor Search Module`: Khớp nối vector ngữ nghĩa 1536 chiều, phân loại chuyên khoa.
+    - `Booking & Schedule Module`: Slot Management, khóa phân tán Redlock chống trùng lịch.
+    - `Clinical EMR & Billing Module`: Split-Screen EMR, WHO ICD-10, Digital Rx & hoàn tiền 100%.
+  - **4. Data Storage Layer (Truy Cập Đa-Đa, Không Nối Cứng 1-1):** Kết nối tổng thể từ toàn bộ khối Monolith (trung kế bus đa hướng) tới 3 kho lưu trữ:
+    - `PostgreSQL 16` tích hợp phần mở rộng **pgvector Extension (1536-dim HNSW)** ngay bên trong CSDL, 17 bảng ACID, RLS/CLS Security.
+    - `Redis 6379`: L2 Cache, Redlock Concurrency Mutex, JWT Blacklist & Active Sessions.
+    - `Amazon S3`: Lưu trữ file xét nghiệm PDF & hình ảnh cận lâm sàng mã hóa qua Presigned URLs 15 phút.
+  - **5. External 3rd-Party Services (Cột ngoại vi bên phải):** Kết nối trực tiếp với Monolith qua hành lang API 2 chiều riêng biệt ở tầng trên:
+    - `OpenAI API`: GPT-4o (suy luận lâm sàng) và `text-embedding-3-small` (vector 1536 chiều).
+    - `Payment Gateway`: VNPay / Stripe API (PaymentIntent & 100% Refund Webhook).
+    - `Google OAuth 2.0`: Identity Provider (OIDC SSO).
+  - **Đường Nối & Bus Dữ Liệu:** Toàn bộ mũi tên thể hiện luồng dữ liệu 2 chiều (`<->`), chữ sắc nét, hoàn toàn không có dây chồng chéo lên nhau.
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.md`: Cập nhật mục 2.3.1 theo chuẩn Enterprise Modular Monolith Architecture.
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.docx`: Biên dịch lại file Word qua Pandoc.
+- `[MOD]` `docs/BAO_CAO_TIEP_THU_GOP_Y_REVIEW_2.pdf`: Kết xuất lại file PDF in ấn qua Playwright.
+- `[MOD]` `REVIEW2_DIAGRAMS_CATALOG.md`: Cập nhật chi tiết sơ đồ Modular Monolith mới.
+
+### 3. Bằng Chứng Kiểm Thử & Biên Dịch
+- Kết xuất Playwright ở độ phân giải Retina 2x scale, 181 KB sắc nét, 0 lỗi đè chữ, 0 dây nối chồng chéo.
+- Biên dịch Word và PDF thành công 100%.
+
+---
+
 ## [2026-11-24 20:10:00] - CHUYỂN HÓA 100% THÀNH PHẦN SYSTEM ARCHITECTURE SANG HỆ SINH THÁI MEDIASSIST-AI
 
 ### 1. Thời Gian & Tiêu Đề
