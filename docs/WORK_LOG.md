@@ -7,6 +7,30 @@
 
 ---
 
+## [2026-11-24 14:44:00] - CHUYỂN LIÊN KẾT QUÊN MẬT KHẨU XUỐNG DƯỚI NÚT ĐĂNG NHẬP & SỬA LỖI MÔI TRƯỜNG DEV TRUY CẬP VITE PROXY
+
+- **Tác giả / AI Assistant:** Senior Fullstack & DevOps AI Pair Programmer
+- **Phân nhánh Git:** `feature/fuction`
+
+### 1. Danh sách tệp tin thay đổi
+- `[MOD]` [`LoginPage.tsx`](file:///C:/Users/hoang/.gemini/antigravity/worktrees/Project_2026/mediassist_gap_analysis/frontend/src/pages/LoginPage.tsx):
+  1. Chuyển liên kết *"Quên mật khẩu?"* từ cạnh trên ô mật khẩu xuống bên dưới nút bấm *"Đăng nhập"*, căn giữa đẹp mắt.
+  2. Cập nhật danh sách tài khoản demo bấm điền sẵn (`DEMO_ACCOUNTS`) gồm: Quản trị viên (`admin@mediassist.local`), Bác sĩ TP.HCM (`bs.nguyenvanan.timmach@gmail.com`), Bác sĩ Quy Nhơn (`bs.nguyenthimai.taimuihong.qn@gmail.com`), và các bệnh nhân mẫu với mật khẩu chuẩn `Demo@123456`.
+  3. Cải thiện thông báo lỗi khi mất kết nối máy chủ để tránh gây hiểu nhầm sang lỗi sai mật khẩu.
+
+### 2. Nguyên nhân đăng nhập không được trên giao diện và cách xử lý
+- **Nguyên nhân:** Khi user truy cập trang đăng nhập, tiến trình Vite trên cổng `5173` bị gián đoạn (do cache optimizeDeps của Vite 6 bị crash `TypeError: Cannot read properties of undefined (reading 'imports')`). Trình duyệt không thể gửi request đến proxy `/api/v1/auth/login` (bị lỗi mạng `ERR_CONNECTION_REFUSED`), dẫn đến fallback hiển thị thông báo generic *"Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin"*.
+- **Xử lý:**
+  1. Đã xóa sạch cache `node_modules/.vite`.
+  2. Chạy dịch vụ máy chủ Vite Preview Production trên cổng `http://localhost:5173` kết nối trơn tru với Backend `http://localhost:5001`.
+  3. Đã test gọi API login qua proxy cổng `5173` cho tài khoản `bs.nguyenthimai.taimuihong.qn@gmail.com` với mật khẩu `Demo@123456` $\rightarrow$ Trả về `success: true` và `role: DOCTOR`.
+
+### 3. Bằng chứng kiểm thử & Vận hành
+- `npm run build` $\rightarrow$ Thành công 0 lỗi TS.
+- Login qua proxy cổng 5173: `Invoke-RestMethod` trả về `Login via 5173 proxy status: True` với đầy đủ token và thông tin bác sĩ.
+
+---
+
 ## [2026-11-24 14:28:00] - TÍNH NĂNG HOÀN TIỀN TỰ ĐỘNG KHI HỦY LỊCH (V28), 24 BÁC SĨ MỚI TẠI QUY NHƠN VỚI 36 VECTOR SVG AVATARS, VÀ TỐI ƯU GIAO DIỆN HEADER NAVIGATION
 
 - **Tác giả / AI Assistant:** Senior Fullstack & Database AI Pair Programmer

@@ -28,11 +28,11 @@ type Role = 'PATIENT' | 'DOCTOR';
 type Policy = 'PRIVACY' | 'SECURITY' | 'DISCLAIMER';
 
 const DEMO_ACCOUNTS = [
-  { label: 'Bác sĩ An', email: 'doctor@mediassist.local', password: 'Doctor@SecurePass2026!' },
-  { label: 'Bác sĩ Tuấn', email: 'dr.tuan@mediassist.local', password: 'Doctor@SecurePass2026!' },
-  { label: 'Bác sĩ Hương', email: 'dr.huong@mediassist.local', password: 'Doctor@SecurePass2026!' },
-  { label: 'Bệnh nhân Bình', email: 'patient@mediassist.local', password: 'Patient@SecurePass2026!' },
   { label: 'Quản trị viên', email: 'admin@mediassist.local', password: 'Admin@SecurePass2026!' },
+  { label: 'BS. An (TP.HCM)', email: 'bs.nguyenvanan.timmach@gmail.com', password: 'Demo@123456' },
+  { label: 'BS. Mai (Quy Nhơn)', email: 'bs.nguyenthimai.taimuihong.qn@gmail.com', password: 'Demo@123456' },
+  { label: 'BN. Minh Thư', email: 'nguyenminhthu.bn@gmail.com', password: 'Demo@123456' },
+  { label: 'BN. Hoàng Nam', email: 'tranhoangnam.bn@gmail.com', password: 'Demo@123456' },
 ];
 
 const FEATURES = [
@@ -155,7 +155,11 @@ export const LoginPage: React.FC = () => {
       }
     } catch (err: any) {
       const errCode = err.response?.data?.error?.code;
-      const errMsg = err.response?.data?.error?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
+      const errMsg =
+        err.response?.data?.error?.message ||
+        (!err.response
+          ? 'Không thể kết nối đến máy chủ Backend (Port 5001). Vui lòng kiểm tra lại dịch vụ và thử lại.'
+          : 'Email hoặc mật khẩu không chính xác.');
       if (errCode === 'ACCOUNT_LOCKED') {
         setIsLocked(true);
       }
@@ -315,14 +319,7 @@ export const LoginPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between gap-3 mb-1.5">
-                      <label htmlFor="login-password" className="text-sm font-semibold text-slate-800">
-                        Mật khẩu
-                      </label>
-                      <Link to="/forgot-password" className="text-sm font-semibold text-teal-700 hover:underline">
-                        Quên mật khẩu?
-                      </Link>
-                    </div>
+                    <AuthLabel htmlFor="login-password">Mật khẩu</AuthLabel>
                     <IconInput
                       id="login-password"
                       icon={Lock}
@@ -346,6 +343,15 @@ export const LoginPage: React.FC = () => {
                     <span>Đăng nhập</span>
                     <ArrowRight className="w-4 h-4" />
                   </SubmitButton>
+
+                  <div className="text-center pt-1">
+                    <Link
+                      to="/forgot-password"
+                      className="text-sm font-semibold text-teal-700 hover:text-teal-800 hover:underline inline-flex items-center gap-1 transition-colors"
+                    >
+                      Quên mật khẩu?
+                    </Link>
+                  </div>
 
                   {ENABLE_DEMO_LOGIN && (
                     <div className="p-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50" data-testid="demo-presets">
