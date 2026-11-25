@@ -7,6 +7,35 @@
 
 ---
 
+## [2026-11-25 09:03:00] - TẠO BỘ SLIDE CANVA REVIEW 3 (19 SLIDES) MAP 1-1 THEO MẪU AITA CHO DỰ ÁN MEDIASSIST-AI
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-25 09:03:00
+- **Tiêu đề:** Thiết kế và đồng bộ hoàn chỉnh bộ slide thuyết trình **MediAssist-AI — Review 3** gồm **19 trang** trên Canva (`DAHb4S4e1Ak`), học tập và ánh xạ 1-1 toàn bộ cấu trúc nội dung từ bộ slide mẫu `Capstone SEP490 - AITA - Review 3` (`DAHPg0jvAYs`), kết hợp trang trí Medical Tech (Navy `#0F172A`, Clinical Teal `#0F766E`, Sky Blue `#0284C7`) và bộ sơ đồ kỹ thuật riêng của dự án.
+
+### 2. Danh Sách Tệp Tin & Thay Đổi Chi Tiết
+- `[NEW]` `docs/images/slide12_ai_pipeline.png`:
+  - Sơ đồ Pipeline AI Triage & Multimodal Lab OCR 4 giai đoạn (Ingestion & Decree 13 PII Shield → 5-Stage Clinical Defense & WHO LOINC/ICD-10 Grounding → 1536-dim pgvector HNSW & WHRF-SOTA Reranking → 3-Tier AiModelRouter, Two-Layer Cache & Doctor Review Gate).
+- `[NEW]` `docs/images/slide14_doctor_flow.png`:
+  - Sơ đồ Snake Flowchart 10 bước quy trình lâm sàng dành cho Bác sĩ (Doctor Onboarding CCHN → Live Queue STT → Pre-Encounter SBAR/OCR Review → Vital Signs & BMI → WHO ICD-10 → E-Prescription → Save EMR/PDF → Complete → KPIs → Immutable Audit Log).
+- `[NEW]` `docs/images/slide15_patient_flow.png`:
+  - Sơ đồ Snake Flowchart 10 bước hành trình Bệnh nhân O2O (Google SSO → AI Triage Red-Flag 115 → Lab OCR LOINC → pgvector Doctor Search → Redlock Slot Booking → Stripe/VietQR → QR Ticket & STT → Consultation → Lifelong EMR/15m S3 → Review/100% Refund).
+- `[CANVA CREATE & COMMIT]` Canva Presentation (`DAHb4S4e1Ak` — `https://www.canva.com/d/a59iKBDQBroDuLj`):
+  - **19 Slides hoàn chỉnh** (`MEDIASSIST | 01` đến `MEDIASSIST | 19`), footer `©2026 - FPT University - SEP490.11`.
+  - Slide 2: Cập nhật đúng 3 thành viên (Nguyễn Thành Vinh QE180174, Phan Cao Hoàng Khương, Phan Nhật Bảo).
+  - Slide 6: Nhúng 2 ảnh UI thật của MediAssist-AI (`01_triage_chat_desktop.png` & `06_bac_si_chi_tiet_ca_kham.png`).
+  - Slide 8–10: Ánh xạ đầy đủ các Use Case thực tế của Admin (`UC-ADM`), Doctor (`UC-DOC`), Patient (`UC-PAT`).
+  - Slide 11: Chuẩn hóa bảng Tech Stack (`React 18.3, Vite 6, TypeScript 5.8, Java 21 LTS, Spring Boot 3.4.3, PostgreSQL 16 pgvector HNSW, Redis 7, Private S3, Gemini Flash Vision, OpenAI Embeddings, Apache PDFBox 3.0.4, 338 Unit Tests PASS, k6 500 VU`).
+  - Slide 12–15: Nhúng trực tiếp các sơ đồ độ phân giải cao (`slide12_ai_pipeline.png`, `system_architecture_technical.png`, `slide14_doctor_flow.png`, `slide15_patient_flow.png`) đúng tỉ lệ, không cắt xén.
+  - Slide 16–19: Số liệu kiểm thử thực tế, hạn chế theo Luật KCB 2023, Q&A và Thank You.
+  - Giao dịch Canva `3837590117223820172` đã được **COMMITTED** vĩnh viễn.
+
+### 3. Bằng Chứng Kiểm Thử & Trạng Thái
+- Đã kiểm tra thumbnail trực tiếp trên các trang có ảnh/sơ đồ và bảng công nghệ để bảo đảm không sai stack và không cắt viền.
+- Trạng thái Git: Commit lên nhánh `develop`.
+
+---
+
 ## [2026-11-24 23:45:00] - TÁI THIẾT KẾ BẢN VẼ KIẾN TRÚC PHIÊN BẢN EXECUTIVE MINIMALIST: RÕ RÀNG, CHỮ TO RÕ, 100% ĐỌC ĐƯỢC TRÊN MÁY CHIẾU
 
 ### 1. Thời Gian & Tiêu Đề
