@@ -15,6 +15,7 @@ public class PaymentResponseDto {
     private String gatewayReference;
     private String qrPayload;
     private String message;
+    private String mode;
 
     public PaymentResponseDto() {
     }
@@ -23,6 +24,14 @@ public class PaymentResponseDto {
                               BigDecimal amount, String currency, String paymentMethod,
                               String paymentGateway, String checkoutUrl, String gatewayReference,
                               String qrPayload, String message) {
+        this(transactionCode, orderType, status, amount, currency, paymentMethod,
+                paymentGateway, checkoutUrl, gatewayReference, qrPayload, message, null);
+    }
+
+    public PaymentResponseDto(String transactionCode, String orderType, String status,
+                              BigDecimal amount, String currency, String paymentMethod,
+                              String paymentGateway, String checkoutUrl, String gatewayReference,
+                              String qrPayload, String message, String mode) {
         this.transactionCode = transactionCode;
         this.orderType = orderType;
         this.status = status;
@@ -34,6 +43,7 @@ public class PaymentResponseDto {
         this.gatewayReference = gatewayReference;
         this.qrPayload = qrPayload;
         this.message = message;
+        this.mode = mode;
     }
 
     public String getTransactionCode() {
@@ -122,5 +132,13 @@ public class PaymentResponseDto {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getMode() {
+        return mode;
+    }
+
+    public void setMode(String mode) {
+        this.mode = mode;
     }
 }

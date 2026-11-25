@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Calendar,
@@ -12,7 +13,8 @@ import {
   Stethoscope,
   User,
   Copy,
-  Check
+  Check,
+  Video
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { EMERGENCY_NUMBER, SUPPORT_HOTLINE, SUPPORT_HOTLINE_TEL } from '../../config/app';
@@ -38,12 +40,16 @@ export interface TicketData {
   qrCodeData?: string;
   sttNumber?: string;
   preVisitInstructions?: string[];
+  consultationType?: 'IN_PERSON' | 'ONLINE';
+  meetingRoomCode?: string | null;
+  meetingUrl?: string | null;
 }
 
 interface AdmissionTicketModalProps {
   appointment: TicketData;
   isOpen: boolean;
   onClose: () => void;
+  onJoinOnlineRoom?: (appointment: TicketData) => void;
 }
 
 /** General preparation tips shown only when the backend sends no specific instructions. */
@@ -53,12 +59,19 @@ const GENERAL_INSTRUCTIONS = [
   'Đến trước giờ hẹn 15 phút tại quầy tiếp đón để nhận số vào phòng khám',
 ];
 
+const ONLINE_GENERAL_INSTRUCTIONS = [
+  'Chuẩn bị thiết bị (điện thoại hoặc máy tính) có kết nối Internet ổn định',
+  'Cấp quyền Camera & Micro để trao đổi trực tiếp với bác sĩ (hoặc dùng chế độ Chat nếu không có camera)',
+  'Vào phòng khám trực tuyến trước giờ hẹn 5–10 phút và chuẩn bị sẵn ảnh xét nghiệm/đơn thuốc nếu có',
+];
+
 const withDoctorTitle = (name: string) => (/^(BS|ThS|TS|PGS|GS)\b/i.test(name.trim()) ? name : `BS. ${name}`);
 
 export const AdmissionTicketModal: React.FC<AdmissionTicketModalProps> = ({
   appointment,
   isOpen,
   onClose,
+  onJoinOnlineRoom,
 }) => {
   const [ticket, setTicket] = useState<TicketData>(appointment);
   const [loading, setLoading] = useState(false);
@@ -162,8 +175,13 @@ export const AdmissionTicketModal: React.FC<AdmissionTicketModalProps> = ({
       datetime: ticket.scheduledStart,
     });
 
+  const isOnline = ticket.consultationType === 'ONLINE';
   const hasSpecificInstructions = Boolean(ticket.preVisitInstructions && ticket.preVisitInstructions.length > 0);
-  const instructions = hasSpecificInstructions ? (ticket.preVisitInstructions as string[]) : GENERAL_INSTRUCTIONS;
+  const instructions = hasSpecificInstructions
+    ? (ticket.preVisitInstructions as string[])
+    : isOnline
+    ? ONLINE_GENERAL_INSTRUCTIONS
+    : GENERAL_INSTRUCTIONS;
 
   return (
     <>
@@ -211,11 +229,19 @@ export const AdmissionTicketModal: React.FC<AdmissionTicketModalProps> = ({
                   <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center font-extrabold text-lg shadow-sm">M+</div>
                   <div>
                     <h2 className="text-lg font-black text-slate-900 tracking-tight">MediAssist</h2>
-                    <p className="text-[11px] font-semibold text-teal-700">PHIẾU TIẾP ĐÓN BỆNH NHÂN</p>
+                    <p className="text-[11px] font-semibold text-teal-700">
+                      {isOnline ? 'PHIẾU KHÁM TRỰC TUYẾN (TELEHEALTH)' : 'PHIẾU TIẾP ĐÓN BỆNH NHÂN'}
+                    </p>
                   </div>
                 </div>
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 pt-2 tracking-tight">PHIẾU KHÁM BỆNH ĐIỆN TỬ</h1>
-                <p className="text-xs text-slate-500">Xuất trình phiếu này (trên điện thoại hoặc bản in) tại quầy tiếp đón khi đến khám</p>
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 pt-2 tracking-tight">
+                  {isOnline ? 'VÉ VÀO PHÒNG KHÁM VIDEO ONLINE' : 'PHIẾU KHÁM BỆNH ĐIỆN TỬ'}
+                </h1>
+                <p className="text-xs text-slate-500">
+                  {isOnline
+                    ? 'Sử dụng mã phòng bên dưới hoặc nhấn nút Vào Phòng Khám Online để kết nối Video Call & Chat với bác sĩ'
+                    : 'Xuất trình phiếu này (trên điện thoại hoặc bản in) tại quầy tiếp đón khi đến khám'}
+                </p>
               </div>
 
               <div className="flex sm:flex-col items-start sm:items-end justify-between bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-xl">
@@ -239,27 +265,67 @@ export const AdmissionTicketModal: React.FC<AdmissionTicketModalProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
-              {/* QR + queue number */}
-              <div className="md:col-span-5 flex flex-col items-center justify-center p-5 bg-gradient-to-b from-teal-50/50 via-white to-slate-50 rounded-2xl border-2 border-teal-100 text-center space-y-3">
-                <div className="p-3 bg-white rounded-2xl shadow-sm border border-teal-100">
-                  <QRCodeSVG value={qrValue} size={160} level="M" includeMargin={false} className="rounded-lg" />
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Số thứ tự khám</span>
-                  {ticket.sttNumber ? (
-                    <div className="text-3xl sm:text-4xl font-black text-teal-900 tracking-tight">{ticket.sttNumber}</div>
-                  ) : (
-                    <div className="text-sm font-semibold text-slate-500 italic py-1" data-testid="stt-pending">
-                      Đang chờ cấp số — nhận tại quầy tiếp đón
+              {/* Left panel: Video Room Join Card (ONLINE) or QR + queue number (IN_PERSON) */}
+              {isOnline ? (
+                <div className="md:col-span-5 flex flex-col items-center justify-center p-5 bg-gradient-to-b from-indigo-50/70 via-white to-slate-50 rounded-2xl border-2 border-indigo-200 text-center space-y-3">
+                  <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20">
+                    <Video className="w-8 h-8" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-widest block">Mã Phòng Video Call</span>
+                    <div className="font-mono text-lg font-black text-indigo-950 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-200">
+                      {ticket.meetingRoomCode || ticket.appointmentCode}
                     </div>
+                  </div>
+                  {onJoinOnlineRoom ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onJoinOnlineRoom(ticket);
+                      }}
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer no-print"
+                    >
+                      <Video className="w-4 h-4" />
+                      <span>Vào Phòng Khám Online</span>
+                    </button>
+                  ) : (
+                    <Link
+                      to={ticket.meetingUrl || `/consultation/${ticket.id}`}
+                      onClick={onClose}
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition no-print"
+                    >
+                      <Video className="w-4 h-4" />
+                      <span>Vào Phòng Khám Online</span>
+                    </Link>
                   )}
-                  <p className="text-[11px] text-teal-700 font-semibold">Đưa mã QR cho nhân viên tiếp đón khi đến</p>
+                  <div className="w-full pt-2 border-t border-indigo-100 text-[11px] text-slate-500 flex items-center justify-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Phòng khám trực tuyến bảo mật P2P</span>
+                  </div>
                 </div>
-                <div className="w-full pt-2 border-t border-teal-100 text-[11px] text-slate-500 flex items-center justify-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Phiếu được tạo từ hệ thống MediAssist</span>
+              ) : (
+                <div className="md:col-span-5 flex flex-col items-center justify-center p-5 bg-gradient-to-b from-teal-50/50 via-white to-slate-50 rounded-2xl border-2 border-teal-100 text-center space-y-3">
+                  <div className="p-3 bg-white rounded-2xl shadow-sm border border-teal-100">
+                    <QRCodeSVG value={qrValue} size={160} level="M" includeMargin={false} className="rounded-lg" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Số thứ tự khám</span>
+                    {ticket.sttNumber ? (
+                      <div className="text-3xl sm:text-4xl font-black text-teal-900 tracking-tight">{ticket.sttNumber}</div>
+                    ) : (
+                      <div className="text-sm font-semibold text-slate-500 italic py-1" data-testid="stt-pending">
+                        Đang chờ cấp số — nhận tại quầy tiếp đón
+                      </div>
+                    )}
+                    <p className="text-[11px] text-teal-700 font-semibold">Đưa mã QR cho nhân viên tiếp đón khi đến</p>
+                  </div>
+                  <div className="w-full pt-2 border-t border-teal-100 text-[11px] text-slate-500 flex items-center justify-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Phiếu được tạo từ hệ thống MediAssist</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Details */}
               <div className="md:col-span-7 flex flex-col justify-between space-y-4">
@@ -285,16 +351,26 @@ export const AdmissionTicketModal: React.FC<AdmissionTicketModalProps> = ({
                     <div>
                       <span className="font-bold block text-[11px] uppercase tracking-wider text-amber-800">Thời gian khám</span>
                       <span className="font-extrabold text-sm text-slate-900">{formatDateTime(ticket.scheduledStart)}</span>
-                      <span className="text-[11px] text-amber-800 block mt-0.5">*Vui lòng có mặt trước giờ hẹn 15 phút</span>
+                      <span className="text-[11px] text-amber-800 block mt-0.5">
+                        {isOnline
+                          ? '*Vui lòng vào phòng khám Online trước giờ hẹn 5–10 phút'
+                          : '*Vui lòng có mặt trước giờ hẹn 15 phút'}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-teal-50/60 border border-teal-200/80 text-slate-800">
-                    <MapPin className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
+                  <div className={`flex items-start gap-2.5 p-3 rounded-xl border text-slate-800 ${isOnline ? 'bg-indigo-50/60 border-indigo-200/80' : 'bg-teal-50/60 border-teal-200/80'}`}>
+                    {isOnline ? (
+                      <Video className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <MapPin className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
+                    )}
                     <div className="flex-1">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="font-bold text-[11px] uppercase tracking-wider text-teal-800">Địa điểm khám</span>
-                        {mapUrl && (
+                        <span className={`font-bold text-[11px] uppercase tracking-wider ${isOnline ? 'text-indigo-800' : 'text-teal-800'}`}>
+                          {isOnline ? 'Hình thức & Phòng trực tuyến' : 'Địa điểm khám'}
+                        </span>
+                        {!isOnline && mapUrl && (
                           <a
                             href={mapUrl}
                             target="_blank"
@@ -305,7 +381,16 @@ export const AdmissionTicketModal: React.FC<AdmissionTicketModalProps> = ({
                           </a>
                         )}
                       </div>
-                      {hasLocation ? (
+                      {isOnline ? (
+                        <>
+                          <p className="font-extrabold text-indigo-950 text-xs mt-0.5">
+                            {ticket.clinicRoom || 'Khám Online (Video Call HD & Chat)'}
+                          </p>
+                          <p className="text-slate-600 text-[11px] mt-0.5">
+                            {ticket.clinicFloor || 'Trực tuyến (Telehealth)'} · Không cần đến bệnh viện
+                          </p>
+                        </>
+                      ) : hasLocation ? (
                         <>
                           {roomLine && <p className="font-extrabold text-slate-900 text-xs mt-0.5">{roomLine}</p>}
                           {ticket.clinicBuilding && <p className="text-slate-700 font-medium text-[11px]">{ticket.clinicBuilding}</p>}

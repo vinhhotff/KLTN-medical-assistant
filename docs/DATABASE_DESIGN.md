@@ -1169,3 +1169,36 @@ ALTER TABLE users ALTER COLUMN version SET NOT NULL;
 ```
 
 Song song ở tầng JPA Entity (`User.java`, `Appointment.java`, `PaymentTransaction.java`), cột `version` được đánh dấu `@Column(name = "version", nullable = false)` kèm getter/setter phòng vệ null (`return version != null ? version : 0L;` và fallback `0L` khi gán `null`).
+
+---
+
+## 18. Telehealth Kết Hợp (Khám Online Video Call & Chat Trực Tuyến — Flyway V25)
+
+Bản di trú `V25__telehealth_online_and_chat.sql` mở rộng hệ thống từ mô hình khám tại quầy (`IN_PERSON`) sang mô hình **Hybrid Telehealth** (`IN_PERSON` + `ONLINE` Video Call WebRTC & Persistent Chat):
+
+### 18.1. Mở rộng bảng `appointments`
+| Cột mới | Kiểu dữ liệu | Ràng buộc / Mặc định | Mục đích |
+| :--- | :--- | :--- | :--- |
+| `consultation_type` | `VARCHAR(20)` | `NOT NULL DEFAULT 'IN_PERSON'` | Phân biệt khám trực tiếp (`IN_PERSON`) và khám từ xa (`ONLINE`). |
+| `meeting_room_code` | `VARCHAR(64)` | `NULL` (Backfill cho ca `ONLINE`) | Mã phòng họp WebRTC định danh (`MA-YYYYMMDD-XXXXXX`). |
+| `meeting_url` | `VARCHAR(255)` | `NULL` | Đường dẫn nội bộ vào phòng khám (`/consultation/{appointmentId}`). |
+| `checked_in_at` | `TIMESTAMPTZ` | `NULL` | Thời điểm bệnh nhân check-in hoặc vào phòng khám trực tuyến. |
+
+### 18.2. Bảng mới `consultation_messages` (Lịch sử trao đổi Bác sĩ – Bệnh nhân)
+```sql
+CREATE TABLE IF NOT EXISTS consultation_messages (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    appointment_id  UUID NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+    sender_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    sender_role     VARCHAR(20) NOT NULL,
+    message_type    VARCHAR(30) NOT NULL DEFAULT 'TEXT', -- TEXT | IMAGE | PRESCRIPTION_NOTE
+    content         TEXT,
+    attachment_url  VARCHAR(1000),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_consultation_messages_appt_created
+    ON consultation_messages(appointment_id, created_at ASC);
+```
+- **Rào chắn bảo mật:** Mọi thao tác đọc/gửi tin nhắn và signaling WebRTC (`JOIN`, `OFFER`, `ANSWER`, `ICE_CANDIDATE`, `MEDIA_STATE`, `CALL_END`, `ROOM_STATUS`) đều kiểm tra quyền tham gia thực tế (`patient_id`, `doctor_id` của lịch hẹn hoặc `ADMIN`) ở cả tầng REST (`ConsultationController`) và tầng STOMP WebSocket (`WebSocketConfig` `ChannelInterceptor` + JWT `HandshakeInterceptor`).
+

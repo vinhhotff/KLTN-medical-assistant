@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToastProvider } from './components/ui';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
@@ -30,12 +30,20 @@ const DoctorSearchPage = lazy(() => import('./pages/patient/DoctorSearchPage').t
 const DocumentSummarizerPage = lazy(() => import('./pages/patient/DocumentSummarizerPage').then((m) => ({ default: m.DocumentSummarizerPage })));
 const SymptomTriagePage = lazy(() => import('./pages/patient/SymptomTriagePage').then((m) => ({ default: m.SymptomTriagePage })));
 const PaymentSuccessPage = lazy(() => import('./pages/patient/PaymentSuccessPage').then((m) => ({ default: m.PaymentSuccessPage })));
+const ConsultationPage = lazy(() => import('./components/telehealth/ConsultationPage').then((m) => ({ default: m.ConsultationPage })));
 
 const RouteFallback = () => (
   <div className="min-h-[50vh] flex items-center justify-center" role="status" aria-label="Đang tải trang">
     <div className="w-8 h-8 rounded-full border-4 border-teal-200 border-t-teal-600 animate-spin" />
   </div>
 );
+
+const PaymentCancelRedirect = () => {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  params.set('cancelled', '1');
+  return <Navigate to={`/payment/success?${params.toString()}`} replace />;
+};
 
 export function App() {
   return (
@@ -57,7 +65,7 @@ export function App() {
 
           {/* Payment Callback & Receipt Verification */}
           <Route path="/payment/success" element={<PaymentSuccessPage />} />
-          <Route path="/payment/cancel" element={<Navigate to="/patient/documents" replace />} />
+          <Route path="/payment/cancel" element={<PaymentCancelRedirect />} />
 
           {/* Admin Protected Routes */}
           <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
@@ -89,6 +97,11 @@ export function App() {
               <Route path="documents" element={<DocumentSummarizerPage />} />
               <Route path="doctors" element={<DoctorSearchPage />} />
             </Route>
+          </Route>
+
+          {/* Hybrid Telehealth Video Consultation Room */}
+          <Route element={<ProtectedRoute allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']} />}>
+            <Route path="/consultation/:id" element={<ConsultationPage />} />
           </Route>
 
           {/* Fallback */}

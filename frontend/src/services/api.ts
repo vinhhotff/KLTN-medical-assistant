@@ -96,3 +96,50 @@ export interface DoctorReviewRequest {
   comment?: string;
   tags?: string;
 }
+
+export type StripeGatewayMode = 'REAL' | 'MOCK' | 'DISABLED';
+
+export interface PaymentConfigDto {
+  stripeMode: StripeGatewayMode;
+  stripeEnabled: boolean;
+  stripeRealConfigured: boolean;
+  publishableKey: string;
+  currency: string;
+  minStripeAmountVnd: number;
+  mockGatewayEnabled: boolean;
+  webhookConfigured: boolean;
+}
+
+export interface PaymentReceiptDto {
+  transactionCode: string;
+  orderType: string;
+  status: string;
+  amount: number;
+  currency: string;
+  paymentMethod: string;
+  paymentGateway: string;
+  checkoutUrl?: string | null;
+  gatewayReference?: string | null;
+  qrPayload?: string | null;
+  message: string;
+  mode?: StripeGatewayMode;
+}
+
+export async function fetchPaymentConfig(): Promise<PaymentConfigDto | null> {
+  try {
+    const res = await api.get('/payments/config');
+    return (res.data?.data as PaymentConfigDto) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function cancelPendingTransaction(transactionCode: string): Promise<PaymentReceiptDto | null> {
+  if (!transactionCode.trim()) return null;
+  try {
+    const res = await api.post(`/payments/transactions/${encodeURIComponent(transactionCode.trim())}/cancel`);
+    return (res.data?.data as PaymentReceiptDto) ?? null;
+  } catch {
+    return null;
+  }
+}

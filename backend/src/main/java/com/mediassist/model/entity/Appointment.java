@@ -45,6 +45,16 @@ public class Appointment {
     @Column(nullable = false, length = 30)
     private AppointmentStatus status = AppointmentStatus.SCHEDULED;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "consultation_type", nullable = false, length = 20)
+    private ConsultationType consultationType = ConsultationType.IN_PERSON;
+
+    @Column(name = "meeting_room_code", length = 100)
+    private String meetingRoomCode;
+
+    @Column(name = "meeting_url", length = 500)
+    private String meetingUrl;
+
     @Column(columnDefinition = "TEXT")
     private String cancellationReason;
 
@@ -207,6 +217,19 @@ public class Appointment {
     public LocalDateTime getCheckedInAt() { return checkedInAt; }
     public void setCheckedInAt(LocalDateTime checkedInAt) { this.checkedInAt = checkedInAt; }
 
+    public ConsultationType getConsultationType() {
+        return consultationType != null ? consultationType : ConsultationType.IN_PERSON;
+    }
+    public void setConsultationType(ConsultationType consultationType) {
+        this.consultationType = consultationType != null ? consultationType : ConsultationType.IN_PERSON;
+    }
+
+    public String getMeetingRoomCode() { return meetingRoomCode; }
+    public void setMeetingRoomCode(String meetingRoomCode) { this.meetingRoomCode = meetingRoomCode; }
+
+    public String getMeetingUrl() { return meetingUrl; }
+    public void setMeetingUrl(String meetingUrl) { this.meetingUrl = meetingUrl; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 
@@ -220,6 +243,9 @@ public class Appointment {
         private LocalDateTime scheduledStart;
         private LocalDateTime scheduledEnd;
         private AppointmentStatus status = AppointmentStatus.SCHEDULED;
+        private ConsultationType consultationType = ConsultationType.IN_PERSON;
+        private String meetingRoomCode;
+        private String meetingUrl;
         private String cancellationReason;
         private String consultationNotes;
         private BigDecimal feeAmount = BigDecimal.ZERO;
@@ -234,6 +260,12 @@ public class Appointment {
         public Builder scheduledStart(LocalDateTime scheduledStart) { this.scheduledStart = scheduledStart; return this; }
         public Builder scheduledEnd(LocalDateTime scheduledEnd) { this.scheduledEnd = scheduledEnd; return this; }
         public Builder status(AppointmentStatus status) { this.status = status; return this; }
+        public Builder consultationType(ConsultationType consultationType) {
+            this.consultationType = consultationType != null ? consultationType : ConsultationType.IN_PERSON;
+            return this;
+        }
+        public Builder meetingRoomCode(String meetingRoomCode) { this.meetingRoomCode = meetingRoomCode; return this; }
+        public Builder meetingUrl(String meetingUrl) { this.meetingUrl = meetingUrl; return this; }
         public Builder cancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; return this; }
         public Builder consultationNotes(String consultationNotes) { this.consultationNotes = consultationNotes; return this; }
         public Builder feeAmount(BigDecimal feeAmount) { this.feeAmount = feeAmount; return this; }
@@ -243,6 +275,9 @@ public class Appointment {
 
         public Appointment build() {
             Appointment appt = new Appointment(id, appointmentCode, patient, doctor, scheduledStart, scheduledEnd, status, cancellationReason, consultationNotes, feeAmount, paymentStatus);
+            appt.setConsultationType(consultationType);
+            appt.setMeetingRoomCode(meetingRoomCode);
+            appt.setMeetingUrl(meetingUrl);
             appt.setMedicalDocumentId(medicalDocumentId);
             appt.setTriageSessionId(triageSessionId);
             return appt;

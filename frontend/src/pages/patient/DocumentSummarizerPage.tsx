@@ -33,7 +33,15 @@ import {
   User,
   Star
 } from 'lucide-react';
-import { api, EMAIL_NOT_VERIFIED_MESSAGE, EMAIL_NOT_VERIFIED_TOOLTIP, isEmailNotVerified } from '../../services/api';
+import {
+  api,
+  cancelPendingTransaction,
+  EMAIL_NOT_VERIFIED_MESSAGE,
+  EMAIL_NOT_VERIFIED_TOOLTIP,
+  fetchPaymentConfig,
+  isEmailNotVerified,
+  type PaymentConfigDto,
+} from '../../services/api';
 import { useEmailVerification } from '../../hooks/useEmailVerification';
 import { EmailNotVerifiedHint } from '../../components/common/EmailNotVerifiedHint';
 import { DocumentFileAccessError, openDocumentFile } from '../../services/documentFileService';
@@ -266,8 +274,24 @@ export const DocumentSummarizerPage: React.FC = () => {
   const [pendingTx, setPendingTx] = useState<{ transactionCode: string; gatewayReference?: string } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'STRIPE' | 'VIETQR' | 'VNPAY' | 'MOMO'>('STRIPE');
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [redirectingToStripe, setRedirectingToStripe] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentConfig, setPaymentConfig] = useState<PaymentConfigDto | null>(null);
   const methodLocked = pendingTx !== null;
+
+  useEffect(() => {
+    if (!showPricingModal && !selectedPaymentPackage) return;
+    if (paymentConfig) return;
+    let active = true;
+    void fetchPaymentConfig().then((cfg) => {
+      if (active && cfg) {
+        setPaymentConfig(cfg);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [showPricingModal, selectedPaymentPackage, paymentConfig]);
 
   // Analysis Success Notification Banner
   const [analysisSuccessNotification, setAnalysisSuccessNotification] = useState<{
@@ -282,10 +306,14 @@ export const DocumentSummarizerPage: React.FC = () => {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const closeCheckout = () => {
+    if (pendingTx?.transactionCode) {
+      void cancelPendingTransaction(pendingTx.transactionCode);
+    }
     setSelectedPaymentPackage(null);
     setChargedAmount(null);
     setPendingTx(null);
     setPaymentError(null);
+    setRedirectingToStripe(false);
   };
 
   const verifyPayment = async (tx: { transactionCode: string; gatewayReference?: string }, pkg: ScanPackage) => {
@@ -305,8 +333,9 @@ export const DocumentSummarizerPage: React.FC = () => {
   };
 
   const handleConfirmPayment = async () => {
-    if (!selectedPaymentPackage || processingPayment) return;
+    if (!selectedPaymentPackage || processingPayment || redirectingToStripe) return;
     const pkg = selectedPaymentPackage;
+    let navigatedAway = false;
     try {
       setProcessingPayment(true);
       setPaymentError(null);
@@ -327,10 +356,20 @@ export const DocumentSummarizerPage: React.FC = () => {
       const currency = typeof data?.currency === 'string' && data.currency ? data.currency : 'VND';
       const differs = official !== null && (official !== pkg.priceVnd || currency !== 'VND');
 
-      if (paymentMethod === 'STRIPE' && data?.checkoutUrl) {
-        // Stripe's hosted page shows the backend amount itself
-        if (differs) devLog.warn('Checkout amount differs from displayed price', { displayed: pkg.priceVnd, official, currency });
-        window.location.href = data.checkoutUrl;
+      if (paymentMethod === 'STRIPE') {
+        if (data?.mode === 'DISABLED') {
+          setPaymentError(data?.message || 'Cổng thanh toán Stripe hiện đang tạm tắt. Vui lòng chọn VietQR / VNPAY / MoMo.');
+          return;
+        }
+        if (data?.checkoutUrl) {
+          // Stripe's hosted page shows the backend amount itself
+          if (differs) devLog.warn('Checkout amount differs from displayed price', { displayed: pkg.priceVnd, official, currency });
+          navigatedAway = true;
+          setRedirectingToStripe(true);
+          window.location.href = data.checkoutUrl;
+          return;
+        }
+        setPaymentError('Cổng thanh toán Stripe không trả về đường dẫn thanh toán. Vui lòng thử lại.');
         return;
       }
 
@@ -353,7 +392,9 @@ export const DocumentSummarizerPage: React.FC = () => {
       }
       setPaymentError(getApiErrorMessage(err, 'Giao dịch thanh toán không thành công.'));
     } finally {
-      setProcessingPayment(false);
+      if (!navigatedAway) {
+        setProcessingPayment(false);
+      }
     }
   };
   const [downloadSuccessToast, setDownloadSuccessToast] = useState<string | null>(null);
@@ -2080,7 +2121,13 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
                   }`}
                 >
                   <CreditCard className="w-4 h-4 text-indigo-600" />
-                  <span>Stripe Sandbox</span>
+                  <span>
+                    {paymentConfig?.stripeMode === 'REAL'
+                      ? 'Stripe Checkout'
+                      : paymentConfig?.stripeMode === 'DISABLED'
+                      ? 'Stripe (Tạm tắt)'
+                      : 'Stripe Sandbox'}
+                  </span>
                   <span className="text-[9px] text-indigo-700 font-normal">Thẻ Visa/Master</span>
                 </button>
                 <button
@@ -2133,40 +2180,82 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
               )}
             </div>
 
-            {/* Simulated Payment Details */}
+            {/* Payment Details */}
             {paymentMethod === 'STRIPE' ? (
-              <div className="p-4 bg-gradient-to-br from-indigo-50/70 to-slate-50 rounded-2xl border border-indigo-200/80 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-indigo-600 text-white rounded-lg">
-                      <CreditCard className="w-4 h-4" />
+              paymentConfig?.stripeMode === 'REAL' ? (
+                <div className="p-4 bg-gradient-to-br from-indigo-50/80 to-emerald-50/40 rounded-2xl border border-indigo-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-indigo-600 text-white rounded-lg">
+                        <ShieldCheck className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-bold text-indigo-950">Cổng Thanh Toán Quốc Tế Stripe</span>
                     </div>
-                    <span className="text-xs font-bold text-indigo-950">Cổng Thanh Toán Quốc Tế Stripe Sandbox</span>
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-bold">
+                      Real Stripe Checkout
+                    </span>
                   </div>
-                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-full text-[10px] font-bold">
-                    Test Mode
-                  </span>
-                </div>
-                <div className="p-3 bg-white/90 rounded-xl border border-indigo-100 space-y-2 text-xs text-slate-700">
-                  <p className="font-semibold text-slate-900 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                    Hỗ trợ thẻ thử nghiệm (Stripe Sandbox Cards):
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-200">
-                      <span className="text-slate-400 block text-[10px]">Số thẻ test</span>
-                      <strong className="text-indigo-950">4242 4242 4242 4242</strong>
-                    </div>
-                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-200">
-                      <span className="text-slate-400 block text-[10px]">Hạn dùng / CVC</span>
-                      <strong className="text-slate-800">Tương lai / 123</strong>
-                    </div>
+                  <div className="p-3 bg-white/95 rounded-xl border border-indigo-100 space-y-2 text-xs text-slate-700">
+                    <p className="font-semibold text-slate-900 flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-indigo-600" />
+                      Điều hướng trực tiếp sang trang bảo mật Stripe (checkout.stripe.com)
+                    </p>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Hỗ trợ thẻ Visa, Mastercard, JCB. Sau khi thanh toán hoàn tất (hoặc hủy), Stripe sẽ tự động đưa bạn quay lại MediAssist để kích hoạt gói ngay lập tức.
+                    </p>
+                    {paymentConfig.minStripeAmountVnd > 0 && (
+                      <p className="text-[10px] text-slate-500 font-mono">
+                        Ngưỡng tối thiểu Stripe VND: {formatPackagePrice(paymentConfig.minStripeAmountVnd)}
+                      </p>
+                    )}
                   </div>
-                  <p className="text-[11px] text-slate-500 pt-0.5">
-                    Hệ thống sẽ điều hướng an toàn qua trang Stripe Hosted Checkout Sandbox để xác thực thẻ và tự động ghi sổ giao dịch.
+                </div>
+              ) : paymentConfig?.stripeMode === 'DISABLED' ? (
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 space-y-2 text-xs text-amber-900">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold">Cổng Stripe hiện đang tạm tắt</span>
+                    <span className="px-2 py-0.5 bg-amber-200/80 text-amber-900 rounded-full text-[10px] font-bold">
+                      DISABLED
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-800">
+                    Vui lòng chọn phương thức VietQR Pro, VNPAY QR hoặc Ví MoMo bên trên để hoàn tất giao dịch.
                   </p>
                 </div>
-              </div>
+              ) : (
+                <div className="p-4 bg-gradient-to-br from-indigo-50/70 to-slate-50 rounded-2xl border border-indigo-200/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-indigo-600 text-white rounded-lg">
+                        <CreditCard className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-bold text-indigo-950">Cổng Thanh Toán Quốc Tế Stripe Sandbox</span>
+                    </div>
+                    <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-full text-[10px] font-bold">
+                      Test Mode
+                    </span>
+                  </div>
+                  <div className="p-3 bg-white/90 rounded-xl border border-indigo-100 space-y-2 text-xs text-slate-700">
+                    <p className="font-semibold text-slate-900 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                      Hỗ trợ thẻ thử nghiệm (Stripe Sandbox Cards):
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                      <div className="bg-slate-50 p-2 rounded-lg border border-slate-200">
+                        <span className="text-slate-400 block text-[10px]">Số thẻ test</span>
+                        <strong className="text-indigo-950">4242 4242 4242 4242</strong>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-lg border border-slate-200">
+                        <span className="text-slate-400 block text-[10px]">Hạn dùng / CVC</span>
+                        <strong className="text-slate-800">Tương lai / 123</strong>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-500 pt-0.5">
+                      Hệ thống sẽ điều hướng an toàn qua trang Stripe Hosted Checkout Sandbox để xác thực thẻ và tự động ghi sổ giao dịch.
+                    </p>
+                  </div>
+                </div>
+              )
             ) : (
               <div className="p-4 bg-teal-50/40 rounded-2xl border border-teal-200/80 flex flex-col items-center text-center space-y-3">
                 <div className="w-36 h-36 bg-white p-2 rounded-2xl border border-slate-200 shadow-xs flex flex-col items-center justify-center relative">
@@ -2217,16 +2306,23 @@ Kết luận: Thiểu năng tuần hoàn não, rối loạn tiền đình trung 
               <button
                 type="button"
                 onClick={handleConfirmPayment}
-                disabled={processingPayment || isUnverified}
+                disabled={
+                  processingPayment ||
+                  redirectingToStripe ||
+                  isUnverified ||
+                  (paymentMethod === 'STRIPE' && paymentConfig?.stripeMode === 'DISABLED')
+                }
                 title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
-                aria-busy={processingPayment || undefined}
+                aria-busy={processingPayment || redirectingToStripe || undefined}
                 className={`px-5 py-2.5 text-sm font-bold text-white rounded-xl transition shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                   paymentMethod === 'STRIPE'
                     ? 'bg-indigo-600 hover:bg-indigo-700'
                     : 'bg-teal-600 hover:bg-teal-700'
                 }`}
               >
-                {processingPayment ? (
+                {redirectingToStripe ? (
+                  'Đang chuyển hướng sang Stripe...'
+                ) : processingPayment ? (
                   'Đang xử lý giao dịch...'
                 ) : paymentMethod === 'STRIPE' ? (
                   <>

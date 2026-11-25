@@ -3,16 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   ArrowRight,
+  Camera,
   CheckCircle2,
   Eye,
   EyeOff,
+  FileBadge,
+  FileText,
+  FileUp,
+  Loader2,
   Lock,
   Mail,
   Phone,
   ShieldCheck,
   Sparkles,
   Stethoscope,
+  Upload,
   User as UserIcon,
+  X,
 } from 'lucide-react';
 import { api, getApiErrorMessage } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -20,6 +27,15 @@ import { ENABLE_DEMO_LOGIN } from '../../config/app';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VN_PHONE_RE = /^(\+?84|0)(3|5|7|8|9)\d{8}$/;
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_LICENSE_MIME_TYPES = [...ALLOWED_IMAGE_MIME_TYPES, 'application/pdf'];
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
 
 const DEMO_DOCTOR_ACCOUNTS = [
   { fullName: 'Nguyễn Minh Quân', slug: 'nguyenminhquan' },
@@ -47,6 +63,19 @@ export const DoctorRegisterForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Real File Upload States (Avatar + Optional CCHN Scan)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [draggingAvatar, setDraggingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const [licenseFile, setLicenseFile] = useState<File | null>(null);
+  const [licensePreviewUrl, setLicensePreviewUrl] = useState<string | null>(null);
+  const [draggingLicense, setDraggingLicense] = useState(false);
+  const licenseInputRef = useRef<HTMLInputElement>(null);
+
+  const [fileError, setFileError] = useState<string | null>(null);
+
   useEffect(() => {
     return () => {
       if (redirectTimerRef.current) {
@@ -54,6 +83,67 @@ export const DoctorRegisterForm: React.FC = () => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+    };
+  }, [avatarPreviewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (licensePreviewUrl) URL.revokeObjectURL(licensePreviewUrl);
+    };
+  }, [licensePreviewUrl]);
+
+  const handleSelectAvatarFile = (file: File | undefined) => {
+    if (!file) return;
+    setFileError(null);
+    if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.type.toLowerCase())) {
+      setFileError('Ảnh chân dung bác sĩ chỉ chấp nhận định dạng JPG, PNG, WEBP hoặc GIF.');
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setFileError('Ảnh chân dung không được vượt quá 10MB.');
+      return;
+    }
+    setAvatarFile(file);
+    setAvatarPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleClearAvatarFile = () => {
+    setAvatarFile(null);
+    setAvatarPreviewUrl(null);
+    if (avatarInputRef.current) avatarInputRef.current.value = '';
+  };
+
+  const handleSelectLicenseFile = (file: File | undefined) => {
+    if (!file) return;
+    setFileError(null);
+    const lowerName = file.name.toLowerCase();
+    const isPdfByExt = lowerName.endsWith('.pdf');
+    const isValidMime = file.type ? ALLOWED_LICENSE_MIME_TYPES.includes(file.type.toLowerCase()) : isPdfByExt;
+    if (!isValidMime) {
+      setFileError('Chứng chỉ hành nghề (CCHN) chỉ chấp nhận tệp PDF hoặc ảnh JPG, PNG, WEBP.');
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setFileError('Tệp Chứng chỉ hành nghề (CCHN) không được vượt quá 10MB.');
+      return;
+    }
+    setLicenseFile(file);
+    if (file.type.startsWith('image/')) {
+      setLicensePreviewUrl(URL.createObjectURL(file));
+    } else {
+      setLicensePreviewUrl(null);
+    }
+  };
+
+  const handleClearLicenseFile = () => {
+    setLicenseFile(null);
+    setLicensePreviewUrl(null);
+    if (licenseInputRef.current) licenseInputRef.current.value = '';
+  };
 
   const passCriteria = useMemo(() => {
     return {
@@ -174,14 +264,36 @@ export const DoctorRegisterForm: React.FC = () => {
 
     setLoading(true);
     try {
-      const payload: Record<string, string> = {
-        fullName: fullName.trim(),
-        email: email.toLowerCase().trim(),
-        phone: phone.replace(/\s/g, ''),
-        password,
-      };
+      const normalizedEmail = email.toLowerCase().trim();
+      const normalizedPhone = phone.replace(/\s/g, '');
+      const normalizedName = fullName.trim();
 
-      const res = await api.post('/auth/register/doctor', payload);
+      let res;
+      if (avatarFile || licenseFile) {
+        const formData = new FormData();
+        formData.append('fullName', normalizedName);
+        formData.append('email', normalizedEmail);
+        formData.append('phone', normalizedPhone);
+        formData.append('password', password);
+        if (avatarFile) {
+          formData.append('avatar', avatarFile);
+        }
+        if (licenseFile) {
+          formData.append('license', licenseFile);
+        }
+        res = await api.post('/auth/register/doctor', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        const payload: Record<string, string> = {
+          fullName: normalizedName,
+          email: normalizedEmail,
+          phone: normalizedPhone,
+          password,
+        };
+        res = await api.post('/auth/register/doctor', payload);
+      }
+
       if (res.data?.success && res.data?.data?.user) {
         const user = res.data.data.user;
         const token = res.data.data.token;
@@ -335,6 +447,210 @@ export const DoctorRegisterForm: React.FC = () => {
         </div>
       </div>
 
+      {/* Real Image & Document Upload Section (Supabase Storage) */}
+      <div className="space-y-3 p-4 rounded-2xl bg-[#FCFBF8] border border-slate-200">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider font-bold text-teal-700">
+            <Camera className="w-3.5 h-3.5" />
+            <span>Hồ sơ hình ảnh thực tế (Tùy chọn khi đăng ký)</span>
+          </div>
+          <span className="text-[10px] font-mono text-slate-500">Tải trực tiếp lên Supabase</span>
+        </div>
+
+        {fileError && (
+          <div role="alert" className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl flex items-center gap-2 text-[11px] text-rose-800 font-medium">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span className="flex-1">{fileError}</span>
+            <button
+              type="button"
+              onClick={() => setFileError(null)}
+              className="text-rose-500 hover:text-rose-800 cursor-pointer"
+              aria-label="Đóng thông báo lỗi tệp"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Avatar Dropzone */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (!loading) setDraggingAvatar(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setDraggingAvatar(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDraggingAvatar(false);
+              if (!loading) handleSelectAvatarFile(e.dataTransfer.files?.[0]);
+            }}
+            className={`p-3 rounded-xl border-2 border-dashed transition ${
+              draggingAvatar
+                ? 'border-teal-500 bg-teal-50/70'
+                : 'border-slate-300 bg-[#F6F3EC]/70 hover:border-teal-400'
+            }`}
+          >
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              disabled={loading}
+              className="hidden"
+              onChange={(e) => handleSelectAvatarFile(e.target.files?.[0])}
+            />
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="font-mono text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                <Camera className="w-3.5 h-3.5 text-teal-600" />
+                <span>Ảnh chân dung bác sĩ</span>
+              </span>
+              {avatarFile && (
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={handleClearAvatarFile}
+                  className="text-[11px] text-rose-600 hover:underline font-medium cursor-pointer disabled:opacity-40"
+                >
+                  Xóa
+                </button>
+              )}
+            </div>
+
+            {avatarPreviewUrl && avatarFile ? (
+              <div className="flex items-center gap-3">
+                <img
+                  src={avatarPreviewUrl}
+                  alt="Xem trước ảnh chân dung bác sĩ"
+                  className="w-14 h-14 rounded-full object-cover border-2 border-teal-500 bg-white shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-bold text-slate-900 truncate">{avatarFile.name}</p>
+                  <p className="text-[10px] text-slate-500">{formatFileSize(avatarFile.size)}</p>
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-teal-700 hover:underline cursor-pointer disabled:opacity-40"
+                  >
+                    <Upload className="w-3 h-3" />
+                    <span>Chọn ảnh khác</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => avatarInputRef.current?.click()}
+                className="w-full py-2.5 px-3 rounded-lg bg-white/80 hover:bg-white border border-slate-200 flex items-center gap-2.5 text-left transition cursor-pointer disabled:opacity-50"
+              >
+                <div className="w-9 h-9 rounded-full bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
+                  <Upload className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold text-slate-800">Tải ảnh từ máy (hoặc kéo thả)</p>
+                  <p className="text-[10px] text-slate-500">JPG, PNG, WEBP • Tối đa 10MB</p>
+                </div>
+              </button>
+            )}
+          </div>
+
+          {/* CCHN Optional Dropzone */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (!loading) setDraggingLicense(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setDraggingLicense(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDraggingLicense(false);
+              if (!loading) handleSelectLicenseFile(e.dataTransfer.files?.[0]);
+            }}
+            className={`p-3 rounded-xl border-2 border-dashed transition ${
+              draggingLicense
+                ? 'border-teal-500 bg-teal-50/70'
+                : 'border-slate-300 bg-[#F6F3EC]/70 hover:border-teal-400'
+            }`}
+          >
+            <input
+              ref={licenseInputRef}
+              type="file"
+              accept=".pdf,image/jpeg,image/png,image/webp"
+              disabled={loading}
+              className="hidden"
+              onChange={(e) => handleSelectLicenseFile(e.target.files?.[0])}
+            />
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="font-mono text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                <FileBadge className="w-3.5 h-3.5 text-teal-600" />
+                <span>Ảnh / PDF CCHN (nếu có sẵn)</span>
+              </span>
+              {licenseFile && (
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={handleClearLicenseFile}
+                  className="text-[11px] text-rose-600 hover:underline font-medium cursor-pointer disabled:opacity-40"
+                >
+                  Xóa
+                </button>
+              )}
+            </div>
+
+            {licenseFile ? (
+              <div className="flex items-center gap-3">
+                {licensePreviewUrl ? (
+                  <img
+                    src={licensePreviewUrl}
+                    alt="Xem trước bản scan CCHN"
+                    className="w-14 h-14 rounded-lg object-cover border border-teal-400 bg-white shrink-0"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center shrink-0">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-bold text-slate-900 truncate">{licenseFile.name}</p>
+                  <p className="text-[10px] text-slate-500">{formatFileSize(licenseFile.size)}</p>
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => licenseInputRef.current?.click()}
+                    className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-teal-700 hover:underline cursor-pointer disabled:opacity-40"
+                  >
+                    <FileUp className="w-3 h-3" />
+                    <span>Chọn tệp khác</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => licenseInputRef.current?.click()}
+                className="w-full py-2.5 px-3 rounded-lg bg-white/80 hover:bg-white border border-slate-200 flex items-center gap-2.5 text-left transition cursor-pointer disabled:opacity-50"
+              >
+                <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
+                  <FileUp className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold text-slate-800">Đính kèm scan CCHN ngay</p>
+                  <p className="text-[10px] text-slate-500">PDF, JPG, PNG, WEBP • Tối đa 10MB</p>
+                </div>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Password */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -467,8 +783,12 @@ export const DoctorRegisterForm: React.FC = () => {
       >
         {loading ? (
           <>
-            <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
-            <span>Đang tạo tài khoản &amp; gửi email xác thực...</span>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>
+              {avatarFile || licenseFile
+                ? 'Đang tải ảnh lên Supabase & tạo tài khoản...'
+                : 'Đang tạo tài khoản & gửi email xác thực...'}
+            </span>
           </>
         ) : (
           <>

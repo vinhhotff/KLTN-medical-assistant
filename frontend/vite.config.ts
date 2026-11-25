@@ -18,6 +18,7 @@ export default defineConfig({
           '/api': {
             target: 'http://localhost:5001',
             changeOrigin: true,
+            ws: true,
           },
           // Chi proxy endpoint khoi tao OAuth2; '/oauth2/callback' la route SPA do Vite phuc vu
           '/oauth2/authorization': {
@@ -37,6 +38,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5001',
         changeOrigin: true,
+        ws: true,
       },
       '/oauth2/authorization': {
         target: 'http://localhost:5001',

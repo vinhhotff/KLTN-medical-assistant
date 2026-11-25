@@ -866,4 +866,116 @@ class AppointmentServiceTest {
 
         verify(eventPublisher, never()).publishEvent(any());
     }
+
+    // ===== Hybrid Online / In-Person Telehealth Tests =====
+
+    @Test
+    void testBookAppointment_Online_GeneratesRoomCodeUrlAndOnlineTicket() {
+        LocalDateTime futureTime = getNextWeekdaySlot(2, 10, 0);
+        CreateAppointmentRequest request = new CreateAppointmentRequest(doctorId, futureTime, "Tư vấn tái khám online");
+        request.setConsultationType(ConsultationType.ONLINE);
+
+        when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
+        when(userRepository.findById(doctorId)).thenReturn(Optional.of(doctorUser));
+        when(appointmentRepository.existsConflict(doctorId, futureTime)).thenReturn(false);
+        when(doctorProfileRepository.findByUserId(doctorId)).thenReturn(Optional.of(doctorProfile));
+        UUID generatedId = UUID.randomUUID();
+        when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(invocation -> {
+            Appointment saved = invocation.getArgument(0);
+            saved.setId(generatedId);
+            return saved;
+        });
+
+        AppointmentDto result = appointmentService.bookAppointment(patientId, request);
+
+        assertNotNull(result);
+        assertEquals(ConsultationType.ONLINE, result.getConsultationType());
+        assertNotNull(result.getMeetingRoomCode());
+        assertTrue(result.getMeetingRoomCode().startsWith("ROOM-"));
+        assertEquals("/consultation/" + generatedId, result.getMeetingUrl());
+        assertTrue(result.getClinicRoom().contains("Trực Tuyến"));
+        assertEquals("Trực tuyến (Telehealth)", result.getClinicFloor());
+        assertNull(result.getClinicMapUrl());
+        assertTrue(result.getQrCodeData().contains("ONLINE"));
+    }
+
+    @Test
+    void testBookAppointment_DefaultInPerson_HasNoMeetingRoomCode() {
+        LocalDateTime futureTime = getNextWeekdaySlot(2, 11, 0);
+        CreateAppointmentRequest request = new CreateAppointmentRequest(doctorId, futureTime, "Khám trực tiếp");
+
+        when(userRepository.findById(patientId)).thenReturn(Optional.of(patientUser));
+        when(userRepository.findById(doctorId)).thenReturn(Optional.of(doctorUser));
+        when(appointmentRepository.existsConflict(doctorId, futureTime)).thenReturn(false);
+        when(doctorProfileRepository.findByUserId(doctorId)).thenReturn(Optional.of(doctorProfile));
+        when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(invocation -> {
+            Appointment saved = invocation.getArgument(0);
+            saved.setId(UUID.randomUUID());
+            return saved;
+        });
+
+        AppointmentDto result = appointmentService.bookAppointment(patientId, request);
+
+        assertEquals(ConsultationType.IN_PERSON, result.getConsultationType());
+        assertNull(result.getMeetingRoomCode());
+        assertNull(result.getMeetingUrl());
+        assertEquals("Tầng 2", result.getClinicFloor());
+    }
+
+    @Test
+    void testCheckInPatient_OnlineAppointment_PatientAllowed() {
+        UUID apptId = UUID.randomUUID();
+        Appointment appt = Appointment.builder()
+                .id(apptId)
+                .appointmentCode("AP-2026-ONLINE-CI")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .consultationType(ConsultationType.ONLINE)
+                .meetingRoomCode("ROOM-20261125-ABC123")
+                .meetingUrl("/consultation/" + apptId)
+                .status(AppointmentStatus.SCHEDULED)
+                .build();
+
+        when(appointmentRepository.findByIdWithUsers(apptId)).thenReturn(Optional.of(appt));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AppointmentDto result = appointmentService.checkInPatient(apptId, patientId);
+
+        assertEquals(AppointmentStatus.CHECKED_IN, result.getStatus());
+        assertNotNull(result.getCheckedInAt());
+    }
+
+    @Test
+    void testUpdateStatus_OnlineAppointment_PatientCheckInAllowed_And_InPersonRejected() {
+        UUID onlineId = UUID.randomUUID();
+        Appointment onlineAppt = Appointment.builder()
+                .id(onlineId)
+                .appointmentCode("AP-ONLINE-STATUS")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .consultationType(ConsultationType.ONLINE)
+                .status(AppointmentStatus.SCHEDULED)
+                .build();
+        when(appointmentRepository.findByIdWithUsers(onlineId)).thenReturn(Optional.of(onlineAppt));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AppointmentDto checkedIn = appointmentService.updateAppointmentStatus(
+                onlineId, patientId, Role.PATIENT, AppointmentStatus.CHECKED_IN, null);
+        assertEquals(AppointmentStatus.CHECKED_IN, checkedIn.getStatus());
+
+        UUID offlineId = UUID.randomUUID();
+        Appointment offlineAppt = Appointment.builder()
+                .id(offlineId)
+                .appointmentCode("AP-OFFLINE-STATUS")
+                .doctor(doctorUser)
+                .patient(patientUser)
+                .consultationType(ConsultationType.IN_PERSON)
+                .status(AppointmentStatus.SCHEDULED)
+                .build();
+        when(appointmentRepository.findByIdWithUsers(offlineId)).thenReturn(Optional.of(offlineAppt));
+
+        AppException ex = assertThrows(AppException.class, () ->
+                appointmentService.updateAppointmentStatus(offlineId, patientId, Role.PATIENT, AppointmentStatus.CHECKED_IN, null));
+        assertEquals("INVALID_STATUS", ex.getCode());
+    }
 }

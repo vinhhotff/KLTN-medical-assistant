@@ -132,3 +132,14 @@ Trong các ứng dụng y tế thông thường, nhà phát triển thường m�
 * **Loại bỏ sự pha trộn phông chữ rối mắt**: Bỏ kiểu chữ Serif nghiêng (`Instrument Serif`) không hỗ trợ tiếng Việt giữa câu tiêu đề và thu gọn việc lạm dụng chữ đơn cách (`Monospace`) trên văn bản tiếng Việt thông thường.
 * **Căn chỉnh số học chính xác (`tabular-nums`)**: Mọi chỉ số sinh tồn (Huyết áp, SpO2, Nhịp tim), kết quả xét nghiệm LOINC và chi phí khám đều bật chế độ `font-variant-numeric: tabular-nums` để các chữ số thẳng hàng tuyệt đối theo cột dọc mà vẫn giữ nguyên nét chữ mềm mại, dễ nhìn.
 
+---
+
+## 8. Mô Hình Khám Kết Hợp Hybrid Telehealth & Hành Trình Giữ Chân Bệnh Nhân (Patient Retention)
+
+Trong thực tế vận hành y tế tại Việt Nam, nếu bệnh nhân chỉ đặt lịch xong rồi ra phòng khám gặp trực tiếp (`IN_PERSON`), nền tảng số dễ bị bỏ quên ngay sau lần đặt khám đầu tiên. Để thực sự **giữ chân khách hàng (Patient Retention)** và phục vụ người bệnh ở xa như Bác Ba (Vĩnh Long) hay người bận rộn như Chị Mai (Hà Nội), MediAssist-AI triển khai mô hình **Khám Kết Hợp (Hybrid Care)**:
+
+* **Lựa chọn linh hoạt ngay khi đặt lịch:** Bệnh nhân chủ động chọn **Khám Trực Tiếp tại phòng khám** hoặc **Khám Online qua Video Call & Chat** tùy tính chất bệnh lý và khoảng cách địa lý.
+* **Phòng khám Video Call WebRTC & Kênh Chat Theo Dõi Bền Vững:** Trước buổi khám, bệnh nhân gửi sẵn ảnh xét nghiệm hoặc câu hỏi cho bác sĩ; trong buổi khám, hai bên gọi Video Call trực tiếp ngay trên trình duyệt (tự động hạ cấp mượt mà xuống chỉ âm thanh hoặc chỉ chat nếu mạng/thiết bị yếu); sau buổi khám, kênh chat theo dõi tái khám vẫn mở giúp bệnh nhân quay lại hỏi liều thuốc, đặt tái khám hoặc mua thêm gói phân tích cận lâm sàng ngay trên web.
+* **Minh bạch thanh toán & Đăng ký bác sĩ chuẩn thực tế:** Toàn bộ viện phí khám online/offline và gói AI đi qua cổng **Stripe Checkout thực tế** (với webhook xác thực và hoàn tiền tự động khi hủy lịch), đồng thời bác sĩ gia nhập nền tảng có thể tải ảnh chân dung và chứng chỉ hành nghề trực tiếp từ máy tính thay vì dán URL thủ công.
+
+

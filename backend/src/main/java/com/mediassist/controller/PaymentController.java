@@ -3,7 +3,9 @@ package com.mediassist.controller;
 import com.mediassist.common.ApiResponse;
 import com.mediassist.common.AppException;
 import com.mediassist.dto.payment.CreatePaymentRequest;
+import com.mediassist.dto.payment.PaymentConfigDto;
 import com.mediassist.dto.payment.PaymentHistoryDto;
+import com.mediassist.dto.payment.PaymentPackageDto;
 import com.mediassist.dto.payment.PaymentResponseDto;
 import com.mediassist.dto.payment.VerifyPaymentRequest;
 import com.mediassist.service.PaymentService;
@@ -71,39 +73,16 @@ public class PaymentController {
         return ResponseEntity.ok(ApiResponse.success(history));
     }
 
+    @GetMapping("/config")
+    @Operation(summary = "Lấy cấu hình cổng thanh toán Stripe (chế độ REAL/MOCK, publishableKey)")
+    public ResponseEntity<ApiResponse<PaymentConfigDto>> getPaymentConfig() {
+        return ResponseEntity.ok(ApiResponse.success(paymentService.getPaymentConfig()));
+    }
+
     @GetMapping("/packages")
     @Operation(summary = "Lấy danh sách các gói nạp lượt quét và hội viên MediPass VIP chính thức")
-    public ResponseEntity<ApiResponse<List<com.mediassist.dto.payment.PaymentPackageDto>>> getPricingPackages() {
-        List<com.mediassist.dto.payment.PaymentPackageDto> packages = List.of(
-                new com.mediassist.dto.payment.PaymentPackageDto(
-                        "BASIC_5",
-                        "Gói Quét Cơ Bản (+5 Lượt)",
-                        "Bổ sung 5 lượt phân tích hồ sơ cận lâm sàng chất lượng cao",
-                        new java.math.BigDecimal("29000.00"),
-                        5,
-                        30,
-                        false
-                ),
-                new com.mediassist.dto.payment.PaymentPackageDto(
-                        "VIP_MONTHLY",
-                        "Hội Viên MediPass VIP (30 Ngày)",
-                        "Không giới hạn số lượt quét tài liệu và ưu tiên ghép nối bác sĩ chuyên khoa",
-                        new java.math.BigDecimal("149000.00"),
-                        null,
-                        30,
-                        true
-                ),
-                new com.mediassist.dto.payment.PaymentPackageDto(
-                        "VIP_ENTERPRISE",
-                        "Hội Viên MediPass Doanh Nghiệp (90 Ngày)",
-                        "Gói toàn diện dành cho gia đình và doanh nghiệp với 90 ngày không giới hạn",
-                        new java.math.BigDecimal("399000.00"),
-                        null,
-                        90,
-                        true
-                )
-        );
-        return ResponseEntity.ok(ApiResponse.success(packages));
+    public ResponseEntity<ApiResponse<List<PaymentPackageDto>>> getPricingPackages() {
+        return ResponseEntity.ok(ApiResponse.success(paymentService.getPackages()));
     }
 
     @GetMapping("/transactions/{code}")
@@ -115,6 +94,18 @@ public class PaymentController {
             throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập để xem thông tin giao dịch.");
         }
         PaymentResponseDto response = paymentService.getTransactionStatus(authentication.getName(), code);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/transactions/{code}/cancel")
+    @Operation(summary = "Hủy giao dịch đang chờ (PENDING) khi người dùng quay lại từ cổng thanh toán")
+    public ResponseEntity<ApiResponse<PaymentResponseDto>> cancelTransaction(
+            @PathVariable("code") String code,
+            Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Vui lòng đăng nhập để hủy giao dịch.");
+        }
+        PaymentResponseDto response = paymentService.cancelTransaction(authentication.getName(), code);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

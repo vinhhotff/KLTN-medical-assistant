@@ -484,4 +484,63 @@ class PaymentServiceTest {
         verify(eventPublisher, never()).publishEvent(any());
         verify(paymentTransactionRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("getPackages() khớp 1-1 giá với createCheckoutSession() và getPaymentConfig() phản ánh chế độ MOCK/REAL")
+    void testPackagesAndConfigConsistency() {
+        var packages = paymentService.getPackages();
+        assertEquals(3, packages.size());
+        assertEquals(0, new BigDecimal("29000.00").compareTo(packages.get(0).getPriceVnd()));
+        assertEquals(0, new BigDecimal("99000.00").compareTo(packages.get(1).getPriceVnd()));
+        assertEquals(0, new BigDecimal("149000.00").compareTo(packages.get(2).getPriceVnd()));
+
+        var config = paymentService.getPaymentConfig();
+        assertEquals("MOCK", config.getStripeMode());
+        assertFalse(config.isStripeRealConfigured());
+        assertEquals(15000L, config.getMinStripeAmountVnd());
+    }
+
+    @Test
+    @DisplayName("cancelTransaction: chuyển giao dịch PENDING -> CANCELLED cho phép tạo lại thanh toán")
+    void testCancelTransaction_PendingToCancelled() {
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setId(UUID.randomUUID());
+        tx.setTransactionCode("TX-20261125-CANC01");
+        tx.setUser(testPatient);
+        tx.setOrderType(OrderType.APPOINTMENT_FEE);
+        tx.setReferenceId(testAppointment.getId().toString());
+        tx.setAmount(new BigDecimal("350000.00"));
+        tx.setPaymentMethod("STRIPE");
+        tx.setPaymentGateway("STRIPE");
+        tx.setStatus(TransactionStatus.PENDING);
+
+        when(paymentTransactionRepository.findByTransactionCode("TX-20261125-CANC01")).thenReturn(Optional.of(tx));
+        when(userRepository.findByEmail(testPatient.getEmail())).thenReturn(Optional.of(testPatient));
+        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        PaymentResponseDto res = paymentService.cancelTransaction(testPatient.getEmail(), "TX-20261125-CANC01");
+
+        assertEquals("CANCELLED", res.getStatus());
+        assertEquals(TransactionStatus.CANCELLED, tx.getStatus());
+    }
+
+    @Test
+    @DisplayName("verifyAndFulfillPayment: từ chối nếu sessionId không khớp gatewayReference đã lưu")
+    void testVerifyPayment_SessionMismatch_ThrowsBadRequest() {
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setId(UUID.randomUUID());
+        tx.setTransactionCode("TX-20261125-MISM01");
+        tx.setUser(testPatient);
+        tx.setOrderType(OrderType.QUOTA_PURCHASE);
+        tx.setGatewayReference("cs_test_expected");
+        tx.setStatus(TransactionStatus.PENDING);
+
+        when(paymentTransactionRepository.findByTransactionCode("TX-20261125-MISM01")).thenReturn(Optional.of(tx));
+        when(userRepository.findByEmail(testPatient.getEmail())).thenReturn(Optional.of(testPatient));
+
+        AppException ex = assertThrows(AppException.class, () ->
+                paymentService.verifyAndFulfillPayment(testPatient.getEmail(),
+                        new VerifyPaymentRequest("TX-20261125-MISM01", "cs_test_other_session")));
+        assertEquals("SESSION_MISMATCH", ex.getCode());
+    }
 }

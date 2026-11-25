@@ -2,6 +2,7 @@ package com.mediassist.dto;
 
 import com.mediassist.model.entity.Appointment;
 import com.mediassist.model.entity.AppointmentStatus;
+import com.mediassist.model.entity.ConsultationType;
 import com.mediassist.model.entity.PaymentStatus;
 
 import java.math.BigDecimal;
@@ -52,6 +53,9 @@ public class AppointmentDto {
     private String triageSbarSummary;
     private String triageUrgencyLevel;
     private LocalDateTime checkedInAt;
+    private ConsultationType consultationType = ConsultationType.IN_PERSON;
+    private String meetingRoomCode;
+    private String meetingUrl;
 
     public AppointmentDto() {}
 
@@ -92,6 +96,9 @@ public class AppointmentDto {
         dto.setMedicalDocumentId(a.getMedicalDocumentId());
         dto.setTriageSessionId(a.getTriageSessionId());
         dto.setCheckedInAt(a.getCheckedInAt());
+        dto.setConsultationType(a.getConsultationType() != null ? a.getConsultationType() : ConsultationType.IN_PERSON);
+        dto.setMeetingRoomCode(a.getMeetingRoomCode());
+        dto.setMeetingUrl(a.getMeetingUrl());
         return dto;
     }
 
@@ -225,4 +232,17 @@ public class AppointmentDto {
 
     public LocalDateTime getCheckedInAt() { return checkedInAt; }
     public void setCheckedInAt(LocalDateTime checkedInAt) { this.checkedInAt = checkedInAt; }
+
+    public ConsultationType getConsultationType() {
+        return consultationType != null ? consultationType : ConsultationType.IN_PERSON;
+    }
+    public void setConsultationType(ConsultationType consultationType) {
+        this.consultationType = consultationType != null ? consultationType : ConsultationType.IN_PERSON;
+    }
+
+    public String getMeetingRoomCode() { return meetingRoomCode; }
+    public void setMeetingRoomCode(String meetingRoomCode) { this.meetingRoomCode = meetingRoomCode; }
+
+    public String getMeetingUrl() { return meetingUrl; }
+    public void setMeetingUrl(String meetingUrl) { this.meetingUrl = meetingUrl; }
 }

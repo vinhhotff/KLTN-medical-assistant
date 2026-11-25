@@ -1719,6 +1719,39 @@ graph TD
 
 ---
 
+### 2.5 Mở Rộng Telehealth Kết Hợp, Thanh Toán Stripe Thực Tế & Upload Ảnh Thực Tế (2026-11-25)
+
+#### UC-TELE-01: Khám Bệnh Trực Tuyến Kết Hợp (Hybrid Consultation: Online Video Call WebRTC & Persistent Chat)
+> [!IMPORTANT]
+> **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
+> - **Backend Controller & Endpoint:** `ConsultationController` $\rightarrow$ `GET /api/v1/consultations/{id}/room`, `POST /api/v1/consultations/{id}/join`, `POST /api/v1/consultations/{id}/leave`, `POST /api/v1/consultations/{id}/start`, `GET/POST /api/v1/consultations/{id}/messages`, `GET/POST /api/v1/consultations/{id}/signals`; STOMP WebSocket `/ws`, `/api/v1/ws` (`/app/consultation/{id}/signal`, `/topic/consultation.{id}.messages`, `/topic/consultation.{id}.signals`)
+> - **Frontend Tuyến & Giao Diện:** `/consultation/:id`, `BookingModal.tsx`, `AdmissionTicketModal.tsx`, `PatientDashboard.tsx`, `DoctorDashboard.tsx`, `DoctorSearchPage.tsx`, `TelehealthRoomModal.tsx`, `ConsultationChatPanel.tsx`, `ConsultationChatModal.tsx`
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** `appointments.consultation_type`, `meeting_room_code`, `meeting_url`, `checked_in_at`; bảng `consultation_messages` (`V25__telehealth_online_and_chat.sql`)
+> - **Kiểm Thử Tự Động:** `ConsultationServiceTest.java`, `ConsultationControllerTest.java`, `AppointmentServiceTest.java` (**PASS 100%**)
+
+- **Pre-conditions:** Người dùng đã đăng nhập (`PATIENT` sở hữu lịch hẹn, `DOCTOR` phụ trách lịch hẹn hoặc `ADMIN`). Nếu đặt mới trên `BookingModal`, chọn hình thức `ONLINE` hoặc `IN_PERSON`.
+- **Happy Path:**
+  1. Bệnh nhân đặt lịch chọn **Khám Online (Video Call & Chat)** $\rightarrow$ hệ thống cấp `meetingRoomCode` (`MA-YYYYMMDD-XXXXXX`) và `meetingUrl` (`/consultation/{id}`).
+  2. Từ `PatientDashboard` hoặc `DoctorDashboard`, cả hai bấm **Vào Phòng Khám Online / Video Call** (`TelehealthRoomModal`). Hệ thống tự động cấp media theo thứ tự fallback `video-audio` $\rightarrow$ `audio-only` $\rightarrow$ `chat-only`, gọi `POST /consultations/{id}/join` (tự động check-in ca `ONLINE` cho bệnh nhân) và kết nối STOMP WebSocket (`/api/v1/ws`) kèm REST polling fallback.
+  3. Bác sĩ khởi tạo WebRTC `OFFER`, bệnh nhân phản hồi `ANSWER` và trao đổi `ICE_CANDIDATE` để thiết lập cuộc gọi P2P thời gian thực; Bác sĩ bấm **Bắt đầu khám** (`IN_PROGRESS`) và có thể mở song song hồ sơ bệnh án EMR (`onOpenEmr`).
+  4. Hai bên trao đổi tin nhắn văn bản hoặc đính kèm ảnh/PDF xét nghiệm (`category=consultation` lưu vào thư mục `consultations`) bền vững trong `consultation_messages`, dùng được cả trước, trong và sau buổi khám để giữ chân bệnh nhân theo dõi dài hạn.
+- **Alternative / Exception Flow:**
+  - Người lạ không thuộc cuộc hẹn truy cập room/chat/STOMP topic $\rightarrow$ bị chặn `403 FORBIDDEN`.
+  - Lịch hẹn đã `CANCELLED` hoặc `NO_SHOW` không được phép vào phòng gọi Video (`400 Bad Request`).
+  - Thiết bị không có Camera/Micro vẫn vào phòng ở chế độ `audio-only` hoặc `chat-only` để xem/nghe và nhắn tin với bác sĩ.
+
+#### UC-PAY-02: Thanh Toán Stripe Checkout Thực Tế & Kiểm Tra Chế Độ Cổng (`REAL` / `MOCK` / `DISABLED`)
+> - **Backend:** `PaymentController` (`GET /api/v1/payments/config`, `POST /api/v1/payments/checkout`, `POST /api/v1/payments/verify`, `POST /api/v1/payments/transactions/{code}/cancel`, `POST /api/v1/payments/webhook/stripe`), `StripePaymentGateway`, `PaymentService`, `AdminVettingService`
+> - **Frontend:** `DocumentSummarizerPage.tsx`, `BookingModal.tsx`, `PatientDashboard.tsx`, `PaymentSuccessPage.tsx`, `api.ts`
+> - **Cơ chế an toàn:** Không còn fallback âm thầm sang `cs_test_mock_` khi `REAL` mode gặp lỗi API Stripe; hỗ trợ đơn vị tiền tệ zero-decimal `VND` (kiểm tra tối thiểu 15.000 VND theo quy định Stripe), xác minh webhook HMAC `Stripe-Signature` nghiêm ngặt (`400 INVALID_SIGNATURE`), hỗ trợ hủy giao dịch `PENDING` khi người dùng bấm Quay lại từ Stripe Cancel URL, và kích hoạt `Stripe Refund` cả khi Bệnh nhân/Bác sĩ hoặc Admin hủy lịch đã thanh toán (`PAID`).
+
+#### UC-COMM-07: Đăng Ký Bác Sĩ Bước 1 Kèm Upload Ảnh Chân Dung & Bản Scan CCHN Thực Tế
+> - **Backend:** `AuthController.registerDoctorMultipart` (`POST /api/v1/auth/register/doctor` hỗ trợ song song `application/json` và `multipart/form-data` với `avatar` + `license`), `AuthService.registerDoctor`, `StorageController` (`POST /api/v1/storage/upload`, `/avatar`, `/doctor/license`, `GET /api/v1/storage/files/{folder}/{owner}/{filename}`)
+> - **Frontend:** `DoctorRegisterForm.tsx` (drag-and-drop & file picker + preview cho ảnh chân dung và PDF/ảnh CCHN), `DoctorProfilePage.tsx`, `DoctorManagementPage.tsx`
+> - **Cơ chế an toàn:** Kiểm tra MIME whitelist (`JPG/PNG/WEBP/GIF` cho avatar, thêm `PDF` cho CCHN) và giới hạn `10MB`; tự động chuẩn hóa URL fallback cục bộ `/uploads/...` sang `/api/v1/storage/files/...` đi qua Vite proxy và chặn truy cập thư mục riêng tư `medical_documents` cũng như path traversal `..`.
+
+---
+
 ## 3. FUNCTIONAL REQUIREMENTS
 
 ---

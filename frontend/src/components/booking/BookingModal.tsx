@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2 } from 'lucide-react';
+import { Building2, CheckCircle2, CreditCard, Video } from 'lucide-react';
 import { api, EMAIL_NOT_VERIFIED_TOOLTIP } from '../../services/api';
 import { useEmailVerification } from '../../hooks/useEmailVerification';
 import { EmailNotVerifiedHint } from '../common/EmailNotVerifiedHint';
@@ -9,6 +9,8 @@ import { SlotPicker, slotStart, type DoctorSlot } from './SlotPicker';
 import { localDateOffset } from '../../utils/date';
 import { formatVnd } from '../../utils/display';
 import { getApiErrorCode, getApiErrorMessage } from '../../utils/apiError';
+
+export type ConsultationType = 'IN_PERSON' | 'ONLINE';
 
 export interface BookableDoctor {
   id: string;
@@ -24,6 +26,10 @@ interface BookedAppointment {
   doctorName?: string;
   scheduledStart: string;
   feeAmount?: number | null;
+  paymentStatus?: string;
+  consultationType?: ConsultationType;
+  meetingRoomCode?: string | null;
+  meetingUrl?: string | null;
 }
 
 interface BookingModalProps {
@@ -40,12 +46,14 @@ interface BookingModalProps {
   fromTriage?: boolean;
   /** Context shown above the form, e.g. the attached document. */
   context?: React.ReactNode;
+  /** Optional default consultation mode when opening the modal. */
+  initialConsultationType?: ConsultationType;
   onBooked?: (appointment: BookedAppointment) => void;
 }
 
 const NOTES_MAX = 1000;
 
-/** Shared booking flow: real slots → optional note → POST /appointments → confirmation. */
+/** Shared booking flow: real slots → consultation mode → optional note → POST /appointments → confirmation & Stripe checkout. */
 export const BookingModal: React.FC<BookingModalProps> = ({
   open,
   doctor,
@@ -56,12 +64,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   extra,
   fromTriage = false,
   context,
+  initialConsultationType = 'IN_PERSON',
   onBooked,
 }) => {
   const [date, setDate] = useState(() => localDateOffset(1));
   const [slot, setSlot] = useState<DoctorSlot | null>(null);
+  const [consultationType, setConsultationType] = useState<ConsultationType>(initialConsultationType);
   const [notes, setNotes] = useState(initialNotes);
   const [submitting, setSubmitting] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [booked, setBooked] = useState<BookedAppointment | null>(null);
@@ -70,12 +82,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   useEffect(() => {
     if (open) {
       setSlot(null);
+      setConsultationType(initialConsultationType);
       setError(null);
+      setPaymentError(null);
       setBooked(null);
       setNotes(initialNotes);
       setSubmitting(false);
+      setPaying(false);
     }
-  }, [open, doctor?.id, initialNotes]);
+  }, [open, doctor?.id, initialNotes, initialConsultationType]);
 
   if (!doctor) return null;
 
@@ -96,6 +111,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       const res = await api.post('/appointments', {
         doctorId: doctor.id,
         scheduledStart: slotStart(slot, date),
+        consultationType,
         notes: notes.trim() || undefined,
         medicalDocumentId: extra?.medicalDocumentId || undefined,
         triageSessionId: extra?.triageSessionId || undefined,
@@ -116,13 +132,39 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
   };
 
+  const handleCheckoutNow = async () => {
+    if (!booked || paying || isUnverified) return;
+    try {
+      setPaying(true);
+      setPaymentError(null);
+      const res = await api.post('/payments/checkout', {
+        orderType: 'APPOINTMENT_FEE',
+        appointmentId: booked.id,
+        paymentMethod: 'STRIPE',
+      });
+      const checkoutUrl = res.data?.data?.checkoutUrl as string | undefined;
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+        return;
+      }
+      setPaymentError('Cổng thanh toán không trả về đường dẫn thanh toán. Bạn có thể thanh toán lại từ Bảng điều khiển.');
+    } catch (err) {
+      setPaymentError(getApiErrorMessage(err, 'Không thể khởi tạo phiên thanh toán Stripe.'));
+    } finally {
+      setPaying(false);
+    }
+  };
+
   const subtitle = [doctor.specialties?.filter(Boolean).join(', '), doctor.hospitalAffiliation].filter(Boolean).join(' · ');
+  const bookedType: ConsultationType = booked?.consultationType || consultationType;
+  const effectiveFeeAmount = booked?.feeAmount ?? doctor.consultationFee ?? 0;
+  const canPayOnline = Boolean(booked && effectiveFeeAmount > 0 && booked.paymentStatus !== 'PAID' && !isUnverified);
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      busy={submitting}
+      busy={submitting || paying}
       title={booked ? 'Đặt lịch thành công' : `Đặt lịch khám với ${doctor.fullName}`}
       description={booked ? undefined : subtitle || undefined}
       size="md"
@@ -132,7 +174,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <Link to="/patient" className="inline-flex items-center px-4 py-2 text-sm font-semibold text-teal-700 hover:underline">
               Xem lịch hẹn của tôi
             </Link>
-            <Button onClick={onClose}>Đóng</Button>
+            {canPayOnline && (
+              <Button
+                onClick={handleCheckoutNow}
+                loading={paying}
+                loadingText="Đang kết nối Stripe..."
+                icon={<CreditCard className="w-4 h-4" />}
+              >
+                Thanh toán ngay (Stripe)
+              </Button>
+            )}
+            <Button variant={canPayOnline ? 'secondary' : 'primary'} onClick={onClose} disabled={paying}>
+              Đóng
+            </Button>
           </>
         ) : (
           <>
@@ -151,11 +205,31 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           <div className="w-12 h-12 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
             <CheckCircle2 className="w-6 h-6" aria-hidden />
           </div>
-          <dl className="text-left text-sm bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1.5">
+          <dl className="text-left text-sm bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
             <div className="flex justify-between gap-3">
               <dt className="text-slate-500">Mã lịch hẹn</dt>
               <dd className="font-mono font-bold text-teal-700">{booked.appointmentCode}</dd>
             </div>
+            <div className="flex justify-between gap-3 items-center">
+              <dt className="text-slate-500">Hình thức khám</dt>
+              <dd>
+                {bookedType === 'ONLINE' ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    <Video className="w-3.5 h-3.5" /> Khám Online (Video Call &amp; Chat)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                    <Building2 className="w-3.5 h-3.5" /> Khám Trực Tiếp Tại Phòng Khám
+                  </span>
+                )}
+              </dd>
+            </div>
+            {bookedType === 'ONLINE' && booked.meetingRoomCode && (
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">Mã phòng Video</dt>
+                <dd className="font-mono font-bold text-indigo-700">{booked.meetingRoomCode}</dd>
+              </div>
+            )}
             <div className="flex justify-between gap-3">
               <dt className="text-slate-500">Bác sĩ</dt>
               <dd className="font-semibold text-right">{booked.doctorName || doctor.fullName}</dd>
@@ -169,12 +243,66 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <dd className="font-semibold text-right">{formatVnd(booked.feeAmount) ?? fee ?? 'Thông báo tại quầy tiếp đón'}</dd>
             </div>
           </dl>
-          <p className="text-xs text-slate-500">Vui lòng có mặt trước giờ hẹn 15 phút để làm thủ tục.</p>
+          {paymentError && <ErrorState message={paymentError} />}
+          <p className="text-xs text-slate-500">
+            {bookedType === 'ONLINE'
+              ? 'Lịch khám Online đã sẵn sàng. Bạn có thể nhắn tin trao đổi trước hoặc vào Phòng Khám Video Call trong Bảng điều khiển Bệnh nhân.'
+              : 'Vui lòng có mặt trước giờ hẹn 15 phút để làm thủ tục.'}
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
           {isUnverified && <EmailNotVerifiedHint className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2" />}
           {context}
+
+          {/* Consultation Type Selector */}
+          <div className="space-y-1.5">
+            <span className="block text-xs font-bold text-slate-700">Hình thức khám</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5" role="radiogroup" aria-label="Hình thức khám">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={consultationType === 'IN_PERSON'}
+                disabled={submitting}
+                onClick={() => setConsultationType('IN_PERSON')}
+                className={`text-left p-3 rounded-2xl border-2 transition cursor-pointer flex items-start gap-2.5 ${
+                  consultationType === 'IN_PERSON'
+                    ? 'border-teal-600 bg-teal-50/70 shadow-2xs'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div className={`p-2 rounded-xl shrink-0 ${consultationType === 'IN_PERSON' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-900">Khám Trực Tiếp Tại Phòng Khám</div>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">Gặp bác sĩ tại cơ sở y tế, nhận phiếu QR &amp; STT.</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                role="radio"
+                aria-checked={consultationType === 'ONLINE'}
+                disabled={submitting}
+                onClick={() => setConsultationType('ONLINE')}
+                className={`text-left p-3 rounded-2xl border-2 transition cursor-pointer flex items-start gap-2.5 ${
+                  consultationType === 'ONLINE'
+                    ? 'border-indigo-600 bg-indigo-50/70 shadow-2xs'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div className={`p-2 rounded-xl shrink-0 ${consultationType === 'ONLINE' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                  <Video className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-900">Khám Online (Video Call &amp; Chat)</div>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">Tư vấn từ xa qua Video HD &amp; nhắn tin trực tiếp.</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <SlotPicker
             doctorId={doctor.id}
             date={date}

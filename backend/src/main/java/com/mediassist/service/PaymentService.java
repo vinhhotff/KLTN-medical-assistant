@@ -15,6 +15,9 @@ import com.mediassist.repository.AuditLogRepository;
 import com.mediassist.repository.PaymentTransactionRepository;
 import com.mediassist.repository.UserRepository;
 import com.stripe.model.Event;
+import com.stripe.model.EventDataObjectDeserializer;
+import com.stripe.model.PaymentIntent;
+import com.stripe.model.StripeObject;
 import com.stripe.model.checkout.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -153,13 +156,23 @@ public class PaymentService {
         if (!initResult.isSuccess()) {
             tx.setStatus(TransactionStatus.FAILED);
             paymentTransactionRepository.save(tx);
-            throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "GATEWAY_ERROR", initResult.getMessage());
+            String msg = initResult.getMessage() != null ? initResult.getMessage() : "Lỗi khởi tạo thanh toán.";
+            HttpStatus status = msg.contains("tối thiểu")
+                    ? HttpStatus.BAD_REQUEST
+                    : HttpStatus.BAD_GATEWAY;
+            String errorCode = msg.contains("tối thiểu") ? "STRIPE_MINIMUM_AMOUNT" : "GATEWAY_ERROR";
+            throw new AppException(status, errorCode, msg);
         }
 
         tx.setGatewayReference(initResult.getGatewayReference());
         paymentTransactionRepository.save(tx);
 
-        log.info("💳 [PAYMENT INITIATED] TxCode: {}, Gateway: {}, Amount: {} VND", txCode, gateway.getGatewayName(), amount);
+        String resolvedMode = initResult.getMode() != null
+                ? initResult.getMode()
+                : resolveModeForGateway(tx.getPaymentGateway());
+
+        log.info("💳 [PAYMENT INITIATED] TxCode: {}, Gateway: {}, Mode: {}, Amount: {} VND",
+                txCode, gateway.getGatewayName(), resolvedMode, amount);
 
         return new PaymentResponseDto(
                 tx.getTransactionCode(),
@@ -172,7 +185,8 @@ public class PaymentService {
                 initResult.getCheckoutUrl(),
                 initResult.getGatewayReference(),
                 initResult.getQrPayload(),
-                initResult.getMessage()
+                initResult.getMessage(),
+                resolvedMode
         );
     }
 
@@ -194,12 +208,21 @@ public class PaymentService {
             return toDto(tx, "Giao dịch đã được ghi nhận thành công trước đó.");
         }
 
+        if (tx.getGatewayReference() != null && !tx.getGatewayReference().isBlank()
+                && request.getSessionId() != null && !request.getSessionId().isBlank()
+                && !tx.getGatewayReference().equals(request.getSessionId())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "SESSION_MISMATCH",
+                    "Mã phiên thanh toán không khớp với giao dịch.");
+        }
+
         String referenceToVerify = (request.getSessionId() != null && !request.getSessionId().isBlank())
                 ? request.getSessionId()
                 : tx.getGatewayReference();
 
         PaymentGateway gateway = gatewayRouter.resolveGateway(tx.getPaymentMethod());
-        PaymentVerificationResult verifyResult = gateway.verifyPayment(referenceToVerify);
+        PaymentVerificationResult verifyResult = (gateway instanceof StripePaymentGateway stripeGw)
+                ? stripeGw.verifyPayment(referenceToVerify, tx.getTransactionCode())
+                : gateway.verifyPayment(referenceToVerify);
 
         if (!verifyResult.isPaid()) {
             log.warn("⚠️ [PAYMENT VERIFY FAILED] Transaction {}: {}", tx.getTransactionCode(), verifyResult.getFailureReason());
@@ -264,6 +287,41 @@ public class PaymentService {
     }
 
     @Transactional
+    public PaymentResponseDto cancelTransaction(String userEmail, String transactionCode) {
+        PaymentTransaction tx = paymentTransactionRepository.findByTransactionCode(transactionCode)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "TRANSACTION_NOT_FOUND",
+                        "Không tìm thấy mã giao dịch: " + transactionCode));
+
+        User currentUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Người dùng không tồn tại."));
+        if (!tx.getUser().getId().equals(currentUser.getId()) && currentUser.getRole() != Role.ADMIN) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền hủy giao dịch này.");
+        }
+
+        if (tx.getStatus() == TransactionStatus.COMPLETED) {
+            return toDto(tx, "Giao dịch đã hoàn tất trước đó, không thể hủy.");
+        }
+
+        if (tx.getStatus() == TransactionStatus.PENDING
+                && "STRIPE".equalsIgnoreCase(tx.getPaymentGateway())
+                && tx.getGatewayReference() != null
+                && "REAL".equals(stripePaymentGateway.getActiveMode())) {
+            PaymentVerificationResult check = stripePaymentGateway.verifyPayment(tx.getGatewayReference(), tx.getTransactionCode());
+            if (check.isPaid()) {
+                return verifyAndFulfillPayment(userEmail, new VerifyPaymentRequest(tx.getTransactionCode(), tx.getGatewayReference()));
+            }
+        }
+
+        if (tx.getStatus() == TransactionStatus.PENDING) {
+            tx.setStatus(TransactionStatus.CANCELLED);
+            tx = paymentTransactionRepository.save(tx);
+            log.info("🚫 [PAYMENT CANCELLED] Transaction {} cancelled by user {}", tx.getTransactionCode(), userEmail);
+        }
+
+        return toDto(tx, "Giao dịch đã được hủy. Bạn có thể khởi tạo thanh toán mới.");
+    }
+
+    @Transactional
     public void handleStripeWebhook(String payload, String sigHeader) {
         Event event = stripePaymentGateway.constructWebhookEvent(payload, sigHeader);
         if (event == null) {
@@ -271,31 +329,103 @@ public class PaymentService {
             return;
         }
 
-        if ("checkout.session.completed".equals(event.getType())) {
-            var dataObjectDeserializer = event.getDataObjectDeserializer();
-            if (dataObjectDeserializer.getObject().isPresent()) {
-                Session session = (Session) dataObjectDeserializer.getObject().get();
-                String txCode = session.getMetadata() != null ? session.getMetadata().get("transaction_code") : null;
+        String eventType = event.getType();
+        if ("checkout.session.completed".equals(eventType) || "checkout.session.async_payment_succeeded".equals(eventType)) {
+            Session session = extractStripeObject(event.getDataObjectDeserializer(), Session.class);
+            if (session == null) return;
+            if ("unpaid".equalsIgnoreCase(session.getPaymentStatus())) {
+                log.info("⏳ [STRIPE WEBHOOK] Session {} completed with payment_status=unpaid (awaiting async confirmation).", session.getId());
+                return;
+            }
+            findTransactionForSession(session).ifPresent(tx -> {
+                if (tx.getStatus() == TransactionStatus.PENDING || tx.getStatus() == TransactionStatus.FAILED) {
+                    try {
+                        fulfillOrder(tx);
+                        tx.setStatus(TransactionStatus.COMPLETED);
+                        if (session.getId() != null) {
+                            tx.setGatewayReference(session.getId());
+                        }
+                        PaymentTransaction saved = paymentTransactionRepository.save(tx);
+                        publishPaymentCompleted(saved);
+                        log.info("🎉 [STRIPE WEBHOOK FULFILLED] Transaction {} fulfilled via webhook ({}).",
+                                tx.getTransactionCode(), eventType);
+                    } catch (org.springframework.dao.OptimisticLockingFailureException oe) {
+                        log.info("⚡ [STRIPE WEBHOOK CONCURRENT] TxCode {} updated concurrently by verify.", tx.getTransactionCode());
+                    } catch (Exception e) {
+                        log.error("💥 [STRIPE WEBHOOK ERROR] TxCode {}: {}", tx.getTransactionCode(), e.getMessage());
+                    }
+                }
+            });
+        } else if ("checkout.session.expired".equals(eventType)) {
+            Session session = extractStripeObject(event.getDataObjectDeserializer(), Session.class);
+            if (session == null) return;
+            findTransactionForSession(session).ifPresent(tx -> {
+                if (tx.getStatus() == TransactionStatus.PENDING) {
+                    tx.setStatus(TransactionStatus.CANCELLED);
+                    paymentTransactionRepository.save(tx);
+                    log.info("⌛ [STRIPE WEBHOOK EXPIRED] Transaction {} marked CANCELLED.", tx.getTransactionCode());
+                }
+            });
+        } else if ("payment_intent.payment_failed".equals(eventType)) {
+            PaymentIntent pi = extractStripeObject(event.getDataObjectDeserializer(), PaymentIntent.class);
+            if (pi != null && pi.getMetadata() != null) {
+                String txCode = pi.getMetadata().get("transaction_code");
                 if (txCode != null) {
                     paymentTransactionRepository.findByTransactionCode(txCode).ifPresent(tx -> {
                         if (tx.getStatus() == TransactionStatus.PENDING) {
-                            try {
-                                fulfillOrder(tx);
-                                tx.setStatus(TransactionStatus.COMPLETED);
-                                tx.setGatewayReference(session.getId());
-                                PaymentTransaction saved = paymentTransactionRepository.save(tx);
-                                publishPaymentCompleted(saved);
-                                log.info("🎉 [STRIPE WEBHOOK FULFILLED] Transaction {} fulfilled via webhook.", txCode);
-                            } catch (org.springframework.dao.OptimisticLockingFailureException oe) {
-                                log.info("⚡ [STRIPE WEBHOOK CONCURRENT] TxCode {} updated concurrently by verify.", txCode);
-                            } catch (Exception e) {
-                                log.error("💥 [STRIPE WEBHOOK ERROR] TxCode {}: {}", txCode, e.getMessage());
-                            }
+                            tx.setStatus(TransactionStatus.FAILED);
+                            paymentTransactionRepository.save(tx);
+                            log.warn("❌ [STRIPE WEBHOOK PAYMENT FAILED] Transaction {} marked FAILED.", txCode);
                         }
                     });
                 }
             }
         }
+    }
+
+    public List<PaymentPackageDto> getPackages() {
+        return List.of(
+                new PaymentPackageDto(
+                        "BASIC_5",
+                        "Gói Quét Cơ Bản (+5 Lượt)",
+                        "Bổ sung 5 lượt phân tích hồ sơ cận lâm sàng chất lượng cao",
+                        new BigDecimal("29000.00"),
+                        5,
+                        30,
+                        false
+                ),
+                new PaymentPackageDto(
+                        "VIP_MONTHLY",
+                        "Hội Viên MediPass VIP (30 Ngày)",
+                        "Không giới hạn số lượt quét tài liệu và ưu tiên ghép nối bác sĩ chuyên khoa",
+                        new BigDecimal("99000.00"),
+                        null,
+                        30,
+                        true
+                ),
+                new PaymentPackageDto(
+                        "VIP_ENTERPRISE",
+                        "Hội Viên MediPass Doanh Nghiệp (90 Ngày)",
+                        "Gói toàn diện dành cho gia đình và doanh nghiệp với 90 ngày không giới hạn",
+                        new BigDecimal("149000.00"),
+                        null,
+                        90,
+                        true
+                )
+        );
+    }
+
+    public PaymentConfigDto getPaymentConfig() {
+        return new PaymentConfigDto(
+                stripePaymentGateway.getActiveMode(),
+                stripePaymentGateway.isEnabled(),
+                stripePaymentGateway.hasRealSecretKey(),
+                stripePaymentGateway.getPublishableKey(),
+                stripePaymentGateway.getCurrency(),
+                stripePaymentGateway.getMinVndAmount(),
+                stripePaymentGateway.isMockEnabled(),
+                stripePaymentGateway.hasRealWebhookSecret()
+        );
     }
 
     public List<PaymentHistoryDto> getUserPaymentHistory(String userEmail) {
@@ -464,6 +594,45 @@ public class PaymentService {
         ));
     }
 
+    private Optional<PaymentTransaction> findTransactionForSession(Session session) {
+        String txCode = session.getMetadata() != null ? session.getMetadata().get("transaction_code") : null;
+        if (txCode == null || txCode.isBlank()) {
+            txCode = session.getClientReferenceId();
+        }
+        if (txCode != null && !txCode.isBlank()) {
+            Optional<PaymentTransaction> found = paymentTransactionRepository.findByTransactionCode(txCode);
+            if (found.isPresent()) return found;
+        }
+        if (session.getId() != null && !session.getId().isBlank()) {
+            return paymentTransactionRepository.findByGatewayReference(session.getId());
+        }
+        return Optional.empty();
+    }
+
+    private <T extends StripeObject> T extractStripeObject(EventDataObjectDeserializer deserializer, Class<T> type) {
+        if (deserializer == null) return null;
+        Optional<StripeObject> obj = deserializer.getObject();
+        if (obj.isPresent() && type.isInstance(obj.get())) {
+            return type.cast(obj.get());
+        }
+        try {
+            StripeObject unsafe = deserializer.deserializeUnsafe();
+            if (type.isInstance(unsafe)) {
+                return type.cast(unsafe);
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ Unable to deserialize Stripe webhook object as {}: {}", type.getSimpleName(), e.getMessage());
+        }
+        return null;
+    }
+
+    private String resolveModeForGateway(String paymentGateway) {
+        if ("STRIPE".equalsIgnoreCase(paymentGateway)) {
+            return stripePaymentGateway.getActiveMode();
+        }
+        return "MOCK";
+    }
+
     private PaymentResponseDto toDto(PaymentTransaction tx, String message) {
         return new PaymentResponseDto(
                 tx.getTransactionCode(),
@@ -476,7 +645,8 @@ public class PaymentService {
                 null,
                 tx.getGatewayReference(),
                 null,
-                message
+                message,
+                resolveModeForGateway(tx.getPaymentGateway())
         );
     }
 }

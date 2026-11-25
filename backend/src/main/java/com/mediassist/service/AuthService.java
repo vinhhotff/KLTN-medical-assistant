@@ -2,6 +2,7 @@ package com.mediassist.service;
 
 import com.mediassist.common.AppException;
 import com.mediassist.common.ClientRequestInfo;
+import com.mediassist.controller.StorageController;
 import com.mediassist.dto.AuthResponse;
 import com.mediassist.dto.DoctorRegisterRequest;
 import com.mediassist.dto.LoginRequest;
@@ -39,6 +40,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -73,6 +75,7 @@ public class AuthService {
     private final SecurityRateLimiterService rateLimiterService;
     private final DoctorProfileRepository doctorProfileRepository;
     private final SpecialtyRepository specialtyRepository;
+    private final StorageService storageService;
 
     public AuthService(UserRepository userRepository,
                        PatientProfileRepository patientProfileRepository,
@@ -85,7 +88,24 @@ public class AuthService {
                        SecurityRateLimiterService rateLimiterService) {
         this(userRepository, patientProfileRepository, passwordEncoder, tokenProvider,
                 passwordResetTokenRepository, auditLogRepository, eventPublisher,
-                emailVerificationTokenRepository, rateLimiterService, null, null);
+                emailVerificationTokenRepository, rateLimiterService, null, null, null);
+    }
+
+    public AuthService(UserRepository userRepository,
+                       PatientProfileRepository patientProfileRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtTokenProvider tokenProvider,
+                       PasswordResetTokenRepository passwordResetTokenRepository,
+                       AuditLogRepository auditLogRepository,
+                       ApplicationEventPublisher eventPublisher,
+                       EmailVerificationTokenRepository emailVerificationTokenRepository,
+                       SecurityRateLimiterService rateLimiterService,
+                       DoctorProfileRepository doctorProfileRepository,
+                       SpecialtyRepository specialtyRepository) {
+        this(userRepository, patientProfileRepository, passwordEncoder, tokenProvider,
+                passwordResetTokenRepository, auditLogRepository, eventPublisher,
+                emailVerificationTokenRepository, rateLimiterService,
+                doctorProfileRepository, specialtyRepository, null);
     }
 
     @Autowired
@@ -99,7 +119,8 @@ public class AuthService {
                        EmailVerificationTokenRepository emailVerificationTokenRepository,
                        SecurityRateLimiterService rateLimiterService,
                        DoctorProfileRepository doctorProfileRepository,
-                       SpecialtyRepository specialtyRepository) {
+                       SpecialtyRepository specialtyRepository,
+                       StorageService storageService) {
         this.userRepository = userRepository;
         this.patientProfileRepository = patientProfileRepository;
         this.passwordEncoder = passwordEncoder;
@@ -111,6 +132,7 @@ public class AuthService {
         this.rateLimiterService = rateLimiterService;
         this.doctorProfileRepository = doctorProfileRepository;
         this.specialtyRepository = specialtyRepository;
+        this.storageService = storageService;
     }
 
     @Transactional(noRollbackFor = AppException.class)
@@ -255,8 +277,29 @@ public class AuthService {
      */
     @Transactional
     public AuthResponse registerDoctor(DoctorRegisterRequest request) {
+        return registerDoctor(request, null, null);
+    }
+
+    /**
+     * Bác sĩ tự đăng ký tài khoản độc lập kèm upload ảnh đại diện / bản scan CCHN trực tiếp (multipart)
+     * và nhận email xác thực ngay lập tức.
+     */
+    @Transactional
+    public AuthResponse registerDoctor(DoctorRegisterRequest request, MultipartFile avatarFile, MultipartFile licenseFile) {
         if (doctorProfileRepository == null || specialtyRepository == null) {
             throw new IllegalStateException("Doctor repositories are not configured");
+        }
+
+        boolean hasAvatarFile = avatarFile != null && !avatarFile.isEmpty();
+        boolean hasLicenseFile = licenseFile != null && !licenseFile.isEmpty();
+        if (hasAvatarFile) {
+            StorageController.validateImageFile(avatarFile);
+        }
+        if (hasLicenseFile) {
+            StorageController.validateDocumentFile(licenseFile);
+        }
+        if ((hasAvatarFile || hasLicenseFile) && storageService == null) {
+            throw new IllegalStateException("StorageService is not configured");
         }
 
         String email = request.getEmail().toLowerCase().trim();
@@ -295,6 +338,27 @@ public class AuthService {
         user.setLockedUntil(null);
         user = userRepository.save(user);
 
+        if (hasAvatarFile) {
+            try {
+                StorageService.FileUploadResult uploadedAvatar = storageService.uploadFile(
+                        avatarFile.getBytes(),
+                        avatarFile.getOriginalFilename(),
+                        avatarFile.getContentType(),
+                        "avatars",
+                        user.getId()
+                );
+                if (uploadedAvatar != null && uploadedAvatar.url() != null) {
+                    user.setAvatarUrl(StorageController.toAccessibleUrl(uploadedAvatar.url()));
+                    user = userRepository.save(user);
+                }
+            } catch (AppException ae) {
+                throw ae;
+            } catch (Exception e) {
+                throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "AVATAR_UPLOAD_FAILED",
+                        "Không thể tải ảnh đại diện bác sĩ lên: " + e.getMessage());
+            }
+        }
+
         DoctorProfile profile = new DoctorProfile();
         profile.setUser(user);
         profile.setAcademicTitle(fallbackText(request.getAcademicTitle(), "BS"));
@@ -310,6 +374,26 @@ public class AuthService {
                 : BigDecimal.valueOf(300000));
         profile.setBio(trimToNull(request.getBio()));
         profile.setVerified(false);
+
+        if (hasLicenseFile) {
+            try {
+                StorageService.FileUploadResult uploadedLicense = storageService.uploadFile(
+                        licenseFile.getBytes(),
+                        licenseFile.getOriginalFilename(),
+                        licenseFile.getContentType(),
+                        "licenses",
+                        user.getId()
+                );
+                if (uploadedLicense != null && uploadedLicense.url() != null) {
+                    profile.setLicenseDocumentUrl(StorageController.toAccessibleUrl(uploadedLicense.url()));
+                }
+            } catch (AppException ae) {
+                throw ae;
+            } catch (Exception e) {
+                throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "LICENSE_UPLOAD_FAILED",
+                        "Không thể tải tài liệu chứng chỉ hành nghề lên: " + e.getMessage());
+            }
+        }
 
         Set<Specialty> specialties = new LinkedHashSet<>();
         if (request.getSpecialtySlugs() != null) {

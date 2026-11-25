@@ -20,6 +20,8 @@ import {
   QrCode,
   Camera,
   Loader2,
+  Video,
+  Building2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
@@ -32,6 +34,8 @@ import { useEmailVerification } from '../../hooks/useEmailVerification';
 import { Pagination } from '../../components/common/Pagination';
 import { DoctorReviewModal } from '../../components/common/DoctorReviewModal';
 import { AdmissionTicketModal } from '../../components/patient/AdmissionTicketModal';
+import { TelehealthRoomModal } from '../../components/telehealth/TelehealthRoomModal';
+import { ConsultationChatModal } from '../../components/telehealth/ConsultationChatModal';
 import { SlotPicker, slotStart, type DoctorSlot } from '../../components/booking/SlotPicker';
 import { Button, ErrorState, Missing, Modal, useToast } from '../../components/ui';
 import { VitalValue } from '../../components/clinical/VitalValue';
@@ -95,6 +99,9 @@ interface AppointmentItem {
   qrCodeData?: string;
   sttNumber?: string;
   preVisitInstructions?: string[];
+  consultationType?: 'IN_PERSON' | 'ONLINE';
+  meetingRoomCode?: string | null;
+  meetingUrl?: string | null;
 }
 
 interface PrescriptionItem {
@@ -183,6 +190,9 @@ export const PatientDashboard: React.FC = () => {
 
   // Admission Ticket Modal State
   const [selectedTicketAppointment, setSelectedTicketAppointment] = useState<AppointmentItem | null>(null);
+  // Telehealth Video Room & Chat Drawer State
+  const [videoRoomAppointment, setVideoRoomAppointment] = useState<AppointmentItem | null>(null);
+  const [chatAppointment, setChatAppointment] = useState<AppointmentItem | null>(null);
 
   const openReschedule = (apt: AppointmentItem) => {
     setReschedulingAppointment(apt);
@@ -802,6 +812,15 @@ export const PatientDashboard: React.FC = () => {
                           <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${statusInfo.className}`}>
                             {statusInfo.text}
                           </span>
+                          {apt.consultationType === 'ONLINE' ? (
+                            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              <Video className="w-3.5 h-3.5" /> Khám Online
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                              <Building2 className="w-3.5 h-3.5" /> Khám Trực Tiếp
+                            </span>
+                          )}
                         </div>
 
                         <div className="text-xs text-slate-500 font-medium">
@@ -825,13 +844,26 @@ export const PatientDashboard: React.FC = () => {
                         </div>
 
                         <div>
-                          <span className="text-slate-400 block font-semibold">Phòng khám / Cơ sở:</span>
-                          {apt.clinicRoom ? (
+                          <span className="text-slate-400 block font-semibold">
+                            {apt.consultationType === 'ONLINE' ? 'Hình thức / Phòng Video:' : 'Phòng khám / Cơ sở:'}
+                          </span>
+                          {apt.consultationType === 'ONLINE' ? (
+                            <>
+                              <span className="font-semibold text-indigo-700">
+                                {apt.clinicRoom || 'Phòng Khám Trực Tuyến (Video Call & Chat)'}
+                              </span>
+                              {apt.meetingRoomCode && (
+                                <span className="font-mono text-slate-500 block text-[11px]">Mã phòng: {apt.meetingRoomCode}</span>
+                              )}
+                            </>
+                          ) : apt.clinicRoom ? (
                             <span className="font-semibold text-slate-700">{apt.clinicRoom}</span>
                           ) : (
                             <span className="text-slate-500 italic">Chưa xếp phòng — sẽ thông báo khi check-in</span>
                           )}
-                          {apt.clinicAddress && <span className="text-slate-500 block text-[11px]">{apt.clinicAddress}</span>}
+                          {apt.consultationType !== 'ONLINE' && apt.clinicAddress && (
+                            <span className="text-slate-500 block text-[11px]">{apt.clinicAddress}</span>
+                          )}
                         </div>
 
                         <div>
@@ -965,19 +997,48 @@ export const PatientDashboard: React.FC = () => {
                       {/* Action Bar */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 text-xs">
                         <span className="text-slate-400">
-                          {isScheduled ? 'Vui lòng có mặt trước 15 phút để làm thủ tục' : ''}
+                          {isScheduled
+                            ? apt.consultationType === 'ONLINE'
+                              ? 'Vào phòng khám Online trước giờ hẹn 5–10 phút để kiểm tra camera & micro'
+                              : 'Vui lòng có mặt trước 15 phút để làm thủ tục'
+                            : ''}
                         </span>
 
                         <div className="flex flex-wrap items-center gap-2">
+                          {apt.consultationType === 'ONLINE' &&
+                            (apt.status === 'SCHEDULED' || apt.status === 'CHECKED_IN' || apt.status === 'IN_PROGRESS') && (
+                              <button
+                                type="button"
+                                onClick={() => setVideoRoomAppointment(apt)}
+                                className="px-3.5 py-1.5 text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                              >
+                                <Video className="w-3.5 h-3.5" />
+                                <span>Vào Phòng Khám Online / Video Call</span>
+                              </button>
+                            )}
+
+                          {apt.status !== 'CANCELLED' &&
+                            apt.status !== 'NO_SHOW' &&
+                            (apt.consultationType === 'ONLINE' || apt.status === 'IN_PROGRESS' || apt.status === 'COMPLETED') && (
+                              <button
+                                type="button"
+                                onClick={() => setChatAppointment(apt)}
+                                className="px-3 py-1.5 text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5 text-teal-600" />
+                                <span>Nhắn Tin Bác Sĩ</span>
+                              </button>
+                            )}
+
                           {apt.status !== 'CANCELLED' && apt.status !== 'NO_SHOW' && (
                             <button
                               type="button"
                               onClick={() => setSelectedTicketAppointment(apt)}
                               className="px-3 py-1.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                              title="Xem phiếu khám điện tử có mã QR và số thứ tự"
+                              title={apt.consultationType === 'ONLINE' ? 'Xem thông tin phòng khám trực tuyến' : 'Xem phiếu khám điện tử có mã QR và số thứ tự'}
                             >
                               <QrCode className="w-3.5 h-3.5 text-indigo-600" />
-                              <span>📋 Xem Phiếu Khám</span>
+                              <span>{apt.consultationType === 'ONLINE' ? '📋 Xem Vé Khám Online' : '📋 Xem Phiếu Khám'}</span>
                             </button>
                           )}
 
@@ -1835,8 +1896,42 @@ export const PatientDashboard: React.FC = () => {
           appointment={selectedTicketAppointment}
           isOpen={!!selectedTicketAppointment}
           onClose={() => setSelectedTicketAppointment(null)}
+          onJoinOnlineRoom={(ticket) => {
+            const matched = appointments.find((a) => a.id === ticket.id);
+            if (matched) setVideoRoomAppointment(matched);
+          }}
         />
       )}
+
+      {/* Telehealth Video Call & Chat Room Modal */}
+      {videoRoomAppointment && (
+        <TelehealthRoomModal
+          open={!!videoRoomAppointment}
+          appointmentId={videoRoomAppointment.id}
+          initialAppointment={videoRoomAppointment}
+          currentUserId={user?.id}
+          currentUserRole={user?.role}
+          onClose={() => setVideoRoomAppointment(null)}
+          onStatusUpdated={(apptId, newStatus) => {
+            setAppointments((prev) =>
+              prev.map((a) => (a.id === apptId ? { ...a, status: newStatus as AppointmentItem['status'] } : a))
+            );
+          }}
+        />
+      )}
+
+      {/* Standalone Consultation Chat Drawer/Modal */}
+      <ConsultationChatModal
+        open={!!chatAppointment}
+        appointment={chatAppointment}
+        currentUserId={user?.id}
+        currentUserRole={user?.role}
+        onClose={() => setChatAppointment(null)}
+        onOpenVideoRoom={(apt) => {
+          const matched = appointments.find((a) => a.id === apt.id);
+          if (matched) setVideoRoomAppointment(matched);
+        }}
+      />
     </div>
   );
 };

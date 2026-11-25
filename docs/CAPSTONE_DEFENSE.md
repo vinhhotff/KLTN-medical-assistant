@@ -98,6 +98,10 @@
    - Trình chiếu endpoint `POST /api/v1/pii/deidentify` với dữ liệu xét nghiệm mẫu chứa tên bệnh nhân, số CCCD 12 số, số thẻ BHYT, SĐT và địa chỉ.
    - Hội đồng quan sát trực tiếp:
      - Văn bản che giấu an toàn (`maskedText`) với các token `[BỆNH_NHÂN_1]`, `[SỐ_ĐỊNH_DANH_1]`, `[SĐT_1]`, `[ĐỊA_CHỈ_1]`.
+6. **Bước 6: Demo Mở Rộng — Khám Online Video Call & Chat, Thanh Toán Stripe & Upload Ảnh Bác Sĩ**
+   - **Khám Online (Hybrid Telehealth):** Đặt lịch chọn *Khám Online (Video Call & Chat)* $\rightarrow$ mở phòng khám trên 2 trình duyệt (Bác sĩ & Bệnh nhân) để chứng minh Video Call WebRTC thời gian thực, chat lưu lịch sử `consultation_messages` và đính kèm ảnh xét nghiệm.
+   - **Thanh toán Stripe:** Kiểm tra `GET /api/v1/payments/config` (hiển thị rõ chế độ `REAL` / `MOCK`), thanh toán phí khám hoặc gói VIP qua Stripe Checkout, xác minh trạng thái `PAID` và hủy lịch để chứng minh hoàn tiền tự động.
+   - **Đăng ký Bác sĩ với Ảnh & CCHN thật:** Ở `/login?mode=register&role=doctor`, kéo thả ảnh chân dung thật và PDF/ảnh CCHN (tải lên Supabase Storage hoặc fallback `/api/v1/storage/files/...`).
      - Văn bản gán nhãn chuẩn nghiên cứu `Meddies/meddies-pii` (`[Nguyễn Văn Bình]<human_name>`, `[079201008123]<id_number>`, `[0987123456]<phone_number>`).
      - Chứng minh: AI đám mây (Gemini / OpenRouter) không bao giờ tiếp nhận dữ liệu định danh người bệnh (Zero Data Leakage), tuân thủ 100% Nghị định 13/2023/NĐ-CP & HIPAA.
 6. **Bước 6: Trực Quan Hóa Tự Động Sinh PDF Ca Bệnh Thực Tế Từ Dataset Meddies (Meddies Random Patient PDF Generator)**

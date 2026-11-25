@@ -1,5 +1,6 @@
 package com.mediassist.dto;
 
+import com.mediassist.model.entity.ConsultationType;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -18,6 +19,7 @@ public class CreateAppointmentRequest {
     private String notes;
     private UUID medicalDocumentId;
     private UUID triageSessionId;
+    private ConsultationType consultationType = ConsultationType.IN_PERSON;
 
     public CreateAppointmentRequest() {}
 
@@ -42,6 +44,15 @@ public class CreateAppointmentRequest {
         this.triageSessionId = triageSessionId;
     }
 
+    public CreateAppointmentRequest(UUID doctorId, LocalDateTime scheduledStart, String notes, UUID medicalDocumentId, UUID triageSessionId, ConsultationType consultationType) {
+        this.doctorId = doctorId;
+        this.scheduledStart = scheduledStart;
+        this.notes = notes;
+        this.medicalDocumentId = medicalDocumentId;
+        this.triageSessionId = triageSessionId;
+        this.consultationType = consultationType != null ? consultationType : ConsultationType.IN_PERSON;
+    }
+
     public UUID getDoctorId() { return doctorId; }
     public void setDoctorId(UUID doctorId) { this.doctorId = doctorId; }
 
@@ -56,4 +67,11 @@ public class CreateAppointmentRequest {
 
     public UUID getTriageSessionId() { return triageSessionId; }
     public void setTriageSessionId(UUID triageSessionId) { this.triageSessionId = triageSessionId; }
+
+    public ConsultationType getConsultationType() {
+        return consultationType != null ? consultationType : ConsultationType.IN_PERSON;
+    }
+    public void setConsultationType(ConsultationType consultationType) {
+        this.consultationType = consultationType != null ? consultationType : ConsultationType.IN_PERSON;
+    }
 }

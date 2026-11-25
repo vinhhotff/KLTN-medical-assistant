@@ -65,6 +65,9 @@ public class AdminVettingService {
     private NotificationService notificationService;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private PaymentService paymentService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
     private javax.sql.DataSource dataSource;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -715,6 +718,14 @@ public class AdminVettingService {
                     "Không thể hủy lịch hẹn " + appointment.getAppointmentCode() + " vì lịch " + label + ".");
         }
 
+        if (appointment.getPaymentStatus() == com.mediassist.model.entity.PaymentStatus.PAID && paymentService != null) {
+            try {
+                paymentService.refundPayment(appointment.getId());
+            } catch (Exception e) {
+                log.warn("Stripe refund trigger warning for admin-cancelled appointment {}: {}",
+                        appointment.getAppointmentCode(), e.getMessage());
+            }
+        }
         AppointmentRefundService.RefundResult refund = refundService.refundIfPaid(appointment);
         appointment.setStatus(AppointmentStatus.CANCELLED);
         String cancelNote = "[ADMIN CANCELLED] " + reason.trim();

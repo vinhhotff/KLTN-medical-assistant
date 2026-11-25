@@ -21,10 +21,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
 
@@ -92,7 +94,7 @@ public class AuthController {
                 .body(ApiResponse.success(authResponse, "Đăng ký tài khoản bệnh nhân thành công"));
     }
 
-    @PostMapping("/register/doctor")
+    @PostMapping(value = "/register/doctor", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Đăng ký tài khoản bác sĩ mới (chờ thẩm định CCHN)")
     public ResponseEntity<ApiResponse<AuthResponse>> registerDoctor(
             @Valid @RequestBody DoctorRegisterRequest request,
@@ -101,6 +103,24 @@ public class AuthController {
     ) {
         requireRegistrationRateLimit(servletRequest);
         AuthResponse authResponse = authService.registerDoctor(request);
+        attachAccessTokenCookie(response, authResponse.getToken());
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(authResponse,
+                        "Đăng ký tài khoản bác sĩ thành công. Vui lòng kiểm tra email để xác thực tài khoản."));
+    }
+
+    @PostMapping(value = "/register/doctor", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Đăng ký tài khoản bác sĩ mới kèm tải ảnh đại diện / CCHN trực tiếp (multipart/form-data)")
+    public ResponseEntity<ApiResponse<AuthResponse>> registerDoctorMultipart(
+            @Valid @ModelAttribute DoctorRegisterRequest request,
+            @RequestParam(value = "avatar", required = false) MultipartFile avatar,
+            @RequestParam(value = "license", required = false) MultipartFile license,
+            HttpServletRequest servletRequest,
+            HttpServletResponse response
+    ) {
+        requireRegistrationRateLimit(servletRequest);
+        AuthResponse authResponse = authService.registerDoctor(request, avatar, license);
         attachAccessTokenCookie(response, authResponse.getToken());
 
         return ResponseEntity.status(HttpStatus.CREATED)

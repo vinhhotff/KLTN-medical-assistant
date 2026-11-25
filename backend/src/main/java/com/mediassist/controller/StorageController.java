@@ -13,6 +13,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -22,8 +25,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
-import java.util.Optional;
+import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/api/v1/storage")
@@ -34,11 +42,14 @@ public class StorageController {
 
     private static final long MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
     private static final List<String> ALLOWED_IMAGE_TYPES = List.of(
-            "image/jpeg", "image/png", "image/webp", "image/gif"
+            "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"
     );
     private static final List<String> ALLOWED_DOC_TYPES = List.of(
-            "image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"
+            "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "application/pdf"
     );
+    private static final Set<String> PUBLIC_LOCAL_FOLDERS = Set.of("avatars", "licenses", "general", "consultations");
+    private static final String LOCAL_UPLOADS_PREFIX = "/uploads/";
+    private static final String API_FILES_PREFIX = "/api/v1/storage/files/";
 
     private final StorageService storageService;
     private final UserRepository userRepository;
@@ -65,13 +76,13 @@ public class StorageController {
 
         try {
             String folder = resolveFolder(category);
-            FileUploadResult result = storageService.uploadFile(
+            FileUploadResult result = normalizeResultUrl(storageService.uploadFile(
                     file.getBytes(),
                     file.getOriginalFilename(),
                     file.getContentType(),
                     folder,
                     principal != null ? principal.getId() : null
-            );
+            ));
             return ResponseEntity.ok(ApiResponse.success(result));
         } catch (AppException ae) {
             throw ae;
@@ -97,13 +108,13 @@ public class StorageController {
         validateImageFile(file);
 
         try {
-            FileUploadResult result = storageService.uploadFile(
+            FileUploadResult result = normalizeResultUrl(storageService.uploadFile(
                     file.getBytes(),
                     file.getOriginalFilename(),
                     file.getContentType(),
                     "avatars",
                     principal.getId()
-            );
+            ));
 
             // Cập nhật avatarUrl vào User entity
             User user = userRepository.findById(principal.getId())
@@ -137,13 +148,13 @@ public class StorageController {
         validateDocumentFile(file);
 
         try {
-            FileUploadResult result = storageService.uploadFile(
+            FileUploadResult result = normalizeResultUrl(storageService.uploadFile(
                     file.getBytes(),
                     file.getOriginalFilename(),
                     file.getContentType(),
                     "licenses",
                     principal.getId()
-            );
+            ));
 
             // Cập nhật licenseDocumentUrl vào DoctorProfile
             DoctorProfile doctorProfile = doctorProfileRepository.findByUserId(principal.getId())
@@ -161,6 +172,87 @@ public class StorageController {
         }
     }
 
+    @GetMapping("/files/{folder}/{owner}/{filename}")
+    @Operation(summary = "Phục vụ tệp fallback cục bộ cho avatars/licenses khi Supabase chưa cấu hình")
+    public ResponseEntity<Resource> serveLocalFile(
+            @PathVariable("folder") String folder,
+            @PathVariable("owner") String owner,
+            @PathVariable("filename") String filename) {
+
+        if (!PUBLIC_LOCAL_FOLDERS.contains(folder) || isUnsafeSegment(owner) || isUnsafeSegment(filename)) {
+            throw new AppException(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "Không tìm thấy tệp.");
+        }
+
+        try {
+            Path baseDir = Paths.get("uploads", folder).toAbsolutePath().normalize();
+            Path targetPath = baseDir.resolve(owner).resolve(filename).normalize();
+            if (!targetPath.startsWith(baseDir) || !Files.exists(targetPath) || !Files.isRegularFile(targetPath)) {
+                throw new AppException(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "Tệp không tồn tại.");
+            }
+
+            Resource resource = new UrlResource(targetPath.toUri());
+            String detectedType = Files.probeContentType(targetPath);
+            MediaType mediaType = detectedType != null
+                    ? MediaType.parseMediaType(detectedType)
+                    : resolveMediaTypeByExtension(filename);
+
+            return ResponseEntity.ok()
+                    .contentType(mediaType)
+                    .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                    .body(resource);
+        } catch (AppException ae) {
+            throw ae;
+        } catch (Exception e) {
+            throw new AppException(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "Không thể đọc tệp.");
+        }
+    }
+
+    public static void validateImageFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_EMPTY", "Tệp hình ảnh không được để trống.");
+        }
+        if (file.getSize() > MAX_IMAGE_SIZE_BYTES) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE", "Kích thước ảnh không được vượt quá 10MB.");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE_TYPE",
+                    "Định dạng hình ảnh không hợp lệ. Chỉ chấp nhận JPG, PNG, WEBP, GIF.");
+        }
+    }
+
+    public static void validateDocumentFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_EMPTY", "Tệp tải lên không được để trống.");
+        }
+        if (file.getSize() > MAX_IMAGE_SIZE_BYTES) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE", "Kích thước tệp không được vượt quá 10MB.");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_DOC_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE_TYPE",
+                    "Định dạng tệp không hợp lệ. Chỉ chấp nhận PDF hoặc hình ảnh (JPG, PNG, WEBP).");
+        }
+    }
+
+    public static FileUploadResult normalizeResultUrl(FileUploadResult result) {
+        if (result == null) return null;
+        String accessibleUrl = toAccessibleUrl(result.url());
+        if (accessibleUrl.equals(result.url())) {
+            return result;
+        }
+        return new FileUploadResult(accessibleUrl, result.storagePath(), result.fileName(),
+                result.fileSizeBytes(), result.contentType());
+    }
+
+    public static String toAccessibleUrl(String rawUrl) {
+        if (rawUrl == null) return null;
+        if (rawUrl.startsWith(LOCAL_UPLOADS_PREFIX)) {
+            return API_FILES_PREFIX + rawUrl.substring(LOCAL_UPLOADS_PREFIX.length());
+        }
+        return rawUrl;
+    }
+
     private void validateFile(MultipartFile file, String category) {
         if ("avatar".equalsIgnoreCase(category) || "avatars".equalsIgnoreCase(category)) {
             validateImageFile(file);
@@ -169,40 +261,28 @@ public class StorageController {
         }
     }
 
-    private void validateImageFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_EMPTY", "Tệp hình ảnh không được để trống.");
-        }
-        if (file.getSize() > MAX_IMAGE_SIZE_BYTES) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE", "Kích thước ảnh không được vượt quá 10MB.");
-        }
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase())) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE_TYPE",
-                    "Định dạng hình ảnh không hợp lệ. Chỉ chấp nhận JPG, PNG, WEBP, GIF.");
-        }
-    }
-
-    private void validateDocumentFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_EMPTY", "Tệp tải lên không được để trống.");
-        }
-        if (file.getSize() > MAX_IMAGE_SIZE_BYTES) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE", "Kích thước tệp không được vượt quá 10MB.");
-        }
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_DOC_TYPES.contains(contentType.toLowerCase())) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_FILE_TYPE",
-                    "Định dạng tệp không hợp lệ. Chỉ chấp nhận PDF hoặc hình ảnh (JPG, PNG, WEBP).");
-        }
-    }
-
     private String resolveFolder(String category) {
         if (category == null || category.isBlank()) return "general";
-        String lower = category.toLowerCase();
+        String lower = category.toLowerCase(Locale.ROOT);
         if (lower.contains("avatar")) return "avatars";
         if (lower.contains("license") || lower.contains("cchn")) return "licenses";
+        if (lower.contains("consultation") || lower.contains("chat")) return "consultations";
         if (lower.contains("document") || lower.contains("patient")) return "medical_documents";
         return "general";
+    }
+
+    private static boolean isUnsafeSegment(String segment) {
+        return segment == null || segment.isBlank()
+                || segment.contains("..") || segment.contains("/") || segment.contains("\\");
+    }
+
+    private static MediaType resolveMediaTypeByExtension(String filename) {
+        String lower = filename.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".png")) return MediaType.IMAGE_PNG;
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return MediaType.IMAGE_JPEG;
+        if (lower.endsWith(".gif")) return MediaType.IMAGE_GIF;
+        if (lower.endsWith(".webp")) return MediaType.valueOf("image/webp");
+        if (lower.endsWith(".pdf")) return MediaType.APPLICATION_PDF;
+        return MediaType.APPLICATION_OCTET_STREAM;
     }
 }

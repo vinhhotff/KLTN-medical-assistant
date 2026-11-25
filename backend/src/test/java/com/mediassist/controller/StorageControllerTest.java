@@ -132,4 +132,51 @@ class StorageControllerTest {
         assertEquals("https://supabase.co/cchn.pdf", docProfile.getLicenseDocumentUrl());
         verify(doctorProfileRepository).save(docProfile);
     }
+
+    @Test
+    @DisplayName("Local fallback /uploads/... được chuẩn hóa thành /api/v1/storage/files/... để Vite proxy hoạt động")
+    void uploadAvatar_LocalFallback_RewritesUrlToApiFiles() {
+        MockMultipartFile file = new MockMultipartFile("file", "local.jpg", "image/jpg", new byte[]{1, 2, 3});
+        FileUploadResult localResult = new FileUploadResult(
+                "/uploads/avatars/" + userId + "/abcd_local.jpg",
+                "/uploads/avatars/" + userId + "/abcd_local.jpg",
+                "local.jpg", 3, "image/jpg");
+
+        when(storageService.uploadFile(any(), eq("local.jpg"), eq("image/jpg"), eq("avatars"), eq(userId)))
+                .thenReturn(localResult);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
+
+        ResponseEntity<ApiResponse<FileUploadResult>> resp = controller.uploadAvatar(userPrincipal, file);
+
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
+        String expectedUrl = "/api/v1/storage/files/avatars/" + userId + "/abcd_local.jpg";
+        assertEquals(expectedUrl, resp.getBody().getData().url());
+        assertEquals(expectedUrl, mockUser.getAvatarUrl());
+    }
+
+    @Test
+    @DisplayName("Upload file đính kèm chat khám online (category=consultation) -> lưu vào thư mục consultations")
+    void upload_ConsultationAttachment_ResolvesConsultationsFolder() {
+        MockMultipartFile file = new MockMultipartFile("file", "symptom.png", "image/png", new byte[]{1, 2, 3});
+        FileUploadResult localResult = new FileUploadResult(
+                "/uploads/consultations/" + userId + "/abcd_symptom.png",
+                "/uploads/consultations/" + userId + "/abcd_symptom.png",
+                "symptom.png", 3, "image/png");
+
+        when(storageService.uploadFile(any(), eq("symptom.png"), eq("image/png"), eq("consultations"), eq(userId)))
+                .thenReturn(localResult);
+
+        ResponseEntity<ApiResponse<FileUploadResult>> resp = controller.upload(userPrincipal, file, "consultation");
+
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
+        assertEquals("/api/v1/storage/files/consultations/" + userId + "/abcd_symptom.png",
+                resp.getBody().getData().url());
+    }
+
+    @Test
+    @DisplayName("serveLocalFile: chặn thư mục medical_documents và path traversal")
+    void serveLocalFile_BlocksPrivateFoldersAndTraversal() {
+        assertThrows(AppException.class, () -> controller.serveLocalFile("medical_documents", "u1", "secret.pdf"));
+        assertThrows(AppException.class, () -> controller.serveLocalFile("avatars", "..", "etc.png"));
+    }
 }

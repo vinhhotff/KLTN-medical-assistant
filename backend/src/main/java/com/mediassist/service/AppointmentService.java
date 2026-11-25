@@ -141,6 +141,16 @@ public class AppointmentService {
         String randomSuffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         String appointmentCode = "AP-" + datePrefix + "-" + randomSuffix;
 
+        ConsultationType consultationType = request.getConsultationType() != null
+                ? request.getConsultationType()
+                : ConsultationType.IN_PERSON;
+
+        String meetingRoomCode = null;
+        if (consultationType == ConsultationType.ONLINE) {
+            String roomSuffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+            meetingRoomCode = "ROOM-" + datePrefix + "-" + roomSuffix;
+        }
+
         Appointment appointment = Appointment.builder()
                 .appointmentCode(appointmentCode)
                 .patient(patient)
@@ -148,6 +158,8 @@ public class AppointmentService {
                 .scheduledStart(scheduledStart)
                 .scheduledEnd(scheduledEnd)
                 .status(AppointmentStatus.SCHEDULED)
+                .consultationType(consultationType)
+                .meetingRoomCode(meetingRoomCode)
                 .feeAmount(fee)
                 .paymentStatus(PaymentStatus.UNPAID)
                 .consultationNotes(request.getNotes())
@@ -165,9 +177,14 @@ public class AppointmentService {
                 doctor.getId(), apptDate.atStartOfDay(), apptDate.atTime(23, 59, 59));
         appointment.setQueueNumber("STT " + String.format("%02d", activeCountToday + 1));
 
-        String room = (doctorProfile.getDepartment() != null && !doctorProfile.getDepartment().isBlank())
-                ? "Phòng Khám - " + doctorProfile.getDepartment().trim()
-                : "Phòng Khám 204 - Khoa Chuyên Môn";
+        String room;
+        if (consultationType == ConsultationType.ONLINE) {
+            room = "Phòng Khám Trực Tuyến (Online) - " + meetingRoomCode;
+        } else {
+            room = (doctorProfile.getDepartment() != null && !doctorProfile.getDepartment().isBlank())
+                    ? "Phòng Khám - " + doctorProfile.getDepartment().trim()
+                    : "Phòng Khám 204 - Khoa Chuyên Môn";
+        }
         appointment.setClinicRoom(room);
         appointment.setChiefComplaint(request.getNotes() != null && !request.getNotes().isBlank() ? request.getNotes() : "Đăng ký khám tư vấn chuyên khoa");
 
@@ -179,12 +196,17 @@ public class AppointmentService {
             throw new AppException(HttpStatus.CONFLICT, "SLOT_CONFLICT", "Khung giờ này đã có bệnh nhân khác nhanh tay đặt trước. Vui lòng chọn khung giờ khác.");
         }
 
+        if (consultationType == ConsultationType.ONLINE && saved.getId() != null) {
+            saved.setMeetingUrl("/consultation/" + saved.getId());
+        }
+
         // Record Audit Log
         AuditLog audit = new AuditLog();
         audit.setUserId(patientId);
         audit.setAction("APPOINTMENT_BOOKED");
         audit.setResource("appointments/" + saved.getId());
-        audit.setMetadata("Code: " + appointmentCode + ", Doctor: " + doctor.getFullName());
+        audit.setMetadata("Code: " + appointmentCode + ", Type: " + consultationType + ", Doctor: " + doctor.getFullName()
+                + (meetingRoomCode != null ? ", Room: " + meetingRoomCode : ""));
         auditLogRepository.save(audit);
 
         // Email xac nhan (benh nhan) + bao lich moi (bac si) - gui sau khi transaction commit
@@ -193,19 +215,23 @@ public class AppointmentService {
         // In-app Notification: Notify Doctor & Patient immediately
         if (notificationService != null) {
             String apptTime = scheduledStart.format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"));
-            String meta = "{\"appointmentId\":\"" + saved.getId() + "\",\"appointmentCode\":\"" + appointmentCode + "\"}";
+            String meta = buildAppointmentNotificationMeta(saved);
+            String modeLabel = consultationType == ConsultationType.ONLINE
+                    ? "Khám Online (Video Call) - " + saved.getClinicRoom()
+                    : saved.getClinicRoom();
             notificationService.sendNotification(
                     doctor.getId(),
                     "APPOINTMENT_NEW",
                     "Lịch Hẹn Mới: " + appointmentCode,
-                    "Bệnh nhân " + patient.getFullName() + " vừa đặt lịch khám với bạn vào lúc " + apptTime + " (" + saved.getClinicRoom() + ").",
+                    "Bệnh nhân " + patient.getFullName() + " vừa đặt lịch khám với bạn vào lúc " + apptTime + " (" + modeLabel + ").",
                     meta
             );
             notificationService.sendNotification(
                     patient.getId(),
                     "APPOINTMENT_CONFIRMED",
                     "Đặt Khám Thành Công: " + appointmentCode,
-                    "Lịch khám với BS. " + doctor.getFullName() + " vào lúc " + apptTime + " (" + saved.getClinicRoom() + ") đã được xác nhận.",
+                    "Lịch khám với BS. " + doctor.getFullName() + " vào lúc " + apptTime + " (" + modeLabel + ") đã được xác nhận."
+                            + (saved.getMeetingUrl() != null ? " Đường dẫn phòng khám: " + saved.getMeetingUrl() : ""),
                     meta
             );
         }
@@ -265,16 +291,22 @@ public class AppointmentService {
                     String.format("Không thể chuyển trạng thái từ %s sang %s.", currentStatus, newStatus));
         }
 
-        // Patient can only cancel
+        // Patient can cancel, or check-in for ONLINE consultations
         if (isPatient && !isDoctor && !isAdmin) {
-            if (newStatus != AppointmentStatus.CANCELLED) {
+            boolean onlineSelfCheckIn = appointment.getConsultationType() == ConsultationType.ONLINE
+                    && currentStatus == AppointmentStatus.SCHEDULED
+                    && newStatus == AppointmentStatus.CHECKED_IN;
+            if (newStatus != AppointmentStatus.CANCELLED && !onlineSelfCheckIn) {
                 throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_STATUS", "Bệnh nhân chỉ có thể hủy lịch hẹn");
             }
-            if (currentStatus == AppointmentStatus.CHECKED_IN || currentStatus == AppointmentStatus.IN_PROGRESS || currentStatus == AppointmentStatus.COMPLETED) {
+            if (newStatus == AppointmentStatus.CANCELLED &&
+                    (currentStatus == AppointmentStatus.CHECKED_IN || currentStatus == AppointmentStatus.IN_PROGRESS || currentStatus == AppointmentStatus.COMPLETED)) {
                 throw new AppException(HttpStatus.BAD_REQUEST, "CANNOT_CANCEL",
                         "Không thể hủy cuộc hẹn khi trạng thái là " + currentStatus + ". Vui lòng liên hệ quầy tiếp đón hoặc bác sĩ.");
             }
-            appointment.setCancellationReason(notes);
+            if (newStatus == AppointmentStatus.CANCELLED) {
+                appointment.setCancellationReason(notes);
+            }
         }
 
         if (isDoctor || isAdmin) {
@@ -316,9 +348,9 @@ public class AppointmentService {
 
         // In-app Notifications for Status Transitions
         if (notificationService != null) {
-            String meta = "{\"appointmentId\":\"" + updated.getId() + "\",\"appointmentCode\":\"" + updated.getAppointmentCode() + "\"}";
+            String meta = buildAppointmentNotificationMeta(updated);
             DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy");
-            String timeStr = updated.getScheduledStart().format(dtf);
+            String timeStr = updated.getScheduledStart() != null ? updated.getScheduledStart().format(dtf) : "";
 
             if (newStatus == AppointmentStatus.CANCELLED) {
                 if (isPatient) {
@@ -339,11 +371,22 @@ public class AppointmentService {
                     );
                 }
             } else if (newStatus == AppointmentStatus.CHECKED_IN) {
+                String roomLabel = updated.getConsultationType() == ConsultationType.ONLINE
+                        ? "phòng khám trực tuyến (" + (updated.getMeetingRoomCode() != null ? updated.getMeetingRoomCode() : updated.getClinicRoom()) + ")"
+                        : updated.getClinicRoom();
                 notificationService.sendNotification(
                         updated.getDoctor().getId(),
                         "PATIENT_CHECKED_IN",
                         "Bệnh Nhân Đã Có Mặt: " + updated.getQueueNumber(),
-                        "Bệnh nhân " + updated.getPatient().getFullName() + " (" + updated.getQueueNumber() + ") đã check-in tại " + updated.getClinicRoom() + ".",
+                        "Bệnh nhân " + updated.getPatient().getFullName() + " (" + updated.getQueueNumber() + ") đã check-in tại " + roomLabel + ".",
+                        meta
+                );
+            } else if (newStatus == AppointmentStatus.IN_PROGRESS && updated.getConsultationType() == ConsultationType.ONLINE) {
+                notificationService.sendNotification(
+                        updated.getPatient().getId(),
+                        "CONSULTATION_STARTED",
+                        "Bác Sĩ Đã Vào Phòng Khám Online: " + updated.getAppointmentCode(),
+                        "BS. " + updated.getDoctor().getFullName() + " đã bắt đầu buổi khám trực tuyến. Vui lòng vào phòng video call ngay.",
                         meta
                 );
             } else if (newStatus == AppointmentStatus.COMPLETED) {
@@ -362,13 +405,18 @@ public class AppointmentService {
     }
 
     @Transactional
-    public AppointmentDto checkInPatient(UUID appointmentId, UUID doctorUserId) {
+    public AppointmentDto checkInPatient(UUID appointmentId, UUID actorUserId) {
         Appointment appt = appointmentRepository.findByIdWithUsers(appointmentId)
                 .or(() -> appointmentRepository.findById(appointmentId))
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy thông tin cuộc hẹn"));
 
-        if (!appt.getDoctor().getId().equals(doctorUserId)) {
-            User user = userRepository.findById(doctorUserId).orElse(null);
+        boolean isDoctor = appt.getDoctor().getId().equals(actorUserId);
+        boolean isOnlinePatient = appt.getConsultationType() == ConsultationType.ONLINE
+                && appt.getPatient() != null
+                && appt.getPatient().getId().equals(actorUserId);
+
+        if (!isDoctor && !isOnlinePatient) {
+            User user = userRepository.findById(actorUserId).orElse(null);
             if (user == null || user.getRole() != Role.ADMIN) {
                 throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Chỉ bác sĩ phụ trách hoặc quản trị viên mới có quyền check-in ca khám này");
             }
@@ -388,17 +436,17 @@ public class AppointmentService {
         if (isFirstCheckIn && auditLogRepository != null) {
             try {
                 AuditLog audit = new AuditLog();
-                audit.setUserId(doctorUserId);
+                audit.setUserId(actorUserId);
                 audit.setAction("PATIENT_CHECKED_IN");
                 audit.setResource("appointments/" + saved.getId());
-                audit.setMetadata("Checked-in appointment: " + saved.getAppointmentCode());
+                audit.setMetadata("Checked-in appointment: " + saved.getAppointmentCode() + " (" + saved.getConsultationType() + ")");
                 auditLogRepository.save(audit);
             } catch (Exception ex) {
                 log.warn("⚠️ Failed to record check-in audit log: {}", ex.getMessage());
             }
         }
 
-        log.info("🏥 Patient checked in for appointment {} by user {}", appt.getAppointmentCode(), doctorUserId);
+        log.info("🏥 Patient checked in for appointment {} ({}) by user {}", appt.getAppointmentCode(), appt.getConsultationType(), actorUserId);
         return toDto(saved);
     }
 
@@ -691,6 +739,17 @@ public class AppointmentService {
     private void populateTicketInfo(AppointmentDto dto, Appointment a) {
         if (dto == null || a == null) return;
 
+        boolean isOnline = a.getConsultationType() == ConsultationType.ONLINE;
+        dto.setConsultationType(isOnline ? ConsultationType.ONLINE : ConsultationType.IN_PERSON);
+        if (isOnline) {
+            if (dto.getMeetingUrl() == null && a.getId() != null) {
+                dto.setMeetingUrl("/consultation/" + a.getId());
+            }
+            if (dto.getMeetingRoomCode() == null && a.getAppointmentCode() != null) {
+                dto.setMeetingRoomCode("ROOM-" + a.getAppointmentCode());
+            }
+        }
+
         // 1. STT Number
         String stt = a.getQueueNumber();
         if (stt == null || stt.isBlank()) {
@@ -701,27 +760,43 @@ public class AppointmentService {
         dto.setSttNumber(stt);
 
         // 2. Room & Clinic Info
-        String room = (a.getClinicRoom() != null && !a.getClinicRoom().isBlank())
-                ? a.getClinicRoom()
-                : "Phòng Khám 205 - Chuyên Khoa Nội";
-        dto.setClinicRoom(room);
-        dto.setClinicFloor("Tầng 2");
-        dto.setClinicBuilding("Tòa A - Bệnh viện Đa Khoa MediAssist FPT");
-        String address = "Lô E2a-7, Đường D1, Khu Công Nghệ Cao, TP. Thủ Đức, TP. Hồ Chí Minh";
-        dto.setClinicAddress(address);
-        try {
-            dto.setClinicMapUrl("https://maps.google.com/?q=" + URLEncoder.encode(address, StandardCharsets.UTF_8));
-        } catch (Exception ignored) {
-            dto.setClinicMapUrl("https://maps.google.com/?q=" + address);
+        String room;
+        if (isOnline) {
+            room = (a.getClinicRoom() != null && !a.getClinicRoom().isBlank())
+                    ? a.getClinicRoom()
+                    : "Phòng Khám Trực Tuyến (Online)" + (dto.getMeetingRoomCode() != null ? " - " + dto.getMeetingRoomCode() : "");
+            dto.setClinicRoom(room);
+            dto.setClinicFloor("Trực tuyến (Telehealth)");
+            dto.setClinicBuilding("Hệ thống Video Call Bảo mật MediAssist");
+            dto.setClinicAddress("Tham gia trực tiếp qua trình duyệt tại " + (dto.getMeetingUrl() != null ? dto.getMeetingUrl() : "/consultation/" + a.getId()));
+            dto.setClinicMapUrl(null);
+            dto.setPreVisitInstructions(List.of(
+                    "Kiểm tra kết nối Internet ổn định, micro và camera trước giờ hẹn 10 phút",
+                    "Chọn không gian yên tĩnh, đủ ánh sáng để bác sĩ quan sát rõ khi thăm khám",
+                    "Chuẩn bị sẵn kết quả xét nghiệm hoặc đơn thuốc cũ (có thể gửi qua khung chat)",
+                    "Nhấn nút 'Vào Phòng Khám Online' trước giờ hẹn 5-10 phút để check-in trực tuyến"
+            ));
+        } else {
+            room = (a.getClinicRoom() != null && !a.getClinicRoom().isBlank())
+                    ? a.getClinicRoom()
+                    : "Phòng Khám 205 - Chuyên Khoa Nội";
+            dto.setClinicRoom(room);
+            dto.setClinicFloor("Tầng 2");
+            dto.setClinicBuilding("Tòa A - Bệnh viện Đa Khoa MediAssist FPT");
+            String address = "Lô E2a-7, Đường D1, Khu Công Nghệ Cao, TP. Thủ Đức, TP. Hồ Chí Minh";
+            dto.setClinicAddress(address);
+            try {
+                dto.setClinicMapUrl("https://maps.google.com/?q=" + URLEncoder.encode(address, StandardCharsets.UTF_8));
+            } catch (Exception ignored) {
+                dto.setClinicMapUrl("https://maps.google.com/?q=" + address);
+            }
+            dto.setPreVisitInstructions(List.of(
+                    "Mang theo CCCD / Căn cước công dân bản gốc để đối chiếu thủ tục",
+                    "Mang theo thẻ BHYT (nếu có) để hưởng quyền lợi bảo hiểm y tế",
+                    "Nhịn ăn ít nhất 4 tiếng nếu có chỉ định xét nghiệm máu hoặc nội soi",
+                    "Đến trước giờ hẹn 15 phút tại bàn đón tiếp để nhận số phòng khám"
+            ));
         }
-
-        // 3. Pre-visit Instructions
-        dto.setPreVisitInstructions(List.of(
-                "Mang theo CCCD / Căn cước công dân bản gốc để đối chiếu thủ tục",
-                "Mang theo thẻ BHYT (nếu có) để hưởng quyền lợi bảo hiểm y tế",
-                "Nhịn ăn ít nhất 4 tiếng nếu có chỉ định xét nghiệm máu hoặc nội soi",
-                "Đến trước giờ hẹn 15 phút tại bàn đón tiếp để nhận số phòng khám"
-        ));
 
         // 4. QR Code Data
         String patientName = (a.getPatient() != null && a.getPatient().getFullName() != null)
@@ -739,23 +814,46 @@ public class AppointmentService {
             qrMap.put("doctor", doctorName);
             qrMap.put("datetime", startStr);
             qrMap.put("room", room);
+            qrMap.put("consultationType", dto.getConsultationType().name());
+            if (isOnline && dto.getMeetingRoomCode() != null) {
+                qrMap.put("meetingRoomCode", dto.getMeetingRoomCode());
+            }
+            if (isOnline && dto.getMeetingUrl() != null) {
+                qrMap.put("meetingUrl", dto.getMeetingUrl());
+            }
 
             ObjectMapper mapper = this.objectMapper != null ? this.objectMapper : new ObjectMapper();
             dto.setQrCodeData(mapper.writeValueAsString(qrMap));
         } catch (Exception ex) {
             log.warn("⚠️ Error serializing QR JSON via ObjectMapper, using fallback: {}", ex.getMessage());
             String qrJson = String.format(
-                    "{\"appointmentId\":\"%s\",\"code\":\"%s\",\"stt\":\"%s\",\"patient\":\"%s\",\"doctor\":\"%s\",\"datetime\":\"%s\",\"room\":\"%s\"}",
+                    "{\"appointmentId\":\"%s\",\"code\":\"%s\",\"stt\":\"%s\",\"patient\":\"%s\",\"doctor\":\"%s\",\"datetime\":\"%s\",\"room\":\"%s\",\"consultationType\":\"%s\"}",
                     a.getId() != null ? a.getId().toString() : "",
                     a.getAppointmentCode() != null ? a.getAppointmentCode() : "",
                     stt,
                     escapeJson(patientName),
                     escapeJson(doctorName),
                     startStr,
-                    escapeJson(room)
+                    escapeJson(room),
+                    dto.getConsultationType().name()
             );
             dto.setQrCodeData(qrJson);
         }
+    }
+
+    private String buildAppointmentNotificationMeta(Appointment a) {
+        StringBuilder sb = new StringBuilder("{");
+        sb.append("\"appointmentId\":\"").append(a.getId()).append("\",");
+        sb.append("\"appointmentCode\":\"").append(escapeJson(a.getAppointmentCode())).append("\",");
+        sb.append("\"consultationType\":\"").append(a.getConsultationType().name()).append("\"");
+        if (a.getMeetingRoomCode() != null) {
+            sb.append(",\"meetingRoomCode\":\"").append(escapeJson(a.getMeetingRoomCode())).append("\"");
+        }
+        if (a.getMeetingUrl() != null) {
+            sb.append(",\"meetingUrl\":\"").append(escapeJson(a.getMeetingUrl())).append("\"");
+        }
+        sb.append("}");
+        return sb.toString();
     }
 
     private String escapeJson(String raw) {

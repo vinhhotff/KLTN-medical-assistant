@@ -78,7 +78,8 @@ public class SecurityConfig {
                         // OAuth2 endpoints: phai permit all de Spring Security xu ly duoc
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/system/ai-mode").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/payments/packages").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/payments/packages", "/api/v1/payments/config").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/storage/files/avatars/**", "/api/v1/storage/files/general/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/clinical/ontology/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/specialties/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/doctors", "/api/v1/doctors/{id}", "/api/v1/doctors/{id}/slots", "/api/v1/doctors/{id}/reviews").permitAll()
@@ -89,12 +90,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/pii/**").permitAll()
                         // Public Webhook listener for Stripe Payment Gateway (HMAC Signature Verified)
                         .requestMatchers("/api/v1/payments/webhook/**").permitAll()
+                        // WebSocket / STOMP endpoints (JWT enforced at WebSocket handshake & STOMP CONNECT/SUBSCRIBE/SEND interceptors)
+                        .requestMatchers("/ws/**", "/ws-sockjs/**", "/api/v1/ws/**").permitAll()
 
                         // ZERO-TRUST MANDATE: AI Triage, pgvector semantic search & OCR Lab PDF analysis strictly require authentication
                         .requestMatchers("/api/v1/system/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/triage/**").authenticated()
                         .requestMatchers("/api/v1/documents/**").authenticated()
                         .requestMatchers("/api/v1/appointments/**").authenticated()
+                        .requestMatchers("/api/v1/consultations/**").authenticated()
                         .requestMatchers("/api/v1/payments/**").authenticated()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/doctors/me/**").hasRole("DOCTOR")
