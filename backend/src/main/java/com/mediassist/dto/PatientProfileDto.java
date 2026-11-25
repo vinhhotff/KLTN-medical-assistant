@@ -22,6 +22,7 @@ public class PatientProfileDto {
     private String emergencyContactName;
     private String emergencyContactPhone;
     private String emergencyContactRelationship;
+    private String avatarUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -77,6 +78,9 @@ public class PatientProfileDto {
 
     public String getEmergencyContactRelationship() { return emergencyContactRelationship; }
     public void setEmergencyContactRelationship(String emergencyContactRelationship) { this.emergencyContactRelationship = emergencyContactRelationship; }
+
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

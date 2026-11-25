@@ -71,9 +71,12 @@ public class PatientProfileService {
         if (dto.getEmergencyContactPhone() != null) profile.setEmergencyContactPhone(dto.getEmergencyContactPhone().trim());
         if (dto.getEmergencyContactRelationship() != null) profile.setEmergencyContactRelationship(dto.getEmergencyContactRelationship().trim());
 
-        // Update phone / name in User if provided with validation
+        // Update phone / name / avatar in User if provided with validation
         if (dto.getFullName() != null && !dto.getFullName().isBlank()) {
             user.setFullName(dto.getFullName().trim());
+        }
+        if (dto.getAvatarUrl() != null && !dto.getAvatarUrl().isBlank()) {
+            user.setAvatarUrl(dto.getAvatarUrl().trim());
         }
         if (dto.getPhone() != null && !dto.getPhone().isBlank()) {
             String phone = dto.getPhone().trim().replaceAll("[\\s\\-\\.]", "");
@@ -153,6 +156,7 @@ public class PatientProfileService {
             dto.setFullName(p.getUser().getFullName());
             dto.setEmail(p.getUser().getEmail());
             dto.setPhone(p.getUser().getPhone());
+            dto.setAvatarUrl(p.getUser().getAvatarUrl());
         }
         dto.setCitizenId(p.getCitizenId());
         dto.setHealthInsuranceNumber(p.getHealthInsuranceNumber());

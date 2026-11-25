@@ -1252,11 +1252,11 @@ graph TD
 
 > [!IMPORTANT]
 > **ÁNH XẠ KỸ THUẬT 1-TO-1 (TECHNICAL TRACEABILITY MAPPING)**
-> - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `PUT /api/v1/doctors/me/profile` (Quyền: `hasRole('DOCTOR')`)
+> - **Backend Controller & Endpoint:** `DoctorController` $\rightarrow$ `PUT /api/v1/doctors/me/profile` (Quyền: `hasRole('DOCTOR')`), `StorageController` $\rightarrow$ `POST /api/v1/storage/avatar` & `POST /api/v1/storage/doctor/license`
 > - **Frontend Tuyến & Giao Diện:** Tuyến `/doctor/profile` $\rightarrow$ Màn hình `DoctorProfilePage.tsx`
-> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V10__optimize_doctor_hnsw_index.sql`
-> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService, EmbeddingService, TwoLayerCacheService` $\rightarrow$ `DoctorProfileRepository`
-> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java, EmbeddingServiceTest.java` (**100% PASS**)
+> - **Cơ Sở Dữ Liệu & Di Trú Flyway:** Bảng `doctor_profiles, users` $\rightarrow$ Bản di trú `V1__initial_schema.sql, V10__optimize_doctor_hnsw_index.sql`
+> - **Tầng Dịch Vụ & Kho Dữ Liệu:** `DoctorService, StorageService, SupabaseStorageService, EmbeddingService, TwoLayerCacheService` $\rightarrow$ `DoctorProfileRepository, UserRepository`
+> - **Kiểm Thử Tự Động (Unit / Integration Test):** `DoctorServiceTest.java, StorageControllerTest.java, SupabaseStorageServiceTest.java` (**100% PASS**)
 
 | Attribute | Specification Details |
 | :--- | :--- |

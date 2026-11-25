@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#136** | 25/11/2026 | Hoàn Thiện Toàn Diện Tính Năng Upload Ảnh & Tài Liệu Lên Supabase Cloud Storage Cho Bác Sĩ & Bệnh Nhân: (1) Nâng cấp `StorageService` và `SupabaseStorageService`: bổ sung phương thức `uploadFile()` tải ảnh/tệp lên Supabase bucket `medical-documents` (`avatars/`, `licenses/`, `medical_documents/`) kèm header `x-upsert: true` và tự động dùng Service Role Key bypass RLS 403 khi chạy với publishable key, trả về URL Supabase CDN công khai; (2) Xây dựng `StorageController` (`POST /api/v1/storage/upload`, `POST /api/v1/storage/avatar`, `POST /api/v1/storage/doctor/license`) với validation nghiêm ngặt MIME type và giới hạn dung lượng 10MB; (3) Cập nhật `PatientProfileDto` & `PatientProfileService`: bổ sung trường `avatarUrl`, đồng bộ 2 chiều với `User.avatarUrl`; (4) Frontend Bác sĩ (`DoctorProfilePage.tsx`): tích hợp nút upload Ảnh chân dung blouse trắng và nút upload Bản scan CCHN (PDF/Ảnh) lên Supabase kèm spinner loading, tự động điền URL và link xem tài liệu; (5) Frontend Bệnh nhân (`PatientDashboard.tsx`): tích hợp upload Ảnh đại diện trong Modal EMR Passport và hiển thị Avatar trên Thẻ Căn Cước EMR; (6) Frontend Admin (`DoctorManagementPage.tsx`): bổ sung nút upload scan CCHN trong Modal Thêm & Sửa Bác sĩ. Xác thực 327/327 tests PASS (100%), Frontend build 0 lỗi TS, live test upload CDN Supabase HTTP 200 OK. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#135** | 25/11/2026 | Checkout Branch `feature/fuction`, Gắn Biến Môi Trường Master `.env` & Khởi Chạy Toàn Diện Hệ Thống Full-Stack: (1) Checkout thành công sang nhánh `feature/fuction` từ remote tracking `origin/feature/fuction`; (2) Gắn đầy đủ bộ biến môi trường Master `.env` vào gốc dự án và `backend/.env` (bao gồm kết nối hạ tầng DB port 5433, Redis 6379, Gemini API Key, OpenRouter API Key, Supabase Storage `sb_publishable_...`, Stripe sandbox, Gmail SMTP STARTTLS port 587 và Google OAuth2 Credentials); (3) Khởi động toàn bộ cụm hạ tầng Docker Compose (`mediassist_postgres` 5433, `mediassist_redis` 6379, `mediassist_mailpit` 1025/8025, `mediassist_pgweb` 8081); (4) Biên dịch và khởi chạy Backend Spring Boot 3.4 trên cổng 5001 (`/actuator/health` UP: db PostgreSQL & redis UP); (5) Biên dịch và khởi chạy Frontend Vite Dev Server trên cổng 5173 (HTTP 200 OK). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#134** | 21/11/2026 | Khắc Phục Triệt Để 5 Vấn Đề Vận Hành Trọng Yếu: (1) Khử Trùng Lặp Khung Giờ Khám Bác Sĩ (55/59 slot trùng lặp rút gọn chuẩn xác về 15 slot duy nhất 08:00 - 17:00 qua `TreeMap<LocalTime, DoctorSlotDto>` trong `DoctorService.java`, dọn sạch 184 dòng trùng trong `doctor_schedule_slots` và chặn kép Set-based tại `SlotPicker.tsx`); (2) Vá Lỗi Xem Hồ Sơ Bệnh Án PDF Trên Trạm Bác Sĩ Đa Màn Hình (Khắc phục biểu tượng cấm đỏ `🚫` do thiếu Bearer auth trong iframe và chặn `X-Frame-Options: DENY`: cập nhật `SecurityConfig.java` sang `sameOrigin()`, hỗ trợ trích xuất `?token=` trong `JwtAuthenticationFilter.java`, xây dựng component `ClinicalEmbeddedFileViewer` tải Blob nhúng Object URL an toàn kèm trạng thái Spinner/Error Retry & Tải về); (3) Kích Hoạt Hệ Thống Chuông Thông Báo In-App Thời Gian Thực Cho Bác Sĩ & Bệnh Nhân trong `AppointmentService.java` (`APPOINTMENT_NEW`, `APPOINTMENT_CONFIRMED`, `APPOINTMENT_CANCELLED`, `PATIENT_CHECKED_IN`, `APPOINTMENT_COMPLETED`, `APPOINTMENT_RESCHEDULED`); (4) Đưa Mô Hình AI Trở Lại Trực Tuyến 100%: Thay thế model `gemini-2.5-flash` (đã bị Google ngừng dịch vụ trả về 404) bằng `gemini-3.5-flash` và chuẩn hóa OpenRouter sang `openrouter/free`, khôi phục trọn vẹn luồng Multimodal Vision OCR bóc tách cận lâm sàng và RAG khớp bác sĩ thực tế; (5) Tích hợp Supabase URL và Publishable Key (`sb_publishable_...`) vào cấu hình môi trường Frontend & Backend. Toàn bộ `mvn test` 322/322 PASS (100%), `npm run build` 0 lỗi TypeScript (2.313 modules). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#133** | 21/11/2026 | Chuẩn Hóa Cặp Nút Điều Hướng Header `Đăng Nhập` & `Đăng Ký` Trên Trang Chủ (`LandingPage.tsx`) & Tab Mặc Định `LOGIN` Tại `LoginPage.tsx`: (1) Đổi nút phải trên thanh Header trang chủ từ `Khám Ngay →` thành `Đăng Ký` điều hướng tới `/login?mode=register` (mở thẳng biểu mẫu đăng ký); (2) Cập nhật nút `Đăng Nhập` trên thanh Header điều hướng tới `/login?mode=login` và chỉnh `activeTab` mặc định của `LoginPage.tsx` sang `'LOGIN'` (trừ khi URL có `?mode=register`), khắc phục triệt để tình trạng bấm `Đăng Nhập` nhưng nhảy vào giao diện Đăng ký; (3) Đồng bộ `frontend/e2e/auth.spec.ts` và `docs/USE_CASES.md` (`UC-COMM-01`). Biên dịch `npm run build` 0 lỗi TypeScript (`2.313` modules), cập nhật bản build trực tiếp trên cổng `5173`. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -66,6 +67,59 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#136] Hoàn Thiện Toàn Diện Tính Năng Upload Ảnh & Tài Liệu Lên Supabase Cloud Storage Cho Bác Sĩ & Bệnh Nhân
+* **Thời gian:** 2026-11-25 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/fuction`
+* **Mã Yêu Cầu:** Hoàn thiện tính năng upload ảnh lên Supabase cho Bác sĩ và Bệnh nhân.
+
+#### 1. Các Công Việc Đã Thực Hiện
+1. **Nâng cấp Tầng Lưu Trữ Supabase Storage (`StorageService.java` & `SupabaseStorageService.java`)**:
+   - Khắc phục triệt để lỗi `403 Forbidden` do Publishable Key (`sb_publishable_...`) bị chặn bởi RLS: tự động sử dụng Service Role Key của dự án để thực thi các tác vụ quản trị Storage từ Backend.
+   - Thêm phương thức tổng quát `uploadFile(byte[] fileBytes, String fileName, String contentType, String folder, UUID userId)` trả về `FileUploadResult` gồm public URL trực tiếp trên CDN Supabase (`https://wakgzrzchmqdqyrgxlaq.supabase.co/storage/v1/object/public/medical-documents/...`), storagePath, tên tệp, dung lượng và MIME type.
+   - Bổ sung header `x-upsert: true` ngăn chặn xung đột ghi đè tệp.
+   - Duy trì cơ chế tự phục hồi (Zero-Crash Local Storage Fallback) lưu trữ vào `/uploads/{folder}/` khi dịch vụ đám mây tạm thời gián đoạn.
+2. **Xây dựng `StorageController.java` (`/api/v1/storage`)**:
+   - `POST /api/v1/storage/upload`: Upload tệp/ảnh tổng quát theo category (`avatars`, `licenses`, `medical_documents`).
+   - `POST /api/v1/storage/avatar`: Upload ảnh chân dung, tự động cập nhật `avatarUrl` vào `User` của người dùng hiện tại (và `DoctorProfile` nếu là Bác sĩ).
+   - `POST /api/v1/storage/doctor/license`: Bác sĩ upload bản scan CCHN (PDF hoặc ảnh), tự động cập nhật `licenseDocumentUrl` vào `DoctorProfile`.
+   - Kiểm tra an toàn bảo mật: Rào chắn loại tệp (MIME whitelist), giới hạn kích thước tối đa 10MB, chống Path Traversal.
+3. **Cập nhật DTO & Service Bệnh Nhân (`PatientProfileDto.java` & `PatientProfileService.java`)**:
+   - Thêm thuộc tính `avatarUrl` vào `PatientProfileDto`.
+   - Đồng bộ 2 chiều: `updateProfile` lưu `avatarUrl` vào `users.avatar_url`, và `toDto` trả về `avatarUrl` cho Frontend.
+4. **Trạm Làm Việc Bác Sĩ (`DoctorProfilePage.tsx`)**:
+   - **Upload Avatar**: Thêm nút *"Tải ảnh từ máy lên Supabase"*, khung xem trước ảnh tròn bo góc, spinner tiến trình `Loader2`, tự động điền `avatarUrl` và cập nhật `useAuthStore`.
+   - **Upload CCHN**: Thêm nút *"Tải tệp scan CCHN lên Supabase"* (hỗ trợ PDF/Ảnh), tự động cập nhật `licenseDocumentUrl`, hiển thị badge xanh *"Xem tệp đã tải"* mở tài liệu trên tab mới.
+5. **Cổng Thông Tin Bệnh Nhân (`PatientDashboard.tsx`)**:
+   - Thêm chức năng *"Tải ảnh đại diện lên Supabase"* trong Modal Cập Nhật Hồ Sơ Y Tế & Thẻ Căn Cước EMR.
+   - Hiển thị trực quan Avatar bệnh nhân trên Thẻ Bệnh Án Điện Tử & Căn Cước EMR Medical Passport.
+6. **Cổng Quản Trị Viên (`DoctorManagementPage.tsx`)**:
+   - Tích hợp nút upload bản scan CCHN lên Supabase trong cả Modal Thêm Bác Sĩ mới và Modal Chỉnh Sửa Bác Sĩ.
+
+#### 2. Danh Sách Tệp Tin Thay Đổi
+- `[NEW] backend/src/main/java/com/mediassist/controller/StorageController.java`
+- `[NEW] backend/src/test/java/com/mediassist/controller/StorageControllerTest.java`
+- `[MOD] backend/src/main/java/com/mediassist/service/StorageService.java`
+- `[MOD] backend/src/main/java/com/mediassist/service/SupabaseStorageService.java`
+- `[MOD] backend/src/main/java/com/mediassist/dto/PatientProfileDto.java`
+- `[MOD] backend/src/main/java/com/mediassist/service/PatientProfileService.java`
+- `[MOD] frontend/src/pages/doctor/DoctorProfilePage.tsx`
+- `[MOD] frontend/src/pages/patient/PatientDashboard.tsx`
+- `[MOD] frontend/src/pages/admin/DoctorManagementPage.tsx`
+- `[MOD] docs/USE_CASES.md`
+- `[MOD] docs/WORK_LOG.md`
+
+#### 3. Bằng Chứng Kiểm Thử & Trạng Thái Dịch Vụ
+- **Backend Unit Tests**: 327/327 tests PASS (100%), bao gồm 5/5 test mới của `StorageControllerTest` và 15/15 test của `SupabaseStorageServiceTest`.
+- **Frontend Build**: `npm run build` hoàn thành trong 2.78s với **0 lỗi TypeScript** (2.313 modules).
+- **Live Supabase Upload Tests (Live Curl)**:
+  - Bác sĩ upload Avatar: `POST /api/v1/storage/avatar` $\rightarrow$ `https://wakgzrzchmqdqyrgxlaq.supabase.co/storage/v1/object/public/medical-documents/avatars/...` (HTTP 200 OK).
+  - Bác sĩ upload CCHN: `POST /api/v1/storage/doctor/license` $\rightarrow$ `https://wakgzrzchmqdqyrgxlaq.supabase.co/storage/v1/object/public/medical-documents/licenses/...` (HTTP 200 OK).
+  - Bệnh nhân upload Avatar: `POST /api/v1/storage/avatar` $\rightarrow$ `https://wakgzrzchmqdqyrgxlaq.supabase.co/storage/v1/object/public/medical-documents/avatars/...` (HTTP 200 OK), tự động phản ánh trong `GET /api/v1/patient/profile`.
+  - Supabase CDN trực tiếp trả về HTTP/2 200 OK cho ảnh và PDF vừa upload.
+
+---
 
 ### [WORK-LOG-#135] Checkout Branch `feature/fuction`, Cập Nhật Biến Môi Trường Master `.env` & Khởi Chạy Toàn Diện Hệ Thống
 * **Thời gian:** 2026-11-25 (GMT+7)

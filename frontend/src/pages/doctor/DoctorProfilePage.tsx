@@ -15,6 +15,9 @@ import {
   Image as ImageIcon,
   Phone,
   Mail,
+  Upload,
+  FileUp,
+  Loader2,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
@@ -85,7 +88,7 @@ const inputCls =
   'w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition';
 
 export const DoctorProfilePage: React.FC = () => {
-  const { user, setUser } = useAuthStore();
+  const { user, setUser, refreshCurrentUser } = useAuthStore();
   const toast = useToast();
 
   // Nhóm 1: Định danh & Tài khoản
@@ -117,6 +120,71 @@ export const DoctorProfilePage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const [savedBannerMsg, setSavedBannerMsg] = useState<string | null>(null);
+
+  // Upload Supabase Storage States
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingLicense, setUploadingLicense] = useState(false);
+  const avatarFileRef = React.useRef<HTMLInputElement>(null);
+  const licenseFileRef = React.useRef<HTMLInputElement>(null);
+
+  const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Vui lòng chọn tệp hình ảnh (JPG, PNG, WEBP, GIF).');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Kích thước ảnh tối đa là 10MB.');
+      return;
+    }
+    try {
+      setUploadingAvatar(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/storage/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const uploadedUrl = res.data?.data?.url;
+      if (uploadedUrl) {
+        setAvatarUrl(uploadedUrl);
+        await refreshCurrentUser();
+        toast.success('Đã tải ảnh đại diện lên Supabase thành công!');
+      }
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Không thể tải ảnh lên Supabase.'));
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarFileRef.current) avatarFileRef.current.value = '';
+    }
+  };
+
+  const handleUploadLicense = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Kích thước tệp scan CCHN tối đa là 10MB.');
+      return;
+    }
+    try {
+      setUploadingLicense(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/storage/doctor/license', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const uploadedUrl = res.data?.data?.url;
+      if (uploadedUrl) {
+        setLicenseDocumentUrl(uploadedUrl);
+        toast.success('Đã tải bản scan CCHN lên Supabase thành công!');
+      }
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Không thể tải bản scan CCHN lên Supabase.'));
+    } finally {
+      setUploadingLicense(false);
+      if (licenseFileRef.current) licenseFileRef.current.value = '';
+    }
+  };
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -432,25 +500,61 @@ export const DoctorProfilePage: React.FC = () => {
             <span className="font-mono text-[11px] font-semibold text-slate-500">User Entity</span>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
-            {avatarUrl.trim() ? (
-              <img
-                src={avatarUrl.trim()}
-                alt={fullName || 'Ảnh chân dung bác sĩ'}
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = 'none';
-                }}
-                className="w-16 h-16 rounded-full object-cover border-2 border-teal-500 shrink-0 bg-white"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-teal-100 text-teal-800 font-bold text-xl flex items-center justify-center border-2 border-teal-200 shrink-0">
-                {(fullName || user?.fullName || 'B').charAt(0).toUpperCase()}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+            <div className="relative group shrink-0">
+              {avatarUrl.trim() ? (
+                <img
+                  src={avatarUrl.trim()}
+                  alt={fullName || 'Ảnh chân dung bác sĩ'}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  }}
+                  className="w-18 h-18 rounded-full object-cover border-2 border-teal-500 bg-white shadow-xs"
+                />
+              ) : (
+                <div className="w-18 h-18 rounded-full bg-teal-100 text-teal-800 font-bold text-2xl flex items-center justify-center border-2 border-teal-200">
+                  {(fullName || user?.fullName || 'B').charAt(0).toUpperCase()}
+                </div>
+              )}
+              {uploadingAvatar && (
+                <div className="absolute inset-0 bg-slate-900/60 rounded-full flex items-center justify-center text-white">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label htmlFor="dp-avatar" className="block text-xs font-semibold text-slate-700">
+                  Ảnh chân dung áo blouse trắng (`avatarUrl`)
+                </label>
+                <button
+                  type="button"
+                  disabled={uploadingAvatar}
+                  onClick={() => avatarFileRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition cursor-pointer disabled:opacity-50"
+                >
+                  {uploadingAvatar ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
+                      <span>Đang tải lên Supabase...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5 text-teal-600" />
+                      <span>Tải ảnh từ máy lên Supabase</span>
+                    </>
+                  )}
+                </button>
+                <input
+                  ref={avatarFileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleUploadAvatar}
+                />
               </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <label htmlFor="dp-avatar" className="block text-xs font-semibold text-slate-700 mb-1">
-                Ảnh chân dung áo blouse trắng (`avatarUrl`)
-              </label>
+
               <div className="relative">
                 <ImageIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 <input
@@ -458,10 +562,13 @@ export const DoctorProfilePage: React.FC = () => {
                   type="url"
                   value={avatarUrl}
                   onChange={(e) => setAvatarUrl(e.target.value)}
-                  placeholder="https://.../avatar.jpg"
+                  placeholder="https://... hoặc bấm nút tải ảnh từ máy"
                   className={`${inputCls} pl-9`}
                 />
               </div>
+              <p className="text-[11px] text-slate-500">
+                Khuyến nghị: Ảnh chân dung nền sáng, định dạng JPG/PNG/WEBP, dung lượng tối đa 10MB.
+              </p>
             </div>
           </div>
 
@@ -576,28 +683,55 @@ export const DoctorProfilePage: React.FC = () => {
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
               <label htmlFor="dp-license-doc" className="block text-xs font-semibold text-slate-700">
-                Link file scan / ảnh chụp CCHN (`licenseDocumentUrl`) để Admin đối soát
+                Link file scan / ảnh chụp CCHN (`licenseDocumentUrl`) để Ban quản trị đối soát
               </label>
-              {licenseDocumentUrl.trim() && (
-                <a
-                  href={licenseDocumentUrl.trim()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal-700 hover:underline"
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={uploadingLicense}
+                  onClick={() => licenseFileRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition cursor-pointer disabled:opacity-50"
                 >
-                  <span>Mở xem tài liệu</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
+                  {uploadingLicense ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
+                      <span>Đang tải lên Supabase...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileUp className="w-3.5 h-3.5 text-teal-600" />
+                      <span>Tải tệp scan CCHN lên Supabase</span>
+                    </>
+                  )}
+                </button>
+                <input
+                  ref={licenseFileRef}
+                  type="file"
+                  accept=".pdf,image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleUploadLicense}
+                />
+                {licenseDocumentUrl.trim() && (
+                  <a
+                    href={licenseDocumentUrl.trim()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:underline"
+                  >
+                    <span>Xem tệp đã tải</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
             </div>
             <input
               id="dp-license-doc"
               type="url"
               value={licenseDocumentUrl}
               onChange={(e) => setLicenseDocumentUrl(e.target.value)}
-              placeholder="https://.../cchn-front.pdf"
+              placeholder="https://... hoặc bấm nút tải tệp scan CCHN"
               className={inputCls}
             />
           </div>

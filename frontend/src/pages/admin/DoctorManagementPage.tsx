@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Stethoscope,
   Search,
@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   UserCheck,
   ExternalLink,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Pagination } from '../../components/common/Pagination';
@@ -1081,8 +1083,37 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempted, setAttempted] = useState(false);
+  const [uploadingLicense, setUploadingLicense] = useState(false);
+  const adminLicenseInputRef = useRef<HTMLInputElement>(null);
   const fieldErrors = validateDoctorForm(formData, selectedSlugs, 'create');
   const showErr = (key: string) => (attempted ? fieldErrors[key] : undefined);
+
+  const handleAdminLicenseUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Kích thước tệp scan tối đa là 10MB.');
+      return;
+    }
+    try {
+      setUploadingLicense(true);
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('category', 'license');
+      const res = await api.post('/storage/upload', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const url = res.data?.data?.url;
+      if (url) {
+        setFormData((prev) => ({ ...prev, licenseDocumentUrl: url }));
+      }
+    } catch (err) {
+      alert(getApiErrorMessage(err, 'Không thể tải tệp lên Supabase.'));
+    } finally {
+      setUploadingLicense(false);
+      if (adminLicenseInputRef.current) adminLicenseInputRef.current.value = '';
+    }
+  };
 
   const toggleSpecialty = (slug: string) => {
     if (selectedSlugs.includes(slug)) {
@@ -1271,10 +1302,37 @@ const CreateDoctorModal: React.FC<CreateDoctorModalProps> = ({ specialties, onCl
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Link bản scan CCHN (PDF / Ảnh)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-semibold text-slate-700">Link bản scan CCHN (PDF / Ảnh)</label>
+                  <button
+                    type="button"
+                    disabled={uploadingLicense}
+                    onClick={() => adminLicenseInputRef.current?.click()}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 cursor-pointer disabled:opacity-50"
+                  >
+                    {uploadingLicense ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Đang tải...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3 h-3" />
+                        <span>Tải tệp từ máy lên Supabase</span>
+                      </>
+                    )}
+                  </button>
+                  <input
+                    ref={adminLicenseInputRef}
+                    type="file"
+                    accept=".pdf,image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handleAdminLicenseUpload}
+                  />
+                </div>
                 <input
                   type="url"
-                  placeholder="https://.../cchn-front.pdf"
+                  placeholder="https://.../cchn-front.pdf hoặc bấm nút tải tệp"
                   value={formData.licenseDocumentUrl}
                   onChange={(e) => setFormData({ ...formData, licenseDocumentUrl: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
@@ -1419,6 +1477,35 @@ const EditDoctorModal: React.FC<EditDoctorModalProps> = ({ doctor, specialties, 
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingLicense, setUploadingLicense] = useState(false);
+  const editLicenseInputRef = useRef<HTMLInputElement>(null);
+
+  const handleEditLicenseUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Kích thước tệp scan tối đa là 10MB.');
+      return;
+    }
+    try {
+      setUploadingLicense(true);
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('category', 'license');
+      const res = await api.post('/storage/upload', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const url = res.data?.data?.url;
+      if (url) {
+        setFormData((prev) => ({ ...prev, licenseDocumentUrl: url }));
+      }
+    } catch (err) {
+      alert(getApiErrorMessage(err, 'Không thể tải tệp lên Supabase.'));
+    } finally {
+      setUploadingLicense(false);
+      if (editLicenseInputRef.current) editLicenseInputRef.current.value = '';
+    }
+  };
 
   const toggleSpecialty = (slug: string) => {
     if (selectedSlugs.includes(slug)) {
@@ -1561,20 +1648,47 @@ const EditDoctorModal: React.FC<EditDoctorModalProps> = ({ doctor, specialties, 
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block font-semibold text-slate-700">Link bản scan CCHN (PDF / Ảnh)</label>
-                {formData.licenseDocumentUrl.trim() && (
-                  <a
-                    href={formData.licenseDocumentUrl.trim()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold text-emerald-700 hover:underline"
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={uploadingLicense}
+                    onClick={() => editLicenseInputRef.current?.click()}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 cursor-pointer disabled:opacity-50"
                   >
-                    Xem bản scan
-                  </a>
-                )}
+                    {uploadingLicense ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Đang tải...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3 h-3" />
+                        <span>Tải tệp lên Supabase</span>
+                      </>
+                    )}
+                  </button>
+                  <input
+                    ref={editLicenseInputRef}
+                    type="file"
+                    accept=".pdf,image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handleEditLicenseUpload}
+                  />
+                  {formData.licenseDocumentUrl.trim() && (
+                    <a
+                      href={formData.licenseDocumentUrl.trim()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-semibold text-emerald-700 hover:underline"
+                    >
+                      Xem bản scan
+                    </a>
+                  )}
+                </div>
               </div>
               <input
                 type="url"
-                placeholder="https://.../cchn-front.pdf"
+                placeholder="https://.../cchn-front.pdf hoặc bấm nút tải tệp"
                 value={formData.licenseDocumentUrl}
                 onChange={(e) => setFormData({ ...formData, licenseDocumentUrl: e.target.value })}
                 className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"

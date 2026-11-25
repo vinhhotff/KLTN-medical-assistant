@@ -17,7 +17,9 @@ import {
   Sparkles,
   CreditCard,
   Star,
-  QrCode
+  QrCode,
+  Camera,
+  Loader2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
@@ -56,6 +58,7 @@ interface PatientProfileData {
   emergencyContactName: string;
   emergencyContactPhone: string;
   emergencyContactRelationship: string;
+  avatarUrl?: string;
 }
 
 interface AppointmentItem {
@@ -272,6 +275,40 @@ export const PatientDashboard: React.FC = () => {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [editForm, setEditForm] = useState<Partial<PatientProfileData>>({});
   const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingPatientAvatar, setUploadingPatientAvatar] = useState(false);
+  const patientAvatarRef = useRef<HTMLInputElement>(null);
+
+  const handlePatientAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Vui lòng chọn tệp hình ảnh (JPG, PNG, WEBP, GIF).');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Kích thước ảnh tối đa là 10MB.');
+      return;
+    }
+    try {
+      setUploadingPatientAvatar(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/storage/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const uploadedUrl = res.data?.data?.url;
+      if (uploadedUrl) {
+        setEditForm((prev) => ({ ...prev, avatarUrl: uploadedUrl }));
+        await refreshCurrentUser();
+        toast.success('Đã tải ảnh đại diện lên Supabase thành công!');
+      }
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Không thể tải ảnh đại diện lên Supabase.'));
+    } finally {
+      setUploadingPatientAvatar(false);
+      if (patientAvatarRef.current) patientAvatarRef.current.value = '';
+    }
+  };
 
   // EMR Details Modal State
   const [selectedEmrAppointment, setSelectedEmrAppointment] = useState<AppointmentItem | null>(null);
@@ -490,9 +527,20 @@ export const PatientDashboard: React.FC = () => {
       <div className="gsap-patient-block bg-[#FCFBF8] rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
         <div className="bg-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-900 border-b border-slate-200/90">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-teal-600 flex items-center justify-center font-bold text-white shadow-md shadow-teal-600/20">
-              <Heart className="w-5 h-5 text-white" />
-            </div>
+            {user?.avatarUrl || profile?.avatarUrl ? (
+              <img
+                src={user?.avatarUrl || profile?.avatarUrl}
+                alt={profile?.fullName || user?.fullName || 'Bệnh nhân'}
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = 'none';
+                }}
+                className="w-11 h-11 rounded-2xl object-cover border-2 border-teal-500 shadow-md shadow-teal-600/20 bg-white"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-2xl bg-teal-600 flex items-center justify-center font-bold text-white shadow-md shadow-teal-600/20">
+                <Heart className="w-5 h-5 text-white" />
+              </div>
+            )}
             <div>
               <div className="font-mono text-[10px] uppercase tracking-widest text-teal-700 font-bold">
                 Thẻ Bệnh Án Điện Tử &amp; Căn Cước Y Tế (EMR Medical Passport)
@@ -1194,6 +1242,64 @@ export const PatientDashboard: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveProfile} className="p-6 overflow-y-auto space-y-4 flex-1">
+              {/* Avatar Upload for Patient */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                <div className="relative shrink-0">
+                  {editForm.avatarUrl || user?.avatarUrl ? (
+                    <img
+                      src={editForm.avatarUrl || user?.avatarUrl}
+                      alt={editForm.fullName || 'Bệnh nhân'}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      }}
+                      className="w-16 h-16 rounded-full object-cover border-2 border-indigo-500 bg-white shadow-2xs"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-800 font-bold text-xl flex items-center justify-center border-2 border-indigo-200">
+                      {(editForm.fullName || user?.fullName || 'B').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {uploadingPatientAvatar && (
+                    <div className="absolute inset-0 bg-slate-900/60 rounded-full flex items-center justify-center text-white">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-bold text-slate-800 text-xs">Ảnh Đại Diện Bệnh Nhân</span>
+                    <button
+                      type="button"
+                      disabled={uploadingPatientAvatar}
+                      onClick={() => patientAvatarRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition cursor-pointer disabled:opacity-50"
+                    >
+                      {uploadingPatientAvatar ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                          <span>Đang tải lên Supabase...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Tải ảnh từ máy lên Supabase</span>
+                        </>
+                      )}
+                    </button>
+                    <input
+                      ref={patientAvatarRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={handlePatientAvatarUpload}
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Ảnh chân dung định dạng JPG/PNG/WEBP (tối đa 10MB), tự động lưu trữ trên Supabase Cloud Storage.
+                  </p>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">
