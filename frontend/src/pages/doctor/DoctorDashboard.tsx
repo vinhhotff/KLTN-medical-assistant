@@ -4203,7 +4203,6 @@ export const DoctorDashboard: React.FC = () => {
           }}
           onOpenEmr={(apptId) => {
             const target = appointments.find((a) => a.id === apptId) || videoRoomAppointment;
-            setVideoRoomAppointment(null);
             if (target) openEncounterModal(target);
           }}
         />

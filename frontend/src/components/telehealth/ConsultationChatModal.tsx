@@ -106,7 +106,9 @@ export const ConsultationChatModal: React.FC<ConsultationChatModalProps> = ({
             currentUserId={currentUserId}
             partnerName={partnerName}
             disabled={appointment.status === 'CANCELLED' || appointment.status === 'NO_SHOW'}
-            className="flex-1 min-h-0"
+            showHeader={false}
+            theme="light"
+            className="flex-1 min-h-0 bg-white"
           />
         </div>
       </div>

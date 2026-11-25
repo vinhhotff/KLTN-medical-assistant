@@ -87,4 +87,10 @@ export interface TelehealthAppointmentRef {
   meetingUrl?: string | null;
   chiefComplaint?: string | null;
   consultationNotes?: string | null;
+  treatmentPlan?: string | null;
+  icd10Code?: string | null;
+  icd10Name?: string | null;
+  followUpDate?: string | null;
+  triageSbarSummary?: string | null;
+  triageUrgencyLevel?: string | null;
 }
