@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#135** | 25/11/2026 | Checkout Branch `feature/fuction`, Gắn Biến Môi Trường Master `.env` & Khởi Chạy Toàn Diện Hệ Thống Full-Stack: (1) Checkout thành công sang nhánh `feature/fuction` từ remote tracking `origin/feature/fuction`; (2) Gắn đầy đủ bộ biến môi trường Master `.env` vào gốc dự án và `backend/.env` (bao gồm kết nối hạ tầng DB port 5433, Redis 6379, Gemini API Key, OpenRouter API Key, Supabase Storage `sb_publishable_...`, Stripe sandbox, Gmail SMTP STARTTLS port 587 và Google OAuth2 Credentials); (3) Khởi động toàn bộ cụm hạ tầng Docker Compose (`mediassist_postgres` 5433, `mediassist_redis` 6379, `mediassist_mailpit` 1025/8025, `mediassist_pgweb` 8081); (4) Biên dịch và khởi chạy Backend Spring Boot 3.4 trên cổng 5001 (`/actuator/health` UP: db PostgreSQL & redis UP); (5) Biên dịch và khởi chạy Frontend Vite Dev Server trên cổng 5173 (HTTP 200 OK). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#134** | 21/11/2026 | Khắc Phục Triệt Để 5 Vấn Đề Vận Hành Trọng Yếu: (1) Khử Trùng Lặp Khung Giờ Khám Bác Sĩ (55/59 slot trùng lặp rút gọn chuẩn xác về 15 slot duy nhất 08:00 - 17:00 qua `TreeMap<LocalTime, DoctorSlotDto>` trong `DoctorService.java`, dọn sạch 184 dòng trùng trong `doctor_schedule_slots` và chặn kép Set-based tại `SlotPicker.tsx`); (2) Vá Lỗi Xem Hồ Sơ Bệnh Án PDF Trên Trạm Bác Sĩ Đa Màn Hình (Khắc phục biểu tượng cấm đỏ `🚫` do thiếu Bearer auth trong iframe và chặn `X-Frame-Options: DENY`: cập nhật `SecurityConfig.java` sang `sameOrigin()`, hỗ trợ trích xuất `?token=` trong `JwtAuthenticationFilter.java`, xây dựng component `ClinicalEmbeddedFileViewer` tải Blob nhúng Object URL an toàn kèm trạng thái Spinner/Error Retry & Tải về); (3) Kích Hoạt Hệ Thống Chuông Thông Báo In-App Thời Gian Thực Cho Bác Sĩ & Bệnh Nhân trong `AppointmentService.java` (`APPOINTMENT_NEW`, `APPOINTMENT_CONFIRMED`, `APPOINTMENT_CANCELLED`, `PATIENT_CHECKED_IN`, `APPOINTMENT_COMPLETED`, `APPOINTMENT_RESCHEDULED`); (4) Đưa Mô Hình AI Trở Lại Trực Tuyến 100%: Thay thế model `gemini-2.5-flash` (đã bị Google ngừng dịch vụ trả về 404) bằng `gemini-3.5-flash` và chuẩn hóa OpenRouter sang `openrouter/free`, khôi phục trọn vẹn luồng Multimodal Vision OCR bóc tách cận lâm sàng và RAG khớp bác sĩ thực tế; (5) Tích hợp Supabase URL và Publishable Key (`sb_publishable_...`) vào cấu hình môi trường Frontend & Backend. Toàn bộ `mvn test` 322/322 PASS (100%), `npm run build` 0 lỗi TypeScript (2.313 modules). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#133** | 21/11/2026 | Chuẩn Hóa Cặp Nút Điều Hướng Header `Đăng Nhập` & `Đăng Ký` Trên Trang Chủ (`LandingPage.tsx`) & Tab Mặc Định `LOGIN` Tại `LoginPage.tsx`: (1) Đổi nút phải trên thanh Header trang chủ từ `Khám Ngay →` thành `Đăng Ký` điều hướng tới `/login?mode=register` (mở thẳng biểu mẫu đăng ký); (2) Cập nhật nút `Đăng Nhập` trên thanh Header điều hướng tới `/login?mode=login` và chỉnh `activeTab` mặc định của `LoginPage.tsx` sang `'LOGIN'` (trừ khi URL có `?mode=register`), khắc phục triệt để tình trạng bấm `Đăng Nhập` nhưng nhảy vào giao diện Đăng ký; (3) Đồng bộ `frontend/e2e/auth.spec.ts` và `docs/USE_CASES.md` (`UC-COMM-01`). Biên dịch `npm run build` 0 lỗi TypeScript (`2.313` modules), cập nhật bản build trực tiếp trên cổng `5173`. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#132** | 20/11/2026 | Bổ Sung Bộ Class Diagrams (4 Biểu Đồ Lớp Clean Architecture & Nghiệp Vụ) Và Sequence Diagrams Chuyên Sâu Vào Vector Studio (`interactive_viewer.html`) & Cổng Review 2 (`review_2/index.html`): (1) Bổ sung CSS High-Contrast tương phản cao (`svg[aria-roledescription="classDiagram"]`) cho cả giao diện Sáng/Tối và cấu hình `class: { useMaxWidth: false }` trong `docs/diagrams/interactive_viewer.html`; (2) Bổ sung **4 Class Diagrams** (`class_master`, `class_triage_search`, `class_booking_emr`, `class_ocr_security`) ánh xạ 1-1 phương thức Java thực tế (`RedFlagService.evaluateRedFlag`, `ClinicalQueryDefenseEngine.analyzeAndDefend`, `AiProvider` 3-Tier Router, `PaymentGateway` Adapter, `PatientAccessGuard`, `Appointment` V23/V24, `MedicalDocument` V20) và **2 Sequence Diagrams mới** (`seq_e2e_master` luồng khép kín Triage -> HNSW -> Booking 3 Tầng -> EMR V23; `seq_doctor_onboarding` Onboarding Bác sĩ 2 Bước & Admin Vet), đồng thời đồng bộ `seq_triage`, `seq_encounter`, `seq_ocr` sang `Gemini 2.5 Flash` & `icd_code`/`icd_version` V23; (3) Tích hợp nút mở nhanh & chuyển sơ đồ `1.4 Class Diagram Tổng Thể`, `1.5 Sequence Khép Kín` cùng liên kết Slide 3/7 trong `review_2/index.html`; (4) Cập nhật `docs/CAPSTONE_DEFENSE.md` (Section `5.5` Hướng dẫn trình bày Class & Sequence Diagram trước Hội đồng) và biên dịch lại `docs-bundle.js`. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -65,6 +66,47 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#135] Checkout Branch `feature/fuction`, Cập Nhật Biến Môi Trường Master `.env` & Khởi Chạy Toàn Diện Hệ Thống
+* **Thời gian:** 2026-11-25 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/fuction`
+* **Mã Yêu Cầu:** Checkout qua branch `feature/fuction`, cập nhật master `.env` đầy đủ vào dự án và khởi chạy toàn diện hệ thống.
+
+#### 1. Các Công Việc Đã Thực Hiện
+1. **Chuyển đổi Git Branch**:
+   - Chuyển từ nhánh `develop` sang `feature/fuction` (tracking `origin/feature/fuction`).
+2. **Cập nhật Master `.env`**:
+   - Đồng bộ toàn bộ biến môi trường Master `.env` vào gốc dự án `/.env` và `/backend/.env`:
+     - Cấu hình PostgreSQL port 5433, Redis port 6379, Mailpit SMTP port 1025 / UI port 8025.
+     - Spring Boot dev profile, JWT Secret, CORS origins cho Vite `http://localhost:5173`.
+     - Cổng AI Gateways: Gemini API Key, OpenRouter API Key, tỷ giá 25.450 VNĐ/USD, PDF Max Pages.
+     - Supabase Cloud Storage: Private bucket `medical-documents`, URL & Publishable Key `sb_publishable_...`.
+     - Cổng thanh toán Sandbox: Stripe Mock mode.
+     - Email SMTP: Gmail SMTP STARTTLS port 587 (`hoangkhuong056@gmail.com`).
+     - Đăng nhập mạng xã hội: Google OAuth2 Client ID & Secret.
+3. **Khởi chạy Hạ tầng Docker Compose**:
+   - `mediassist_postgres`: pgvector PostgreSQL 16 trên cổng `5433` (healthy).
+   - `mediassist_redis`: Redis 7 trên cổng `6379` (healthy).
+   - `mediassist_mailpit`: Mailpit SMTP 1025 / Web UI 8025 (healthy).
+   - `mediassist_pgweb`: PGWeb Web GUI trên cổng `8081` (up).
+4. **Khởi chạy Toàn diện Ứng dụng Full-Stack**:
+   - **Backend**: Spring Boot 3.4.3 biên dịch clean, khởi chạy trên cổng `5001`. Kiểm tra `/actuator/health` trả về `{"status":"UP", ...}` với Database và Redis đều UP.
+   - **Frontend**: Vite Dev Server biên dịch thành công, khởi chạy trên cổng `5173` (HTTP 200 OK).
+
+#### 2. Danh Sách Tệp Tin Thay Đổi
+- `[MOD] .env` - Cập nhật toàn bộ biến môi trường Master do Tech Lead cung cấp.
+- `[MOD] backend/.env` - Đồng bộ biến môi trường cho Backend Spring Boot.
+- `[MOD] docs/WORK_LOG.md` - Ghi nhận lịch sử làm việc phiên #135.
+
+#### 3. Bằng Chứng Kiểm Thử & Trạng Thái Dịch Vụ
+- **Docker Compose**: 4/4 containers healthy/running (`postgres`, `redis`, `mailpit`, `pgweb`).
+- **Backend Build**: `mvn compile` BUILD SUCCESS.
+- **Backend Health Check**: `GET http://localhost:5001/actuator/health` $\rightarrow$ `{"status":"UP","components":{"db":{"status":"UP"},"redis":{"status":"UP"}}}`.
+- **Frontend Build**: `npm run build` 0 lỗi TypeScript (2.313 modules).
+- **Frontend Live**: `GET http://localhost:5173/` $\rightarrow$ HTTP/1.1 200 OK.
+
+---
 
 ### [WORK-LOG-#134] Khắc Phục Triệt Để 5 Vấn Đề Vận Hành Trọng Yếu: Khử Trùng Lịch Khám, Lỗi Xem Bệnh Án PDF (🚫), Chuông Thông Báo Bác Sĩ, Nâng Cấp Gemini Flash & OpenRouter Online, và Cấu Hình Supabase
 * **Thời gian:** 2026-11-21 (GMT+7)
