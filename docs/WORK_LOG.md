@@ -7,6 +7,30 @@
 
 ---
 
+## [2026-11-25 09:17:00] - NÂNG CẤP SLIDE 7, 8, 9, 10, 14, 15: THAY ICON LUCIDE SVG THỰC TẾ & CHI TIẾT HÓA CÁC LUỒNG LÂM SÀNG
+
+### 1. Thời Gian & Tiêu Đề
+- **Thời gian:** 2026-11-25 09:17:00
+- **Tiêu đề:** Nâng cấp toàn diện giao diện và độ chi tiết cho 6 slide tính năng & luồng nghiệp vụ (`Slide 7, 8, 9, 10, 14, 15`) trên Canva `DAHb4S4e1Ak`: loại bỏ hoàn toàn biểu tượng bàn phím (emoji) gây cảm giác AI và các ô trống mờ; sử dụng 100% **vector SVG icons từ thư viện `lucide-react` của dự án** kết hợp chi tiết hóa rào chắn bảo mật, endpoint API, bảng dữ liệu và nhánh ngoại lệ.
+
+### 2. Danh Sách Tệp Tin & Thay Đổi Chi Tiết
+- `[NEW]` `docs/images/slide07_data_flow.png`:
+  - Sơ đồ 3 cột Clinical Data Flow với icon Lucide (`clipboard-list`, `brain-circuit`, `file-check-2`), trình bày rõ chu trình Intake → AI & Decree 13 PII Shield → Doctor Review & Private S3 Vault.
+- `[NEW]` `docs/images/slide08_admin_features.png`:
+  - Lưới 2×5 (10 thẻ) **Administration Features** với 10 icon Lucide (`layout-dashboard`, `users`, `badge-check`, `stethoscope`, `database-zap`, `coins`, `toggle-right`, `calendar-check`, `siren`, `shield-alert`), mã `UC-ADM-*` và mô tả chi tiết.
+- `[NEW]` `docs/images/slide09_doctor_features.png`:
+  - Lưới 2×5 (10 thẻ) **Doctor Clinical Workstation** với 10 icon Lucide (`monitor-check`, `calendar-clock`, `list-ordered`, `columns-2`, `scan-line`, `heart-pulse`, `book-open-check`, `pill`, `file-text`, `shield-check`), mã `UC-DOC-*` và mô tả chi tiết.
+- `[NEW]` `docs/images/slide10_patient_features.png`:
+  - Lưới 5+4 (9 thẻ) **Patient Portal** với 9 icon Lucide (`id-card`, `bot`, `file-scan`, `search-check`, `calendar-plus`, `credit-card`, `qr-code`, `folder-heart`, `star`), mã `UC-PAT-*` và mô tả chi tiết.
+- `[MOD]` `docs/images/slide14_doctor_flow.png`:
+  - Loại bỏ toàn bộ emoji, thay bằng 10 icon Lucide vector chuẩn, bổ sung 3 gạch đầu dòng thao tác chi tiết mỗi bước, pill cảnh báo rào chắn (`ADMIN CCHN GATE`, `BOLA / IDOR GUARD`, `ALLERGY CHECK`), endpoint/table tag và 2 nhánh ngoại lệ/bảo vệ ở chân sơ đồ (HTTP 403 BOLA Block & Doctor Cancel Auto 100% Refund).
+- `[MOD]` `docs/images/slide15_patient_flow.png`:
+  - Loại bỏ toàn bộ emoji, thay bằng 10 icon Lucide vector chuẩn, bổ sung 3 gạch đầu dòng thao tác chi tiết mỗi bước, pill cảnh báo rào chắn (`DUAL-AUTH JWT`, `115 RED-FLAG <2ms`, `DECREE 13 PII`, `3-TIER LOCK`, `15m S3 SIGNED URL`) và 2 nhánh rẽ (Emergency Hotline 115 Alert Card & Pre-Cutoff Auto Refund + Slot Release).
+- `[CANVA COMMIT]` Canva Presentation (`DAHb4S4e1Ak`):
+  - Cập nhật đồng bộ Slides 7, 8, 9, 10, 14, 15 và **commit** vĩnh viễn giao dịch `2353654045909942566`.
+
+---
+
 ## [2026-11-25 09:03:00] - TẠO BỘ SLIDE CANVA REVIEW 3 (19 SLIDES) MAP 1-1 THEO MẪU AITA CHO DỰ ÁN MEDIASSIST-AI
 
 ### 1. Thời Gian & Tiêu Đề
