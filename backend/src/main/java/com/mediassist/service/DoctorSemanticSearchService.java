@@ -255,7 +255,8 @@ public class DoctorSemanticSearchService {
                     vectorSql, vectorSql, candidateLimit
             );
 
-            List<DoctorMatchDto> results = rankDoctors(candidates, cleansedSymptom, effectiveLimit);
+            String scoringQuery = (queryText + " " + cleansedSymptom).trim();
+            List<DoctorMatchDto> results = rankDoctors(candidates, scoringQuery, effectiveLimit);
 
             // Stamp clinical input defense metadata onto candidates
             for (DoctorMatchDto doc : results) {
@@ -348,32 +349,32 @@ public class DoctorSemanticSearchService {
         double rawCosine = doc.getSimilarityScore();
 
         // 1. Sigmoid Contrastive Sharpening: amplifies high-confidence semantic matches
-        // Centered at 0.65 with slope 8.0, mapping [0, 1] non-linearly to separate top doctors
-        double calibratedDense = 1.0 / (1.0 + Math.exp(-8.0 * (rawCosine - 0.65)));
+        // Centered at 0.50 with slope 10.0, mapping [0, 1] non-linearly to separate top clinical matches
+        double calibratedDense = 1.0 / (1.0 + Math.exp(-10.0 * (rawCosine - 0.50)));
 
         // 2. Sparse Lexical Relevance (Token & Substring overlap)
         double lexicalScore = computeLexicalRelevance(doc, queryText);
 
-        // 3. Specialty Alignment Bonus & Divergence Penalty
+        // 3. Specialty Alignment Bonus & Contrastive Divergence Penalty
         double specialtyModifier = computeSpecialtyAlignment(doc, queryText);
 
         // 4. Clinical Experience & Academic Prestige
         double expScore = Math.min(1.0, Math.max(0, doc.getYearsOfExperience()) / 25.0);
         double academicScore = computeAcademicScore(doc.getAcademicTitle());
 
-        // 5. Patient Rating & Credibility Damper (20% weight in baseline WHRF)
+        // 5. Patient Rating & Credibility Damper
         double ratingVal = doc.getRating() != null ? doc.getRating() : 4.5;
         double ratingScore = Math.max(0.0, Math.min(1.0, ratingVal / 5.0));
         int reviews = doc.getReviewCount();
         double credibility = reviews >= 5 ? 1.0 : (0.70 + 0.06 * reviews);
         double adjustedRating = ratingScore * credibility;
 
-        // Weighted Composite SOTA Fusion
-        double composite = (0.50 * calibratedDense)
-                         + (0.20 * lexicalScore)
-                         + (0.15 * adjustedRating)
-                         + (0.08 * expScore)
-                         + (0.07 * academicScore)
+        // Weighted Composite SOTA Fusion (Optimized clinical separation)
+        double composite = (0.45 * calibratedDense)
+                         + (0.25 * lexicalScore)
+                         + (0.12 * adjustedRating)
+                         + (0.06 * expScore)
+                         + (0.05 * academicScore)
                          + specialtyModifier;
 
         return Math.min(1.0, Math.max(0.0, composite));
@@ -405,14 +406,20 @@ public class DoctorSemanticSearchService {
             }
         }
 
+        if (matches == 0) {
+            return 0.05; // zero token overlap gives near-zero lexical contribution
+        }
+
         double tokenOverlap = Math.min(1.0, (double) matches / Math.min(5, tokens.length));
-        return 0.30 + (0.70 * tokenOverlap);
+        return 0.20 + (0.80 * tokenOverlap);
     }
 
     /**
-     * Contrastive Specialty Semantic Alignment:
-     * Grants bonus (+0.12) if symptoms align with doctor's primary specialty.
-     * Applies penalty (-0.10) if symptoms strongly indicate an unrelated opposite specialty.
+     * Contrastive Specialty Semantic Alignment & Divergence Penalty:
+     * - Grants bonus (+0.22 to +0.28) if symptoms / target specialty align with doctor's primary specialty.
+     * - Grants secondary baseline (+0.05) to General Internal Medicine (Nội tổng quát) as valid diagnostic fallback.
+     * - Applies severe penalty (-0.35) if symptoms / target specialty belong to an unrelated divergent specialty
+     *   (e.g., Ob/Gyn or Gastroenterology for Neurology headache/insomnia complaints).
      */
     private double computeSpecialtyAlignment(DoctorMatchDto doc, String queryText) {
         if (queryText == null || queryText.isBlank() || doc.getSpecialties() == null || doc.getSpecialties().isEmpty()) {
@@ -421,40 +428,133 @@ public class DoctorSemanticSearchService {
 
         String lowerQuery = queryText.toLowerCase();
         String specStr = String.join(" ", doc.getSpecialties()).toLowerCase();
+        boolean docGeneralInternal = specStr.contains("nội tổng quát")
+                || specStr.contains("general-internal-medicine")
+                || specStr.contains("general internal medicine");
 
-        // Cardiology Alignment
-        boolean queryCardio = lowerQuery.contains("tim") || lowerQuery.contains("ngực") || lowerQuery.contains("mạch") || lowerQuery.contains("huyết áp");
-        boolean docCardio = specStr.contains("tim") || specStr.contains("mạch");
-        if (queryCardio && docCardio) return 0.12;
+        // 1. NEUROLOGY (Thần Kinh)
+        boolean queryNeuroTarget = lowerQuery.contains("thần kinh") || lowerQuery.contains("neurology");
+        boolean queryNeuroSymptoms = lowerQuery.contains("đau đầu") || lowerQuery.contains("nửa đầu")
+                || lowerQuery.contains("chóng mặt") || lowerQuery.contains("mất ngủ")
+                || lowerQuery.contains("tiền đình") || lowerQuery.contains("đột quỵ")
+                || lowerQuery.contains("tê bì") || lowerQuery.contains("co giật");
+        boolean docNeuro = specStr.contains("thần kinh") || specStr.contains("neurology");
+        if (queryNeuroTarget || queryNeuroSymptoms) {
+            if (docNeuro) return queryNeuroTarget ? 0.28 : 0.22;
+            if (docGeneralInternal) return 0.05;
+            return -0.35;
+        }
 
-        // Gastroenterology Alignment
-        boolean queryGastro = lowerQuery.contains("dạ dày") || lowerQuery.contains("tiêu hóa") || lowerQuery.contains("bụng") || lowerQuery.contains("ợ chua") || lowerQuery.contains("đại tràng");
-        boolean docGastro = specStr.contains("tiêu hóa") || specStr.contains("gan mật");
-        if (queryGastro && docGastro) return 0.12;
+        // 2. CARDIOLOGY (Tim Mạch)
+        boolean queryCardioTarget = lowerQuery.contains("tim mạch") || lowerQuery.contains("cardiology");
+        boolean queryCardioSymptoms = lowerQuery.contains("tim") || lowerQuery.contains("ngực")
+                || lowerQuery.contains("mạch") || lowerQuery.contains("huyết áp")
+                || lowerQuery.contains("đánh trống ngực") || lowerQuery.contains("hồi hộp");
+        boolean docCardio = specStr.contains("tim") || specStr.contains("mạch") || specStr.contains("cardiology");
+        if (queryCardioTarget || queryCardioSymptoms) {
+            if (docCardio) return queryCardioTarget ? 0.28 : 0.22;
+            if (docGeneralInternal) return 0.05;
+            return -0.35;
+        }
 
-        // Musculoskeletal Alignment
-        boolean queryOrtho = lowerQuery.contains("xương") || lowerQuery.contains("khớp") || lowerQuery.contains("gối") || lowerQuery.contains("cột sống");
-        boolean docOrtho = specStr.contains("xương") || specStr.contains("khớp");
-        if (queryOrtho && docOrtho) return 0.12;
+        // 3. GASTROENTEROLOGY (Tiêu Hóa - Gan Mật)
+        boolean queryGastroTarget = lowerQuery.contains("tiêu hóa") || lowerQuery.contains("gan mật") || lowerQuery.contains("gastroenterology");
+        boolean queryGastroSymptoms = lowerQuery.contains("dạ dày") || lowerQuery.contains("đau bụng")
+                || lowerQuery.contains("ợ chua") || lowerQuery.contains("đại tràng")
+                || lowerQuery.contains("trào ngược") || lowerQuery.contains("men gan") || lowerQuery.contains("nội soi");
+        boolean docGastro = specStr.contains("tiêu hóa") || specStr.contains("gan mật") || specStr.contains("gastroenterology");
+        if (queryGastroTarget || queryGastroSymptoms) {
+            if (docGastro) return queryGastroTarget ? 0.28 : 0.22;
+            if (docGeneralInternal) return 0.05;
+            return -0.35;
+        }
 
-        // Dermatology Alignment
-        boolean queryDerma = lowerQuery.contains("da") || lowerQuery.contains("ngứa") || lowerQuery.contains("mẩn") || lowerQuery.contains("mụn");
-        boolean docDerma = specStr.contains("da liễu");
-        if (queryDerma && docDerma) return 0.12;
+        // 4. DERMATOLOGY (Da Liễu)
+        boolean queryDermaTarget = lowerQuery.contains("da liễu") || lowerQuery.contains("dermatology");
+        boolean queryDermaSymptoms = lowerQuery.contains("ngứa") || lowerQuery.contains("mẩn")
+                || lowerQuery.contains("mụn") || lowerQuery.contains("dị ứng da")
+                || lowerQuery.contains("viêm da") || lowerQuery.contains("mề đay") || lowerQuery.contains("vảy nến");
+        boolean docDerma = specStr.contains("da liễu") || specStr.contains("dermatology");
+        if (queryDermaTarget || queryDermaSymptoms) {
+            if (docDerma) return queryDermaTarget ? 0.28 : 0.22;
+            return -0.35;
+        }
 
-        // Pulmonology Alignment
-        boolean queryPulmo = lowerQuery.contains("phổi") || lowerQuery.contains("hô hấp") || lowerQuery.contains("ho ") || lowerQuery.contains("thở");
-        boolean docPulmo = specStr.contains("hô hấp") || specStr.contains("phổi");
-        if (queryPulmo && docPulmo) return 0.12;
+        // 5. ORTHOPEDICS (Cơ Xương Khớp)
+        boolean queryOrthoTarget = lowerQuery.contains("cơ xương khớp") || lowerQuery.contains("orthopedics") || lowerQuery.contains("chấn thương chỉnh hình");
+        boolean queryOrthoSymptoms = lowerQuery.contains("xương") || lowerQuery.contains("khớp")
+                || lowerQuery.contains("gối") || lowerQuery.contains("cột sống")
+                || lowerQuery.contains("thoái hóa") || lowerQuery.contains("thoát vị")
+                || lowerQuery.contains("gãy xương") || lowerQuery.contains("đau lưng");
+        boolean docOrtho = specStr.contains("xương") || specStr.contains("khớp")
+                || specStr.contains("orthopedics") || specStr.contains("chấn thương");
+        if (queryOrthoTarget || queryOrthoSymptoms) {
+            if (docOrtho) return queryOrthoTarget ? 0.28 : 0.22;
+            return -0.35;
+        }
 
-        // Neurology Alignment
-        boolean queryNeuro = lowerQuery.contains("thần kinh") || lowerQuery.contains("đầu") || lowerQuery.contains("chóng mặt") || lowerQuery.contains("mất ngủ");
-        boolean docNeuro = specStr.contains("thần kinh");
-        if (queryNeuro && docNeuro) return 0.12;
+        // 6. PULMONOLOGY (Hô Hấp & Phổi)
+        boolean queryPulmoTarget = lowerQuery.contains("hô hấp") || lowerQuery.contains("phổi") || lowerQuery.contains("pulmonology");
+        boolean queryPulmoSymptoms = lowerQuery.contains("ho kéo dài") || lowerQuery.contains("ho đờm")
+                || lowerQuery.contains("khó thở") || lowerQuery.contains("hen phế quản") || lowerQuery.contains("copd");
+        boolean docPulmo = specStr.contains("hô hấp") || specStr.contains("phổi") || specStr.contains("pulmonology");
+        if (queryPulmoTarget || queryPulmoSymptoms) {
+            if (docPulmo) return queryPulmoTarget ? 0.28 : 0.22;
+            if (docGeneralInternal) return 0.05;
+            return -0.35;
+        }
 
-        // Contrastive Divergence Penalty: e.g. severe cardiac symptom but doctor is dermatology or odontology
-        if (queryCardio && (specStr.contains("da liễu") || specStr.contains("răng hàm mặt") || specStr.contains("mắt"))) {
-            return -0.10;
+        // 7. OBSTETRICS & GYNECOLOGY (Sản Phụ Khoa)
+        boolean queryObGynTarget = lowerQuery.contains("sản phụ khoa") || lowerQuery.contains("phụ sản") || lowerQuery.contains("obstetrics");
+        boolean queryObGynSymptoms = lowerQuery.contains("thai kỳ") || lowerQuery.contains("kinh nguyệt")
+                || lowerQuery.contains("buồng trứng") || lowerQuery.contains("tử cung")
+                || lowerQuery.contains("tiền sản") || lowerQuery.contains("u xơ");
+        boolean docObGyn = specStr.contains("sản") || specStr.contains("phụ khoa") || specStr.contains("obstetrics");
+        if (queryObGynTarget || queryObGynSymptoms) {
+            if (docObGyn) return queryObGynTarget ? 0.28 : 0.22;
+            return -0.35;
+        }
+
+        // 8. PEDIATRICS (Nhi Khoa)
+        boolean queryPediaTarget = lowerQuery.contains("nhi khoa") || lowerQuery.contains("pediatrics");
+        boolean queryPediaSymptoms = lowerQuery.contains("trẻ em") || lowerQuery.contains("sơ sinh")
+                || lowerQuery.contains("tiêm chủng") || lowerQuery.contains("tay chân miệng");
+        boolean docPedia = specStr.contains("nhi") || specStr.contains("pediatrics");
+        if (queryPediaTarget || queryPediaSymptoms) {
+            if (docPedia) return queryPediaTarget ? 0.28 : 0.22;
+            return -0.35;
+        }
+
+        // 9. NEPHROLOGY (Thận & Tiết Niệu)
+        boolean queryNephroTarget = lowerQuery.contains("thận") || lowerQuery.contains("tiết niệu") || lowerQuery.contains("nephrology");
+        boolean queryNephroSymptoms = lowerQuery.contains("sỏi thận") || lowerQuery.contains("tiểu buốt")
+                || lowerQuery.contains("tiểu rắt") || lowerQuery.contains("suy thận");
+        boolean docNephro = specStr.contains("thận") || specStr.contains("tiết niệu") || specStr.contains("nephrology");
+        if (queryNephroTarget || queryNephroSymptoms) {
+            if (docNephro) return queryNephroTarget ? 0.28 : 0.22;
+            if (docGeneralInternal) return 0.05;
+            return -0.35;
+        }
+
+        // 10. ENDOCRINOLOGY (Nội Tiết & Đái Tháo Đường)
+        boolean queryEndoTarget = lowerQuery.contains("nội tiết") || lowerQuery.contains("endocrinology") || lowerQuery.contains("đái tháo đường");
+        boolean queryEndoSymptoms = lowerQuery.contains("tiểu đường") || lowerQuery.contains("glucose")
+                || lowerQuery.contains("tuyến giáp") || lowerQuery.contains("bướu cổ");
+        boolean docEndo = specStr.contains("nội tiết") || specStr.contains("endocrinology");
+        if (queryEndoTarget || queryEndoSymptoms) {
+            if (docEndo) return queryEndoTarget ? 0.28 : 0.22;
+            if (docGeneralInternal) return 0.05;
+            return -0.35;
+        }
+
+        // 11. ENT (Tai Mũi Họng)
+        boolean queryEntTarget = lowerQuery.contains("tai mũi họng") || lowerQuery.contains("ent") || lowerQuery.contains("otolaryngology");
+        boolean queryEntSymptoms = lowerQuery.contains("amidan") || lowerQuery.contains("xoang")
+                || lowerQuery.contains("viêm tai") || lowerQuery.contains("khàn tiếng");
+        boolean docEnt = specStr.contains("tai mũi họng") || specStr.contains("ent") || specStr.contains("otolaryngology");
+        if (queryEntTarget || queryEntSymptoms) {
+            if (docEnt) return queryEntTarget ? 0.28 : 0.22;
+            return -0.35;
         }
 
         return 0.0;

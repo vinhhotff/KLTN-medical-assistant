@@ -262,4 +262,44 @@ class DoctorSemanticSearchServiceTest {
         assertNotNull(top.getNegatedSymptoms());
         assertTrue(top.getNegatedSymptoms().stream().anyMatch(s -> s.contains("không sốt") || s.contains("khong sot")));
     }
+
+    @Test
+    @DisplayName("calculateCompositeScore enforces sharp contrastive separation between true specialty and unrelated specialties")
+    void testContrastiveSpecialtyRanking_SharpSeparationBetweenNeurologyAndUnrelatedSpecialties() {
+        String triageQuery = "Bác sĩ chuyên khoa Thần Kinh. neurology. Triệu chứng: Tôi thường xuyên bị đau đầu âm ỉ kèm chóng mặt và mất ngủ. Tư vấn chẩn đoán và điều trị chuyên khoa neurology.";
+
+        DoctorMatchDto doctorNeuro = new DoctorMatchDto(
+                UUID.randomUUID(), "BS. Lê Hoàng Long", "Chuyên khoa Thần kinh, điều trị đau đầu mạn tính, hội chứng tiền đình",
+                "LIC-NEURO", 9, BigDecimal.valueOf(350000), 0.60,
+                List.of("Neurology (Thần kinh)"), "BS. CKII", "Bệnh viện Chợ Rẫy", 4.88, 28
+        );
+
+        DoctorMatchDto doctorObGyn = new DoctorMatchDto(
+                UUID.randomUUID(), "BS. Trịnh Hải Yến", "Hơn 20 năm kinh nghiệm quản lý thai kỳ nguy cơ cao, điều trị u xơ tử cung",
+                "LIC-OBGYN", 20, BigDecimal.valueOf(400000), 0.40,
+                List.of("Obstetrics & Gynecology (Sản Phụ Khoa)"), "TS. BS", "Bệnh viện Từ Dũ", 4.97, 48
+        );
+
+        DoctorMatchDto doctorGeneralInternal = new DoctorMatchDto(
+                UUID.randomUUID(), "BS. Bùi Quang Huy", "Khám và tầm soát toàn diện các bệnh lý nội khoa, tăng huyết áp",
+                "LIC-INTERNAL", 11, BigDecimal.valueOf(300000), 0.48,
+                List.of("General Internal Medicine (Nội tổng quát)"), "ThS. BS", "Bệnh viện Nhân Dân 115", 4.88, 19
+        );
+
+        double scoreNeuro = searchService.calculateCompositeScore(doctorNeuro, triageQuery);
+        double scoreObGyn = searchService.calculateCompositeScore(doctorObGyn, triageQuery);
+        double scoreInternal = searchService.calculateCompositeScore(doctorGeneralInternal, triageQuery);
+
+        // 1. Doctor in aligned specialty achieves high clinical match (>= 85%)
+        assertTrue(scoreNeuro >= 0.85, "Neurology doctor score should be >= 0.85, got: " + scoreNeuro);
+
+        // 2. Doctor in unrelated divergent specialty is severely penalized (< 25%)
+        assertTrue(scoreObGyn < 0.25, "Ob/Gyn doctor score should be < 0.25 for neurology complaint, got: " + scoreObGyn);
+
+        // 3. Clear contrastive gap of at least 60% between specialty match and divergent doctor
+        assertTrue(scoreNeuro - scoreObGyn > 0.60, "Gap between Neuro and Ob/Gyn should be > 0.60, got: " + (scoreNeuro - scoreObGyn));
+
+        // 4. General Internal Medicine acts as a reasonable secondary option (~40% - 65%)
+        assertTrue(scoreInternal >= 0.40 && scoreInternal < scoreNeuro, "General internal should be a valid secondary option, got: " + scoreInternal);
+    }
 }

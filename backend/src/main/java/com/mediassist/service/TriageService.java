@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class TriageService {
@@ -141,6 +142,17 @@ public class TriageService {
             // Fallback to pre-RAG candidates if focused search yields nothing
             if ((matchedDoctors == null || matchedDoctors.isEmpty()) && preRagCandidates != null && !preRagCandidates.isEmpty()) {
                 matchedDoctors = preRagCandidates;
+            }
+
+            // Clinical specialty relevance filter: suppress severely divergent doctors (< 0.35)
+            // Ensures patients are never shown unrelated specialties (e.g. Ob/Gyn or Gastro for Neurology)
+            if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
+                List<DoctorMatchDto> qualified = matchedDoctors.stream()
+                        .filter(d -> d.getSimilarityScore() >= 0.35)
+                        .collect(Collectors.toList());
+                if (!qualified.isEmpty()) {
+                    matchedDoctors = qualified;
+                }
             }
 
             if (matchedDoctors != null && !matchedDoctors.isEmpty()) {

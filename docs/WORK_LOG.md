@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#142** | 26/11/2026 | Hiệu Chuẩn Thuật Toán Xếp Hạng Bác Sĩ Đa Tiêu Chí (WHRF Scoring Calibration) & Tăng Cường Phạt Phân Kỳ Tương Phản (Contrastive Divergence Penalty): Tách Biệt Rõ Rệt Độ Khớp Bác Sĩ Đúng Chuyên Khoa (85%–96%) vs Bác Sĩ Trái Tuyến (<25%), Loại Bỏ Hoàn Toàn Điểm Sàn Ảo & Bác Sĩ Khác Khoa Khỏi Gợi Ý Lâm Sàng. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#141** | 26/11/2026 | Khắc Phục Triệt Để Lỗi Đặt Lịch Khám Online Hiển Thị Thành Khám Trực Tiếp (Offline): Chuẩn Hóa Flyway Migration V26 (`V26__telehealth_online_and_chat.sql`), Khôi Phục V25 CCHN Tránh Xung Đột Checksum, Bổ Sung Toàn Vẹn Cột `consultation_type`, `meeting_room_code`, `meeting_url` Vào CSDL PostgreSQL & Cập Nhật Lịch Hẹn Đã Đặt. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#140** | 26/11/2026 | Bổ Sung Giao Diện Nhập Thẻ Stripe Checkout Sandbox (`/payment/stripe-checkout`) & Chuẩn Hóa Điều Hướng Cổng Thanh Toán Stripe Thật / Sandbox Đa Chế Độ (`REAL` vs `MOCK`). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#139** | 25/11/2026 | Tối Ưu Hóa Toàn Diện UX/UI Telehealth Video Call: Chế Độ Cửa Sổ Nổi (PiP), Bàn Khám EMR Tích Hợp Đa Phân Hệ & Chuẩn Hóa Typography Không Lệch Hàng. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -72,6 +73,36 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#142] Hiệu Chuẩn Thuật Toán Xếp Hạng Bác Sĩ Đa Tiêu Chí (WHRF Scoring Calibration) & Tăng Cường Phạt Phân Kỳ Tương Phản (Contrastive Divergence Penalty): Tách Biệt Rõ Rệt Độ Khớp Bác Sĩ Đúng Chuyên Khoa (85%–96%) vs Bác Sĩ Trái Tuyến (<25%)
+* **Thời gian:** 2026-11-26 09:25 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/telehealth-stripe-storage`
+* **Vấn đề giải quyết:**
+  - Bệnh nhân nhập triệu chứng than phiền thần kinh (*"Tôi thường xuyên bị đau đầu âm ỉ kèm chóng mặt và mất ngủ"*), AI Triage đề xuất chuyên khoa Thần Kinh rất chính xác, tuy nhiên danh sách bác sĩ lại hiển thị:
+    1. BS. Lê Hoàng Long (Thần kinh): **Độ khớp 55%** (quá thấp, tạo cảm giác thiếu tin cậy).
+    2. BS. Trịnh Hải Yến (Sản Phụ Khoa): **Độ khớp 45%** (chênh lệch quá hẹp, chỉ cách 10% dù hoàn toàn trái chuyên môn).
+    3. BS. Phạm Quốc Tuấn (Tiêu hóa - Gan mật): **Độ khớp 43%**.
+  - **Nguyên nhân cốt lõi (Root Cause):**
+    1. **Điểm sàn uy tín ảo (Baseline Floor Inflation):** Công thức WHRF cũ chia trọng số 15% cho rating (4.9-5.0 sao), 8% cho thâm niên (BS. Yến 20 năm, BS. Tuấn 16 năm), 7% học vị (Tiến sĩ) và 6% lexical floor, khiến một bác sĩ hoàn toàn trái chuyên khoa tự động có sẵn **~38% - 45%** điểm nền.
+    2. **Hàm Sigmoid đặt tâm quá cao ($center = 0.65$):** Cosine thô của `text-embedding-3-small` trong miền y tế thường ở dải 0.50 - 0.62. Đặt tâm 0.65 khiến điểm vector của bác sĩ đúng chuyên khoa bị nén mạnh xuống dưới 30%.
+    3. **Khuyết thiếu Phạt Phân Kỳ Tương Phản (Contrastive Divergence Penalty):** Hàm `computeSpecialtyAlignment` cũ chỉ phạt tim mạch đối nghịch da liễu/mắt, hoàn toàn không phạt các chuyên khoa Sản, Tiêu hóa khi gặp ca bệnh Thần kinh.
+* **Tệp tin thay đổi:**
+  - `[MOD]` `backend/src/main/java/com/mediassist/service/DoctorSemanticSearchService.java`:
+    - Hiệu chuẩn hàm Sigmoid: $center = 0.50$, $slope = 10.0$ phản ánh đúng phân phối cosine y tế thực tế.
+    - Hiệu chuẩn Lexical Overlap: 0 token trùng khớp sẽ trả về $0.05$ (triệt tiêu điểm sàn ảo).
+    - Tái cấu trúc toàn diện `computeSpecialtyAlignment`: Bổ sung ma trận phạt phân kỳ tương phản ($-0.35$) cho toàn bộ các cặp chuyên khoa trái tuyến (Thần kinh vs Sản/Tiêu hóa/Da liễu, Tim mạch vs Da liễu/Sản, Tiêu hóa vs Thần kinh, v.v.), thưởng lớn ($+0.22 \rightarrow +0.28$) cho đúng chuyên khoa, và duy trì $+0.05$ cho Nội tổng quát.
+    - Tái cân bằng trọng số WHRF: $0.45 \cdot \text{Dense} + 0.25 \cdot \text{Lexical} + 0.12 \cdot \text{Rating} + 0.06 \cdot \text{Exp} + 0.05 \cdot \text{Academic} + \text{SpecialtyModifier}$.
+  - `[MOD]` `backend/src/main/java/com/mediassist/service/TriageService.java`:
+    - Bổ sung bộ lọc lâm sàng `similarityScore >= 0.35`, tự động loại bỏ các bác sĩ trái chuyên khoa bị phạt âm khỏi thẻ gợi ý của bệnh nhân.
+  - `[MOD]` `backend/src/test/java/com/mediassist/DoctorSemanticSearchServiceTest.java`:
+    - Bổ sung unit test `testContrastiveSpecialtyRanking_SharpSeparationBetweenNeurologyAndUnrelatedSpecialties` xác nhận BS Thần kinh đạt $\ge 85\%$, BS Sản phụ khoa $< 25\%$, và biên độ cách biệt $> 60\%$.
+  - `[MOD]` `docs/CAPSTONE_DEFENSE.md`: Cập nhật Câu hỏi 9 về công thức WHRF-SOTA hiệu chuẩn và cơ chế Contrastive Divergence Penalty.
+  - `[MOD]` `docs/WORK_LOG.md`: Ghi chép chi tiết phiên làm việc #142.
+* **Tài liệu đã đồng bộ:** `docs/CAPSTONE_DEFENSE.md`, `docs/WORK_LOG.md`.
+* **Bằng chứng kiểm thử & Trạng thái hệ thống:**
+  - Backend Unit Tests: `cd backend && mvn test` **360/360 Tests PASS (100% SUCCESS, 0 Failures, 0 Errors)**.
+  - Frontend Build: `cd frontend && npm run build` **0 lỗi TypeScript** (2.338 modules).
 
 ### [WORK-LOG-#141] Khắc Phục Triệt Để Lỗi Đặt Lịch Khám Online Hiển Thị Thành Khám Trực Tiếp (Offline): Chuẩn Hóa Flyway Migration V26, Khôi Phục V25 CCHN & Cập Nhật CSDL PostgreSQL
 * **Thời gian:** 2026-11-26 08:45 (GMT+7)
