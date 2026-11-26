@@ -1,5 +1,5 @@
 -- ===================================================================
--- MediAssist-AI Flyway Migration: V25__telehealth_online_and_chat.sql
+-- MediAssist-AI Flyway Migration: V26__telehealth_online_and_chat.sql
 -- Hybrid Online/In-Person Appointments & Real-time Consultation Chat
 -- ===================================================================
 

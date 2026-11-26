@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#141** | 26/11/2026 | Khắc Phục Triệt Để Lỗi Đặt Lịch Khám Online Hiển Thị Thành Khám Trực Tiếp (Offline): Chuẩn Hóa Flyway Migration V26 (`V26__telehealth_online_and_chat.sql`), Khôi Phục V25 CCHN Tránh Xung Đột Checksum, Bổ Sung Toàn Vẹn Cột `consultation_type`, `meeting_room_code`, `meeting_url` Vào CSDL PostgreSQL & Cập Nhật Lịch Hẹn Đã Đặt. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#140** | 26/11/2026 | Bổ Sung Giao Diện Nhập Thẻ Stripe Checkout Sandbox (`/payment/stripe-checkout`) & Chuẩn Hóa Điều Hướng Cổng Thanh Toán Stripe Thật / Sandbox Đa Chế Độ (`REAL` vs `MOCK`). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#139** | 25/11/2026 | Tối Ưu Hóa Toàn Diện UX/UI Telehealth Video Call: Chế Độ Cửa Sổ Nổi (PiP), Bàn Khám EMR Tích Hợp Đa Phân Hệ & Chuẩn Hóa Typography Không Lệch Hàng. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#138** | 25/11/2026 | Bổ Sung Ảnh Sơ Đồ Kiến Trúc Hệ Thống (`docs/images/system_architecture_technical.png`, `system_architecture.png`, `system_architecture_mediassist.png`) Vào Nhánh `feature/fuction` Để Đồng Bộ Tài Liệu Bảo Vệ. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -71,6 +72,33 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#141] Khắc Phục Triệt Để Lỗi Đặt Lịch Khám Online Hiển Thị Thành Khám Trực Tiếp (Offline): Chuẩn Hóa Flyway Migration V26, Khôi Phục V25 CCHN & Cập Nhật CSDL PostgreSQL
+* **Thời gian:** 2026-11-26 08:45 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/telehealth-stripe-storage`
+* **Vấn đề giải quyết:**
+  - Bệnh nhân đặt lịch khám chọn hình thức "Khám Online (Video Call & Chat)", tuy nhiên khi xem lại trong danh sách lịch hẹn (`/patient`) hoặc vé khám bệnh, trạng thái cuộc hẹn lại bị hiển thị thành "Khám Trực Tiếp Tại Phòng Khám" (Offline) và mất các nút gọi Video Call / Chat.
+  - **Nguyên nhân cốt lõi (Root Cause):**
+    1. **Xung đột phiên bản Flyway (Version Collision):** Bản di trú Telehealth trước đó bị đặt tên là `V25__telehealth_online_and_chat.sql`. Trong khi đó, bảng `flyway_schema_history` của CSDL PostgreSQL đã ghi nhận phiên bản 25 là `V25__enhance_doctor_vetting_and_credentials.sql` (bản thẩm định CCHN bác sĩ). Do phiên bản 25 đã tồn tại, Flyway bỏ qua không thực thi tệp di trú Telehealth.
+    2. **Khuyết thiếu cột trên CSDL PostgreSQL:** Bảng `appointments` trên PostgreSQL thực tế chưa từng có các cột `consultation_type`, `meeting_room_code`, `meeting_url` và bảng `consultation_messages`.
+    3. **Tiến trình Backend cũ chưa nạp trường mới:** Máy chủ Spring Boot đang chạy từ phiên làm việc trước khi commit `ef7ba82` chưa nạp DTO và Entity ánh xạ trường `consultationType`, khiến các yêu cầu đặt lịch mới bị ép về giá trị mặc định `IN_PERSON`.
+* **Tệp tin thay đổi:**
+  - `[NEW]` `backend/src/main/resources/db/migration/V25__enhance_doctor_vetting_and_credentials.sql`: Phục hồi tệp di trú V25 chuẩn để khớp hoàn toàn với lịch sử schema trong CSDL.
+  - `[MOD]` `backend/src/main/resources/db/migration/V26__telehealth_online_and_chat.sql`: Đổi tên từ V25 sang V26, thực thi thêm đầy đủ các cột:
+    - `consultation_type VARCHAR(20) NOT NULL DEFAULT 'IN_PERSON'` kèm ràng buộc CHECK (`'IN_PERSON'`, `'ONLINE'`).
+    - `meeting_room_code VARCHAR(100)` và `meeting_url VARCHAR(500)`.
+    - Cập nhật ràng buộc `appointments_status_check` bổ sung trạng thái `CHECKED_IN`.
+    - Tạo bảng `consultation_messages` và các chỉ mục hiệu năng `idx_appointments_consultation_type`, `idx_appointments_meeting_room_code`.
+  - `[MOD]` `docs/DATABASE_DESIGN.md`: Cập nhật mục 18 & 19 phản ánh đúng Flyway V25 (CCHN Vetting) và Flyway V26 (Telehealth Hybrid).
+  - `[MOD]` `docs/WORK_LOG.md`: Ghi chép chi tiết phiên làm việc #141.
+* **Tài liệu đã đồng bộ:** `docs/DATABASE_DESIGN.md`, `docs/WORK_LOG.md`.
+* **Bằng chứng kiểm thử & Trạng thái CSDL:**
+  - CSDL PostgreSQL: Đã áp dụng thành công script `V26__telehealth_online_and_chat.sql`, xác thực cấu trúc `\d appointments` có đầy đủ 3 cột mới và bảng `consultation_messages`.
+  - Flyway History: Đăng ký thành công rank 26, version 26 (`telehealth online and chat`).
+  - Dữ liệu lịch hẹn: Đã chuyển đổi các lịch hẹn đặt trong ngày thành `ONLINE`, tạo mã phòng `ROOM-20261126-...` và URL `/consultation/{id}`.
+  - Backend Unit Test: `cd backend && mvn -Dtest=AppointmentServiceTest test` **36/36 Tests PASS (100%)**, kiểm thử `testBookAppointment_OnlineConsultation_GeneratesMeetingMetadata` chạy hoàn hảo.
+  - Frontend Build: `cd frontend && npm run build` **0 lỗi TypeScript** (2.338 modules).
 
 ### [WORK-LOG-#140] Bổ Sung Giao Diện Nhập Thẻ Stripe Checkout Sandbox (`/payment/stripe-checkout`) & Chuẩn Hóa Điều Hướng Cổng Thanh Toán Stripe Thật / Sandbox Đa Chế Độ
 * **Thời gian:** 2026-11-26 (GMT+7)

@@ -1172,19 +1172,29 @@ Song song ở tầng JPA Entity (`User.java`, `Appointment.java`, `PaymentTransa
 
 ---
 
-## 18. Telehealth Kết Hợp (Khám Online Video Call & Chat Trực Tuyến — Flyway V25)
+## 18. Nâng Cấp Thẩm Định Hồ Sơ & Chứng Chỉ Bác Sĩ (Flyway V25)
 
-Bản di trú `V25__telehealth_online_and_chat.sql` mở rộng hệ thống từ mô hình khám tại quầy (`IN_PERSON`) sang mô hình **Hybrid Telehealth** (`IN_PERSON` + `ONLINE` Video Call WebRTC & Persistent Chat):
+Bản di trú `V25__enhance_doctor_vetting_and_credentials.sql` bổ sung các cột phục vụ quy trình thẩm định CCHN và chứng chỉ hành nghề của bác sĩ trên `doctor_profiles`:
+- `verification_status VARCHAR(30) DEFAULT 'UNSUBMITTED'` (UNSUBMITTED, PENDING_VERIFICATION, APPROVED, REJECTED)
+- `rejection_reason TEXT`, `rejection_at TIMESTAMPTZ`
+- `license_issued_date DATE`, `scope_of_practice TEXT`, `license_document_storage_path TEXT`
+- Index `idx_doctor_verification_status` phục vụ hàng đợi duyệt admin.
 
-### 18.1. Mở rộng bảng `appointments`
+---
+
+## 19. Telehealth Kết Hợp (Khám Online Video Call & Chat Trực Tuyến — Flyway V26)
+
+Bản di trú `V26__telehealth_online_and_chat.sql` mở rộng hệ thống từ mô hình khám tại quầy (`IN_PERSON`) sang mô hình **Hybrid Telehealth** (`IN_PERSON` + `ONLINE` Video Call WebRTC & Persistent Chat):
+
+### 19.1. Mở rộng bảng `appointments`
 | Cột mới | Kiểu dữ liệu | Ràng buộc / Mặc định | Mục đích |
 | :--- | :--- | :--- | :--- |
 | `consultation_type` | `VARCHAR(20)` | `NOT NULL DEFAULT 'IN_PERSON'` | Phân biệt khám trực tiếp (`IN_PERSON`) và khám từ xa (`ONLINE`). |
-| `meeting_room_code` | `VARCHAR(64)` | `NULL` (Backfill cho ca `ONLINE`) | Mã phòng họp WebRTC định danh (`MA-YYYYMMDD-XXXXXX`). |
-| `meeting_url` | `VARCHAR(255)` | `NULL` | Đường dẫn nội bộ vào phòng khám (`/consultation/{appointmentId}`). |
+| `meeting_room_code` | `VARCHAR(100)` | `NULL` (Backfill cho ca `ONLINE`) | Mã phòng họp WebRTC định danh (`ROOM-YYYYMMDD-XXXXXX`). |
+| `meeting_url` | `VARCHAR(500)` | `NULL` | Đường dẫn nội bộ vào phòng khám (`/consultation/{appointmentId}`). |
 | `checked_in_at` | `TIMESTAMPTZ` | `NULL` | Thời điểm bệnh nhân check-in hoặc vào phòng khám trực tuyến. |
 
-### 18.2. Bảng mới `consultation_messages` (Lịch sử trao đổi Bác sĩ – Bệnh nhân)
+### 19.2. Bảng mới `consultation_messages` (Lịch sử trao đổi Bác sĩ – Bệnh nhân)
 ```sql
 CREATE TABLE IF NOT EXISTS consultation_messages (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
