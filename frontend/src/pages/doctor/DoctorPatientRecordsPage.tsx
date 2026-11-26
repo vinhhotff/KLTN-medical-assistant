@@ -569,10 +569,10 @@ export const DoctorPatientRecordsPage: React.FC = () => {
             )}
 
             {/* TABS NAVIGATION */}
-            <div className="flex items-center gap-2 px-6 pt-4 border-b border-slate-200 bg-slate-50 text-xs font-bold">
+            <div className="flex items-center gap-2 px-6 pt-4 border-b border-slate-200 bg-slate-50 text-xs font-bold overflow-x-auto whitespace-nowrap">
               <button
                 onClick={() => setDetailTab('VISITS')}
-                className={`pb-3 px-3 border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
+                className={`pb-3 px-3 border-b-2 transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   detailTab === 'VISITS'
                     ? 'border-teal-600 text-teal-800'
                     : 'border-transparent text-slate-500 hover:text-slate-800'

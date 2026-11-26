@@ -10,6 +10,7 @@ import com.mediassist.repository.TriageSessionRepository;
 import com.mediassist.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class TriageService {
     private final ClinicalRagService clinicalRagService;
 
     private final AiUsageAnalyticsService aiUsageAnalyticsService;
+    private final ClinicalSafetyGuardrailService clinicalSafetyGuardrailService;
 
     public TriageService(RedFlagService redFlagService,
                          DoctorSemanticSearchService doctorSemanticSearchService,
@@ -38,6 +40,20 @@ public class TriageService {
                          UserRepository userRepository,
                          ClinicalRagService clinicalRagService,
                          AiUsageAnalyticsService aiUsageAnalyticsService) {
+        this(redFlagService, doctorSemanticSearchService, triageSessionRepository,
+                specialtyRepository, userRepository, clinicalRagService, aiUsageAnalyticsService,
+                new ClinicalSafetyGuardrailService());
+    }
+
+    @Autowired
+    public TriageService(RedFlagService redFlagService,
+                         DoctorSemanticSearchService doctorSemanticSearchService,
+                         TriageSessionRepository triageSessionRepository,
+                         SpecialtyRepository specialtyRepository,
+                         UserRepository userRepository,
+                         ClinicalRagService clinicalRagService,
+                         AiUsageAnalyticsService aiUsageAnalyticsService,
+                         ClinicalSafetyGuardrailService clinicalSafetyGuardrailService) {
         this.redFlagService = redFlagService;
         this.doctorSemanticSearchService = doctorSemanticSearchService;
         this.triageSessionRepository = triageSessionRepository;
@@ -45,6 +61,9 @@ public class TriageService {
         this.userRepository = userRepository;
         this.clinicalRagService = clinicalRagService;
         this.aiUsageAnalyticsService = aiUsageAnalyticsService;
+        this.clinicalSafetyGuardrailService = clinicalSafetyGuardrailService != null
+                ? clinicalSafetyGuardrailService
+                : new ClinicalSafetyGuardrailService();
     }
 
     public TriageResponse assessSymptoms(TriageRequest request, String userEmail) {
@@ -134,6 +153,14 @@ public class TriageService {
                     : (ragResult.getSuggestedQuestions() != null && !ragResult.getSuggestedQuestions().isEmpty()
                             ? ragResult.getSuggestedQuestions()
                             : defaultClarifyingQuestions());
+
+            // 4b. Layer 2 Clinical Safety Guardrail: Zero-Prescription & Dosage Output Filter
+            sbar = clinicalSafetyGuardrailService.sanitizePatientAdvice(sbar).sanitizedText();
+            aiAdvice = clinicalSafetyGuardrailService.sanitizePatientAdvice(aiAdvice).sanitizedText();
+            clarifyingQuestions = clinicalSafetyGuardrailService.sanitizeClarifyingQuestions(clarifyingQuestions);
+            if (clarifyingQuestions == null || clarifyingQuestions.isEmpty()) {
+                clarifyingQuestions = defaultClarifyingQuestions();
+            }
 
             // 5. Focused pgvector Doctor Retrieval based on AI-reasoned specialty (clean query, no noise)
             String focusedDoctorQuery = buildFocusedTriageDoctorQuery(specialtySlug, specialtyName, symptoms);

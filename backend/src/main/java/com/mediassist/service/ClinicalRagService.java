@@ -278,6 +278,12 @@ public class ClinicalRagService {
                 5. 2-3 câu hỏi làm rõ triệu chứng (clarifyingQuestions).
                 6. Đề xuất bác sĩ từ danh sách ứng viên (nếu có) và lý do lâm sàng cụ thể.
 
+                LUẬT AN TOÀN LÂM SÀNG BẮT BUỘC (ZERO-PRESCRIPTION POLICY - TUÂN THỦ FDA CDS & WHO AI HEALTH ETHICS):
+                - TUYỆT ĐỐI KHÔNG kê đơn, KHÔNG đề xuất hay gợi ý bất kỳ tên thuốc uống/tiêm/bôi cụ thể nào (kể cả thuốc không kê đơn OTC như Paracetamol, Panadol, Efferalgan, Hapacol, Ibuprofen, Aspirin, kháng sinh, corticoid, thuốc dạ dày, thuốc ho, thuốc chống dị ứng...).
+                - TUYỆT ĐỐI KHÔNG ghi liều lượng thuốc (mg, ml, viên/lần, lần/ngày) hoặc hướng dẫn người bệnh tự ra nhà thuốc mua thuốc.
+                - CHỈ ĐƯỢC hướng dẫn các biện pháp chăm sóc không dùng thuốc an toàn (nghỉ ngơi, uống đủ nước, theo dõi nhiệt độ/triệu chứng, chườm ấm/mát, ăn nhẹ dễ tiêu) và khuyến nghị thăm khám Bác sĩ chuyên khoa.
+                - Nếu người bệnh chủ động hỏi "nên uống thuốc gì?" hoặc "uống thuốc nào cho đỡ?", BẮT BUỘC từ chối đề xuất thuốc một cách lịch sự, giải thích rằng hệ thống AI không được phép chỉ định thuốc để tránh nguy cơ dị ứng, sốc phản vệ, tương tác thuốc hoặc che lấp triệu chứng cấp cứu, đồng thời hướng dẫn người bệnh đặt lịch khám Bác sĩ.
+
                 YÊU CẦU ĐỊNH DẠNG: TRẢ VỀ DUY NHẤT MỘT JSON OBJECT HỢP LỆ (KHÔNG THÊM BẤT KỲ VĂN BẢN NÀO NGOÀI JSON):
                 {
                   "isMedicalRelated": true,

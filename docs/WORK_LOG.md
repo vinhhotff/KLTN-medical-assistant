@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#145** | 26/11/2026 | Áp Dụng Rào Chắn An Toàn Y Khoa Đa Tầng Zero-Prescription Cho Trợ Lý AI (FDA CDS / WHO AI Health Ethics / Google Med-PaLM 2), Khắc Phục Lỗi Thụt Lề & Căn Hàng Giao Diện Bác Sĩ (`DoctorDashboard`, `DoctorLayout`, `DoctorPatientRecordsPage`), Bổ Sung Lọc / Sắp Xếp Thông Minh & Xem Lịch Sử Chat Bệnh Nhân (`PatientDashboard`) & Giải Trình Chế Độ Stripe Sandbox vs Real. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#144** | 26/11/2026 | Tối Ưu Hóa Bộ Xử Lý Ngôn Ngữ Lâm Sàng Tiếng Việt (Unicode Character Class NLP Boundary Defense), Khắc Phục Lỗi Nuốt Chữ Kèm `khôngèm`, Chuẩn Hóa Model Gemini `gemini-3.8-flash` & Nâng Cấp RestClient Byte Stream Cho OpenRouter. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#143** | 26/11/2026 | Nâng Cấp Kiến Trúc Xếp Hạng Bác Sĩ Đa Miền Lâm Sàng (12-Domain Specialty Matrix & Allied Synergy Engine): Triệt Tiêu Lỗi Xung Đột Nhánh Rẽ (Sequential Branch Stealing), Bổ Sung Cơ Chế Liên Minh Chuyên Khoa (Cardiopulmonary & Neuro-ENT Synergy), Tăng Độ Sâu Thu Phóng pgvector (Candidate Limit x4), Sửa Cấu Hình Model Gemini `gemini-2.5-flash` & Bổ Sung Test Case Đa Chuyên Khoa. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#142** | 26/11/2026 | Hiệu Chuẩn Thuật Toán Xếp Hạng Bác Sĩ Đa Tiêu Chí (WHRF Scoring Calibration) & Tăng Cường Phạt Phân Kỳ Tương Phản (Contrastive Divergence Penalty): Tách Biệt Rõ Rệt Độ Khớp Bác Sĩ Đúng Chuyên Khoa (85%–96%) vs Bác Sĩ Trái Tuyến (<25%), Loại Bỏ Hoàn Toàn Điểm Sàn Ảo & Bác Sĩ Khác Khoa Khỏi Gợi Ý Lâm Sàng. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -75,6 +76,36 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#145] Rào Chắn An Toàn Y Khoa Zero-Prescription Đa Tầng Cho AI Triage, Chuẩn Hóa Căn Hàng Giao Diện Bác Sĩ & Bộ Lọc / Sắp Xếp / Lịch Sử Chat Bệnh Nhân
+* **Thời gian:** 2026-11-26 10:50 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/telehealth-stripe-storage`
+* **Nội dung triển khai:**
+  1. **Rào chắn Zero-Prescription đa tầng cho Trợ lý Triệu chứng AI (Defense-in-Depth):**
+     - **Layer 1 (Prompt-Level Constitutional Guardrail):** Bổ sung `LUẬT AN TOÀN LÂM SÀNG BẮT BUỘC (ZERO-PRESCRIPTION POLICY)` vào `ClinicalRagService.performTriageRagAnalysis` theo chuẩn **FDA CDS Software Guidance (2022)**, **WHO Guidance on Ethics and Governance of AI for Health (2021)** và **Google Med-PaLM 2 / OpenAI HealthBench**: cấm tuyệt đối đề xuất tên thuốc (Rx & OTC), liều lượng (`mg`, `ml`, `viên`), hoặc hướng dẫn tự mua thuốc uống.
+     - **Layer 2 (Deterministic Post-LLM Output Guardrail):** Tạo mới `ClinicalSafetyGuardrailService.java` và tích hợp vào `TriageService.java` để quét từng câu trong `aiAdvice`, `sbarSummary` và `clarifyingQuestions` bằng từ điển hoạt chất/biệt dược Việt Nam + biểu thức chính quy liều lượng (có bảo vệ chống dương tính giả cho câu khuyến cáo *"tránh tự ý dùng thuốc"*, câu hỏi tiền sử dùng thuốc và đơn vị xét nghiệm như `mg/dL`). Tự động tước bỏ câu vi phạm và chèn cảnh báo an toàn y khoa chuẩn.
+  2. **Khắc phục lỗi thụt lề / chữ lên xuống trên Giao diện Bác sĩ:**
+     - `DoctorLayout.tsx`: Chuyển `renderCchnStatus` sang `block mt-1 leading-tight` tránh xô lệch baseline với tên bác sĩ.
+     - `DoctorDashboard.tsx`: Chuẩn hóa `flex flex-col justify-between` và `tabular-nums` cho 4 thẻ KPI; sửa `sm:items-start` + `min-w-0 flex-1` + `shrink-0` icon cho các thẻ hàng đợi; cố định chiều cao nhãn `min-h-[2.25rem] flex items-end` ở lưới Sinh hiệu (tránh nhãn 2 dòng đẩy ô input xuống thấp hơn cột bên cạnh); thêm `align-top` cho bảng Kê đơn thuốc (tránh lỗi validation đẩy lệch hàng).
+     - `DoctorPatientRecordsPage.tsx`: Thêm `overflow-x-auto whitespace-nowrap` + `shrink-0` cho thanh tab Drawer 360°.
+  3. **Bổ sung Bộ lọc, Sắp xếp thông minh & Xem Lịch sử Chat cho Bệnh nhân (`PatientDashboard.tsx`):**
+     - Thêm thanh lọc theo trạng thái (`Tất cả`, `Đang đặt / Sắp khám`, `Đã hoàn thành`, `Đã hủy / Vắng` kèm bộ đếm), lọc hình thức (`Online` / `Trực tiếp`), ô tìm kiếm theo mã `APT-...` / bác sĩ / phòng khám / ICD-10.
+     - Sắp xếp thông minh (`SMART` mặc định): đưa ca `IN_PROGRESS` → `CHECKED_IN` → `SCHEDULED` (sắp diễn ra trước) lên đầu, tách riêng `COMPLETED` và đẩy `CANCELLED`/`NO_SHOW` xuống cuối.
+     - Mở quyền xem lại lịch sử đoạn chat (`Xem Lịch Sử Chat` ở chế độ chỉ đọc cho ca đã hoàn thành/hủy/vắng, `Nhắn Tin Bác Sĩ` cho ca đang hoạt động) trên mọi lịch hẹn.
+* **Tệp tin thay đổi:**
+  - `[NEW]` `backend/src/main/java/com/mediassist/service/ClinicalSafetyGuardrailService.java`
+  - `[NEW]` `backend/src/test/java/com/mediassist/service/ClinicalSafetyGuardrailServiceTest.java`
+  - `[MOD]` `backend/src/main/java/com/mediassist/service/ClinicalRagService.java`
+  - `[MOD]` `backend/src/main/java/com/mediassist/service/TriageService.java`
+  - `[MOD]` `frontend/src/layouts/DoctorLayout.tsx`
+  - `[MOD]` `frontend/src/pages/doctor/DoctorDashboard.tsx`
+  - `[MOD]` `frontend/src/pages/doctor/DoctorPatientRecordsPage.tsx`
+  - `[MOD]` `frontend/src/pages/patient/PatientDashboard.tsx`
+  - `[MOD]` `docs/WORK_LOG.md`
+* **Bằng chứng kiểm thử:**
+  - Backend: `mvn test` **368/368 PASS (0 Failures, 0 Errors)**.
+  - Frontend: `npm run build` **0 lỗi TypeScript** (`2.338` modules).
 
 ### [WORK-LOG-#144] Tối Ưu Hóa Bộ Xử Lý Ngôn Ngữ Lâm Sàng Tiếng Việt (Unicode Character Class NLP Boundary Defense), Khắc Phục Lỗi Nuốt Chữ Kèm `khôngèm`, Chuẩn Hóa Model Gemini `gemini-3.8-flash` & Nâng Cấp RestClient Byte Stream Cho OpenRouter
 * **Thời gian:** 2026-11-26 10:30 (GMT+7)

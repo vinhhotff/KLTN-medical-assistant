@@ -22,6 +22,7 @@ import {
   Loader2,
   Video,
   Building2,
+  Search,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
@@ -255,6 +256,12 @@ export const PatientDashboard: React.FC = () => {
     }
   };
 
+  // Appointment Filters & Sorting
+  const [aptStatusFilter, setAptStatusFilter] = useState<'ALL' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED'>('ALL');
+  const [aptTypeFilter, setAptTypeFilter] = useState<'ALL' | 'ONLINE' | 'IN_PERSON'>('ALL');
+  const [aptSort, setAptSort] = useState<'SMART' | 'NEWEST' | 'OLDEST'>('SMART');
+  const [aptSearch, setAptSearch] = useState('');
+
   // Pagination states (Offset)
   const [appointmentsPage, setAppointmentsPage] = useState(1);
   const [appointmentsPageSize, setAppointmentsPageSize] = useState(5);
@@ -265,11 +272,78 @@ export const PatientDashboard: React.FC = () => {
   const [documentsPage, setDocumentsPage] = useState(1);
   const [documentsPageSize, setDocumentsPageSize] = useState(5);
 
+  const appointmentCounts = useMemo(() => {
+    let upcoming = 0;
+    let completed = 0;
+    let cancelled = 0;
+    for (const a of appointments) {
+      if (a.status === 'SCHEDULED' || a.status === 'CHECKED_IN' || a.status === 'IN_PROGRESS') upcoming++;
+      else if (a.status === 'COMPLETED') completed++;
+      else if (a.status === 'CANCELLED' || a.status === 'NO_SHOW') cancelled++;
+    }
+    return { all: appointments.length, upcoming, completed, cancelled };
+  }, [appointments]);
+
+  const filteredSortedAppointments = useMemo(() => {
+    const query = aptSearch.trim().toLowerCase();
+    const filtered = appointments.filter((a) => {
+      if (aptStatusFilter === 'UPCOMING') {
+        if (a.status !== 'SCHEDULED' && a.status !== 'CHECKED_IN' && a.status !== 'IN_PROGRESS') return false;
+      } else if (aptStatusFilter === 'COMPLETED') {
+        if (a.status !== 'COMPLETED') return false;
+      } else if (aptStatusFilter === 'CANCELLED') {
+        if (a.status !== 'CANCELLED' && a.status !== 'NO_SHOW') return false;
+      }
+
+      if (aptTypeFilter !== 'ALL') {
+        const type = a.consultationType === 'ONLINE' ? 'ONLINE' : 'IN_PERSON';
+        if (type !== aptTypeFilter) return false;
+      }
+
+      if (query) {
+        const hay = `${a.appointmentCode || ''} ${a.doctorName || ''} ${a.clinicRoom || ''} ${a.clinicAddress || ''} ${a.chiefComplaint || ''} ${a.icd10Name || ''}`.toLowerCase();
+        if (!hay.includes(query)) return false;
+      }
+      return true;
+    });
+
+    const statusRank = (status: string): number => {
+      switch (status) {
+        case 'IN_PROGRESS': return 0;
+        case 'CHECKED_IN': return 1;
+        case 'SCHEDULED': return 2;
+        case 'COMPLETED': return 3;
+        case 'CANCELLED':
+        case 'NO_SHOW':
+        default:
+          return 4;
+      }
+    };
+
+    return [...filtered].sort((a, b) => {
+      const timeA = new Date(a.scheduledStart).getTime() || 0;
+      const timeB = new Date(b.scheduledStart).getTime() || 0;
+      if (aptSort === 'NEWEST') return timeB - timeA;
+      if (aptSort === 'OLDEST') return timeA - timeB;
+
+      // SMART sort: active/upcoming first (soonest first), then completed (newest first), then cancelled/no-show (newest first)
+      const rankA = statusRank(a.status);
+      const rankB = statusRank(b.status);
+      if (rankA !== rankB) return rankA - rankB;
+      if (rankA <= 2) return timeA - timeB;
+      return timeB - timeA;
+    });
+  }, [appointments, aptStatusFilter, aptTypeFilter, aptSort, aptSearch]);
+
+  useEffect(() => {
+    setAppointmentsPage(1);
+  }, [aptStatusFilter, aptTypeFilter, aptSort, aptSearch]);
+
   // Sliced paginated lists
   const paginatedAppointments = useMemo(() => {
     const start = (appointmentsPage - 1) * appointmentsPageSize;
-    return appointments.slice(start, start + appointmentsPageSize);
-  }, [appointments, appointmentsPage, appointmentsPageSize]);
+    return filteredSortedAppointments.slice(start, start + appointmentsPageSize);
+  }, [filteredSortedAppointments, appointmentsPage, appointmentsPageSize]);
 
   const paginatedTriage = useMemo(() => {
     const start = (triagePage - 1) * triagePageSize;
@@ -766,7 +840,7 @@ export const PatientDashboard: React.FC = () => {
         {/* TAB 1: APPOINTMENTS & EMR ENCOUNTERS */}
         {activeTab === 'appointments' && (
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-indigo-600" />
                 <h2 className="text-xl font-bold text-slate-900">Lịch Khám & Bệnh Án Ngoại Trú (HIS/EMR)</h2>
@@ -779,11 +853,111 @@ export const PatientDashboard: React.FC = () => {
               </Link>
             </div>
 
+            {appointments.length > 0 && (
+              <div className="mb-5 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {/* Status Filter Pills */}
+                  <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Lọc theo trạng thái lịch khám">
+                    {([
+                      { key: 'ALL', label: 'Tất cả', count: appointmentCounts.all },
+                      { key: 'UPCOMING', label: 'Đang đặt / Sắp khám', count: appointmentCounts.upcoming },
+                      { key: 'COMPLETED', label: 'Đã hoàn thành', count: appointmentCounts.completed },
+                      { key: 'CANCELLED', label: 'Đã hủy / Vắng', count: appointmentCounts.cancelled },
+                    ] as const).map((tab) => {
+                      const active = aptStatusFilter === tab.key;
+                      return (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          onClick={() => setAptStatusFilter(tab.key)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                            active
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-300 hover:text-indigo-700'
+                          }`}
+                        >
+                          <span>{tab.label}</span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
+                              active ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {tab.count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Type & Sort Controls */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      aria-label="Lọc theo hình thức khám"
+                      value={aptTypeFilter}
+                      onChange={(e) => setAptTypeFilter(e.target.value as 'ALL' | 'ONLINE' | 'IN_PERSON')}
+                      className="h-8 px-2.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="ALL">Mọi hình thức</option>
+                      <option value="ONLINE">Khám Online</option>
+                      <option value="IN_PERSON">Khám Trực Tiếp</option>
+                    </select>
+                    <select
+                      aria-label="Sắp xếp lịch khám"
+                      value={aptSort}
+                      onChange={(e) => setAptSort(e.target.value as 'SMART' | 'NEWEST' | 'OLDEST')}
+                      className="h-8 px-2.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="SMART">Ưu tiên lịch sắp khám</option>
+                      <option value="NEWEST">Mới nhất trước</option>
+                      <option value="OLDEST">Cũ nhất trước</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Search Input */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={aptSearch}
+                    onChange={(e) => setAptSearch(e.target.value)}
+                    placeholder="Tìm theo mã lịch hẹn (APT-...), tên bác sĩ, chuyên khoa hoặc bệnh viện..."
+                    className="w-full h-9 pl-8 pr-8 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                  />
+                  {aptSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setAptSearch('')}
+                      aria-label="Xóa tìm kiếm"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {loading ? (
               <div className="py-12 text-center text-slate-400 text-sm">Đang tải lịch sử khám bệnh...</div>
             ) : appointments.length === 0 ? (
               <div className="py-12 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">
                 Bạn chưa có lịch hẹn khám nào. Hãy nhấn <strong>"Đặt Lịch Mới"</strong> để tìm bác sĩ chuyên khoa.
+              </div>
+            ) : filteredSortedAppointments.length === 0 ? (
+              <div className="py-12 text-center text-slate-500 text-sm border border-dashed border-slate-200 rounded-2xl space-y-2">
+                <p>Không tìm thấy lịch hẹn nào khớp với bộ lọc hiện tại.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAptStatusFilter('ALL');
+                    setAptTypeFilter('ALL');
+                    setAptSearch('');
+                  }}
+                  className="text-xs font-bold text-indigo-600 hover:underline cursor-pointer"
+                >
+                  Xóa bộ lọc
+                </button>
               </div>
             ) : (
               <div className="space-y-4">
@@ -1017,18 +1191,18 @@ export const PatientDashboard: React.FC = () => {
                               </button>
                             )}
 
-                          {apt.status !== 'CANCELLED' &&
-                            apt.status !== 'NO_SHOW' &&
-                            (apt.consultationType === 'ONLINE' || apt.status === 'IN_PROGRESS' || apt.status === 'COMPLETED') && (
-                              <button
-                                type="button"
-                                onClick={() => setChatAppointment(apt)}
-                                className="px-3 py-1.5 text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                              >
-                                <MessageSquare className="w-3.5 h-3.5 text-teal-600" />
-                                <span>Nhắn Tin Bác Sĩ</span>
-                              </button>
-                            )}
+                          <button
+                            type="button"
+                            onClick={() => setChatAppointment(apt)}
+                            className="px-3 py-1.5 text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 text-teal-600" />
+                            <span>
+                              {apt.status === 'COMPLETED' || apt.status === 'CANCELLED' || apt.status === 'NO_SHOW'
+                                ? 'Xem Lịch Sử Chat'
+                                : 'Nhắn Tin Bác Sĩ'}
+                            </span>
+                          </button>
 
                           {apt.status !== 'CANCELLED' && apt.status !== 'NO_SHOW' && (
                             <button
@@ -1071,7 +1245,7 @@ export const PatientDashboard: React.FC = () => {
                 <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
                   <Pagination
                     currentPage={appointmentsPage}
-                    totalItems={appointments.length}
+                    totalItems={filteredSortedAppointments.length}
                     pageSize={appointmentsPageSize}
                     onPageChange={setAppointmentsPage}
                     onPageSizeChange={setAppointmentsPageSize}

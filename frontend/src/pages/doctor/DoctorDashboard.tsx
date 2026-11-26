@@ -1568,66 +1568,74 @@ export const DoctorDashboard: React.FC = () => {
 
       {/* 4 REAL-TIME KPI STATS CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-300 transition">
-          <div className="flex items-center justify-between">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-300 transition flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-slate-500 uppercase">Hàng Đợi Chờ Khám</span>
-            <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 shrink-0">
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-slate-900">{stats?.todayWaitingCount ?? 0}</span>
-            <span className="text-xs text-slate-500">ca hôm nay</span>
+          <div className="mt-3">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-slate-900 tabular-nums">{stats?.todayWaitingCount ?? 0}</span>
+              <span className="text-xs text-slate-500">ca hôm nay</span>
+            </div>
+            <p className="text-[11px] text-amber-700 mt-1 font-medium">Bệnh nhân đang chờ gọi số</p>
           </div>
-          <p className="text-[11px] text-amber-700 mt-1 font-medium">Bệnh nhân đang chờ gọi số</p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-300 transition">
-          <div className="flex items-center justify-between">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-300 transition flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-slate-500 uppercase">Ca Đang Khám Tại Bàn</span>
-            <div className="p-2 rounded-xl bg-teal-50 text-teal-600 border border-teal-200">
+            <div className="p-2 rounded-xl bg-teal-50 text-teal-600 border border-teal-200 shrink-0">
               <PlayCircle className="w-4 h-4 animate-pulse" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-teal-700">{stats?.todayInProgressCount ?? inProgressAppointments.length}</span>
-            <span className="text-xs text-slate-500">trong phòng</span>
+          <div className="mt-3">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-teal-700 tabular-nums">{stats?.todayInProgressCount ?? inProgressAppointments.length}</span>
+              <span className="text-xs text-slate-500">trong phòng</span>
+            </div>
+            <p className="text-[11px] text-teal-700 mt-1 font-medium">Đang thao tác lâm sàng</p>
           </div>
-          <p className="text-[11px] text-teal-700 mt-1 font-medium">Đang thao tác lâm sàng</p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-300 transition">
-          <div className="flex items-center justify-between">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-300 transition flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-slate-500 uppercase">Đã Khám Xong Hôm Nay</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-emerald-700">{stats?.todayCompletedCount ?? 0}</span>
-            <span className="text-xs text-slate-500">ca hoàn tất</span>
+          <div className="mt-3">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-emerald-700 tabular-nums">{stats?.todayCompletedCount ?? 0}</span>
+              <span className="text-xs text-slate-500">ca hoàn tất</span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">Tổng tích lũy: {stats?.totalCompletedCount ?? 0} ca</p>
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">Tổng tích lũy: {stats?.totalCompletedCount ?? 0} ca</p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-300 transition">
-          <div className="flex items-center justify-between">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-300 transition flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-slate-500 uppercase">Doanh Thu Trong Ngày</span>
-            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200">
+            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-1">
-            <span className="text-2xl font-black text-indigo-700">
-              {Number(stats?.todayRevenue ?? 0).toLocaleString('vi-VN')}
-            </span>
-            <span className="text-xs font-bold text-slate-500">VNĐ</span>
+          <div className="mt-3">
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-2xl xl:text-3xl font-black text-indigo-700 tabular-nums">
+                {Number(stats?.todayRevenue ?? 0).toLocaleString('vi-VN')}
+              </span>
+              <span className="text-xs font-bold text-slate-500">VNĐ</span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1 truncate">
+              {stats?.doctorRating && (stats.reviewCount ?? 0) > 0
+                ? `Đánh giá: ⭐ ${stats.doctorRating.toFixed(1)}/5.0 (${stats.reviewCount} nhận xét)`
+                : 'Chưa có đánh giá từ bệnh nhân'}
+            </p>
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            {stats?.doctorRating && (stats.reviewCount ?? 0) > 0
-              ? `Đánh giá: ⭐ ${stats.doctorRating.toFixed(1)}/5.0 (${stats.reviewCount} nhận xét)`
-              : 'Chưa có đánh giá từ bệnh nhân'}
-          </p>
         </div>
       </div>
 
@@ -1649,10 +1657,10 @@ export const DoctorDashboard: React.FC = () => {
             {inProgressAppointments.map((apt) => (
               <div
                 key={apt.id}
-                className="bg-white/10 p-4 rounded-2xl border border-white/15 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 backdrop-blur-xs"
+                className="bg-white/10 p-4 rounded-2xl border border-white/15 flex flex-col sm:flex-row items-start justify-between gap-4 backdrop-blur-xs"
               >
-                <div>
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded-lg bg-teal-400/20 text-teal-200 border border-teal-400/30">
                       {apt.appointmentCode}
                     </span>
@@ -2033,13 +2041,13 @@ export const DoctorDashboard: React.FC = () => {
                 {paginatedScheduled.map((apt) => (
                   <div
                     key={apt.id}
-                    className={`p-5 rounded-2xl border transition shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                    className={`p-5 rounded-2xl border transition shadow-xs flex flex-col sm:flex-row sm:items-start justify-between gap-4 ${
                       apt.status === 'IN_PROGRESS'
                         ? 'border-teal-500 bg-teal-50/40 ring-1 ring-teal-500'
                         : 'border-slate-200 bg-white hover:border-teal-400'
                     }`}
                   >
-                    <div className="space-y-1">
+                    <div className="space-y-1 min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-200">
                           {apt.appointmentCode}
@@ -2062,8 +2070,8 @@ export const DoctorDashboard: React.FC = () => {
                       </div>
 
                       <h4 className="font-bold text-base text-slate-900 pt-1 flex items-center gap-2">
-                        <User className="w-4 h-4 text-slate-400" />
-                        {apt.patientName}
+                        <User className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span className="truncate">{apt.patientName}</span>
                       </h4>
 
                       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
@@ -3220,9 +3228,9 @@ export const DoctorDashboard: React.FC = () => {
                   <p className="text-[11px] text-slate-500">
                     Chỉ nhập chỉ số đã đo thực tế. Ô để trống sẽ được lưu là <strong>"Chưa đo"</strong>, hệ thống không tự điền giá trị.
                   </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-start">
                     <div className="col-span-2 sm:col-span-1">
-                      <label htmlFor="vs-bp-sys" className="text-slate-600 font-semibold block mb-1">HA tâm thu / tâm trương (mmHg)</label>
+                      <label htmlFor="vs-bp-sys" className="text-slate-600 font-semibold min-h-[2.25rem] flex items-end mb-1 leading-tight">HA tâm thu / tâm trương (mmHg)</label>
                       <div className="flex items-center gap-1">
                         <input
                           id="vs-bp-sys"
@@ -3260,7 +3268,7 @@ export const DoctorDashboard: React.FC = () => {
                       { key: 'respiratoryRate', id: 'vs-rr', label: 'Nhịp thở (lần/phút)', value: respiratoryRate, set: setRespiratoryRate, mode: 'numeric' }
                     ] as const).map((f) => (
                       <div key={f.key}>
-                        <label htmlFor={f.id} className="text-slate-600 font-semibold block mb-1">{f.label}</label>
+                        <label htmlFor={f.id} className="text-slate-600 font-semibold min-h-[2.25rem] flex items-end mb-1 leading-tight">{f.label}</label>
                         <input
                           id={f.id}
                           inputMode={f.mode}
@@ -3279,7 +3287,7 @@ export const DoctorDashboard: React.FC = () => {
                       </div>
                     ))}
                     <div>
-                      <span className="text-slate-600 font-semibold block mb-1">BMI (tự tính)</span>
+                      <span className="text-slate-600 font-semibold min-h-[2.25rem] flex items-end mb-1 leading-tight">BMI (tự tính)</span>
                       <div className="py-1.5 px-2 bg-slate-100 border border-slate-200 rounded-lg font-mono font-bold text-slate-800 text-center">
                         {calculatedBmi > 0 && !vitalError('height') && !vitalError('weight') ? `${calculatedBmi} kg/m²` : <Missing label="Cần cao + nặng" />}
                       </div>
@@ -3549,9 +3557,9 @@ export const DoctorDashboard: React.FC = () => {
                           const conflict = checkDrugAllergyConflict(item.drugName, patientPassport?.allergies) ||
                                            checkDrugAllergyConflict(item.activeIngredient, patientPassport?.allergies);
                           return (
-                            <tr key={index} className={conflict ? "bg-rose-50/80 border-l-4 border-rose-500" : "hover:bg-slate-50"}>
-                              <td className="p-2 text-slate-400 font-mono">{index + 1}</td>
-                              <td className="p-2">
+                            <tr key={index} className={conflict ? "bg-rose-50/80 border-l-4 border-rose-500 align-top" : "hover:bg-slate-50 align-top"}>
+                              <td className="p-2 pt-3 text-slate-400 font-mono align-top">{index + 1}</td>
+                              <td className="p-2 align-top">
                                 <input
                                   type="text"
                                   value={item.drugName}

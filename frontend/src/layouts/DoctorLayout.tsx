@@ -77,7 +77,7 @@ export const DoctorLayout: React.FC = () => {
   const renderCchnStatus = (uppercase = false) => {
     if (isCchnVerified === true) {
       return (
-        <span className="font-mono text-[10px] text-emerald-700 font-bold">
+        <span className="block mt-1 font-mono text-[10px] leading-tight text-emerald-700 font-bold">
           {uppercase ? '✓ CCHN ĐÃ XÁC THỰC' : '✓ CCHN đã xác thực'}
         </span>
       );
@@ -86,7 +86,7 @@ export const DoctorLayout: React.FC = () => {
       return (
         <Link
           to="/doctor/profile"
-          className="font-mono text-[10px] text-amber-700 hover:text-amber-900 font-bold underline decoration-amber-400/70 underline-offset-2"
+          className="block mt-1 font-mono text-[10px] leading-tight text-amber-700 hover:text-amber-900 font-bold underline decoration-amber-400/70 underline-offset-2"
           title="Hoàn thiện hồ sơ & CCHN để Admin thẩm định"
         >
           {uppercase ? '⏳ CHỜ THẨM ĐỊNH CCHN' : '⏳ Chờ thẩm định CCHN'}
@@ -94,7 +94,7 @@ export const DoctorLayout: React.FC = () => {
       );
     }
     return (
-      <span className="font-mono text-[10px] text-slate-400 font-medium">
+      <span className="block mt-1 font-mono text-[10px] leading-tight text-slate-400 font-medium">
         {uppercase ? 'ĐANG KIỂM TRA CCHN...' : 'Đang kiểm tra CCHN...'}
       </span>
     );
