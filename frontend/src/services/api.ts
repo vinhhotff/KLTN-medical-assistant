@@ -134,6 +134,16 @@ export async function fetchPaymentConfig(): Promise<PaymentConfigDto | null> {
   }
 }
 
+export async function getTransactionDetails(transactionCode: string): Promise<PaymentReceiptDto | null> {
+  if (!transactionCode.trim()) return null;
+  try {
+    const res = await api.get(`/payments/transactions/${encodeURIComponent(transactionCode.trim())}`);
+    return (res.data?.data as PaymentReceiptDto) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function cancelPendingTransaction(transactionCode: string): Promise<PaymentReceiptDto | null> {
   if (!transactionCode.trim()) return null;
   try {

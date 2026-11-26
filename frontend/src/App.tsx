@@ -30,6 +30,7 @@ const DoctorSearchPage = lazy(() => import('./pages/patient/DoctorSearchPage').t
 const DocumentSummarizerPage = lazy(() => import('./pages/patient/DocumentSummarizerPage').then((m) => ({ default: m.DocumentSummarizerPage })));
 const SymptomTriagePage = lazy(() => import('./pages/patient/SymptomTriagePage').then((m) => ({ default: m.SymptomTriagePage })));
 const PaymentSuccessPage = lazy(() => import('./pages/patient/PaymentSuccessPage').then((m) => ({ default: m.PaymentSuccessPage })));
+const StripeCheckoutPage = lazy(() => import('./pages/patient/StripeCheckoutPage').then((m) => ({ default: m.StripeCheckoutPage })));
 const ConsultationPage = lazy(() => import('./components/telehealth/ConsultationPage').then((m) => ({ default: m.ConsultationPage })));
 
 const RouteFallback = () => (
@@ -64,6 +65,7 @@ export function App() {
           <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
 
           {/* Payment Callback & Receipt Verification */}
+          <Route path="/payment/stripe-checkout" element={<StripeCheckoutPage />} />
           <Route path="/payment/success" element={<PaymentSuccessPage />} />
           <Route path="/payment/cancel" element={<PaymentCancelRedirect />} />
 

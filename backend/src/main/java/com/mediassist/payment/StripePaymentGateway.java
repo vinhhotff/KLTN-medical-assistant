@@ -199,9 +199,12 @@ public class StripePaymentGateway implements PaymentGateway {
         }
 
         if ("MOCK".equals(activeMode)) {
-            log.info("💳 [STRIPE SANDBOX MOCK] Using local sandbox fallback for tx: {}", tx.getTransactionCode());
+            log.info("💳 [STRIPE SANDBOX MOCK] Redirecting to Stripe sandbox checkout page for tx: {}", tx.getTransactionCode());
             String mockSessionId = "cs_test_mock_" + UUID.randomUUID().toString().replace("-", "");
-            String redirectUrl = appendQueryParam(successUrl, "session_id=" + mockSessionId
+            String checkoutPage = (successUrl != null && successUrl.contains("/payment/success"))
+                    ? successUrl.replaceFirst("/payment/success", "/payment/stripe-checkout")
+                    : (successUrl != null ? successUrl + "/stripe-checkout" : "/payment/stripe-checkout");
+            String redirectUrl = appendQueryParam(checkoutPage, "session_id=" + mockSessionId
                     + "&tx=" + tx.getTransactionCode()
                     + "&sandbox=stripe");
             return PaymentInitiationResult.success(redirectUrl, mockSessionId,

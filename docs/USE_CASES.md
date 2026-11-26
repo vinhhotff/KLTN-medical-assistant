@@ -1741,8 +1741,11 @@ graph TD
   - Thiết bị không có Camera/Micro vẫn vào phòng ở chế độ `audio-only` hoặc `chat-only` để xem/nghe và nhắn tin với bác sĩ.
 
 #### UC-PAY-02: Thanh Toán Stripe Checkout Thực Tế & Kiểm Tra Chế Độ Cổng (`REAL` / `MOCK` / `DISABLED`)
-> - **Backend:** `PaymentController` (`GET /api/v1/payments/config`, `POST /api/v1/payments/checkout`, `POST /api/v1/payments/verify`, `POST /api/v1/payments/transactions/{code}/cancel`, `POST /api/v1/payments/webhook/stripe`), `StripePaymentGateway`, `PaymentService`, `AdminVettingService`
-> - **Frontend:** `DocumentSummarizerPage.tsx`, `BookingModal.tsx`, `PatientDashboard.tsx`, `PaymentSuccessPage.tsx`, `api.ts`
+> - **Backend:** `PaymentController` (`GET /api/v1/payments/config`, `POST /api/v1/payments/checkout`, `POST /api/v1/payments/verify`, `GET /api/v1/payments/transactions/{code}`, `POST /api/v1/payments/transactions/{code}/cancel`, `POST /api/v1/payments/webhook/stripe`), `StripePaymentGateway`, `PaymentService`, `AdminVettingService`
+> - **Frontend:** `StripeCheckoutPage.tsx` (Tuyến `/payment/stripe-checkout`), `DocumentSummarizerPage.tsx`, `BookingModal.tsx`, `PatientDashboard.tsx`, `PaymentSuccessPage.tsx`, `api.ts`
+> - **Luồng Thực Hiện Đa Chế Độ (Multi-Mode Flow):**
+>   1. **Chế độ Stripe Thật (`REAL`):** Khi `.env` chứa `STRIPE_SECRET_KEY=sk_test_...` thật, hệ thống gọi Stripe API tạo Hosted Checkout Session và chuyển hướng trực tiếp sang `https://checkout.stripe.com/c/pay/...`. Người dùng nhập thẻ quốc tế trực tiếp trên hạ tầng bảo mật của Stripe.
+>   2. **Chế độ Stripe Sandbox Mô Phỏng (`MOCK`):** Khi chưa gắn API Key thật hoặc chạy demo nội bộ, hệ thống chuyển hướng người dùng sang trang **Stripe Checkout Sandbox** (`/payment/stripe-checkout`) với đầy đủ giao diện nhập thẻ (Card number, Expiry, CVC, Name), chip điền nhanh thẻ Visa Test `4242` hoặc thẻ từ chối `4000`, mô phỏng xác thực 3D-Secure trước khi hoàn tất đơn hàng và ghi sổ cái giao dịch.
 > - **Cơ chế an toàn:** Không còn fallback âm thầm sang `cs_test_mock_` khi `REAL` mode gặp lỗi API Stripe; hỗ trợ đơn vị tiền tệ zero-decimal `VND` (kiểm tra tối thiểu 15.000 VND theo quy định Stripe), xác minh webhook HMAC `Stripe-Signature` nghiêm ngặt (`400 INVALID_SIGNATURE`), hỗ trợ hủy giao dịch `PENDING` khi người dùng bấm Quay lại từ Stripe Cancel URL, và kích hoạt `Stripe Refund` cả khi Bệnh nhân/Bác sĩ hoặc Admin hủy lịch đã thanh toán (`PAID`).
 
 #### UC-COMM-07: Đăng Ký Bác Sĩ Bước 1 Kèm Upload Ảnh Chân Dung & Bản Scan CCHN Thực Tế

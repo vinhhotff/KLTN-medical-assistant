@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#140** | 26/11/2026 | Bổ Sung Giao Diện Nhập Thẻ Stripe Checkout Sandbox (`/payment/stripe-checkout`) & Chuẩn Hóa Điều Hướng Cổng Thanh Toán Stripe Thật / Sandbox Đa Chế Độ (`REAL` vs `MOCK`). | AI Assistant | 🟢 Sẵn sàng Review |
 | **#139** | 25/11/2026 | Tối Ưu Hóa Toàn Diện UX/UI Telehealth Video Call: Chế Độ Cửa Sổ Nổi (PiP), Bàn Khám EMR Tích Hợp Đa Phân Hệ & Chuẩn Hóa Typography Không Lệch Hàng. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#138** | 25/11/2026 | Bổ Sung Ảnh Sơ Đồ Kiến Trúc Hệ Thống (`docs/images/system_architecture_technical.png`, `system_architecture.png`, `system_architecture_mediassist.png`) Vào Nhánh `feature/fuction` Để Đồng Bộ Tài Liệu Bảo Vệ. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#137** | 25/11/2026 | Triển Khai Toàn Diện 3 Tính Năng Trọng Tâm (Hybrid Telehealth Video Call & Chat, Real Stripe Checkout/Refund, Real Image/Document Upload Khi Đăng Ký Bác Sĩ): (1) **Hybrid Telehealth (`IN_PERSON` + `ONLINE`)**: Flyway `V25__telehealth_online_and_chat.sql` bổ sung `consultation_type`, `meeting_room_code`, `meeting_url`, `checked_in_at` vào `appointments` và tạo bảng `consultation_messages`; cấu hình STOMP WebSocket + JWT handshake/channel guards (`WebSocketConfig.java`, `/ws`, `/api/v1/ws`), `ConsultationController` + `ConsultationService` (room join/leave/start, chat persistent + đính kèm ảnh vào `consultations/`, signaling WebRTC có REST polling fallback); giao diện `TelehealthRoomModal`, `ConsultationChatPanel`, `ConsultationChatModal`, `ConsultationPage` (`/consultation/:id`), `BookingModal`, `AdmissionTicketModal`, `PatientDashboard`, `DoctorDashboard`, `DoctorSearchPage` cùng proxy `ws: true` trong `vite.config.ts`; vá triệt để lỗi `ROOM_STATUS` payload object, blank PiP preview trước khi mount video, trùng `JOIN` ngắt peer connection và stale closure; (2) **Real Stripe Integration**: Nâng cấp `StripePaymentGateway` với `StripeSdkClient`, chế độ `REAL`/`MOCK`/`DISABLED` minh bạch (không fallback mock âm thầm khi `REAL` lỗi), chuẩn hóa zero-decimal `VND` (tối thiểu 15.000₫), `verifyPayment` & `Refund.create`, HMAC webhook `constructWebhookEvent` chặt chẽ, thêm `GET /api/v1/payments/config`, `POST /api/v1/payments/transactions/{code}/cancel`, đồng bộ Stripe refund vào cả `AdminVettingService.adminCancelAppointment`, và cập nhật `PaymentSuccessPage` / `DocumentSummarizerPage` / `BookingModal`; (3) **Real Doctor Registration Upload**: Mở rộng `POST /api/v1/auth/register/doctor` nhận `multipart/form-data` (`avatar`, `license`) song song JSON, cập nhật `DoctorRegisterForm.tsx` drag-and-drop ảnh/PDF lên Supabase, chuẩn hóa fallback `/uploads/...` sang `/api/v1/storage/files/{folder}/{owner}/{filename}`. Kiểm thử: Backend `mvn test` **359/359 PASS (0 Failures, 0 Errors)**, Frontend `npm run build` **0 lỗi TypeScript** (`2.337` modules). | AI Assistant | 🟢 Sẵn sàng Review |
@@ -70,6 +71,30 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#140] Bổ Sung Giao Diện Nhập Thẻ Stripe Checkout Sandbox (`/payment/stripe-checkout`) & Chuẩn Hóa Điều Hướng Cổng Thanh Toán Stripe Thật / Sandbox Đa Chế Độ
+* **Thời gian:** 2026-11-26 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/telehealth-stripe-storage`
+* **Vấn đề giải quyết:**
+  - Trước đây, khi cấu hình Stripe ở chế độ MOCK Sandbox (do sử dụng khóa giả định `sk_test_mock_...`), Backend `StripePaymentGateway` trả về URL `successUrl` trực tiếp. Dẫn đến khi bấm *"Thanh toán ngay (Stripe)"*, trình duyệt nhảy thẳng sang `/payment/success` và tự động verify thành công mà người dùng không hề được chuyển sang bất kỳ trang nào để nhập số thẻ, gây hẫng trải nghiệm và mất tính chân thực khi demo/bảo vệ KLTN.
+* **Tệp tin thay đổi:**
+  - `[NEW]` `frontend/src/pages/patient/StripeCheckoutPage.tsx`: Màn hình giao diện Stripe Checkout Sandbox chuyên nghiệp theo chuẩn quốc tế:
+    - Bố cục 2 cột: Cột trái hiển thị Tóm tắt đơn hàng (tên dịch vụ y tế, mã giao dịch, VAT 0%, tổng tiền VNĐ, huy hiệu bảo mật Stripe SSL 256-bit); Cột phải là Biểu mẫu nhập thẻ thanh toán quốc tế (Số thẻ, Ngày hết hạn MM/YY, CVC, Tên chủ thẻ, Quốc gia).
+    - Tự động nhận diện thương hiệu thẻ (Visa, Mastercard, JCB), tự động định dạng khoảng cách số thẻ và ngày hết hạn.
+    - Tích hợp 2 chip điền nhanh 1-Click: `🧪 Thẻ Visa Test (4242) - Thành công` và `⚠️ Thẻ Test Bị Từ Chối (4000)`.
+    - Mô phỏng bước mã hóa dữ liệu PCI-DSS Level 1 và xác thực 3D-Secure trước khi chuyển tiếp sang biên nhận thành công.
+    - Hỗ trợ nút "Quay lại MediAssist" gọi API hủy an toàn `cancelPendingTransaction`.
+  - `[MOD]` `frontend/src/App.tsx`: Đăng ký tuyến mới `/payment/stripe-checkout` kết nối với `StripeCheckoutPage`.
+  - `[MOD]` `frontend/src/services/api.ts`: Bổ sung hàm `getTransactionDetails(transactionCode)` truy vấn thông tin chi tiết đơn hàng cho màn hình thanh toán.
+  - `[MOD]` `backend/src/main/java/com/mediassist/payment/StripePaymentGateway.java`: Cập nhật phương thức `initiatePayment()` trong nhánh `MOCK`: chuyển hướng người dùng sang tuyến `/payment/stripe-checkout` thay vì nhảy thẳng vào `successUrl`. Nhánh `REAL` tiếp tục gọi Stripe Hosted Checkout (`checkout.stripe.com`) khi có key thật `sk_test_...`.
+* **Tài liệu đã đồng bộ:** `docs/WORK_LOG.md`, `docs/USE_CASES.md` (Cập nhật mục UC-PAY-02).
+* **Bằng chứng kiểm thử:**
+  - Backend: `mvn test -Dtest=StripePaymentGatewayTest,PaymentServiceTest` **25/25 Tests PASS (0 Failures, 0 Errors)**.
+  - Frontend: `npm run build` (`tsc && vite build`) **0 lỗi TypeScript** (2.338 modules transformed, build 2.85s).
+* **Điểm nóng Tech Lead cần Review:**
+  - **Khi chưa có tài khoản Stripe thật:** Hệ thống tự động chuyển sang trang Stripe Checkout Sandbox tại `/payment/stripe-checkout` để người dùng/hội đồng nhập số thẻ test, bấm thanh toán và trải nghiệm xác thực 3D-Secure trực quan.
+  - **Khi muốn dùng Stripe thật (`checkout.stripe.com`):** Tech Lead chỉ cần điền `STRIPE_SECRET_KEY=sk_test_...` thật (không chứa chữ `mock`) vào `.env`, hệ thống sẽ tự động chuyển hướng người dùng trực tiếp sang trang hosted chính thức của Stripe.
 
 ### [WORK-LOG-#139] Tối Ưu Hóa Toàn Diện UX/UI Telehealth Video Call: Chế Độ Cửa Sổ Nổi (PiP), Bàn Khám EMR Tích Hợp & Chuẩn Hóa Typography
 * **Thời gian:** 2026-11-25 (GMT+7)
