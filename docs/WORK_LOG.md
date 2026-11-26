@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#143** | 26/11/2026 | Nâng Cấp Kiến Trúc Xếp Hạng Bác Sĩ Đa Miền Lâm Sàng (12-Domain Specialty Matrix & Allied Synergy Engine): Triệt Tiêu Lỗi Xung Đột Nhánh Rẽ (Sequential Branch Stealing), Bổ Sung Cơ Chế Liên Minh Chuyên Khoa (Cardiopulmonary & Neuro-ENT Synergy), Tăng Độ Sâu Thu Phóng pgvector (Candidate Limit x4), Sửa Cấu Hình Model Gemini `gemini-2.5-flash` & Bổ Sung Test Case Đa Chuyên Khoa. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#142** | 26/11/2026 | Hiệu Chuẩn Thuật Toán Xếp Hạng Bác Sĩ Đa Tiêu Chí (WHRF Scoring Calibration) & Tăng Cường Phạt Phân Kỳ Tương Phản (Contrastive Divergence Penalty): Tách Biệt Rõ Rệt Độ Khớp Bác Sĩ Đúng Chuyên Khoa (85%–96%) vs Bác Sĩ Trái Tuyến (<25%), Loại Bỏ Hoàn Toàn Điểm Sàn Ảo & Bác Sĩ Khác Khoa Khỏi Gợi Ý Lâm Sàng. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#141** | 26/11/2026 | Khắc Phục Triệt Để Lỗi Đặt Lịch Khám Online Hiển Thị Thành Khám Trực Tiếp (Offline): Chuẩn Hóa Flyway Migration V26 (`V26__telehealth_online_and_chat.sql`), Khôi Phục V25 CCHN Tránh Xung Đột Checksum, Bổ Sung Toàn Vẹn Cột `consultation_type`, `meeting_room_code`, `meeting_url` Vào CSDL PostgreSQL & Cập Nhật Lịch Hẹn Đã Đặt. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#140** | 26/11/2026 | Bổ Sung Giao Diện Nhập Thẻ Stripe Checkout Sandbox (`/payment/stripe-checkout`) & Chuẩn Hóa Điều Hướng Cổng Thanh Toán Stripe Thật / Sandbox Đa Chế Độ (`REAL` vs `MOCK`). | AI Assistant | 🟢 Sẵn sàng Review |
@@ -73,6 +74,32 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#143] Nâng Cấp Kiến Trúc Xếp Hạng Bác Sĩ Đa Miền Lâm Sàng (12-Domain Specialty Matrix & Allied Synergy Engine) & Chuẩn Hóa Cấu Hình AI Gateway
+* **Thời gian:** 2026-11-26 09:55 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/telehealth-stripe-storage`
+* **Vấn đề giải quyết & Rà soát chuyên sâu (Deep Audit):**
+  - Rà soát toàn diện logic xếp hạng bác sĩ phát hiện lỗi tiềm ẩn: cấu trúc nhánh tuần tự (`if ... return`) cũ có nguy cơ chiếm quyền khớp sớm (Sequential Branch Stealing). Ví dụ: Một ca bệnh Hô Hấp có triệu chứng *"đau ngực khi thở sâu"* bị nhánh Tim Mạch bắt trước và phạt nhầm bác sĩ Hô Hấp -0.35 điểm.
+  - Các chuyên khoa có mối liên hệ lâm sàng mật thiết (Allied Specialties) như Tim Mạch & Hô Hấp (triệu chứng lồng ngực/khó thở), Thần Kinh & Tai Mũi Họng (chóng mặt/tiền đình/ù tai), Nội Tiết & Thận (biến chứng đái tháo đường) cần được đối xử trung lập (Neutral 0.00), tránh bị phạt phân kỳ như chuyên khoa hoàn toàn đối nghịch (như Sản hay Da Liễu).
+  - Cấu hình mô hình Gemini trong `application.properties` bị ghi nhầm `gemini-3.5-flash` (không tồn tại trong Google API) dẫn đến lỗi HTTP 404 khi gọi AI Gateway trực tiếp.
+* **Tệp tin thay đổi:**
+  - `[MOD]` `backend/src/main/java/com/mediassist/service/DoctorSemanticSearchService.java`:
+    - Tạo cấu trúc Enum `SpecialtyDomain` bao quát trọn vẹn 12 chuyên khoa của hệ thống kèm bộ từ khóa song ngữ Anh - Việt.
+    - Cơ chế 2 tầng: Tầng 1 ưu tiên nhận diện chuyên khoa mục tiêu rõ ràng (`detectExplicitTargetSpecialty`) với điểm thưởng lớn (+0.28) cho bác sĩ đích, duy trì (+0.05) cho Nội tổng quát; Tầng 2 tính điểm hội tụ triệu chứng (`computeSymptomAffinity`) cho các câu tìm kiếm tự do không ghi rõ chuyên khoa.
+    - Triển khai ma trận liên minh chuyên khoa `isAlliedSpecialty`: Cardiopulmonary, Neuro-ENT, Respiratory-ENT, Metabolic-Renal được xếp ở mức trung lập (0.00), chỉ phạt phân kỳ (-0.35) các chuyên khoa hoàn toàn không liên can.
+    - Mở rộng độ sâu pool ứng viên pgvector `candidateLimit = Math.max(20, effectiveLimit * 4)`.
+  - `[MOD]` `backend/src/main/resources/application.properties` & `application-dev.properties`:
+    - Chuẩn hóa tên mô hình Google Gemini chính thức: `gemini-2.5-flash`.
+  - `[MOD]` `backend/src/test/java/com/mediassist/DoctorSemanticSearchServiceTest.java`:
+    - Bổ sung test `testAlliedSpecialtyCardiopulmonaryAlignment_NeutralAlliedAndPenalizedDivergent`: Khẳng định bác sĩ Hô Hấp đạt $\ge 85\%$, bác sĩ Tim Mạch đồng minh đạt mức an toàn $\sim 45\% - 55\%$ (không bị phạt -0.35), và bác sĩ Sản bị loại bỏ $< 25\%$.
+    - Bổ sung test `testRawSymptomMatching_InfersTopSpecialtyWithoutExplicitTarget`: Khẳng định khả năng suy luận chuyên khoa chuẩn xác từ triệu chứng tự do không có tiền tố chuyên khoa.
+  - `[MOD]` `docs/CAPSTONE_DEFENSE.md`: Cập nhật câu 9 bổ sung ma trận Allied Specialty Synergy.
+  - `[MOD]` `docs/WORK_LOG.md`: Ghi chép chi tiết phiên làm việc #143.
+* **Tài liệu đã đồng bộ:** `docs/CAPSTONE_DEFENSE.md`, `docs/WORK_LOG.md`.
+* **Bằng chứng kiểm thử & Trạng thái hệ thống:**
+  - Backend Unit Tests: `cd backend && mvn test` **362/362 Tests PASS (100% SUCCESS, 0 Failures, 0 Errors)**.
+  - Frontend TypeScript Build: `cd frontend && npm run build` **0 lỗi TypeScript** (2.338 modules).
 
 ### [WORK-LOG-#142] Hiệu Chuẩn Thuật Toán Xếp Hạng Bác Sĩ Đa Tiêu Chí (WHRF Scoring Calibration) & Tăng Cường Phạt Phân Kỳ Tương Phản (Contrastive Divergence Penalty): Tách Biệt Rõ Rệt Độ Khớp Bác Sĩ Đúng Chuyên Khoa (85%–96%) vs Bác Sĩ Trái Tuyến (<25%)
 * **Thời gian:** 2026-11-26 09:25 (GMT+7)

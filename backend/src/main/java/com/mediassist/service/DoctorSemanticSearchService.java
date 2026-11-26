@@ -192,8 +192,8 @@ public class DoctorSemanticSearchService {
         float[] queryVector = embeddingService.generateEmbedding(cleansedSymptom);
         String vectorSql = embeddingService.toVectorSqlString(queryVector);
 
-        // Candidate pool for WHRF Re-Ranking
-        int candidateLimit = Math.max(effectiveLimit, Math.min(30, effectiveLimit * 3));
+        // Candidate pool for WHRF Re-Ranking (ample depth for precision recall)
+        int candidateLimit = Math.max(20, effectiveLimit * 4);
 
         // High-Precision Hybrid Query with pgvector HNSW Cosine Similarity & Correlated Specialty Aggregation
         String sql = """
@@ -415,11 +415,45 @@ public class DoctorSemanticSearchService {
     }
 
     /**
+     * Domain representation of the 12 clinical specialties in MediAssist-AI.
+     */
+    public enum SpecialtyDomain {
+        NEUROLOGY("thần kinh", "neurology"),
+        CARDIOLOGY("tim mạch", "cardiology", "tim"),
+        GASTROENTEROLOGY("tiêu hóa", "gan mật", "gastroenterology"),
+        DERMATOLOGY("da liễu", "dermatology"),
+        ORTHOPEDICS("cơ xương khớp", "chấn thương chỉnh hình", "orthopedics"),
+        PULMONOLOGY("hô hấp", "phổi", "pulmonology"),
+        OBGYN("sản phụ khoa", "phụ sản", "sản khoa", "phụ khoa", "obstetrics", "gynecology"),
+        PEDIATRICS("nhi khoa", "nhi", "pediatrics"),
+        NEPHROLOGY("thận", "tiết niệu", "nephrology"),
+        ENDOCRINOLOGY("nội tiết", "đái tháo đường", "endocrinology"),
+        ENT("tai mũi họng", "ent", "otolaryngology"),
+        GENERAL_INTERNAL("nội tổng quát", "nội khoa", "general-internal-medicine", "general internal medicine");
+
+        private final String[] keywords;
+        SpecialtyDomain(String... keywords) {
+            this.keywords = keywords;
+        }
+
+        public boolean matches(String text) {
+            if (text == null || text.isBlank()) return false;
+            String lower = text.toLowerCase();
+            for (String kw : keywords) {
+                if (lower.contains(kw)) return true;
+            }
+            return false;
+        }
+    }
+
+    /**
      * Contrastive Specialty Semantic Alignment & Divergence Penalty:
-     * - Grants bonus (+0.22 to +0.28) if symptoms / target specialty align with doctor's primary specialty.
-     * - Grants secondary baseline (+0.05) to General Internal Medicine (Nội tổng quát) as valid diagnostic fallback.
-     * - Applies severe penalty (-0.35) if symptoms / target specialty belong to an unrelated divergent specialty
-     *   (e.g., Ob/Gyn or Gastroenterology for Neurology headache/insomnia complaints).
+     * - Grants bonus (+0.28) if doctor matches the explicitly targeted specialty from AI Triage or query.
+     * - Grants bonus (+0.22) if doctor matches the top symptom-inferred specialty.
+     * - Grants baseline (+0.05) to General Internal Medicine (Nội tổng quát) as valid diagnostic fallback.
+     * - Keeps allied specialties neutral (0.00, e.g. Cardiopulmonary overlap or Neuro-ENT dizziness overlap).
+     * - Applies severe penalty (-0.35) if doctor belongs to an unrelated divergent specialty
+     *   (e.g., Ob/Gyn or Gastroenterology for Neurology complaints).
      */
     private double computeSpecialtyAlignment(DoctorMatchDto doc, String queryText) {
         if (queryText == null || queryText.isBlank() || doc.getSpecialties() == null || doc.getSpecialties().isEmpty()) {
@@ -427,137 +461,177 @@ public class DoctorSemanticSearchService {
         }
 
         String lowerQuery = queryText.toLowerCase();
-        String specStr = String.join(" ", doc.getSpecialties()).toLowerCase();
-        boolean docGeneralInternal = specStr.contains("nội tổng quát")
-                || specStr.contains("general-internal-medicine")
-                || specStr.contains("general internal medicine");
+        SpecialtyDomain docDomain = detectDoctorDomain(doc);
 
-        // 1. NEUROLOGY (Thần Kinh)
-        boolean queryNeuroTarget = lowerQuery.contains("thần kinh") || lowerQuery.contains("neurology");
-        boolean queryNeuroSymptoms = lowerQuery.contains("đau đầu") || lowerQuery.contains("nửa đầu")
-                || lowerQuery.contains("chóng mặt") || lowerQuery.contains("mất ngủ")
-                || lowerQuery.contains("tiền đình") || lowerQuery.contains("đột quỵ")
-                || lowerQuery.contains("tê bì") || lowerQuery.contains("co giật");
-        boolean docNeuro = specStr.contains("thần kinh") || specStr.contains("neurology");
-        if (queryNeuroTarget || queryNeuroSymptoms) {
-            if (docNeuro) return queryNeuroTarget ? 0.28 : 0.22;
-            if (docGeneralInternal) return 0.05;
-            return -0.35;
+        // Case 1: Query contains an explicit target specialty (e.g. from Triage focused query or explicit search)
+        SpecialtyDomain targetDomain = detectExplicitTargetSpecialty(lowerQuery);
+        if (targetDomain != null) {
+            if (docDomain == targetDomain) {
+                return 0.28; // Direct Specialist Target Hit (+28%)
+            }
+            if (docDomain == SpecialtyDomain.GENERAL_INTERNAL) {
+                return 0.05; // Primary Care Baseline Option (+5%)
+            }
+            if (isAlliedSpecialty(targetDomain, docDomain)) {
+                return 0.00; // Allied Specialist: clinically reasonable overlap, no penalty
+            }
+            return -0.35; // Severe Divergence Penalty (-35%)
         }
 
-        // 2. CARDIOLOGY (Tim Mạch)
-        boolean queryCardioTarget = lowerQuery.contains("tim mạch") || lowerQuery.contains("cardiology");
-        boolean queryCardioSymptoms = lowerQuery.contains("tim") || lowerQuery.contains("ngực")
-                || lowerQuery.contains("mạch") || lowerQuery.contains("huyết áp")
-                || lowerQuery.contains("đánh trống ngực") || lowerQuery.contains("hồi hộp");
-        boolean docCardio = specStr.contains("tim") || specStr.contains("mạch") || specStr.contains("cardiology");
-        if (queryCardioTarget || queryCardioSymptoms) {
-            if (docCardio) return queryCardioTarget ? 0.28 : 0.22;
-            if (docGeneralInternal) return 0.05;
-            return -0.35;
+        // Case 2: Raw symptom query without explicit target specialty
+        Map<SpecialtyDomain, Integer> affinity = computeSymptomAffinity(lowerQuery);
+        if (affinity.isEmpty()) {
+            return docDomain == SpecialtyDomain.GENERAL_INTERNAL ? 0.05 : 0.0;
         }
 
-        // 3. GASTROENTEROLOGY (Tiêu Hóa - Gan Mật)
-        boolean queryGastroTarget = lowerQuery.contains("tiêu hóa") || lowerQuery.contains("gan mật") || lowerQuery.contains("gastroenterology");
-        boolean queryGastroSymptoms = lowerQuery.contains("dạ dày") || lowerQuery.contains("đau bụng")
-                || lowerQuery.contains("ợ chua") || lowerQuery.contains("đại tràng")
-                || lowerQuery.contains("trào ngược") || lowerQuery.contains("men gan") || lowerQuery.contains("nội soi");
-        boolean docGastro = specStr.contains("tiêu hóa") || specStr.contains("gan mật") || specStr.contains("gastroenterology");
-        if (queryGastroTarget || queryGastroSymptoms) {
-            if (docGastro) return queryGastroTarget ? 0.28 : 0.22;
-            if (docGeneralInternal) return 0.05;
-            return -0.35;
+        SpecialtyDomain topDomain = null;
+        int maxMatches = 0;
+        for (Map.Entry<SpecialtyDomain, Integer> entry : affinity.entrySet()) {
+            if (entry.getValue() > maxMatches) {
+                maxMatches = entry.getValue();
+                topDomain = entry.getKey();
+            }
         }
 
-        // 4. DERMATOLOGY (Da Liễu)
-        boolean queryDermaTarget = lowerQuery.contains("da liễu") || lowerQuery.contains("dermatology");
-        boolean queryDermaSymptoms = lowerQuery.contains("ngứa") || lowerQuery.contains("mẩn")
-                || lowerQuery.contains("mụn") || lowerQuery.contains("dị ứng da")
-                || lowerQuery.contains("viêm da") || lowerQuery.contains("mề đay") || lowerQuery.contains("vảy nến");
-        boolean docDerma = specStr.contains("da liễu") || specStr.contains("dermatology");
-        if (queryDermaTarget || queryDermaSymptoms) {
-            if (docDerma) return queryDermaTarget ? 0.28 : 0.22;
-            return -0.35;
-        }
-
-        // 5. ORTHOPEDICS (Cơ Xương Khớp)
-        boolean queryOrthoTarget = lowerQuery.contains("cơ xương khớp") || lowerQuery.contains("orthopedics") || lowerQuery.contains("chấn thương chỉnh hình");
-        boolean queryOrthoSymptoms = lowerQuery.contains("xương") || lowerQuery.contains("khớp")
-                || lowerQuery.contains("gối") || lowerQuery.contains("cột sống")
-                || lowerQuery.contains("thoái hóa") || lowerQuery.contains("thoát vị")
-                || lowerQuery.contains("gãy xương") || lowerQuery.contains("đau lưng");
-        boolean docOrtho = specStr.contains("xương") || specStr.contains("khớp")
-                || specStr.contains("orthopedics") || specStr.contains("chấn thương");
-        if (queryOrthoTarget || queryOrthoSymptoms) {
-            if (docOrtho) return queryOrthoTarget ? 0.28 : 0.22;
-            return -0.35;
-        }
-
-        // 6. PULMONOLOGY (Hô Hấp & Phổi)
-        boolean queryPulmoTarget = lowerQuery.contains("hô hấp") || lowerQuery.contains("phổi") || lowerQuery.contains("pulmonology");
-        boolean queryPulmoSymptoms = lowerQuery.contains("ho kéo dài") || lowerQuery.contains("ho đờm")
-                || lowerQuery.contains("khó thở") || lowerQuery.contains("hen phế quản") || lowerQuery.contains("copd");
-        boolean docPulmo = specStr.contains("hô hấp") || specStr.contains("phổi") || specStr.contains("pulmonology");
-        if (queryPulmoTarget || queryPulmoSymptoms) {
-            if (docPulmo) return queryPulmoTarget ? 0.28 : 0.22;
-            if (docGeneralInternal) return 0.05;
-            return -0.35;
-        }
-
-        // 7. OBSTETRICS & GYNECOLOGY (Sản Phụ Khoa)
-        boolean queryObGynTarget = lowerQuery.contains("sản phụ khoa") || lowerQuery.contains("phụ sản") || lowerQuery.contains("obstetrics");
-        boolean queryObGynSymptoms = lowerQuery.contains("thai kỳ") || lowerQuery.contains("kinh nguyệt")
-                || lowerQuery.contains("buồng trứng") || lowerQuery.contains("tử cung")
-                || lowerQuery.contains("tiền sản") || lowerQuery.contains("u xơ");
-        boolean docObGyn = specStr.contains("sản") || specStr.contains("phụ khoa") || specStr.contains("obstetrics");
-        if (queryObGynTarget || queryObGynSymptoms) {
-            if (docObGyn) return queryObGynTarget ? 0.28 : 0.22;
-            return -0.35;
-        }
-
-        // 8. PEDIATRICS (Nhi Khoa)
-        boolean queryPediaTarget = lowerQuery.contains("nhi khoa") || lowerQuery.contains("pediatrics");
-        boolean queryPediaSymptoms = lowerQuery.contains("trẻ em") || lowerQuery.contains("sơ sinh")
-                || lowerQuery.contains("tiêm chủng") || lowerQuery.contains("tay chân miệng");
-        boolean docPedia = specStr.contains("nhi") || specStr.contains("pediatrics");
-        if (queryPediaTarget || queryPediaSymptoms) {
-            if (docPedia) return queryPediaTarget ? 0.28 : 0.22;
-            return -0.35;
-        }
-
-        // 9. NEPHROLOGY (Thận & Tiết Niệu)
-        boolean queryNephroTarget = lowerQuery.contains("thận") || lowerQuery.contains("tiết niệu") || lowerQuery.contains("nephrology");
-        boolean queryNephroSymptoms = lowerQuery.contains("sỏi thận") || lowerQuery.contains("tiểu buốt")
-                || lowerQuery.contains("tiểu rắt") || lowerQuery.contains("suy thận");
-        boolean docNephro = specStr.contains("thận") || specStr.contains("tiết niệu") || specStr.contains("nephrology");
-        if (queryNephroTarget || queryNephroSymptoms) {
-            if (docNephro) return queryNephroTarget ? 0.28 : 0.22;
-            if (docGeneralInternal) return 0.05;
-            return -0.35;
-        }
-
-        // 10. ENDOCRINOLOGY (Nội Tiết & Đái Tháo Đường)
-        boolean queryEndoTarget = lowerQuery.contains("nội tiết") || lowerQuery.contains("endocrinology") || lowerQuery.contains("đái tháo đường");
-        boolean queryEndoSymptoms = lowerQuery.contains("tiểu đường") || lowerQuery.contains("glucose")
-                || lowerQuery.contains("tuyến giáp") || lowerQuery.contains("bướu cổ");
-        boolean docEndo = specStr.contains("nội tiết") || specStr.contains("endocrinology");
-        if (queryEndoTarget || queryEndoSymptoms) {
-            if (docEndo) return queryEndoTarget ? 0.28 : 0.22;
-            if (docGeneralInternal) return 0.05;
-            return -0.35;
-        }
-
-        // 11. ENT (Tai Mũi Họng)
-        boolean queryEntTarget = lowerQuery.contains("tai mũi họng") || lowerQuery.contains("ent") || lowerQuery.contains("otolaryngology");
-        boolean queryEntSymptoms = lowerQuery.contains("amidan") || lowerQuery.contains("xoang")
-                || lowerQuery.contains("viêm tai") || lowerQuery.contains("khàn tiếng");
-        boolean docEnt = specStr.contains("tai mũi họng") || specStr.contains("ent") || specStr.contains("otolaryngology");
-        if (queryEntTarget || queryEntSymptoms) {
-            if (docEnt) return queryEntTarget ? 0.28 : 0.22;
-            return -0.35;
+        if (topDomain != null && maxMatches > 0) {
+            if (docDomain == topDomain) {
+                return 0.22; // Symptom-aligned specialist match (+22%)
+            }
+            if (docDomain == SpecialtyDomain.GENERAL_INTERNAL) {
+                return 0.05; // Primary Care Fallback (+5%)
+            }
+            if (isAlliedSpecialty(topDomain, docDomain)) {
+                return 0.00; // Allied specialty: neutral
+            }
+            return -0.32; // Unrelated specialty: contrastive penalty (-32%)
         }
 
         return 0.0;
+    }
+
+    private SpecialtyDomain detectDoctorDomain(DoctorMatchDto doc) {
+        if (doc.getSpecialties() == null || doc.getSpecialties().isEmpty()) {
+            return SpecialtyDomain.GENERAL_INTERNAL;
+        }
+        String specStr = String.join(" ", doc.getSpecialties()).toLowerCase();
+        for (SpecialtyDomain domain : SpecialtyDomain.values()) {
+            if (domain.matches(specStr)) {
+                return domain;
+            }
+        }
+        return SpecialtyDomain.GENERAL_INTERNAL;
+    }
+
+    private SpecialtyDomain detectExplicitTargetSpecialty(String lowerQuery) {
+        // High confidence target specialty detection (ordered from compound to general)
+        if (lowerQuery.contains("tai mũi họng") || lowerQuery.contains("otolaryngology") || lowerQuery.contains("ent.") || lowerQuery.contains("ent ")) {
+            return SpecialtyDomain.ENT;
+        }
+        if (lowerQuery.contains("cơ xương khớp") || lowerQuery.contains("chấn thương chỉnh hình") || lowerQuery.contains("orthopedics")) {
+            return SpecialtyDomain.ORTHOPEDICS;
+        }
+        if (lowerQuery.contains("sản phụ khoa") || lowerQuery.contains("phụ sản") || lowerQuery.contains("obstetrics") || lowerQuery.contains("gynecology")) {
+            return SpecialtyDomain.OBGYN;
+        }
+        if (lowerQuery.contains("nội tiết") || lowerQuery.contains("đái tháo đường") || lowerQuery.contains("endocrinology")) {
+            return SpecialtyDomain.ENDOCRINOLOGY;
+        }
+        if (lowerQuery.contains("thần kinh") || lowerQuery.contains("neurology")) {
+            return SpecialtyDomain.NEUROLOGY;
+        }
+        if (lowerQuery.contains("tim mạch") || lowerQuery.contains("cardiology")) {
+            return SpecialtyDomain.CARDIOLOGY;
+        }
+        if (lowerQuery.contains("tiêu hóa") || lowerQuery.contains("gan mật") || lowerQuery.contains("gastroenterology")) {
+            return SpecialtyDomain.GASTROENTEROLOGY;
+        }
+        if (lowerQuery.contains("hô hấp") || lowerQuery.contains("phổi") || lowerQuery.contains("pulmonology")) {
+            return SpecialtyDomain.PULMONOLOGY;
+        }
+        if (lowerQuery.contains("da liễu") || lowerQuery.contains("dermatology")) {
+            return SpecialtyDomain.DERMATOLOGY;
+        }
+        if (lowerQuery.contains("nhi khoa") || lowerQuery.contains("pediatrics")) {
+            return SpecialtyDomain.PEDIATRICS;
+        }
+        if (lowerQuery.contains("thận") || lowerQuery.contains("tiết niệu") || lowerQuery.contains("nephrology")) {
+            return SpecialtyDomain.NEPHROLOGY;
+        }
+        if (lowerQuery.contains("nội tổng quát") || lowerQuery.contains("general-internal-medicine") || lowerQuery.contains("general internal medicine")) {
+            return SpecialtyDomain.GENERAL_INTERNAL;
+        }
+        return null;
+    }
+
+    private boolean isAlliedSpecialty(SpecialtyDomain a, SpecialtyDomain b) {
+        if (a == b) return true;
+        // Cardiopulmonary synergy (chest discomfort, shortness of breath, dyspnea)
+        if ((a == SpecialtyDomain.CARDIOLOGY && b == SpecialtyDomain.PULMONOLOGY) ||
+            (a == SpecialtyDomain.PULMONOLOGY && b == SpecialtyDomain.CARDIOLOGY)) return true;
+        // Neuro-otologic synergy (dizziness, vestibular, vertigo, tinnitus)
+        if ((a == SpecialtyDomain.NEUROLOGY && b == SpecialtyDomain.ENT) ||
+            (a == SpecialtyDomain.ENT && b == SpecialtyDomain.NEUROLOGY)) return true;
+        // Respiratory-ENT synergy (airway, cough, sore throat, sinuses)
+        if ((a == SpecialtyDomain.PULMONOLOGY && b == SpecialtyDomain.ENT) ||
+            (a == SpecialtyDomain.ENT && b == SpecialtyDomain.PULMONOLOGY)) return true;
+        // Metabolic-Renal synergy (diabetes, kidney function, hypertension)
+        if ((a == SpecialtyDomain.ENDOCRINOLOGY && b == SpecialtyDomain.NEPHROLOGY) ||
+            (a == SpecialtyDomain.NEPHROLOGY && b == SpecialtyDomain.ENDOCRINOLOGY)) return true;
+        return false;
+    }
+
+    private Map<SpecialtyDomain, Integer> computeSymptomAffinity(String lowerQuery) {
+        Map<SpecialtyDomain, Integer> scores = new EnumMap<>(SpecialtyDomain.class);
+
+        addSymptomMatches(scores, SpecialtyDomain.NEUROLOGY, lowerQuery,
+                "đau đầu", "nửa đầu", "chóng mặt", "mất ngủ", "tiền đình", "đột quỵ", "tê bì", "co giật", "tai biến", "choáng váng");
+
+        addSymptomMatches(scores, SpecialtyDomain.CARDIOLOGY, lowerQuery,
+                "đau thắt ngực", "tức ngực", "đánh trống ngực", "hồi hộp", "mạch nhanh", "mạch chậm", "huyết áp cao", "suy tim", "loạn nhịp");
+
+        addSymptomMatches(scores, SpecialtyDomain.GASTROENTEROLOGY, lowerQuery,
+                "dạ dày", "đau bụng", "ợ chua", "ợ nóng", "trào ngược", "đại tràng", "men gan", "viêm gan", "tiêu chảy", "táo bón", "nội soi");
+
+        addSymptomMatches(scores, SpecialtyDomain.DERMATOLOGY, lowerQuery,
+                "ngứa", "mẩn ngứa", "mẩn đỏ", "mụn", "dị ứng da", "viêm da", "mề đay", "vảy nến", "chàm", "nấm da", "phát ban");
+
+        addSymptomMatches(scores, SpecialtyDomain.ORTHOPEDICS, lowerQuery,
+                "xương", "khớp", "thoái hóa", "thoát vị", "đau lưng", "đau gối", "đau vai", "cột sống", "gãy xương", "bong gân");
+
+        addSymptomMatches(scores, SpecialtyDomain.PULMONOLOGY, lowerQuery,
+                "ho kéo dài", "ho có đờm", "ho đờm", "ho khan", "khó thở", "hen suyễn", "hen phế quản", "copd", "viêm phế quản", "viêm phổi");
+
+        addSymptomMatches(scores, SpecialtyDomain.OBGYN, lowerQuery,
+                "thai kỳ", "mang thai", "ốm nghén", "kinh nguyệt", "rong kinh", "chậm kinh", "buồng trứng", "tử cung", "tiền sản", "u xơ", "viêm âm đạo");
+
+        addSymptomMatches(scores, SpecialtyDomain.PEDIATRICS, lowerQuery,
+                "trẻ em", "trẻ nhỏ", "bé sốt", "sơ sinh", "tiêm chủng", "tay chân miệng", "sởi");
+
+        addSymptomMatches(scores, SpecialtyDomain.NEPHROLOGY, lowerQuery,
+                "sỏi thận", "tiểu buốt", "tiểu rắt", "tiểu ra máu", "tiểu đêm", "suy thận", "phù nề", "protein niệu");
+
+        addSymptomMatches(scores, SpecialtyDomain.ENDOCRINOLOGY, lowerQuery,
+                "tiểu đường", "đường huyết", "glucose", "tuyến giáp", "bướu cổ", "basedow", "khát nước nhiều");
+
+        addSymptomMatches(scores, SpecialtyDomain.ENT, lowerQuery,
+                "viêm họng", "đau họng", "amidan", "viêm xoang", "xoang", "viêm tai", "ù tai", "khàn tiếng", "ngạt mũi", "chảy nước mũi");
+
+        addSymptomMatches(scores, SpecialtyDomain.GENERAL_INTERNAL, lowerQuery,
+                "khám tổng quát", "tầm soát", "mệt mỏi", "sụt cân");
+
+        return scores;
+    }
+
+    private void addSymptomMatches(Map<SpecialtyDomain, Integer> scores, SpecialtyDomain domain, String text, String... phrases) {
+        int count = 0;
+        for (String phrase : phrases) {
+            if (text.contains(phrase)) {
+                count++;
+            }
+        }
+        if (count > 0) {
+            scores.put(domain, count);
+        }
     }
 
     private double computeAcademicScore(String title) {

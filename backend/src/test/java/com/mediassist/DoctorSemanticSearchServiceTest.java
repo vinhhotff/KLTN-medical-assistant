@@ -302,4 +302,69 @@ class DoctorSemanticSearchServiceTest {
         // 4. General Internal Medicine acts as a reasonable secondary option (~40% - 65%)
         assertTrue(scoreInternal >= 0.40 && scoreInternal < scoreNeuro, "General internal should be a valid secondary option, got: " + scoreInternal);
     }
+
+    @Test
+    @DisplayName("calculateCompositeScore treats allied specialties (Cardiopulmonary) neutrally while penalizing divergent specialties")
+    void testAlliedSpecialtyCardiopulmonaryAlignment_NeutralAlliedAndPenalizedDivergent() {
+        String triageQuery = "Bác sĩ chuyên khoa Hô hấp & Phổi. pulmonology. Triệu chứng: ho kéo dài kèm tức ngực khó thở khi gắng sức. Tư vấn chẩn đoán và điều trị chuyên khoa pulmonology.";
+
+        DoctorMatchDto doctorPulmo = new DoctorMatchDto(
+                UUID.randomUUID(), "PGS.TS.BS Trần Thị Mai Hương", "Chuyên khoa Hô hấp & Bệnh phổi tắc nghẽn mạn tính COPD, hen suyễn",
+                "LIC-PULMO", 18, BigDecimal.valueOf(400000), 0.62,
+                List.of("Pulmonology (Hô hấp & Phổi)"), "PGS.TS. BS", "Bệnh viện Phổi Trung Ương", 4.95, 34
+        );
+
+        DoctorMatchDto doctorCardio = new DoctorMatchDto(
+                UUID.randomUUID(), "GS.TS.BS Nguyễn Văn An", "Chuyên gia tim mạch hàng đầu, can thiệp mạch vành và suy tim",
+                "LIC-CARDIO", 22, BigDecimal.valueOf(500000), 0.55,
+                List.of("Cardiology (Tim mạch)"), "GS.TS. BS", "Bệnh viện Chợ Rẫy", 4.98, 65
+        );
+
+        DoctorMatchDto doctorObGyn = new DoctorMatchDto(
+                UUID.randomUUID(), "PGS.TS.BS Trịnh Hải Yến", "Hơn 20 năm quản lý thai kỳ và phẫu thuật sản phụ khoa",
+                "LIC-OBGYN", 20, BigDecimal.valueOf(400000), 0.38,
+                List.of("Obstetrics & Gynecology (Sản Phụ Khoa)"), "PGS.TS. BS", "Bệnh viện Từ Dũ", 4.97, 48
+        );
+
+        double scorePulmo = searchService.calculateCompositeScore(doctorPulmo, triageQuery);
+        double scoreCardio = searchService.calculateCompositeScore(doctorCardio, triageQuery);
+        double scoreObGyn = searchService.calculateCompositeScore(doctorObGyn, triageQuery);
+
+        // 1. Direct targeted specialist gets top score (>= 85%)
+        assertTrue(scorePulmo >= 0.85, "Pulmonologist should score >= 0.85, got: " + scorePulmo);
+
+        // 2. Allied specialist (Cardiology) is NOT penalized -0.35, remains a viable clinical neighbor (~40% - 60%)
+        assertTrue(scoreCardio >= 0.40 && scoreCardio < scorePulmo, "Cardiologist should be allied without -0.35 penalty, got: " + scoreCardio);
+
+        // 3. Completely divergent specialist (Ob/Gyn) is penalized (-0.35) and stays < 25%
+        assertTrue(scoreObGyn < 0.25, "Ob/Gyn should be severely penalized for respiratory complaint, got: " + scoreObGyn);
+
+        // 4. Distinction gap between true specialist and divergent doctor > 60%
+        assertTrue(scorePulmo - scoreObGyn > 0.60, "Gap between Pulmonology and Ob/Gyn should exceed 0.60, got: " + (scorePulmo - scoreObGyn));
+    }
+
+    @Test
+    @DisplayName("calculateCompositeScore infers correct specialty from raw symptom query without explicit target")
+    void testRawSymptomMatching_InfersTopSpecialtyWithoutExplicitTarget() {
+        String rawQuery = "tôi thường xuyên đau đầu âm ỉ kèm chóng mặt và mất ngủ";
+
+        DoctorMatchDto doctorNeuro = new DoctorMatchDto(
+                UUID.randomUUID(), "BS. Lê Hoàng Long", "Chuyên khoa Thần kinh, điều trị đau đầu mạn tính, rối loạn tiền đình",
+                "LIC-NEURO", 9, BigDecimal.valueOf(350000), 0.58,
+                List.of("Neurology (Thần kinh)"), "BS. CKII", "Bệnh viện Chợ Rẫy", 4.88, 28
+        );
+
+        DoctorMatchDto doctorObGyn = new DoctorMatchDto(
+                UUID.randomUUID(), "PGS.TS.BS Trịnh Hải Yến", "Quản lý thai kỳ nguy cơ cao, phụ khoa",
+                "LIC-OBGYN", 20, BigDecimal.valueOf(400000), 0.40,
+                List.of("Obstetrics & Gynecology (Sản Phụ Khoa)"), "PGS.TS. BS", "Bệnh viện Từ Dũ", 4.97, 48
+        );
+
+        double scoreNeuro = searchService.calculateCompositeScore(doctorNeuro, rawQuery);
+        double scoreObGyn = searchService.calculateCompositeScore(doctorObGyn, rawQuery);
+
+        assertTrue(scoreNeuro >= 0.75, "Neuro doctor should score >= 0.75 for raw neurological symptoms, got: " + scoreNeuro);
+        assertTrue(scoreObGyn < 0.30, "Ob/Gyn doctor should score < 0.30 for raw neurological symptoms, got: " + scoreObGyn);
+        assertTrue(scoreNeuro - scoreObGyn > 0.45, "Gap should exceed 0.45, got: " + (scoreNeuro - scoreObGyn));
+    }
 }

@@ -229,10 +229,11 @@
          - $\sigma(\text{Cosine}_{0.50}) = \frac{1}{1 + e^{-10(\text{rawCosine} - 0.50)}}$: Hàm Sigmoid hiệu chuẩn tại tâm $0.50$ (phản ánh chính xác phân phối cosine thực tế của `text-embedding-3-small` trong miền y tế Việt Nam), kéo giãn biên độ phân biệt giữa văn bản tương đồng cao ($\ge 0.60 \rightarrow \sim 0.75$) và văn bản không tương quan ($\le 0.40 \rightarrow \sim 0.25$).
          - `LexicalOverlap`: Đo mức độ trùng khớp token thưa với bio và chuyên môn bác sĩ (0 token trùng khớp sẽ triệt tiêu về $0.05$, không cộng điểm sàn ảo).
          - `BayesianRating`: Áp dụng hệ số suy giảm độ tin cậy (Credibility Damper) phạt hồ sơ ít lượt đánh giá.
-         - `SpecialtyModifier` & Rào Chắn Phạt Phân Kỳ Tương Phản (Contrastive Divergence Penalty):
-           - Thưởng lớn ($+0.22 \rightarrow +0.28$) cho bác sĩ đúng chuyên khoa mục tiêu hoặc có triệu chứng bệnh học trực tiếp.
-           - Duy trì mức đệm ($+0.05$) cho Bác sĩ Nội tổng quát (General Internal Medicine) với vai trò phân luồng chẩn đoán ban đầu.
-           - Phạt phân kỳ nặng ($-0.35$) đối với bác sĩ thuộc chuyên khoa đối nghịch/trái tuyến (ví dụ: Sản Phụ Khoa hoặc Tiêu Hóa khi bệnh nhân than phiền đau đầu, mất ngủ, tiền đình).
+         - `SpecialtyModifier` & Rào Chắn Phạt Phân Kỳ Tương Phản (Contrastive Divergence Penalty & Allied Synergy):
+           - **Bác sĩ đúng chuyên khoa đích (+0.28):** Khớp chính xác chuyên khoa mục tiêu được phân luồng bởi AI Triage hoặc từ khóa tìm kiếm.
+           - **Bác sĩ liên minh lâm sàng (Allied Specialties, 0.00 Neutral):** Giữ mức trung lập đối với các chuyên khoa có triệu chứng giao thoa bệnh học (Cardiopulmonary giữa Tim Mạch & Hô Hấp; Neuro-ENT giữa Thần Kinh & Tai Mũi Họng khi có chóng mặt/tiền đình; Metabolic-Renal giữa Nội Tiết & Thận), tránh phạt oan uổng như chuyên khoa đối nghịch.
+           - **Bác sĩ Nội tổng quát (General Internal Medicine, +0.05):** Duy trì vai trò phân luồng khám tầm soát ban đầu.
+           - **Bác sĩ trái tuyến/đối nghịch hoàn toàn (-0.35):** Phạt phân kỳ nặng (ví dụ: Sản Phụ Khoa hoặc Tiêu Hóa khi bệnh nhân than phiền đau đầu, mất ngủ, tiền đình).
          - **Bộ lọc Ngưỡng Lâm Sàng Phân Luồng (Triage Clinical Relevance Gate):** Loại bỏ hoàn toàn ứng viên có điểm sau phạt $< 0.35$, đảm bảo giao diện gợi ý bác sĩ chỉ hiển thị đúng chuyên khoa cần khám với độ khớp thuyết phục ($85\% - 96\%$).
   3. **Chế Độ Ngoại Tuyến Minh Bạch (Transparent Offline Fallback):** Khi mất mạng hoặc chưa cấu hình API Key, hệ thống tự động gắn nhãn cảnh báo rõ ràng *'Chế độ Ngoại tuyến (Offline Fallback)'*, chỉ hiển thị chỉ số đo được và chuyển tuyến an toàn về Nội Tổng Quát, tuyệt đối không tự tiện suy đoán chẩn đoán bệnh tật."*
 
