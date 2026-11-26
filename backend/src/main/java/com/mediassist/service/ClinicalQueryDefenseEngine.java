@@ -49,36 +49,42 @@ public class ClinicalQueryDefenseEngine {
             "(?iu)^(?:(?:alo|hello|hi|test|thử\\s+nghiệm|có\\s+ai\\s+không|123|abc|[0-9]+)\\s*)+[.!? ]*$"
     );
 
-    // Common medical slang and abbreviations map
-    private static final Map<String, String> SLANG_MAP = new LinkedHashMap<>();
+    // Common medical slang and abbreviations map (Precompiled with UNICODE_CHARACTER_CLASS)
+    private static final List<Map.Entry<Pattern, String>> PRECOMPILED_SLANG_RULES = new ArrayList<>();
     static {
-        SLANG_MAP.put("\\b(?:k|ko|khong)\\b", "không");
-        SLANG_MAP.put("\\b(?:bs|bsi)\\b", "bác sĩ");
-        SLANG_MAP.put("\\b(?:bn|bnhan)\\b", "bệnh nhân");
-        SLANG_MAP.put("\\b(?:bv|b.vien)\\b", "bệnh viện");
-        SLANG_MAP.put("\\b(?:pk|p.kham)\\b", "phòng khám");
-        SLANG_MAP.put("\\bchongs\\s+mat\\b", "chóng mặt");
-        SLANG_MAP.put("\\bchong\\s+mat\\b", "chóng mặt");
-        SLANG_MAP.put("\\bdau\\s+da\\s+day\\b", "đau dạ dày");
-        SLANG_MAP.put("\\bdau\\s+bung\\s+quan\\b", "đau bụng quặn");
-        SLANG_MAP.put("\\bdau\\s+bung\\b", "đau bụng");
-        SLANG_MAP.put("\\bquan\\b", "quặn");
-        SLANG_MAP.put("\\bsot\\b", "sốt");
-        SLANG_MAP.put("\\bmet\\s+moi\\b", "mệt mỏi");
-        SLANG_MAP.put("\\bkho\\s+tho\\b", "khó thở");
-        SLANG_MAP.put("\\bkho\\s+ngu\\b", "khó ngủ");
-        SLANG_MAP.put("\\bmat\\s+ngu\\b", "mất ngủ");
-        SLANG_MAP.put("\\btuc\\s+nguc\\b", "tức ngực");
-        SLANG_MAP.put("\\bdau\\s+nguc\\b", "đau ngực");
-        SLANG_MAP.put("\\bdau\\s+dau\\b", "đau đầu");
-        SLANG_MAP.put("\\bchay\\s+mau\\b", "chảy máu");
-        SLANG_MAP.put("\\bviem\\s+hong\\b", "viêm họng");
-        SLANG_MAP.put("\\bbuon\\s+non\\b", "buồn nôn");
-        SLANG_MAP.put("\\btieu\\s+duong\\b", "tiểu đường");
-        SLANG_MAP.put("\\bhuyet\\s+ap\\s+cao\\b", "huyết áp cao");
-        SLANG_MAP.put("\\bdau\\s+nhuc\\s+xuong\\s+khop\\b", "đau nhức xương khớp");
-        SLANG_MAP.put("\\btim\\s+dap\\s+nhanh\\b", "tim đập nhanh");
-        SLANG_MAP.put("\\bhoi\\s+hop\\b", "hồi hộp");
+        Map<String, String> slang = new LinkedHashMap<>();
+        slang.put("\\b(?:k|ko|khong)\\b", "không");
+        slang.put("\\b(?:bs|bsi)\\b", "bác sĩ");
+        slang.put("\\b(?:bn|bnhan)\\b", "bệnh nhân");
+        slang.put("\\b(?:bv|b.vien)\\b", "bệnh viện");
+        slang.put("\\b(?:pk|p.kham)\\b", "phòng khám");
+        slang.put("\\bchongs\\s+mat\\b", "chóng mặt");
+        slang.put("\\bchong\\s+mat\\b", "chóng mặt");
+        slang.put("\\bdau\\s+da\\s+day\\b", "đau dạ dày");
+        slang.put("\\bdau\\s+bung\\s+quan\\b", "đau bụng quặn");
+        slang.put("\\bdau\\s+bung\\b", "đau bụng");
+        slang.put("\\bquan\\b", "quặn");
+        slang.put("\\bsot\\b", "sốt");
+        slang.put("\\bmet\\s+moi\\b", "mệt mỏi");
+        slang.put("\\bkho\\s+tho\\b", "khó thở");
+        slang.put("\\bkho\\s+ngu\\b", "khó ngủ");
+        slang.put("\\bmat\\s+ngu\\b", "mất ngủ");
+        slang.put("\\btuc\\s+nguc\\b", "tức ngực");
+        slang.put("\\bdau\\s+nguc\\b", "đau ngực");
+        slang.put("\\bdau\\s+dau\\b", "đau đầu");
+        slang.put("\\bchay\\s+mau\\b", "chảy máu");
+        slang.put("\\bviem\\s+hong\\b", "viêm họng");
+        slang.put("\\bbuon\\s+non\\b", "buồn nôn");
+        slang.put("\\btieu\\s+duong\\b", "tiểu đường");
+        slang.put("\\bhuyet\\s+ap\\s+cao\\b", "huyết áp cao");
+        slang.put("\\bdau\\s+nhuc\\s+xuong\\s+khop\\b", "đau nhức xương khớp");
+        slang.put("\\btim\\s+dap\\s+nhanh\\b", "tim đập nhanh");
+        slang.put("\\bhoi\\s+hop\\b", "hồi hộp");
+
+        for (Map.Entry<String, String> entry : slang.entrySet()) {
+            Pattern p = Pattern.compile(entry.getKey(), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.UNICODE_CHARACTER_CLASS);
+            PRECOMPILED_SLANG_RULES.add(Map.entry(p, entry.getValue()));
+        }
     }
 
     // Negation marker regex (Vietnamese NegEx triggers)
@@ -178,10 +184,12 @@ public class ClinicalQueryDefenseEngine {
      * Replaces common abbreviations, slang, and typo tokens with standard medical Vietnamese.
      */
     public String normalizeSlangAndTypos(String text) {
+        if (text == null || text.isBlank()) {
+            return text;
+        }
         String result = text;
-        for (Map.Entry<String, String> entry : SLANG_MAP.entrySet()) {
-            Pattern p = Pattern.compile(entry.getKey(), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
-            result = p.matcher(result).replaceAll(entry.getValue());
+        for (Map.Entry<Pattern, String> entry : PRECOMPILED_SLANG_RULES) {
+            result = entry.getKey().matcher(result).replaceAll(entry.getValue());
         }
         return result;
     }

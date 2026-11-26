@@ -11,6 +11,7 @@
 
 | **Phiên Làm Việc** | **Thời Gian** | **Nội Dung Trọng Tâm** | **Tác Giả** | **Trạng Thái Tech Lead** |
 | :---: | :---: | :--- | :--- | :--- |
+| **#144** | 26/11/2026 | Tối Ưu Hóa Bộ Xử Lý Ngôn Ngữ Lâm Sàng Tiếng Việt (Unicode Character Class NLP Boundary Defense), Khắc Phục Lỗi Nuốt Chữ Kèm `khôngèm`, Chuẩn Hóa Model Gemini `gemini-3.8-flash` & Nâng Cấp RestClient Byte Stream Cho OpenRouter. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#143** | 26/11/2026 | Nâng Cấp Kiến Trúc Xếp Hạng Bác Sĩ Đa Miền Lâm Sàng (12-Domain Specialty Matrix & Allied Synergy Engine): Triệt Tiêu Lỗi Xung Đột Nhánh Rẽ (Sequential Branch Stealing), Bổ Sung Cơ Chế Liên Minh Chuyên Khoa (Cardiopulmonary & Neuro-ENT Synergy), Tăng Độ Sâu Thu Phóng pgvector (Candidate Limit x4), Sửa Cấu Hình Model Gemini `gemini-2.5-flash` & Bổ Sung Test Case Đa Chuyên Khoa. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#142** | 26/11/2026 | Hiệu Chuẩn Thuật Toán Xếp Hạng Bác Sĩ Đa Tiêu Chí (WHRF Scoring Calibration) & Tăng Cường Phạt Phân Kỳ Tương Phản (Contrastive Divergence Penalty): Tách Biệt Rõ Rệt Độ Khớp Bác Sĩ Đúng Chuyên Khoa (85%–96%) vs Bác Sĩ Trái Tuyến (<25%), Loại Bỏ Hoàn Toàn Điểm Sàn Ảo & Bác Sĩ Khác Khoa Khỏi Gợi Ý Lâm Sàng. | AI Assistant | 🟢 Sẵn sàng Review |
 | **#141** | 26/11/2026 | Khắc Phục Triệt Để Lỗi Đặt Lịch Khám Online Hiển Thị Thành Khám Trực Tiếp (Offline): Chuẩn Hóa Flyway Migration V26 (`V26__telehealth_online_and_chat.sql`), Khôi Phục V25 CCHN Tránh Xung Đột Checksum, Bổ Sung Toàn Vẹn Cột `consultation_type`, `meeting_room_code`, `meeting_url` Vào CSDL PostgreSQL & Cập Nhật Lịch Hẹn Đã Đặt. | AI Assistant | 🟢 Sẵn sàng Review |
@@ -74,6 +75,37 @@
 ---
 
 ## 📜 Chi Tiết Các Phiên Làm Việc Đã Thực Hiện
+
+### [WORK-LOG-#144] Tối Ưu Hóa Bộ Xử Lý Ngôn Ngữ Lâm Sàng Tiếng Việt (Unicode Character Class NLP Boundary Defense), Khắc Phục Lỗi Nuốt Chữ Kèm `khôngèm`, Chuẩn Hóa Model Gemini `gemini-3.8-flash` & Nâng Cấp RestClient Byte Stream Cho OpenRouter
+* **Thời gian:** 2026-11-26 10:30 (GMT+7)
+* **Tác nhân thực hiện:** AI Assistant
+* **Nhánh:** `feature/telehealth-stripe-storage`
+* **Vấn đề giải quyết & Rà soát chuyên sâu (Deep Audit):**
+  - **Lỗi biên giới từ Unicode Tiếng Việt (Unicode Character Class Flaw):** Trong `ClinicalQueryDefenseEngine`, bộ chuẩn hóa từ viết tắt/slang sử dụng `\b(?:k|ko|khong)\b` để chuẩn hóa `k` thành `không`. Tuy nhiên, cờ mặc định của Java Regex không bật `Pattern.UNICODE_CHARACTER_CLASS`, khiến ranh giới từ `\b` đối xử với nguyên âm tiếng Việt có dấu (`è`, `é`, `ó`...) như ký tự phân tách không thuộc từ (Non-word boundary). Hệ quả: từ `"kèm"` trong câu *"đau đầu kèm buồn nôn"* bị khớp chữ `"k"` và thay thế thành `"khôngèm buồn nôn"`, kích hoạt oan cơ chế NegEx và coi buồn nôn là triệu chứng phủ định.
+  - **Khắc phục lỗi biên giới từ:** Kích hoạt `Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.UNICODE_CHARACTER_CLASS` trên toàn bộ bộ quy tắc chuẩn hóa `PRECOMPILED_SLANG_RULES`, tiền biên dịch 25 regex rules tránh re-compile lặp đi lặp lại ở mỗi request, bảo toàn 100% các từ y khoa tiếng Việt như `"kèm"`, `"kéo dài"`, `"khe ngực"`.
+  - **Lỗi I/O RestClient của OpenRouter:** Spring Boot 3.4 / RestClient khi đọc `.body(String.class)` với `Content-Type: application/json` trả về lỗi trích xuất `HttpMessageNotReadableException`. Đã nâng cấp toàn diện sang `.body(byte[].class)` kết hợp `new String(bytes, StandardCharsets.UTF_8)` tương tự `GeminiAiProvider`, loại bỏ hoàn toàn lỗi trích xuất phản hồi JSON.
+  - **Chuẩn hóa Model AI Gemini sang `gemini-3.8-flash`:** Đồng bộ mã định danh model chính thức theo thông báo và khuyến nghị của Google AI Studio API (`models/gemini-3.8-flash`), tránh fallback ngoại tuyến không mong muốn.
+* **Tệp tin thay đổi:**
+  - `[MOD]` `backend/src/main/java/com/mediassist/service/ClinicalQueryDefenseEngine.java`: Tiền biên dịch `PRECOMPILED_SLANG_RULES` với `UNICODE_CHARACTER_CLASS`.
+  - `[MOD]` `backend/src/main/java/com/mediassist/ai/OpenRouterAiProvider.java`: Chuyển đổi trích xuất REST sang `byte[].class` và `StandardCharsets.UTF_8`.
+  - `[MOD]` `backend/src/main/java/com/mediassist/ai/GeminiAiProvider.java`: Chuẩn hóa model fallback sang `gemini-3.8-flash`.
+  - `[MOD]` `backend/src/main/java/com/mediassist/service/TriageService.java`, `AiUsageAnalyticsService.java`, `MedicalDocumentAnalysisService.java`: Cập nhật mã model AI sang `gemini-3.8-flash`.
+  - `[MOD]` `backend/src/main/resources/application.properties`, `application-dev.properties`, `application-supabase.properties`: Đồng bộ `app.ai.gemini.model=gemini-3.8-flash`.
+  - `[MOD]` `backend/src/test/java/com/mediassist/service/ClinicalQueryDefenseEngineTest.java`: Bổ sung test case kiểm tra Unicode word boundaries cho từ `"kèm"`, `"kéo"`.
+  - `[MOD]` `backend/src/test/java/com/mediassist/TriageServiceTest.java`, `AiUsageAnalyticsServiceTest.java`: Đồng bộ test fixtures.
+  - `[MOD]` `docs/WORK_LOG.md`: Ghi chép chi tiết phiên làm việc #144.
+* **Tài liệu đã đồng bộ:** `docs/WORK_LOG.md`.
+* **Bằng chứng kiểm thử:**
+  - Backend Unit Tests: **362/362 tests PASS 100%** (0 Failures, 0 Errors, thời gian thực thi 10.0s).
+  - Frontend TypeScript Build: **0 lỗi** (`2.338` modules transformed, hoàn tất trong 2.80s).
+  - Khởi động Backend Spring Boot 3.4 trên cổng **5001** thành công (Tomcat started in 5.6s, virtual threads enabled, pgvector 14 bác sĩ synced).
+  - Xác thực thực tế API `POST /api/v1/triage/assess`:
+    - Top bác sĩ đề xuất: **BS. CKII Lê Hoàng Long** (Chuyên khoa Thần Kinh) đạt độ khớp **92.9%** (`aiRecommended: true`).
+    - Bác sĩ đồng minh liên quan: BS. CKI Bùi Quang Huy (Nội tổng quát: 56.3%), ThS. BS Nguyễn Tuấn Khang (Tai Mũi Họng: 46.7%).
+    - Bác sĩ trái tuyến (Sản phụ khoa, Da liễu, Ngoại chấn thương...) bị lọc bỏ triệt để khỏi danh sách đề xuất.
+    - Dữ liệu triệu chứng lâm sàng: `"kèm buồn nôn và sợ ánh sáng"` được giữ nguyên vẹn 100% trong `affirmedSymptoms`, không còn bị lỗi chuyển thành `"khôngèm"`.
+* **Điểm nóng Tech Lead cần Review:**
+  - Quy tắc biên giới từ Unicode `\b` trong Java Regex: Khi xử lý tiếng Việt, bắt buộc phải dùng `Pattern.UNICODE_CHARACTER_CLASS` (hoặc `(?U)`), nếu không các phụ âm đứng trước nguyên âm có dấu sẽ bị nhận định sai ranh giới từ.
 
 ### [WORK-LOG-#143] Nâng Cấp Kiến Trúc Xếp Hạng Bác Sĩ Đa Miền Lâm Sàng (12-Domain Specialty Matrix & Allied Synergy Engine) & Chuẩn Hóa Cấu Hình AI Gateway
 * **Thời gian:** 2026-11-26 09:55 (GMT+7)

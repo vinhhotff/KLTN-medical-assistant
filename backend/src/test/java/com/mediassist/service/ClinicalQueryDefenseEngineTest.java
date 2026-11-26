@@ -44,6 +44,13 @@ class ClinicalQueryDefenseEngineTest {
         assertTrue(normalized.contains("đau dạ dày"));
         assertTrue(normalized.contains("mệt mỏi"));
         assertTrue(normalized.contains("không"));
+
+        // Unicode boundary check: words starting with 'k' followed by accented vowels (kèm, kéo) must NOT be mangled
+        String accented = "đau nửa đầu kèm buồn nôn và ho kéo dài";
+        String normalizedAccented = engine.normalizeSlangAndTypos(accented);
+        assertTrue(normalizedAccented.contains("kèm"), "Expected 'kèm' to remain intact, got: " + normalizedAccented);
+        assertTrue(normalizedAccented.contains("kéo"), "Expected 'kéo' to remain intact, got: " + normalizedAccented);
+        assertFalse(normalizedAccented.contains("khôngèm"), "Unexpected corruption to 'khôngèm'");
     }
 
     @Test

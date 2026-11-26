@@ -226,7 +226,7 @@ public class TriageService {
             int completionTokens = Math.max(120, ((sbar != null ? sbar.length() : 0) + (aiAdvice != null ? aiAdvice.length() : 0)) / 4);
             aiUsageAnalyticsService.recordUsage(
                     com.mediassist.model.entity.AiTokenUsage.ServiceType.TRIAGE,
-                    ragResult.getModelUsed() != null ? ragResult.getModelUsed() : "gemini-2.5-flash",
+                    ragResult.getModelUsed() != null ? ragResult.getModelUsed() : "gemini-3.8-flash",
                     promptTokens,
                     completionTokens,
                     com.mediassist.model.entity.AiTokenUsage.RequestStatus.SUCCESS,

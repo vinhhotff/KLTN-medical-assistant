@@ -13,6 +13,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @Component
@@ -111,18 +112,19 @@ public class OpenRouterAiProvider implements AiProvider {
             requestBody.put("messages", messages);
 
             try {
-                String responseJson = restClient.post()
+                byte[] responseBytes = restClient.post()
                         .uri(baseUrl + "/chat/completions")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey.trim())
                         .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                         .header("HTTP-Referer", "http://localhost:5173")
                         .header("X-Title", "MediAssist-AI Telehealth")
-                        .accept(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON, MediaType.ALL)
                         .body(requestBody)
                         .retrieve()
-                        .body(String.class);
+                        .body(byte[].class);
 
-                if (responseJson != null && !responseJson.isBlank()) {
+                if (responseBytes != null && responseBytes.length > 0) {
+                    String responseJson = new String(responseBytes, StandardCharsets.UTF_8);
                     JsonNode root = objectMapper.readTree(responseJson);
                     JsonNode choices = root.path("choices");
                     if (choices.isArray() && !choices.isEmpty()) {
@@ -174,20 +176,22 @@ public class OpenRouterAiProvider implements AiProvider {
         requestBody.put("messages", messages);
 
         try {
-            String responseJson = restClient.post()
+            byte[] responseBytes = restClient.post()
                     .uri(baseUrl + "/chat/completions")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey.trim())
                     .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                     .header("HTTP-Referer", "http://localhost:5173")
                     .header("X-Title", "MediAssist-AI Telehealth")
-                    .accept(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON, MediaType.ALL)
                     .body(requestBody)
                     .retrieve()
-                    .body(String.class);
+                    .body(byte[].class);
 
-            if (responseJson == null || responseJson.isBlank()) {
+            if (responseBytes == null || responseBytes.length == 0) {
                 throw new AiProviderOverloadedException("OpenRouter", targetModel, 500, "Empty response from OpenRouter API");
             }
+
+            String responseJson = new String(responseBytes, StandardCharsets.UTF_8);
 
             JsonNode root = objectMapper.readTree(responseJson);
             JsonNode choices = root.path("choices");

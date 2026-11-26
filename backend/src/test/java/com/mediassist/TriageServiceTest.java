@@ -203,7 +203,7 @@ class TriageServiceTest {
         when(redFlagService.evaluateRedFlag(anyString())).thenReturn(Optional.empty());
 
         com.mediassist.ai.ClinicalAiResult offTopicResult = new com.mediassist.ai.ClinicalAiResult();
-        offTopicResult.setModelUsed("google/gemini-2.5-flash");
+        offTopicResult.setModelUsed("google/gemini-3.8-flash");
         offTopicResult.setMedicalRelated(false);
         offTopicResult.setRecommendedSpecialtySlug(null);
         offTopicResult.setRecommendedSpecialtyName("Không thuộc phạm vi y tế");

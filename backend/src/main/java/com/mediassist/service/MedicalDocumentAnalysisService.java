@@ -1018,7 +1018,7 @@ public class MedicalDocumentAnalysisService {
                     int completionTokens = Math.max(150, ((clinicalSummary != null ? clinicalSummary.length() : 0) + (plainExplanation != null ? plainExplanation.length() : 0)) / 4);
                     aiUsageAnalyticsService.recordUsage(
                             com.mediassist.model.entity.AiTokenUsage.ServiceType.DOCUMENT_ANALYSIS,
-                            ragResult.getModelUsed() != null ? ragResult.getModelUsed() : "gemini-2.5-flash",
+                            ragResult.getModelUsed() != null ? ragResult.getModelUsed() : "gemini-3.8-flash",
                             promptTokens,
                             completionTokens,
                             com.mediassist.model.entity.AiTokenUsage.RequestStatus.SUCCESS,
