@@ -23,6 +23,8 @@ import {
   Video,
   Building2,
   Search,
+  Bell,
+  Pill,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
@@ -262,6 +264,83 @@ export const PatientDashboard: React.FC = () => {
   const [aptSort, setAptSort] = useState<'SMART' | 'NEWEST' | 'OLDEST'>('SMART');
   const [aptSearch, setAptSearch] = useState('');
   const initializedAptTabRef = React.useRef(false);
+
+  // Zalo OA Reminder states
+  const [zaloStatus, setZaloStatus] = useState<{
+    linked: boolean;
+    zaloUserId?: string | null;
+    mode?: string;
+    oaId?: string;
+    oaQrUrl?: string;
+  } | null>(null);
+  const [zaloInput, setZaloInput] = useState('');
+  const [zaloBusy, setZaloBusy] = useState(false);
+  const [sendingZaloId, setSendingZaloId] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.get('/zalo/status')
+      .then((res) => {
+        if (res.data?.data) setZaloStatus(res.data.data);
+      })
+      .catch(() => {
+        // non-blocking
+      });
+  }, []);
+
+  const handleLinkZalo = async (customId?: string) => {
+    try {
+      setZaloBusy(true);
+      const res = await api.post('/zalo/link', { zaloUserId: customId !== undefined ? customId : zaloInput.trim() });
+      if (res.data?.data) {
+        setZaloStatus(res.data.data);
+        setZaloInput('');
+        toast.success(
+          res.data.data.mode === 'REAL'
+            ? 'Đã liên kết Zalo OA thành công! Tin nhắn chào mừng đã được gửi về Zalo của bạn.'
+            : 'Đã liên kết Zalo OA (Chế độ Sandbox). Bạn có thể thử gửi nhắc lịch khám & uống thuốc ngay.'
+        );
+      }
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Không thể liên kết tài khoản Zalo.'));
+    } finally {
+      setZaloBusy(false);
+    }
+  };
+
+  const handleUnlinkZalo = async () => {
+    try {
+      setZaloBusy(true);
+      const res = await api.post('/zalo/unlink');
+      if (res.data?.data) {
+        setZaloStatus(res.data.data);
+        toast.info('Đã hủy liên kết nhắc nhở qua Zalo.');
+      }
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Không thể hủy liên kết Zalo.'));
+    } finally {
+      setZaloBusy(false);
+    }
+  };
+
+  const handleSendZaloReminder = async (aptId: string, type: 'appointment' | 'medication') => {
+    try {
+      setSendingZaloId(`${type}-${aptId}`);
+      const endpoint = type === 'appointment'
+        ? `/zalo/appointments/${aptId}/remind`
+        : `/zalo/appointments/${aptId}/remind-medication`;
+      const res = await api.post(endpoint);
+      const mode = res.data?.data?.mode;
+      toast.success(
+        type === 'appointment'
+          ? `Đã gửi nhắc lịch khám qua Zalo (${mode === 'REAL' ? 'Zalo OA Thật' : 'Sandbox'}).`
+          : `Đã gửi nhắc uống thuốc theo đơn bác sĩ qua Zalo (${mode === 'REAL' ? 'Zalo OA Thật' : 'Sandbox'}).`
+      );
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Không thể gửi nhắc nhở qua Zalo.'));
+    } finally {
+      setSendingZaloId(null);
+    }
+  };
 
   // Pagination states (Offset)
   const [appointmentsPage, setAppointmentsPage] = useState(1);
@@ -867,6 +946,68 @@ export const PatientDashboard: React.FC = () => {
               </Link>
             </div>
 
+            {/* Zalo OA Clinical Reminder Banner */}
+            {zaloStatus && (
+              <div className="mb-4 p-3.5 rounded-2xl border border-sky-200 bg-sky-50/70 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <div className="p-2 rounded-xl bg-sky-600 text-white shrink-0">
+                    <Bell className="w-4 h-4" />
+                  </div>
+                  <div className="text-xs min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-slate-900">Nhắc Lịch Khám & Uống Thuốc Qua Zalo OA</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        zaloStatus.mode === 'REAL'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}>
+                        {zaloStatus.mode === 'REAL' ? 'Zalo OA Thật' : 'Chế độ Sandbox'}
+                      </span>
+                      {zaloStatus.linked && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                          ✓ Đã liên kết ({zaloStatus.zaloUserId})
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-slate-600 mt-0.5">
+                      {zaloStatus.linked
+                        ? 'Hệ thống tự động nhắc trước giờ khám 24h và nhắc uống thuốc hàng ngày theo đơn bác sĩ đã kê.'
+                        : 'Liên kết Zalo để nhận nhắc lịch khám trước 24h và nhắc uống thuốc đúng liều bác sĩ kê.'}
+                    </p>
+                  </div>
+                </div>
+
+                {zaloStatus.linked ? (
+                  <button
+                    type="button"
+                    onClick={handleUnlinkZalo}
+                    disabled={zaloBusy}
+                    className="h-8 px-3 rounded-xl text-xs font-bold text-slate-600 bg-white hover:bg-rose-50 hover:text-rose-700 border border-slate-200 transition cursor-pointer shrink-0 self-start lg:self-auto"
+                  >
+                    Hủy liên kết Zalo
+                  </button>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <input
+                      type="text"
+                      value={zaloInput}
+                      onChange={(e) => setZaloInput(e.target.value)}
+                      placeholder="Nhập Zalo User ID (hoặc để trống)"
+                      className="h-8 px-2.5 text-xs bg-white border border-sky-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 w-52"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleLinkZalo()}
+                      disabled={zaloBusy}
+                      className="h-8 px-3 rounded-xl text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 transition cursor-pointer disabled:opacity-50"
+                    >
+                      {zaloBusy ? 'Đang kết nối...' : 'Liên kết Zalo'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {appointments.length > 0 && (
               <div className="mb-5 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1202,6 +1343,32 @@ export const PatientDashboard: React.FC = () => {
                             >
                               <QrCode className="w-3.5 h-3.5 text-indigo-600" />
                               <span>{apt.consultationType === 'ONLINE' ? 'Vé Online' : 'Phiếu Khám'}</span>
+                            </button>
+                          )}
+
+                          {isCompleted && apt.prescriptionJson && apt.prescriptionJson !== '[]' && zaloStatus?.linked && (
+                            <button
+                              type="button"
+                              onClick={() => handleSendZaloReminder(apt.id, 'medication')}
+                              disabled={sendingZaloId === `medication-${apt.id}`}
+                              className="h-8 px-2.5 text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl font-bold transition inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              title="Gửi tin nhắn nhắc uống thuốc theo đơn bác sĩ qua Zalo"
+                            >
+                              <Pill className="w-3.5 h-3.5 text-sky-600" />
+                              <span>{sendingZaloId === `medication-${apt.id}` ? 'Đang gửi...' : 'Nhắc Thuốc Zalo'}</span>
+                            </button>
+                          )}
+
+                          {isScheduled && zaloStatus?.linked && (
+                            <button
+                              type="button"
+                              onClick={() => handleSendZaloReminder(apt.id, 'appointment')}
+                              disabled={sendingZaloId === `appointment-${apt.id}`}
+                              className="h-8 px-2.5 text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl font-bold transition inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              title="Gửi nhắc lịch khám qua Zalo ngay"
+                            >
+                              <Bell className="w-3.5 h-3.5 text-sky-600" />
+                              <span>{sendingZaloId === `appointment-${apt.id}` ? 'Đang gửi...' : 'Nhắc Zalo'}</span>
                             </button>
                           )}
 

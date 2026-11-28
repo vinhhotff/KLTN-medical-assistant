@@ -131,4 +131,22 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
 
     @Query("SELECT a FROM Appointment a JOIN FETCH a.patient JOIN FETCH a.doctor WHERE a.icd10Code = :icdCode ORDER BY a.scheduledStart DESC")
     List<Appointment> findByIcdCode(@Param("icdCode") String icdCode);
+
+    @Query("SELECT a FROM Appointment a JOIN FETCH a.patient p JOIN FETCH a.doctor d " +
+           "WHERE a.status = com.mediassist.model.entity.AppointmentStatus.SCHEDULED " +
+           "AND a.scheduledStart BETWEEN :from AND :to " +
+           "AND a.zaloAppointmentRemindedAt IS NULL " +
+           "AND p.zaloOptedIn = TRUE AND p.zaloUserId IS NOT NULL")
+    List<Appointment> findUpcomingForZaloReminder(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("SELECT a FROM Appointment a JOIN FETCH a.patient p JOIN FETCH a.doctor d " +
+           "WHERE a.status = com.mediassist.model.entity.AppointmentStatus.COMPLETED " +
+           "AND a.prescriptionJson IS NOT NULL AND a.prescriptionJson <> '' AND a.prescriptionJson <> '[]' " +
+           "AND a.scheduledStart >= :since " +
+           "AND (a.zaloMedicationRemindedDate IS NULL OR a.zaloMedicationRemindedDate < :today) " +
+           "AND p.zaloOptedIn = TRUE AND p.zaloUserId IS NOT NULL")
+    List<Appointment> findCompletedWithPrescriptionForZaloReminder(
+            @Param("since") LocalDateTime since,
+            @Param("today") java.time.LocalDate today
+    );
 }

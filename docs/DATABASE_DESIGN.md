@@ -202,6 +202,8 @@ erDiagram
         DATE follow_up_date
         NUMERIC refund_amount
         TIMESTAMPTZ checked_in_at
+        TIMESTAMPTZ zalo_appointment_reminded_at "[V28]"
+        DATE zalo_medication_reminded_date "[V28]"
     }
     patient_profiles {
         UUID id PK
@@ -314,6 +316,9 @@ CREATE TABLE users (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     email_verified BOOLEAN NOT NULL DEFAULT FALSE, -- V1 tên is_email_verified (chưa map); V20 đổi tên + backfill TRUE
     email_verified_at TIMESTAMPTZ,                -- V20: thời điểm xác thực email lần đầu
+    zalo_user_id VARCHAR(100) UNIQUE,             -- [V28] ID người dùng Zalo OA để gửi nhắc nhở
+    zalo_opted_in BOOLEAN NOT NULL DEFAULT FALSE, -- [V28] Đã bật nhận nhắc lịch & uống thuốc qua Zalo
+    zalo_linked_at TIMESTAMPTZ,                   -- [V28] Thời điểm liên kết Zalo OA
     scan_quota INT NOT NULL DEFAULT 1,            -- Số lượt phân tích tài liệu khả dụng
     subscription_tier VARCHAR(30) NOT NULL DEFAULT 'FREE', -- FREE, VIP_MONTHLY, VIP_YEARLY
     vip_valid_until TIMESTAMPTZ,                 -- Hạn hội viên MediPass VIP

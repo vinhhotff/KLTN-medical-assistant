@@ -107,6 +107,12 @@ public class Appointment {
     @Column
     private LocalDateTime checkedInAt;
 
+    @Column(name = "zalo_appointment_reminded_at")
+    private LocalDateTime zaloAppointmentRemindedAt;
+
+    @Column(name = "zalo_medication_reminded_date")
+    private java.time.LocalDate zaloMedicationRemindedDate;
+
     @Version
     @Column(name = "version", nullable = false)
     private Long version = 0L;
@@ -216,6 +222,12 @@ public class Appointment {
 
     public LocalDateTime getCheckedInAt() { return checkedInAt; }
     public void setCheckedInAt(LocalDateTime checkedInAt) { this.checkedInAt = checkedInAt; }
+
+    public LocalDateTime getZaloAppointmentRemindedAt() { return zaloAppointmentRemindedAt; }
+    public void setZaloAppointmentRemindedAt(LocalDateTime zaloAppointmentRemindedAt) { this.zaloAppointmentRemindedAt = zaloAppointmentRemindedAt; }
+
+    public java.time.LocalDate getZaloMedicationRemindedDate() { return zaloMedicationRemindedDate; }
+    public void setZaloMedicationRemindedDate(java.time.LocalDate zaloMedicationRemindedDate) { this.zaloMedicationRemindedDate = zaloMedicationRemindedDate; }
 
     public ConsultationType getConsultationType() {
         return consultationType != null ? consultationType : ConsultationType.IN_PERSON;

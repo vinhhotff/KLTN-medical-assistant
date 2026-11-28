@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,6 +13,7 @@ import java.util.List;
 
 @SpringBootApplication
 @EnableCaching
+@EnableScheduling
 public class MediAssistApplication {
 
     private static final Logger log = LoggerFactory.getLogger(MediAssistApplication.class);

@@ -90,6 +90,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/pii/**").permitAll()
                         // Public Webhook listener for Stripe Payment Gateway (HMAC Signature Verified)
                         .requestMatchers("/api/v1/payments/webhook/**").permitAll()
+                        // Public Webhook listener for Zalo OA Events
+                        .requestMatchers("/api/v1/zalo/webhook/**").permitAll()
                         // WebSocket / STOMP endpoints (JWT enforced at WebSocket handshake & STOMP CONNECT/SUBSCRIBE/SEND interceptors)
                         .requestMatchers("/ws/**", "/ws-sockjs/**", "/api/v1/ws/**").permitAll()
 

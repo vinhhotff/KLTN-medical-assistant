@@ -67,6 +67,15 @@ public class User {
     @Column(name = "email_verified_at")
     private LocalDateTime emailVerifiedAt;
 
+    @Column(name = "zalo_user_id", unique = true, length = 100)
+    private String zaloUserId;
+
+    @Column(name = "zalo_opted_in", nullable = false)
+    private boolean zaloOptedIn = false;
+
+    @Column(name = "zalo_linked_at")
+    private LocalDateTime zaloLinkedAt;
+
     @Version
     @Column(name = "version", nullable = false)
     private Long version = 0L;
@@ -162,6 +171,15 @@ public class User {
 
     public LocalDateTime getEmailVerifiedAt() { return emailVerifiedAt; }
     public void setEmailVerifiedAt(LocalDateTime emailVerifiedAt) { this.emailVerifiedAt = emailVerifiedAt; }
+
+    public String getZaloUserId() { return zaloUserId; }
+    public void setZaloUserId(String zaloUserId) { this.zaloUserId = zaloUserId; }
+
+    public boolean isZaloOptedIn() { return zaloOptedIn; }
+    public void setZaloOptedIn(boolean zaloOptedIn) { this.zaloOptedIn = zaloOptedIn; }
+
+    public LocalDateTime getZaloLinkedAt() { return zaloLinkedAt; }
+    public void setZaloLinkedAt(LocalDateTime zaloLinkedAt) { this.zaloLinkedAt = zaloLinkedAt; }
 
     /** Danh dau email da xac thuc (giu nguyen thoi diem xac thuc dau tien). */
     public void markEmailVerified(LocalDateTime at) {

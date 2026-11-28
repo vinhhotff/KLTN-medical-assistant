@@ -13,6 +13,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     boolean existsByEmail(String email);
     boolean existsByPhone(String phone);
     Optional<User> findByGoogleId(String googleId);
+    Optional<User> findByZaloUserId(String zaloUserId);
 
     @org.springframework.transaction.annotation.Transactional
     @org.springframework.data.jpa.repository.Modifying
