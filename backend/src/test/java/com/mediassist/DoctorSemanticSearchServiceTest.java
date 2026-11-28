@@ -367,4 +367,84 @@ class DoctorSemanticSearchServiceTest {
         assertTrue(scoreObGyn < 0.30, "Ob/Gyn doctor should score < 0.30 for raw neurological symptoms, got: " + scoreObGyn);
         assertTrue(scoreNeuro - scoreObGyn > 0.45, "Gap should exceed 0.45, got: " + (scoreNeuro - scoreObGyn));
     }
+
+    @Test
+    @DisplayName("Clinical-First Proximity Ranking: nearby matching specialty ranks 1st, farther matching 2nd, nearby mismatch NEVER beats matching")
+    void testClinicalFirstProximityRanking_NearbyMatchingFirst_FartherMatchingSecond_MismatchLast() {
+        String query = "đau thắt ngực khó thở hồi hộp tim mạch";
+
+        DoctorMatchDto farCardio = new DoctorMatchDto(
+                UUID.randomUUID(), "GS.TS.BS Hà Nội Tim Mạch", "Chuyên khoa Tim mạch can thiệp",
+                "LIC-HN-CARDIO", 20, BigDecimal.valueOf(500000), 0.88,
+                List.of("Cardiology (Tim mạch)"), "GS.TS. BS", "Bệnh viện Bạch Mai", 4.98, 90
+        );
+        farCardio.setCity("Hà Nội");
+        farCardio.setLatitude(21.0023);
+        farCardio.setLongitude(105.8412);
+
+        DoctorMatchDto nearCardio = new DoctorMatchDto(
+                UUID.randomUUID(), "ThS.BS Sài Gòn Tim Mạch", "Chuyên khoa Tim mạch nội khoa",
+                "LIC-HCM-CARDIO", 10, BigDecimal.valueOf(350000), 0.80,
+                List.of("Cardiology (Tim mạch)"), "ThS. BS", "Bệnh viện Chợ Rẫy", 4.85, 30
+        );
+        nearCardio.setCity("TP. Hồ Chí Minh");
+        nearCardio.setLatitude(10.7574);
+        nearCardio.setLongitude(106.6596);
+
+        DoctorMatchDto rightNextDoorDerm = new DoctorMatchDto(
+                UUID.randomUUID(), "BS. Da Liễu Ngay Sát Nhà", "Chuyên khoa Da liễu thẩm mỹ",
+                "LIC-HCM-DERM", 15, BigDecimal.valueOf(300000), 0.65,
+                List.of("Dermatology (Da liễu)"), "BS. CKI", "Phòng khám Quận 1", 4.95, 50
+        );
+        rightNextDoorDerm.setCity("TP. Hồ Chí Minh");
+        rightNextDoorDerm.setLatitude(10.7769);
+        rightNextDoorDerm.setLongitude(106.7009);
+
+        // Patient is in District 1, TP.HCM (10.7769, 106.7009)
+        List<DoctorMatchDto> ranked = searchService.rankDoctors(
+                List.of(farCardio, rightNextDoorDerm, nearCardio),
+                query, 3, 10.7769, 106.7009, null
+        );
+
+        assertEquals(3, ranked.size());
+        assertEquals("ThS.BS Sài Gòn Tim Mạch", ranked.get(0).getFullName(), "Nearby matching specialist must rank 1st");
+        assertEquals("GS.TS.BS Hà Nội Tim Mạch", ranked.get(1).getFullName(), "Farther matching specialist must rank 2nd");
+        assertEquals("BS. Da Liễu Ngay Sát Nhà", ranked.get(2).getFullName(), "Unrelated specialty right next door must rank last");
+        assertTrue(ranked.get(0).getDistanceKm() < 10.0);
+        assertTrue(ranked.get(1).getDistanceKm() > 1000.0);
+        assertTrue(ranked.get(0).isAiRecommended());
+    }
+
+    @Test
+    @DisplayName("Clinical-First Proximity Ranking infers coordinates from Vietnamese city name when GPS is omitted")
+    void testClinicalFirstProximityRanking_InfersCityCoordinates() {
+        String query = "đau đầu chóng mặt mất ngủ thần kinh";
+
+        DoctorMatchDto hcmNeuro = new DoctorMatchDto(
+                UUID.randomUUID(), "BS. Thần Kinh HCM", "Chuyên khoa Thần kinh",
+                "LIC-HCM-NEURO", 14, BigDecimal.valueOf(350000), 0.85,
+                List.of("Neurology (Thần kinh)"), "BS. CKII", "Bệnh viện Chợ Rẫy", 4.90, 40
+        );
+        hcmNeuro.setCity("TP. Hồ Chí Minh");
+        hcmNeuro.setLatitude(10.7574);
+        hcmNeuro.setLongitude(106.6596);
+
+        DoctorMatchDto hnNeuro = new DoctorMatchDto(
+                UUID.randomUUID(), "BS. Thần Kinh Hà Nội", "Chuyên khoa Thần kinh",
+                "LIC-HN-NEURO", 10, BigDecimal.valueOf(350000), 0.80,
+                List.of("Neurology (Thần kinh)"), "ThS. BS", "Bệnh viện Bạch Mai", 4.85, 25
+        );
+        hnNeuro.setCity("Hà Nội");
+        hnNeuro.setLatitude(21.0023);
+        hnNeuro.setLongitude(105.8412);
+
+        List<DoctorMatchDto> ranked = searchService.rankDoctors(
+                List.of(hcmNeuro, hnNeuro), query, 2, null, null, "Hà Nội"
+        );
+
+        assertEquals(2, ranked.size());
+        assertEquals("BS. Thần Kinh Hà Nội", ranked.get(0).getFullName());
+        assertNotNull(ranked.get(0).getDistanceKm());
+        assertTrue(ranked.get(0).getDistanceKm() < 10.0);
+    }
 }

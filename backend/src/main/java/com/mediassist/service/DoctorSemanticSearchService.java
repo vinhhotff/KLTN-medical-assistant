@@ -170,12 +170,19 @@ public class DoctorSemanticSearchService {
      * 5. Multi-Criteria Weighted Re-Ranking (WHRF) with Bounded Min-Heap O(M log K).
      */
     public List<DoctorMatchDto> searchDoctors(String queryText, int limit) {
+        return searchDoctors(queryText, limit, null, null, null);
+    }
+
+    public List<DoctorMatchDto> searchDoctors(String queryText, int limit, Double patientLat, Double patientLng, String patientLocation) {
         if (queryText == null || queryText.isBlank()) {
             return Collections.emptyList();
         }
 
         int effectiveLimit = Math.max(1, Math.min(20, limit));
-        String cacheKey = queryText.trim().toLowerCase() + "::limit=" + effectiveLimit;
+        String locKey = (patientLat != null && patientLng != null)
+                ? String.format(Locale.ROOT, "%.2f,%.2f", patientLat, patientLng)
+                : (patientLocation != null ? patientLocation.trim().toLowerCase(Locale.ROOT) : "");
+        String cacheKey = queryText.trim().toLowerCase() + "::limit=" + effectiveLimit + "::loc=" + locKey;
         List<DoctorMatchDto> cached = doctorSearchCache.getIfPresent(cacheKey);
         if (cached != null) {
             log.debug("⚡ [L1 CACHE HIT] Doctor semantic search for query: '{}'", queryText);
@@ -200,6 +207,7 @@ public class DoctorSemanticSearchService {
             SELECT u.id AS doctor_user_id, dp.id AS doctor_profile_id, u.full_name, dp.bio, dp.license_number,
                    dp.years_of_experience, dp.consultation_fee,
                    dp.academic_title, dp.hospital_affiliation,
+                   dp.city, dp.district, dp.clinic_address, dp.latitude, dp.longitude,
                    dp.rating, dp.review_count,
                    (1 - (dp.bio_embedding <=> CAST(? AS vector))) AS similarity_score,
                    COALESCE((
@@ -250,13 +258,19 @@ public class DoctorSemanticSearchService {
                                         .collect(Collectors.toList())
                                 : Collections.emptyList();
 
-                        return new DoctorMatchDto(docUserId, fullName, bio, license, exp, fee, similarityScore, specs, academicTitle, hospitalAffiliation, docRating, reviewCount);
+                        DoctorMatchDto dto = new DoctorMatchDto(docUserId, fullName, bio, license, exp, fee, similarityScore, specs, academicTitle, hospitalAffiliation, docRating, reviewCount);
+                        dto.setCity(rs.getString("city"));
+                        dto.setDistrict(rs.getString("district"));
+                        dto.setClinicAddress(rs.getString("clinic_address"));
+                        dto.setLatitude(rs.getObject("latitude") != null ? rs.getDouble("latitude") : null);
+                        dto.setLongitude(rs.getObject("longitude") != null ? rs.getDouble("longitude") : null);
+                        return dto;
                     },
                     vectorSql, vectorSql, candidateLimit
             );
 
             String scoringQuery = (queryText + " " + cleansedSymptom).trim();
-            List<DoctorMatchDto> results = rankDoctors(candidates, scoringQuery, effectiveLimit);
+            List<DoctorMatchDto> results = rankDoctors(candidates, scoringQuery, effectiveLimit, patientLat, patientLng, patientLocation);
 
             // Stamp clinical input defense metadata onto candidates
             for (DoctorMatchDto doc : results) {
@@ -305,40 +319,153 @@ public class DoctorSemanticSearchService {
      * 4. WHRF Professional Merit: Dynamic patient review credibility damper + academic prestige + years of experience.
      */
     public List<DoctorMatchDto> rankDoctors(List<DoctorMatchDto> candidates, String queryText, int limit) {
+        return rankDoctors(candidates, queryText, limit, null, null, null);
+    }
+
+    /**
+     * Clinical-First Proximity-Aware WHRF Re-Ranking:
+     * Tier 1 (Exact Specialty Match) > Tier 2 (Allied / General Internal) > Tier 3 (Divergent Specialty).
+     * Within the same Clinical Tier, when patient coordinates or location are provided,
+     * nearby doctors are prioritized first, then farther doctors progressively by Haversine distance.
+     * Unrelated specialties NEVER jump ahead of matching specialists regardless of proximity.
+     */
+    public List<DoctorMatchDto> rankDoctors(List<DoctorMatchDto> candidates, String queryText, int limit,
+                                            Double patientLat, Double patientLng, String patientLocation) {
         if (candidates == null || candidates.isEmpty()) {
             return Collections.emptyList();
         }
         int effectiveLimit = Math.max(1, limit);
+        double[] patientCoords = resolvePatientCoordinates(patientLat, patientLng, patientLocation);
+        boolean hasLocation = patientCoords != null;
 
-        // Bounded Min-Heap PriorityQueue: stores at most effectiveLimit candidates
-        PriorityQueue<DoctorMatchDto> minHeap = new PriorityQueue<>(
+        record ScoredCandidate(DoctorMatchDto dto, double rankingKey) {}
+
+        PriorityQueue<ScoredCandidate> minHeap = new PriorityQueue<>(
                 effectiveLimit,
-                Comparator.comparingDouble(DoctorMatchDto::getSimilarityScore)
+                Comparator.comparingDouble(ScoredCandidate::rankingKey)
         );
 
         for (DoctorMatchDto candidate : candidates) {
-            double compositeScore = calculateCompositeScore(candidate, queryText);
-            candidate.setSimilarityScore(Math.round(compositeScore * 1000.0) / 1000.0);
+            double clinicalScore = calculateCompositeScore(candidate, queryText);
+            candidate.setSimilarityScore(Math.round(clinicalScore * 1000.0) / 1000.0);
+
+            double specialtyAlignment = computeSpecialtyAlignment(candidate, queryText);
+            int clinicalTier;
+            if (specialtyAlignment >= 0.15 || (specialtyAlignment >= 0.0 && clinicalScore >= 0.65)) {
+                clinicalTier = 2; // Tier 1 (Highest): Clinically matched specialty
+            } else if (specialtyAlignment >= 0.0) {
+                clinicalTier = 1; // Tier 2: Allied or General Internal Medicine
+            } else {
+                clinicalTier = 0; // Tier 3 (Lowest): Divergent / unrelated specialty
+            }
+
+            Double distanceKm = null;
+            if (hasLocation) {
+                double[] docCoords = resolveDoctorCoordinates(candidate);
+                if (docCoords != null) {
+                    distanceKm = haversineKm(patientCoords[0], patientCoords[1], docCoords[0], docCoords[1]);
+                    candidate.setDistanceKm(Math.round(distanceKm * 10.0) / 10.0);
+                }
+            } else {
+                candidate.setDistanceKm(null);
+            }
+
+            double withinTierScore;
+            if (distanceKm != null) {
+                double proximityScore = 1.0 / (1.0 + (distanceKm / 10.0));
+                withinTierScore = (0.55 * proximityScore) + (0.45 * clinicalScore);
+            } else {
+                withinTierScore = clinicalScore;
+            }
+
+            double rankingKey = clinicalTier + withinTierScore;
+            ScoredCandidate sc = new ScoredCandidate(candidate, rankingKey);
 
             if (minHeap.size() < effectiveLimit) {
-                minHeap.offer(candidate);
-            } else if (candidate.getSimilarityScore() > minHeap.peek().getSimilarityScore()) {
+                minHeap.offer(sc);
+            } else if (sc.rankingKey() > minHeap.peek().rankingKey()) {
                 minHeap.poll();
-                minHeap.offer(candidate);
+                minHeap.offer(sc);
             }
         }
 
-        // Extract elements from Min-Heap and sort in descending order (O(K log K))
-        List<DoctorMatchDto> ranked = new ArrayList<>(minHeap);
-        ranked.sort((a, b) -> Double.compare(b.getSimilarityScore(), a.getSimilarityScore()));
+        List<ScoredCandidate> sorted = new ArrayList<>(minHeap);
+        sorted.sort((a, b) -> Double.compare(b.rankingKey(), a.rankingKey()));
+        List<DoctorMatchDto> ranked = sorted.stream().map(ScoredCandidate::dto).collect(Collectors.toList());
 
-        // Assign AI recommendation to top doctor if score is sufficiently high (>= 0.55)
         if (!ranked.isEmpty() && ranked.get(0).getSimilarityScore() >= 0.55) {
             ranked.get(0).setAiRecommended(true);
-            ranked.get(0).setAiRecommendationReason("Bác sĩ được đề xuất hàng đầu dựa trên sự tương thích ngữ nghĩa lâm sàng và năng lực chuyên môn.");
+            String reason = ranked.get(0).getDistanceKm() != null
+                    ? String.format(Locale.ROOT, "Bác sĩ phù hợp chuyên môn nhất và gần bạn (~%.1f km).", ranked.get(0).getDistanceKm())
+                    : "Bác sĩ được đề xuất hàng đầu dựa trên sự tương thích ngữ nghĩa lâm sàng và năng lực chuyên môn.";
+            ranked.get(0).setAiRecommendationReason(reason);
         }
 
         return ranked;
+    }
+
+    static double haversineKm(double lat1, double lon1, double lat2, double lon2) {
+        final double R = 6371.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    static double[] resolvePatientCoordinates(Double lat, Double lng, String locationText) {
+        if (lat != null && lng != null && Double.isFinite(lat) && Double.isFinite(lng)) {
+            return new double[]{lat, lng};
+        }
+        return inferVietnamCityCoordinates(locationText);
+    }
+
+    static double[] resolveDoctorCoordinates(DoctorMatchDto doc) {
+        if (doc.getLatitude() != null && doc.getLongitude() != null) {
+            return new double[]{doc.getLatitude(), doc.getLongitude()};
+        }
+        String combined = ((doc.getCity() != null ? doc.getCity() : "") + " " +
+                (doc.getDistrict() != null ? doc.getDistrict() : "") + " " +
+                (doc.getHospitalAffiliation() != null ? doc.getHospitalAffiliation() : "")).trim();
+        return inferVietnamCityCoordinates(combined);
+    }
+
+    static double[] inferVietnamCityCoordinates(String text) {
+        if (text == null || text.isBlank()) return null;
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.contains("bạch mai")) return new double[]{21.0023, 105.8412};
+        if (lower.contains("việt đức")) return new double[]{21.0268, 105.8467};
+        if (lower.contains("108") || lower.contains("quân y")) return new double[]{21.0185, 105.8602};
+        if (lower.contains("hà nội") || lower.contains("ha noi") || lower.contains("đống đa") || lower.contains("hoàn kiếm") || lower.contains("cầu giấy")) {
+            return new double[]{21.0278, 105.8342};
+        }
+        if (lower.contains("đại học y dược") || lower.contains("chợ rẫy") || lower.contains("quận 5")) {
+            return new double[]{10.7564, 106.6615};
+        }
+        if (lower.contains("nhi đồng 1") || lower.contains("quận 10")) {
+            return new double[]{10.7689, 106.6697};
+        }
+        if (lower.contains("từ dũ") || lower.contains("quận 1")) {
+            return new double[]{10.7675, 106.6836};
+        }
+        if (lower.contains("hồ chí minh") || lower.contains("ho chi minh") || lower.contains("tp.hcm") || lower.contains("tphcm") || lower.contains("hcm") || lower.contains("sài gòn")) {
+            return new double[]{10.7769, 106.7009};
+        }
+        if (lower.contains("đà nẵng") || lower.contains("da nang")) {
+            return new double[]{16.0544, 108.2022};
+        }
+        if (lower.contains("cần thơ") || lower.contains("can tho")) {
+            return new double[]{10.0452, 105.7469};
+        }
+        if (lower.contains("hải phòng") || lower.contains("hai phong")) {
+            return new double[]{20.8449, 106.6881};
+        }
+        if (lower.contains("bình dương") || lower.contains("binh duong")) {
+            return new double[]{10.9804, 106.6519};
+        }
+        return null;
     }
 
     public double calculateCompositeScore(DoctorMatchDto doc) {

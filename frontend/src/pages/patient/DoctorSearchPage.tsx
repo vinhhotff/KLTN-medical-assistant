@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Calendar, BadgeCheck, CheckCircle2, Building2, Star, Filter, Sparkles, Loader2, Zap, PowerOff, Wrench, Video } from 'lucide-react';
+import { Search, Calendar, BadgeCheck, CheckCircle2, Building2, Star, Filter, Sparkles, Loader2, Zap, PowerOff, Wrench, Video, MapPin, Navigation } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { api } from '../../services/api';
@@ -52,6 +52,12 @@ interface DoctorDetail extends ClinicalDefenseMeta {
   similarityScore?: number;
   supportsOnline?: boolean;
   supportsInPerson?: boolean;
+  city?: string | null;
+  district?: string | null;
+  clinicAddress?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  distanceKm?: number | null;
 }
 
 /** Semantic search returns DoctorMatchDto (doctorId) while /doctors returns DoctorDetailDto (id). */
@@ -86,6 +92,9 @@ export const DoctorSearchPage: React.FC = () => {
   const [specialtiesList, setSpecialtiesList] = useState<{ id: string; name: string; slug: string }[]>([]);
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('ALL');
   const [consultationModeFilter, setConsultationModeFilter] = useState<'ALL' | 'ONLINE' | 'IN_PERSON'>('ALL');
+  const [locationCity, setLocationCity] = useState<string>('');
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locatingGps, setLocatingGps] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -105,6 +114,27 @@ export const DoctorSearchPage: React.FC = () => {
   const [bookingDoctor, setBookingDoctor] = useState<DoctorDetail | null>(null);
   const [viewingReviewsDoctor, setViewingReviewsDoctor] = useState<DoctorDetail | null>(null);
 
+  const handleDetectGps = () => {
+    if (!navigator.geolocation) {
+      toast.info('Trình duyệt không hỗ trợ định vị GPS.');
+      return;
+    }
+    setLocatingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocationCity('GPS');
+        setLocatingGps(false);
+        toast.success('Đã xác định vị trí GPS hiện tại để ưu tiên bác sĩ gần bạn.');
+      },
+      () => {
+        setLocatingGps(false);
+        toast.info('Không thể truy cập GPS. Bạn có thể chọn tỉnh/thành phố thủ công.');
+      },
+      { timeout: 8000 }
+    );
+  };
+
   const executeSemanticSearch = useCallback(async (query: string) => {
     const trimmed = query.trim();
     if (trimmed.length < 3 || !user) {
@@ -113,9 +143,14 @@ export const DoctorSearchPage: React.FC = () => {
     }
     try {
       setSearchingSemantic(true);
-      const res = await api.get('/triage/search/semantic', {
-        params: { query: trimmed, limit: 12 }
-      });
+      const params: Record<string, string | number> = { query: trimmed, limit: 12 };
+      if (gpsCoords && locationCity === 'GPS') {
+        params.latitude = gpsCoords.lat;
+        params.longitude = gpsCoords.lng;
+      } else if (locationCity && locationCity !== 'GPS') {
+        params.location = locationCity;
+      }
+      const res = await api.get('/triage/search/semantic', { params });
       setSemanticResults(Array.isArray(res.data?.data) ? res.data.data.map(normalizeDoctor) : null);
       setSemanticQuery(trimmed);
     } catch (err) {
@@ -125,7 +160,7 @@ export const DoctorSearchPage: React.FC = () => {
     } finally {
       setSearchingSemantic(false);
     }
-  }, [user]);
+  }, [user, gpsCoords, locationCity]);
 
   const loadAiModeStatus = useCallback(async () => {
     try {
@@ -353,31 +388,67 @@ export const DoctorSearchPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Consultation Mode Quick Filter */}
-      <div className="gsap-doc-search flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-slate-500 mr-1">Hình thức khám:</span>
-        {(
-          [
-            { key: 'ALL', label: 'Tất cả hình thức' },
-            { key: 'ONLINE', label: 'Hỗ trợ Khám Online (Video Call)' },
-            { key: 'IN_PERSON', label: 'Khám Trực Tiếp Tại Phòng Khám' },
-          ] as const
-        ).map((item) => (
+      {/* Consultation Mode & Location Filter */}
+      <div className="gsap-doc-search flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-slate-500 mr-1">Hình thức khám:</span>
+          {(
+            [
+              { key: 'ALL', label: 'Tất cả hình thức' },
+              { key: 'ONLINE', label: 'Hỗ trợ Khám Online (Video Call)' },
+              { key: 'IN_PERSON', label: 'Khám Trực Tiếp Tại Phòng Khám' },
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setConsultationModeFilter(item.key)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer ${
+                consultationModeFilter === item.key
+                  ? 'bg-teal-600 text-white border-teal-600 shadow-2xs'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300 hover:text-teal-700'
+              }`}
+            >
+              {item.key === 'ONLINE' && <Video className="w-3.5 h-3.5" />}
+              {item.key === 'IN_PERSON' && <Building2 className="w-3.5 h-3.5" />}
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+            <select
+              aria-label="Vị trí ưu tiên"
+              value={locationCity}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val !== 'GPS') setGpsCoords(null);
+                setLocationCity(val);
+              }}
+              className="text-xs font-semibold text-slate-700 bg-transparent outline-none cursor-pointer"
+            >
+              <option value="">Toàn quốc (không ưu tiên khoảng cách)</option>
+              {gpsCoords && <option value="GPS">Vị trí GPS hiện tại</option>}
+              <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+              <option value="Hà Nội">Hà Nội</option>
+              <option value="Đà Nẵng">Đà Nẵng</option>
+              <option value="Cần Thơ">Cần Thơ</option>
+              <option value="Hải Phòng">Hải Phòng</option>
+              <option value="Bình Dương">Bình Dương</option>
+            </select>
+          </div>
           <button
-            key={item.key}
             type="button"
-            onClick={() => setConsultationModeFilter(item.key)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer ${
-              consultationModeFilter === item.key
-                ? 'bg-teal-600 text-white border-teal-600 shadow-2xs'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300 hover:text-teal-700'
-            }`}
+            onClick={handleDetectGps}
+            disabled={locatingGps}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 transition cursor-pointer disabled:opacity-50"
           >
-            {item.key === 'ONLINE' && <Video className="w-3.5 h-3.5" />}
-            {item.key === 'IN_PERSON' && <Building2 className="w-3.5 h-3.5" />}
-            <span>{item.label}</span>
+            {locatingGps ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Navigation className="w-3.5 h-3.5" />}
+            Gần tôi (GPS)
           </button>
-        ))}
+        </div>
       </div>
 
       <ClinicalDefenseBar defense={defense} />
@@ -417,6 +488,12 @@ export const DoctorSearchPage: React.FC = () => {
                           Phù hợp {(doc.similarityScore * 100).toFixed(0)}%
                         </span>
                       )}
+                      {doc.distanceKm != null && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200 flex items-center gap-1 tabular-nums">
+                          <MapPin className="w-3 h-3" />
+                          ~{doc.distanceKm.toFixed(1)} km
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {doc.specialties?.map((spec) => (
@@ -449,6 +526,15 @@ export const DoctorSearchPage: React.FC = () => {
                           <>
                             <span className="text-slate-300">•</span>
                             <span className="text-slate-600">{doc.department}</span>
+                          </>
+                        )}
+                        {(doc.district || doc.city) && (
+                          <>
+                            <span className="text-slate-300">•</span>
+                            <span className="inline-flex items-center gap-1 text-slate-600">
+                              <MapPin className="w-3 h-3 text-slate-400" />
+                              {[doc.district, doc.city].filter(Boolean).join(', ')}
+                            </span>
                           </>
                         )}
                       </div>

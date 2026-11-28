@@ -11,6 +11,11 @@ public class TriageRequest {
 
     private List<String> conversationHistory;
 
+    // Optional patient location for Clinical-First Proximity Ranking
+    private Double latitude;
+    private Double longitude;
+    private String location;
+
     public TriageRequest() {}
 
     public TriageRequest(String symptoms, List<String> conversationHistory) {
@@ -23,4 +28,13 @@ public class TriageRequest {
 
     public List<String> getConversationHistory() { return conversationHistory; }
     public void setConversationHistory(List<String> conversationHistory) { this.conversationHistory = conversationHistory; }
+
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
+
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
 }

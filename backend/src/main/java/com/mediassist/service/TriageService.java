@@ -92,9 +92,14 @@ public class TriageService {
             return handleEmergency(symptoms, redFlag.get(), patientUser);
         }
 
+        boolean hasPatientLocation = (request.getLatitude() != null && request.getLongitude() != null)
+                || (request.getLocation() != null && !request.getLocation().isBlank());
+
         // 2. Pre-RAG Semantic Retrieval: Fetch doctor candidates from pgvector BEFORE calling LLM
         //    so that Gemini receives real doctor profiles and can make a personalized recommendation.
-        List<DoctorMatchDto> preRagCandidates = doctorSemanticSearchService.searchDoctors(symptoms, 4);
+        List<DoctorMatchDto> preRagCandidates = hasPatientLocation
+                ? doctorSemanticSearchService.searchDoctors(symptoms, 4, request.getLatitude(), request.getLongitude(), request.getLocation())
+                : doctorSemanticSearchService.searchDoctors(symptoms, 4);
         log.info("🧠 [PRE-RAG] Found {} doctor candidates from pgvector for symptom-based broad search", preRagCandidates != null ? preRagCandidates.size() : 0);
 
         // 3. AI-First Clinical Reasoning via LLM with real doctor candidates injected
@@ -164,7 +169,9 @@ public class TriageService {
 
             // 5. Focused pgvector Doctor Retrieval based on AI-reasoned specialty (clean query, no noise)
             String focusedDoctorQuery = buildFocusedTriageDoctorQuery(specialtySlug, specialtyName, symptoms);
-            matchedDoctors = doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
+            matchedDoctors = hasPatientLocation
+                    ? doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4, request.getLatitude(), request.getLongitude(), request.getLocation())
+                    : doctorSemanticSearchService.searchDoctors(focusedDoctorQuery, 4);
 
             // Fallback to pre-RAG candidates if focused search yields nothing
             if ((matchedDoctors == null || matchedDoctors.isEmpty()) && preRagCandidates != null && !preRagCandidates.isEmpty()) {
@@ -184,8 +191,9 @@ public class TriageService {
 
             if (matchedDoctors != null && !matchedDoctors.isEmpty()) {
                 matchedDoctors = new ArrayList<>(matchedDoctors);
-                // If AI explicitly recommended a doctor from pre-RAG candidates, align display order so that doctor is index 0
-                if (ragResult.getRecommendedDoctorId() != null) {
+                // If AI explicitly recommended a doctor and no location filter is active, align display order so that doctor is index 0.
+                // When location is provided, preserve Clinical-First Proximity-Aware ordering (nearest matching specialist first).
+                if (!hasPatientLocation && ragResult.getRecommendedDoctorId() != null) {
                     UUID recId = ragResult.getRecommendedDoctorId();
                     int recIdx = -1;
                     for (int i = 0; i < matchedDoctors.size(); i++) {

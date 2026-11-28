@@ -103,6 +103,9 @@ public class TriageController {
     public ResponseEntity<ApiResponse<List<DoctorMatchDto>>> searchDoctorsSemantic(
             @RequestParam(defaultValue = "") String query,
             @RequestParam(defaultValue = "5") int limit,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(required = false) String location,
             Authentication authentication) {
 
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
@@ -110,7 +113,7 @@ public class TriageController {
                     "Vui lòng đăng nhập để sử dụng tính năng tìm kiếm bác sĩ theo ngữ nghĩa triệu chứng.");
         }
 
-        List<DoctorMatchDto> results = doctorSemanticSearchService.searchDoctors(query, limit);
+        List<DoctorMatchDto> results = doctorSemanticSearchService.searchDoctors(query, limit, latitude, longitude, location);
         return ResponseEntity.ok(ApiResponse.success(results));
     }
 

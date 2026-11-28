@@ -16,6 +16,12 @@ public class DoctorMatchDto {
     private List<String> specialties;
     private String academicTitle;
     private String hospitalAffiliation;
+    private String city;
+    private String district;
+    private String clinicAddress;
+    private Double latitude;
+    private Double longitude;
+    private Double distanceKm;
     private Double rating = null;
     private int reviewCount = 0;
     private boolean aiRecommended;
@@ -97,6 +103,24 @@ public class DoctorMatchDto {
 
     public String getHospitalAffiliation() { return hospitalAffiliation; }
     public void setHospitalAffiliation(String hospitalAffiliation) { this.hospitalAffiliation = hospitalAffiliation; }
+
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+
+    public String getDistrict() { return district; }
+    public void setDistrict(String district) { this.district = district; }
+
+    public String getClinicAddress() { return clinicAddress; }
+    public void setClinicAddress(String clinicAddress) { this.clinicAddress = clinicAddress; }
+
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
+
+    public Double getDistanceKm() { return distanceKm; }
+    public void setDistanceKm(Double distanceKm) { this.distanceKm = distanceKm; }
 
     public boolean isAiRecommended() { return aiRecommended; }
     public void setAiRecommended(boolean aiRecommended) { this.aiRecommended = aiRecommended; }

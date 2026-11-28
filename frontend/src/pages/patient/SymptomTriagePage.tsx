@@ -15,7 +15,9 @@ import {
   Bot,
   User,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  MapPin,
+  Navigation
 } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -39,6 +41,9 @@ interface DoctorMatch {
   specialties: string[];
   academicTitle?: string;
   hospitalAffiliation?: string;
+  city?: string | null;
+  district?: string | null;
+  distanceKm?: number | null;
   rating?: number;
   reviewCount?: number;
   aiRecommended?: boolean;
@@ -120,6 +125,9 @@ export const SymptomTriagePage: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [locationCity, setLocationCity] = useState<string>('');
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locatingGps, setLocatingGps] = useState(false);
   const [isEmergencyLocked, setIsEmergencyLocked] = useState<boolean>(() => {
     try {
       const saved = sessionStorage.getItem('EMERGENCY_LOCKOUT');
@@ -211,7 +219,10 @@ export const SymptomTriagePage: React.FC = () => {
 
       const res = await api.post('/triage/assess', {
         symptoms: text,
-        conversationHistory: historyStrings.length > 0 ? historyStrings : undefined
+        conversationHistory: historyStrings.length > 0 ? historyStrings : undefined,
+        latitude: gpsCoords && locationCity === 'GPS' ? gpsCoords.lat : undefined,
+        longitude: gpsCoords && locationCity === 'GPS' ? gpsCoords.lng : undefined,
+        location: locationCity && locationCity !== 'GPS' ? locationCity : undefined,
       });
 
       if (res.data?.data) {
@@ -323,14 +334,60 @@ export const SymptomTriagePage: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={handleResetChat}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 font-display text-xs font-bold text-slate-700 bg-[#FCFBF8] hover:bg-teal-50 hover:text-teal-800 border border-slate-200/90 rounded-xl transition cursor-pointer shadow-2xs"
-          title="Bắt đầu phiên phân tích mới"
-        >
-          <RotateCcw className="w-3.5 h-3.5 text-teal-600" />
-          <span>Làm mới hội thoại</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="bg-[#FCFBF8] px-2.5 py-1.5 rounded-xl border border-slate-200/90 flex items-center gap-1.5 shadow-2xs">
+            <MapPin className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+            <select
+              aria-label="Khu vực ưu tiên bác sĩ"
+              value={locationCity}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val !== 'GPS') setGpsCoords(null);
+                setLocationCity(val);
+              }}
+              className="text-xs font-semibold text-slate-700 bg-transparent outline-none cursor-pointer"
+            >
+              <option value="">Toàn quốc</option>
+              {gpsCoords && <option value="GPS">GPS hiện tại</option>}
+              <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+              <option value="Hà Nội">Hà Nội</option>
+              <option value="Đà Nẵng">Đà Nẵng</option>
+              <option value="Cần Thơ">Cần Thơ</option>
+              <option value="Hải Phòng">Hải Phòng</option>
+              <option value="Bình Dương">Bình Dương</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            disabled={locatingGps}
+            onClick={() => {
+              if (!navigator.geolocation) return;
+              setLocatingGps(true);
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                  setLocationCity('GPS');
+                  setLocatingGps(false);
+                },
+                () => setLocatingGps(false),
+                { timeout: 8000 }
+              );
+            }}
+            className="inline-flex items-center gap-1 px-2.5 py-2 font-display text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition cursor-pointer shadow-2xs disabled:opacity-50"
+            title="Ưu tiên bác sĩ đúng chuyên khoa ở gần vị trí hiện tại"
+          >
+            <Navigation className="w-3.5 h-3.5" />
+            <span>{locatingGps ? 'Đang định vị...' : 'Gần tôi'}</span>
+          </button>
+          <button
+            onClick={handleResetChat}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 font-display text-xs font-bold text-slate-700 bg-[#FCFBF8] hover:bg-teal-50 hover:text-teal-800 border border-slate-200/90 rounded-xl transition cursor-pointer shadow-2xs"
+            title="Bắt đầu phiên phân tích mới"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-teal-600" />
+            <span>Làm mới hội thoại</span>
+          </button>
+        </div>
       </div>
 
       {/* 🚨 Full-Width Persistent Emergency Banner (when emergency is triggered) */}
@@ -500,11 +557,17 @@ export const SymptomTriagePage: React.FC = () => {
                                   <span className="font-normal text-[11px] text-indigo-600 bg-indigo-50 px-2 py-0.2 rounded-full border border-indigo-200">
                                     Độ khớp {matchPct}%
                                   </span>
+                                  {doc.distanceKm != null && (
+                                    <span className="font-semibold text-[11px] text-sky-700 bg-sky-50 px-2 py-0.2 rounded-full border border-sky-200 inline-flex items-center gap-0.5 tabular-nums">
+                                      <MapPin className="w-2.5 h-2.5" />~{doc.distanceKm.toFixed(1)} km
+                                    </span>
+                                  )}
                                 </div>
                                 <p className="text-[11px] text-slate-500 flex items-center gap-1.5 flex-wrap">
                                   <span>
                                     {doc.specialties?.length ? doc.specialties.join(', ') : 'Chưa cập nhật chuyên khoa'}
                                     {doc.yearsOfExperience ? ` • ${doc.yearsOfExperience} năm kinh nghiệm` : ''}
+                                    {(doc.district || doc.city) ? ` • ${[doc.district, doc.city].filter(Boolean).join(', ')}` : ''}
                                   </span>
                                   <span>•</span>
                                   {formatRating(doc.rating, doc.reviewCount) ? (

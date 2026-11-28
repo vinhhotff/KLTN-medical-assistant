@@ -132,6 +132,11 @@ erDiagram
         INT years_of_experience
         VARCHAR academic_title "GS, PGS, TS, BSCKII"
         VARCHAR hospital_affiliation
+        VARCHAR city "[V27] Tỉnh/Thành phố"
+        VARCHAR district "[V27] Quận/Huyện"
+        VARCHAR clinic_address "[V27] Địa chỉ phòng khám"
+        DOUBLE_PRECISION latitude "[V27] Vĩ độ GPS"
+        DOUBLE_PRECISION longitude "[V27] Kinh độ GPS"
         DOUBLE_PRECISION rating
         INT review_count
         BOOLEAN is_verified
@@ -389,6 +394,11 @@ CREATE TABLE doctor_profiles (
     years_of_experience INT DEFAULT 0,           -- Số năm kinh nghiệm
     academic_title VARCHAR(50),                  -- Chức danh học thuật: GS.TS, PGS.TS, TS.BS, BS.CKII, BS.CKI
     hospital_affiliation VARCHAR(150),           -- Bệnh viện công tác: BV Đại Học Y Dược, BV Chợ Rẫy
+    city VARCHAR(100),                           -- [V27] Tỉnh/Thành phố công tác (VD: TP. Hồ Chí Minh, Hà Nội)
+    district VARCHAR(100),                       -- [V27] Quận/Huyện (VD: Quận 5, Quận Đống Đa)
+    clinic_address VARCHAR(255),                 -- [V27] Địa chỉ phòng khám/bệnh viện chi tiết
+    latitude DOUBLE PRECISION,                   -- [V27] Vĩ độ GPS (Haversine proximity ranking)
+    longitude DOUBLE PRECISION,                  -- [V27] Kinh độ GPS (Haversine proximity ranking)
     department VARCHAR(150),                     -- Khoa chuyên môn trực thuộc: Khoa Tim Mạch Can Thiệp
     license_issued_by VARCHAR(150),              -- Đơn vị cấp CCHN: Cục Quản lý Khám chữa bệnh - Bộ Y Tế
     rating DOUBLE PRECISION DEFAULT 4.9,         -- Điểm đánh giá hài lòng người bệnh (1.0 - 5.0)
