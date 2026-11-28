@@ -256,11 +256,12 @@ export const PatientDashboard: React.FC = () => {
     }
   };
 
-  // Appointment Filters & Sorting
-  const [aptStatusFilter, setAptStatusFilter] = useState<'ALL' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED'>('ALL');
+  // Appointment Filters & Sorting (default UPCOMING so active appointments are never mixed with cancelled ones)
+  const [aptStatusFilter, setAptStatusFilter] = useState<'ALL' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED'>('UPCOMING');
   const [aptTypeFilter, setAptTypeFilter] = useState<'ALL' | 'ONLINE' | 'IN_PERSON'>('ALL');
   const [aptSort, setAptSort] = useState<'SMART' | 'NEWEST' | 'OLDEST'>('SMART');
   const [aptSearch, setAptSearch] = useState('');
+  const initializedAptTabRef = React.useRef(false);
 
   // Pagination states (Offset)
   const [appointmentsPage, setAppointmentsPage] = useState(1);
@@ -307,16 +308,20 @@ export const PatientDashboard: React.FC = () => {
       return true;
     });
 
-    const statusRank = (status: string): number => {
-      switch (status) {
+    const nowCutoff = Date.now() - 2 * 60 * 60 * 1000;
+    const statusRank = (a: AppointmentItem): number => {
+      switch (a.status) {
         case 'IN_PROGRESS': return 0;
         case 'CHECKED_IN': return 1;
-        case 'SCHEDULED': return 2;
-        case 'COMPLETED': return 3;
+        case 'SCHEDULED': {
+          const t = new Date(a.scheduledStart).getTime() || 0;
+          return t >= nowCutoff ? 2 : 3; // Future/upcoming first, overdue scheduled after
+        }
+        case 'COMPLETED': return 4;
         case 'CANCELLED':
         case 'NO_SHOW':
         default:
-          return 4;
+          return 5;
       }
     };
 
@@ -326,14 +331,23 @@ export const PatientDashboard: React.FC = () => {
       if (aptSort === 'NEWEST') return timeB - timeA;
       if (aptSort === 'OLDEST') return timeA - timeB;
 
-      // SMART sort: active/upcoming first (soonest first), then completed (newest first), then cancelled/no-show (newest first)
-      const rankA = statusRank(a.status);
-      const rankB = statusRank(b.status);
+      // SMART sort: active/upcoming soonest-first, then overdue/completed/cancelled newest-first
+      const rankA = statusRank(a);
+      const rankB = statusRank(b);
       if (rankA !== rankB) return rankA - rankB;
       if (rankA <= 2) return timeA - timeB;
       return timeB - timeA;
     });
   }, [appointments, aptStatusFilter, aptTypeFilter, aptSort, aptSearch]);
+
+  useEffect(() => {
+    if (!loading && !initializedAptTabRef.current && appointments.length > 0) {
+      initializedAptTabRef.current = true;
+      if (appointmentCounts.upcoming === 0) {
+        setAptStatusFilter('ALL');
+      }
+    }
+  }, [loading, appointments.length, appointmentCounts.upcoming]);
 
   useEffect(() => {
     setAppointmentsPage(1);
@@ -960,160 +974,146 @@ export const PatientDashboard: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {paginatedAppointments.map((apt) => {
                   const isScheduled = apt.status === 'SCHEDULED';
                   const isCompleted = apt.status === 'COMPLETED';
+                  const isCancelled = apt.status === 'CANCELLED' || apt.status === 'NO_SHOW';
                   const statusInfo = STATUS_LABEL[apt.status] ?? STATUS_LABEL.SCHEDULED;
                   const fee = formatVnd(apt.feeAmount);
                   const vitals = parseStoredVitals(apt.vitalSignsJson);
+                  const formattedTime = new Date(apt.scheduledStart).toLocaleString('vi-VN', {
+                    weekday: 'short',
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
 
                   return (
                     <div
                       key={apt.id}
-                      className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-indigo-300 transition shadow-xs flex flex-col gap-4"
+                      className={`p-4 rounded-2xl border transition shadow-xs flex flex-col gap-3 ${
+                        isCancelled
+                          ? 'bg-slate-50/80 border-slate-200/80 opacity-85'
+                          : 'bg-white border-slate-200 hover:border-indigo-300'
+                      }`}
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+                      {/* Compact Top Header: Time + Code + Mode on left, Status on right */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-900 tabular-nums">
+                            <Calendar className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                            {formattedTime}
+                          </span>
+                          <span className="text-slate-300">•</span>
+                          <span className="font-mono text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
                             {apt.appointmentCode}
                           </span>
-                          {apt.queueNumber && (
-                            <span className="font-mono text-xs font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
-                              {apt.queueNumber}
+                          {apt.queueNumber && !isCancelled && (
+                            <span className="font-mono text-[11px] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                              STT {apt.queueNumber}
                             </span>
                           )}
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${statusInfo.className}`}>
-                            {statusInfo.text}
-                          </span>
                           {apt.consultationType === 'ONLINE' ? (
-                            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                              <Video className="w-3.5 h-3.5" /> Khám Online
+                            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              <Video className="w-3 h-3" /> Online
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                              <Building2 className="w-3.5 h-3.5" /> Khám Trực Tiếp
+                            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                              <Building2 className="w-3 h-3" /> Trực tiếp
                             </span>
                           )}
                         </div>
 
-                        <div className="text-xs text-slate-500 font-medium">
-                          {new Date(apt.scheduledStart).toLocaleString('vi-VN', {
-                            weekday: 'short',
-                            year: 'numeric',
-                            month: 'numeric',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </div>
+                        <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold shrink-0 ${statusInfo.className}`}>
+                          {statusInfo.text}
+                        </span>
                       </div>
 
-                      {/* Doctor & Clinic Info */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
-                        <div>
-                          <span className="text-slate-400 block font-semibold">Bác sĩ phụ trách:</span>
-                          <span className="font-bold text-slate-800 text-sm">{apt.doctorName}</span>
-                          <span className="text-slate-400 block text-[11px]">{apt.doctorEmail}</span>
-                        </div>
-
-                        <div>
-                          <span className="text-slate-400 block font-semibold">
-                            {apt.consultationType === 'ONLINE' ? 'Hình thức / Phòng Video:' : 'Phòng khám / Cơ sở:'}
-                          </span>
-                          {apt.consultationType === 'ONLINE' ? (
-                            <>
-                              <span className="font-semibold text-indigo-700">
-                                {apt.clinicRoom || 'Phòng Khám Trực Tuyến (Video Call & Chat)'}
+                      {/* Balanced 2-Column Body */}
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 text-xs items-start">
+                        <div className="md:col-span-7 space-y-1 min-w-0">
+                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                            <span className="font-bold text-slate-900 text-sm">{apt.doctorName}</span>
+                            {apt.consultationType === 'ONLINE' ? (
+                              <span className="text-indigo-700 font-semibold">
+                                • {apt.clinicRoom || 'Phòng Video Call & Chat'}
+                                {apt.meetingRoomCode ? ` (${apt.meetingRoomCode})` : ''}
                               </span>
-                              {apt.meetingRoomCode && (
-                                <span className="font-mono text-slate-500 block text-[11px]">Mã phòng: {apt.meetingRoomCode}</span>
-                              )}
-                            </>
-                          ) : apt.clinicRoom ? (
-                            <span className="font-semibold text-slate-700">{apt.clinicRoom}</span>
-                          ) : (
-                            <span className="text-slate-500 italic">Chưa xếp phòng — sẽ thông báo khi check-in</span>
-                          )}
-                          {apt.consultationType !== 'ONLINE' && apt.clinicAddress && (
-                            <span className="text-slate-500 block text-[11px]">{apt.clinicAddress}</span>
+                            ) : (
+                              <span className="text-slate-600 font-medium">
+                                • {apt.clinicRoom || 'Chờ xếp phòng'}
+                                {apt.clinicAddress ? ` — ${apt.clinicAddress}` : ''}
+                              </span>
+                            )}
+                          </div>
+                          {apt.chiefComplaint && (
+                            <p className="text-slate-600 line-clamp-1">
+                              <span className="font-semibold text-slate-500">Lý do:</span> {apt.chiefComplaint}
+                            </p>
                           )}
                         </div>
 
-                        <div>
-                          <span className="text-slate-400 block font-semibold">Phí dịch vụ & Trạng thái:</span>
-                          <div className="flex items-center gap-2 mt-0.5">
+                        <div className="md:col-span-5 flex flex-wrap md:flex-col md:items-end justify-between gap-1.5">
+                          <div className="flex items-center gap-2">
                             {fee ? (
-                              <span className="font-bold text-indigo-600 text-sm">{fee}</span>
+                              <span className="font-bold text-indigo-700 text-sm tabular-nums">{fee}</span>
                             ) : (
-                              <span className="text-slate-500 italic">Chưa có phí</span>
+                              <span className="text-slate-400 italic">Chưa có phí</span>
                             )}
-                            <span
-                              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                apt.paymentStatus === 'PAID'
-                                  ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
-                                  : 'text-amber-700 bg-amber-50 border border-amber-200'
-                              }`}
-                            >
-                              {apt.paymentStatus === 'PAID' ? '✓ Đã Thanh Toán' : '● Chưa Thanh Toán'}
-                            </span>
+                            {!isCancelled && (
+                              <span
+                                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                                  apt.paymentStatus === 'PAID'
+                                    ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                                    : 'text-amber-700 bg-amber-50 border border-amber-200'
+                                }`}
+                              >
+                                {apt.paymentStatus === 'PAID' ? '✓ Đã thanh toán' : '● Chưa thanh toán'}
+                              </span>
+                            )}
                           </div>
-                          {apt.paymentStatus !== 'PAID' && apt.status !== 'CANCELLED' && apt.status !== 'NO_SHOW' && fee && (
+                          {apt.paymentStatus !== 'PAID' && !isCancelled && fee && (
                             <button
                               type="button"
                               onClick={() => handlePayAppointment(apt)}
                               disabled={payingApptId !== null || isUnverified}
                               title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
-                              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
                             >
-                              <CreditCard className="w-3.5 h-3.5" />
-                              <span>{payingApptId === apt.id ? 'Đang kết nối...' : 'Thanh Toán Online (Stripe)'}</span>
+                              <CreditCard className="w-3 h-3" />
+                              <span>{payingApptId === apt.id ? 'Đang kết nối...' : 'Thanh Toán Online'}</span>
                             </button>
                           )}
                         </div>
                       </div>
 
-                      {/* Chief Complaint if any */}
-                      {apt.chiefComplaint && (
-                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-                          <span className="font-bold text-slate-600 block mb-0.5">Lý do khám bệnh:</span>
-                          <p className="text-slate-800 font-medium">{apt.chiefComplaint}</p>
-                        </div>
-                      )}
-
-                      {/* EMR Highlights if completed */}
+                      {/* EMR Highlights (only for COMPLETED) */}
                       {isCompleted && (
-                        <div className="p-4 rounded-xl bg-indigo-50/60 border border-indigo-100/80 text-xs space-y-2">
-                          <div className="flex items-center justify-between text-indigo-900 font-bold">
-                            <span className="flex items-center gap-1">
+                        <div className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-100/80 text-xs space-y-1.5">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-indigo-900 font-bold">
+                            <span className="flex items-center gap-1.5">
                               <Activity className="w-3.5 h-3.5 text-indigo-600" />
-                              Chẩn Đoán Lâm Sàng & Đơn Thuốc Đã Kê
+                              {apt.icd10Name ? `Chẩn đoán: ${apt.icd10Name}` : 'Kết quả khám & Đơn thuốc'}
                             </span>
                             {apt.icd10Code && (
-                              <span className="font-mono bg-white px-2 py-0.5 rounded-md border border-indigo-200 text-indigo-700">
+                              <span className="font-mono text-[11px] bg-white px-2 py-0.5 rounded border border-indigo-200 text-indigo-700">
                                 ICD-10: {apt.icd10Code}
                               </span>
                             )}
                           </div>
 
-                          {apt.icd10Name && (
-                            <p className="font-semibold text-slate-800">
-                              Bệnh lý: <span className="text-indigo-900">{apt.icd10Name}</span>
-                            </p>
-                          )}
-
                           {apt.consultationNotes && (
-                            <p className="text-slate-600 italic">
-                              "{apt.consultationNotes}"
-                            </p>
+                            <p className="text-slate-600 italic line-clamp-2">"{apt.consultationNotes}"</p>
                           )}
 
-                          {/* Mini Vitals */}
-                          {vitals && (
-                            <div className="flex flex-wrap gap-2 pt-1 border-t border-indigo-100/60 text-[11px]">
+                          {vitals && (hasVital(vitals.bloodPressure) || hasVital(vitals.heartRate) || hasVital(vitals.spO2)) && (
+                            <div className="flex flex-wrap gap-1.5 text-[11px]">
                               {hasVital(vitals.bloodPressure) && (
                                 <span className="bg-white px-2 py-0.5 rounded border border-indigo-100">
-                                  Huyết áp: <strong>{vitals.bloodPressure}</strong> mmHg
+                                  HA: <strong>{vitals.bloodPressure}</strong> mmHg
                                 </span>
                               )}
                               {hasVital(vitals.heartRate) && (
@@ -1128,91 +1128,80 @@ export const PatientDashboard: React.FC = () => {
                               )}
                             </div>
                           )}
-
-                          {/* Action view full EMR & Rating */}
-                          <div className="pt-2 flex flex-wrap items-center justify-end gap-2">
-                            {reviewsMap[apt.id] ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setReviewingAppointment(apt);
-                                  setReviewModalOpen(true);
-                                }}
-                                className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                              >
-                                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                                <span>Đã Đánh Giá ({reviewsMap[apt.id].rating}★)</span>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setReviewingAppointment(apt);
-                                  setReviewModalOpen(true);
-                                }}
-                                className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-                              >
-                                <Star className="w-3.5 h-3.5 fill-white text-white" />
-                                <span>⭐ Đánh Giá Bác Sĩ</span>
-                              </button>
-                            )}
-
-                            <button
-                              type="button"
-                              onClick={() => setSelectedEmrAppointment(apt)}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                            >
-                              <FileText className="w-3.5 h-3.5" /> Xem Chi Tiết Bệnh Án EMR
-                            </button>
-                          </div>
                         </div>
                       )}
 
-                      {/* Action Bar */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 text-xs">
-                        <span className="text-slate-400">
+                      {/* Unified Compact Action Bar */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+                        <span className="text-[11px] text-slate-400">
                           {isScheduled
                             ? apt.consultationType === 'ONLINE'
-                              ? 'Vào phòng khám Online trước giờ hẹn 5–10 phút để kiểm tra camera & micro'
+                              ? 'Vào phòng Online trước 5–10 phút để kiểm tra mic & camera'
                               : 'Vui lòng có mặt trước 15 phút để làm thủ tục'
-                            : ''}
+                            : isCancelled
+                              ? 'Lịch hẹn đã kết thúc — bạn vẫn có thể xem lại lịch sử trao đổi'
+                              : ''}
                         </span>
 
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {apt.consultationType === 'ONLINE' &&
                             (apt.status === 'SCHEDULED' || apt.status === 'CHECKED_IN' || apt.status === 'IN_PROGRESS') && (
                               <button
                                 type="button"
                                 onClick={() => setVideoRoomAppointment(apt)}
-                                className="px-3.5 py-1.5 text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                className="h-8 px-3 text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold transition inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
                               >
                                 <Video className="w-3.5 h-3.5" />
-                                <span>Vào Phòng Khám Online / Video Call</span>
+                                <span>Vào Phòng Video</span>
                               </button>
                             )}
+
+                          {isCompleted && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedEmrAppointment(apt)}
+                                className="h-8 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>Xem Bệnh Án</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReviewingAppointment(apt);
+                                  setReviewModalOpen(true);
+                                }}
+                                className={`h-8 px-2.5 rounded-xl font-bold transition inline-flex items-center gap-1 cursor-pointer ${
+                                  reviewsMap[apt.id]
+                                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200'
+                                    : 'bg-amber-500 hover:bg-amber-600 text-white shadow-2xs'
+                                }`}
+                              >
+                                <Star className={`w-3.5 h-3.5 ${reviewsMap[apt.id] ? 'fill-amber-400 text-amber-400' : 'fill-white text-white'}`} />
+                                <span>{reviewsMap[apt.id] ? `${reviewsMap[apt.id].rating}★` : 'Đánh giá'}</span>
+                              </button>
+                            </>
+                          )}
 
                           <button
                             type="button"
                             onClick={() => setChatAppointment(apt)}
-                            className="px-3 py-1.5 text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                            className="h-8 px-2.5 text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl font-bold transition inline-flex items-center gap-1.5 cursor-pointer"
                           >
                             <MessageSquare className="w-3.5 h-3.5 text-teal-600" />
-                            <span>
-                              {apt.status === 'COMPLETED' || apt.status === 'CANCELLED' || apt.status === 'NO_SHOW'
-                                ? 'Xem Lịch Sử Chat'
-                                : 'Nhắn Tin Bác Sĩ'}
-                            </span>
+                            <span>{isCompleted || isCancelled ? 'Lịch Sử Chat' : 'Nhắn Tin'}</span>
                           </button>
 
-                          {apt.status !== 'CANCELLED' && apt.status !== 'NO_SHOW' && (
+                          {!isCancelled && (
                             <button
                               type="button"
                               onClick={() => setSelectedTicketAppointment(apt)}
-                              className="px-3 py-1.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                              title={apt.consultationType === 'ONLINE' ? 'Xem thông tin phòng khám trực tuyến' : 'Xem phiếu khám điện tử có mã QR và số thứ tự'}
+                              className="h-8 px-2.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl font-bold transition inline-flex items-center gap-1 cursor-pointer"
+                              title={apt.consultationType === 'ONLINE' ? 'Xem vé khám trực tuyến' : 'Xem phiếu khám QR & số thứ tự'}
                             >
                               <QrCode className="w-3.5 h-3.5 text-indigo-600" />
-                              <span>{apt.consultationType === 'ONLINE' ? '📋 Xem Vé Khám Online' : '📋 Xem Phiếu Khám'}</span>
+                              <span>{apt.consultationType === 'ONLINE' ? 'Vé Online' : 'Phiếu Khám'}</span>
                             </button>
                           )}
 
@@ -1223,16 +1212,16 @@ export const PatientDashboard: React.FC = () => {
                                 onClick={() => openReschedule(apt)}
                                 disabled={isUnverified}
                                 title={isUnverified ? EMAIL_NOT_VERIFIED_TOOLTIP : undefined}
-                                className="px-3 py-1.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="h-8 px-2.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-xl font-bold transition inline-flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                <Calendar className="w-3.5 h-3.5" /> Dời Lịch Hẹn
+                                <Calendar className="w-3.5 h-3.5" /> Dời Lịch
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleCancelAppointment(apt.id)}
-                                className="px-3 py-1.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer"
+                                className="h-8 px-2.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl font-bold transition inline-flex items-center gap-1 cursor-pointer"
                               >
-                                <Ban className="w-3.5 h-3.5" /> Hủy Lịch Khám
+                                <Ban className="w-3.5 h-3.5" /> Hủy
                               </button>
                             </>
                           )}
